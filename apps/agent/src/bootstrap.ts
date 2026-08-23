@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-import type { Model } from "@codepilotx/model-schema";
 import { loadConfig } from "./config/Config";
 import { ConfigService } from "./config/ConfigService";
 import { SqliteProjectTrustStore } from "./config/ProjectTrustStore";
@@ -33,6 +32,7 @@ import {
 } from "./provider/pi";
 import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
+import { resolveSpecializedPiModel } from "./provider/pi/PiSpecializedModelResolver";
 import { createApp } from "./transport/server";
 import { AgentLogger } from "./observability/AgentLogger";
 import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
@@ -660,17 +660,20 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       scrub: (value) => secretScrubber.scrubText(value),
       extractor: {
         extract: async ({ transcript, projectKey, signal }) => {
-          const currentConfig = configService.snapshot();
-          const modelID = typeof currentConfig.model === "string" ? currentConfig.model : undefined;
-          const providerID = typeof currentConfig.model_provider === "string" ? currentConfig.model_provider : undefined;
-          const ref = modelID && providerID
-            ? { providerID, id: modelID } as Model.Ref
-            : null;
-          if (!ref) return [];
-          const model = await piModels.getPiModel(ref);
+          const projectId = projectKey?.startsWith("project:")
+            ? projectKey.slice("project:".length)
+            : undefined;
+          const selected = await resolveSpecializedPiModel({
+            purpose: "organization",
+            db,
+            models: piModels,
+            configService,
+            ...(projectId ? { projectId } : {}),
+          });
+          if (!selected) return [];
           const object = await generatePiObject({
             models: piModels.pi,
-            model,
+            model: selected.model,
             ...(signal ? { signal } : {}),
             schema: z.object({
               memories: z

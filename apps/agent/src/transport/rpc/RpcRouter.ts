@@ -26,6 +26,7 @@ import type { ModelHealthService } from "../../provider/ModelHealthService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
 import type { ProviderCredentialStoreManager } from "../../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../../provider/pi"
+import { resolveSpecializedPiModel } from "../../provider/pi/PiSpecializedModelResolver"
 import type { PiAuthSessionService } from "../../auth/PiAuthSessionService"
 import type { ThreadHistoryService } from "../../session/ThreadHistoryService"
 import type { ThreadService } from "../../session/ThreadService"
@@ -479,8 +480,8 @@ export class RpcRouter {
     const source = await this.loadCatalogSource()
     const config = this.dependencies.config.snapshot()
     const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
-    const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
-      ? config.task_models as Record<string, unknown>
+    const specializedModels = config.specialized_models && typeof config.specialized_models === "object" && !Array.isArray(config.specialized_models)
+      ? config.specialized_models as Record<string, unknown>
       : {}
     const configuredDefault = providerID && typeof config.model === "string"
       ? {
@@ -493,8 +494,15 @@ export class RpcRouter {
             : {}),
         } as Model.Ref
       : null
-    const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
-      ? { providerID, id: taskModels.reviewer } as Model.Ref
+    const security = typeof specializedModels.security === "string"
+      ? specializedModels.security.trim()
+      : ""
+    const separator = security.indexOf("/")
+    const configuredReviewer = security
+      ? {
+          providerID: separator > 0 ? security.slice(0, separator) : providerID,
+          id: separator > 0 ? security.slice(separator + 1) : security,
+        } as Model.Ref
       : null
     const available = (ref: Model.Ref | null) => {
       if (!ref) return null
@@ -660,6 +668,7 @@ export const resolveAiReviewSource = async (
 export const aiReviewModel = async (
   db: AgentDatabase,
   providers: AgentModelCatalog,
+  piModels: PiModelService,
   configService: ConfigService,
   threadId: string,
   projectId: string,
@@ -673,34 +682,15 @@ export const aiReviewModel = async (
       latestModel = null
     }
   }
-  const project = db.getProject(projectId)
-  const config = (await configService.read(
-    project ? { cwd: project.rootPath } : {},
-  )).config
-  const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
-    ? config.task_models as Record<string, unknown>
-    : {}
-  const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
-  const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
-    ? { providerID, id: taskModels.reviewer } as Model.Ref
-    : null
-  const configuredDefault = providerID && typeof config.model === "string"
-    ? { providerID, id: config.model } as Model.Ref
-    : null
-  const candidates = [
-    configuredReviewer,
-    latestModel,
-    configuredDefault,
-  ]
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    try {
-      await providers.resolve(candidate)
-      return candidate
-    } catch {
-      // Try the next configured model.
-    }
-  }
+  const specialized = await resolveSpecializedPiModel({
+    purpose: "coding",
+    db,
+    models: piModels,
+    configService,
+    projectId,
+    ...(latestModel ? { fallbackRefs: [latestModel] } : {}),
+  })
+  if (specialized) return specialized.ref
   const first = (await providers.models()).find((candidate) => candidate.enabled)
   if (!first) throw new AgentError("MODEL_UNAVAILABLE", "没有可用于代码审查的模型", 409)
   return Model.Ref.make({ providerID: first.providerID, id: first.id })

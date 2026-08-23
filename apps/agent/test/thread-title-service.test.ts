@@ -42,12 +42,14 @@ const fixture = async () => {
 const config = {
   snapshot: () => ({
     model_provider: "provider:test",
-    task_models: { small_fast: "small", fast: "fast" },
+    model: "fast",
+    specialized_models: { generation: "provider:test/small" },
   }),
   read: async () => ({
     config: {
       model_provider: "provider:test",
-      task_models: { small_fast: "small", fast: "fast" },
+      model: "fast",
+      specialized_models: { generation: "provider:test/small" },
     },
   }),
 } as never
@@ -67,7 +69,7 @@ const addUserMessage = (db: AgentDatabase, threadID: string, content: string) =>
 }
 
 describe("ThreadTitleService", () => {
-  test("uses the auxiliary-model fallback chain and persists a normalized 20-character title", async () => {
+  test("uses the generation-model fallback chain and persists a normalized 20-character title", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     addUserMessage(db, thread.id, "# 修复设置页下拉框文字消失并统一选项布局")
@@ -104,7 +106,7 @@ describe("ThreadTitleService", () => {
     expect(history.getListItem(thread.id)?.updatedAt).toBe(activityAt)
   })
 
-  test("persists a deterministic fallback when no auxiliary model is configured", async () => {
+  test("persists a deterministic fallback when no generation model is configured", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     const content = "> **修复普通下拉框文字消失并保持现有交互行为**"

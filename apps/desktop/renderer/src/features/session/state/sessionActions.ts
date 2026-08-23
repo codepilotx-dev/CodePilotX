@@ -36,12 +36,6 @@ export type SessionSettingsSnapshot = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -149,12 +143,6 @@ export async function createSessionForWorkspaceAction(
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
       model: normalizeOptionalText(settings.model),
-      planExecutionModel: normalizeOptionalText(settings.planExecutionModel),
-      reviewModel: normalizeOptionalText(settings.reviewModel),
-      smallFastModel: normalizeOptionalText(settings.smallFastModel),
-      fastModel: normalizeOptionalText(settings.fastModel),
-      defaultModel: normalizeOptionalText(settings.defaultModel),
-      deepModel: normalizeOptionalText(settings.deepModel),
       sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
@@ -194,7 +182,6 @@ export async function createSessionForWorkspaceAction(
         planModeActive: settings.planModeActive,
         localRouterMode: settings.localRouterMode,
         model: normalizeOptionalText(settings.model) ?? null,
-        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(

@@ -268,12 +268,7 @@ export function DesktopLayout(): React.ReactNode {
   const {
     permissionMode,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
+    codingModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -468,12 +463,6 @@ export function DesktopLayout(): React.ReactNode {
     providerID,
     providerBaseURL,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -2532,7 +2521,7 @@ export function DesktopLayout(): React.ReactNode {
             enableAutoReviewPermissionMode ?? false,
           enableFullAccessPermissionMode:
             enableFullAccessPermissionMode ?? false,
-          planExecutionModel,
+          codingModel,
           thinkingMode,
           selectedProviderID,
           selectedModelPreset: resolvedSelectedModelPreset,
@@ -2638,7 +2627,7 @@ export function DesktopLayout(): React.ReactNode {
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
         enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
-        planExecutionModel={planExecutionModel}
+        codingModel={codingModel}
         thinkingMode={sideSettings.thinkingMode}
         selectedProviderID={sideSettings.providerID}
         selectedModelPreset={sideSelectedModelPreset}

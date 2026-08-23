@@ -174,7 +174,10 @@ export const providerHandlers = {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
         await config.batchWrite({
-          edits: [{ keyPath: ["task_models", "reviewer"], value: model ? String(model.id) : null }],
+          edits: [{
+            keyPath: ["specialized_models", "security"],
+            value: model ? `${String(model.providerID)}/${String(model.id)}` : null,
+          }],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
         return { reviewerModel: model, settingsVersion: catalog.catalogVersion }
@@ -328,21 +331,16 @@ export const providerHandlers = {
         if (definition.kind !== "custom") {
           throw new AgentError("CONFLICT", "只能删除自定义 Provider", 409)
         }
-        const taskModels = snapshot.task_models && typeof snapshot.task_models === "object"
-          ? snapshot.task_models as Record<string, unknown>
+        const specializedModels = snapshot.specialized_models && typeof snapshot.specialized_models === "object"
+          ? snapshot.specialized_models as Record<string, unknown>
           : {}
-        const reviewerModelID = typeof taskModels.reviewer === "string"
-          ? taskModels.reviewer
-          : undefined
-        const reviewerReferencesProvider = reviewerModelID
-          ? (await providers.models()).some(
-              (model) =>
-                String(model.providerID) === providerID &&
-                String(model.id) === reviewerModelID,
-            )
-          : false
-        if (snapshot.model_provider === providerID || reviewerReferencesProvider) {
-          throw new AgentError("CONFLICT", "Provider 仍被默认模型或 Reviewer 模型引用", 409)
+        const specializedReferencesProvider = Object.values(specializedModels).some((value) =>
+          typeof value === "string"
+          && (value.startsWith(`${providerID}/`)
+            || (!value.includes("/") && snapshot.model_provider === providerID)),
+        )
+        if (snapshot.model_provider === providerID || specializedReferencesProvider) {
+          throw new AgentError("CONFLICT", "Provider 仍被默认模型或专用模型引用", 409)
         }
         await config.batchWrite({
           edits: [{ keyPath: ["model_providers", providerID], value: null }],

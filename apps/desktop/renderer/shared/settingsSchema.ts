@@ -164,12 +164,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     shellSecurityLevel: 'balanced',
     terminalProfileId: null,
     model: '',
-    planExecutionModel: '',
-    reviewModel: '',
-    smallFastModel: '',
-    fastModel: '',
-    defaultModel: '',
-    deepModel: '',
+    generationModel: '',
+    organizationModel: '',
+    codingModel: '',
+    securityModel: '',
     sessionName: '',
     thinkingMode: 'default',
     systemPrompt: '',
@@ -310,35 +308,30 @@ export function normalizeDesktopStoredSettings(
         ? parsed.terminalProfileId
         : defaults.terminalProfileId,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
-    planExecutionModel: stringOrDefault(
-      parsed.planExecutionModel,
-      defaults.planExecutionModel,
+    generationModel: stringOrDefault(
+      parsed.generationModel,
+      stringOrDefault(parsed.smallFastModel, stringOrDefault(parsed.fastModel, defaults.generationModel)),
     ),
-    reviewModel: stringOrDefault(parsed.reviewModel, defaults.reviewModel),
-    smallFastModel: stringOrDefault(
-      parsed.smallFastModel,
-      defaults.smallFastModel,
+    organizationModel: stringOrDefault(
+      parsed.organizationModel,
+      stringOrDefault(parsed.smallFastModel, stringOrDefault(parsed.fastModel, defaults.organizationModel)),
     ),
-    fastModel: stringOrDefault(
-      parsed.fastModel,
+    codingModel: stringOrDefault(
+      parsed.codingModel,
       stringOrDefault(
-        (parsed as { haikuModel?: unknown }).haikuModel,
-        defaults.fastModel,
+        parsed.planExecutionModel,
+        stringOrDefault(
+          parsed.deepModel,
+          stringOrDefault(
+            parsed.defaultModel,
+            stringOrDefault(parsed.reviewModel, defaults.codingModel),
+          ),
+        ),
       ),
     ),
-    defaultModel: stringOrDefault(
-      parsed.defaultModel,
-      stringOrDefault(
-        (parsed as { sonnetModel?: unknown }).sonnetModel,
-        defaults.defaultModel,
-      ),
-    ),
-    deepModel: stringOrDefault(
-      parsed.deepModel,
-      stringOrDefault(
-        (parsed as { opusModel?: unknown }).opusModel,
-        defaults.deepModel,
-      ),
+    securityModel: stringOrDefault(
+      parsed.securityModel,
+      stringOrDefault(parsed.reviewModel, defaults.securityModel),
     ),
     sessionName: stringOrDefault(parsed.sessionName, defaults.sessionName),
     thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)

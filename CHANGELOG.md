@@ -41,6 +41,7 @@
 - [desktop/renderer] 按主题语义重塑思考等级弹层，以当前等级、粗轨道、大滑块和离散刻度提供更直观的调节反馈。
 - [desktop/renderer] 将思考等级从模型选择器拆分为独立等级按钮，使模型与推理设置可以分别调整。
 - [development] 重构根与各 workspace 的 AGENTS.md 规则层级，明确全仓红线、局部细则及兼容边界，减少重复和 Agent 误判。
+- [agent/desktop/renderer] 将六项性能分档任务模型收敛为生成、整理、代码和安全四类专用模型，按用途复用任务建议、标题、记忆、上下文、计划执行、代码审查和权限审核能力并迁移旧配置；任务建议生成超时由 8 秒延长至 15 秒，并记录实际模型与耗时。
 - [desktop/renderer] 固化 Workbench 区域颜色归属规范，明确右侧 Dock 与底部 Panel 跟随工作区画布，窗口菜单栏与左侧栏保持应用 Chrome 层级。
 - [desktop/development] 对齐 Codex 的 Windows Window Controls Overlay：原生按钮区改为完全透明并透出 Renderer 菜单栏背景，菜单栏与 Overlay 使用确定的 36px 逻辑高度，移除 DOM 实测颜色/高度回写 IPC 及其缩放反馈环，避免右上角色块断层和标题栏高度自增。
 - [desktop/renderer] 为窗口菜单栏、侧边栏和工作区建立独立区域颜色 token；窗口 Chrome 默认同色，右侧 Dock 与底部 Panel 跟随工作区画布。
@@ -145,6 +146,7 @@
 - [desktop/models] 放宽 Provider 目录卡片的内部留白与图文间距，并移除面向用户展示的 models.dev 缓存来源标签。
 - [desktop/renderer] 修正亮色主题中 control、raised 与 recessed 表面的层级方向，并为浮动 Composer 和线程环境摘要恢复克制的 prominent elevation，常驻 Dock、Panel 与普通卡片继续保持零阴影。
 - [desktop/models] 修复 Provider 远程图标及其固定占位在目录卡片中塌缩、连带破坏图文间距的问题，并改为启动后后台校验 models.dev、失败回退缓存，同时提供页面级手动刷新。
+- [agent] 修复 history schema 24 迁移测试夹具误执行新版任务上下文表 DDL、因缺失任务看板依赖表而无法验证逐代迁移的问题。
 - [desktop] 修复 Pi OAuth 登录在认证方式选择提示中持续加载、无法提交，以及授权完成后 Provider 模型目录未立即生效的问题，并确保打包后的 Agent sidecar 内置 OAuth 流程可加载。
 
 - [desktop] 修复 Windows 原生窗口控制区未跟随应用标题栏主题与高度，消除浅色和自定义主题下的顶栏颜色断层。

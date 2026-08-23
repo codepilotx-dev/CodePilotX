@@ -21,6 +21,84 @@ afterEach(async () => {
 })
 
 describe("ConfigService", () => {
+  test("三层配置幂等迁移任务模型且保留旧键与未知内容", async () => {
+    const root = await temporaryRoot()
+    const userConfig = join(root, "config.json")
+    const profileDirectory = join(root, "profiles")
+    const profileConfig = join(profileDirectory, "focused.json")
+    const workspace = join(root, "workspace")
+    const projectConfig = join(workspace, ".codepilotx", "config.json")
+    await mkdir(profileDirectory, { recursive: true })
+    await mkdir(join(workspace, ".codepilotx"), { recursive: true })
+    await writeFile(userConfig, [
+      "{",
+      "  // user comment",
+      '  "profile": "focused",',
+      '  "task_models": { "small_fast": "user-small", "fast": "user-fast", "plan": "user-plan", "reviewer": "user-reviewer" },',
+      '  "specialized_models": { "generation": "custom/already-set" },',
+      '  "future_user_key": { "keep": true },',
+      "}",
+      "",
+    ].join("\n"), "utf8")
+    await writeFile(profileConfig, JSON.stringify({
+      task_models: { fast: "profile-fast", deep: "profile-deep" },
+    }, null, 2), "utf8")
+    await writeFile(projectConfig, [
+      "{",
+      "  // project comment",
+      '  "task_models": { "default": "project-default", "reviewer": "project-reviewer" },',
+      '  "future_project_key": true,',
+      "}",
+      "",
+    ].join("\n"), "utf8")
+
+    const service = new ConfigService(userConfig)
+    await service.initialize()
+    await service.trustUpdate(workspace, "trusted")
+    await service.read({ cwd: workspace })
+
+    const user = await readFile(userConfig, "utf8")
+    const profileText = await readFile(profileConfig, "utf8")
+    const project = await readFile(projectConfig, "utf8")
+    const layers = new Map(service.snapshotLayers(workspace).map((layer) => [layer.kind, layer.config]))
+    expect(user).toContain("// user comment")
+    expect(user).toContain('"future_user_key"')
+    expect(layers.get("user")).toMatchObject({
+      task_models: { small_fast: "user-small", reviewer: "user-reviewer" },
+      specialized_models: {
+        generation: "custom/already-set",
+        organization: "user-small",
+        coding: "user-plan",
+        security: "user-reviewer",
+      },
+    })
+    expect(layers.get("profile")).toMatchObject({
+      task_models: { fast: "profile-fast", deep: "profile-deep" },
+      specialized_models: {
+        generation: "profile-fast",
+        organization: "profile-fast",
+        coding: "profile-deep",
+      },
+    })
+    expect(layers.get("profile")?.specialized_models).not.toHaveProperty("security")
+    expect(project).toContain("// project comment")
+    expect(project).toContain('"future_project_key"')
+    expect(layers.get("project")).toMatchObject({
+      task_models: { default: "project-default", reviewer: "project-reviewer" },
+      specialized_models: {
+        coding: "project-default",
+        security: "project-reviewer",
+      },
+    })
+
+    const beforeSecondRead = { user, profile: profileText, project }
+    await service.read({ cwd: workspace })
+    expect(await readFile(userConfig, "utf8")).toBe(beforeSecondRead.user)
+    expect(await readFile(profileConfig, "utf8")).toBe(beforeSecondRead.profile)
+    expect(await readFile(projectConfig, "utf8")).toBe(beforeSecondRead.project)
+    await service.dispose()
+  })
+
   test("活动 Profile 作为独立 JSONC 层覆盖用户配置且项目配置优先", async () => {
     const root = await temporaryRoot()
     const userConfig = join(root, "config.json")

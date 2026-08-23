@@ -43,6 +43,44 @@ describe("首次模型配置向导", () => {
   })
 })
 
+describe("专用模型设置迁移", () => {
+  test("将旧任务模型映射到四类专用模型且不保留旧字段", () => {
+    const settings = normalizeDesktopStoredSettings({
+      smallFastModel: 'openai/gpt-fast',
+      fastModel: 'openai/gpt-fallback',
+      defaultModel: 'openai/gpt-default',
+      deepModel: 'openai/gpt-deep',
+      planExecutionModel: 'openai/gpt-code',
+      reviewModel: 'openai/gpt-safe',
+    })
+
+    expect(settings).toMatchObject({
+      generationModel: 'openai/gpt-fast',
+      organizationModel: 'openai/gpt-fast',
+      codingModel: 'openai/gpt-code',
+      securityModel: 'openai/gpt-safe',
+    })
+    expect('smallFastModel' in settings).toBe(false)
+    expect('planExecutionModel' in settings).toBe(false)
+    expect('reviewModel' in settings).toBe(false)
+  })
+
+  test("已有专用模型优先于旧任务模型", () => {
+    expect(normalizeDesktopStoredSettings({
+      generationModel: 'anthropic/claude-new',
+      codingModel: 'anthropic/claude-code',
+      smallFastModel: 'openai/gpt-old',
+      planExecutionModel: 'openai/gpt-old-code',
+    })).toMatchObject({
+      generationModel: 'anthropic/claude-new',
+      codingModel: 'anthropic/claude-code',
+    })
+    expect(normalizeDesktopStoredSettings({
+      reviewModel: 'openai/gpt-review',
+    }).codingModel).toBe('openai/gpt-review')
+  })
+})
+
 describe("语音输入设备设置", () => {
   test("默认跟随系统设备并保留有效设备 ID", () => {
     expect(

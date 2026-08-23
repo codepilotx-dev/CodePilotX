@@ -19,43 +19,17 @@ function splitProviderModel(value: string): { providerID: string; id: string } |
 
 type ModelOption = { value: string; label: string; detail?: string }
 
-type TaskModelKey =
-  | 'smallFastModel'
-  | 'fastModel'
-  | 'defaultModel'
-  | 'deepModel'
-  | 'planExecutionModel'
-  | 'reviewModel'
+type SpecializedModelKey =
+  | 'generationModel'
+  | 'organizationModel'
+  | 'codingModel'
+  | 'securityModel'
 
-const TASK_MODEL_LABELS: Record<TaskModelKey, { label: string; description: string }> = {
-  smallFastModel: {
-    label: '快速模型',
-    description: '用于标题、摘要、Hook、检索等轻量辅助任务；未配置时使用主模型。',
-  },
-  fastModel: {
-    label: '快速任务模型',
-    description:
-      '用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。',
-  },
-  defaultModel: {
-    label: '默认任务模型',
-    description:
-      '用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。',
-  },
-  deepModel: {
-    label: '深度任务模型',
-    description:
-      '用于高质量推理、复杂修改和深度审查；未配置时使用主模型。',
-  },
-  planExecutionModel: {
-    label: '计划执行模型',
-    description: '批准计划后用于实施阶段；未配置时使用默认任务模型。',
-  },
-  reviewModel: {
-    label: '权限审核模型（实验）',
-    description:
-      '仅用于 Shell 和工具权限的自动审核；自定义模型不兼容时会回退人工审批。',
-  },
+const SPECIALIZED_MODEL_LABELS: Record<SpecializedModelKey, string> = {
+  generationModel: '生成模型',
+  organizationModel: '整理模型',
+  codingModel: '代码模型',
+  securityModel: '安全模型（实验）',
 }
 
 function formatModelDetail(
@@ -82,18 +56,18 @@ function formatCompactNumber(value: number): string {
   return String(value)
 }
 
-export function TaskModelSelect({
+export function SpecializedModelSelect({
   value,
   mainModel,
-  taskModelKey,
+  specializedModelKey,
   onChange,
 }: {
   value: string
   mainModel: string
-  taskModelKey: TaskModelKey
+  specializedModelKey: SpecializedModelKey
   onChange: (newValue: string) => void
 }): React.ReactNode {
-  const { label, description } = TASK_MODEL_LABELS[taskModelKey]
+  const label = SPECIALIZED_MODEL_LABELS[specializedModelKey]
 
   const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
   const [providerModels, setProviderModels] = useState<

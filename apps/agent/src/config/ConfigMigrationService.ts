@@ -1,4 +1,10 @@
-import type { ConfigEdit, ConfigObject, ConfigService, ConfigValue } from "./ConfigService"
+import {
+  specializedModelMigrationEdits,
+  type ConfigEdit,
+  type ConfigObject,
+  type ConfigService,
+  type ConfigValue,
+} from "./ConfigService"
 import type {
   ConfigMigrationRepository,
 } from "../storage/repositories/config-migration-repository"
@@ -283,6 +289,15 @@ export class ConfigMigrationService {
       if (verified.diagnostics.some((item) => item.severity === "error")) {
         throw new Error("config.json migration verification failed")
       }
+    }
+    const migratedRead = await this.config.read({ includeLayers: true })
+    const migratedUser = migratedRead.layers?.find((layer) => layer.kind === "user")
+    const specializedEdits = specializedModelMigrationEdits(migratedUser?.config ?? {})
+    if (specializedEdits.length > 0) {
+      await this.config.batchWrite({
+        edits: specializedEdits,
+        ...(migratedUser?.version ? { expectedVersion: migratedUser.version } : {}),
+      })
     }
     for (const project of legacy.projects) {
       const projectFile = join(project.rootPath, ".codepilotx", "config.json")
