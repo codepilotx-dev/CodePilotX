@@ -222,6 +222,7 @@
 
 ### Security
 
+- [desktop] 所有普通/富文本剪贴板写入收口到 typed Electron IPC，Provider API Key 仅以 credentialId 请求并在主进程写入及 60 秒条件清理，同时撤销 Renderer 剪贴板权限。
 - [Agent/renderer] 将旧 `sandboxMode` 集中解释为结构化文件访问范围，明确终端命令始终以当前 Windows 用户在宿主机执行并继续经过风险、Hook、审批和临时授权门禁，不再暗示操作系统级沙箱隔离
 
 ## 0.2.0-beta.4 — 2026-08-07
