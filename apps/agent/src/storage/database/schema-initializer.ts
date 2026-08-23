@@ -1028,6 +1028,11 @@ const migrateHistory35To36 = (sqlite: Database) => {
   `)
 }
 
+const migrateHistory36To37 = (sqlite: Database) => {
+  sqlite.exec(`DROP VIEW IF EXISTS ${SEMANTIC_VIEW_NAME}`)
+  sqlite.exec(SEMANTIC_VIEW_SQL)
+}
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1058,6 +1063,105 @@ export const backfillProjectThreadWorkspaces = (history: Database, profile: Data
   }
 }
 
+/**
+ * Read-only semantic history view (schema 37). Exposes the user inputs and the
+ * assistant's result texts, plans and tool calls as a stable, JSON-safe,
+ * chronologically ordered projection. Views never carry write triggers.
+ */
+const SEMANTIC_VIEW_NAME = "thread_semantic_history_v1"
+
+const SEMANTIC_VIEW_SQL = `
+  CREATE VIEW ${SEMANTIC_VIEW_NAME} AS
+  WITH semantic_history_rows AS (
+    SELECT
+      threads.id AS thread_id,
+      threads.title AS thread_title,
+      threads.workspace_cwd AS workspace_cwd,
+      inputs.turn_id AS turn_id,
+      boundaries.entry_id AS entry_id,
+      NULL AS agent_id,
+      'user' AS role,
+      'message' AS kind,
+      inputs.status AS status,
+      inputs.content AS content,
+      '{}' AS metadata_json,
+      inputs.created_at AS created_at,
+      0 AS source_rank,
+      0 AS ordinal_rank,
+      inputs.id AS row_id
+    FROM inputs
+    JOIN threads ON threads.id = inputs.thread_id
+    LEFT JOIN turns ON turns.id = inputs.turn_id
+    LEFT JOIN turn_pi_boundaries AS boundaries ON boundaries.turn_id = turns.id
+
+    UNION ALL
+
+    SELECT
+      threads.id AS thread_id,
+      threads.title AS thread_title,
+      threads.workspace_cwd AS workspace_cwd,
+      items.turn_id AS turn_id,
+      boundaries.entry_id AS entry_id,
+      items.agent_id AS agent_id,
+      'assistant' AS role,
+      CASE items.type
+        WHEN 'text' THEN 'text'
+        WHEN 'plan' THEN 'plan'
+        WHEN 'tool' THEN 'tool'
+        ELSE items.type
+      END AS kind,
+      items.status AS status,
+      CASE items.type
+        WHEN 'plan' THEN json_extract(items.data, '$.markdown')
+        WHEN 'tool' THEN json_extract(items.data, '$.title')
+        ELSE json_extract(items.data, '$.text')
+      END AS content,
+      CASE items.type
+        WHEN 'tool' THEN
+          '{' || '"output_summary":' || json_quote(
+            CASE
+              WHEN json_type(items.data, '$.output') = 'text'
+                THEN substr(json_extract(items.data, '$.output'), 1, 4000)
+              ELSE ''
+            END
+          ) || ',"output_truncated":' ||
+          CASE
+            WHEN json_type(items.data, '$.output') = 'text'
+              AND length(json_extract(items.data, '$.output')) > 4000
+              THEN 'true'
+            ELSE 'false'
+          END || '}'
+        ELSE '{}'
+      END AS metadata_json,
+      items.created_at AS created_at,
+      1 AS source_rank,
+      COALESCE(items.ordinal, 0) AS ordinal_rank,
+      items.id AS row_id
+    FROM items
+    JOIN threads ON threads.id = items.thread_id
+    LEFT JOIN turn_pi_boundaries AS boundaries ON boundaries.turn_id = items.turn_id
+    WHERE items.type IN ('text', 'plan', 'tool')
+      AND (items.type <> 'text' OR json_extract(items.data, '$.placement') = 'result')
+  )
+  SELECT
+    thread_id,
+    thread_title,
+    workspace_cwd,
+    turn_id,
+    entry_id,
+    agent_id,
+    role,
+    kind,
+    status,
+    content,
+    metadata_json,
+    created_at,
+    ROW_NUMBER() OVER (
+      ORDER BY created_at ASC, source_rank ASC, ordinal_rank ASC, row_id ASC
+    ) AS sort_order
+  FROM semantic_history_rows
+`
+
 export const PROFILE_SCHEMA = FINAL_SCHEMA
   .filter((statement) => {
     const table = tableName(statement) ?? indexTable(statement)
@@ -1068,14 +1172,17 @@ export const PROFILE_SCHEMA = FINAL_SCHEMA
     "source_thread_id TEXT",
   ))
 
-export const HISTORY_SCHEMA = FINAL_SCHEMA
-  .filter((statement) => {
-    const table = tableName(statement) ?? indexTable(statement)
-    return table === null || !PROFILE_TABLES.has(table)
-  })
-  .map((statement) => statement
-    .replaceAll(" REFERENCES projects(id) ON DELETE SET NULL", "")
-    .replaceAll(" REFERENCES projects(id) ON DELETE CASCADE", ""))
+export const HISTORY_SCHEMA = [
+  ...FINAL_SCHEMA
+    .filter((statement) => {
+      const table = tableName(statement) ?? indexTable(statement)
+      return table === null || !PROFILE_TABLES.has(table)
+    })
+    .map((statement) => statement
+      .replaceAll(" REFERENCES projects(id) ON DELETE SET NULL", "")
+      .replaceAll(" REFERENCES projects(id) ON DELETE CASCADE", "")),
+  SEMANTIC_VIEW_SQL,
+]
 
 class SchemaInitializer {
   constructor(
@@ -1134,6 +1241,7 @@ class SchemaInitializer {
           33: () => migrateHistory33To34(this.sqlite),
           34: () => migrateHistory34To35(this.sqlite),
           35: () => migrateHistory35To36(this.sqlite),
+          36: () => migrateHistory36To37(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

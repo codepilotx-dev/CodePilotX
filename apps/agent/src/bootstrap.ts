@@ -106,6 +106,8 @@ import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPre
 import { TaskboardService } from "./taskboard/TaskboardService";
 import { TaskboardStartService } from "./taskboard/TaskboardStartService";
 import { createTaskboardDefinitions } from "./tool/Taskboard/definitions";
+import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
+import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
   BindingHandoffWorkspace,
   HandoffLifecycle,
@@ -479,6 +481,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
     for (const definition of createTaskboardDefinitions(taskboard)) tools.register(definition);
+    tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)));
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,

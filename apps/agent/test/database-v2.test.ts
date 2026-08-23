@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite"
 import { mkdtemp, readdir, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { Model, Provider } from "@codepilotx/model-schema"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase, DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
 import { FINAL_SCHEMA, HISTORY_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
@@ -19,6 +20,52 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
         .replace(", workspace_roots TEXT, instruction_sources TEXT", "")
         .replace(", git_branch TEXT)", ")")
     : statement)
+
+// schema 37 冻结的语义历史视图契约。生产 schema 目前仍为 36，
+// 这些测试应因目标视图/版本缺失而失败；实现 37 后必须满足下列外部语义。
+const SEMANTIC_VIEW_NAME = "thread_semantic_history_v1"
+const SEMANTIC_VIEW_VERSION = 37
+const TOOL_OUTPUT_SUMMARY_LIMIT = 4000
+const SEMANTIC_VIEW_COLUMNS = [
+  "thread_id",
+  "thread_title",
+  "workspace_cwd",
+  "turn_id",
+  "entry_id",
+  "agent_id",
+  "role",
+  "kind",
+  "status",
+  "content",
+  "metadata_json",
+  "created_at",
+  "sort_order",
+] as const
+
+const semanticSubmit = (content: string) => ({
+  content,
+  model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-4o") }),
+  permissionConfig: {
+    sandboxMode: "workspace-write" as const,
+    approvalPolicy: "on-request" as const,
+    approvalsReviewer: "user" as const,
+  },
+  strategy: "queue" as const,
+  taskMode: "chat" as const,
+})
+
+/** 写入 turn 对应的 Pi 会话/条目及边界，供视图暴露 entry_id 列。 */
+const seedSemanticBoundary = (db: AgentDatabase, input: { turnID: string; threadID: string; agentID: string; sessionID: string; entryID: string; createdAt: number }) => {
+  db.sqlite.query("INSERT INTO pi_sessions (id, thread_id, agent_id, leaf_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, ?)").run(
+    input.sessionID, input.threadID, input.agentID, input.entryID, input.createdAt, input.createdAt,
+  )
+  db.sqlite.query("INSERT INTO pi_session_entries (session_id, sequence, id, parent_id, type, payload, created_at) VALUES (?, 0, ?, NULL, 'assistant', '{}', ?)").run(
+    input.sessionID, input.entryID, input.createdAt,
+  )
+  db.sqlite.query("INSERT INTO turn_pi_boundaries (turn_id, session_id, entry_id) VALUES (?, ?, ?)").run(
+    input.turnID, input.sessionID, input.entryID,
+  )
+}
 
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
@@ -879,6 +926,174 @@ describe("数据库兼容与迁移", () => {
     expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 })
     expect(reopened.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'").get()).toBeNull()
     expect(reopened.sqlite.query("SELECT payload FROM future_runtime_data WHERE id = 'future:1'").get()).toEqual({ payload: "keep" })
+    reopened.close()
+  })
+
+  test("schema 37 fresh 数据库创建只读 thread_semantic_history_v1 视图且列集合固定", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v37-fresh-"))
+    paths.push(root)
+    const db = new AgentDatabase({ historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") })
+
+    expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SEMANTIC_VIEW_VERSION })
+    expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'view' AND name = ?").get(SEMANTIC_VIEW_NAME))
+      .toEqual({ name: SEMANTIC_VIEW_NAME })
+    const columns = (db.sqlite.query(`PRAGMA table_info(${SEMANTIC_VIEW_NAME})`).all() as Array<{ name: string }>).map(({ name }) => name)
+    expect(columns).toEqual([...SEMANTIC_VIEW_COLUMNS])
+    expect(() => db.sqlite.query(`INSERT INTO ${SEMANTIC_VIEW_NAME} (thread_id, thread_title) VALUES ('x', 'y')`).run())
+      .toThrow()
+    db.close()
+  })
+
+  test("schema 36 前向迁移到 37 保留原数据并新增语义历史视图", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v36-to-v37-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const db = new AgentDatabase(databasePaths)
+    const thread = db.createThread("迁移保留会话")
+    const turn = db.createTurn(thread.id, semanticSubmit("迁移保留的输入"), "completed")
+    const textItemID = "item:migration:text"
+    db.upsertItemWithEvent(thread.id, {
+      id: textItemID,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      type: "text",
+      status: "completed",
+      data: { placement: "result", text: "迁移保留的助手回复" },
+      createdAt: 1000,
+      updatedAt: 1000,
+    }, "item/completed")
+    db.close()
+
+    // 模拟升级前仍停留在 schema 36：删除视图并回退 user_version。
+    const legacy = new Database(databasePaths.historyPath)
+    legacy.exec(`DROP VIEW IF EXISTS ${SEMANTIC_VIEW_NAME}; PRAGMA user_version = ${SEMANTIC_VIEW_VERSION - 1};`)
+    legacy.close()
+
+    const migrated = new AgentDatabase(databasePaths)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SEMANTIC_VIEW_VERSION })
+    expect(migrated.getThread(thread.id)?.title).toBe("迁移保留会话")
+    expect(migrated.sqlite.query("SELECT data FROM items WHERE id = ?").get(textItemID)).toMatchObject({
+      data: expect.stringContaining("迁移保留的助手回复"),
+    })
+    expect(migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'view' AND name = ?").get(SEMANTIC_VIEW_NAME))
+      .toEqual({ name: SEMANTIC_VIEW_NAME })
+    const rows = migrated.sqlite.query(`SELECT role, kind, content FROM ${SEMANTIC_VIEW_NAME} WHERE thread_id = ?`).all(thread.id) as Array<{ role: string; kind: string; content: string }>
+    expect(rows).toContainEqual({ role: "user", kind: "message", content: "迁移保留的输入" })
+    expect(rows).toContainEqual({ role: "assistant", kind: "text", content: "迁移保留的助手回复" })
+    migrated.close()
+  })
+
+  test("语义历史视图按线程返回 inputs/result 文本/plan/tool 并排除 reasoning 与 process", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-semantic-history-"))
+    paths.push(root)
+    const db = new AgentDatabase({ historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") })
+    const workspaceRoot = join(root, "workspace")
+    const cwd = join(workspaceRoot, "work")
+    const thread = db.createThread({
+      id: "thread:semantic",
+      title: "语义历史会话",
+      workspace: { kind: "projectless", workspaceRoot, cwd, outputDirectory: join(workspaceRoot, "outputs") },
+    })
+    const turn1 = db.createTurn(thread.id, semanticSubmit("用户第一条消息"), "completed", { inputID: "input:semantic:1" })
+    const turn2 = db.createTurn(thread.id, semanticSubmit("用户第二条消息"), "completed", { inputID: "input:semantic:2" })
+    const setTurnTime = (turnID: string, inputID: string, createdAt: number) => {
+      db.sqlite.query("UPDATE turns SET created_at = ?, updated_at = ?, started_at = ?, finished_at = ? WHERE id = ?").run(createdAt, createdAt, createdAt, createdAt + 1000, turnID)
+      db.sqlite.query("UPDATE inputs SET created_at = ? WHERE id = ?").run(createdAt, inputID)
+    }
+    setTurnTime(turn1.turnID, turn1.inputID, 1000)
+    setTurnTime(turn2.turnID, turn2.inputID, 2000)
+    seedSemanticBoundary(db, { turnID: turn1.turnID, threadID: thread.id, agentID: turn1.agentID, sessionID: "session:semantic:1", entryID: "entry:semantic:1", createdAt: 1000 })
+    seedSemanticBoundary(db, { turnID: turn2.turnID, threadID: thread.id, agentID: turn2.agentID, sessionID: "session:semantic:2", entryID: "entry:semantic:2", createdAt: 2000 })
+
+    const longOutput = "X".repeat(TOOL_OUTPUT_SUMMARY_LIMIT + 1000)
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:reasoning", turnID: turn1.turnID, agentID: turn1.agentID, type: "reasoning", status: "completed", data: { text: "MUST_NOT_APPEAR_REASONING" }, createdAt: 1001, updatedAt: 1001 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:process", turnID: turn1.turnID, agentID: turn1.agentID, type: "text", status: "completed", data: { placement: "process", text: "MUST_NOT_APPEAR_PROCESS" }, createdAt: 1002, updatedAt: 1002 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:result", turnID: turn1.turnID, agentID: turn1.agentID, type: "text", status: "completed", data: { placement: "result", text: "第一条助手回复" }, createdAt: 1003, updatedAt: 1003 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:plan", turnID: turn1.turnID, agentID: turn1.agentID, type: "plan", status: "completed", data: { title: "实施计划", markdown: "# 第一步\n执行 A" }, createdAt: 1004, updatedAt: 1004 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:tool-short", turnID: turn1.turnID, agentID: turn1.agentID, type: "tool", status: "completed", data: { tool: "Read", title: "读取文件", output: "文件内容很短" }, createdAt: 1005, updatedAt: 1005 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:1:tool-long", turnID: turn1.turnID, agentID: turn1.agentID, type: "tool", status: "completed", data: { tool: "Bash", title: "执行命令", output: longOutput }, createdAt: 1006, updatedAt: 1006 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:2:reasoning", turnID: turn2.turnID, agentID: turn2.agentID, type: "reasoning", status: "completed", data: { text: "MUST_NOT_APPEAR_REASONING_2" }, createdAt: 2001, updatedAt: 2001 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:2:result", turnID: turn2.turnID, agentID: turn2.agentID, type: "text", status: "completed", data: { placement: "result", text: "第二条助手回复" }, createdAt: 2002, updatedAt: 2002 }, "item/completed")
+    db.upsertItemWithEvent(thread.id, { id: "item:semantic:2:tool", turnID: turn2.turnID, agentID: turn2.agentID, type: "tool", status: "completed", data: { tool: "Grep", title: "搜索符号", output: "非截断工具输出" }, createdAt: 2003, updatedAt: 2003 }, "item/completed")
+
+    const rows = db.sqlite.query(`SELECT * FROM ${SEMANTIC_VIEW_NAME} WHERE thread_id = ? ORDER BY sort_order`).all(thread.id) as Array<Record<string, string | number | null>>
+    expect(rows).toHaveLength(8)
+    for (const row of rows) {
+      expect(row.thread_id).toBe(thread.id)
+      expect(row.thread_title).toBe("语义历史会话")
+      expect(row.workspace_cwd).toBe(cwd)
+      expect(() => JSON.parse(String(row.metadata_json))).not.toThrow()
+    }
+    const kinds = rows.map((row) => String(row.kind))
+    expect(kinds.filter((kind) => kind === "message")).toHaveLength(2)
+    expect(kinds.filter((kind) => kind === "text")).toHaveLength(2)
+    expect(kinds.filter((kind) => kind === "plan")).toHaveLength(1)
+    expect(kinds.filter((kind) => kind === "tool")).toHaveLength(3)
+    expect(rows.some((row) => String(row.kind) === "reasoning")).toBe(false)
+    expect(rows.map((row) => String(row.content)).join("\n")).not.toContain("MUST_NOT_APPEAR")
+    expect(rows.filter((row) => String(row.kind) === "message").map((row) => String(row.role))).toEqual(["user", "user"])
+    expect(rows.filter((row) => String(row.kind) !== "message").every((row) => String(row.role) === "assistant")).toBe(true)
+
+    const byContent = new Map<string, Record<string, string | number | null>>()
+    for (const row of rows) byContent.set(String(row.content), row)
+    const result1 = byContent.get("第一条助手回复")!
+    expect(result1.kind).toBe("text")
+    expect(result1.role).toBe("assistant")
+    expect(result1.entry_id).toBe("entry:semantic:1")
+    expect(result1.agent_id).toBe(turn1.agentID)
+    const result2 = byContent.get("第二条助手回复")!
+    expect(result2.entry_id).toBe("entry:semantic:2")
+    const plan = byContent.get("# 第一步\n执行 A")!
+    expect(plan.kind).toBe("plan")
+    expect(plan.entry_id).toBe("entry:semantic:1")
+
+    const shortMeta = JSON.parse(String(byContent.get("读取文件")!.metadata_json)) as Record<string, unknown>
+    expect(shortMeta.output_summary).toBe("文件内容很短")
+    expect(Boolean(shortMeta.output_truncated)).toBe(false)
+    const longMeta = JSON.parse(String(byContent.get("执行命令")!.metadata_json)) as Record<string, unknown>
+    expect(String(longMeta.output_summary)).toHaveLength(TOOL_OUTPUT_SUMMARY_LIMIT)
+    expect(longMeta.output_summary).not.toBe(longOutput)
+    expect(Boolean(longMeta.output_truncated)).toBe(true)
+    const shortMeta2 = JSON.parse(String(byContent.get("搜索符号")!.metadata_json)) as Record<string, unknown>
+    expect(shortMeta2.output_summary).toBe("非截断工具输出")
+    expect(Boolean(shortMeta2.output_truncated)).toBe(false)
+
+    const createdAts = rows.map((row) => Number(row.created_at))
+    expect([...createdAts]).toEqual([...createdAts].sort((a, b) => a - b))
+    const sortOrders = rows.map((row) => Number(row.sort_order))
+    expect(new Set(sortOrders).size).toBe(rows.length)
+    expect(rows[0]?.kind).toBe("message")
+    expect(rows[0]?.content).toBe("用户第一条消息")
+    db.close()
+  })
+
+  test("更高未知 history schema 保留 user_version 与未知对象且不降级", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v37-future-"))
+    paths.push(root)
+    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const initial = new AgentDatabase(databasePaths)
+    const existing = initial.createThread("更高未知 schema 保留会话")
+    initial.close()
+
+    const futureVersion = SCHEMA_VERSION + 1
+    const future = new Database(databasePaths.historyPath)
+    future.exec(`
+      ALTER TABLE threads ADD COLUMN future_semantic_note TEXT;
+      CREATE TABLE future_semantic_records (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL
+      );
+      INSERT INTO future_semantic_records VALUES ('future:1', '{"keep":true}');
+      UPDATE threads SET future_semantic_note = 'keep' WHERE id = '${existing.id}';
+      PRAGMA user_version = ${futureVersion};
+    `)
+    future.close()
+
+    const reopened = new AgentDatabase(databasePaths)
+    expect(reopened.getThread(existing.id)?.title).toBe("更高未知 schema 保留会话")
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: futureVersion })
+    expect(reopened.sqlite.query("SELECT payload FROM future_semantic_records WHERE id = 'future:1'").get()).toEqual({ payload: '{"keep":true}' })
+    expect(reopened.sqlite.query("SELECT future_semantic_note FROM threads WHERE id = ?").get(existing.id)).toEqual({ future_semantic_note: "keep" })
     reopened.close()
   })
 })
