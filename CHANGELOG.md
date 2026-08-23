@@ -9,6 +9,7 @@
 
 ### Added
 
+- [agent/desktop/renderer] 新增任务级共享上下文 Capsule：关联的主会话、辅助会话与子 Agent 共享确定性摘要和按需条目，终态执行结果以幂等 Evidence 增量收录，并支持乐观并发发布、AI 预览应用、生命周期冻结及验收后项目记忆提升。
 - [agent/desktop] 内置不可卸载的任务规划 Skill，可在确认后将工作目标拆分并创建为任务看板任务。
 - [desktop/renderer] 为任务工作台新增可拖动排期的甘特图，支持日周月缩放、状态分组、定位今天和未排期任务展示。
 - [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
@@ -35,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 为窗口菜单栏、侧边栏和工作区建立独立区域颜色 token；窗口 Chrome 默认同色，右侧 Dock 与底部 Panel 跟随工作区画布。
 - [development] 将 MiniMax 全系列模型限制为只读文档查阅、代码探索和方案调研，禁止其修改任何工作区内容或承担编码实现；外部编码仅允许使用经确认的 DeepSeek 候选，否则由主 Agent 亲自完成。
 - [desktop/renderer] 建立 UI 交互术语规范并统一普通 Popover、Spinner、长文本展开、文件树语义与拖放反馈，减少重复实现并保持各领域状态边界。
 - [desktop/renderer] 将左侧栏、中央内容、辅助面板与底部面板收敛到统一 Workbench Shell，并保留面板尺寸、显隐及辅助面板最大化前状态的恢复语义。
@@ -126,6 +128,8 @@
 - [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
+
+- [desktop] 修复 Pi OAuth 登录在认证方式选择提示中持续加载、无法提交，以及授权完成后 Provider 模型目录未立即生效的问题，并确保打包后的 Agent sidecar 内置 OAuth 流程可加载。
 
 - [desktop] 修复 Windows 原生窗口控制区未跟随应用标题栏主题与高度，消除浅色和自定义主题下的顶栏颜色断层。
 
