@@ -125,7 +125,19 @@ describe('desktop runtime skills client', () => {
       requests.find(item => item.method === 'event/subscribe')?.params,
     ).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
-      liveEventTypes: ['skill/updated'],
+      liveEventTypes: [
+        'catalog/updated',
+        'provider/credential/updated',
+        'config/updated',
+        'workspace/file/changed',
+        'workspace/git/changed',
+        'usage/source/updated',
+        'model/health/updated',
+        'skill/updated',
+        'tooling/updated',
+        'mcp/updated',
+        'speech/statusChanged',
+      ],
     })
     source.onmessage?.({
       data: JSON.stringify({
