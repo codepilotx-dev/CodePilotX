@@ -20,7 +20,7 @@ import {
 } from 'react'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { desktopClient } from '../../../services/desktop-client/index.js'
+import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.js'
 import {
@@ -413,7 +413,7 @@ function TextAttachmentPreview({
           color="ghostSecondary"
           onClick={() => {
             setMessage('')
-            void navigator.clipboard.writeText(visibleText).then(
+            void desktopClipboard.writeText(visibleText).then(
               () => setMessage('已复制。'),
               () => setMessage('复制失败。'),
             )

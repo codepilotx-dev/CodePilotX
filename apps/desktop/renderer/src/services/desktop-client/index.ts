@@ -14,6 +14,8 @@ export {
   WORKSPACE_GIT_CHANGED_EVENT,
 } from './agent-session-client.js'
 export { startGithubLoginFlow } from './github-login.js'
+export { desktopClipboard } from './clipboard-client.js'
+export type { DesktopClipboard } from './clipboard-client.js'
 export type { DesktopTerminalClient } from './terminal-client.js'
 export type { DesktopBrowserClient } from './desktop-browser-client.js'
 

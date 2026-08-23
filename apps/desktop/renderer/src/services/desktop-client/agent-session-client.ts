@@ -2824,11 +2824,6 @@ export function createAgentSessionDesktopClient(
       loadAgentProviderCredentialApi().then(api =>
         api.deleteProviderCredential(credentialId),
       ),
-    copyProviderApiKey: credentialId => {
-      const copy = environment.window?.codePilotXDesktop?.copyProviderApiKey
-      if (!copy) throw new Error('安全复制仅在桌面应用中可用。')
-      return copy(credentialId)
-    },
     testModelProvider: (providerID, model) =>
       loadAgentModelHealthApi().then(api =>
         api.testModelProvider(providerID, model),

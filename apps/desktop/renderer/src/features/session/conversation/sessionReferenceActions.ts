@@ -1,4 +1,5 @@
 import { buildThreadDeepLink } from "@codepilotx/shared/thread-reference";
+import { desktopClipboard } from "../../../services/desktop-client/index.js";
 
 export const SESSION_REFERENCE_COPY_ERROR =
   "Failed to copy the session reference to the clipboard.";
@@ -146,13 +147,7 @@ function sessionReferenceClipboardText(
 
 function defaultCopyDeps(): SessionReferenceCopyDeps {
   return {
-    writeText: async (text: string): Promise<void> => {
-      const clipboard = navigator.clipboard;
-      if (!clipboard) {
-        throw new Error("Clipboard API is unavailable.");
-      }
-      await clipboard.writeText(text);
-    },
+    writeText: (text: string): Promise<void> => desktopClipboard.writeText(text),
     reportError: (error: Error): void => {
       window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
     },

@@ -7,6 +7,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
+import { desktopClipboard } from '../../services/desktop-client/index.js'
 import { DesktopThemeContext } from '../theme/themeContext.js'
 import type { DesktopThemeVariant } from '../../../shared/types.js'
 import {
@@ -303,19 +304,5 @@ export function syntaxTokenStyle(token: SyntaxToken): CSSProperties {
 }
 
 async function copyCodeText(code: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(code)
-    return
-  }
-
-  const textarea = document.createElement('textarea')
-  textarea.value = code
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.append(textarea)
-  textarea.select()
-  const copied = document.execCommand('copy')
-  textarea.remove()
-  if (!copied) throw new Error('Copy is unavailable.')
+  await desktopClipboard.writeText(code)
 }

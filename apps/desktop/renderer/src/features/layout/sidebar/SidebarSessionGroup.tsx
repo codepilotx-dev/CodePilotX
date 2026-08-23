@@ -34,7 +34,7 @@ import {
 } from "../../../components/ui/AppContextMenu.js";
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
-import { desktopClient } from '../../../services/desktop-client/index.js'
+import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
 import {
   beginSidebarSessionDrag,
@@ -280,7 +280,7 @@ function SidebarSessionGroupComponent({
         label: "复制会话 ID",
         icon: <Copy size={APP_ICON_SIZE} />,
         onSelect: () => {
-          void navigator.clipboard.writeText(session.id);
+          void desktopClipboard.writeText(session.id);
         },
       },
       {

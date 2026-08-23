@@ -3,6 +3,7 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { GitFork, Lock, Unlock } from 'lucide-react'
 import {
+  desktopClipboard,
   desktopClient,
   startGithubLoginFlow,
 } from '../../../services/desktop-client/index.js'
@@ -126,7 +127,7 @@ export function GithubRepositoryModal({
 
   async function copyGithubCode(): Promise<void> {
     if (!login?.userCode) return
-    await navigator.clipboard.writeText(login.userCode)
+    await desktopClipboard.writeText(login.userCode)
   }
 
   async function openGithubDevicePage(): Promise<void> {

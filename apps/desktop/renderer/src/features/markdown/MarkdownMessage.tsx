@@ -22,7 +22,10 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  desktopClipboard,
+} from '../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
@@ -758,16 +761,7 @@ function MarkdownTable({
 
   async function copyTable(): Promise<void> {
     try {
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([source], { type: 'text/plain' }),
-          }),
-        ])
-      } else {
-        await navigator.clipboard?.writeText(source)
-      }
+      await desktopClipboard.writeRichText({ text: source, html })
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2_000)
     } catch {
@@ -1340,7 +1334,7 @@ function FileReferenceButton({
         />
       ),
       onSelect: () => {
-        void navigator.clipboard
+        void desktopClipboard
           .writeText(absolutePath ?? reference.path)
           .catch(() => undefined)
       },

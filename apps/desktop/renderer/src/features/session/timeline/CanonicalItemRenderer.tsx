@@ -40,6 +40,7 @@ import {
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import { desktopClipboard } from "../../../services/desktop-client/index.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown.js";
@@ -1186,7 +1187,7 @@ function CopyButton({
         title={copied ? "已复制" : ariaLabel}
         onClick={(event) => {
           event.stopPropagation();
-          void navigator.clipboard?.writeText(text).then(() => {
+          void desktopClipboard.writeText(text).then(() => {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1400);
           });

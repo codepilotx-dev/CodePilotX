@@ -6,6 +6,7 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
   desktopClient,
+  desktopClipboard,
   startGithubLoginFlow,
 } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
@@ -103,7 +104,7 @@ export function GitSettings(): React.ReactNode {
 
   const copyGithubCode = async (): Promise<void> => {
     if (!githubLogin?.userCode) return
-    await navigator.clipboard.writeText(githubLogin.userCode)
+    await desktopClipboard.writeText(githubLogin.userCode)
   }
 
   const openGithubDevicePage = async (): Promise<void> => {

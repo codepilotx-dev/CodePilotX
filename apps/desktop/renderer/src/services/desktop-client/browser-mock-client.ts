@@ -633,9 +633,6 @@ export function createBrowserMockDesktopClient(
     reorderApiKeys: async () => [],
     testApiKey: async () => ({ ok: true, message: 'API Key 可用。' }),
     deleteProviderCredential: async () => [],
-    copyProviderApiKey: async () => {
-      throw new Error('安全复制仅在桌面应用中可用。')
-    },
     readProviderCredentialStore: async () => ({
       store: 'auth-json',
       portable: true,

@@ -1828,7 +1828,6 @@ export type DesktopApi = {
   ): Promise<DesktopProviderCredential[]>
   testApiKey(credentialId: string): Promise<ProviderTestResponse>
   deleteProviderCredential(credentialId: string): Promise<DesktopProviderCredential[]>
-  copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
   testModelProvider(
     providerID: ModelProviderID,
     model?: DesktopModelRef,

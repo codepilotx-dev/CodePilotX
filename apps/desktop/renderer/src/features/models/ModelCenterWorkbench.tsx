@@ -1,4 +1,7 @@
-import { desktopClient } from "../../services/desktop-client/index.js";
+import {
+  desktopClient,
+  desktopClipboard,
+} from "../../services/desktop-client/index.js";
 import { isExecutableDesktopProvider } from "../../services/desktop-client/provider-adapters.js";
 import { withModelCatalogLoading } from "../../hooks/useModelCatalogLoading.js";
 import React, { useEffect, useMemo, useState } from "react";
@@ -530,7 +533,7 @@ export function ModelCenterWorkbench({
   async function copyApiKey(key: DesktopApiKeySummary): Promise<void> {
     setBusyKeyId(key.id);
     try {
-      const result = await desktopClient.copyProviderApiKey(key.id);
+      const result = await desktopClipboard.copyProviderApiKey(key.id);
       onNotice(
         `API Key 已复制到剪贴板，将在 ${Math.round(result.clearAfterMs / 1000)} 秒后自动清理。`,
       );

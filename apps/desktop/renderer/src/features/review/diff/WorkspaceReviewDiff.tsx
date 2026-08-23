@@ -41,6 +41,7 @@ import type {
 } from "../../../../shared/types.js";
 import {
   desktopClient,
+  desktopClipboard,
   WORKSPACE_GIT_CHANGED_EVENT,
 } from "../../../services/desktop-client/index.js";
 import {
@@ -1358,7 +1359,7 @@ export async function copyGitApplyCommand(
   const cmd = scope === "staged" ? "git apply --cached" : "git apply";
   const text = `${cmd} << 'EOF'\n${patches.join("\n")}\nEOF`;
   try {
-    await navigator.clipboard.writeText(text);
+    await desktopClipboard.writeText(text);
   } catch {
     // clipboard write may fail in some contexts; silently ignore
   }

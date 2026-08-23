@@ -54,7 +54,6 @@ type DesktopClientWindow = {
           | { settings: DesktopStoredSettings },
       ) => void,
     ): () => void
-    copyProviderApiKey?(credentialId: string): Promise<{ clearAfterMs: 60000 }>
     getSystemTheme?(): Promise<'light' | 'dark'>
     onSystemThemeChange?(
       listener: (theme: 'light' | 'dark') => void,

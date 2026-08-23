@@ -1,5 +1,6 @@
 import {
   desktopClient,
+  desktopClipboard,
   loadDesktopTerminalClient,
 } from '../../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
@@ -3027,7 +3028,7 @@ export function DesktopLayout(): React.ReactNode {
             folderId: currentWorkspace.primaryFolderId,
           },
         )
-        await navigator.clipboard.writeText(document.draftContent)
+        await desktopClipboard.writeText(document.draftContent)
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : String(error))
       }

@@ -55,6 +55,7 @@ import {
   motionTransition,
 } from '../../motion/motionTransitions.js'
 import { readRuntimeSkill } from '../../settings/plugins/skillClientAdapter.js'
+import { desktopClipboard } from '../../../services/desktop-client/index.js'
 
 const ConflictMergeEditor = lazy(() => import('../../editor/ConflictMergeEditor.js').then(module => ({ default: module.ConflictMergeEditor })))
 const FileEditor = lazy(() => import('../../editor/FileEditor.js').then(module => ({ default: module.FileEditor })))
@@ -209,7 +210,7 @@ export function RightDockFilesPanel({
 
   function handleCopyWorkspacePath(): void {
     if (!workspacePath) return
-    void navigator.clipboard.writeText(workspacePath).then(() => {
+    void desktopClipboard.writeText(workspacePath).then(() => {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     })
