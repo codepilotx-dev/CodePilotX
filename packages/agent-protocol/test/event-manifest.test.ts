@@ -194,4 +194,25 @@ describe("event manifest invariants", () => {
     expect(decode(payload)).toEqual(payload)
     expect(() => decode({ ...payload, note: "不得进入事件日志" })).toThrow()
   })
+
+  test("publishes planning changes as minimal durable global invalidations", () => {
+    expect(EventManifest["taskboard/planning/changed"]).toMatchObject({
+      durability: "durable",
+      stream: "global",
+      capability: "taskboard.planning.v1",
+      reconcilesWith: "taskboard/planning/roots",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["taskboard/planning/changed"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      projectId: "project:1",
+      rootTaskId: "task:root",
+      changedTaskId: "task:child",
+      changedAt: 1,
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({ ...payload, blockerReason: "不得进入事件日志" })).toThrow()
+  })
 })

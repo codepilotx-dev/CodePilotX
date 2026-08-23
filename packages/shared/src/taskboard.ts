@@ -323,6 +323,114 @@ export const TaskboardWorkflowTaskDetailsSchema = Schema.Struct({
 })
 export type TaskboardWorkflowTaskDetails = typeof TaskboardWorkflowTaskDetailsSchema.Type
 
+export const TaskboardPlanPrerequisiteSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  kind: Schema.Literals(["step", "task"]),
+  title: NonEmptyStringSchema,
+  satisfied: Schema.Boolean,
+})
+export type TaskboardPlanPrerequisite = typeof TaskboardPlanPrerequisiteSchema.Type
+
+export const TaskboardPlanReadinessSchema = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("ready") }),
+  Schema.Struct({
+    status: Schema.Literal("waiting"),
+    prerequisites: Schema.Array(TaskboardPlanPrerequisiteSchema),
+  }),
+])
+export type TaskboardPlanReadiness = typeof TaskboardPlanReadinessSchema.Type
+
+const TaskboardPlanItemBaseFields = {
+  id: NonEmptyStringSchema,
+  parentTaskId: NonEmptyStringSchema,
+  position: Schema.Number,
+  readiness: TaskboardPlanReadinessSchema,
+  unreadReady: Schema.Boolean,
+  version: VersionSchema,
+} as const
+
+export const TaskboardPlanStepSchema = Schema.Struct({
+  kind: Schema.Literal("step"),
+  ...TaskboardPlanItemBaseFields,
+  title: NonEmptyStringSchema,
+  description: Schema.String,
+  status: Schema.Literals(["todo", "done", "skipped"]),
+  skipReason: Schema.NullOr(NonEmptyStringSchema),
+})
+export type TaskboardPlanStep = typeof TaskboardPlanStepSchema.Type
+
+export const TaskboardPlanTaskSchema = Schema.Struct({
+  kind: Schema.Literal("task"),
+  ...TaskboardPlanItemBaseFields,
+  childTask: TaskboardWorkflowTaskSummarySchema,
+  promotedFromStep: Schema.NullOr(Schema.Struct({
+    title: NonEmptyStringSchema,
+    description: Schema.String,
+  })),
+})
+export type TaskboardPlanTask = typeof TaskboardPlanTaskSchema.Type
+
+export const TaskboardPlanItemSchema = Schema.Union([
+  TaskboardPlanStepSchema,
+  TaskboardPlanTaskSchema,
+])
+export type TaskboardPlanItem = typeof TaskboardPlanItemSchema.Type
+
+export const TaskboardPlanDependencySchema = Schema.Struct({
+  dependentItemId: NonEmptyStringSchema,
+  prerequisiteItemId: NonEmptyStringSchema,
+})
+export type TaskboardPlanDependency = typeof TaskboardPlanDependencySchema.Type
+
+export const TaskboardBlockerSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  taskId: NonEmptyStringSchema,
+  planItemId: Schema.NullOr(NonEmptyStringSchema),
+  reason: NonEmptyStringSchema,
+  status: Schema.Literals(["open", "resolved"]),
+  sourceThreadId: Schema.NullOr(NonEmptyStringSchema),
+  sourceTurnId: Schema.NullOr(NonEmptyStringSchema),
+  resolution: Schema.NullOr(NonEmptyStringSchema),
+  version: VersionSchema,
+  createdAt: Schema.Number,
+  resolvedAt: Schema.NullOr(Schema.Number),
+  updatedAt: Schema.Number,
+})
+export type TaskboardBlocker = typeof TaskboardBlockerSchema.Type
+
+export const TaskboardPlanAggregateSchema = Schema.Struct({
+  directTotal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  directDone: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  directSkipped: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  descendantTaskCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  openBlockerCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  readyUnreadCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+})
+export type TaskboardPlanAggregate = typeof TaskboardPlanAggregateSchema.Type
+
+export const TaskboardPlanBreadcrumbSchema = Schema.Struct({
+  taskId: NonEmptyStringSchema,
+  number: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  title: NonEmptyStringSchema,
+})
+export type TaskboardPlanBreadcrumb = typeof TaskboardPlanBreadcrumbSchema.Type
+
+export const TaskboardPlanningRootSchema = Schema.Struct({
+  task: TaskboardWorkflowTaskSummarySchema,
+  aggregate: TaskboardPlanAggregateSchema,
+})
+export type TaskboardPlanningRoot = typeof TaskboardPlanningRootSchema.Type
+
+export const TaskboardPlanningSnapshotSchema = Schema.Struct({
+  task: TaskboardWorkflowTaskDetailsSchema,
+  breadcrumbs: Schema.Array(TaskboardPlanBreadcrumbSchema),
+  items: Schema.Array(TaskboardPlanItemSchema),
+  dependencies: Schema.Array(TaskboardPlanDependencySchema),
+  blockers: Schema.Array(TaskboardBlockerSchema),
+  aggregate: TaskboardPlanAggregateSchema,
+})
+export type TaskboardPlanningSnapshot = typeof TaskboardPlanningSnapshotSchema.Type
+
 export const TaskboardWorkflowThreadCandidateSchema = Schema.Struct({
   threadId: NonEmptyStringSchema,
   projectId: NonEmptyStringSchema,

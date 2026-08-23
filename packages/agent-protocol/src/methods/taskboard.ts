@@ -7,6 +7,10 @@ import {
   TaskboardCommentSchema,
   TaskboardLabelSchema,
   TaskboardPrioritySchema,
+  TaskboardBlockerSchema,
+  TaskboardPlanItemSchema,
+  TaskboardPlanningRootSchema,
+  TaskboardPlanningSnapshotSchema,
   TaskboardStatusSchema,
   TaskboardTaskDetailsSchema,
   TaskboardTaskSummarySchema,
@@ -39,6 +43,7 @@ import {
   TimestampSchema,
 } from "../wire/primitives"
 const TaskTitleSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_TITLE_MAX_LENGTH))
+const BlockerTextSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_COMMENT_MAX_LENGTH))
 const TaskDescriptionSchema = Schema.String.check(Schema.isMaxLength(TASKBOARD_DESCRIPTION_MAX_LENGTH))
 const TaskCommentBodySchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_COMMENT_MAX_LENGTH))
 const TaskLabelNameSchema = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(TASKBOARD_LABEL_MAX_LENGTH))
@@ -125,10 +130,46 @@ const WorkflowThreadLinkInputSchema = Schema.Struct({
 })
 const ContextReadResultSchema = Schema.Struct({ snapshot: TaskContextSnapshotSchema, entries: Schema.Array(TaskContextEntrySchema), evidence: Schema.Array(TaskContextEvidenceSchema) })
 const ContextErrors = [...TaskboardErrors, "TASKBOARD_CONTEXT_REVISION_CONFLICT", "TASKBOARD_CONTEXT_FROZEN", "TASKBOARD_PROPOSAL_STALE", "TASKBOARD_PROPOSAL_NOT_FOUND", "TASKBOARD_AI_MODEL_UNAVAILABLE"] as const
+const PlanningErrors = [
+  ...TaskboardErrors,
+  "TASKBOARD_PLAN_NOT_FOUND",
+  "TASKBOARD_PLAN_VERSION_CONFLICT",
+  "TASKBOARD_PLAN_INVALID_PARENT",
+  "TASKBOARD_PLAN_CYCLE",
+  "TASKBOARD_PLAN_CONDITION_UNMET",
+  "TASKBOARD_BLOCKER_NOT_FOUND",
+] as const
+const TaskboardStartErrors = [...TaskboardErrors, "TASKBOARD_PLAN_CONDITION_UNMET"] as const
+
+const PlanningStepInputSchema = Schema.Struct({
+  clientId: NonEmptyStringSchema,
+  kind: Schema.Literal("step"),
+  title: TaskTitleSchema,
+  description: Schema.optional(TaskDescriptionSchema),
+  position: Schema.optional(Schema.Number),
+})
+const PlanningTaskInputSchema = Schema.Struct({
+  clientId: NonEmptyStringSchema,
+  kind: Schema.Literal("task"),
+  title: TaskTitleSchema,
+  description: Schema.optional(TaskDescriptionSchema),
+  status: Schema.optional(TaskboardWorkflowStatusSchema),
+  priority: Schema.optional(TaskboardPrioritySchema),
+  labelIds: Schema.optional(TaskLabelIdsSchema),
+  startDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+  dueDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+  position: Schema.optional(Schema.Number),
+})
+const PlanningApplyItemSchema = Schema.Union([PlanningStepInputSchema, PlanningTaskInputSchema])
+const PlanningDependencyInputSchema = Schema.Struct({
+  dependentClientId: NonEmptyStringSchema,
+  prerequisiteClientId: NonEmptyStringSchema,
+})
+const PlanningSnapshotResultSchema = Schema.Struct({ snapshot: TaskboardPlanningSnapshotSchema })
 
 export const TaskboardRpcMethods = {
   "taskboard/context/read": defineMethod({
-    params: Schema.Struct({ taskId: OpaqueIDSchema, sections: Schema.optional(Schema.Array(TaskContextSectionSchema)), includeEvidence: Schema.optional(Schema.Boolean), includeUnverified: Schema.optional(Schema.Boolean), limit: Schema.optional(LimitSchema), offset: Schema.optional(NonNegativeIntSchema) }),
+    params: Schema.Struct({ taskId: OpaqueIDSchema, sections: Schema.optional(Schema.Array(TaskContextSectionSchema)), includeEvidence: Schema.optional(Schema.Boolean), includeUnverified: Schema.optional(Schema.Boolean), includeAncestors: Schema.optional(Schema.Boolean), limit: Schema.optional(LimitSchema), offset: Schema.optional(NonNegativeIntSchema) }),
     result: ContextReadResultSchema, errors: ContextErrors, capability: "taskboard.context.v1", mutation: false, exactParams: true, exactResult: true,
   }),
   "taskboard/context/update": defineMethod({
@@ -146,6 +187,219 @@ export const TaskboardRpcMethods = {
   }),
   "taskboard/context/promotion-status": defineMethod({
     params: Schema.Struct({ taskId: OpaqueIDSchema }), result: Schema.Struct({ promotion: Schema.NullOr(Schema.Struct({ id: OpaqueIDSchema, taskId: OpaqueIDSchema, contextRevision: ExpectedVersionSchema, status: Schema.Literals(["pending", "running", "completed", "failed", "retryable"]), error: Schema.NullOr(Schema.String), createdAt: TimestampSchema, startedAt: Schema.NullOr(TimestampSchema), finishedAt: Schema.NullOr(TimestampSchema), updatedAt: TimestampSchema })) }), errors: ContextErrors, capability: "taskboard.context.v1", mutation: false, exactParams: true, exactResult: true,
+  }),
+  "taskboard/planning/roots": defineMethod({
+    params: Schema.Struct({
+      projectId: Schema.optional(OpaqueIDSchema),
+      statuses: Schema.optional(Schema.Array(TaskboardWorkflowStatusSchema)),
+      priorities: Schema.optional(Schema.Array(TaskboardPrioritySchema)),
+      labelIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
+      query: Schema.optional(Schema.String),
+      archived: Schema.optional(Schema.Boolean),
+      unread: Schema.optional(Schema.Boolean),
+      datePreset: Schema.optional(TaskboardWorkflowDatePresetSchema),
+      today: Schema.optional(TaskboardWorkflowDateSchema),
+      sort: Schema.optional(TaskboardWorkflowSortSchema),
+      cursor: Schema.optional(CursorSchema),
+      limit: Schema.optional(LimitSchema),
+    }),
+    result: Schema.Struct({
+      roots: Schema.Array(TaskboardPlanningRootSchema),
+      unreadCount: NonNegativeIntSchema,
+      nextCursor: Schema.NullOr(CursorSchema),
+    }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/read": defineMethod({
+    params: Schema.Struct({ taskId: OpaqueIDSchema }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/apply": defineMethod({
+    params: Schema.Struct({
+      parentTaskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      operationId: OpaqueIDSchema,
+      items: Schema.Array(PlanningApplyItemSchema),
+      dependencies: Schema.optional(Schema.Array(PlanningDependencyInputSchema)),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/step/update": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      itemId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      patch: Schema.Struct({
+        title: Schema.optional(TaskTitleSchema),
+        description: Schema.optional(TaskDescriptionSchema),
+        status: Schema.optional(Schema.Literals(["todo", "done", "skipped"])),
+        skipReason: Schema.optional(Schema.NullOr(NonEmptyStringSchema)),
+      }),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/step/promote": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      itemId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      task: Schema.Struct({
+        status: Schema.optional(TaskboardWorkflowStatusSchema),
+        priority: Schema.optional(TaskboardPrioritySchema),
+        labelIds: Schema.optional(TaskLabelIdsSchema),
+        startDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+        dueDate: Schema.optional(Schema.NullOr(TaskboardWorkflowDateSchema)),
+      }),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/item/reorder": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      itemId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      beforeItemId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      afterItemId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/child/reparent": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      childTaskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      parentTaskId: Schema.NullOr(OpaqueIDSchema),
+      beforeItemId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      afterItemId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+    }),
+    result: Schema.Struct({
+      childTaskId: OpaqueIDSchema,
+      parentTaskId: Schema.NullOr(OpaqueIDSchema),
+    }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/dependencies/set": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      itemId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      prerequisiteItemIds: Schema.Array(OpaqueIDSchema),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/blocker/create": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      planItemId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      reason: BlockerTextSchema,
+      sourceThreadId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+      sourceTurnId: Schema.optional(Schema.NullOr(OpaqueIDSchema)),
+    }),
+    result: Schema.Struct({ blocker: TaskboardBlockerSchema }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/blocker/resolve": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      blockerId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      resolution: BlockerTextSchema,
+    }),
+    result: Schema.Struct({ blocker: TaskboardBlockerSchema }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/attention/mark-read": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      taskId: OpaqueIDSchema,
+      itemId: Schema.optional(OpaqueIDSchema),
+      expectedReadyNotifiedAt: Schema.optional(TimestampSchema),
+    }),
+    result: PlanningSnapshotResultSchema,
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/archive-tree": defineMethod({
+    params: Schema.Struct({
+      operationId: OpaqueIDSchema,
+      rootTaskId: OpaqueIDSchema,
+      expectedVersion: ExpectedVersionSchema,
+      includeLinkedThreads: Schema.optional(Schema.Boolean),
+    }),
+    result: Schema.Struct({ batchId: OpaqueIDSchema, taskIds: Schema.Array(OpaqueIDSchema) }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/restore-tree": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, rootTaskId: OpaqueIDSchema }),
+    result: Schema.Struct({ batchId: OpaqueIDSchema, taskIds: Schema.Array(OpaqueIDSchema) }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/planning/delete-tree": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema, rootTaskId: OpaqueIDSchema }),
+    result: Schema.Struct({ deletedTaskIds: Schema.Array(OpaqueIDSchema) }),
+    errors: PlanningErrors,
+    capability: "taskboard.planning.v1",
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
   }),
   "taskboard/task/list": defineMethod({
     params: Schema.Struct({
@@ -360,7 +614,7 @@ export const TaskboardRpcMethods = {
       operationId: OpaqueIDSchema,
     }),
     result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
-    errors: TaskboardErrors,
+    errors: TaskboardStartErrors,
     capability: "taskboard.v1",
     mutation: true,
     exactParams: true,
@@ -378,7 +632,7 @@ export const TaskboardRpcMethods = {
   "taskboard/task/start/retry-setup": defineMethod({
     params: Schema.Struct({ operationId: OpaqueIDSchema, revision: ExpectedVersionSchema }),
     result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
-    errors: TaskboardErrors,
+    errors: TaskboardStartErrors,
     capability: "taskboard.v1",
     mutation: true,
     exactParams: true,
@@ -387,7 +641,7 @@ export const TaskboardRpcMethods = {
   "taskboard/task/start/continue-without-setup": defineMethod({
     params: Schema.Struct({ operationId: OpaqueIDSchema, revision: ExpectedVersionSchema }),
     result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
-    errors: TaskboardErrors,
+    errors: TaskboardStartErrors,
     capability: "taskboard.v1",
     mutation: true,
     exactParams: true,
@@ -567,7 +821,7 @@ export const TaskboardRpcMethods = {
       authorizeBacklog: Schema.optional(Schema.Boolean),
     }),
     result: Schema.Struct({ operation: TaskboardStartOperationSchema }),
-    errors: TaskboardErrors,
+    errors: TaskboardStartErrors,
     capability: "taskboard.workflow.v1",
     mutation: true,
     exactParams: true,

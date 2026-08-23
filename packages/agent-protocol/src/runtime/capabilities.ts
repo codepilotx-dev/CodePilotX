@@ -52,6 +52,7 @@ export const Capabilities = [
   "taskboard.v1",
   "taskboard.workflow.v1",
   "taskboard.context.v1",
+  "taskboard.planning.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

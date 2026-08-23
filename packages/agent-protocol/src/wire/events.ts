@@ -137,6 +137,19 @@ export const EventManifest = {
     capability: "taskboard.context.v1",
     reconcilesWith: "taskboard/context/read",
   }),
+  "taskboard/planning/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      rootTaskId: OpaqueIDSchema,
+      changedTaskId: OpaqueIDSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "taskboard.planning.v1",
+    reconcilesWith: "taskboard/planning/roots",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,

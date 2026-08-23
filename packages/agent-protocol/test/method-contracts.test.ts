@@ -467,6 +467,53 @@ const taskboardWorkflowDetails = {
   activities: [],
 } as const
 
+const taskboardPlanAggregate = {
+  directTotal: 1,
+  directDone: 0,
+  directSkipped: 0,
+  descendantTaskCount: 0,
+  openBlockerCount: 1,
+  readyUnreadCount: 0,
+} as const
+
+const taskboardPlanItem = {
+  kind: "step",
+  id: "plan-item:1",
+  parentTaskId: taskboardTask.id,
+  title: "扫描代码库",
+  description: "查找可复用实现",
+  status: "todo",
+  skipReason: null,
+  position: 1_024,
+  readiness: { status: "ready" },
+  unreadReady: false,
+  version: 1,
+} as const
+
+const taskboardBlocker = {
+  id: "blocker:1",
+  taskId: taskboardTask.id,
+  planItemId: taskboardPlanItem.id,
+  reason: "等待用户确认",
+  status: "open",
+  sourceThreadId: null,
+  sourceTurnId: null,
+  resolution: null,
+  version: 1,
+  createdAt: 3,
+  resolvedAt: null,
+  updatedAt: 3,
+} as const
+
+const taskboardPlanningSnapshot = {
+  task: taskboardWorkflowDetails,
+  breadcrumbs: [{ taskId: taskboardTask.id, number: 1, title: taskboardTask.title }],
+  items: [taskboardPlanItem],
+  dependencies: [],
+  blockers: [taskboardBlocker],
+  aggregate: taskboardPlanAggregate,
+} as const
+
 const taskboardComment = {
   id: "taskboard-comment:1",
   taskId: taskboardTask.id,
@@ -2442,6 +2489,7 @@ const fixtures = {
     sections: ["objective"],
     includeEvidence: true,
     includeUnverified: false,
+    includeAncestors: true,
     limit: 20,
     offset: 0,
   }, {
@@ -2458,6 +2506,88 @@ const fixtures = {
   "taskboard/context/ai-apply": methodFixture("taskboard/context/ai-apply", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "applied", modelRef: "provider/model", createdAt: 1, updatedAt: 2 }, snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 2, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null } }),
   "taskboard/context/ai-discard": methodFixture("taskboard/context/ai-discard", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "discarded", modelRef: null, createdAt: 1, updatedAt: 2 } }),
   "taskboard/context/promotion-status": methodFixture("taskboard/context/promotion-status", { taskId: taskboardTask.id }, { promotion: null }),
+  "taskboard/planning/roots": methodFixture("taskboard/planning/roots", {
+    projectId: project.id,
+    statuses: ["blocked"],
+    archived: false,
+    limit: 100,
+  }, {
+    roots: [{ task: { ...taskboardWorkflowTask, threads: [] }, aggregate: taskboardPlanAggregate }],
+    unreadCount: 1,
+    nextCursor: null,
+  }),
+  "taskboard/planning/read": methodFixture("taskboard/planning/read", {
+    taskId: taskboardTask.id,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/apply": methodFixture("taskboard/planning/apply", {
+    parentTaskId: taskboardTask.id,
+    expectedVersion: 2,
+    operationId: "operation:plan-apply",
+    items: [{ clientId: "scan", kind: "step", title: "扫描代码库", description: "查找可复用实现" }],
+    dependencies: [],
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/step/update": methodFixture("taskboard/planning/step/update", {
+    operationId: "operation:step-update",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    patch: { status: "done" },
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/step/promote": methodFixture("taskboard/planning/step/promote", {
+    operationId: "operation:step-promote",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    task: { status: "todo", priority: "high" },
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/item/reorder": methodFixture("taskboard/planning/item/reorder", {
+    operationId: "operation:item-reorder",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    beforeItemId: null,
+    afterItemId: null,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/child/reparent": methodFixture("taskboard/planning/child/reparent", {
+    operationId: "operation:child-reparent",
+    childTaskId: "taskboard-task:2",
+    expectedVersion: 1,
+    parentTaskId: taskboardTask.id,
+  }, { childTaskId: "taskboard-task:2", parentTaskId: taskboardTask.id }),
+  "taskboard/planning/dependencies/set": methodFixture("taskboard/planning/dependencies/set", {
+    operationId: "operation:dependencies-set",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    prerequisiteItemIds: [],
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/blocker/create": methodFixture("taskboard/planning/blocker/create", {
+    operationId: "operation:blocker-create",
+    taskId: taskboardTask.id,
+    planItemId: taskboardPlanItem.id,
+    reason: taskboardBlocker.reason,
+  }, { blocker: taskboardBlocker }),
+  "taskboard/planning/blocker/resolve": methodFixture("taskboard/planning/blocker/resolve", {
+    operationId: "operation:blocker-resolve",
+    blockerId: taskboardBlocker.id,
+    expectedVersion: 1,
+    resolution: "用户已确认",
+  }, { blocker: { ...taskboardBlocker, status: "resolved", resolution: "用户已确认", version: 2, resolvedAt: 4, updatedAt: 4 } }),
+  "taskboard/planning/attention/mark-read": methodFixture("taskboard/planning/attention/mark-read", {
+    operationId: "operation:planning-mark-read",
+    taskId: taskboardTask.id,
+    itemId: taskboardPlanItem.id,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/archive-tree": methodFixture("taskboard/planning/archive-tree", {
+    operationId: "operation:archive-tree",
+    rootTaskId: taskboardTask.id,
+    expectedVersion: 2,
+    includeLinkedThreads: false,
+  }, { batchId: "archive-batch:1", taskIds: [taskboardTask.id] }),
+  "taskboard/planning/restore-tree": methodFixture("taskboard/planning/restore-tree", {
+    operationId: "operation:restore-tree",
+    rootTaskId: taskboardTask.id,
+  }, { batchId: "archive-batch:1", taskIds: [taskboardTask.id] }),
+  "taskboard/planning/delete-tree": methodFixture("taskboard/planning/delete-tree", {
+    operationId: "operation:delete-tree",
+    rootTaskId: taskboardTask.id,
+  }, { deletedTaskIds: [taskboardTask.id] }),
   "taskboard/task/list": methodFixture("taskboard/task/list", {
     projectId: project.id,
     statuses: ["in_progress"],
@@ -2801,18 +2931,22 @@ const fixtures = {
 describe("RPC method schema contracts", () => {
   test("任务看板按兼容能力分组并在 wire 边界限制正文和标签", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
-    expect(methods).toHaveLength(39)
+    expect(methods).toHaveLength(53)
     const workflowMethods = methods.filter(([method]) => method.startsWith("taskboard/workflow/"))
     const contextMethods = methods.filter(([method]) => method.startsWith("taskboard/context/"))
-    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/") && !method.startsWith("taskboard/context/"))
+    const planningMethods = methods.filter(([method]) => method.startsWith("taskboard/planning/"))
+    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/") && !method.startsWith("taskboard/context/") && !method.startsWith("taskboard/planning/"))
     expect(workflowMethods).toHaveLength(11)
     expect(contextMethods).toHaveLength(6)
+    expect(planningMethods).toHaveLength(14)
     expect(workflowMethods.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
     expect(contextMethods.every(([, definition]) => definition.capability === "taskboard.context.v1")).toBe(true)
+    expect(planningMethods.every(([, definition]) => definition.capability === "taskboard.planning.v1")).toBe(true)
     expect(legacyMethods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
     expect(Capabilities).toContain("taskboard.v1")
     expect(Capabilities).toContain("taskboard.workflow.v1")
     expect(Capabilities).toContain("taskboard.context.v1")
+    expect(Capabilities).toContain("taskboard.planning.v1")
 
     const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
     expect(() => decodeCreate({
@@ -2892,7 +3026,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(244)
+    expect(methods).toHaveLength(258)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -3213,7 +3347,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(238)
+    expect(Object.keys(RpcMethods)).toHaveLength(252)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
