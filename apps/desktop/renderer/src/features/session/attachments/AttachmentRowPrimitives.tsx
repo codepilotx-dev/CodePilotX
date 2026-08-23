@@ -66,13 +66,14 @@ export function AttachmentImageTile({
       title={errorMessage ?? name}
     >
       {onOpen ? (
-        <Button color="primary"
+        <button
           aria-label={`打开 ${name}`}
           className="attachment-image-tile__open"
           onClick={onOpen}
+          type="button"
         >
           {content}
-        </Button>
+        </button>
       ) : (
         <span className="attachment-image-tile__open">{content}</span>
       )}
