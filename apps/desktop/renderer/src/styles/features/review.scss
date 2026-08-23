@@ -31,8 +31,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--control-gap);
-  padding: var(--control-padding-block-compact) 1em;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
@@ -41,12 +41,12 @@
 .review-sidebar-toolbar--branch {
   min-height: 68px;
   align-items: flex-start;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding-top: var(--cpx-sys-space-1);
+  padding-bottom: var(--cpx-sys-space-1);
 
   .review-sidebar-title {
     flex-wrap: wrap;
-    row-gap: 2px;
+    row-gap: var(--cpx-sys-space-1);
     overflow: visible;
   }
 }
@@ -84,8 +84,8 @@
 .review-scope-switch {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -93,14 +93,14 @@
   button {
     position: relative;
     min-width: 54px;
-    padding: 3px 7px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border-radius: var(--cpx-sys-radius-md);
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
     transition:
-      color var(--cpx-sys-motion-micro) ease,
-      background-color var(--cpx-sys-motion-micro) ease;
+      color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+      background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
     &:hover {
       background: var(--cpx-sys-color-hover);
@@ -128,7 +128,7 @@
 .review-sidebar-title-button {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -140,14 +140,14 @@
 
 .review-sidebar-actions {
   flex: 0 0 auto;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
   white-space: nowrap;
 }
 
 .review-sidebar-primary-action {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   border: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
@@ -160,8 +160,8 @@
 @container (min-width: 640px) {
   .review-sidebar-actions .review-sidebar-primary-action {
     width: auto;
-    min-width: var(--control-size-sm);
-    padding: 0 var(--control-padding-inline-compact);
+    min-width: var(--cpx-sys-space-6);
+    padding: 0 var(--cpx-sys-space-2);
   }
 
   .review-sidebar-action-label {
@@ -171,7 +171,7 @@
 
 .review-sidebar-counts,
 .review-file-counts {
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   font-variant-numeric: tabular-nums;
 
   strong {
@@ -247,8 +247,8 @@
   z-index: 1;
   flex: 0 0 8px;
   width: 8px;
-  margin-right: -4px;
-  margin-left: -4px;
+  margin-right: calc(-1 * var(--cpx-sys-space-1));
+  margin-left: calc(-1 * var(--cpx-sys-space-1));
   cursor: col-resize;
   outline: 0;
   touch-action: none;
@@ -263,8 +263,8 @@
     width: 1px;
     background: var(--cpx-sys-color-border-subtle);
     transition:
-      width var(--cpx-sys-motion-micro) ease,
-      background-color var(--cpx-sys-motion-micro) ease;
+      width var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+      background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
   }
 
   &:hover::after,
@@ -292,15 +292,15 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
 
   color: var(--cpx-sys-color-fg-secondary);
   text-align: left;
 
   transition:
-    color var(--cpx-sys-motion-micro) ease,
-    background-color var(--cpx-sys-motion-micro) ease;
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -322,11 +322,11 @@
     flex: 0 0 auto;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: var(--cpx-sys-z-local);
     min-height: 32px;
     gap: 0;
-    margin: 2px 4px;
-    padding: 4px 8px 4px 12px;
+    margin: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2) var(--cpx-sys-space-1) var(--cpx-sys-space-3);
     border: 0;
     border-radius: var(--cpx-sys-radius-md);
     background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 2%, transparent);
@@ -353,7 +353,7 @@
   min-width: 16px;
   height: 16px;
   flex: 0 0 auto;
-  margin-right: 8px;
+  margin-right: var(--cpx-sys-space-2);
 }
 
 .review-file-path {
@@ -383,21 +383,21 @@
 
 .review-file-counts {
   flex: 0 0 auto;
-  margin-left: 4px;
+  margin-left: var(--cpx-sys-space-1);
 }
 
 .review-file-actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   flex: 0 0 auto;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--cpx-sys-motion-micro) ease;
+  transition: opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 }
 
 .review-file-actions-primary {
-  margin-left: 4px;
+  margin-left: var(--cpx-sys-space-1);
 }
 
 .review-file-actions-secondary {
@@ -405,7 +405,7 @@
 }
 
 .review-file-toggle svg {
-  transition: transform var(--cpx-sys-motion-state) ease;
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
 .review-file-toggle[data-expanded="true"] svg {
@@ -430,9 +430,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   flex: 0 0 auto;
-  padding: 8px 14px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   background: color-mix(in srgb, var(--cpx-sys-color-danger) 10%, transparent);
   color: var(--cpx-sys-color-danger);
@@ -467,14 +467,14 @@
 
 .review-diff-line-number {
   user-select: none;
-  padding: 0 8px;
+  padding: 0 var(--cpx-sys-space-2);
   border-right: 1px solid var(--cpx-sys-color-border-subtle);
   color: var(--cpx-sys-color-fg-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
 .review-diff-line code {
-  padding: 0 12px;
+  padding: 0 var(--cpx-sys-space-3);
   color: inherit;
   font-family: inherit;
 }
@@ -485,7 +485,7 @@
   padding: 0;
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--cpx-sys-font-size-code);
-  line-height: 1.55;
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .review-diff-scroll {
@@ -607,18 +607,18 @@
 
 /* --- Hunks & comments --- */
 .review-hunk-actions {
-  // display: inline-flex;
+  /* display: inline-flex; */
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   display: none;
 }
 
 
 
 .review-line-comment-button {
-  width: var(--control-size-sm);
-  min-width: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  min-width: var(--cpx-sys-space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -626,8 +626,8 @@
   opacity: 0;
 
   svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
+    width: var(--cpx-sys-space-3);
+    height: var(--cpx-sys-space-3);
   }
 }
 
@@ -641,6 +641,10 @@
   --review-diffs-code-grid: minmax(min-content, max-content) 1fr;
   --review-diffs-gap-block: 4px;
   --review-diffs-gap-inline: 4px;
+  --review-diffs-number-padding-inline: 2ch 1ch;
+  --review-diffs-line-padding-inline: 1ch;
+  --review-diffs-indicator-padding-inline-start: 2ch;
+  --review-diffs-comment-padding: 0 2ch 0 1ch;
   --review-diffs-font-size: var(
     --cpx-sys-font-size-code,
     var(--cpx-sys-font-size-code, 13px)
@@ -775,7 +779,7 @@
 
 .review-codex-diff__number {
   min-width: var(--review-diffs-min-number-column-width);
-  padding-inline: 2ch 1ch;
+  padding-inline: var(--review-diffs-number-padding-inline);
   border-right: 2px solid var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   text-align: right;
@@ -792,7 +796,7 @@
 
 .review-codex-diff__line {
   min-width: 0;
-  padding-inline: 1ch;
+  padding-inline: var(--review-diffs-line-padding-inline);
 }
 
 .review-codex-diff__line-text {
@@ -818,8 +822,8 @@
 }
 
 .review-diff-word {
-  // Inline diff marks deliberately keep a tight code-level curve.
-  border-radius: 2px;
+  /* Inline diff marks deliberately keep a tight code-level curve. */
+  border-radius: var(--cpx-sys-radius-indicator);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -850,7 +854,7 @@
 }
 
 .review-codex-diff[data-indicators="classic"] .review-codex-diff__line {
-  padding-inline-start: 2ch;
+  padding-inline-start: var(--review-diffs-indicator-padding-inline-start);
 }
 
 .review-codex-diff[data-indicators="classic"]
@@ -956,7 +960,7 @@
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  padding-inline: 1ch;
+  padding-inline: var(--review-diffs-line-padding-inline);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -980,8 +984,8 @@
 }
 
 .review-codex-diff .review-line-comments {
-  margin: 6px 0 8px;
-  padding: 0 2ch 0 1ch;
+  margin: var(--cpx-sys-space-2) 0 var(--cpx-sys-space-2);
+  padding: var(--review-diffs-comment-padding);
 }
 
 .review-codex-diff .review-line-comment-button {
@@ -1007,20 +1011,20 @@
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px 10px 8px 66px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-2) calc(var(--cpx-sys-space-1) * 17);
   white-space: normal;
 }
 
 .review-diff-split .review-line-comments {
-  padding-left: 66px;
+  padding-left: calc(var(--cpx-sys-space-1) * 17);
 }
 
 .review-comment {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 8px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-raised);
@@ -1042,14 +1046,14 @@
 .review-comment-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
 }
 
 .review-comment-body {
   color: var(--cpx-sys-color-fg-primary);
-  line-height: 1.4;
+  line-height: var(--cpx-sys-line-height-tight);
   white-space: pre-wrap;
 }
 
@@ -1057,7 +1061,7 @@
   width: 100%;
   min-height: 5.385em;
   resize: vertical;
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-canvas);
@@ -1073,13 +1077,13 @@
 }
 
 .review-stale-comments {
-  padding: 10px 12px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-panel);
 }
 
 .review-stale-title {
-  margin-bottom: 8px;
+  margin-bottom: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -1096,14 +1100,14 @@
 
 .review-source-menu-separator {
   height: 1px;
-  margin: 4px 0;
+  margin: var(--cpx-sys-space-1) 0;
   background: var(--cpx-sys-color-border-subtle);
 }
 
 .review-source-menu-label {
   display: flex;
   align-items: center;
-  padding: 4px 8px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -1112,7 +1116,7 @@
 }
 
 .review-empty-state {
-  padding: 22px 14px;
+  padding: var(--cpx-sys-space-6) var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
 }
@@ -1122,7 +1126,7 @@
   min-height: 64px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 
 
 }
@@ -1135,7 +1139,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 12px;
+  padding: var(--cpx-sys-space-6) var(--cpx-sys-space-3);
   text-align: center;
 }
 
@@ -1145,7 +1149,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
 
   > svg {
     width: auto;
@@ -1160,7 +1164,7 @@
   flex: 1 0 100%;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-md);
 
@@ -1168,7 +1172,7 @@
     min-width: 0;
     max-width: 38%;
     overflow: hidden;
-    padding: 0 6px;
+    padding: 0 var(--cpx-sys-space-2);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1179,8 +1183,8 @@
   max-width: 54%;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-secondary);
 
@@ -1205,19 +1209,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-lg);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: 1.4;
+    line-height: var(--cpx-sys-line-height-tight);
   }
 
   span {
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-sm);
-    line-height: 1.5;
+    line-height: var(--cpx-sys-line-height-normal);
   }
 }
 
@@ -1233,7 +1237,7 @@
 }
 
 .review-source-submenu-message {
-  padding: 8px;
+  padding: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -1244,7 +1248,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cpx-comp-row-gap);
+  gap: var(--cpx-sys-space-2);
 
   > span {
     min-width: 0;
@@ -1275,14 +1279,14 @@
   }
 
   .review-scope-trigger .review-sidebar-counts {
-    margin-left: 6px;
-    padding-left: 6px;
+    margin-left: var(--cpx-sys-space-2);
+    padding-left: var(--cpx-sys-space-2);
     border-left: 1px solid var(--cpx-sys-color-border-subtle);
   }
 
   .review-file-search-region {
     flex: 0 0 auto;
-    padding: 12px 12px 8px;
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-2);
     background: var(--cpx-sys-color-surface-panel);
   }
 
@@ -1318,13 +1322,13 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
     width: 100%;
     height: 29px;
     min-height: 29px;
     box-sizing: border-box;
     padding-top: 0;
-    padding-right: 14px;
+    padding-right: var(--cpx-sys-space-4);
     padding-bottom: 0;
     border: 0;
     background: transparent;
@@ -1334,8 +1338,8 @@
     text-align: left;
     cursor: pointer;
     transition:
-      color var(--cpx-sys-motion-micro) ease,
-      background-color var(--cpx-sys-motion-micro) ease;
+      color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+      background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
     &:hover {
       background: var(--cpx-sys-color-hover);
@@ -1363,14 +1367,14 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--cpx-sys-space-3);
     width: 100%;
     height: 29px;
     min-height: 29px;
     box-sizing: border-box;
     padding-top: 0;
     padding-bottom: 0;
-    padding-right: 14px;
+    padding-right: var(--cpx-sys-space-4);
     border: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
@@ -1378,8 +1382,8 @@
     text-align: left;
     cursor: pointer;
     transition:
-      color var(--cpx-sys-motion-micro) ease,
-      background-color var(--cpx-sys-motion-micro) ease;
+      color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+      background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
     &:hover {
       background: var(--cpx-sys-color-hover);
@@ -1407,7 +1411,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     margin-left: auto;
   }
 
@@ -1437,9 +1441,9 @@
     justify-content: center;
 
     svg {
-      width: var(--app-icon-size);
-      height: var(--app-icon-size);
-      stroke-width: var(--app-icon-stroke-width);
+      width: var(--cpx-sys-space-4);
+      height: var(--cpx-sys-space-4);
+      stroke-width: 1.75;
     }
 
     &[data-git-status="added"] {
@@ -1465,23 +1469,23 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 15px;
+    gap: var(--cpx-sys-space-4);
     position: absolute;
     bottom: 10px;
     background: var(--cpx-sys-color-surface-raised);
-    padding: 0 4px;
+    padding: 0 var(--cpx-sys-space-1);
     left: 50%;
     transform: translateX(-50%);
     border-radius: var(--cpx-sys-radius-lg);
-    z-index: 10;
+    z-index: var(--cpx-sys-z-local);
     border: 1px solid var(--cpx-sys-color-border-subtle);
     box-shadow: none;
 
     button {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px 5px;
+      gap: var(--cpx-sys-space-1);
+      padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
 
       color: var(--cpx-sys-color-fg-secondary);
       font-size: var(--cpx-sys-font-size-md);
@@ -1507,15 +1511,15 @@
 .review-comment-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--cpx-sys-space-1);
   flex: 0 0 auto;
-  padding: 1px 6px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: 1.5;
+  line-height: var(--cpx-sys-line-height-normal);
   font-variant-numeric: tabular-nums;
 
   svg {
@@ -1547,8 +1551,8 @@
   );
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-xl);
   background: var(--cpx-sys-color-surface-raised);
@@ -1567,7 +1571,7 @@
 .review-popover-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-md);
   color: var(--cpx-sys-color-fg-primary);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -1575,7 +1579,7 @@
   .review-popover-branch {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
     font-size: var(--cpx-sys-font-size-md);
     color: var(--cpx-sys-color-fg-primary);
   }
@@ -1590,7 +1594,7 @@
   .review-popover-counts {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
     margin-left: auto;
     font-variant-numeric: tabular-nums;
     font-weight: var(--cpx-sys-font-weight-medium);
@@ -1612,8 +1616,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
@@ -1621,8 +1625,8 @@
   cursor: pointer;
 
   svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
   }
 
   &:hover {
@@ -1638,7 +1642,7 @@
 .review-popover-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   font-size: var(--cpx-sys-font-size-sm);
   color: var(--cpx-sys-color-fg-secondary);
 
@@ -1650,7 +1654,7 @@
 .review-popover-field textarea,
 .review-popover-field input[type="text"] {
   width: 100%;
-  padding: 5px 8px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-canvas);
@@ -1671,7 +1675,7 @@
 .review-popover-check {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-md);
   color: var(--cpx-sys-color-fg-secondary);
 }
@@ -1679,8 +1683,8 @@
 .review-popover-actions {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-top: 4px;
+  gap: var(--cpx-sys-space-1);
+  padding-top: var(--cpx-sys-space-1);
   border-top: 1px solid var(--cpx-sys-color-border-default);
 }
 
@@ -1688,9 +1692,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cpx-comp-row-gap);
+  gap: var(--cpx-sys-space-2);
   width: 100%;
-  padding: var(--cpx-comp-row-padding-block) var(--cpx-comp-row-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
@@ -1701,9 +1705,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    color var(--cpx-sys-motion-micro) ease,
-    background-color var(--cpx-sys-motion-micro) ease,
-    transform var(--cpx-sys-motion-micro) ease;
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    background-color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
+    transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -1726,7 +1730,7 @@
 .review-popover-action-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .review-popover-action .shortcut {

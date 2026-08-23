@@ -1,4 +1,4 @@
-// ── Session Follow-Up Dock ─────────────────────────────────────
+/* ── Session Follow-Up Dock ───────────────────────────────────── */
 
 .session-follow-up-dock {
   position: absolute;
@@ -8,7 +8,7 @@
   left: 36px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   max-height: 30vh;
   padding: 0;
   border: 0;
@@ -20,23 +20,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-sm);
   color: var(--cpx-sys-color-fg-tertiary);
-  padding: 2px 4px 4px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-1);
 }
 
 .session-follow-up-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
   max-height: inherit;
   overflow-y: auto;
 }
 
 .session-follow-up-paused {
-  padding: 4px 6px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   background: var(--cpx-sys-color-surface-canvas);
@@ -48,9 +48,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
   min-height: 54px;
-  padding: 8px 12px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-lg);
@@ -86,7 +86,7 @@
 .session-follow-up-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   min-width: max-content;
   flex-shrink: 0;
 }
@@ -94,9 +94,9 @@
 .session-follow-up-edit-input {
   flex: 1;
   min-width: 0;
-  padding: 3px 6px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-comp-input-radius);
+  border-radius: var(--cpx-sys-radius-control);
   color: var(--cpx-sys-color-fg-primary);
   background: var(--cpx-sys-color-surface-raised);
   font: inherit;

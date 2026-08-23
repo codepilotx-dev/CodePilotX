@@ -44,37 +44,30 @@ $static-utilities: (
   'overflow-auto': (overflow: auto),
   'overflow-x-auto': (overflow-x: auto),
   'overflow-y-auto': (overflow-y: auto),
+  // Sys type roles are CSS font shorthand; consume via font: var(...).
   'type-body': (
-    font-size: var(--cpx-sys-font-size-md),
-    line-height: var(--cpx-sys-line-height-normal),
+    font: var(--cpx-sys-type-body),
   ),
   'type-control': (
-    font-size: var(--cpx-sys-font-size-md),
-    line-height: var(--cpx-sys-line-height-normal),
+    font: var(--cpx-sys-type-body),
   ),
   'type-secondary': (
-    font-size: var(--cpx-sys-font-size-sm),
-    line-height: var(--cpx-sys-line-height-tight),
+    font: var(--cpx-sys-type-body-sm),
   ),
   'type-meta': (
-    font-size: var(--cpx-sys-font-size-xs),
-    line-height: calc(var(--cpx-sys-font-size-xs) + 4px),
+    font: var(--cpx-sys-type-caption),
   ),
   'type-caption': (
-    font-size: var(--cpx-sys-font-size-xs),
-    line-height: calc(var(--cpx-sys-font-size-xs) + 4px),
+    font: var(--cpx-sys-type-caption),
   ),
   'type-title-sm': (
-    font-size: var(--cpx-sys-font-size-lg),
-    line-height: calc(var(--cpx-sys-font-size-lg) + 6px),
+    font: var(--cpx-sys-type-heading-sm),
   ),
   'type-title-md': (
-    font-size: var(--cpx-sys-font-size-xl),
-    line-height: calc(var(--cpx-sys-font-size-xl) + 6px),
+    font: var(--cpx-sys-type-heading-md),
   ),
   'type-title-lg': (
-    font-size: var(--cpx-sys-font-size-2xl),
-    line-height: calc(var(--cpx-sys-font-size-2xl) + 6px),
+    font: var(--cpx-sys-type-heading-lg),
   ),
   'font-sans': (font-family: var(--cpx-sys-font-family-sans)),
   'font-mono': (font-family: var(--cpx-sys-font-family-mono)),

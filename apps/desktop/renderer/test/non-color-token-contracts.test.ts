@@ -1,0 +1,297 @@
+import { describe, expect, test } from 'bun:test'
+import { readFile } from 'node:fs/promises'
+
+/*
+ * Frozen contracts for the non-color design-token refactor.
+ *
+ * This suite intentionally describes the FUTURE state of the token system and
+ * is allowed to fail against today's source. It statically reads the real
+ * files with node:fs; there are no snapshots and no quantity baselines.
+ *
+ * Frozen semantics (do not weaken to make tests green):
+ * - tokens.scss defines semantic type roles, a corrected 4px spacing scale,
+ *   semantic radius/motion/z-index roles, and no root --control-/--layout-/
+ *   --app-icon-/--menu- geometry tokens.
+ * - check-style-contracts.ts + style-contracts.json grow a featureTokenContract
+ *   that governs non-color tokens across styles, TSX, inline styles, Tailwind
+ *   arbitrary values and component geometry, with precise reasons and stale
+ *   detection.
+ * - base.scss reduced-motion zeroes every system motion token.
+ */
+
+function read(relative: string): Promise<string> {
+  return readFile(new URL(relative, import.meta.url), 'utf8')
+}
+
+function extractTokens(source: string): Map<string, string> {
+  const tokens = new Map<string, string>()
+  for (const match of source.matchAll(/(^|[\r\n])[ \t]*(--[\w-]+)[ \t]*:[ \t]*([^;]+);/g)) {
+    tokens.set(match[2], match[3].trim())
+  }
+  return tokens
+}
+
+function missingFrom(tokens: Map<string, string>, expected: string[]): string[] {
+  return expected.filter((name) => !tokens.has(name))
+}
+
+function blockContent(source: string, openPattern: RegExp): string | undefined {
+  const startMatch = source.match(openPattern)
+  if (!startMatch) return undefined
+  const start = startMatch.index! + startMatch[0].length
+  let depth = 1
+  let index = start
+  for (; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) break
+    }
+  }
+  return depth === 0 ? source.slice(start, index) : undefined
+}
+
+describe('non-color design token contracts', () => {
+  test('tokens.scss defines the semantic type role tokens', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const roles = [
+      'caption',
+      'label',
+      'body-sm',
+      'body',
+      'body-lg',
+      'heading-sm',
+      'heading-md',
+      'heading-lg',
+      'code',
+    ].map((role) => `--cpx-sys-type-${role}`)
+
+    const missing = missingFrom(tokens, roles)
+    expect(
+      missing,
+      `tokens.scss must define every type role as a --cpx-sys-type-* token; missing: ${missing.join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+
+  test('tokens.scss defines the corrected 4px spacing scale 1..8 = 4/8/12/16/20/24/28/32px', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const expected: Record<string, string> = {
+      '--cpx-sys-space-1': '4px',
+      '--cpx-sys-space-2': '8px',
+      '--cpx-sys-space-3': '12px',
+      '--cpx-sys-space-4': '16px',
+      '--cpx-sys-space-5': '20px',
+      '--cpx-sys-space-6': '24px',
+      '--cpx-sys-space-7': '28px',
+      '--cpx-sys-space-8': '32px',
+    }
+    const mismatched = Object.entries(expected).filter(([name, value]) => tokens.get(name) !== value)
+    const details = mismatched
+      .map(([name, value]) => `${name}=${tokens.get(name) ?? '(missing)'} (expected ${value})`)
+      .join(', ')
+
+    expect(
+      details,
+      `tokens.scss space scale must be 4/8/12/16/20/24/28/32px: ${details || 'ok'}`,
+    ).toBe('')
+  })
+
+  test('tokens.scss defines semantic radius roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const roles = [
+      'indicator',
+      'compact',
+      'control',
+      'container',
+      'floating',
+      'pill',
+    ].map((role) => `--cpx-sys-radius-${role}`)
+
+    const missing = missingFrom(tokens, roles)
+    expect(
+      missing,
+      `tokens.scss must define every radius role as a --cpx-sys-radius-* token; missing: ${missing.join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+
+  test('tokens.scss defines semantic motion roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const roles = [
+      'instant',
+      'feedback',
+      'exit',
+      'state',
+      'enter',
+      'panel',
+      'loading',
+    ].map((role) => `--cpx-sys-motion-${role}`)
+
+    const missing = missingFrom(tokens, roles)
+    expect(
+      missing,
+      `tokens.scss must define every motion role as a --cpx-sys-motion-* token; missing: ${missing.join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+
+  test('tokens.scss defines semantic z-index roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const roles = [
+      'local',
+      'sticky',
+      'dock',
+      'composer',
+      'modal',
+      'popover',
+      'tooltip',
+      'toast',
+    ].map((role) => `--cpx-sys-z-${role}`)
+
+    const missing = missingFrom(tokens, roles)
+    expect(
+      missing,
+      `tokens.scss must define every z-index role as a --cpx-sys-z-* token; missing: ${missing.join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+
+  test('tokens.scss no longer defines root geometry tokens --control-/--layout-/--app-icon-/--menu-', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const banned = [...tokens.keys()].filter((name) =>
+      /^--(?:control|layout|app-icon|menu)-/.test(name),
+    )
+
+    expect(
+      banned,
+      `tokens.scss must not define root geometry tokens: ${banned.join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+
+  test('check-style-contracts.ts implements the featureTokenContract', async () => {
+    const checker = await read('../scripts/check-style-contracts.ts')
+
+    expect(checker).toContain('featureTokenContract')
+
+    // Coverage: styles + scripts/TSX + inline style + Tailwind arbitrary +
+    // component geometry + every literal non-color dimension.
+    for (const marker of [
+      'feature styles must not use literal',
+      'feature TSX must not use literal',
+      'inline style',
+      'Tailwind arbitrary',
+      'component geometry',
+      'literal typography',
+      'literal radius',
+      'literal motion',
+      'literal shadow',
+      'literal z-index',
+      'literal spacing',
+    ]) {
+      expect(
+        checker.includes(marker),
+        `check-style-contracts.ts must enforce the non-color token contract for "${marker}"`,
+      ).toBe(true)
+    }
+
+    // Precise reason + stale detection (mirrors the feature color contract).
+    expect(checker).toContain('feature token exception needs a concrete reason')
+    expect(checker).toContain('stale feature token exception')
+  })
+
+  test('style-contracts.json ships a precise, stale-detectable featureTokenContract', async () => {
+    const manifest = JSON.parse(await read('../style-contracts.json')) as {
+      featureTokenContract: {
+        roots: string[]
+        componentGeometryExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        inlineStyleExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        tailwindArbitraryExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalTypographyExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalRadiusExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalMotionExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalShadowExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalZIndexExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        literalSpacingExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+      }
+    }
+
+    expect(manifest.featureTokenContract, 'style-contracts.json must contain featureTokenContract').toBeDefined()
+    expect(manifest.featureTokenContract.roots).toEqual([
+      'src/styles/features',
+      'src/styles/lazy',
+    ])
+
+    for (const [category, exceptions] of Object.entries({
+      componentGeometryExceptions: manifest.featureTokenContract.componentGeometryExceptions,
+      inlineStyleExceptions: manifest.featureTokenContract.inlineStyleExceptions,
+      tailwindArbitraryExceptions: manifest.featureTokenContract.tailwindArbitraryExceptions,
+      literalTypographyExceptions: manifest.featureTokenContract.literalTypographyExceptions,
+      literalRadiusExceptions: manifest.featureTokenContract.literalRadiusExceptions,
+      literalMotionExceptions: manifest.featureTokenContract.literalMotionExceptions,
+      literalShadowExceptions: manifest.featureTokenContract.literalShadowExceptions,
+      literalZIndexExceptions: manifest.featureTokenContract.literalZIndexExceptions,
+      literalSpacingExceptions: manifest.featureTokenContract.literalSpacingExceptions,
+    })) {
+      expect(
+        Array.isArray(exceptions),
+        `featureTokenContract.${category} must be an exception array`,
+      ).toBe(true)
+      for (const exception of exceptions) {
+        expect(
+          exception.file.length > 0 && !exception.file.includes('*'),
+          `${category} exception must name one concrete file without wildcards: ${exception.file}`,
+        ).toBe(true)
+        expect(
+          exception.reason.length > 15,
+          `${category} exception needs a concrete reason (>15 chars): ${exception.file} -> ${exception.value ?? exception.localProperty ?? ''}`,
+        ).toBe(true)
+        expect(
+          (exception.value ?? exception.localProperty ?? '').length > 0,
+          `${category} exception must pin the exact value or local property: ${exception.file}`,
+        ).toBe(true)
+      }
+    }
+  })
+
+  test('base.scss reduced-motion zeroes every system motion token', async () => {
+    const base = await read('../src/styles/base.scss')
+    const reduceMotion = blockContent(base, /\[data-reduce-motion="on"\]\s*\{/)
+
+    expect(
+      reduceMotion,
+      'base.scss must contain a :root[data-reduce-motion="on"] block that resets motion tokens',
+    ).toBeDefined()
+
+    const motionTokens = [
+      '--cpx-sys-motion-instant',
+      '--cpx-sys-motion-feedback',
+      '--cpx-sys-motion-exit',
+      '--cpx-sys-motion-state',
+      '--cpx-sys-motion-enter',
+      '--cpx-sys-motion-panel',
+      '--cpx-sys-motion-loading',
+    ]
+    const declarations = new Map<string, string>()
+    for (const match of reduceMotion!.matchAll(/(--cpx-sys-motion-[\w-]+)[ \t]*:[ \t]*([^;]+);/g)) {
+      declarations.set(match[1], match[2].trim())
+    }
+
+    const missing = motionTokens.filter((name) => !declarations.has(name))
+    expect(
+      missing,
+      `reduced-motion must zero every system motion token; missing: ${missing.join(', ') || 'none'}`,
+    ).toEqual([])
+
+    for (const name of motionTokens) {
+      const value = declarations.get(name)
+      expect(
+        value !== undefined && /^0(?:ms)?$/.test(value),
+        `${name} must be zeroed under reduced-motion (got: ${value ?? '(missing)'})`,
+      ).toBe(true)
+    }
+
+    // base.scss must never reintroduce non-zero motion tokens (e.g. 1ms).
+    const nonZero = [...declarations.entries()].filter(([, value]) => !/^0(?:ms)?$/.test(value))
+    expect(
+      nonZero,
+      `base.scss must not set non-zero motion tokens; offending: ${nonZero.map(([name, value]) => `${name}: ${value}`).join(', ') || 'none'}`,
+    ).toEqual([])
+  })
+})

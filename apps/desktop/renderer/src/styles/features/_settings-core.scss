@@ -1,6 +1,6 @@
 .settings-sidebar-layout {
   --sidebar-padding-x: 8px;
-  --sidebar-item-gap: var(--control-gap);
+  --sidebar-item-gap: var(--cpx-sys-space-2);
   --sidebar-row-pad-y: 5px;
   --sidebar-trailing-width: 4.286em;
 }
@@ -10,16 +10,16 @@
 }
 
 .settings-nav-scroll-content {
-  gap: 16px;
+  gap: var(--cpx-sys-space-4);
   padding: 0;
 }
 
 .settings-nav-header {
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .settings-back-btn {
-  margin-bottom: 8px;
+  margin-bottom: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-weight: var(--cpx-sys-font-weight-regular);
 }
@@ -49,10 +49,10 @@
 
 .settings-nav-icon {
   color: currentColor;
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   flex-shrink: 0;
-  stroke-width: var(--app-icon-stroke-width);
+  stroke-width: 1.75;
 }
 
 /* --- Right Content --- */
@@ -69,7 +69,7 @@
 
 .settings-nav-group-title-row {
   grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
-  padding: 4px 8px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
 }
 
 .settings-content-scroll-content {
@@ -80,16 +80,16 @@
 
 .settings-content-inner {
   width: 100%;
-  max-width: var(--layout-bento-w);
+  max-width: var(--cpx-sys-layout-wide-max-width);
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--cpx-sys-space-5);
 }
 
 /* --- Page Header --- */
 .settings-page-header {
   display: grid;
   gap: var(--cpx-sys-space-2);
-  margin: 0 0 32px;
+  margin: 0 0 var(--cpx-sys-space-8);
 
   .settings-page-title {
     margin: 0;
@@ -104,7 +104,7 @@
   font-size: var(--cpx-sys-font-size-3xl);
   line-height: var(--cpx-sys-line-height-relaxed);
   font-weight: var(--cpx-sys-font-weight-medium);
-  margin: 0 0 32px;
+  margin: 0 0 var(--cpx-sys-space-8);
   color: var(--cpx-sys-color-fg-primary);
   letter-spacing: -0.01em;
 }
@@ -122,16 +122,16 @@
 }
 
 .settings-section + .settings-section {
-  margin-top: 40px;
+  margin-top: calc(var(--cpx-sys-space-1) * 10);
 }
 
 .settings-section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--cpx-sys-space-4);
   min-width: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--cpx-sys-space-3);
 }
 
 .settings-section-header-copy {
@@ -145,7 +145,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .settings-section-title {
@@ -157,7 +157,7 @@
 }
 
 .settings-section-desc {
-  margin: 4px 0 0;
+  margin: var(--cpx-sys-space-1) 0 0;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
@@ -180,8 +180,8 @@
 }
 
 .settings-section-footer {
-  margin-top: 10px;
-  padding-inline: 4px;
+  margin-top: var(--cpx-sys-space-3);
+  padding-inline: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   line-height: var(--cpx-sys-line-height-tight);
@@ -202,13 +202,13 @@
 .settings-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--cpx-sys-space-4);
   min-width: 0;
-  padding: 12px 0;
+  padding: var(--cpx-sys-space-3) 0;
   background: transparent;
 
   &[data-size="compact"] {
-    padding-block: 8px;
+    padding-block: var(--cpx-sys-space-2);
   }
 
   &-info {
@@ -225,7 +225,7 @@
   }
 
   &-desc {
-    margin: 2px 0 0;
+    margin: var(--cpx-sys-space-1) 0 0;
     color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-xs);
     line-height: var(--cpx-sys-line-height-tight);
@@ -238,7 +238,7 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
   }
 
   &-link {
@@ -272,7 +272,7 @@
 
 .settings-card > .settings-row,
 .settings-section-content[data-surface="card"] > .settings-row {
-  padding-inline: 16px;
+  padding-inline: var(--cpx-sys-space-4);
 }
 
 .settings-card > .settings-row + .settings-row::before,
@@ -292,14 +292,14 @@
 .settings-auto-save-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.318em 0.727em;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   white-space: nowrap;
 }
 

@@ -29,14 +29,14 @@
   bottom: 16px;
   z-index: 2;
   display: flex;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   align-items: center;
   max-width: calc(100% - 32px);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   overflow: hidden;
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--cpx-sys-color-surface-raised);
@@ -54,7 +54,7 @@
   border: 1.5px solid currentcolor;
   border-right-color: transparent;
   border-radius: var(--cpx-sys-radius-full);
-  animation: file-editor-status-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation: file-editor-status-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 .file-editor-status[data-error] {
@@ -88,7 +88,7 @@
 .conflict-merge-editor-header > div:first-child {
   display: grid;
   min-width: 0;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .conflict-merge-editor-header strong {

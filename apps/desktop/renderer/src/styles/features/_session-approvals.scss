@@ -1,11 +1,13 @@
 /* --- Inline approval card --- */
 .inline-approval-card {
+  --inline-approval-note-focus-shadow: var(--cpx-sys-focus-ring);
+
   width: 100%;
   max-width: var(--composer-width);
   display: grid;
-  gap: var(--inline-approval-card-gap, 10px);
-  margin-bottom: var(--inline-approval-card-margin-bottom, 10px);
-  padding: var(--inline-approval-card-padding, 24px 14px 12px);
+  gap: var(--inline-approval-card-gap, var(--cpx-sys-space-3));
+  margin-bottom: var(--cpx-sys-space-3);
+  padding: var(--inline-approval-card-padding, var(--cpx-sys-space-6) var(--cpx-sys-space-4) var(--cpx-sys-space-3));
   border: var(
     --inline-approval-card-border,
     1px solid var(--cpx-sys-color-border-subtle)
@@ -19,7 +21,7 @@
   );
 }
 .inline-approval-header {
-  padding: var(--inline-approval-header-padding, 0 12px);
+  padding: var(--inline-approval-header-padding, 0 var(--cpx-sys-space-3));
 
   h2 {
     margin: 0;
@@ -35,14 +37,14 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
-  padding: var(--inline-approval-summary-padding, 0 12px);
+  padding: var(--inline-approval-summary-padding, 0 var(--cpx-sys-space-3));
 }
 
 .inline-approval-command-preview {
   width: 100%;
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   padding: var(--inline-approval-command-preview-padding, 0);
   border: var(--inline-approval-command-preview-border, 0);
   border-radius: var(--inline-approval-command-preview-radius, 0);
@@ -54,7 +56,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -62,15 +64,15 @@
   button {
     display: inline-flex;
     align-items: center;
-    gap: var(--control-gap-compact);
-    padding: var(--control-padding-block-compact) var(--control-padding-inline);
+    gap: var(--cpx-sys-space-1);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border: 0;
     border-radius: var(--cpx-sys-radius-md);
     background: transparent;
     color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
     cursor: pointer;
 
     &:hover {
@@ -134,23 +136,23 @@
 
 .inline-approval-options {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .inline-approval-option {
   width: 100%;
   display: grid;
-  grid-template-columns: var(--control-size-sm) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--cpx-sys-space-6) minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--control-gap-compact);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px transparent solid;
   border-radius: var(--cpx-sys-radius-lg);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   text-align: left;
 
   &.selected {
@@ -168,8 +170,8 @@
 }
 
 .inline-approval-option-index {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -189,8 +191,8 @@
 }
 
 .inline-approval-option-custom-icon {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -201,8 +203,8 @@
 }
 
 .inline-approval-option-custom-icon .lucide-pen-line {
-  width: var(--app-icon-size-sm);
-  height: var(--app-icon-size-sm);
+  width: var(--cpx-sys-space-3);
+  height: var(--cpx-sys-space-3);
 }
 
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
@@ -227,13 +229,13 @@
 .inline-approval-option-arrows {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .inline-approval-option-checkbox {
-  width: var(--app-icon-size-md);
-  height: var(--app-icon-size-md);
+  width: var(--cpx-sys-space-5);
+  height: var(--cpx-sys-space-5);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -252,26 +254,26 @@
   display: flex;
   align-items: center;
   width: 100%;
-  gap: var(--control-gap);
-  margin-top: 4px;
+  gap: var(--cpx-sys-space-2);
+  margin-top: var(--cpx-sys-space-1);
 }
 
 .inline-approval-note {
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
   flex: 1;
   min-width: 0;
   padding: var(
     --inline-approval-note-padding,
-    var(--control-padding-block) var(--control-padding-inline)
+    var(--cpx-sys-space-1) var(--cpx-sys-space-2)
   );
   background: var(--inline-approval-note-bg, var(--cpx-sys-color-surface-canvas));
   border: var(--inline-approval-note-border, 1px solid transparent);
   border-radius: var(--inline-approval-note-radius, var(--cpx-sys-radius-lg));
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color var(--cpx-sys-motion-enter),
+    box-shadow var(--cpx-sys-motion-enter);
 
   &:hover {
     background: var(--cpx-sys-color-surface-editor);
@@ -280,10 +282,7 @@
   &:focus-within {
     border-color: var(--inline-approval-note-focus-border, var(--cpx-sys-color-accent));
     background: var(--cpx-sys-color-surface-canvas);
-    box-shadow: var(
-      --inline-approval-note-focus-shadow,
-      0 0 0 3px var(--cpx-sys-color-accent)
-    );
+    box-shadow: var(--inline-approval-note-focus-shadow);
   }
 
   &.filled {
@@ -301,7 +300,7 @@
 
 .inline-approval-actions {
   display: flex;
-  gap: var(--inline-approval-actions-gap, var(--control-gap));
+  gap: var(--inline-approval-actions-gap, var(--cpx-sys-space-2));
   margin-left: auto;
   flex-shrink: 0;
   align-items: center;
@@ -311,7 +310,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
   padding-right: 0;
 }
 
@@ -321,7 +320,7 @@
 }
 
 .inline-approval-option-info {
-  width: calc(var(--app-icon-size-md) + 0.29em);
+  width: calc(var(--cpx-sys-space-5) + 0.29em);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -335,15 +334,15 @@
   }
 
   svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
+    width: var(--cpx-sys-space-3);
+    height: var(--cpx-sys-space-3);
   }
 }
 
 .inline-approval-option-trailing {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   flex: 0 0 auto;
 }
 
@@ -360,7 +359,7 @@
   font-style: inherit;
   font-weight: inherit;
   padding: 0;
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
 
   &::placeholder {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -370,13 +369,13 @@
 /* --- Dynamic permission-grant card --- */
 .inline-approval-permission-grant {
   display: grid;
-  gap: 8px;
-  padding: 0 12px;
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-3);
 }
 
 .inline-approval-permission-group {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .inline-approval-permission-group-title {
@@ -387,9 +386,9 @@
 
 .inline-approval-permission-group-items {
   display: grid;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   margin: 0;
-  padding: 8px 10px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid
     color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
   border-radius: var(--cpx-sys-radius-lg);
@@ -421,7 +420,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   resize: none;
   overflow-y: auto;
   overflow-wrap: anywhere;
@@ -432,8 +431,8 @@
 }
 
 .ask-user-question-error {
-  margin: 0 12px;
-  padding: 8px 10px;
+  margin: 0 var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-danger-subtle-border);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-danger-subtle-bg);
@@ -444,7 +443,7 @@
 
 .inline-approval-footer-split {
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 var(--cpx-sys-space-3);
 }
 
 .inline-approval-footer-spacer {
@@ -454,39 +453,39 @@
 .inline-approval-footer-hint {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .inline-approval-footer-key {
-  min-width: var(--control-size-sm);
-  padding: 0.167em 0.5em;
+  min-width: var(--cpx-sys-space-6);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: 4px;
+  border-radius: var(--cpx-sys-radius-compact);
   background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-bold);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   text-align: center;
 }
 
 .inline-approval-skip {
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--cpx-sys-motion-enter),
+    color var(--cpx-sys-motion-enter);
 
   &:hover {
     background: var(--cpx-sys-color-surface-editor);
@@ -497,19 +496,19 @@
 .inline-approval-submit {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   padding: var(
     --inline-approval-submit-padding,
-    var(--control-padding-block)
-      calc(var(--control-padding-inline) + var(--control-padding-inline))
+    var(--cpx-sys-space-1)
+      calc(var(--cpx-sys-space-2) + var(--cpx-sys-space-2))
   );
   border: var(--inline-approval-submit-border, 1px solid var(--cpx-sys-color-border-default));
-  border-radius: var(--inline-approval-submit-radius, var(--cpx-comp-button-radius-md));
+  border-radius: var(--inline-approval-submit-radius, var(--cpx-sys-radius-control));
   background: var(--inline-approval-submit-bg, var(--cpx-sys-color-surface-control));
   color: var(--inline-approval-submit-color, var(--cpx-sys-color-fg-primary));
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
@@ -532,8 +531,8 @@
 /* --- Workflow cards --- */
 .conversation-page .inline-approval-card,
 .workflow-composer-card {
-  gap: 10px;
-  padding: 10px;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-3);
   border-color: var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-panel);
@@ -564,7 +563,7 @@
 }
 
 .exit-plan-mode-approval {
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .ask-user-question-heading {
@@ -578,14 +577,14 @@
 
 .exit-plan-mode-header {
   display: flex;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
   align-items: flex-start;
-  padding: 0 4px;
+  padding: 0 var(--cpx-sys-space-1);
 }
 
 .exit-plan-mode-header > div {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .exit-plan-mode-header h3 {
@@ -605,9 +604,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-size-md);
-  height: var(--control-size-md);
-  border-radius: 50%;
+  width: var(--cpx-sys-space-7);
+  height: var(--cpx-sys-space-7);
+  border-radius: var(--cpx-sys-radius-pill);
   background: var(--cpx-sys-color-accent);
   color: var(--cpx-sys-color-accent);
   flex-shrink: 0;
@@ -622,30 +621,30 @@
 .exit-plan-mode-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .exit-plan-mode-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   justify-content: flex-end;
 }
 
 .exit-plan-mode-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   transition:
-    background 120ms ease,
-    border-color 120ms ease;
+    background var(--cpx-sys-motion-exit) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-exit) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -672,8 +671,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 4px;
+  gap: var(--cpx-sys-space-4);
+  padding: 0 var(--cpx-sys-space-1);
 }
 
 .exit-plan-mode-title {
@@ -687,7 +686,7 @@
 .exit-plan-mode-model {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
@@ -706,23 +705,23 @@
 
 .exit-plan-mode-options {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .exit-plan-mode-option {
   width: 100%;
   display: grid;
-  grid-template-columns: var(--control-size-sm) minmax(0, 1fr) auto;
+  grid-template-columns: var(--cpx-sys-space-6) minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--control-gap);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 0;
   border-radius: var(--cpx-sys-radius-lg);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   text-align: left;
   cursor: pointer;
   transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
@@ -741,8 +740,8 @@
 }
 
 .exit-plan-mode-badge {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -771,7 +770,7 @@
 .exit-plan-mode-info {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
   font-weight: var(--cpx-sys-font-weight-medium);
@@ -786,14 +785,14 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   background: transparent;
   border: 0;
   border-radius: var(--cpx-sys-radius-lg);
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--cpx-sys-motion-enter),
+    color var(--cpx-sys-motion-enter);
 
   &:hover,
   &:focus-within {
@@ -819,7 +818,7 @@
   font-style: inherit;
   font-weight: inherit;
   padding: 0;
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
 
   &::placeholder {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -829,19 +828,19 @@
 .exit-plan-mode-skip {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background var(--cpx-sys-motion-enter),
+    color var(--cpx-sys-motion-enter);
 
   &:hover {
     background: var(--cpx-sys-color-surface-editor);
@@ -850,13 +849,13 @@
 }
 
 .exit-plan-mode-skip kbd {
-  min-width: var(--control-size-md);
+  min-width: var(--cpx-sys-space-7);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--control-padding-block-compact)
-    var(--control-padding-inline-compact);
-  border-radius: 4px;
+  padding: var(--cpx-sys-space-1)
+    var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-compact);
   background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
   font-family: inherit;
@@ -869,13 +868,13 @@
 .exit-plan-mode-submit {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   cursor: pointer;
   transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
   }
 
   &:hover {
@@ -916,8 +915,8 @@
   --inline-approval-command-preview-bg: var(--cpx-sys-color-surface-editor);
   --inline-approval-command-max-height: 96px;
   --inline-approval-command-expanded-max-height: min(34vh, 360px);
-  --inline-approval-note-padding: var(--control-padding-block-compact)
-    var(--control-padding-inline);
+  --inline-approval-note-padding: var(--cpx-sys-space-1)
+    var(--cpx-sys-space-2);
   --inline-approval-note-border: 1px solid var(--cpx-sys-color-border-subtle);
   --inline-approval-note-radius: var(--cpx-sys-radius-lg);
   --inline-approval-note-bg: color-mix(
@@ -926,8 +925,8 @@
     transparent
   );
   --inline-approval-note-focus-border: var(--cpx-sys-color-accent);
-  --inline-approval-note-focus-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
-  --inline-approval-actions-gap: var(--control-gap-compact);
+  --inline-approval-note-focus-shadow: var(--cpx-sys-focus-ring-soft);
+  --inline-approval-actions-gap: var(--cpx-sys-space-1);
   --inline-approval-option-selected-bg: color-mix(
     in srgb,
     var(--cpx-sys-color-fg-primary) 8%,
@@ -939,11 +938,11 @@
     transparent
   );
   --inline-approval-option-index-color: var(--cpx-sys-color-fg-secondary);
-  --inline-approval-submit-padding: var(--control-padding-block)
-    var(--control-padding-inline);
+  --inline-approval-submit-padding: var(--cpx-sys-space-1)
+    var(--cpx-sys-space-2);
   --inline-approval-submit-border: 1px solid
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 18%, transparent);
-  --inline-approval-submit-radius: var(--cpx-comp-button-radius-md);
+  --inline-approval-submit-radius: var(--cpx-sys-radius-control);
   --inline-approval-submit-bg: var(--cpx-sys-color-fg-primary);
   --inline-approval-submit-color: var(--cpx-sys-color-surface-canvas);
   --inline-approval-submit-hover-bg: var(--cpx-sys-color-fg-secondary);
@@ -982,7 +981,7 @@
 .ask-user-question-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
   outline: none;
 }
 
@@ -996,7 +995,7 @@
 
 .workflow-composer-card-question .inline-approval-options {
   grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 12px;
+  column-gap: var(--cpx-sys-space-3);
   align-items: end;
 }
 
@@ -1023,37 +1022,37 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
   flex: 0 0 auto;
 }
 
 .ask-user-question-block + .ask-user-question-block {
-  padding-top: 10px;
+  padding-top: var(--cpx-sys-space-3);
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .ask-user-question-navigation {
   display: flex;
   align-items: center;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
 }
 
 .ask-user-question-nav-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
-  padding: var(--control-padding-block) var(--control-padding-inline);
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
 
   background: var(--cpx-sys-color-fg-primary);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-surface-canvas);
 
   font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
 
   svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
+    width: var(--cpx-sys-space-3);
+    height: var(--cpx-sys-space-3);
   }
 
   &:not(:disabled):hover {
@@ -1085,7 +1084,7 @@
 .workflow-composer-card-question .inline-approval-footer,
 .workflow-composer-card-question .inline-approval-footer-split {
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
-  padding: 10px 0 0;
+  padding: var(--cpx-sys-space-3) 0 0;
 }
 
 .workflow-composer-card-permission .inline-approval-summary {
@@ -1109,19 +1108,19 @@
 }
 
 .workflow-composer-card-permission .inline-approval-options {
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .workflow-composer-card-permission .inline-approval-option {
-  padding: var(--control-padding-block-compact) var(--control-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-lg);
   color: var(--cpx-sys-color-fg-primary);
 }
 
 .workflow-composer-card-permission .inline-approval-fixed-option {
   margin-top: 0;
-  padding-top: 4px;
-  gap: var(--control-gap);
+  padding-top: var(--cpx-sys-space-1);
+  gap: var(--cpx-sys-space-2);
 }
 
 .workflow-composer-card-permission .inline-approval-actions {
@@ -1130,7 +1129,7 @@
 }
 
 .workflow-composer-card-permission .inline-approval-skip {
-  padding: var(--control-padding-block-compact) var(--control-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-tertiary);
 }
@@ -1138,13 +1137,13 @@
 .workflow-composer-card-plan .exit-plan-mode-options {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .workflow-composer-card-plan .exit-plan-mode-note-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .workflow-composer-card-plan .exit-plan-mode-actions {

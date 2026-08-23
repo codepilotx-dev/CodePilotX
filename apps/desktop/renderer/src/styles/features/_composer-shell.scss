@@ -26,6 +26,7 @@
 .composer-input-surface {
   z-index: 2;
   order: 2;
+  border-radius: calc(var(--cpx-sys-radius-xl) * 2);
 }
 
 .composer-utility-bar {
@@ -64,13 +65,15 @@
   }
 
   .composer-utility-bar {
+    --composer-surface-seam: -1px;
+
     z-index: 1;
     order: 2;
     min-height: 0;
-    margin: -1px 13px 0;
-    padding: 6px;
+    margin: var(--composer-surface-seam) var(--cpx-sys-space-3) 0;
+    padding: var(--cpx-sys-space-2);
     border: 0;
-    border-radius: 0 0 16px 16px;
+    border-radius: 0 0 var(--cpx-sys-radius-floating) var(--cpx-sys-radius-floating);
     background: var(--cpx-sys-color-surface-recessed);
   }
 }
@@ -94,11 +97,11 @@
 
 /* 新建首页共用同一 Composer，surface 只决定工具条的产品层级。 */
 .composer-stack[data-placement="new-session"][data-surface] {
-  border-radius: 20px;
+  border-radius: var(--cpx-sys-radius-pill);
 
   .composer-input-surface {
     border: 0;
-    border-radius: 20px;
+    border-radius: calc(var(--cpx-sys-radius-xl) * 2);
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-surface-control) 90%,
@@ -124,10 +127,10 @@
     z-index: 1;
     order: 1;
     min-height: 0;
-    margin: 0 13px -18px;
-    padding: 6px 6px 24px;
+    margin: 0 var(--cpx-sys-space-3) calc(-1 * var(--cpx-sys-space-5));
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-2) var(--cpx-sys-space-6);
     border: 0;
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--cpx-sys-radius-floating) var(--cpx-sys-radius-floating) 0 0;
     background: var(--cpx-sys-color-surface-recessed);
   }
 
@@ -151,12 +154,12 @@
 .composer-top {
   --tw-spacing: 0.25rem;
 
-  padding: calc(var(--tw-spacing) * 3) calc(var(--tw-spacing) * 3) 5px;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-1);
   transition: min-height var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
 .composer-submit-error {
-  margin: 0 2px 8px;
+  margin: 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-warning);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -165,8 +168,8 @@
 .composer-dictation-status {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 2px 8px;
+  gap: var(--cpx-sys-space-2);
+  margin: 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -179,12 +182,15 @@
 .composer-dictation-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--cpx-sys-radius-pill);
   background: currentColor;
 }
 
 .send-button.is-submitting svg {
-  animation: composer-submit-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation-name: composer-submit-spin;
+  animation-duration: var(--cpx-sys-motion-loading);
+  animation-timing-function: var(--cpx-sys-ease-standard);
+  animation-iteration-count: infinite;
 }
 
 @keyframes composer-submit-spin {
@@ -304,15 +310,18 @@
     var(--cpx-sys-color-surface-editor) 70%
   );
   background-size: 200% 100%;
-  animation: attachment-loading calc(var(--cpx-sys-motion-loading) * 2) ease-in-out infinite;
+  animation-name: attachment-loading;
+  animation-duration: calc(var(--cpx-sys-motion-loading) * 2);
+  animation-timing-function: var(--cpx-sys-ease-standard);
+  animation-iteration-count: infinite;
 }
 
 .attachment-image-tile__error {
   flex-direction: column;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-warning);
-  font-size: 10px;
-  line-height: 12px;
+  font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .attachment-file-pill {
@@ -346,7 +355,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: var(--cpx-sys-space-2);
-  padding: 6px 10px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 0;
   border-radius: inherit;
   background: transparent;
@@ -400,7 +409,7 @@
 }
 
 .attachment-file-pill[data-removable='true'] .attachment-file-pill__open {
-  padding-inline-end: 24px;
+  padding-inline-end: var(--cpx-sys-space-6);
 }
 
 .attachment-item-remove {
@@ -469,7 +478,7 @@
 
 .composer-inline-skill-token {
   display: inline;
-  padding-inline: 2px;
+  padding-inline: var(--cpx-sys-space-1);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -493,8 +502,8 @@
 .composer-inline-skill-token-fallback-icon {
   width: 16px;
   height: 16px;
-  margin-inline-end: 3px;
-  border-radius: 3px;
+  margin-inline-end: var(--cpx-sys-space-1);
+  border-radius: var(--cpx-sys-radius-indicator);
   object-fit: cover;
   vertical-align: text-bottom;
 }
@@ -508,12 +517,12 @@
 .composer-inline-skill-token:is(.ProseMirror-selectednode, :focus-visible) {
   border-radius: var(--cpx-sys-radius-md);
   outline: none;
-  box-shadow: 0 0 0 2px var(--cpx-sys-color-accent);
+  box-shadow: var(--cpx-sys-focus-ring-inset);
 }
 
 .composer .icon-button {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   border-radius: var(--cpx-sys-radius-full);
 
   &:hover {
@@ -532,8 +541,8 @@
 }
 
 .composer-mic-button {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
   color: var(--cpx-sys-color-fg-tertiary);
 
   &:hover {
@@ -551,7 +560,10 @@
 
   &.is-recording svg,
   &:has(svg.lucide-activity) svg {
-    animation: composer-submit-spin var(--cpx-sys-motion-loading) linear infinite;
+    animation-name: composer-submit-spin;
+    animation-duration: var(--cpx-sys-motion-loading);
+    animation-timing-function: var(--cpx-sys-ease-standard);
+    animation-iteration-count: infinite;
   }
 }
 
@@ -564,12 +576,14 @@
 
 .composer-bottom {
   max-width: none;
-  margin-top: 2px;
-  padding: 8px 0 0;
+  margin-top: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-2) 0 0;
 
   &.composer-utility-bar {
-    margin: 0 12px -1px;
-    padding: 4px 8px 8px;
+    --composer-surface-seam: -1px;
+
+    margin: 0 var(--cpx-sys-space-3) var(--composer-surface-seam);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2) var(--cpx-sys-space-2);
   }
 }
 
@@ -635,7 +649,7 @@
 .composer-model-chip-thinking {
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
-  padding: 1px 5px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-xs);
   background: var(--cpx-sys-color-surface-control);
   color: var(--cpx-sys-color-fg-secondary);
@@ -643,5 +657,8 @@
 
 .chip-button-spinner {
   flex-shrink: 0;
-  animation: composer-chip-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation-name: composer-chip-spin;
+  animation-duration: var(--cpx-sys-motion-loading);
+  animation-timing-function: var(--cpx-sys-ease-standard);
+  animation-iteration-count: infinite;
 }

@@ -45,7 +45,6 @@
     "src/styles/lazy/whats-new.scss": "features"
   },
   "customPropertyReferenceAllowlist": [
-    "--inline-approval-card-margin-bottom",
     "--inline-approval-card-radius",
     "--popover-overflow-x",
     "--radix-context-menu-content-transform-origin",
@@ -75,16 +74,6 @@
     "src/styles/features/model-center.scss": 2
   },
   "literalLineHeightAllowlist": {
-    "src/styles/features/_composer-shell.scss": 1,
-    "src/styles/features/_file-editor.scss": 1,
-    "src/styles/features/_session-approvals.scss": 1,
-    "src/styles/features/_settings-billing.scss": 2,
-    "src/styles/features/_settings-connections.scss": 1,
-    "src/styles/features/_settings-core.scss": 1,
-    "src/styles/features/_settings-profile.scss": 1,
-    "src/styles/features/layout-sidebar.scss": 2,
-    "src/styles/features/marketplace.scss": 1,
-    "src/styles/features/review.scss": 5,
     "src/styles/modal.scss": 2
   },
   "tailwindLeadingAllowlist": {},
@@ -179,5 +168,68 @@
         "reason": "Usage chart intentionally interpolates a data-series color against the semantic border."
       }
     ]
+  },
+  "featureTokenContract": {
+    "roots": [
+      "src/styles/features",
+      "src/styles/lazy"
+    ],
+    "scriptRoots": [
+      "src/features",
+      "src/components"
+    ],
+    "componentGeometryExceptions": [],
+    "inlineStyleExceptions": [],
+    "tailwindArbitraryExceptions": [],
+    "literalTypographyExceptions": [],
+    "literalRadiusExceptions": [],
+    "literalMotionExceptions": [],
+    "literalShadowExceptions": [
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "property": "box-shadow",
+        "value": "0 0 0 1px color-mix(in srgb, currentColor 10%, transparent)",
+        "reason": "The configurable color swatch needs a neutral outline derived from its dynamic currentColor."
+      },
+      {
+        "file": "src/styles/features/_settings-appearance.scss",
+        "property": "box-shadow",
+        "value": "0 0 0 1px rgb(0 0 0 / 40%)",
+        "reason": "Color picker thumbs need a fixed dark contrast outline over arbitrary user-selected hues."
+      }
+    ],
+    "literalZIndexExceptions": [
+      {
+        "file": "src/styles/features/_composer-shell.scss",
+        "property": "z-index",
+        "value": "1",
+        "reason": "Composer utility surface uses local ordering inside the isolated composer stacking context."
+      },
+      {
+        "file": "src/styles/features/_composer-shell.scss",
+        "property": "z-index",
+        "value": "2",
+        "reason": "Composer input surface stays above its utility sibling inside the isolated composer stacking context."
+      },
+      {
+        "file": "src/styles/features/layout-sidebar.scss",
+        "property": "z-index",
+        "value": "1",
+        "reason": "The docked sidebar uses local sibling ordering inside its positioned dock container."
+      },
+      {
+        "file": "src/styles/features/_layout-workspace-header.scss",
+        "property": "z-index",
+        "value": "1",
+        "reason": "Workspace header route groups use local grid-item ordering inside the dock layer."
+      },
+      {
+        "file": "src/styles/features/_session-page.scss",
+        "property": "z-index",
+        "value": "2",
+        "reason": "Focused composer actions use local ordering inside the isolated composer control group."
+      }
+    ],
+    "literalSpacingExceptions": []
   }
 }

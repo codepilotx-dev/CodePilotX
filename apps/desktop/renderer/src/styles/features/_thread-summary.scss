@@ -1,11 +1,11 @@
 .workflow-page__main[data-thread-summary-inline="true"] {
-  padding-inline-end: calc(272px + (16px * 2));
+  padding-inline-end: calc(calc(var(--cpx-sys-space-1) * 68) + (var(--cpx-sys-space-4) * 2));
   transition: padding-inline-end var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
 .thread-summary-inline {
   position: absolute;
-  z-index: 40;
+  z-index: var(--cpx-sys-z-sticky);
   top: var(--cpx-sys-space-4);
   right: var(--cpx-sys-space-4);
   bottom: var(--cpx-sys-space-4);
@@ -35,7 +35,7 @@
   gap: var(--cpx-sys-space-3);
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 10px 0 6px;
+  padding: var(--cpx-sys-space-3) 0 var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-default);
   background: var(--cpx-sys-color-surface-panel);
   scrollbar-width: thin;
@@ -60,7 +60,7 @@
   }
 
   &:last-child {
-    padding-bottom: 2px;
+    padding-bottom: var(--cpx-sys-space-1);
 
     &::after {
       display: none;
@@ -69,7 +69,7 @@
 
   > header {
     position: sticky;
-    z-index: 10;
+    z-index: var(--cpx-sys-z-local);
     top: 0;
     display: flex;
     align-items: center;
@@ -78,7 +78,7 @@
     width: 100%;
     min-width: 0;
     height: 28px;
-    padding: 0 10px 2px 14px;
+    padding: 0 var(--cpx-sys-space-3) var(--cpx-sys-space-1) var(--cpx-sys-space-4);
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-md);
@@ -114,8 +114,8 @@
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 4px 2px 0;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-1) 0;
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   outline: none;
@@ -168,7 +168,7 @@
   z-index: 0;
   display: grid;
   grid-template-rows: 1fr;
-  margin-top: 2px;
+  margin-top: var(--cpx-sys-space-1);
   overflow: hidden;
   opacity: 1;
   transition:
@@ -188,7 +188,7 @@
   min-height: 0;
   display: grid;
   gap: 0;
-  padding: 0 14px;
+  padding: 0 var(--cpx-sys-space-4);
   overflow: hidden;
 }
 
@@ -197,7 +197,7 @@
   min-width: 0;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) max-content;
-  margin: 0 -8px;
+  margin: 0 calc(-1 * var(--cpx-sys-space-2));
   font-family: inherit;
   font-weight: var(--cpx-sys-font-weight-medium);
   text-align: left;
@@ -207,7 +207,7 @@
     width: 16px;
     height: 16px;
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 
   > span {
@@ -236,7 +236,7 @@
   width: calc(100% + 16px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
-  margin: 0 -8px;
+  margin: 0 calc(-1 * var(--cpx-sys-space-2));
 }
 
 .thread-summary-row-group__main {
@@ -252,7 +252,7 @@
     width: 16px;
     height: 16px;
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 
   > span {
@@ -343,12 +343,12 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: 50%;
+    border-radius: var(--cpx-sys-radius-pill);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
 
     + span {
-      margin-left: -6px;
+      margin-left: calc(-1 * var(--cpx-sys-space-2));
     }
 
     &:nth-child(2) {
@@ -378,7 +378,7 @@
 
 .thread-summary-sources-panel {
   position: fixed;
-  z-index: calc(var(--cpx-sys-z-modal) + 1);
+  z-index: var(--cpx-sys-z-popover);
   top: 12px;
   right: 12px;
   bottom: 12px;
@@ -422,7 +422,7 @@
       justify-content: center;
       padding: 0;
       border: 0;
-      border-radius: var(--cpx-comp-button-radius-md);
+      border-radius: var(--cpx-sys-radius-control);
       background: transparent;
       color: var(--cpx-sys-color-fg-primary);
       cursor: pointer;
@@ -449,7 +449,7 @@
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   overflow-y: auto;
 
   > a {
@@ -468,7 +468,7 @@
 
 .thread-summary-diff {
   display: inline-flex;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
   font-size: var(--cpx-sys-font-size-xs);
   font-variant-numeric: tabular-nums;
 
@@ -502,9 +502,9 @@
     align-items: center;
     gap: var(--cpx-sys-space-1);
     margin-top: var(--cpx-sys-space-2);
-    padding: 6px 10px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-comp-button-radius-md);
+    border-radius: var(--cpx-sys-radius-control);
     background: var(--cpx-sys-color-surface-raised);
     color: var(--cpx-sys-color-fg-primary);
     font: inherit;

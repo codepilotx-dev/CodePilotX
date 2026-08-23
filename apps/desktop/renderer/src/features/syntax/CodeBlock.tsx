@@ -155,7 +155,7 @@ export function CodeBlock({
         ) : onChangeLanguage ? (
           <button
             aria-label={`修改代码语言：当前为 ${languageLabel}`}
-            className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
             title="点击直接修改代码语言"
             type="button"
             onClick={e => {
@@ -178,7 +178,7 @@ export function CodeBlock({
             className={cx(
               'md-code-action md-code-copy',
               copied && 'is-copied',
-              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
+              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
             )}
             title={copied ? '已复制' : '复制代码'}
             type="button"

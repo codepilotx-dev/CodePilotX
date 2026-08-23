@@ -46,14 +46,14 @@
   .popover-item,
   .popover-sub-trigger {
     display: grid;
-    grid-template-columns: var(--menu-icon-size, 16px) minmax(0, 1fr) max-content;
+    grid-template-columns: var(--cpx-comp-menu-icon-size) minmax(0, 1fr) max-content;
     column-gap: var(--cpx-comp-row-gap);
     align-items: center;
   }
 
   .popover-item.rich {
     grid-template-columns:
-      calc(var(--menu-icon-size, 16px) + 2px)
+      calc(var(--cpx-comp-menu-icon-size) + 2px)
       minmax(0, 1fr)
       max-content;
     align-items: center;
@@ -103,7 +103,7 @@
   .sidebar-context-menu-sub-trigger {
     display: grid;
     grid-template-columns:
-      calc(var(--menu-icon-size, 16px) + 2px)
+      calc(var(--cpx-comp-menu-icon-size) + 2px)
       minmax(min-content, 1fr)
       max-content;
     column-gap: var(--cpx-comp-row-gap);

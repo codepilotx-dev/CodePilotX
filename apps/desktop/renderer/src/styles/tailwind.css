@@ -7,10 +7,10 @@
   --spacing: 0.25rem;
 
   --text-xs: var(--cpx-sys-font-size-xs);
-  --text-xs--line-height: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --text-xs--line-height: var(--cpx-sys-line-height-tight);
   --text-sm: var(--cpx-sys-font-size-sm);
   --text-sm--line-height: var(--cpx-sys-line-height-tight);
-  --text-base: var(--cpx-sys-font-size-md);
+  --text-base: var(--cpx-sys-font-size-ui);
   --text-base--line-height: var(--cpx-sys-line-height-normal);
   --text-lg: var(--cpx-sys-font-size-lg);
   --text-lg--line-height: var(--cpx-sys-line-height-relaxed);
@@ -19,17 +19,22 @@
   --text-code: var(--cpx-sys-font-size-code);
   --text-code--line-height: var(--cpx-sys-line-height-code);
 
-  --radius-2xs: var(--cpx-sys-radius-xs);
-  --radius-xs: var(--cpx-sys-radius-sm);
-  --radius-sm: var(--cpx-sys-radius-md);
-  --radius-md: var(--cpx-sys-radius-lg);
-  --radius-lg: var(--cpx-sys-radius-xl);
-  --radius-xl: var(--cpx-sys-radius-xl);
-  --radius-2xl: var(--cpx-sys-radius-xl);
+  --radius-2xs: var(--cpx-sys-radius-indicator);
+  --radius-xs: var(--cpx-sys-radius-compact);
+  --radius-sm: var(--cpx-sys-radius-control);
+  --radius-md: var(--cpx-sys-radius-container);
+  --radius-lg: var(--cpx-sys-radius-floating);
+  --radius-xl: var(--cpx-sys-radius-floating);
+  --radius-2xl: var(--cpx-sys-radius-floating);
 
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
+  --shadow-sm: var(--cpx-sys-shadow-resting);
+  --shadow-md: var(--cpx-sys-shadow-raised);
+  --shadow-lg: var(--cpx-sys-shadow-floating);
+
+  --ease-standard: var(--cpx-sys-ease-standard);
+  --ease-in: var(--cpx-sys-ease-in);
+  --ease-out: var(--cpx-sys-ease-out);
+  --ease-linear: var(--cpx-sys-ease-linear);
 }
 
 @theme inline {

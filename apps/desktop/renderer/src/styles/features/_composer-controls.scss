@@ -101,8 +101,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   flex-shrink: 0;
 }
 
@@ -115,9 +115,9 @@
 }
 
 .composer-plan-mode-chip-icon-exit {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
-  padding: 3px;
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-full);
   background: color-mix(in srgb, currentColor 18%, transparent);
   opacity: 0;
@@ -143,11 +143,11 @@
   min-width: 0;
 
   > svg:first-child {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
     display: block;
     flex-shrink: 0;
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 }
 
@@ -188,13 +188,13 @@
   flex-shrink: 0;
   margin-top: 0;
   color: var(--cpx-sys-color-fg-primary);
-  padding-right: var(--control-gap-compact);
+  padding-right: var(--cpx-sys-space-1);
 
   svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
     display: block;
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: 1.75;
   }
 }
 
@@ -202,9 +202,9 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 0;
   padding-right: calc(
-    var(--app-icon-size) + var(--control-gap) + var(--control-gap-compact)
+    var(--cpx-sys-space-4) + var(--cpx-sys-space-2) + var(--cpx-sys-space-1)
   );
 }
 
@@ -258,8 +258,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--app-icon-size-sm);
-  height: var(--app-icon-size-sm);
+  width: var(--cpx-sys-space-3);
+  height: var(--cpx-sys-space-3);
   flex-shrink: 0;
   color: var(--cpx-sys-color-fg-secondary);
   cursor: default;
@@ -271,10 +271,10 @@
   bottom: calc(100% + 8px);
   z-index: var(--cpx-sys-z-tooltip);
   display: grid;
-  gap: 4px;
-  padding: 8px 12px 10px;
+  gap: var(--cpx-sys-space-1);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-comp-dropdown-menu-radius);
+  border-radius: var(--cpx-sys-radius-floating);
   background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-secondary);
@@ -303,11 +303,11 @@
 
 @media (max-width: 960px) {
   .composer-bottom {
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
 
     .meta-chip {
-      gap: 4px;
-      padding: 0 var(--cpx-comp-row-padding-inline);
+      gap: var(--cpx-sys-space-1);
+      padding: 0 var(--cpx-sys-space-2);
 
       .permission-select-trigger-label,
       .composer-model-chip-thinking {
@@ -317,13 +317,13 @@
   }
 
   .permission-select-trigger {
-    gap: 4px;
-    padding-inline: var(--cpx-comp-row-padding-inline);
+    gap: var(--cpx-sys-space-1);
+    padding-inline: var(--cpx-sys-space-2);
   }
 
   .composer-model-chip {
     max-width: 96px;
-    padding-inline: var(--cpx-comp-row-padding-inline);
+    padding-inline: var(--cpx-sys-space-2);
   }
 }
 
@@ -334,8 +334,8 @@
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2);
   background: var(--cpx-sys-color-surface-raised);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
@@ -346,8 +346,8 @@
 .home-debug-tool {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   background: transparent;
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
@@ -415,7 +415,7 @@
 
 /* --- Chat input dropdown --- */
 .chat-input__dropdown-content {
-  padding: var(--menu-surface-padding);
+  padding: var(--cpx-sys-space-2);
 }
 
 .chat-input__dropdown {
@@ -434,10 +434,10 @@
 .chat-input__dropdown-item {
   display: grid;
   grid-template-columns:
-    var(--menu-icon-size)
+    var(--cpx-sys-space-4)
     max-content
     minmax(0, 1fr);
-  column-gap: var(--cpx-comp-row-gap);
+  column-gap: var(--cpx-sys-space-2);
   background: transparent;
   border: 0;
   font-family: inherit;
@@ -457,16 +457,16 @@
 }
 
 .chat-input__dropdown-leading {
-  width: var(--menu-icon-size);
-  height: var(--menu-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--cpx-sys-color-fg-primary);
 
   svg {
-    width: var(--menu-icon-size);
-    height: var(--menu-icon-size);
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
     display: block;
   }
 }
@@ -499,19 +499,19 @@
 
 .chat-input__dropdown-separator {
   height: 1px;
-  margin: 4px 0;
+  margin: var(--cpx-sys-space-1) 0;
   background: var(--cpx-sys-color-border-default);
 }
 
 .chat-input__dropdown-section-title {
   display: grid;
   grid-template-columns:
-    var(--menu-icon-size)
+    var(--cpx-sys-space-4)
     max-content
     minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--cpx-comp-row-gap);
-  padding: 4px 8px;
+  column-gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
   color: var(--cpx-sys-color-fg-tertiary);
@@ -522,12 +522,12 @@
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--cpx-sys-radius-pill);
   flex-shrink: 0;
 }
 
 .chat-input__dropdown-empty {
-  padding: 8px;
+  padding: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
   line-height: var(--cpx-sys-line-height-tight);
@@ -543,10 +543,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--app-icon-size-md);
-  height: var(--app-icon-size-md);
+  width: var(--cpx-sys-space-5);
+  height: var(--cpx-sys-space-5);
   flex-shrink: 0;
-  font-size: var(--app-icon-size);
+  font-size: var(--cpx-sys-space-4);
 }
 
 .composer-editor-content[data-placeholder]::before {
@@ -599,12 +599,12 @@
 
 @container (max-width: 420px) {
   .composer-toolbar {
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
   }
 
   .composer .toolbar-left,
   .composer .toolbar-right {
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
   }
 }
 

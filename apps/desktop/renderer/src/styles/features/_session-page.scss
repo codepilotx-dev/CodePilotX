@@ -20,7 +20,7 @@
 }
 
 .quick-chat-view {
-  --quick-chat-surface-width: min(var(--layout-content-w, 48rem), 100%);
+  --quick-chat-surface-width: min(var(--cpx-sys-layout-content-max-width, 48rem), 100%);
   --composer-surface-top-padding: 0.85em 1em 0.7em;
   --composer-surface-top-border: 0;
   --composer-surface-top-radius: var(--cpx-sys-radius-xl);
@@ -42,7 +42,7 @@
   max-width: none;
   height: 100%;
   min-height: 100%;
-  padding: var(--cpx-sys-space-6) var(--layout-page-pad-x) var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-6) var(--cpx-sys-layout-page-padding-inline) var(--cpx-sys-space-4);
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -106,7 +106,7 @@
     user-select: none;
     transition:
       opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-      transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
     &:hover {
       opacity: 0.4;
@@ -124,7 +124,7 @@
     color: var(--cpx-sys-color-fg-primary);
     font-size: inherit;
     font-weight: var(--cpx-sys-font-weight-regular);
-    padding: 3px 6px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     letter-spacing: 0;
     text-wrap: balance;
     user-select: none;
@@ -178,8 +178,9 @@
   justify-content: center;
 
   .quick-chat-composer-region {
-    // 空状态内容整体居中，不把 Composer 固定在窗口最底部；
-    // margin auto 在内容超高时可滚动，不会裁剪顶部
+    /* 空状态内容整体居中，不把 Composer 固定在窗口最底部； */
+
+    /* margin auto 在内容超高时可滚动，不会裁剪顶部 */
     flex: 0 1 auto;
     justify-content: center;
     gap: var(--cpx-sys-space-8);
@@ -200,11 +201,16 @@
   justify-content: center;
 
   .chat-home-region {
+    --chat-home-region-padding-block: min(
+      10vh,
+      calc(var(--cpx-sys-space-1) * 20)
+    );
+
     flex: 0 1 auto;
     justify-content: center;
     gap: var(--cpx-sys-space-7);
     margin: auto;
-    padding-block: min(10vh, 80px);
+    padding-block: var(--chat-home-region-padding-block);
   }
 
   .chat-home-hero {
@@ -306,11 +312,9 @@
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--cpx-sys-radius-floating);
   background: var(--cpx-sys-color-surface-canvas);
-  box-shadow:
-    0 0 0 0.5px var(--cpx-sys-color-border-strong),
-    0 2px 4px -1px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 10%, transparent);
+  box-shadow: var(--cpx-sys-shadow-resting);
   color: var(--cpx-sys-color-fg-primary);
   text-align: left;
   animation: new-session-suggestion-card-enter var(--cpx-sys-motion-enter)
@@ -386,7 +390,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-2);
-  padding: 2px var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-sm);
 
@@ -394,7 +398,7 @@
   button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
   }
 
   > span {
@@ -418,7 +422,7 @@
 
 .new-session-suggestion-list {
   display: grid;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .new-session-suggestion-row {
@@ -548,7 +552,7 @@
 
 /* --- Conversation page --- */
 .conversation-page {
-  --session-content-inline-gutter: var(--layout-page-pad-x, 32px);
+  --session-content-inline-gutter: var(--cpx-sys-layout-page-padding-inline, 32px);
   --session-content-w: calc(
     100% - (var(--session-content-inline-gutter) * 2)
   );
@@ -591,14 +595,19 @@
 }
 
 .conversation-page.approval-active .quick-chat-content {
-  padding-bottom: min(54vh, 520px);
+  --approval-active-composer-inset: min(
+    54vh,
+    calc(var(--cpx-sys-space-1) * 130)
+  );
+
+  padding-bottom: var(--approval-active-composer-inset);
 }
 
 .chat-session-title {
   display: flex;
   align-items: center;
   flex: 1 1 auto;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
@@ -656,13 +665,15 @@
 }
 
 .open-target-trigger {
-  margin-left: -1px;
+  --session-open-target-seam: -1px;
+
+  margin-left: var(--session-open-target-seam);
   border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
 }
 
 .chat-open-target-icon {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   display: block;
   object-fit: contain;
 }
@@ -802,22 +813,22 @@
 
   &__plan {
     flex: 0 0 auto;
-    gap: 7px;
-    padding-inline: 14px 0;
+    gap: var(--cpx-sys-space-2);
+    padding-inline: var(--cpx-sys-space-4) 0;
 
     &:only-child {
-      padding-inline: 14px;
+      padding-inline: var(--cpx-sys-space-4);
     }
   }
 
   &__changes {
-    gap: var(--control-gap);
-    padding-inline: 0 14px;
+    gap: var(--cpx-sys-space-2);
+    padding-inline: 0 var(--cpx-sys-space-4);
     overflow: hidden;
     text-overflow: ellipsis;
 
     &:only-child {
-      padding-inline: 14px;
+      padding-inline: var(--cpx-sys-space-4);
     }
   }
 
@@ -836,7 +847,7 @@
     color: var(--cpx-sys-color-accent);
 
     svg {
-      animation: composer-change-summary-spin 1s linear infinite;
+      animation: composer-change-summary-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
     }
   }
 
@@ -862,7 +873,7 @@
 
   &__separator {
     flex: 0 0 auto;
-    margin-inline: var(--control-gap);
+    margin-inline: var(--cpx-sys-space-2);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 
@@ -870,7 +881,7 @@
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
     font-variant-numeric: tabular-nums;
   }
 
@@ -936,7 +947,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
     opacity: 1;
     transform: scale(1);
 
@@ -945,7 +956,7 @@
       height: 6px;
       border-radius: var(--cpx-sys-radius-full);
       background: currentcolor;
-      animation: composer-change-summary-dot-bounce 1.2s ease-in-out infinite;
+      animation: composer-change-summary-dot-bounce var(--cpx-sys-motion-loading) var(--cpx-sys-ease-standard) infinite;
     }
 
     span:nth-child(2) {

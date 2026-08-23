@@ -60,7 +60,7 @@
     user-select: none;
     touch-action: none;
     outline: none;
-    transition: box-shadow var(--cpx-sys-motion-micro) ease;
+    transition: box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
     &:focus-visible {
       box-shadow: var(--cpx-sys-focus-ring);
@@ -76,7 +76,7 @@
     background: var(--cpx-sys-color-accent);
     transition:
       width 260ms cubic-bezier(0.34, 1.35, 0.64, 1),
-      opacity var(--cpx-sys-motion-micro) ease;
+      opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
     z-index: 1;
     pointer-events: none;
 
@@ -128,11 +128,11 @@
     pointer-events: none;
     transition:
       left 260ms cubic-bezier(0.34, 1.35, 0.64, 1),
-      transform var(--cpx-sys-motion-micro) ease,
-      box-shadow var(--cpx-sys-motion-micro) ease;
+      transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+      box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
     &.is-dragging {
-      transition: transform var(--cpx-sys-motion-micro) ease;
+      transition: transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
       cursor: grabbing;
       transform: scale(1.12);
       box-shadow:
@@ -153,7 +153,7 @@
     font-size: var(--cpx-sys-font-size-xs);
     color: var(--cpx-sys-color-fg-tertiary);
     cursor: pointer;
-    transition: color var(--cpx-sys-motion-micro) ease;
+    transition: color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
     &:hover {
       color: var(--cpx-sys-color-fg-primary);
@@ -211,7 +211,7 @@
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: background 120ms ease, color 120ms ease;
+    transition: background var(--cpx-sys-motion-exit) var(--cpx-sys-ease-standard), color var(--cpx-sys-motion-exit) var(--cpx-sys-ease-standard);
 
     &:hover,
     &.is-active {
@@ -274,7 +274,7 @@
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: background 120ms ease;
+    transition: background var(--cpx-sys-motion-exit) var(--cpx-sys-ease-standard);
 
     &:hover {
       background: var(--cpx-comp-dropdown-item-hover-bg);
@@ -321,10 +321,10 @@
 
   .rm-model-item-check {
     flex-shrink: 0;
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-comp-icon-size-md);
+    height: var(--cpx-comp-icon-size-md);
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: var(--cpx-comp-icon-stroke-width);
   }
 
   .rm-model-picker-search-results {
@@ -414,16 +414,16 @@
 
   .rm-item-check {
     flex-shrink: 0;
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-comp-icon-size-md);
+    height: var(--cpx-comp-icon-size-md);
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: var(--app-icon-stroke-width);
+    stroke-width: var(--cpx-comp-icon-stroke-width);
   }
 
   .rm-item-arrow {
     flex-shrink: 0;
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
+    width: var(--cpx-comp-icon-size-md);
+    height: var(--cpx-comp-icon-size-md);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 

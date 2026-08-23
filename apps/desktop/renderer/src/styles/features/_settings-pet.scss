@@ -3,7 +3,7 @@
 .pet-settings-preview {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-settings-inline .settings-dropdown {
@@ -12,7 +12,7 @@
 
 .pet-settings-installer {
   width: 100%;
-  padding: 14px;
+  padding: var(--cpx-sys-space-4);
 }
 
 .pet-settings-installer > :first-child {
@@ -20,8 +20,8 @@
 }
 
 .pet-settings-preview {
-  margin: 0 14px 14px;
-  padding: 12px;
+  margin: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-3);
   background: var(--cpx-sys-color-surface-panel);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
@@ -32,7 +32,7 @@
 }
 
 .pet-settings-preview p {
-  margin: 3px 0 0;
+  margin: var(--cpx-sys-space-1) 0 0;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
 }

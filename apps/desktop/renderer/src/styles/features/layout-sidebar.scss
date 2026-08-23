@@ -1,11 +1,7 @@
 .desktop-sidebar {
-  --cpx-comp-row-radius: var(
-    --cpx-comp-sidebar-item-radius,
-    var(--cpx-sys-radius-md)
-  );
   position: absolute;
   inset: 0 auto 0 0;
-  z-index: calc(var(--cpx-sys-z-composer) + 1);
+  z-index: var(--cpx-sys-z-dock);
   width: var(--sidebar-current-width);
   height: 100%;
   flex: none;
@@ -40,7 +36,7 @@
 .desktop-sidebar {
   --sidebar-padding-x: 8px;
   --sidebar-item-gap: 10px;
-  --sidebar-row-pad-y: var(--control-padding-block-compact);
+  --sidebar-row-pad-y: var(--cpx-sys-space-1);
   --sidebar-trailing-width: 4.286em;
 }
 
@@ -50,18 +46,18 @@
   justify-content: space-between;
   flex: 0 0 auto;
   min-width: 0;
-  margin: 0 8px 10px;
+  margin: 0 var(--cpx-sys-space-2) var(--cpx-sys-space-3);
 }
 
 .sidebar-product-mode-trigger[data-size="medium"] {
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  padding-inline: 8px;
-  border-radius: 10px;
+  padding-inline: var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-container);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-lg);
   font-weight: 600;
-  line-height: 24px;
+  line-height: var(--cpx-sys-line-height-reading);
 
   svg {
     flex: 0 0 auto;
@@ -77,9 +73,9 @@
 .sidebar-header-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
-  margin-left: 8px;
+  margin-left: var(--cpx-sys-space-2);
 }
 
 .sidebar-timeline-toggle-button {
@@ -92,7 +88,7 @@
 }
 
 .sidebar-top-nav {
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
 }
 
 /* 固定“新建任务”导航：位于滚动区外，侧栏高度不足时不可压缩。
@@ -110,7 +106,7 @@
 /* 滚动区内部：次级导航与时间线/任务主体之间的分组间距 */
 .sidebar-scroll-main {
   min-width: 0;
-  padding-top: 16px;
+  padding-top: var(--cpx-sys-space-4);
 }
 
 .sidebar-nav-link {
@@ -213,7 +209,7 @@
 
 .sidebar-scroll-content {
   min-width: 0;
-  padding-bottom: 8px;
+  padding-bottom: var(--cpx-sys-space-2);
 }
 
 .sidebar-row,
@@ -281,7 +277,7 @@
   min-height: 28px;
   display: flex;
   align-items: center;
-  padding: 2px var(--sidebar-padding-x);
+  padding: var(--cpx-sys-space-1) var(--sidebar-padding-x);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-ui);
   font-weight: 400;
@@ -297,7 +293,7 @@
   .sidebar-row-main {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
   }
 
   .ui-button {
@@ -319,9 +315,9 @@
 }
 
 .sidebar-row-leading-spacer {
-  width: var(--app-icon-size);
-  min-width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  min-width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
 }
 
 .sidebar-row-main {
@@ -396,7 +392,7 @@
 
 .sidebar-section-trailing {
   min-width: 0;
-  min-height: var(--app-icon-size);
+  min-height: var(--cpx-sys-space-4);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -446,7 +442,7 @@
 
 .sidebar-project-actions {
   position: relative;
-  min-height: var(--app-icon-size);
+  min-height: var(--cpx-sys-space-4);
   display: flex;
   align-items: center;
   opacity: 0;
@@ -470,7 +466,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .sidebar-section-actions,
@@ -508,7 +504,7 @@
 }
 
 .sidebar-session-button {
-  padding: 2px 0;
+  padding: var(--cpx-sys-space-1) 0;
 }
 
 .sidebar-project-name {
@@ -557,7 +553,7 @@
   min-width: max-content;
   display: inline-flex;
   align-items: center;
-  gap: var(--control-gap-compact);
+  gap: var(--cpx-sys-space-1);
 }
 
 .sidebar-session-row:hover .sidebar-session-title[data-scrolling] {
@@ -568,7 +564,7 @@
 .sidebar-session-row:hover .sidebar-session-title-track[data-scrolling] {
   transform: translateX(calc(-1 * var(--sidebar-title-scroll-distance)));
   transition:
-    transform var(--sidebar-title-scroll-duration) ease-in-out
+    transform var(--sidebar-title-scroll-duration) var(--cpx-sys-ease-standard)
     var(--cpx-sys-motion-micro);
 }
 
@@ -602,7 +598,7 @@
 .sidebar-focus-section-header {
   position: sticky;
   top: 6px;
-  z-index: 10;
+  z-index: var(--cpx-sys-z-local);
   min-width: 0;
   height: 30px;
   display: flex;
@@ -615,7 +611,7 @@
   isolation: isolate;
 }
 
-// Sticky labels share the raised surface blur without becoming a separate card.
+/* Sticky labels share the raised surface blur without becoming a separate card. */
 .sidebar-focus-section-header::before {
   content: "";
   position: absolute;
@@ -653,7 +649,7 @@
   .sidebar-focus-section-clip-content,
   .sidebar-focus-section-header {
     animation-duration: auto;
-    animation-timing-function: linear;
+    animation-timing-function: var(--cpx-sys-ease-linear);
     animation-fill-mode: both;
   }
 
@@ -664,8 +660,8 @@
   }
 
   .sidebar-focus-section-clip-window {
-    margin-top: -4px;
-    padding-top: 4px;
+    margin-top: calc(-1 * var(--cpx-sys-space-1));
+    padding-top: var(--cpx-sys-space-1);
     -webkit-mask-image: linear-gradient(
       to bottom,
       transparent -4px,
@@ -709,19 +705,21 @@
   }
 }
 
-// 时间线唯一的外层 gutter：与分类标题、空状态、会话行各自的 8px 行内
-// padding 叠加后，文字统一落在距滚动内容边缘 16px 的基线上，选中/hover
-// 背景则从 8px gutter 开始，左右对称。
+/* 时间线唯一的外层 gutter：与分类标题、空状态、会话行各自的 8px 行内 */
+
+/* padding 叠加后，文字统一落在距滚动内容边缘 16px 的基线上，选中/hover */
+
+/* 背景则从 8px gutter 开始，左右对称。 */
 .sidebar-timeline {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--cpx-sys-space-4);
   min-width: 0;
   padding-inline: var(--sidebar-padding-x);
 
   .sidebar-session-row {
     min-height: 48px;
-    padding-block: 4px;
+    padding-block: var(--cpx-sys-space-1);
   }
 }
 
@@ -770,13 +768,13 @@
 }
 
 .sidebar-session-button-lines--meta {
-  gap: 3px;
-  padding-block: 2px;
+  gap: var(--cpx-sys-space-1);
+  padding-block: var(--cpx-sys-space-1);
 
   .sidebar-session-title {
     font-size: var(--cpx-sys-font-size-ui);
     font-weight: 500;
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 }
 
@@ -796,7 +794,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-sm);
   font-weight: 400;
@@ -839,10 +837,10 @@
   }
 }
 
-// 普通模式会话统一右缩进；时间线行不在此容器内，继续使用 8px 基线。
+/* 普通模式会话统一右缩进；时间线行不在此容器内，继续使用 8px 基线。 */
 .sidebar-standard-mode .sidebar-row--session,
 .sidebar-standard-mode .sidebar-show-more-actions {
-  padding-left: var(--layout-sidebar-session-indent);
+  padding-left: var(--cpx-sys-layout-sidebar-session-indent);
 }
 
 .sidebar-project-sortable {
@@ -869,16 +867,16 @@
 
 .sidebar-session-meta--approval {
   width: auto;
-  gap: var(--control-gap);
+  gap: var(--cpx-sys-space-2);
 }
 
 .sidebar-session-confirm-archive-button {
   width: 100%;
-  padding: 0 var(--control-padding-inline-compact);
+  padding: 0 var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-danger);
   background: var(--cpx-sys-color-danger-subtle-bg);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   white-space: nowrap;
 
   &:hover {
@@ -891,7 +889,7 @@
   z-index: var(--cpx-sys-z-tooltip);
   min-width: 220px;
   max-width: min(320px, calc(100vw - 16px));
-  padding: 4px;
+  padding: var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-xl);
   color: var(--cpx-sys-color-fg-primary);
   pointer-events: auto;
@@ -900,7 +898,7 @@
 
 .sidebar-hover-card-layout {
   display: grid;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
 }
 
@@ -909,27 +907,27 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--cpx-sys-line-height-normal);
 }
 
 .sidebar-hover-card-divider {
   height: 1px;
-  margin: 2px 0;
+  margin: var(--cpx-sys-space-1) 0;
   background: var(--cpx-sys-color-border-subtle);
 }
 
 .sidebar-session-hover-card {
   min-width: 200px;
   max-width: 280px;
-  padding: 8px 12px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
 }
 
 .sidebar-session-hover-card-content {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
 }
 
@@ -937,7 +935,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
 }
 
@@ -946,7 +944,7 @@
   flex: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   cursor: pointer;
 }
 
@@ -954,7 +952,7 @@
   min-width: 0;
   font-size: var(--cpx-sys-font-size-md);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   color: var(--cpx-sys-color-fg-primary);
   overflow-wrap: break-word;
   word-break: break-word;
@@ -973,8 +971,8 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding-top: 1px;
+  gap: var(--cpx-sys-space-1);
+  padding-top: var(--cpx-sys-space-1);
 }
 
 .sidebar-session-hover-card-title__skeleton {
@@ -990,7 +988,7 @@
   flex: 0 0 auto;
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1013,7 +1011,7 @@
   width: 100%;
   min-width: 0;
   height: 24px;
-  padding: 1px 6px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-focus);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-primary);
@@ -1027,16 +1025,16 @@
 .sidebar-session-hover-card-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
 }
 
 .sidebar-session-hover-card-row {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
   font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--control-line-height);
+  line-height: var(--cpx-sys-line-height-tight);
   color: var(--cpx-sys-color-fg-secondary);
 
   svg {
@@ -1061,14 +1059,14 @@
 .sidebar-project-hover-card {
   width: min(280px, calc(100vw - 16px));
   max-height: min(640px, calc(100vh - 32px));
-  padding: 8px 12px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   overflow-y: auto;
 }
 
 .sidebar-project-hover-card-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
 }
 
@@ -1076,7 +1074,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 
   strong {
     min-width: 0;
@@ -1084,7 +1082,7 @@
     overflow-wrap: anywhere;
     font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--control-line-height);
+    line-height: var(--cpx-sys-line-height-tight);
     color: var(--cpx-sys-color-fg-primary);
   }
 }
@@ -1097,15 +1095,15 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-xs);
-  padding-left: 1px;
+  padding-left: var(--cpx-sys-space-1);
 
   .sidebar-project-hover-card-stat-item {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--cpx-sys-space-1);
   }
 
   .sidebar-project-hover-card-stat-separator {
@@ -1116,8 +1114,8 @@
 .sidebar-project-hover-card-folders {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 2px;
+  gap: var(--cpx-sys-space-1);
+  margin-top: var(--cpx-sys-space-1);
 }
 
 .ui-button.sidebar-project-hover-card-folder,
@@ -1125,11 +1123,11 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
   width: 100%;
   height: auto;
   min-height: 26px;
-  padding: 2px 4px;
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-md);
   border: none;
   background: transparent;
@@ -1165,12 +1163,12 @@
 }
 
 .sidebar-project-hover-card-edit {
-  margin-top: 1px;
+  margin-top: var(--cpx-sys-space-1);
 }
 
 .popover-sidebar-organize {
   .popover-sidebar-organize-heading {
-    padding: 4px 8px;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     color: var(--cpx-sys-color-fg-tertiary);
     font-size: var(--cpx-sys-font-size-xs);
     line-height: var(--cpx-sys-line-height-tight);
@@ -1196,24 +1194,24 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: 0.417em 0.667em;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border-radius: var(--cpx-sys-radius-full);
   background: color-mix(in srgb, var(--cpx-sys-color-success) 14%, transparent);
   color: var(--cpx-sys-color-success);
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: 1;
+  line-height: var(--cpx-sys-line-height-none);
   white-space: nowrap;
 }
 
 .sidebar-session-spinner {
   color: var(--cpx-sys-color-fg-secondary);
-  animation: sidebar-spin var(--cpx-sys-motion-loading) linear infinite;
+  animation: sidebar-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
 }
 
 .sidebar-show-more-actions {
   .sidebar-row-main {
-    gap: 1em;
+    gap: var(--cpx-sys-space-4);
   }
 }
 
@@ -1225,7 +1223,7 @@
   flex: 0 0 auto;
   min-width: 0;
   min-height: 40px;
-  padding-top: 7px;
+  padding-top: var(--cpx-sys-space-2);
   border-top: 0;
 }
 
@@ -1295,7 +1293,7 @@
   flex: 0 0 56px;
   width: 56px;
   min-width: 56px;
-  padding-inline: var(--control-padding-inline-compact);
+  padding-inline: var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   font-variant-numeric: tabular-nums;
 
@@ -1320,10 +1318,10 @@
 }
 
 .sidebar-mobile-button {
-  flex: 0 0 var(--control-size-md);
-  width: var(--control-size-md);
-  height: var(--control-size-md);
-  min-width: var(--control-size-md);
+  flex: 0 0 var(--cpx-sys-space-7);
+  width: var(--cpx-sys-space-7);
+  height: var(--cpx-sys-space-7);
+  min-width: var(--cpx-sys-space-7);
 }
 
 .sidebar-footer-trigger {
@@ -1389,7 +1387,7 @@
 .popover-usage-submenu {
   --popover-overflow-y: hidden;
 
-  padding: var(--menu-surface-padding);
+  padding: var(--cpx-sys-space-1);
 }
 
 .popover-usage-content,
@@ -1400,15 +1398,15 @@
 }
 
 .popover-usage-content {
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
 }
 
 .popover-usage-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--cpx-comp-row-gap);
-  padding: var(--cpx-comp-row-padding-block) var(--cpx-comp-row-padding-inline);
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-md);
@@ -1430,7 +1428,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--cpx-comp-row-gap);
+  gap: var(--cpx-sys-space-2);
   text-align: right;
 }
 
@@ -1445,12 +1443,12 @@
 
 .popover-usage-divider {
   height: 1px;
-  margin: 4px 8px;
+  margin: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   background: var(--cpx-sys-color-border-subtle);
 }
 
 .popover-usage-empty {
-  padding: 8px;
+  padding: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
   font-size: var(--cpx-sys-font-size-md);
   line-height: var(--cpx-sys-line-height-normal);
@@ -1465,9 +1463,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cpx-comp-row-gap);
+  gap: var(--cpx-sys-space-2);
   width: 100%;
-  padding: var(--cpx-comp-row-padding-block) var(--cpx-comp-row-padding-inline);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
@@ -1492,10 +1490,10 @@
 
 .popover-usage-action-icon {
   flex: 0 0 auto;
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-tertiary);
-  stroke-width: var(--app-icon-stroke-width);
+  stroke-width: 1.75;
 }
 
 /* --- Resizer --- */
@@ -1538,13 +1536,14 @@
 /* --- Collapse confirm target --- */
 .sidebar-collapse-confirm-target {
   --sidebar-collapse-progress: 0turn;
+  --sidebar-collapse-target-offset: calc(var(--sidebar-collapse-target-size) / -2);
 
   position: fixed;
-  z-index: 30;
+  z-index: var(--cpx-sys-z-sticky);
   width: var(--sidebar-collapse-target-size);
   height: var(--sidebar-collapse-target-size);
-  margin: calc(var(--sidebar-collapse-target-size) / -2) 0 0
-    calc(var(--sidebar-collapse-target-size) / -2);
+  margin: var(--sidebar-collapse-target-offset) 0 0
+    var(--sidebar-collapse-target-offset);
   border-radius: var(--cpx-sys-radius-full);
   pointer-events: none;
   background:
@@ -1558,12 +1557,12 @@
       transparent 0turn
     );
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--cpx-sys-color-accent) 42%, transparent),
+    var(--cpx-sys-focus-ring-inset),
     var(--cpx-sys-shadow-raised);
   opacity: 0.95;
   transform: scale(1);
   animation:
-    sidebar-collapse-confirm-fill var(--sidebar-collapse-target-ms) linear
+    sidebar-collapse-confirm-fill var(--sidebar-collapse-target-ms) var(--cpx-sys-ease-linear)
       forwards,
     sidebar-collapse-confirm-pulse var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 

@@ -15,8 +15,8 @@
   min-height: 34px;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 10px;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
   background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-danger);
@@ -29,7 +29,7 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
-  padding: 8px 10px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
 }
 
 .integrated-terminal__viewport .xterm {
