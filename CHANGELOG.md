@@ -35,6 +35,8 @@
 
 ### Changed
 
+- [development] 将 MiniMax 全系列模型限制为只读文档查阅、代码探索和方案调研，禁止其修改任何工作区内容或承担编码实现；外部编码仅允许使用经确认的 DeepSeek 候选，否则由主 Agent 亲自完成。
+- [desktop/renderer] 建立 UI 交互术语规范并统一普通 Popover、Spinner、长文本展开、文件树语义与拖放反馈，减少重复实现并保持各领域状态边界。
 - [desktop/renderer] 将左侧栏、中央内容、辅助面板与底部面板收敛到统一 Workbench Shell，并保留面板尺寸、显隐及辅助面板最大化前状态的恢复语义。
 - [desktop/renderer] 将 Composer 输入面及其新建会话形态的圆角统一为双倍 `--cpx-sys-radius-xl`，使输入区域保持更明确的圆润层级。
 - [desktop/renderer] 统一排版、间距、圆角、动效、阴影与层级 Token 的语义选择规则，迁移 Feature、lazy 样式和 Tailwind 任意值，并新增可检测组件私有边界、裸值及 stale 精确例外的自动契约。
@@ -124,6 +126,8 @@
 - [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
+
+- [desktop] 修复 Windows 原生窗口控制区未跟随应用标题栏主题与高度，消除浅色和自定义主题下的顶栏颜色断层。
 
 - [desktop/renderer] 修复右侧栏与底部面板拖拽结束时旧比例状态短暂覆盖最终尺寸、导致面板先回跳再落到目标位置的问题。
 - [Agent] 修复图片及文本附件在 input 创建前提前绑定而导致首条发送、排队追问和运行中引导显示“Agent 内部错误”的问题，并将附件绑定纳入 Turn 创建事务。
