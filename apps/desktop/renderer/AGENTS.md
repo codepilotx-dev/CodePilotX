@@ -36,8 +36,10 @@
 - Workbench 大区域必须通过独立的 `--cpx-sys-color-workbench-*` 区域 token 取色，禁止在布局 Feature 中直接绑定基础 surface。
 - 窗口菜单栏与左侧栏属于应用 Chrome，默认映射 `surface-recessed`。`.desktop-workspace`、右侧 Dock 与底部 Panel 属于工作区，Dock/Panel 的独立区域 token 默认必须跟随 `workbench-main-bg`。
 - 工作区内部工具栏保持透明并继承工作区背景。代码块、输入框、浮层和文件树子区域继续使用各自局部层级 token。区域默认同色不代表合并 token。
+- Workbench 大区域之间的持久结构边界使用 `--cpx-sys-color-border-default`；toolbar、章节、卡片及容器内部细分隔使用 `--cpx-sys-color-border-subtle`。同一物理边界只能由一个容器绘制，禁止父子元素叠加边框；强调和焦点不得通过继续加深结构边界表达。
 - `accent` 只表示选择、焦点与主要交互；`info/success/warning/danger/skill` 分别表示中性信息、成功、注意、危险和能力身份。颜色不得成为唯一状态线索，同一容器最多使用一个业务 tone。
 - Feature 禁止裸 `hex/rgb/hsl` 和自行混合多个语义色。色盘、数据可视化、第三方渲染等必要算法只能使用 `style-contracts.json` 中精确且带原因的例外；例外失效时必须删除。
+- 静态用户消息使用 `--cpx-sys-color-message-user-bg`；不得借用 `hover`、`active`、`selected` 等交互状态，也不得通过修改 `surface-panel` 影响全局容器。线程环境摘要宽度属于 Feature 局部布局变量，不得提升为 system token；定位外壳、主区占位和摘要内容必须消费同一宽度来源。
 - 界面必须保持简约扁平。底板、卡片、面板和常规容器零阴影，只能通过 1px 细微边框和底色阶区分。
 - 持续覆盖工作区的悬浮 Composer 和绝对定位线程环境摘要只能使用唯一的 `--cpx-sys-shadow-prominent`；Modal、Popover、Dropdown、Toast 等瞬时浮层使用 `--cpx-sys-shadow-floating`。同一视觉树只能有一个 elevation owner，Popover 内嵌摘要不得重复投影。Feature 禁止拼接重复阴影值或创建同值的页面/组件 system token。遮罩必须使用深色半透明 `--cpx-comp-modal-scrim` 并轻柔化，禁止暗色发白光晕或白雾蒙层。
 

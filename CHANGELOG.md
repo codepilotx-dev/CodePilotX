@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop/renderer] 为 Composer 文件变更汇总增加会话级 Diff 文件预览，支持查看逐文件增删统计并点击定位到 Review。
 - [agent/desktop/renderer] 新增任务级共享上下文 Capsule：关联的主会话、辅助会话与子 Agent 共享确定性摘要和按需条目，终态执行结果以幂等 Evidence 增量收录，并支持乐观并发发布、AI 预览应用、生命周期冻结及验收后项目记忆提升。
 - [agent/desktop] 内置不可卸载的任务规划 Skill，可在确认后将工作目标拆分并创建为任务看板任务。
 - [desktop/renderer] 为任务工作台新增可拖动排期的甘特图，支持日周月缩放、状态分组、定位今天和未排期任务展示。
@@ -36,6 +37,9 @@
 
 ### Changed
 
+- [desktop/renderer] 对齐 Codex 的紧凑比例，收窄思考等级弹层及其轨道、滑块和内部留白，避免遮挡会话内容。
+- [desktop/renderer] 按主题语义重塑思考等级弹层，以当前等级、粗轨道、大滑块和离散刻度提供更直观的调节反馈。
+- [desktop/renderer] 将思考等级从模型选择器拆分为独立等级按钮，使模型与推理设置可以分别调整。
 - [development] 重构根与各 workspace 的 AGENTS.md 规则层级，明确全仓红线、局部细则及兼容边界，减少重复和 Agent 误判。
 - [desktop/renderer] 固化 Workbench 区域颜色归属规范，明确右侧 Dock 与底部 Panel 跟随工作区画布，窗口菜单栏与左侧栏保持应用 Chrome 层级。
 - [desktop/development] 对齐 Codex 的 Windows Window Controls Overlay：原生按钮区改为完全透明并透出 Renderer 菜单栏背景，菜单栏与 Overlay 使用确定的 36px 逻辑高度，移除 DOM 实测颜色/高度回写 IPC 及其缩放反馈环，避免右上角色块断层和标题栏高度自增。
@@ -132,6 +136,10 @@
 
 ### Fixed
 
+- [desktop] 修复用户主题与系统主题不同时，桌面重新加载期间鲸鱼加载页短暂闪成相反明暗主题的问题。
+- [desktop/renderer] 修正暗色主题细边框强度与 Workbench 结构边界层级，使侧栏、右侧 Dock、底部 Panel 和工作区顶部边界更清晰，同时保留内部卡片与章节分隔的次级语义。
+- [desktop/renderer] 修复 Composer 执行计划预览入场期间因零宽 transform 包含块先显示竖条再展开的问题，预览改为首帧稳定宽度的淡入淡出。
+- [desktop/renderer] 修正用户消息背景过弱、线程环境摘要宽度接线不一致及 Composer 变更汇总误用主按钮造成的黑色胶囊，使会话工作区的信息层级更接近 Codex 且继续适配自定义主题。
 - [Agent/desktop/models] 修复 Provider 模型数量错误依赖 API Key 可用状态的问题；models.dev Provider 现在展示远程目录原始收录数，协议适配与凭据状态不再影响计数。
 - [desktop/renderer] 调整 Provider 目录卡片的垂直与水平内边距，并移除状态徽标前的元信息分隔点，使卡片内容密度与模型中心布局保持一致。
 - [desktop/models] 放宽 Provider 目录卡片的内部留白与图文间距，并移除面向用户展示的 models.dev 缓存来源标签。

@@ -26,9 +26,12 @@
 | `fg-secondary` | 说明、次要操作 | 禁用信息 |
 | `fg-tertiary` | 时间、来源、低优先级元信息 | 正文 |
 | `fg-disabled` | 不可交互内容 | 可操作内容 |
+| `message-user-bg` | 静态用户消息背景 | hover、selected、active 等交互状态 |
 | `border-subtle/default/strong/focus` | 同级分隔、容器、强调边界、键盘焦点 | 用边框颜色假装业务状态 |
 
 浅色主题中 `surface-recessed` 向深色方向派生，`surface-control` 与 `surface-raised` 向浅色方向派生；暗色主题保持相反的明度关系，使下沉、控件和浮起语义在自定义背景与对比度下仍然成立。常驻容器通过相邻表面与 1px 边框形成层级，不加阴影。
+
+`message-user-bg` 默认由 `fg-primary` 以 5% 透明度混合派生，使静态用户消息随主题前景、背景和对比度变化保持克制但可辨识。它不属于空间 surface，也不属于交互状态；静态内容不得借用 `hover`、`selected` 或 `active`，主题调整交互反馈时不应连带改变历史消息。
 
 持续覆盖工作区的悬浮 Composer 和绝对定位线程环境摘要使用 `surface-raised` 与 `--cpx-sys-shadow-prominent`。Modal、Popover、Dropdown、Toast 等瞬时浮层使用 `surface-raised` 与 `--cpx-sys-shadow-floating`。当线程摘要位于 Popover 内时，由 Popover 外壳负责 elevation，摘要内容保持透明且不重复投影。
 
@@ -44,6 +47,8 @@ Workbench 大区域使用独立的公共区域 token，布局 Feature 不直接�
 | 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg` | `--cpx-sys-color-workbench-main-bg` |
 
 `surface-panel` 仍用于工作区内部的常驻卡片、摘要和审批容器，不代表右侧 Dock 或底部 Panel 的外层底色。Feature 只消费公开区域 token，不消费颜色类 `--cpx-comp-*`，也不直接选择基础 surface。默认值相同的区域仍保持独立 token，以允许主题覆盖并避免组件耦合；工作区 toolbar/header 保持透明并继承 `workbench-main-bg`，不使用 titlebar token。
+
+Workbench 大区域之间的持久结构边界使用 `border-default`；toolbar、章节、卡片和容器内部细分隔使用 `border-subtle`；强调轮廓使用 `border-strong`，键盘焦点使用 `border-focus`。暗色模式的“线条更深”实际表现为相对深色背景更亮、对比度更高；同一物理边界只能由一个容器绘制，禁止父子容器叠加边框。不得通过全局改写 `border-default` 或创建页面专属同值 token 修复单一消费点。
 
 ### 业务与交互语义
 
