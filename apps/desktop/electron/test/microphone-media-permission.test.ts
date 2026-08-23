@@ -43,9 +43,43 @@ describe("microphone media permission policy", () => {
     })).toBe(false)
   })
 
+  test("permits clipboard-sanitized-write only for the trusted main application frame", () => {
+    const sanitizedWrite = {
+      ...allowed,
+      permission: "clipboard-sanitized-write",
+      requestedMediaTypes: undefined,
+    }
+    expect(isMicrophoneMediaPermissionAllowed(sanitizedWrite)).toBe(true)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      isMainWindowSender: false,
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      isMainFrame: false,
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      requestingUrl: "http://127.0.0.1:43121/",
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      securityOrigin: "http://127.0.0.1:43121",
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      allowedApplicationOrigin: undefined,
+    })).toBe(false)
+    expect(isMicrophoneMediaPermissionAllowed({
+      ...sanitizedWrite,
+      requestingUrl: "data:text/html,starting",
+    })).toBe(false)
+  })
+
   test.each([
     ["video", { requestedMediaTypes: ["video"] }],
     ["mixed media", { requestedMediaTypes: ["audio", "video"] }],
+    ["clipboard read", { permission: "clipboard-read", requestedMediaTypes: undefined }],
     ["display capture", { permission: "display-capture" }],
     ["unknown media", { requestedMediaTypes: ["unknown"] }],
     ["pet or other window", { isMainWindowSender: false }],
@@ -113,6 +147,52 @@ describe("microphone media permission policy", () => {
       },
     )
     expect(requestGranted).toBe(true)
+    requestHandler!(
+      mainWindow,
+      "clipboard-sanitized-write",
+      granted => {
+        requestGranted = granted
+      },
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/session/thread-1`,
+        securityOrigin: allowedOrigin,
+      },
+    )
+    expect(requestGranted).toBe(true)
+    requestHandler!(
+      mainWindow,
+      "clipboard-read",
+      granted => {
+        requestGranted = granted
+      },
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/session/thread-1`,
+        securityOrigin: allowedOrigin,
+      },
+    )
+    expect(requestGranted).toBe(false)
+    expect(checkHandler!(
+      mainWindow,
+      'clipboard-sanitized-write',
+      allowedOrigin,
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/session/thread-1`,
+        securityOrigin: allowedOrigin,
+      },
+    )).toBe(true)
+    expect(checkHandler!(
+      mainWindow,
+      "clipboard-read",
+      allowedOrigin,
+      {
+        isMainFrame: true,
+        requestingUrl: `${allowedOrigin}/session/thread-1`,
+        securityOrigin: allowedOrigin,
+      },
+    )).toBe(false)
     expect(checkHandler!(
       mainWindow,
       'local-fonts',
