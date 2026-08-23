@@ -38,6 +38,7 @@
 - [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
 - [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
 - [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
+- [desktop/renderer] 将主导航、设置与常用工作台界面调整为随桌面端启动加载，减少首次打开页面和面板时由动态分块造成的加载动画与空白，同时继续按需加载终端、甘特图和编辑器等重量级能力。
 - [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。
 - [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
 - [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。

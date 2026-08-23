@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { Check, Copy, Folder, FolderOpen, ListChecks } from 'lucide-react'
 import {
@@ -23,8 +23,6 @@ import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import { cx } from '../../../utils/cx.js'
-import { ConflictMergeEditor } from '../../editor/ConflictMergeEditor.js'
-import { FileEditor } from '../../editor/FileEditor.js'
 import {
   prefetchFileDocument,
   fileDocumentLoadErrorMessage,
@@ -57,6 +55,9 @@ import {
   motionTransition,
 } from '../../motion/motionTransitions.js'
 import { readRuntimeSkill } from '../../settings/plugins/skillClientAdapter.js'
+
+const ConflictMergeEditor = lazy(() => import('../../editor/ConflictMergeEditor.js').then(module => ({ default: module.ConflictMergeEditor })))
+const FileEditor = lazy(() => import('../../editor/FileEditor.js').then(module => ({ default: module.FileEditor })))
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
@@ -594,75 +595,77 @@ export function RightDockFilePreviewPanel({
                   layout: motionTransition(reducedMotion, layoutTween),
                 }}
               >
-                {document.conflict ? (
-                  <ConflictMergeEditor
-                    diskValue={document.conflict.diskContent}
-                    error={document.saveError}
-                    language={language}
-                    localValue={document.draftContent}
-                    path={expectedPath}
-                    saving={document.saving}
-                    onChangeLocal={value =>
-                      updateFileDocument(
-                        workspacePath,
-                        expectedPath,
-                        value,
-                        documentScope,
-                      )
-                    }
-                    onKeepLocal={() =>
-                      resolveFileDocumentConflict(
-                        workspacePath,
-                        expectedPath,
-                        'local',
-                        undefined,
-                        documentScope,
-                      )
-                    }
-                    onUseDisk={() =>
-                      resolveFileDocumentConflict(
-                        workspacePath,
-                        expectedPath,
-                        'disk',
-                        undefined,
-                        documentScope,
-                      )
-                    }
-                  />
-                ) : (
-                  <FileEditor
-                    ariaLabel={`${expectedPath} 文件编辑器`}
-                    className="right-dock-file-code"
-                    error={document.saveError}
-                    language={language}
-                    path={expectedPath}
-                    presentation={
-                      resolvedMarkdownViewMode === 'rich'
-                        ? 'markdown-rich'
-                        : 'source'
-                    }
-                    readonly={document.readonly}
-                    revealLine={revealLine}
-                    saving={document.saving}
-                    value={document.draftContent}
-                    onChange={value => {
-                      if (previewTab) onPinTab()
-                      updateFileDocument(
-                        workspacePath,
-                        expectedPath,
-                        value,
-                        documentScope,
-                      )
-                    }}
-                    onSave={async () => {
-                      await saveFileDocument(
-                        workspacePath,
-                        expectedPath,
-                        documentScope,
-                      )
-                    }}
-                  />
-                )}
+                <Suspense fallback={<WorkbenchPanelLoading label="正在加载文件编辑器…" />}>
+                  {document.conflict ? (
+                    <ConflictMergeEditor
+                      diskValue={document.conflict.diskContent}
+                      error={document.saveError}
+                      language={language}
+                      localValue={document.draftContent}
+                      path={expectedPath}
+                      saving={document.saving}
+                      onChangeLocal={value =>
+                        updateFileDocument(
+                          workspacePath,
+                          expectedPath,
+                          value,
+                          documentScope,
+                        )
+                      }
+                      onKeepLocal={() =>
+                        resolveFileDocumentConflict(
+                          workspacePath,
+                          expectedPath,
+                          'local',
+                          undefined,
+                          documentScope,
+                        )
+                      }
+                      onUseDisk={() =>
+                        resolveFileDocumentConflict(
+                          workspacePath,
+                          expectedPath,
+                          'disk',
+                          undefined,
+                          documentScope,
+                        )
+                      }
+                    />
+                  ) : (
+                    <FileEditor
+                      ariaLabel={`${expectedPath} 文件编辑器`}
+                      className="right-dock-file-code"
+                      error={document.saveError}
+                      language={language}
+                      path={expectedPath}
+                      presentation={
+                        resolvedMarkdownViewMode === 'rich'
+                          ? 'markdown-rich'
+                          : 'source'
+                      }
+                      readonly={document.readonly}
+                      revealLine={revealLine}
+                      saving={document.saving}
+                      value={document.draftContent}
+                      onChange={value => {
+                        if (previewTab) onPinTab()
+                        updateFileDocument(
+                          workspacePath,
+                          expectedPath,
+                          value,
+                          documentScope,
+                        )
+                      }}
+                      onSave={async () => {
+                        await saveFileDocument(
+                          workspacePath,
+                          expectedPath,
+                          documentScope,
+                        )
+                      }}
+                    />
+                  )}
+                </Suspense>
               </motion.div>
             }
             width={220}

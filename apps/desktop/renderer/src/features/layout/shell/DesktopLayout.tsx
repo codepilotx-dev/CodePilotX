@@ -121,16 +121,16 @@ import {
   saveAllFileDocuments,
   saveFileDocument,
 } from '../../workspace/fileDocumentStore.js'
+import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
+import { SubagentDockContent } from '../../session/subagents/SubagentDockContent.js'
+import { WorkbenchPanel } from '../dock/RightDock.js'
+import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
+import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 
 const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
 const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
-const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
-const SubagentDockContent = lazy(() => import('../../session/subagents/SubagentDockContent.js').then(module => ({ default: module.SubagentDockContent })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
-const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
-const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
-const DesktopComposer = lazy(() => import('../../session/composer/DesktopComposer.js').then(module => ({ default: module.DesktopComposer })))
 const ConfirmationDialog = lazy(() => import('../../../components/ui/ConfirmationDialog.js').then(module => ({ default: module.ConfirmationDialog })))
 
 const EMPTY_BRANCHES: string[] = []
@@ -2410,13 +2410,11 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const settingsSidebarContent = (
-    <Suspense fallback={null}>
-      <SettingsSidebarContent
-        activeTab={settingsActiveTab}
-        onBack={handleSettingsBack}
-        onTabChange={handleSettingsTabChange}
-      />
-    </Suspense>
+    <SettingsSidebarContent
+      activeTab={settingsActiveTab}
+      onBack={handleSettingsBack}
+      onTabChange={handleSettingsTabChange}
+    />
   )
 
   const handleFollowUpEdit = useCallback(
@@ -2673,22 +2671,20 @@ export function DesktopLayout(): React.ReactNode {
     )
   }
   const subagentThreadContent = selectedSubagentTaskId ? (
-    <Suspense fallback={null}>
-      <SubagentDockContent
-        availability={subagentAvailability}
-        error={selectedSubagentError}
-        read={selectedSubagent}
-        taskId={selectedSubagentTaskId}
-        onBack={() => {
-          if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
-        }}
-        onError={setErrorMessage}
-        onOpenPatchReview={handleOpenPatchReview}
-        onOpenSubagent={item => handleOpenSubagent(item.subagentTaskId)}
-        onPatchApplied={handleRefreshDiff}
-        onRefresh={refreshSelectedSubagent}
-      />
-    </Suspense>
+    <SubagentDockContent
+      availability={subagentAvailability}
+      error={selectedSubagentError}
+      read={selectedSubagent}
+      taskId={selectedSubagentTaskId}
+      onBack={() => {
+        if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
+      }}
+      onError={setErrorMessage}
+      onOpenPatchReview={handleOpenPatchReview}
+      onOpenSubagent={item => handleOpenSubagent(item.subagentTaskId)}
+      onPatchApplied={handleRefreshDiff}
+      onRefresh={refreshSelectedSubagent}
+    />
   ) : undefined
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
@@ -3072,163 +3068,161 @@ export function DesktopLayout(): React.ReactNode {
       return null
     }
     return (
-    <Suspense fallback={null}>
       <WorkbenchPanel
-      target={target}
-      state={state}
-      tabsById={workbenchPanelState.tabsById}
-      browserAvailability={{
-        status: browserAvailability,
-        ...(browserAvailability === 'unavailable'
-          ? {
-              reason:
-                '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
-            }
-          : {}),
-      }}
-      browserState={browserState}
-      defaultBranch={derivedDefaultBranch}
-      files={workspaceFiles}
-      gitStatus={gitStatus}
-      isRefreshingReview={false}
-      diffMarkerStyle={diffMarkerStyle}
-      maxWidth={rightDockMaxWidth}
-      minWidth={rightDockMinWidth}
-      maxHeight={bottomPanelMaxHeight}
-      minHeight={bottomPanelMinHeight}
-      reviewView={reviewView}
-      reviewTabState={reviewTabState}
-      planContentByEventId={planContentByEventId}
-      selectedFile={selectedFile}
-      sessionId={sessionId}
-      sessionStatus={sessionStatus}
-      terminalAvailable={terminalAvailable}
-      width={rightDockWidth}
-      height={bottomPanelHeight}
-      rightFullWidth={rightDockFullWidth}
-      workspace={currentWorkspace}
-      onAppendBrowserAnnotation={handleBrowserAnnotation}
-      onAppendComposerText={handleAppendComposerText}
-      onAddComposerFiles={handleAddComposerFiles}
-      onBrowserStateChange={setBrowserState}
-      onClose={() => {
-        void saveTabsBeforeClose(state.tabIds, {
-          discardSideChats: false,
-        }).then(saved => {
-          if (saved) closePanel(target)
-        })
-      }}
-      onCloseTab={tabId => {
-        void saveTabsBeforeClose([tabId]).then(async saved => {
-          if (!saved) return
-          const tab = workbenchPanelState.tabsById[tabId]
-          if (tab?.kind === 'side-task') {
-            handleCloseSubagentTab(tab.taskId)
-            return
-          }
-          await closeBrowserIfIncluded([tabId])
-          closePanelTab(target, tabId)
-        })
-      }}
-      onCloseOtherTabs={tabId => {
-        const closing = state.tabIds.filter(id => id !== tabId)
-        void saveTabsBeforeClose(closing).then(async saved => {
-          if (!saved) return
-          await closeBrowserIfIncluded(closing)
-          closeOtherTabs(target, tabId)
-        })
-      }}
-      onCloseTabsToRight={tabId => {
-        const index = state.tabIds.indexOf(tabId)
-        const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
-        void saveTabsBeforeClose(closing).then(async saved => {
-          if (!saved) return
-          await closeBrowserIfIncluded(closing)
-          closeTabsToRight(target, tabId)
-        })
-      }}
-      onCreateBranch={handleCreateBranch}
-      onFileLoadError={handleFileLoadError}
-      onOpenTab={tab => {
-        if (tab.kind === 'browser') {
-          if (browserAvailability !== 'available') {
-            setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
-            return
-          }
-          void import('../../../services/desktop-client/desktop-browser-client.js')
-            .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
-            .then(setBrowserState)
-            .catch(error =>
-              setErrorMessage(error instanceof Error ? error.message : String(error)),
-            )
-        }
-        openPanelTab(target, tab)
-      }}
-      onOpenWorkspacePath={handleOpenWorkspacePath}
-      onOpenFileFromBrowser={file =>
-        handleOpenFileFromBrowser(target, file)
-      }
-      onPreviewFile={file => handleOpenFilePreview(target, file)}
-      onRefreshReview={handleRefreshDiff}
-      onReviewTabStateChange={setReviewTabState}
-      onResetHeight={handleResetBottomPanelHeight}
-      onResetWidth={handleResetRightDockWidth}
-      onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
-      onMoveTab={movePanelTab}
-      onReorderTab={reorderPanelTab}
-      onPinTab={pinTab}
-      onSetFileMarkdownViewMode={setFileMarkdownViewMode}
-      onSetHeight={handleSetBottomPanelHeight}
-      onSetWidth={handleSetRightDockWidth}
-      onToggleRightFullWidth={toggleRightFullWidth}
-      onToggleReviewView={() =>
-        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
-      }
-      onCreateSideChat={() => void createSideChat()}
-      sideChat={{
-        available: sideChatSupported,
-        focusVersion: sideChatFocusVersion,
-        isCreating: isCreatingSideChat,
-        getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
-        onInteractionError: message => setErrorMessage(message),
-        itemContext: (tab, status) => ({
-          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
-          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
-          onOpenFileReference: handleOpenMarkdownFileReference,
-          onOpenAttachment: handleOpenThreadAttachment,
-          onOpenLocalContext: handleOpenThreadLocalContext,
-          onSubmitEditedUserMessage: async input => {
-            await sideChatSubmitToSession(tab.threadId, input)
-          },
-          sessionStatus: status,
-          workspacePath: currentWorkspace?.path ?? null,
-        }),
-        onOpenPatchReview: handleOpenPatchReview,
-        onOpenPlan: handleOpenPlanDock,
-        onRecreate: tab => {
-          void createSideChat().then(created => {
-            if (!created) return
-            const target = workbenchPanelState.right.tabIds.includes(tab.id)
-              ? 'right'
-              : 'bottom'
-            void requestCloseSideChatTabs([tab]).then(closed => {
-              if (closed) closePanelTab(target, tab.id)
-            })
+        target={target}
+        state={state}
+        tabsById={workbenchPanelState.tabsById}
+        browserAvailability={{
+          status: browserAvailability,
+          ...(browserAvailability === 'unavailable'
+            ? {
+                reason:
+                  '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+              }
+            : {}),
+        }}
+        browserState={browserState}
+        defaultBranch={derivedDefaultBranch}
+        files={workspaceFiles}
+        gitStatus={gitStatus}
+        isRefreshingReview={false}
+        diffMarkerStyle={diffMarkerStyle}
+        maxWidth={rightDockMaxWidth}
+        minWidth={rightDockMinWidth}
+        maxHeight={bottomPanelMaxHeight}
+        minHeight={bottomPanelMinHeight}
+        reviewView={reviewView}
+        reviewTabState={reviewTabState}
+        planContentByEventId={planContentByEventId}
+        selectedFile={selectedFile}
+        sessionId={sessionId}
+        sessionStatus={sessionStatus}
+        terminalAvailable={terminalAvailable}
+        width={rightDockWidth}
+        height={bottomPanelHeight}
+        rightFullWidth={rightDockFullWidth}
+        workspace={currentWorkspace}
+        onAppendBrowserAnnotation={handleBrowserAnnotation}
+        onAppendComposerText={handleAppendComposerText}
+        onAddComposerFiles={handleAddComposerFiles}
+        onBrowserStateChange={setBrowserState}
+        onClose={() => {
+          void saveTabsBeforeClose(state.tabIds, {
+            discardSideChats: false,
+          }).then(saved => {
+            if (saved) closePanel(target)
           })
-        },
-        onStateChange: reportSideChatState,
-        renderComposer: renderSideChatComposer,
-      }}
-      activeSideTaskId={activeSideTaskId}
-      subagentAvailability={{
-        status: subagentAvailability,
-        ...(subagentAvailability === 'unavailable'
-          ? { reason: '当前 Agent 不支持子智能体工作台。' }
-          : {}),
-      }}
-      sideTaskContent={subagentThreadContent}
+        }}
+        onCloseTab={tabId => {
+          void saveTabsBeforeClose([tabId]).then(async saved => {
+            if (!saved) return
+            const tab = workbenchPanelState.tabsById[tabId]
+            if (tab?.kind === 'side-task') {
+              handleCloseSubagentTab(tab.taskId)
+              return
+            }
+            await closeBrowserIfIncluded([tabId])
+            closePanelTab(target, tabId)
+          })
+        }}
+        onCloseOtherTabs={tabId => {
+          const closing = state.tabIds.filter(id => id !== tabId)
+          void saveTabsBeforeClose(closing).then(async saved => {
+            if (!saved) return
+            await closeBrowserIfIncluded(closing)
+            closeOtherTabs(target, tabId)
+          })
+        }}
+        onCloseTabsToRight={tabId => {
+          const index = state.tabIds.indexOf(tabId)
+          const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
+          void saveTabsBeforeClose(closing).then(async saved => {
+            if (!saved) return
+            await closeBrowserIfIncluded(closing)
+            closeTabsToRight(target, tabId)
+          })
+        }}
+        onCreateBranch={handleCreateBranch}
+        onFileLoadError={handleFileLoadError}
+        onOpenTab={tab => {
+          if (tab.kind === 'browser') {
+            if (browserAvailability !== 'available') {
+              setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
+              return
+            }
+            void import('../../../services/desktop-client/desktop-browser-client.js')
+              .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
+              .then(setBrowserState)
+              .catch(error =>
+                setErrorMessage(error instanceof Error ? error.message : String(error)),
+              )
+          }
+          openPanelTab(target, tab)
+        }}
+        onOpenWorkspacePath={handleOpenWorkspacePath}
+        onOpenFileFromBrowser={file =>
+          handleOpenFileFromBrowser(target, file)
+        }
+        onPreviewFile={file => handleOpenFilePreview(target, file)}
+        onRefreshReview={handleRefreshDiff}
+        onReviewTabStateChange={setReviewTabState}
+        onResetHeight={handleResetBottomPanelHeight}
+        onResetWidth={handleResetRightDockWidth}
+        onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
+        onMoveTab={movePanelTab}
+        onReorderTab={reorderPanelTab}
+        onPinTab={pinTab}
+        onSetFileMarkdownViewMode={setFileMarkdownViewMode}
+        onSetHeight={handleSetBottomPanelHeight}
+        onSetWidth={handleSetRightDockWidth}
+        onToggleRightFullWidth={toggleRightFullWidth}
+        onToggleReviewView={() =>
+          setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+        }
+        onCreateSideChat={() => void createSideChat()}
+        sideChat={{
+          available: sideChatSupported,
+          focusVersion: sideChatFocusVersion,
+          isCreating: isCreatingSideChat,
+          getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+          onInteractionError: message => setErrorMessage(message),
+          itemContext: (tab, status) => ({
+            canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+            onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+            onOpenFileReference: handleOpenMarkdownFileReference,
+            onOpenAttachment: handleOpenThreadAttachment,
+            onOpenLocalContext: handleOpenThreadLocalContext,
+            onSubmitEditedUserMessage: async input => {
+              await sideChatSubmitToSession(tab.threadId, input)
+            },
+            sessionStatus: status,
+            workspacePath: currentWorkspace?.path ?? null,
+          }),
+          onOpenPatchReview: handleOpenPatchReview,
+          onOpenPlan: handleOpenPlanDock,
+          onRecreate: tab => {
+            void createSideChat().then(created => {
+              if (!created) return
+              const target = workbenchPanelState.right.tabIds.includes(tab.id)
+                ? 'right'
+                : 'bottom'
+              void requestCloseSideChatTabs([tab]).then(closed => {
+                if (closed) closePanelTab(target, tab.id)
+              })
+            })
+          },
+          onStateChange: reportSideChatState,
+          renderComposer: renderSideChatComposer,
+        }}
+        activeSideTaskId={activeSideTaskId}
+        subagentAvailability={{
+          status: subagentAvailability,
+          ...(subagentAvailability === 'unavailable'
+            ? { reason: '当前 Agent 不支持子智能体工作台。' }
+            : {}),
+        }}
+        sideTaskContent={subagentThreadContent}
       />
-    </Suspense>
     )
   }
 
@@ -3303,34 +3297,32 @@ export function DesktopLayout(): React.ReactNode {
         </Suspense>
       ) : null}
       {commandMenuDialogMounted ? (
-        <Suspense fallback={null}>
-          <CommandMenuDialog
-            catalogStatus={catalogStatus}
-            hasWorkspace={currentWorkspace !== null}
-            inputRef={commandMenuInputRef}
-            open={commandMenuOpen}
-            pendingPermissionSessionIds={pendingPermissionSessionIds}
-            sessions={sessions}
-            onCreateTask={() => {
-              setCommandMenuOpen(false)
-              void handleCreateSession()
-            }}
-            onOpenChange={setCommandMenuOpen}
-            onOpenFolder={() => {
-              setCommandMenuOpen(false)
-              void handleChooseWorkspace()
-            }}
-            onSearchFiles={() => {
-              if (currentWorkspace === null) return
-              setCommandMenuOpen(false)
-              handleOpenFilesDock()
-            }}
-            onSelectTask={task => {
-              setCommandMenuOpen(false)
-              handleSelectSession(task.session)
-            }}
-          />
-        </Suspense>
+        <CommandMenuDialog
+          catalogStatus={catalogStatus}
+          hasWorkspace={currentWorkspace !== null}
+          inputRef={commandMenuInputRef}
+          open={commandMenuOpen}
+          pendingPermissionSessionIds={pendingPermissionSessionIds}
+          sessions={sessions}
+          onCreateTask={() => {
+            setCommandMenuOpen(false)
+            void handleCreateSession()
+          }}
+          onOpenChange={setCommandMenuOpen}
+          onOpenFolder={() => {
+            setCommandMenuOpen(false)
+            void handleChooseWorkspace()
+          }}
+          onSearchFiles={() => {
+            if (currentWorkspace === null) return
+            setCommandMenuOpen(false)
+            handleOpenFilesDock()
+          }}
+          onSelectTask={task => {
+            setCommandMenuOpen(false)
+            handleSelectSession(task.session)
+          }}
+        />
       ) : null}
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice

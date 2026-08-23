@@ -6,17 +6,21 @@ import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
 // Two-layer real gates for the /new route. The entry gate bounds the static
-// shell graph (Vite entry plus `chunk.imports`), while each surface gate
-// bounds the interactive first screen graph reachable from explicit module
-// manifests. Raw JS is the primary metric because the desktop server returns
-// Bun.file without Content-Encoding; gzip stays as a regression aid. Ceilings
-// are tightened to final measured values × 1.05 (rounded up to 5 KiB) after
-// the optimization batches landed, and stay below the initial ceilings.
-const ENTRY_RAW_BUDGET_KIB = 1115
-const ENTRY_GZIP_BUDGET_KIB = 355
-const SURFACE_RAW_BUDGET_KIB = 1430
-const SURFACE_GZIP_BUDGET_KIB = 455
-const CSS_RAW_BUDGET_KIB = 440
+// shell graph (Vite entry plus `chunk.imports`). The entry now intentionally
+// includes the common top-level pages, every settings tab and the ordinary
+// workbench UI, so the budget guards against accidental regressions instead of
+// forcing those surfaces back into dynamic chunks; heavyweight leaves (terminal,
+// taskboard gantt, file editor, mermaid/shiki/katex rendering) remain behind
+// dynamic isolation. Each surface gate bounds the interactive first screen
+// graph reachable from explicit module manifests. Raw JS is the primary metric
+// because the desktop server returns Bun.file without Content-Encoding; gzip
+// stays as a regression aid. Ceilings are set to final measured values × 1.05
+// (rounded up to 5 KiB) after the optimization batches landed.
+const ENTRY_RAW_BUDGET_KIB = 2625
+const ENTRY_GZIP_BUDGET_KIB = 760
+const SURFACE_RAW_BUDGET_KIB = 2840
+const SURFACE_GZIP_BUDGET_KIB = 825
+const CSS_RAW_BUDGET_KIB = 785
 const CSS_RAW_BUDGET = CSS_RAW_BUDGET_KIB * 1024
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useSearchParams } from "react-router-dom";
@@ -26,38 +26,18 @@ import {
   parseNewSessionSurface,
 } from "./newSessionSurface.js";
 import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
+import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
-const DesktopComposer = lazy(() => import("./composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
 import {
   enterTween,
   exitTween,
   motionTransition,
 } from "../motion/motionTransitions.js";
-
-const WorkingNewSessionView = lazy(() =>
-  import("./WorkingNewSessionView.js").then(module => ({
-    default: module.WorkingNewSessionView,
-  })),
-);
-
-const ChatNewSessionView = lazy(() =>
-  import("./ChatNewSessionView.js").then(module => ({
-    default: module.ChatNewSessionView,
-  })),
-);
-
-const CodingHeadingTransition = lazy(() =>
-  import("./CodingHeadingTransition.js").then(module => ({
-    default: module.CodingHeadingTransition,
-  })),
-);
-
-const NewSessionSuggestions = lazy(() =>
-  import("./NewSessionSuggestionPanel.js").then(module => ({
-    default: module.NewSessionSuggestions,
-  })),
-);
+import { WorkingNewSessionView } from "./WorkingNewSessionView.js";
+import { ChatNewSessionView } from "./ChatNewSessionView.js";
+import { CodingHeadingTransition } from "./CodingHeadingTransition.js";
+import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
 
 export function QuickChatView(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -85,15 +65,13 @@ export function QuickChatView(): React.ReactNode {
   return (
     <AnimatePresence initial={false} mode="wait">
       <NewSessionPresence key={surface} kind="surface" reducedMotion={reducedMotion}>
-        <Suspense fallback={null}>
-          {surface === "working" ? (
-            <WorkingNewSessionView />
-          ) : surface === "chat" ? (
-            <ChatNewSessionView />
-          ) : (
-            <CodingQuickChatView />
-          )}
-        </Suspense>
+        {surface === "working" ? (
+          <WorkingNewSessionView />
+        ) : surface === "chat" ? (
+          <ChatNewSessionView />
+        ) : (
+          <CodingQuickChatView />
+        )}
       </NewSessionPresence>
     </AnimatePresence>
   );
@@ -368,13 +346,9 @@ function CodingQuickChatView(): React.ReactNode {
               type="button"
               onClick={handleWhaleMarkClick}
             />
-            <Suspense
-              fallback={<h1 className="quick-chat-heading">{headingContent}</h1>}
-            >
-              <CodingHeadingTransition transitionKey={headingKey}>
-                {headingContent}
-              </CodingHeadingTransition>
-            </Suspense>
+            <CodingHeadingTransition transitionKey={headingKey}>
+              {headingContent}
+            </CodingHeadingTransition>
           </div>
           <AnimatePresence initial={false}>
             {suggestionState.kind === "root" ||
@@ -384,17 +358,15 @@ function CodingQuickChatView(): React.ReactNode {
                 kind="panel"
                 reducedMotion={reducedMotion}
               >
-                <Suspense fallback={null}>
-                  <NewSessionSuggestions
-                    state={suggestionState}
-                    suggestions={suggestions}
-                    onSelectSuggestion={handleSelectSuggestion}
-                    onSelectCategory={handleSelectCategory}
-                    onSelectTask={handleSelectTask}
-                    onShowAll={handleShowAll}
-                    onShowSuggestions={handleShowSuggestions}
-                  />
-                </Suspense>
+                <NewSessionSuggestions
+                  state={suggestionState}
+                  suggestions={suggestions}
+                  onSelectSuggestion={handleSelectSuggestion}
+                  onSelectCategory={handleSelectCategory}
+                  onSelectTask={handleSelectTask}
+                  onShowAll={handleShowAll}
+                  onShowSuggestions={handleShowSuggestions}
+                />
               </NewSessionPresence>
             ) : null}
           </AnimatePresence>
@@ -408,17 +380,15 @@ function CodingQuickChatView(): React.ReactNode {
                 kind="panel"
                 reducedMotion={reducedMotion}
               >
-                <Suspense fallback={null}>
-                  <NewSessionSuggestions
-                    state={suggestionState}
-                    suggestions={suggestions}
-                    onSelectSuggestion={handleSelectSuggestion}
-                    onSelectCategory={handleSelectCategory}
-                    onSelectTask={handleSelectTask}
-                    onShowAll={handleShowAll}
-                    onShowSuggestions={handleShowSuggestions}
-                  />
-                </Suspense>
+                <NewSessionSuggestions
+                  state={suggestionState}
+                  suggestions={suggestions}
+                  onSelectSuggestion={handleSelectSuggestion}
+                  onSelectCategory={handleSelectCategory}
+                  onSelectTask={handleSelectTask}
+                  onShowAll={handleShowAll}
+                  onShowSuggestions={handleShowSuggestions}
+                />
               </NewSessionPresence>
             ) : null}
           </AnimatePresence>

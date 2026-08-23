@@ -6,6 +6,8 @@ import {
   Plus,
 } from 'lucide-react'
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -19,13 +21,14 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { FileEditor } from '../../editor/FileEditor.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.js'
 import {
   type LoadedUserAttachment,
   useUserAttachmentPreview,
 } from './useUserAttachmentPreview.js'
+
+const FileEditor = lazy(() => import('../../editor/FileEditor.js').then(module => ({ default: module.FileEditor })))
 
 const IMAGE_MEDIA_TYPES = new Set([
   'image/png',
@@ -439,15 +442,17 @@ function TextAttachmentPreview({
         <div style={noticeStyle}>JSON 无法格式化，已显示原文。</div>
       ) : null}
       <div style={editorFrameStyle}>
-        <FileEditor
-          ariaLabel={`${value.attachment.name} 附件预览`}
-          language={formatted.language}
-          onChange={() => {}}
-          path={value.attachment.name}
-          presentation={formatted.markdown && !markdownSource ? 'markdown-rich' : 'source'}
-          readonly
-          value={visibleText}
-        />
+        <Suspense fallback={<div className="right-dock-empty-state">正在加载文件预览…</div>}>
+          <FileEditor
+            ariaLabel={`${value.attachment.name} 附件预览`}
+            language={formatted.language}
+            onChange={() => {}}
+            path={value.attachment.name}
+            presentation={formatted.markdown && !markdownSource ? 'markdown-rich' : 'source'}
+            readonly
+            value={visibleText}
+          />
+        </Suspense>
       </div>
       <div aria-live="polite" style={messageStyle}>{message}</div>
     </section>

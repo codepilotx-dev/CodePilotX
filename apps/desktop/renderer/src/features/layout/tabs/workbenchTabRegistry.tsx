@@ -41,16 +41,18 @@ import {
   WorkbenchPanelUnavailable,
 } from '../panels/WorkbenchPanelStates.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
+import { WorkspaceReviewSidebar } from '../../review/workspace/WorkspaceReviewSidebar.js'
+import {
+  RightDockFilePreviewPanel,
+  RightDockFilesPanel,
+  RightDockPlanPanel,
+  RightDockSkillPreviewPanel,
+} from '../dock/RightDockPanels.js'
+import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
+import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
 
 const DesktopBrowserPanel = React.lazy(() => import('../../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
-const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/WorkspaceReviewSidebar.js').then(module => ({ default: module.WorkspaceReviewSidebar })))
-const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
-const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
-const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
-const RightDockSkillPreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockSkillPreviewPanel })))
-const SideChatThreadPanel = React.lazy(() => import('../../session/conversation/SideChatThreadPanel.js').then(module => ({ default: module.SideChatThreadPanel })))
 const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
-const UserAttachmentPreviewPanel = React.lazy(() => import('../../session/attachments/UserAttachmentPreviewPanel.js').then(module => ({ default: module.UserAttachmentPreviewPanel })))
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -266,8 +268,8 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     lifecycle: 'unmount-when-hidden',
     launcherIcon: <SquarePlus size={iconSize} />,
     getTitle: () => '审阅',
-    render: (_tab, context) => deferred(
-      <WorkspaceReviewSidebar {...context.review} />,
+    render: (_tab, context) => (
+      <WorkspaceReviewSidebar {...context.review} />
     ),
   },
   {
@@ -294,14 +296,14 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     getTitle: () => '打开文件',
     render: (tab, context) => {
       const directoryPath = tab.kind === 'file-browser' ? tab.directoryPath : undefined
-      return deferred(
+      return (
         <RightDockFilesPanel
           activePath={directoryPath ?? null}
           files={context.files.files}
           workspace={context.files.workspace}
           onAddComposerFiles={context.files.onAddComposerFiles}
           onOpenFile={(file) => context.files.onOpenFileFromBrowser(file)}
-        />,
+        />
       )
     },
   },
@@ -316,7 +318,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
         ? basename(tab.relativePath)
         : '文件预览',
     getIcon: () => <FileText size={iconSize} />,
-    render: (tab, context) => deferred(
+    render: (tab, context) =>
       tab.kind === 'file-preview' ? (
         <RightDockFilePreviewPanel
           expectedPath={tab.relativePath}
@@ -352,7 +354,6 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onAppendComposerText={context.files.onAppendComposerText}
         />
       ) : null,
-    ),
   },
   {
     kind: 'plan',
@@ -361,14 +362,14 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: false,
     lifecycle: 'unmount-when-hidden',
     getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
-    render: (tab, context) => deferred(
+    render: (tab, context) => (
       <RightDockPlanPanel
         content={
           tab.kind === 'plan'
             ? context.planContentByEventId[tab.eventId] ?? null
             : null
         }
-      />,
+      />
     ),
   },
   {
@@ -378,11 +379,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: false,
     lifecycle: 'unmount-when-hidden',
     getTitle: tab => tab.kind === 'skill-preview' ? tab.skill.name : '技能预览',
-    render: tab => deferred(
+    render: tab =>
       tab.kind === 'skill-preview' ? (
         <RightDockSkillPreviewPanel tab={tab} />
       ) : null,
-    ),
   },
   {
     kind: 'attachment-preview',
@@ -392,7 +392,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     lifecycle: 'unmount-when-hidden',
     getTitle: () => '用户附件',
     render: tab => tab.kind === 'attachment-preview'
-      ? deferred(<UserAttachmentPreviewPanel tab={tab} />)
+      ? <UserAttachmentPreviewPanel tab={tab} />
       : null,
   },
   {
@@ -404,7 +404,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     lifecycle: 'unmount-when-hidden',
     getTitle: tab => tab.kind === 'side-chat' ? tab.title : '侧边聊天',
     render: (tab, context) => tab.kind === 'side-chat'
-      ? deferred(
+      ? (
           <SideChatThreadPanel
             active={context.sideChat.activeTabId === tab.id}
             creating={context.sideChat.isCreating(tab.id)}
@@ -418,7 +418,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
             permissionMode={context.sideChat.getPermissionMode(tab)}
             renderComposer={context.sideChat.renderComposer}
             tab={tab}
-          />,
+          />
         )
       : null,
   },
