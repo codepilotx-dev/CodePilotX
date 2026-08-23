@@ -9,6 +9,19 @@ function readRendererFile(path: string): string {
 }
 
 describe('workbench chrome contract', () => {
+  test('synchronizes the rendered title bar with the native overlay', () => {
+    const provider = readRendererFile(
+      'src/features/theme/DesktopThemeProvider.tsx',
+    )
+    const preloadContract = readRendererFile('src/global.d.ts')
+
+    expect(provider).toContain("querySelector<HTMLElement>('.desktop-menubar')")
+    expect(provider).toContain('getBoundingClientRect().height')
+    expect(provider).toContain('new ResizeObserver(sync)')
+    expect(provider).toContain('lastPayloadRef.current')
+    expect(preloadContract).toContain('DesktopAppearanceIpcBridge')
+  })
+
   test('keeps application chrome separate from the workspace toolbar', () => {
     const chrome = readRendererFile('src/styles/features/layout-chrome.scss')
     const workspaceHeader = readRendererFile(

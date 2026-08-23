@@ -8,6 +8,7 @@ import {
   type WebContents,
 } from "electron"
 import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
+import type { DesktopTitleBarOverlay } from "@codepilotx/shared/desktop-appearance-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { rendererConsoleRecord } from "../logging/renderer-console.js"
 import {
@@ -213,7 +214,15 @@ export class WindowManager {
     }
   }
 
-  updateTitleBarOverlayTheme(theme: { surfaceUnder: string; ink: string }): void {
+  updateTitleBarOverlayTheme(theme: { surface: string; ink: string }): void {
+    this.updateTitleBarOverlay({
+      backgroundColor: theme.surface,
+      foregroundColor: theme.ink,
+      height: 40,
+    })
+  }
+
+  updateTitleBarOverlay(overlay: DesktopTitleBarOverlay): void {
     const mainWindow = this.#mainWindow
     if (
       process.platform === "win32"
@@ -222,8 +231,9 @@ export class WindowManager {
     ) {
       try {
         mainWindow.setTitleBarOverlay({
-          color: theme.surfaceUnder,
-          symbolColor: theme.ink,
+          color: overlay.backgroundColor,
+          symbolColor: overlay.foregroundColor,
+          height: overlay.height,
         })
       } catch (error) {
         this.#logger.warn("desktop.set-title-bar-overlay-failed", { error })
@@ -243,8 +253,9 @@ export class WindowManager {
       titleBarStyle: "hidden",
       titleBarOverlay: process.platform === "win32"
         ? {
-            color: this.#options.startupTheme.theme.surfaceUnder,
+            color: this.#options.startupTheme.theme.surface,
             symbolColor: this.#options.startupTheme.theme.ink,
+            height: 40,
           }
         : false,
       backgroundColor: this.#options.startupTheme.theme.surface,
