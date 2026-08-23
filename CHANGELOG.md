@@ -36,6 +36,8 @@
 
 ### Changed
 
+- [desktop/renderer] 固化 Workbench 区域颜色归属规范，明确右侧 Dock 与底部 Panel 跟随工作区画布，窗口菜单栏与左侧栏保持应用 Chrome 层级。
+- [desktop/development] 对齐 Codex 的 Windows Window Controls Overlay：原生按钮区改为完全透明并透出 Renderer 菜单栏背景，菜单栏与 Overlay 使用确定的 36px 逻辑高度，移除 DOM 实测颜色/高度回写 IPC 及其缩放反馈环，避免右上角色块断层和标题栏高度自增。
 - [desktop/renderer] 为窗口菜单栏、侧边栏和工作区建立独立区域颜色 token；窗口 Chrome 默认同色，右侧 Dock 与底部 Panel 跟随工作区画布。
 - [development] 将 MiniMax 全系列模型限制为只读文档查阅、代码探索和方案调研，禁止其修改任何工作区内容或承担编码实现；外部编码仅允许使用经确认的 DeepSeek 候选，否则由主 Agent 亲自完成。
 - [desktop/renderer] 建立 UI 交互术语规范并统一普通 Popover、Spinner、长文本展开、文件树语义与拖放反馈，减少重复实现并保持各领域状态边界。
