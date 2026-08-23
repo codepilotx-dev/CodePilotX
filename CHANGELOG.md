@@ -35,6 +35,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将左侧栏、中央内容、辅助面板与底部面板收敛到统一 Workbench Shell，并保留面板尺寸、显隐及辅助面板最大化前状态的恢复语义。
 - [desktop/renderer] 将 Composer 输入面及其新建会话形态的圆角统一为双倍 `--cpx-sys-radius-xl`，使输入区域保持更明确的圆润层级。
 - [desktop/renderer] 统一排版、间距、圆角、动效、阴影与层级 Token 的语义选择规则，迁移 Feature、lazy 样式和 Tailwind 任意值，并新增可检测组件私有边界、裸值及 stale 精确例外的自动契约。
 - [development] 允许主 Agent 按任务范围和上下文复杂度自主选择 OpenCode 的 DeepSeek 或 MiniMax 模型执行受控小阶段，同时保留文件冻结、同 session 返修和独立验收要求。
@@ -124,6 +125,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复右侧栏与底部面板拖拽结束时旧比例状态短暂覆盖最终尺寸、导致面板先回跳再落到目标位置的问题。
 - [Agent] 修复图片及文本附件在 input 创建前提前绑定而导致首条发送、排队追问和运行中引导显示“Agent 内部错误”的问题，并将附件绑定纳入 Turn 创建事务。
 - [desktop] 修复可信主窗口的文本剪贴板写入权限，恢复工作目录、会话 ID、深度链接及其他普通复制操作。
 - [desktop] 修复从任务工作台创建或继续主会话后启动指令未同步到 Composer、导致新会话输入框保持空白的问题。
@@ -225,6 +227,7 @@
 
 ### Security
 
+- [security/dependencies] 升级 js-yaml、nanoid 与 tar 至安全补丁版本，并为暂无上游修复的 extract-zip 增加 symlink 越界防护和限期审计追踪，恢复 High/Critical 依赖门禁。
 - [desktop] 所有普通/富文本剪贴板写入收口到 typed Electron IPC，Provider API Key 仅以 credentialId 请求并在主进程写入及 60 秒条件清理，同时撤销 Renderer 剪贴板权限。
 - [Agent/renderer] 将旧 `sandboxMode` 集中解释为结构化文件访问范围，明确终端命令始终以当前 Windows 用户在宿主机执行并继续经过风险、Hook、审批和临时授权门禁，不再暗示操作系统级沙箱隔离
 
