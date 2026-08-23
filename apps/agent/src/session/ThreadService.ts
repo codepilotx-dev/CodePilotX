@@ -465,7 +465,7 @@ export class ThreadService {
     }
   }
 
-  private async bindInputAttachments(inputID: string, attachmentIDs: readonly string[], model: Model.Ref) {
+  private async validateInputAttachments(inputID: string, attachmentIDs: readonly string[], model: Model.Ref) {
     if (attachmentIDs.length === 0) return
     if (attachmentIDs.length > 8 || new Set(attachmentIDs).size !== attachmentIDs.length) {
       throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每条消息最多包含 8 个不重复附件", 413)
@@ -479,8 +479,6 @@ export class ThreadService {
       const selected = await this.providers.resolve(model)
       if (!selected.capabilities.input.includes("image")) throw new AgentError("MODEL_IMAGE_UNSUPPORTED", "当前模型不支持图片输入", 409)
     }
-    const unbound = records.filter((record) => record.binding === null).map((record) => record.id)
-    if (unbound.length) await this.attachments.bind(unbound, binding)
   }
 
   private validateInputItems(threadID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[]) {
@@ -518,20 +516,16 @@ export class ThreadService {
       if (this.coordinator.active(threadID) || this.db.activeTurn(threadID) || queued) {
         throw new AgentError("TURN_ACTIVE", "当前 Thread 已有运行中或待运行的 Turn", 409)
       }
-      await this.bindInputAttachments(inputID, attachmentIDs, input.model)
+      await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       let created
       let taskboardEvents: readonly EventEnvelope[] = []
-      try {
-        created = this.db.transaction(() => {
-          const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
-          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
-          taskboardEvents = this.firstTurnAdmission?.(threadID) ?? []
-          return value
-        })
-      } catch (cause) {
-        if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
-        throw cause
-      }
+      created = this.db.transaction(() => {
+        const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
+        this.db.bindInputAttachments(inputID, attachmentIDs)
+        this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+        taskboardEvents = this.firstTurnAdmission?.(threadID) ?? []
+        return value
+      })
       await this.publishCreatedTurn(created)
       for (const taskboardEvent of taskboardEvents) await Effect.runPromise(this.hub.publish(taskboardEvent))
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
@@ -562,23 +556,19 @@ export class ThreadService {
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
       this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
-      await this.bindInputAttachments(inputID, attachmentIDs, input.model)
+      await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       const active = this.coordinator.active(threadID) ?? this.db.activeTurn(threadID)
       const hadQueued = Boolean(this.db.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID))
       let created
-      try {
-        created = this.db.transaction(() => {
-          const value = this.db.createTurn(threadID, { ...input, strategy: "queue" }, "queued", {
-            inputID,
-            ...(queueMeta ? { queueOperation: queueMeta } : {}),
-          })
-          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
-          return value
+      created = this.db.transaction(() => {
+        const value = this.db.createTurn(threadID, { ...input, strategy: "queue" }, "queued", {
+          inputID,
+          ...(queueMeta ? { queueOperation: queueMeta } : {}),
         })
-      } catch (cause) {
-        if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
-        throw cause
-      }
+        this.db.bindInputAttachments(inputID, attachmentIDs)
+        this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+        return value
+      })
       await this.publishCreatedTurn(created)
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       const shouldStart = !active && !hadQueued && !this.db.queueStateMeta(threadID)?.pauseReason
@@ -606,18 +596,14 @@ export class ThreadService {
         throw new AgentError("TURN_ID_MISMATCH", "活动 Turn 已变化，请刷新后重试", 409)
       }
       this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
-      await this.bindInputAttachments(inputID, attachmentIDs, input.model)
+      await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       let guide
-      try {
-        guide = this.db.transaction(() => {
-          const value = this.db.appendGuide(threadID, turnID, { ...input, strategy: "guide" }, inputID)
-          this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
-          return value
-        })
-      } catch (cause) {
-        if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, { type: "input", id: inputID }).catch(() => undefined)
-        throw cause
-      }
+      guide = this.db.transaction(() => {
+        const value = this.db.appendGuide(threadID, turnID, { ...input, strategy: "guide" }, inputID)
+        this.db.bindInputAttachments(inputID, attachmentIDs)
+        this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
+        return value
+      })
       if (guide.settingsEvent) await Effect.runPromise(this.hub.publish(guide.settingsEvent))
       await Effect.runPromise(this.hub.publish(guide.event))
       if (live?.runtimeReady) await this.deliverPendingSteers(threadID, turnID)

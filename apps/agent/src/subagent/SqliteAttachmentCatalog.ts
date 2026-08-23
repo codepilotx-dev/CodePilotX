@@ -31,16 +31,7 @@ export class SqliteAttachmentCatalog implements AttachmentCatalog {
 
   async bindMany(ids: readonly string[], binding: AttachmentBinding) {
     if (binding.type !== "input") throw new AgentError("ATTACHMENT_BINDING_INVALID", "附件只能绑定到 input", 400)
-    const input = this.db.sqlite.query("SELECT thread_id FROM inputs WHERE id = ?").get(binding.id) as { thread_id: string } | null
-    if (!input) throw new AgentError("INPUT_NOT_FOUND", "附件目标 input 不存在", 404)
-    this.db.transaction(() => {
-      for (const id of ids) {
-        const row = this.db.sqlite.query("SELECT input_id FROM input_attachments WHERE id = ?").get(id) as { input_id: string | null } | null
-        if (!row) throw new AgentError("ATTACHMENT_NOT_FOUND", "一个或多个附件不存在", 404)
-        if (row.input_id && row.input_id !== binding.id) throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 input", 409)
-        this.db.sqlite.query("UPDATE input_attachments SET thread_id = ?, input_id = ?, bound_at = COALESCE(bound_at, ?) WHERE id = ?").run(input.thread_id, binding.id, Date.now(), id)
-      }
-    })
+    this.db.bindInputAttachments(binding.id, ids)
   }
 
   async unbindMany(ids: readonly string[], binding: AttachmentBinding) {

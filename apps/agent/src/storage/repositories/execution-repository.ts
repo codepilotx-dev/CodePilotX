@@ -8,6 +8,28 @@ import { now, parse, permissionConfigFromRow, stringify } from "./repository-cor
 import { ThreadRepositoryDatabase } from "./thread-repository"
 
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
+  bindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
+    if (attachmentIDs.length === 0) return
+    const input = this.sqlite.query("SELECT thread_id FROM inputs WHERE id = ?").get(inputID) as { thread_id: string } | null
+    if (!input) throw new AgentError("INPUT_NOT_FOUND", "附件目标 input 不存在", 404)
+    const timestamp = now()
+    this.transaction(() => {
+      for (const attachmentID of attachmentIDs) {
+        const attachment = this.sqlite.query("SELECT input_id FROM input_attachments WHERE id = ?").get(attachmentID) as { input_id: string | null } | null
+        if (!attachment) throw new AgentError("ATTACHMENT_NOT_FOUND", "一个或多个附件不存在", 404)
+        if (attachment.input_id && attachment.input_id !== inputID) {
+          throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 input", 409)
+        }
+        this.sqlite.query("UPDATE input_attachments SET thread_id = ?, input_id = ?, bound_at = COALESCE(bound_at, ?) WHERE id = ?").run(
+          input.thread_id,
+          inputID,
+          timestamp,
+          attachmentID,
+        )
+      }
+    })
+  }
+
   recoverInterruptedExecutions(timestamp: number) {
     const interruptedTurns = this.sqlite.query(`
       SELECT id, thread_id, root_agent_id FROM turns
