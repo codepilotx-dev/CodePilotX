@@ -79,12 +79,6 @@ export type UseSessionStateOptions = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -204,12 +198,6 @@ export function useSessionState(
     providerID,
     providerBaseURL,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -655,12 +643,6 @@ export function useSessionState(
       providerID,
       providerBaseURL,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -676,11 +658,7 @@ export function useSessionState(
       installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
-      fastModel,
-      planExecutionModel,
       model,
-      reviewModel,
-      deepModel,
       effectiveLocalRouterMode,
       effectivePermissionMode,
       permissionConfig,
@@ -688,8 +666,6 @@ export function useSessionState(
       providerBaseURL,
       providerID,
       sessionName,
-      smallFastModel,
-      defaultModel,
       systemPrompt,
       thinkingMode,
     ],

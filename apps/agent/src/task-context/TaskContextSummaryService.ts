@@ -4,7 +4,7 @@ import type { PiModelService } from "../provider/pi"
 import type { ConfigService } from "../config/ConfigService"
 import { AgentError } from "../domain"
 import { generatePiObject } from "../provider/pi/PiStructuredOutput"
-import { resolveAuxiliaryPiModel } from "../provider/pi/PiAuxiliaryModelResolver"
+import { resolveSpecializedPiModel } from "../provider/pi/PiSpecializedModelResolver"
 import type { TaskContextService } from "./TaskContextService"
 
 const changeSchema = z.discriminatedUnion("op", [
@@ -20,7 +20,7 @@ export class TaskContextSummaryService {
     const task = this.db.sqlite.query("SELECT project_id FROM taskboard_tasks WHERE id = ?").get(taskId) as { project_id: string } | null
     if (!task) throw new AgentError("TASKBOARD_TASK_NOT_FOUND", "任务不存在", 404)
     const current = this.context.read(taskId, { includeEvidence: true, includeUnverified: true, limit: 200 })
-    const selected = await resolveAuxiliaryPiModel({ db: this.db, models: this.models, configService: this.config, projectId: task.project_id })
+    const selected = await resolveSpecializedPiModel({ purpose: "organization", db: this.db, models: this.models, configService: this.config, projectId: task.project_id })
     if (!selected) throw new AgentError("TASKBOARD_AI_MODEL_UNAVAILABLE", "没有可用于更新任务上下文的模型", 409)
     const batches: typeof current.evidence[] = []
     let batch: typeof current.evidence = []

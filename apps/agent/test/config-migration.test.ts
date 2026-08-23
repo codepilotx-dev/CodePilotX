@@ -103,6 +103,10 @@ describe("ConfigMigrationService", () => {
       model: "file-wins",
       model_provider: "openai",
       task_models: { reviewer: "legacy-reviewer" },
+      specialized_models: {
+        coding: "legacy-reviewer",
+        security: "legacy-reviewer",
+      },
       features: { memory: true },
       desktop: {
         showContextUsage: false,

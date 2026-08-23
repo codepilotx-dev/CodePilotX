@@ -53,12 +53,10 @@ export type UseDesktopSettingsResult = {
   enableFullAccessPermissionMode: boolean
   permissionMode: DesktopPermissionMode
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
+  generationModel: string
+  organizationModel: string
+  codingModel: string
+  securityModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -118,12 +116,10 @@ export type UseDesktopSettingsResult = {
   setEnableAutoReviewPermissionMode: (value: boolean) => void
   setEnableFullAccessPermissionMode: (value: boolean) => void
   setModel: (value: string) => void
-  setPlanExecutionModel: (value: string) => void
-  setReviewModel: (value: string) => void
-  setSmallFastModel: (value: string) => void
-  setFastModel: (value: string) => void
-  setDefaultModel: (value: string) => void
-  setDeepModel: (value: string) => void
+  setGenerationModel: (value: string) => void
+  setOrganizationModel: (value: string) => void
+  setCodingModel: (value: string) => void
+  setSecurityModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
   setSystemPrompt: (value: string) => void
@@ -357,14 +353,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     setEnableFullAccessPermissionMode,
   ] = useState<boolean>(initial.enableFullAccessPermissionMode ?? false)
   const [model, setModel] = useState(initial.model)
-  const [planExecutionModel, setPlanExecutionModel] = useState(
-    initial.planExecutionModel,
-  )
-  const [reviewModel, setReviewModel] = useState(initial.reviewModel)
-  const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
-  const [fastModel, setFastModel] = useState(initial.fastModel)
-  const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
-  const [deepModel, setDeepModel] = useState(initial.deepModel)
+  const [generationModel, setGenerationModel] = useState(initial.generationModel)
+  const [organizationModel, setOrganizationModel] = useState(initial.organizationModel)
+  const [codingModel, setCodingModel] = useState(initial.codingModel)
+  const [securityModel, setSecurityModel] = useState(initial.securityModel)
   const [sessionName, setSessionName] = useState(initial.sessionName)
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
@@ -566,12 +558,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
           settings.enableFullAccessPermissionMode ?? false,
         )
         setModel(settings.model)
-        setPlanExecutionModel(settings.planExecutionModel)
-        setReviewModel(settings.reviewModel)
-        setSmallFastModel(settings.smallFastModel)
-        setFastModel(settings.fastModel)
-        setDefaultModel(settings.defaultModel)
-        setDeepModel(settings.deepModel)
+        setGenerationModel(settings.generationModel)
+        setOrganizationModel(settings.organizationModel)
+        setCodingModel(settings.codingModel)
+        setSecurityModel(settings.securityModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
         setSystemPrompt(settings.systemPrompt)
@@ -657,12 +647,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       shellSecurityLevel: draftValues.shellSecurityLevel,
       terminalProfileId: draftValues.terminalProfileId,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
+      generationModel,
+      organizationModel,
+      codingModel,
+      securityModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -736,12 +724,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       draftValues.shellSecurityLevel,
       draftValues.terminalProfileId,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
+      generationModel,
+      organizationModel,
+      codingModel,
+      securityModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -862,12 +848,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         snapshot.enableFullAccessPermissionMode ?? false,
       )
       setModel(snapshot.model)
-      setPlanExecutionModel(snapshot.planExecutionModel)
-      setReviewModel(snapshot.reviewModel)
-      setSmallFastModel(snapshot.smallFastModel)
-      setFastModel(snapshot.fastModel)
-      setDefaultModel(snapshot.defaultModel)
-      setDeepModel(snapshot.deepModel)
+      setGenerationModel(snapshot.generationModel)
+      setOrganizationModel(snapshot.organizationModel)
+      setCodingModel(snapshot.codingModel)
+      setSecurityModel(snapshot.securityModel)
       setSessionName(snapshot.sessionName)
       setThinkingMode(snapshot.thinkingMode)
       setSystemPrompt(snapshot.systemPrompt)
@@ -1049,12 +1033,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     enableFullAccessPermissionMode,
     permissionMode,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
+    generationModel,
+    organizationModel,
+    codingModel,
+    securityModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -1114,12 +1096,10 @@ defaultOpenTargetId,
     setEnableAutoReviewPermissionMode,
     setEnableFullAccessPermissionMode,
     setModel,
-    setPlanExecutionModel,
-    setReviewModel,
-    setSmallFastModel,
-    setFastModel,
-    setDefaultModel,
-    setDeepModel,
+    setGenerationModel,
+    setOrganizationModel,
+    setCodingModel,
+    setSecurityModel,
     setSessionName,
     setThinkingMode,
     setSystemPrompt,

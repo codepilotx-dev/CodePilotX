@@ -234,7 +234,9 @@ const desktopProjection = (config: Record<string, unknown>) => {
       ),
     )
     : {}
-  const taskModels = isPlainObject(config.task_models) ? config.task_models : {}
+  const specializedModels = isPlainObject(config.specialized_models)
+    ? config.specialized_models
+    : {}
   const features = isPlainObject(config.features) ? config.features : {}
   const sandbox = isPlainObject(config.sandbox_workspace_write) ? config.sandbox_workspace_write : {}
   const permissionConfig = isPlainObject(desktop.permissionConfig)
@@ -254,12 +256,10 @@ const desktopProjection = (config: Record<string, unknown>) => {
     ...(typeof config.system_prompt === "string" ? { systemPrompt: config.system_prompt } : {}),
     ...(typeof config.append_system_prompt === "string" ? { appendSystemPrompt: config.append_system_prompt } : {}),
     ...(typeof config.custom_instructions === "string" ? { customInstructions: config.custom_instructions } : {}),
-    ...(typeof taskModels.small_fast === "string" ? { smallFastModel: taskModels.small_fast } : {}),
-    ...(typeof taskModels.fast === "string" ? { fastModel: taskModels.fast } : {}),
-    ...(typeof taskModels.default === "string" ? { defaultModel: taskModels.default } : {}),
-    ...(typeof taskModels.deep === "string" ? { deepModel: taskModels.deep } : {}),
-    ...(typeof taskModels.plan === "string" ? { planExecutionModel: taskModels.plan } : {}),
-    ...(typeof taskModels.reviewer === "string" ? { reviewModel: taskModels.reviewer } : {}),
+    ...(typeof specializedModels.generation === "string" ? { generationModel: specializedModels.generation } : {}),
+    ...(typeof specializedModels.organization === "string" ? { organizationModel: specializedModels.organization } : {}),
+    ...(typeof specializedModels.coding === "string" ? { codingModel: specializedModels.coding } : {}),
+    ...(typeof specializedModels.security === "string" ? { securityModel: specializedModels.security } : {}),
     ...(typeof features.memory === "boolean" ? { enableMemory: features.memory } : {}),
     ...(typeof features.pareto_code_router === "boolean" ? { enableParetoCodeRouter: features.pareto_code_router } : {}),
     ...(typeof features.fusion_router === "boolean" ? { enableFusionRouter: features.fusion_router } : {}),
@@ -274,12 +274,10 @@ const desktopCorePath = (key: string): string[] | null => ({
   systemPrompt: ["system_prompt"],
   appendSystemPrompt: ["append_system_prompt"],
   customInstructions: ["custom_instructions"],
-  smallFastModel: ["task_models", "small_fast"],
-  fastModel: ["task_models", "fast"],
-  defaultModel: ["task_models", "default"],
-  deepModel: ["task_models", "deep"],
-  planExecutionModel: ["task_models", "plan"],
-  reviewModel: ["task_models", "reviewer"],
+  generationModel: ["specialized_models", "generation"],
+  organizationModel: ["specialized_models", "organization"],
+  codingModel: ["specialized_models", "coding"],
+  securityModel: ["specialized_models", "security"],
   enableMemory: ["features", "memory"],
   enableParetoCodeRouter: ["features", "pareto_code_router"],
   enableFusionRouter: ["features", "fusion_router"],

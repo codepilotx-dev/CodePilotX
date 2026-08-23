@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [agent/desktop/renderer] 将六项性能分档任务模型收敛为生成、整理、代码和安全四类专用模型，按用途复用任务建议、标题、记忆、上下文、计划执行、代码审查和权限审核能力并迁移旧配置；任务建议生成超时由 8 秒延长至 15 秒，并记录实际模型与耗时。
 - [desktop/renderer] 固化 Workbench 区域颜色归属规范，明确右侧 Dock 与底部 Panel 跟随工作区画布，窗口菜单栏与左侧栏保持应用 Chrome 层级。
 - [desktop/development] 对齐 Codex 的 Windows Window Controls Overlay：原生按钮区改为完全透明并透出 Renderer 菜单栏背景，菜单栏与 Overlay 使用确定的 36px 逻辑高度，移除 DOM 实测颜色/高度回写 IPC 及其缩放反馈环，避免右上角色块断层和标题栏高度自增。
 - [desktop/renderer] 为窗口菜单栏、侧边栏和工作区建立独立区域颜色 token；窗口 Chrome 默认同色，右侧 Dock 与底部 Panel 跟随工作区画布。
@@ -131,6 +132,7 @@
 
 ### Fixed
 
+- [agent] 修复 history schema 24 迁移测试夹具误执行新版任务上下文表 DDL、因缺失任务看板依赖表而无法验证逐代迁移的问题。
 - [desktop] 修复 Pi OAuth 登录在认证方式选择提示中持续加载、无法提交，以及授权完成后 Provider 模型目录未立即生效的问题，并确保打包后的 Agent sidecar 内置 OAuth 流程可加载。
 
 - [desktop] 修复 Windows 原生窗口控制区未跟随应用标题栏主题与高度，消除浅色和自定义主题下的顶栏颜色断层。

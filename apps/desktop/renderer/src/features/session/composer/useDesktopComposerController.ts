@@ -47,7 +47,7 @@ type ControllerOptions = {
   permissionMode: DesktopPermissionMode
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
-  planExecutionModel?: string
+  codingModel?: string
   planModeActive: boolean
   modelConfigured: boolean
   selectedModelMetadata?: DesktopModelMetadata
@@ -145,7 +145,7 @@ export function useDesktopComposerController({
   permissionMode,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
-  planExecutionModel,
+  codingModel,
   planModeActive,
   modelConfigured,
   selectedModelMetadata,
@@ -425,7 +425,7 @@ export function useDesktopComposerController({
           objective: goalText,
           status: 'active',
         })
-        applyPlanExecutionModel()
+        applyCodingModel()
         const clearContent = onDraftAccepted
           ? onDraftAccepted(sourceDraftKey, snapshot) !== false
           : true
@@ -536,13 +536,13 @@ export function useDesktopComposerController({
     if (workingPlugin) onWorkingPluginChange?.(null)
   }
 
-  function applyPlanExecutionModel(): void {
-    if (!planExecutionModel) return
-    const slashIdx = planExecutionModel.indexOf('/')
-    if (slashIdx <= 0 || slashIdx >= planExecutionModel.length - 1) return
+  function applyCodingModel(): void {
+    if (!codingModel) return
+    const slashIdx = codingModel.indexOf('/')
+    if (slashIdx <= 0 || slashIdx >= codingModel.length - 1) return
     onProviderModelChange(
-      planExecutionModel.slice(0, slashIdx) as ModelProviderID,
-      planExecutionModel.slice(slashIdx + 1),
+      codingModel.slice(0, slashIdx) as ModelProviderID,
+      codingModel.slice(slashIdx + 1),
     )
   }
 

@@ -33,6 +33,7 @@ import type {
 import {
   useDesktopComposerController,
 } from './useDesktopComposerController.js'
+import { resolveAvailableCodingModel } from './codingModelSelection.js'
 
 export {
   loadCachedRuntimeSkills,
@@ -76,7 +77,7 @@ export type DesktopComposerProps = {
   enableFusionRouter: boolean
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
-  planExecutionModel?: string
+  codingModel?: string
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
@@ -183,7 +184,7 @@ export function DesktopComposer({
   enableFusionRouter,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
-  planExecutionModel,
+  codingModel,
   thinkingMode,
   selectedProviderID,
   selectedModelPreset,
@@ -284,7 +285,7 @@ export function DesktopComposer({
     permissionMode,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
-    planExecutionModel,
+    codingModel: resolveAvailableCodingModel(codingModel, providerOptions),
     planModeActive,
     modelConfigured,
     selectedModelMetadata,

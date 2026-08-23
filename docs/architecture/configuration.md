@@ -46,13 +46,18 @@ Profile 文件名就是稳定 ID。ID 必须匹配 `[a-z0-9][a-z0-9_-]{0,63}`，
   "model": "gpt-5.6",
   "model_reasoning_effort": "high",
   "approval_policy": "on-request",
-  "task_models": {
-    "reviewer": "gpt-5.6"
+  "specialized_models": {
+    "generation": "openai/gpt-5.6-mini",
+    "organization": "openai/gpt-5.6-mini",
+    "coding": "openai/gpt-5.6",
+    "security": "openai/gpt-5.6"
   }
 }
 ```
 
-Profile 只允许任务执行偏好：模型与推理强度、人格和提示词、沙箱与审批策略、Shell 安全级别以及任务模型。Provider 定义、凭据仓库、MCP、Hook、数据目录、遥测、日志、桌面 UI 状态和项目可信记录都必须留在用户层或机器本地存储。
+`specialized_models` 按用途配置生成、整理、编码和安全任务使用的模型。值优先使用 `provider/model` 完整引用；兼容只写模型 ID，此时继承同一有效配置中的 `model_provider`。生成、整理和编码模型未配置或不可用时使用有效主模型；安全模型优先回退当前任务模型，仍不可用时保持 fail-closed 并转人工审批。旧 `task_models` 会按用途幂等复制到新字段并原样保留，已有专用模型不会被覆盖。
+
+Profile 只允许任务执行偏好：模型与推理强度、人格和提示词、沙箱与审批策略、Shell 安全级别以及专用模型。Provider 定义、凭据仓库、MCP、Hook、数据目录、遥测、日志、桌面 UI 状态和项目可信记录都必须留在用户层或机器本地存储。
 
 Profile 在 Agent 启动时冻结。外部编辑活动 Profile 或修改 `config.json.profile` 后，当前 Agent 继续使用原快照并报告 `restartRequired: true`；关闭共享该 Agent 的所有前端并重新启动后才应用新值。已选择的 Profile 缺失或无效时，Agent 拒绝启动，避免不同端悄悄使用不同回退值。
 

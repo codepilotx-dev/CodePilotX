@@ -183,12 +183,14 @@ describe("TaskSuggestionService", () => {
     }, {
       snapshot: () => ({
         model_provider: "provider:test",
-        task_models: { small_fast: "small", fast: "fast" },
+        model: "fast",
+        specialized_models: { generation: "provider:test/small" },
       }),
       read: async () => ({
         config: {
           model_provider: "provider:test",
-          task_models: { small_fast: "small", fast: "fast" },
+          model: "fast",
+          specialized_models: { generation: "provider:test/small" },
         },
       }),
     } as never)
@@ -245,12 +247,12 @@ describe("TaskSuggestionService", () => {
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,
@@ -287,12 +289,12 @@ describe("TaskSuggestionService", () => {
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,
@@ -377,12 +379,12 @@ test("rejects categories that do not belong to the requested surface", async () 
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,
@@ -400,7 +402,21 @@ test("rejects categories that do not belong to the requested surface", async () 
       "codex-create",
     ])
     expect(second).toEqual(first)
-    expect(logEvents.some((entry) => entry.event === "task_suggestion.generate.fallback" && entry.fields?.reason === "timeout")).toBe(true)
+    expect(logEvents).toContainEqual(expect.objectContaining({
+      level: "info",
+      event: "task_suggestion.generate.started",
+      fields: expect.objectContaining({ provider: "provider:test", model: "fast" }),
+    }))
+    expect(logEvents).toContainEqual(expect.objectContaining({
+      level: "info",
+      event: "task_suggestion.generate.fallback",
+      fields: expect.objectContaining({
+        reason: "timeout",
+        provider: "provider:test",
+        model: "fast",
+        durationMs: expect.any(Number),
+      }),
+    }))
     db.close()
   })
 
@@ -432,12 +448,12 @@ test("rejects categories that do not belong to the requested surface", async () 
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,
@@ -457,6 +473,11 @@ test("rejects categories that do not belong to the requested surface", async () 
     expect(second).toEqual(first)
     const providerLogs = logEvents.filter((entry) => entry.event === "task_suggestion.generate.fallback" && entry.fields?.reason === "provider")
     expect(providerLogs).toHaveLength(1)
+    expect(providerLogs[0]?.fields).toEqual(expect.objectContaining({
+      provider: "provider:test",
+      model: "fast",
+      durationMs: expect.any(Number),
+    }))
     db.close()
   })
 
@@ -482,12 +503,12 @@ test("rejects categories that do not belong to the requested surface", async () 
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,
@@ -532,12 +553,12 @@ test("rejects categories that do not belong to the requested surface", async () 
       {
         snapshot: () => ({
           model_provider: "provider:test",
-          task_models: { small_fast: "fast" },
+          specialized_models: { generation: "provider:test/fast" },
         }),
         read: async () => ({
           config: {
             model_provider: "provider:test",
-            task_models: { small_fast: "fast" },
+            specialized_models: { generation: "provider:test/fast" },
           },
         }),
       } as never,

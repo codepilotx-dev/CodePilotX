@@ -14,10 +14,10 @@ import { generatePiObject } from "../provider/pi/PiStructuredOutput"
 import { secretScrubber } from "../security/SecretScrubber"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { ConfigService } from "../config/ConfigService"
-import { resolveAuxiliaryPiModel } from "../provider/pi/PiAuxiliaryModelResolver"
+import { resolveSpecializedPiModel } from "../provider/pi/PiSpecializedModelResolver"
 
 const MAX_CACHE_ENTRIES = 50
-const DEFAULT_TIMEOUT_MS = 8_000
+const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_RECENT_TASKS = 5
 const MAX_GIT_FILES = 30
 const MAX_MEMORIES_PER_SCOPE = 5
@@ -187,6 +187,7 @@ export class TaskSuggestionService {
       contextKey,
       context,
       memories,
+      selected.ref,
       selected.model,
       surface,
     )
@@ -285,7 +286,8 @@ export class TaskSuggestionService {
   }
 
   private async selectModel(projectId?: string) {
-    const selected = await resolveAuxiliaryPiModel({
+    const selected = await resolveSpecializedPiModel({
+      purpose: "generation",
       db: this.db,
       models: this.models,
       ...(this.configService ? { configService: this.configService } : {}),
@@ -302,9 +304,20 @@ export class TaskSuggestionService {
     contextKey: string,
     context: ReturnType<TaskSuggestionService["normalizeContext"]>,
     memories: MemoryEntry[],
+    ref: { providerID: string; id: string },
     model: PiModel<Api>,
     surface: TaskSuggestionSurface,
   ): Promise<TaskSuggestionGenerateResult> {
+    const startedAt = Date.now()
+    const logDetails = () => ({
+      provider: String(ref.providerID),
+      model: String(ref.id),
+      durationMs: Date.now() - startedAt,
+    })
+    this.logger.info("task_suggestion.generate.started", {
+      provider: String(ref.providerID),
+      model: String(ref.id),
+    })
     const controller = new AbortController()
     const timer = setTimeout(
       () => controller.abort(new Error("task suggestion timeout")),
@@ -326,6 +339,7 @@ export class TaskSuggestionService {
         generated,
         surface,
       )
+      this.logger.info("task_suggestion.generate.completed", logDetails())
       return {
         contextKey,
         generatedAt: this.now(),
@@ -341,9 +355,15 @@ export class TaskSuggestionService {
             : "provider"
       if (reason === "timeout" || reason === "provider") {
         if (reason === "timeout") {
-          this.logger.info("task_suggestion.generate.fallback", { reason })
+          this.logger.info("task_suggestion.generate.fallback", {
+            reason,
+            ...logDetails(),
+          })
         } else {
-          this.logger.warn("task_suggestion.generate.fallback", { reason })
+          this.logger.warn("task_suggestion.generate.fallback", {
+            reason,
+            ...logDetails(),
+          })
         }
         return {
           contextKey,
@@ -351,8 +371,11 @@ export class TaskSuggestionService {
           suggestions: this.fallbackSuggestions(contextKey, context),
         }
       }
+      this.logger.warn("task_suggestion.generate.failed", {
+        reason,
+        ...logDetails(),
+      })
       if (cause instanceof TaskSuggestionServiceError) throw cause
-      this.logger.warn("task_suggestion.generate.failed", { reason })
       throw new TaskSuggestionServiceError(
         reason,
         reason === "invalid-output"

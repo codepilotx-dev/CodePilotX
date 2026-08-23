@@ -981,12 +981,22 @@ export type DesktopStoredSettings = {
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionMode?: DesktopPermissionMode
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
+  generationModel: string
+  organizationModel: string
+  codingModel: string
+  securityModel: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  planExecutionModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  reviewModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  smallFastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  fastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  defaultModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  deepModel?: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -1242,12 +1252,6 @@ export type DesktopSessionSettingsSnapshot = {
   model?: string
   effort?: string | null
   personality?: DesktopPersonality
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -1350,12 +1354,6 @@ export type CreateDesktopSessionOptions = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string

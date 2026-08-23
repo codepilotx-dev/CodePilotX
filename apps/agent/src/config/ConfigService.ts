@@ -127,6 +127,7 @@ const PROFILE_ALLOWED_ROOTS = new Set([
   "approvals_reviewer",
   "shell_security_level",
   "task_models",
+  "specialized_models",
 ])
 const KNOWN_CONFIG_ROOTS = new Set([
   ...PROFILE_ALLOWED_ROOTS,
@@ -413,6 +414,33 @@ const legacyDesktopMigrationEdits = (config: ConfigObject): ConfigEdit[] => {
   })
 }
 
+const SPECIALIZED_MODEL_MIGRATION_SOURCES = {
+  generation: ["small_fast", "fast"],
+  organization: ["small_fast", "fast"],
+  coding: ["plan", "deep", "default", "reviewer"],
+  security: ["reviewer"],
+} as const
+
+export const specializedModelMigrationEdits = (config: ConfigObject): ConfigEdit[] => {
+  const specializedModels = isObject(config.specialized_models)
+    ? config.specialized_models as Record<string, unknown>
+    : {}
+  const taskModels = isObject(config.task_models)
+    ? config.task_models as Record<string, unknown>
+    : {}
+  const edits: ConfigEdit[] = []
+  for (const [purpose, sources] of Object.entries(SPECIALIZED_MODEL_MIGRATION_SOURCES)) {
+    if (specializedModels[purpose] !== undefined) continue
+    const value = sources
+      .map((source) => taskModels[source])
+      .find((candidate) => typeof candidate === "string" && candidate.trim())
+    if (typeof value === "string") {
+      edits.push({ keyPath: ["specialized_models", purpose], value })
+    }
+  }
+  return edits
+}
+
 const runtimeConfig = (config: ConfigObject): ConfigObject => {
   const output = clone(config)
   delete output.schema_version
@@ -507,6 +535,21 @@ const writeConfigAtomically = async (filePath: string, text: string) => {
   } finally {
     await rm(temporary, { force: true }).catch(() => undefined)
   }
+}
+
+const migrateSpecializedModelsFile = async (
+  filePath: string,
+  scope: ConfigScope,
+  loaded: LoadedFile,
+) => {
+  if (loaded.diagnostics.some((item) => item.severity === "error")) return loaded
+  const edits = specializedModelMigrationEdits(loaded.config)
+  if (edits.length === 0) return loaded
+  const text = patchJsonc(loaded.text, edits)
+  const parsed = parseJsoncObject(text)
+  validateConfig(parsed, scope)
+  await writeConfigAtomically(filePath, text)
+  return readConfigFile(filePath, scope, loaded)
 }
 
 const migrateLegacyToml = async (
@@ -652,7 +695,11 @@ export class ConfigService {
         `已选择的 Profile ${selected} 不存在`,
       )
     }
-    const loaded = await readConfigFile(filePath, "profile")
+    const loaded = await migrateSpecializedModelsFile(
+      filePath,
+      "profile",
+      await readConfigFile(filePath, "profile"),
+    )
     if (loaded.diagnostics.some((item) => item.severity === "error")) {
       throw new ConfigServiceError(
         "CONFIG_PROFILE_INVALID",
@@ -674,8 +721,11 @@ export class ConfigService {
         flag: "wx",
       }).catch(() => undefined)
     }
-    this.user = migrated
-      ?? await readConfigFile(this.userConfigPath, "user")
+    this.user = await migrateSpecializedModelsFile(
+      this.userConfigPath,
+      "user",
+      migrated ?? await readConfigFile(this.userConfigPath, "user"),
+    )
     const legacyProjects = isObject(this.user.config.projects)
       ? this.user.config.projects as ConfigObject
       : {}
@@ -710,6 +760,11 @@ export class ConfigService {
     }
     if (initializationEdits.length) {
       await this.batchWrite({ edits: initializationEdits })
+      this.user = await migrateSpecializedModelsFile(
+        this.userConfigPath,
+        "user",
+        this.user,
+      )
     }
     await this.loadActiveProfile()
     this.watchFile(this.userConfigPath, "user")
@@ -844,8 +899,13 @@ export class ConfigService {
     const migrated = trusted
       ? await migrateLegacyToml(filePath, "project")
       : undefined
-    const loaded = migrated
-      ?? await readConfigFile(filePath, "project", previous)
+    const loaded = trusted
+      ? await migrateSpecializedModelsFile(
+          filePath,
+          "project",
+          migrated ?? await readConfigFile(filePath, "project", previous),
+        )
+      : migrated ?? await readConfigFile(filePath, "project", previous)
     this.projects.set(filePath, loaded)
     this.watchFile(filePath, "project")
     return { filePath, projectRoot, trusted, loaded }
@@ -968,7 +1028,11 @@ export class ConfigService {
       const id = entry.name.slice(0, -5)
       if (!PROFILE_ID.test(id) || entry.name !== `${id}.json`) continue
       const filePath = this.profilePath(id)
-      const loaded = await readConfigFile(filePath, "profile", this.profiles.get(id))
+      const loaded = await migrateSpecializedModelsFile(
+        filePath,
+        "profile",
+        await readConfigFile(filePath, "profile", this.profiles.get(id)),
+      )
       this.profiles.set(id, loaded)
       this.watchFile(filePath, "profile")
       profiles.push({
@@ -1002,7 +1066,11 @@ export class ConfigService {
           `Profile ${profileId} 不存在`,
         )
       }
-      const loaded = await readConfigFile(filePath, "profile", this.profiles.get(profileId))
+      const loaded = await migrateSpecializedModelsFile(
+        filePath,
+        "profile",
+        await readConfigFile(filePath, "profile", this.profiles.get(profileId)),
+      )
       if (loaded.diagnostics.some((item) => item.severity === "error")) {
         throw new ConfigServiceError(
           "CONFIG_PROFILE_INVALID",

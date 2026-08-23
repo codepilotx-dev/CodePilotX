@@ -16,7 +16,7 @@ import type {
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
-import { TaskModelSelect } from './TaskModelSelect.js'
+import { SpecializedModelSelect } from './SpecializedModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
@@ -398,94 +398,64 @@ export function ConfigSettings(): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection
-          title="任务模型"
-          description="这些模型对应轻量、常规和深度任务入口；留空时会使用上面的会话主模型。"
+          title="专用模型"
+          description="按用途为辅助能力选择模型；留空时使用上面的会话主模型。"
         >
           <SettingsRow
-            title="快速模型"
-            description="用于标题、摘要、Hook、检索等轻量辅助任务；未配置时使用主模型。"
+            title="生成模型"
+            description="用于任务建议和会话标题生成与更新。"
             control={
-              <TaskModelSelect
-                value={draft.values.smallFastModel}
+              <SpecializedModelSelect
+                value={draft.values.generationModel}
                 mainModel={settings.model}
-                taskModelKey="smallFastModel"
+                specializedModelKey="generationModel"
                 onChange={v => {
-                  draft.setValue('smallFastModel', v)
+                  draft.setValue('generationModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="快速任务模型"
-            description="用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。"
+            title="整理模型"
+            description="用于记忆提取和任务上下文整理。"
             control={
-              <TaskModelSelect
-                value={draft.values.fastModel}
+              <SpecializedModelSelect
+                value={draft.values.organizationModel}
                 mainModel={settings.model}
-                taskModelKey="fastModel"
+                specializedModelKey="organizationModel"
                 onChange={v => {
-                  draft.setValue('fastModel', v)
+                  draft.setValue('organizationModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="默认任务模型"
-            description="用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。"
+            title="代码模型"
+            description="用于计划实施和 AI 代码审查。"
             control={
-              <TaskModelSelect
-                value={draft.values.defaultModel}
+              <SpecializedModelSelect
+                value={draft.values.codingModel}
                 mainModel={settings.model}
-                taskModelKey="defaultModel"
+                specializedModelKey="codingModel"
                 onChange={v => {
-                  draft.setValue('defaultModel', v)
+                  draft.setValue('codingModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="深度任务模型"
-            description="用于高质量推理、复杂修改和深度审查；未配置时使用主模型。"
+            title="安全模型（实验）"
+            description="用于 Shell 和工具权限自动审核。"
             control={
-              <TaskModelSelect
-                value={draft.values.deepModel}
+              <SpecializedModelSelect
+                value={draft.values.securityModel}
                 mainModel={settings.model}
-                taskModelKey="deepModel"
+                specializedModelKey="securityModel"
                 onChange={v => {
-                  draft.setValue('deepModel', v)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="计划执行模型"
-            description="批准计划后用于实施阶段；未配置时使用默认任务模型。"
-            control={
-              <TaskModelSelect
-                value={draft.values.planExecutionModel}
-                mainModel={settings.model}
-                taskModelKey="planExecutionModel"
-                onChange={v => {
-                  draft.setValue('planExecutionModel', v)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="权限审核模型（实验）"
-            description="仅用于 Shell 和工具权限的自动审核；自定义模型不兼容时会回退人工审批。"
-            control={
-              <TaskModelSelect
-                value={draft.values.reviewModel}
-                mainModel={settings.model}
-                taskModelKey="reviewModel"
-                onChange={v => {
-                  draft.setValue('reviewModel', v)
+                  draft.setValue('securityModel', v)
                   draft.autoSave()
                 }}
               />

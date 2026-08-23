@@ -5,9 +5,9 @@ import type { ConfigService } from "../config/ConfigService"
 import { AgentError } from "../domain"
 import type { AgentLogger } from "../observability/AgentLogger"
 import {
-  resolveAuxiliaryPiModel,
-  type AuxiliaryPiModelService,
-} from "../provider/pi/PiAuxiliaryModelResolver"
+  resolveSpecializedPiModel,
+  type SpecializedPiModelService,
+} from "../provider/pi/PiSpecializedModelResolver"
 import { generatePiObject } from "../provider/pi/PiStructuredOutput"
 import type { PiModelService } from "../provider/pi/PiModelService"
 import { secretScrubber } from "../security/SecretScrubber"
@@ -28,7 +28,7 @@ const generatedTitleSchema = z.object({
 })
 
 type GeneratedTitle = z.output<typeof generatedTitleSchema>
-type ThreadTitleModelService = AuxiliaryPiModelService & Pick<PiModelService, "pi">
+type ThreadTitleModelService = SpecializedPiModelService & Pick<PiModelService, "pi">
 type ThreadTitleFailureReason = "configuration" | "timeout" | "provider" | "invalid-output"
 type ThreadTitleGenerationScope = "initial" | "conversation"
 type ThreadTitleGenerationResult = {
@@ -302,7 +302,8 @@ export class ThreadTitleService {
     let source: "generated" | "fallback" = "generated"
     let failureReason: ThreadTitleFailureReason | undefined
     try {
-      const selected = await resolveAuxiliaryPiModel({
+      const selected = await resolveSpecializedPiModel({
+        purpose: "generation",
         db: this.db,
         models: this.models,
         ...(this.configService ? { configService: this.configService } : {}),

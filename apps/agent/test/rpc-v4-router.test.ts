@@ -1001,7 +1001,7 @@ describe("RPC v4 Router", () => {
     value.configDocument.model_provider = "provider:test"
     value.configDocument.model = "alpha"
     value.configDocument.model_reasoning_effort = "reasoning"
-    value.configDocument.task_models = { reviewer: "alpha" }
+    value.configDocument.specialized_models = { security: "provider:test/alpha" }
     const configured = await value.call("model/list", {})
     expect(configured.result.defaultModel).toEqual({
       providerID: "provider:test",
