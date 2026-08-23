@@ -5,6 +5,11 @@
       "reason": "Renderer 仅使用 React Router 客户端路由，不启用受影响的 RSC action 执行模式；等待上游发布可用修复版本。",
       "owner": "@xiaohai-ouyang",
       "expires": "2026-08-29"
+    },
+    "GHSA-jmr9-qjv8-65gv": {
+      "reason": "extract-zip@2.0.1 上游暂无修复版本；工作区已通过本地 Bun dependency patch 在 fs.symlink 前拒绝绝对目标及解析后越界 opts.dir 的相对目标，普通文件与目录行为不变；Agent 仍保留来源白名单、归档 SHA-256、解压前 PowerShell 预扫描与 onEntry 二次校验；待上游发布安全版本后移除本地补丁与本豁免。",
+      "owner": "@xiaohai-ouyang",
+      "expires": "2026-09-23"
     }
   }
 }

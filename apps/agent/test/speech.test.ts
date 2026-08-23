@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createHash, randomUUID } from "node:crypto"
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
+import extractZip from "extract-zip"
 import { AgentError } from "../src/domain"
 import { decodeSpeechWav } from "../src/speech/WavAudio"
 import { speechHandlers } from "../src/transport/rpc/handlers/speech"
@@ -86,6 +87,22 @@ describe("speech RPC handler", () => {
 })
 
 describe("speech installer supply-chain guards", () => {
+  test("patched extract-zip rejects symlinks that escape the extraction root", async () => {
+    const root = await temporaryRoot()
+    const archive = join(root, "symlink-escape.zip")
+    const destination = join(root, "extract")
+    const outside = join(root, "outside.txt")
+    const maliciousZip = "UEsDBBQAAAAAAAAAAAAFr4RLEQAAABEAAAAJAAAAc2FmZS9saW5rLi4vLi4vb3V0c2lkZS50eHRQSwECHgMUAAAAAAAAAAAABa+ESxEAAAARAAAACQAAAAAAAAAAAAAA/6EAAAAAc2FmZS9saW5rUEsFBgAAAAABAAEANwAAADgAAAAAAA=="
+    await writeFile(archive, Buffer.from(maliciousZip, "base64"))
+    await writeFile(outside, "sentinel", "utf8")
+    await mkdir(destination)
+
+    await expect(extractZip(archive, { dir: destination })).rejects.toThrow(
+      "points outside of the target directory",
+    )
+    expect(await readFile(outside, "utf8")).toBe("sentinel")
+  })
+
   test("rejects untrusted redirects, checksum mismatch and oversized responses", async () => {
     const root = await temporaryRoot()
     const redirect = new SpeechInstaller(root, () => undefined, async () => new Response(null, { status: 302, headers: { location: "https://evil.example/runtime.zip" } }))
