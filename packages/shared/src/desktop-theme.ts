@@ -2,6 +2,41 @@ export type DesktopThemeVariant = "light" | "dark"
 export type DesktopThemeMode = DesktopThemeVariant | "system"
 export type DesktopHexColor = `#${string}`
 
+export function deriveDesktopSurfaceUnder(
+  surface: string,
+  ink: string,
+  variant: DesktopThemeVariant,
+  contrast: number,
+): string {
+  const parseHex = (value: string) => {
+    const hex = value.replace("#", "")
+    return {
+      red: Number.parseInt(hex.slice(0, 2), 16),
+      green: Number.parseInt(hex.slice(2, 4), 16),
+      blue: Number.parseInt(hex.slice(4, 6), 16),
+    }
+  }
+  const surfaceRgb = parseHex(surface)
+  const inkRgb = parseHex(ink)
+  const dark = variant === "dark"
+  const target = dark ? { red: 0, green: 0, blue: 0 } : inkRgb
+  const amount = Math.max(
+    0,
+    Math.min(
+      1,
+      (dark ? 0.16 : 0.04)
+        + (contrast - (dark ? 60 : 45)) * (dark ? 0.0015 : 0.0012),
+    ),
+  )
+  const mix = (channel: keyof typeof surfaceRgb) => Math.round(
+    surfaceRgb[channel]
+      + (target[channel] - surfaceRgb[channel]) * amount,
+  )
+  const toHex = (value: number) => value.toString(16).padStart(2, "0")
+
+  return `#${toHex(mix("red"))}${toHex(mix("green"))}${toHex(mix("blue"))}`
+}
+
 /**
  * One locally installed system font face, as returned by the Local Font
  * Access enumeration. Only display metadata crosses the typed bridge; font

@@ -54,7 +54,7 @@ Renderer 只使用三层变量：
 
 ### 阴影与层级
 
-常驻卡片、面板和列表项使用 `--cpx-sys-shadow-resting` 或 `raised`（当前均为零阴影）；浮层仅使用 `--cpx-sys-shadow-floating`。焦点使用 `--cpx-sys-focus-ring*`。动态色板、图表或第三方表面确需精确描边时登记精确例外。
+常驻卡片、面板和列表项使用 `--cpx-sys-shadow-resting` 或 `raised`（当前均为零阴影）。持续覆盖工作区的主要交互面仅使用 `--cpx-sys-shadow-prominent`，当前限于悬浮 Composer 和绝对定位的线程环境摘要；Modal、Popover、Dropdown、Toast 等瞬时浮层继续使用 `--cpx-sys-shadow-floating`。同一视觉树只能有一个 elevation owner，Popover 内嵌的摘要内容不得重复投影。焦点使用 `--cpx-sys-focus-ring*`。动态色板、图表或第三方表面确需精确描边时登记精确例外。
 
 全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 

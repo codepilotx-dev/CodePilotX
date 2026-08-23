@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
 
 import {
   DEFAULT_DARK_THEME,
@@ -282,7 +283,7 @@ describe('fixed Codex UI themes', () => {
     ).toBeGreaterThanOrEqual(4.5)
   })
 
-  test('derives independent opaque canvas, chrome, panel, editor, and elevated roles', () => {
+  test('derives opaque canvas, chrome, panel, editor, and elevated roles', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
       const roleNames = [
@@ -293,10 +294,7 @@ describe('fixed Codex UI themes', () => {
         '--cpx-sys-color-surface-raised',
         '--cpx-sys-color-surface-editor',
       ] as const
-      const roles = roleNames.map(name => variables[name])
-
-      expect(new Set(roles).size).toBe(roleNames.length)
-      for (const role of roles) {
+      for (const role of roleNames.map(name => variables[name])) {
         expect(role).toBeDefined()
         expect(role).not.toContain('rgba')
       }
@@ -314,19 +312,51 @@ describe('fixed Codex UI themes', () => {
         contrast: 40,
       },
     })
-    const roles = [
-      '--cpx-sys-color-surface-canvas',
-      '--cpx-sys-color-surface-recessed',
-      '--cpx-sys-color-surface-panel',
-      '--cpx-sys-color-surface-control',
-      '--cpx-sys-color-surface-raised',
-      '--cpx-sys-color-surface-editor',
-    ].map(name => variables[name as `--${string}`])
+    const canvas = variables['--cpx-sys-color-surface-canvas']
+    const recessed = variables['--cpx-sys-color-surface-recessed']
+    const control = variables['--cpx-sys-color-surface-control']
+    const raised = variables['--cpx-sys-color-surface-raised']
 
-    expect(new Set(roles).size).toBe(roles.length)
-    for (const role of roles) {
-      expect(role).toMatch(/^#[\da-f]{6}$/)
-    }
+    expect(recessed).toBe(
+      deriveDesktopSurfaceUnder('#f5f3ed', '#2f312d', 'light', 40),
+    )
+    expect(luminance(parseColor(recessed))).toBeLessThan(
+      luminance(parseColor(canvas)),
+    )
+    expect(luminance(parseColor(control))).toBeGreaterThan(
+      luminance(parseColor(canvas)),
+    )
+    expect(luminance(parseColor(raised))).toBeGreaterThan(
+      luminance(parseColor(canvas)),
+    )
+  })
+
+  test('keeps dark chrome recessed while control and raised surfaces lift', () => {
+    const variables = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        surface: '#282a36',
+        ink: '#f8f8f2',
+        contrast: 60,
+      },
+    })
+    const canvasLuminance = luminance(
+      parseColor(variables['--cpx-sys-color-surface-canvas']),
+    )
+
+    expect(variables['--cpx-sys-color-surface-recessed']).toBe(
+      deriveDesktopSurfaceUnder('#282a36', '#f8f8f2', 'dark', 60),
+    )
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-recessed']),
+    )).toBeLessThan(canvasLuminance)
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-control']),
+    )).toBeGreaterThan(canvasLuminance)
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-raised']),
+    )).toBeGreaterThan(canvasLuminance)
   })
 
   test('keeps every semantic foreground readable on its subtle background', () => {

@@ -15,13 +15,19 @@
 
 /* --- Elevated Surface (popover / raised card level) --- */
 .ds-surface-raised,
-.composer,
 .thread-summary-panel,
 .thread-summary-error {
   border: var(--cpx-comp-surface-edge);
   background: var(--cpx-comp-surface-raised);
   backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
   box-shadow: var(--cpx-sys-shadow-raised);
+}
+
+.composer {
+  border: 0;
+  background: var(--cpx-comp-surface-raised);
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-comp-composer-shadow);
 }
 
 .ds-surface-raised {

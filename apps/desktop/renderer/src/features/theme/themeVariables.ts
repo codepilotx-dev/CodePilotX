@@ -2,6 +2,7 @@ import {
   DEFAULT_CODE_FONT,
   DEFAULT_UI_FONT,
 } from '../../../shared/theme.js'
+import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
 import { fontFamilyWithFace } from './themeFontFaces.js'
 
@@ -276,22 +277,10 @@ function deriveCodexRoles(
   const inkRgb = parseHex(ink)
   const accentRgb = parseHex(accent)
   const normalizedContrast = normalizeCodexContrast(contrast, variant)
-  const black = { red: 0, green: 0, blue: 0 }
   const hierarchy = Math.min(1, Math.max(0, normalizedContrast))
-  const surfaceRecessed = mixHex(
-    surfaceRgb,
-    dark ? black : inkRgb,
-    dark ? 0.13 + hierarchy * 0.07 : 0.055 + hierarchy * 0.035,
-  )
   const panel = mixHex(surfaceRgb, inkRgb, dark
     ? 0.045 + hierarchy * 0.025
     : 0.018 + hierarchy * 0.012)
-  const raised = mixHex(surfaceRgb, inkRgb, dark
-    ? 0.105 + hierarchy * 0.035
-    : 0.008 + hierarchy * 0.007)
-  const control = mixHex(surfaceRgb, inkRgb, dark
-    ? 0.07 + hierarchy * 0.03
-    : 0.032 + hierarchy * 0.018)
   const editorBackground = mixHex(surfaceRgb, inkRgb, dark
     ? 0.07
     : 0.012 + hierarchy * 0.008)
@@ -310,10 +299,15 @@ function deriveCodexRoles(
       )
 
   return {
-    surfaceRecessed,
+    surfaceRecessed: deriveDesktopSurfaceUnder(
+      surface,
+      ink,
+      variant,
+      contrast,
+    ),
     panel,
-    control,
-    raised,
+    control: palette.controlBackgroundOpaque,
+    raised: palette.elevatedSecondaryOpaque,
     editorBackground,
     borderLight: palette.borderLight,
     border: palette.border,

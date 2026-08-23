@@ -148,6 +148,50 @@ describe('Codex CPX design system token contract', () => {
     )
   })
 
+  test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
+    const [systemTokens, componentTokens, cards, composer, summary, rightDock] =
+      await Promise.all([
+        Bun.file(
+          new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL(
+            '../src/styles/design-system/codex-semantic-tokens.scss',
+            import.meta.url,
+          ),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/components/card.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_composer-shell.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_thread-summary.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url),
+        ).text(),
+      ])
+
+    expect(systemTokens.match(/--cpx-sys-shadow-prominent:/g)).toHaveLength(1)
+    expect(systemTokens).toContain('--cpx-sys-shadow-raised: none;')
+    expect(componentTokens).toContain(
+      '--cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);',
+    )
+    expect(cards).toMatch(
+      /\.composer\s*\{[\s\S]*?box-shadow: var\(--cpx-comp-composer-shadow\);/,
+    )
+    expect(composer).not.toContain('box-shadow: var(--cpx-sys-shadow-floating)')
+    expect(summary).toMatch(
+      /\.thread-summary-panel\s*\{[\s\S]*?box-shadow: var\(--cpx-sys-shadow-prominent\);/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-popover \.thread-summary-panel,[\s\S]*?box-shadow: none;/,
+    )
+    expect(rightDock).not.toContain('--cpx-sys-shadow-prominent')
+  })
+
   test('keeps component tokens private to shared component styles', async () => {
     const [
       systemTokens,

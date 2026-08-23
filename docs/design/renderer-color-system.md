@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | `surface-canvas` | 页面、主工作区 | 卡片、输入框 |
 | `surface-recessed` | 侧栏、代码底板、下沉区域 | 浮层 |
-| `surface-panel` | 常驻面板、卡片、摘要、审批容器 | 模态和下拉 |
+| `surface-panel` | 常驻面板、卡片、文档流摘要、审批容器 | 模态和覆盖工作区的浮动摘要 |
 | `surface-control` | 输入框、选择器、Composer 输入面 | 页面底色 |
 | `surface-raised` | Modal、Popover、Dropdown、Toast、悬浮 Composer | 常驻卡片 |
 | `surface-editor` | Diff、编辑器、预格式化代码 | 普通正文 |
@@ -28,7 +28,9 @@
 | `fg-disabled` | 不可交互内容 | 可操作内容 |
 | `border-subtle/default/strong/focus` | 同级分隔、容器、强调边界、键盘焦点 | 用边框颜色假装业务状态 |
 
-常驻容器通过相邻表面与 1px 边框形成层级，不加阴影。只有真实浮层使用 `--cpx-sys-shadow-floating`。
+浅色主题中 `surface-recessed` 向深色方向派生，`surface-control` 与 `surface-raised` 向浅色方向派生；暗色主题保持相反的明度关系，使下沉、控件和浮起语义在自定义背景与对比度下仍然成立。常驻容器通过相邻表面与 1px 边框形成层级，不加阴影。
+
+持续覆盖工作区的悬浮 Composer 和绝对定位线程环境摘要使用 `surface-raised` 与 `--cpx-sys-shadow-prominent`。Modal、Popover、Dropdown、Toast 等瞬时浮层使用 `surface-raised` 与 `--cpx-sys-shadow-floating`。当线程摘要位于 Popover 内时，由 Popover 外壳负责 elevation，摘要内容保持透明且不重复投影。
 
 ### Workbench 区域
 
