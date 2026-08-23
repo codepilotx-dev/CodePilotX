@@ -12,7 +12,10 @@ import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js
 import { taskboardBoardColumns, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
 import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
 import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
-import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
+import {
+  ComposerDraftStore,
+  resolveActivatedSessionComposerInput,
+} from '../src/features/session/composer/composerDraftStore.js'
 import { RENDERER_CAPABILITIES } from '../src/services/desktop-client/agent-session-client.js'
 import { canStartTask } from '../src/features/taskboard/taskboardConstants.js'
 import { activeTaskboardPrimaryThreadId } from '../src/features/taskboard/taskboardConstants.js'
@@ -332,6 +335,12 @@ describe('taskboard composer handoff', () => {
     expect(store.get(key).document.text).toBe('user draft')
     expect(emissions).toBe(1)
     unsubscribe()
+  })
+
+  test('hydrates the activated session input from the task startup draft', () => {
+    expect(resolveActivatedSessionComposerInput(undefined, 'startup context')).toBe('startup context')
+    expect(resolveActivatedSessionComposerInput('', 'startup context')).toBe('startup context')
+    expect(resolveActivatedSessionComposerInput('user draft', 'startup context')).toBe('user draft')
   })
 })
 

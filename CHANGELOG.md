@@ -119,6 +119,7 @@
 
 ### Fixed
 
+- [desktop] 修复从任务工作台创建或继续主会话后启动指令未同步到 Composer、导致新会话输入框保持空白的问题。
 - [desktop/renderer] 图片附件打开控件不再复用通用 Button，避免默认尺寸、背景和边框覆盖缩略图。
 - [desktop/renderer] 修正 Skills 实时更新测试，使其匹配复用的全局事件订阅。
 - [desktop/renderer] 修复任务工作台从带筛选的 Board、List 或 Gantt 打开详情后，返回、前进后退及刷新详情再返回时丢失滚动位置和任务锚点的问题。

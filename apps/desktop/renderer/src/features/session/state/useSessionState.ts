@@ -66,6 +66,10 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../composer/composerTypes.js'
+import {
+  composerDraftStore,
+  resolveActivatedSessionComposerInput,
+} from '../composer/composerDraftStore.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -764,7 +768,18 @@ export function useSessionState(
         sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
         viewSetters,
       )
-      setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      const currentInput = inputBySessionRef.current[targetSessionId]
+      const nextInput = resolveActivatedSessionComposerInput(
+        currentInput,
+        composerDraftStore.peek(`session:${targetSessionId}`)?.document.text,
+      )
+      if (nextInput !== currentInput) {
+        inputBySessionRef.current = {
+          ...inputBySessionRef.current,
+          [targetSessionId]: nextInput,
+        }
+      }
+      setInput(nextInput)
       setComposerAttachments(
         attachmentsBySessionRef.current[targetSessionId] ?? [],
       )

@@ -157,6 +157,13 @@ export function createEmptyComposerDraft(clientId: string): ComposerDraft {
   }
 }
 
+export function resolveActivatedSessionComposerInput(
+  currentInput: string | undefined,
+  draftText: string | undefined,
+): string {
+  return currentInput?.trim() ? currentInput : draftText ?? currentInput ?? ''
+}
+
 function cloneDocument(document: ComposerDocument): ComposerDocument {
   return {
     text: document.text,
