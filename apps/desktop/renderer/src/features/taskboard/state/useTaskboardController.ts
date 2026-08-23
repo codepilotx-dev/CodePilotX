@@ -6,6 +6,7 @@ import type {
 } from '@codepilotx/agent-protocol'
 import type {
   TaskboardPriority,
+  TaskboardPlanAggregate,
   TaskboardWorkflowDatePreset,
   TaskboardWorkflowSort,
   TaskboardWorkflowStartMode,
@@ -52,6 +53,7 @@ export function useTaskboardController(
     startDate?: string | null
     dueDate?: string | null
     threadLinks?: readonly { threadId: string; role: 'primary' | 'supporting' }[]
+    parentTaskId?: string
   }) => Promise<string>
   moveTask: (
     taskId: string,
@@ -63,7 +65,7 @@ export function useTaskboardController(
     action: RpcParams<'taskboard/workflow/transition'>['action'],
     note?: string,
   ) => Promise<void>
-  archiveTask: (taskId: string) => Promise<void>
+  archiveTask: (taskId: string, includeLinkedThreads?: boolean) => Promise<void>
   restoreTask: (taskId: string) => Promise<void>
   updateTask: (
     taskId: string,
@@ -90,6 +92,7 @@ export function useTaskboardController(
   ) => Promise<TaskboardStartOperation>
   retryStartSetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
   continueStartWithoutSetup: (operation: TaskboardStartOperation) => Promise<TaskboardStartOperation>
+  loadPlanningChildren: (taskId: string) => Promise<readonly TaskboardWorkflowTaskSummary[]>
 } {
   const storeRef = useRef<ReturnType<typeof createTaskboardStore> | null>(null)
   storeRef.current ??= createTaskboardStore()
@@ -114,8 +117,9 @@ export function useTaskboardController(
       if (!capabilities.includes('taskboard.workflow.v1')) {
         throw new Error('当前 Agent 不支持任务看板。请更新 Agent 后重试。')
       }
-      const [result, projects, sessions] = await Promise.all([
-        collectTaskboardWorkflowPages(cursor => desktopClient.listTaskboardWorkflowTasks!({
+      const planningAvailable = capabilities.includes('taskboard.planning.v1')
+        && Boolean(desktopClient.listTaskboardPlanningRoots)
+      const listParams = (cursor?: string) => ({
           ...(current.projectId ? { projectId: current.projectId } : {}),
           ...(current.query ? { query: current.query } : {}),
           ...(current.labelIds?.length ? { labelIds: [...current.labelIds] } : {}),
@@ -129,13 +133,28 @@ export function useTaskboardController(
           ...(cursor ? { cursor } : {}),
           archived: current.archived,
           limit: 500,
-        })),
+        })
+      const [result, projects, sessions] = await Promise.all([
+        planningAvailable
+          ? collectTaskboardPlanningRootPages(cursor => desktopClient.listTaskboardPlanningRoots!(listParams(cursor)))
+          : collectTaskboardWorkflowPages(cursor => desktopClient.listTaskboardWorkflowTasks!(listParams(cursor))).then(value => ({
+              ...value,
+              planningNodes: Object.fromEntries(value.tasks.map(task => [task.id, {
+                parentTaskId: null,
+                depth: 0,
+                aggregate: emptyPlanningAggregate(),
+                readiness: { status: 'ready' as const },
+                loaded: false,
+              }])),
+            })),
         desktopClient.listProjects(),
         desktopClient.listSessions(),
       ])
       if (request !== listRequestRef.current) return
       store.patch({
         tasks: sortTasks(result.tasks, current.sort),
+        planningNodes: result.planningNodes,
+        planningSteps: [],
         unreadCount: result.unreadCount,
         projects,
         sessions: sessions.map(session => session.item),
@@ -215,6 +234,7 @@ export function useTaskboardController(
       if (!events.some(event => (
         event.type === 'taskboard/changed'
         || event.type === 'taskboard/workflow/changed'
+        || event.type === 'taskboard/planning/changed'
         || event.type === 'turn/statusChanged'
       ))) return
       void refresh()
@@ -272,15 +292,67 @@ export function useTaskboardController(
     }
   }, [handleMutationError, store])
 
+  const loadPlanningChildren = useCallback(async (taskId: string): Promise<readonly TaskboardWorkflowTaskSummary[]> => {
+    if (!desktopClient.readTaskboardPlanning) return []
+    const result = await desktopClient.readTaskboardPlanning({ taskId })
+    const childItems = result.snapshot.items.filter(item => item.kind === 'task')
+    const children = childItems.map(item => item.childTask)
+    const current = store.getSnapshot()
+    const parent = current.planningNodes[taskId]
+    const depth = (parent?.depth ?? -1) + 1
+    const childNodes = Object.fromEntries(childItems.map(item => [item.childTask.id, {
+      parentTaskId: taskId,
+      depth,
+      aggregate: current.planningNodes[item.childTask.id]?.aggregate ?? emptyPlanningAggregate(),
+      readiness: item.readiness,
+      loaded: current.planningNodes[item.childTask.id]?.loaded ?? false,
+    }]))
+    store.patch({
+      tasks: sortTasks(mergePlanningTasks(current.tasks, children), filtersRef.current.sort),
+      planningNodes: {
+        ...current.planningNodes,
+        [taskId]: {
+          parentTaskId: parent?.parentTaskId ?? null,
+          depth: parent?.depth ?? 0,
+          aggregate: result.snapshot.aggregate,
+          readiness: parent?.readiness ?? { status: 'ready' },
+          loaded: true,
+        },
+        ...childNodes,
+      },
+      planningSteps: [
+        ...current.planningSteps.filter(step => step.parentTaskId !== taskId),
+        ...result.snapshot.items.filter(item => item.kind === 'step'),
+      ],
+    })
+    return children
+  }, [store])
+
   return useMemo(() => ({
     ...state,
     refresh,
     createTask: async input => {
+      const { parentTaskId, ...createInput } = input
+      if (parentTaskId) {
+        const capabilities = await desktopClient.getRuntimeCapabilities()
+        if (!capabilities.includes('taskboard.planning.v1') || !desktopClient.reparentTaskboardPlanningChild) {
+          throw new Error('当前 Agent 不支持创建子任务。')
+        }
+      }
       const result = await desktopClient.createTaskboardWorkflowTask!(
-        taskboardCreateTaskRpcInput(input),
+        taskboardCreateTaskRpcInput(createInput),
       )
-      applyDetails(result.task)
-      return result.task.task.id
+      let detail = result.task
+      if (parentTaskId) {
+        await desktopClient.reparentTaskboardPlanningChild!({
+          childTaskId: detail.task.id,
+          expectedVersion: detail.task.version,
+          parentTaskId,
+        })
+        detail = (await desktopClient.readTaskboardWorkflowTask!({ taskId: detail.task.id })).task
+      }
+      applyDetails(detail)
+      return detail.task.id
     },
     moveTask: async (taskId, status, placement) => {
       const task = state.tasks.find(candidate => candidate.id === taskId)
@@ -310,22 +382,28 @@ export function useTaskboardController(
       ))
       applyDetails(result.task)
     },
-    archiveTask: async taskId => {
+    archiveTask: async (taskId, includeLinkedThreads = false) => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      await runTaskMutation(taskId, () => desktopClient.archiveTaskboardTask({
-        taskId,
-        expectedVersion: task.version,
-      }))
+      await runTaskMutation(taskId, async () => {
+        const capabilities = await desktopClient.getRuntimeCapabilities()
+        if (capabilities.includes('taskboard.planning.v1') && desktopClient.archiveTaskboardPlanningTree) {
+          return desktopClient.archiveTaskboardPlanningTree({ rootTaskId: taskId, expectedVersion: task.version, includeLinkedThreads })
+        }
+        return desktopClient.archiveTaskboardTask({ taskId, expectedVersion: task.version })
+      })
       await refresh()
     },
     restoreTask: async taskId => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      await runTaskMutation(taskId, () => desktopClient.restoreTaskboardTask({
-        taskId,
-        expectedVersion: task.version,
-      }))
+      await runTaskMutation(taskId, async () => {
+        const capabilities = await desktopClient.getRuntimeCapabilities()
+        if (capabilities.includes('taskboard.planning.v1') && desktopClient.restoreTaskboardPlanningTree) {
+          return desktopClient.restoreTaskboardPlanningTree({ rootTaskId: taskId })
+        }
+        return desktopClient.restoreTaskboardTask({ taskId, expectedVersion: task.version })
+      })
       await refresh()
       if (selectedTaskId === taskId) await refreshDetail(taskId)
     },
@@ -342,12 +420,24 @@ export function useTaskboardController(
     deleteTask: async taskId => {
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
-      await runTaskMutation(taskId, () => desktopClient.deleteTaskboardTask({
-        taskId,
-        expectedVersion: task.version,
-      }))
+      let deletedTaskIds: readonly string[] = [taskId]
+      await runTaskMutation(taskId, async () => {
+        const capabilities = await desktopClient.getRuntimeCapabilities()
+        if (capabilities.includes('taskboard.planning.v1') && desktopClient.deleteTaskboardPlanningTree) {
+          const result = await desktopClient.deleteTaskboardPlanningTree({ rootTaskId: taskId })
+          deletedTaskIds = result.deletedTaskIds
+          return result
+        }
+        return desktopClient.deleteTaskboardTask({ taskId, expectedVersion: task.version })
+      })
+      const snapshot = store.getSnapshot()
+      const planningNodes = Object.fromEntries(
+        Object.entries(snapshot.planningNodes).filter(([id]) => !deletedTaskIds.includes(id)),
+      )
       store.patch({
-        tasks: store.getSnapshot().tasks.filter(candidate => candidate.id !== taskId),
+        tasks: snapshot.tasks.filter(candidate => !deletedTaskIds.includes(candidate.id)),
+        planningNodes,
+        planningSteps: snapshot.planningSteps.filter(step => !deletedTaskIds.includes(step.parentTaskId)),
         ...(selectedTaskId === taskId ? { detail: null } : {}),
       })
     },
@@ -554,7 +644,59 @@ export function useTaskboardController(
       })
       return waitForStart(result.operation)
     },
-  }), [applyDetails, handleMutationError, refresh, runTaskMutation, selectedTaskId, state, store])
+    loadPlanningChildren,
+  }), [applyDetails, handleMutationError, loadPlanningChildren, refresh, runTaskMutation, selectedTaskId, state, store])
+}
+
+const emptyPlanningAggregate = (): TaskboardPlanAggregate => ({
+  directTotal: 0,
+  directDone: 0,
+  directSkipped: 0,
+  descendantTaskCount: 0,
+  openBlockerCount: 0,
+  readyUnreadCount: 0,
+})
+
+function mergePlanningTasks(
+  current: readonly TaskboardWorkflowTaskSummary[],
+  incoming: readonly TaskboardWorkflowTaskSummary[],
+): TaskboardWorkflowTaskSummary[] {
+  const values = new Map(current.map(task => [task.id, task]))
+  for (const task of incoming) values.set(task.id, task)
+  return [...values.values()]
+}
+
+async function collectTaskboardPlanningRootPages(
+  loadPage: (cursor?: string) => Promise<{
+    roots: readonly { task: TaskboardWorkflowTaskSummary; aggregate: TaskboardPlanAggregate }[]
+    unreadCount: number
+    nextCursor: string | null
+  }>,
+): Promise<{
+  tasks: TaskboardWorkflowTaskSummary[]
+  unreadCount: number
+  planningNodes: Record<string, import('./taskboardStore.js').TaskboardPlanningNode>
+}> {
+  const tasks: TaskboardWorkflowTaskSummary[] = []
+  const planningNodes: Record<string, import('./taskboardStore.js').TaskboardPlanningNode> = {}
+  let cursor: string | undefined
+  let unreadCount = 0
+  do {
+    const page = await loadPage(cursor)
+    for (const root of page.roots) {
+      tasks.push(root.task)
+      planningNodes[root.task.id] = {
+        parentTaskId: null,
+        depth: 0,
+        aggregate: root.aggregate,
+        readiness: { status: 'ready' },
+        loaded: false,
+      }
+    }
+    unreadCount = page.unreadCount
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
+  return { tasks, unreadCount, planningNodes }
 }
 
 export async function collectTaskboardWorkflowPages<T>(

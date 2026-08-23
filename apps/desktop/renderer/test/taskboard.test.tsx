@@ -2,16 +2,19 @@ import { describe, expect, test } from 'bun:test'
 import type React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type {
+  TaskboardPlanItem,
   TaskboardWorkflowTaskDetails,
   TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
-import { parseTaskboardFilters } from '../src/features/taskboard/TaskboardView.js'
+import { parseTaskboardFilters, projectTaskboardHierarchy } from '../src/features/taskboard/TaskboardView.js'
+import type { TaskboardPlanningNode } from '../src/features/taskboard/state/taskboardStore.js'
 import { optimisticallyMoveTask, taskboardCreateTaskRpcInput, taskboardLocalDateKey } from '../src/features/taskboard/state/useTaskboardController.js'
 import { resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
 import { taskboardBoardColumns, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
 import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
 import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
+import { taskboardPlanReorderAnchors, unresolvedPlanPrerequisiteTitles } from '../src/features/taskboard/components/TaskPlanPanel.js'
 import {
   ComposerDraftStore,
   resolveActivatedSessionComposerInput,
@@ -25,6 +28,8 @@ import { taskboardStartActionLabel, taskboardStartCreatesPrimary } from '../src/
 test('renderer negotiates the taskboard capability', () => {
   expect(RENDERER_CAPABILITIES).toContain('taskboard.v1')
   expect(RENDERER_CAPABILITIES).toContain('taskboard.workflow.v1')
+  expect(RENDERER_CAPABILITIES).toContain('taskboard.context.v1')
+  expect(RENDERER_CAPABILITIES).toContain('taskboard.planning.v1')
 })
 
 test('input dialog permits empty input only when the caller opts in', () => {
@@ -59,12 +64,100 @@ describe('taskboard URL filters', () => {
 })
 
 describe('taskboard board structure', () => {
+  test('child readiness exposes only unfinished all-of prerequisites', () => {
+    const childItem = {
+      kind: 'task',
+      id: 'item:child',
+      parentTaskId: 'task:parent',
+      childTask: task('child', 'todo', 1024),
+      promotedFromStep: null,
+      position: 1024,
+      readiness: {
+        status: 'waiting',
+        prerequisites: [
+          { id: 'step:a', kind: 'step', title: '调研', satisfied: true },
+          { id: 'step:b', kind: 'step', title: '代码扫描', satisfied: false },
+        ],
+      },
+      unreadReady: false,
+      version: 1,
+    } satisfies TaskboardPlanItem
+    const sibling = { ...childItem, id: 'item:sibling' } satisfies TaskboardPlanItem
+
+    expect(unresolvedPlanPrerequisiteTitles(childItem)).toEqual(['代码扫描'])
+    expect(taskboardPlanReorderAnchors([sibling, childItem], 1, -1)).toEqual({ afterItemId: sibling.id })
+    expect(taskboardPlanReorderAnchors([sibling, childItem], 0, 1)).toEqual({ beforeItemId: childItem.id })
+  })
+
+  test('projects roots, recursively expanded children, and ready nodes', () => {
+    const tasks = [
+      task('root', 'todo', 1024),
+      task('child', 'in_progress', 2048),
+      task('leaf', 'todo', 3072),
+      task('waiting', 'todo', 4096),
+    ]
+    const aggregate = {
+      directTotal: 1,
+      directDone: 0,
+      directSkipped: 0,
+      descendantTaskCount: 1,
+      openBlockerCount: 0,
+      readyUnreadCount: 0,
+    }
+    const nodes = {
+      root: { parentTaskId: null, depth: 0, aggregate, readiness: { status: 'ready' }, loaded: true },
+      child: { parentTaskId: 'root', depth: 1, aggregate, readiness: { status: 'ready' }, loaded: true },
+      leaf: { parentTaskId: 'child', depth: 2, aggregate: { ...aggregate, descendantTaskCount: 0 }, readiness: { status: 'ready' }, loaded: true },
+      waiting: { parentTaskId: 'root', depth: 1, aggregate, readiness: { status: 'waiting', prerequisites: [{ id: 'before', kind: 'step', title: '前置步骤', satisfied: false }] }, loaded: false },
+    } satisfies Record<string, TaskboardPlanningNode>
+
+    expect(projectTaskboardHierarchy(tasks, nodes, new Set(), 'roots').map(value => value.id)).toEqual(['root'])
+    expect(projectTaskboardHierarchy(tasks, nodes, new Set(['root']), 'expanded').map(value => value.id)).toEqual(['root', 'child', 'waiting'])
+    expect(projectTaskboardHierarchy(tasks, nodes, new Set(['root', 'child']), 'expanded').map(value => value.id)).toEqual(['root', 'child', 'leaf', 'waiting'])
+    expect(projectTaskboardHierarchy(tasks, nodes, new Set(), 'ready').map(value => value.id)).toEqual(['root', 'child', 'leaf'])
+  })
+
   test('only active and unarchived workflow tasks can start', () => {
     expect(canStartTask(task('backlog', 'backlog', 1024))).toBe(true)
     expect(canStartTask(task('review', 'in_review', 1024))).toBe(true)
     expect(canStartTask(task('done', 'done', 1024))).toBe(false)
     expect(canStartTask(task('canceled', 'canceled', 1024))).toBe(false)
     expect(canStartTask({ ...task('archived', 'todo', 1024), archivedAt: 2048 })).toBe(false)
+  })
+
+  test('top-level cards expose planning aggregates and expansion', () => {
+    const root = task('root', 'todo', 1024)
+    const aggregate = {
+      directTotal: 2,
+      directDone: 1,
+      directSkipped: 1,
+      descendantTaskCount: 3,
+      openBlockerCount: 1,
+      readyUnreadCount: 1,
+    }
+    const markup = renderToStaticMarkup(
+      <TaskboardBoard
+        archived={false}
+        expandedTaskIds={new Set()}
+        hierarchyMode="expanded"
+        pendingTaskIds={new Set()}
+        planningNodes={{ root: { parentTaskId: null, depth: 0, aggregate, readiness: { status: 'ready' }, loaded: false } }}
+        projectNames={new Map([[root.projectId, '项目']])}
+        tasks={[root]}
+        onLinkThread={async () => {}}
+        onMove={async () => {}}
+        onNewTask={() => {}}
+        onOpen={() => {}}
+        onStart={() => {}}
+        onToggleTask={() => {}}
+      />,
+    )
+    expect(markup).toContain('1/2 步')
+    expect(markup).toContain('1 跳过')
+    expect(markup).toContain('3 子任务')
+    expect(markup).toContain('1 阻碍')
+    expect(markup).toContain('1 已解锁')
+    expect(markup).toContain('aria-label="展开 root 的子任务"')
   })
 
   test('start action distinguishes active, continued, and newly created primary threads', () => {
@@ -228,6 +321,7 @@ describe('taskboard board structure', () => {
       onDeleteComment: async () => {},
       onDeleteLabel: async () => {},
       onLinkThread: async () => {},
+      onOpenTask: () => {},
       onOpenThread: () => {},
       onRestore: async () => {},
       onSetPrimaryThread: async () => {},
@@ -245,12 +339,20 @@ describe('taskboard board structure', () => {
     expect(editable).not.toContain('项目已移除，仅可查看任务内容和历史记录。')
     expect(editable).not.toContain('taskboard-edit-form__assignee-slot')
     expect(editable).not.toContain('负责人')
+    expect(editable).toContain('执行计划')
+    expect(editable.indexOf('执行计划')).toBeLessThan(editable.indexOf('共享上下文'))
 
     const readOnly = renderToStaticMarkup(
       <TaskDetailsDrawer {...base} readOnly />,
     )
     expect(readOnly).toContain('项目已移除，仅可查看任务内容和历史记录。')
     expect(readOnly).toContain('永久删除任务')
+
+    const archived = renderToStaticMarkup(
+      <TaskDetailsDrawer {...base} detail={detailsOf({ ...task('archived', 'todo', 1024), archivedAt: 2048 })} readOnly={false} />,
+    )
+    expect(archived).toContain('删除任务树、步骤、阻碍和任务上下文')
+    expect(archived).toContain('关联对话本身会保留')
 
     const completed = renderToStaticMarkup(
       <TaskDetailsDrawer {...base} detail={detailsOf(task('done', 'done', 1024))} readOnly={false} />,

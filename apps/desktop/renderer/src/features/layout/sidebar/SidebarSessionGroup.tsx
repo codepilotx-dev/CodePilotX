@@ -37,7 +37,8 @@ import {
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
-import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { CreateTaskDialog, createTaskboardTaskFromDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { LinkExistingTaskDialog } from '../../taskboard/components/LinkExistingTaskDialog.js'
 import {
   beginSidebarSessionDrag,
   readSidebarSessionDrag,
@@ -118,6 +119,7 @@ function SidebarSessionGroupComponent({
   const [dragOverSessionId, setDragOverSessionId] = useState<string | null>(null)
   const [taskboardSession, setTaskboardSession] = useState<SessionListItem | null>(null)
   const [createTaskSession, setCreateTaskSession] = useState<SessionListItem | null>(null)
+  const [linkTaskSession, setLinkTaskSession] = useState<SessionListItem | null>(null)
   const [taskboardProjects, setTaskboardProjects] = useState<Awaited<ReturnType<typeof desktopClient.listProjects>>>([])
   const threadTaskboard = useThreadTaskboardAction()
   const reducedMotion = usePrefersReducedMotion()
@@ -267,6 +269,12 @@ function SidebarSessionGroupComponent({
           }
         },
       },
+      ...(taskAction.kind === 'create' ? [{
+        kind: 'item' as const,
+        label: '关联已有任务',
+        disabled: !session.projectId,
+        onSelect: () => setLinkTaskSession(session),
+      }] : []),
       { kind: 'separator' },
       {
         kind: "item",
@@ -617,17 +625,23 @@ function SidebarSessionGroupComponent({
       ) : null}
       <CreateTaskDialog
         initialProjectId={createTaskSession?.projectId ?? undefined}
-        initialStatus="in_review"
+        initialStatus="backlog"
         initialThread={createTaskSession ? sessionCandidate(createTaskSession) : undefined}
         initialTitle={createTaskSession ? sessionDisplayTitle(createTaskSession, sessionFallbackTitles[createTaskSession.id]) : undefined}
         open={createTaskSession !== null}
         projects={taskboardProjects}
         onClose={() => setCreateTaskSession(null)}
         onCreate={async input => {
-          const result = await desktopClient.createTaskboardWorkflowTask!(input)
+          const result = await createTaskboardTaskFromDialog(input)
           setCreateTaskSession(null)
           navigate(`/taskboard/${encodeURIComponent(result.task.task.id)}`)
         }}
+      />
+      <LinkExistingTaskDialog
+        open={linkTaskSession !== null}
+        thread={linkTaskSession ? sessionCandidate(linkTaskSession) : undefined}
+        onClose={() => setLinkTaskSession(null)}
+        onLinked={taskId => navigate(`/taskboard/${encodeURIComponent(taskId)}`)}
       />
     </>
   );

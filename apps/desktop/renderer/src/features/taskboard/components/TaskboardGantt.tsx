@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Gantt, type GanttStatic, type Task as GanttTask } from 'dhtmlx-gantt'
-import type { TaskboardWorkflowStatus, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
+import type { TaskboardPlanStep, TaskboardWorkflowStatus, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import type { TaskboardGanttZoom } from '../state/taskboardViewPreferences.js'
 import '../../../styles/lazy/taskboard-gantt-vendor.scss'
 import {
@@ -26,6 +26,7 @@ type Props = {
   onOpen: (taskId: string, viewport?: { scrollLeft: number; scrollTop: number }) => void
   onViewportRestored: () => void
   onUpdateDates: (taskId: string, startDate: string, dueDate: string) => Promise<void>
+  planningSteps: readonly TaskboardPlanStep[]
 }
 
 type TaskboardGanttItem = GanttTask & {
@@ -49,6 +50,7 @@ export default function TaskboardGantt({
   onOpen,
   onViewportRestored,
   onUpdateDates,
+  planningSteps,
 }: Props): React.ReactNode {
   const containerRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
@@ -85,6 +87,9 @@ export default function TaskboardGantt({
   const unscheduledTasks = useMemo(() => visibleTasks.filter(task => (
     !projectTaskboardGanttTask(task).scheduled
   )), [visibleTasks])
+  const visiblePlanningSteps = useMemo(() => hideCompleted
+    ? planningSteps.filter(step => step.status === 'todo')
+    : planningSteps, [hideCompleted, planningSteps])
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -342,9 +347,9 @@ export default function TaskboardGantt({
           </div>
         ) : null}
       </div>
-      {unscheduledTasks.length > 0 ? (
-        <section className="taskboard-gantt__unscheduled" aria-label={`未排期任务，共 ${unscheduledTasks.length} 项`}>
-          <header><strong>未排期</strong><span>{unscheduledTasks.length}</span></header>
+      {unscheduledTasks.length > 0 || visiblePlanningSteps.length > 0 ? (
+        <section className="taskboard-gantt__unscheduled" aria-label={`未排期任务和步骤，共 ${unscheduledTasks.length + visiblePlanningSteps.length} 项`}>
+          <header><strong>未排期</strong><span>{unscheduledTasks.length + visiblePlanningSteps.length}</span></header>
           <div className="taskboard-gantt__unscheduled-list">
             {unscheduledTasks.map(task => (
               <button data-taskboard-task-id={task.id} key={task.id} type="button" onClick={() => onOpen(task.id)}>
@@ -357,6 +362,16 @@ export default function TaskboardGantt({
                 <span>{TASKBOARD_PRIORITY_LABELS[task.priority]}</span>
                 <span>{taskboardGanttUnscheduledReason(task)}</span>
               </button>
+            ))}
+            {visiblePlanningSteps.map(step => (
+              <div className="taskboard-gantt__unscheduled-step" key={`step:${step.id}`}>
+                <span className="taskboard-gantt__unscheduled-identity">
+                  <small>轻量步骤</small>
+                  <strong>{step.title}</strong>
+                </span>
+                <span>{step.status === 'done' ? '已完成' : step.status === 'skipped' ? '已跳过' : step.readiness.status === 'ready' ? '可执行' : '等待前置项'}</span>
+                <span>无独立排期</span>
+              </div>
             ))}
           </div>
         </section>

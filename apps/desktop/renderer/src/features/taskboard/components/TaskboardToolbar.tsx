@@ -15,6 +15,7 @@ import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
 import type { TaskboardGanttZoom, TaskboardLayout } from '../state/taskboardViewPreferences.js'
+import type { TaskboardHierarchyMode } from '../TaskboardView.js'
 
 type Props = {
   projects: readonly DesktopWorkspace[]
@@ -32,6 +33,7 @@ type Props = {
   unreadCount: number
   datePreset?: TaskboardWorkflowDatePreset
   sort?: TaskboardWorkflowSort
+  hierarchyMode: TaskboardHierarchyMode
   otherTasksOpen: boolean
   ganttZoom: TaskboardGanttZoom
   ganttHideCompleted: boolean
@@ -42,6 +44,7 @@ type Props = {
   onGanttZoomChange: (zoom: TaskboardGanttZoom) => void
   onGanttHideCompletedChange: (hidden: boolean) => void
   onChange: (patch: Record<string, string | null>) => void
+  onHierarchyModeChange: (mode: TaskboardHierarchyMode) => void
 }
 
 export function TaskboardToolbar({
@@ -60,6 +63,7 @@ export function TaskboardToolbar({
   unreadCount,
   datePreset,
   sort,
+  hierarchyMode,
   otherTasksOpen,
   ganttZoom,
   ganttHideCompleted,
@@ -70,6 +74,7 @@ export function TaskboardToolbar({
   onGanttZoomChange,
   onGanttHideCompletedChange,
   onChange,
+  onHierarchyModeChange,
 }: Props): React.ReactNode {
   const [query, setQuery] = useState(appliedQuery ?? '')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -107,6 +112,14 @@ export function TaskboardToolbar({
         </Button>
       </div>
       <div className="taskboard-toolbar__tools">
+        <label className="taskboard-filter">
+          <span className="taskboard-filter__label">层级</span>
+          <select aria-label="任务层级" value={hierarchyMode} onChange={event => onHierarchyModeChange(event.currentTarget.value as TaskboardHierarchyMode)}>
+            <option value="roots">仅顶级</option>
+            <option value="expanded">展开子任务</option>
+            <option value="ready">仅显示可执行项</option>
+          </select>
+        </label>
         <form
           className="taskboard-toolbar__search"
           onSubmit={event => {

@@ -808,6 +808,175 @@
   gap: var(--cpx-sys-space-2);
 }
 
+.taskboard-card__tree-toggle {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: var(--cpx-sys-space-2);
+  inset-inline-start: var(--cpx-sys-space-1);
+}
+
+.taskboard-card:has(.taskboard-card__tree-toggle) .taskboard-card__open {
+  padding-inline-start: var(--cpx-sys-space-8);
+}
+
+.taskboard-card__plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
+.taskboard-card__plan-summary > span {
+  padding: var(--cpx-sys-space-1);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-surface-canvas);
+}
+
+.task-plan-panel__blocked,
+.task-plan-panel__waiting {
+  color: var(--cpx-sys-color-warning);
+  font-size: var(--cpx-sys-font-size-sm);
+}
+
+.task-plan-panel__breadcrumbs {
+  margin: 0;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-sm);
+}
+
+.task-plan-panel__items {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-plan-panel__items > li,
+.task-plan-panel__blockers article {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-surface-raised);
+}
+
+.task-plan-panel__items > li[data-complete='true'],
+.task-plan-panel__blockers article[data-resolved='true'] {
+  opacity: 0.7;
+}
+
+.task-plan-panel__item-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--cpx-sys-space-2);
+
+  > span {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-surface-canvas);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+  }
+
+  > div {
+    display: grid;
+    gap: var(--cpx-sys-space-1);
+    min-width: 0;
+  }
+
+  small {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+}
+
+.task-plan-panel__items p,
+.task-plan-panel__blockers h4,
+.task-plan-panel__blockers article,
+.task-plan-panel__blockers small {
+  margin: 0;
+}
+
+.task-plan-panel__actions,
+.task-plan-panel__inline-form,
+.task-plan-panel__blocker-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cpx-sys-space-2);
+}
+
+.task-plan-panel__create-forms,
+.task-plan-panel__edit-form,
+.task-plan-panel__dependencies {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+}
+
+.task-plan-panel__edit-form input,
+.task-plan-panel__edit-form textarea {
+  width: 100%;
+  padding: var(--cpx-sys-space-2);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-md);
+  outline: 0;
+  background: var(--cpx-sys-color-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
+  font: inherit;
+
+  &:focus {
+    box-shadow: var(--cpx-sys-focus-ring-inset);
+  }
+}
+
+.task-plan-panel__dependencies {
+  padding: var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-surface-canvas);
+
+  > label {
+    display: flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+  }
+
+  small {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+}
+
+.task-plan-panel__inline-form input,
+.task-plan-panel__blocker-form input,
+.task-plan-panel__blocker-form select {
+  min-width: 0;
+  flex: 1 1 10rem;
+  padding: var(--cpx-sys-space-2);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-md);
+  outline: 0;
+  background: var(--cpx-sys-color-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
+  font: inherit;
+
+  &:focus {
+    box-shadow: var(--cpx-sys-focus-ring-inset);
+  }
+}
+
+.task-plan-panel__blockers {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+
+  article small {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+}
+
 .task-context-panel__group,
 .task-context-panel__proposal {
   display: grid;

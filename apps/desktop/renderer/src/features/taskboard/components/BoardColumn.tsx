@@ -16,6 +16,8 @@ import {
   readSidebarSessionDrag,
 } from '../taskboardDragData.js'
 import { TaskCard } from './TaskCard.js'
+import type { TaskboardPlanningNode } from '../state/taskboardStore.js'
+import type { TaskboardHierarchyMode } from '../TaskboardView.js'
 
 type ProjectNames = ReadonlyMap<string, string>
 const TASK_DRAG_TYPE = 'application/x-codepilotx-task'
@@ -49,6 +51,10 @@ type Props = {
   ) => Promise<void>
   onLinkThread: (taskId: string, threadId: string) => Promise<void>
   onTaskDragActiveChange?: (active: boolean) => void
+  planningNodes?: Readonly<Record<string, TaskboardPlanningNode>>
+  expandedTaskIds?: ReadonlySet<string>
+  hierarchyMode?: TaskboardHierarchyMode
+  onToggleTask?: (taskId: string) => void
 }
 
 export function BoardColumn({
@@ -63,6 +69,10 @@ export function BoardColumn({
   onMove,
   onLinkThread,
   onTaskDragActiveChange,
+  planningNodes = {},
+  expandedTaskIds = new Set(),
+  hierarchyMode = 'roots',
+  onToggleTask,
 }: Props): React.ReactNode {
   const [announcement, setAnnouncement] = useState('')
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
@@ -266,6 +276,16 @@ export function BoardColumn({
                 projectName={projectNames.get(task.projectId) ?? '项目已移除'}
                 sessionDropActive={sessionDropTaskId === task.id}
                 task={task}
+                hierarchy={planningNodes[task.id] ? {
+                  depth: planningNodes[task.id].depth,
+                  aggregate: planningNodes[task.id].aggregate,
+                  expandable: hierarchyMode === 'expanded' && (
+                    !planningNodes[task.id].loaded
+                    || planningNodes[task.id].aggregate.descendantTaskCount > 0
+                  ),
+                  expanded: expandedTaskIds.has(task.id),
+                  onToggle: () => onToggleTask?.(task.id),
+                } : undefined}
                 onDragStart={event => {
                   setDraggingTaskId(task.id)
                   onTaskDragActiveChange?.(canStartTask(task))

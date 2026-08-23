@@ -1,10 +1,21 @@
 import type {
   TaskboardLabel,
+  TaskboardPlanAggregate,
+  TaskboardPlanReadiness,
+  TaskboardPlanStep,
   TaskboardWorkflowTaskDetails,
   TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
+
+export type TaskboardPlanningNode = {
+  parentTaskId: string | null
+  depth: number
+  aggregate: TaskboardPlanAggregate
+  readiness: TaskboardPlanReadiness
+  loaded: boolean
+}
 
 export type TaskboardViewState = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -19,6 +30,8 @@ export type TaskboardViewState = {
   detailError: string | null
   detailReadOnly: boolean
   pendingTaskIds: ReadonlySet<string>
+  planningNodes: Readonly<Record<string, TaskboardPlanningNode>>
+  planningSteps: readonly TaskboardPlanStep[]
 }
 
 const INITIAL_STATE: TaskboardViewState = {
@@ -34,6 +47,8 @@ const INITIAL_STATE: TaskboardViewState = {
   detailError: null,
   detailReadOnly: false,
   pendingTaskIds: new Set(),
+  planningNodes: {},
+  planningSteps: [],
 }
 
 export class TaskboardStore {

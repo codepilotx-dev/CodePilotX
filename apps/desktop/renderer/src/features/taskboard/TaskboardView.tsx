@@ -8,6 +8,7 @@ import type {
   TaskboardWorkflowTaskDetails,
   TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
+import type { TaskboardPlanningNode } from './state/taskboardStore.js'
 import { Button } from '../../components/ui/Button.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { InputDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -44,6 +45,7 @@ import {
 import '../../styles/lazy/taskboard.scss'
 
 const TaskboardGantt = lazy(() => import('./components/TaskboardGantt.js'))
+export type TaskboardHierarchyMode = 'roots' | 'expanded' | 'ready'
 
 export function TaskboardView(): React.ReactNode {
   const { taskId } = useParams<{ taskId: string }>()
@@ -70,6 +72,42 @@ export function TaskboardView(): React.ReactNode {
   const view = readTaskboardLayout(searchParams, filters.projectId)
   const ganttZoom = readTaskboardGanttZoom(searchParams)
   const ganttHideCompleted = readTaskboardGanttHideCompleted(searchParams)
+  const hierarchyMode = taskboardHierarchyMode(searchParams)
+  const expandedTaskIds = useMemo(() => new Set(
+    (searchParams.get('expanded') ?? '').split(',').filter(Boolean),
+  ), [searchParams])
+  const projectedTasks = useMemo(() => projectTaskboardHierarchy(
+    controller.tasks,
+    controller.planningNodes,
+    expandedTaskIds,
+    hierarchyMode,
+  ), [controller.planningNodes, controller.tasks, expandedTaskIds, hierarchyMode])
+
+  useEffect(() => {
+    if (taskId) return
+    let cancelled = false
+    const load = async (id: string, recursive: boolean): Promise<void> => {
+      if (cancelled) return
+      const node = controller.planningNodes[id]
+      const children = node?.loaded
+        ? controller.tasks.filter(task => controller.planningNodes[task.id]?.parentTaskId === id)
+        : await controller.loadPlanningChildren(id)
+      if (recursive) for (const child of children) await load(child.id, true)
+    }
+    if (hierarchyMode === 'ready') {
+      const roots = controller.tasks.filter(task => controller.planningNodes[task.id]?.parentTaskId === null)
+      void (async () => { for (const root of roots) await load(root.id, true) })()
+    } else {
+      const requested = new Set(expandedTaskIds)
+      if (view === 'gantt') {
+        for (const task of controller.tasks) {
+          if (controller.planningNodes[task.id]?.parentTaskId === null) requested.add(task.id)
+        }
+      }
+      for (const id of requested) void load(id, false)
+    }
+    return () => { cancelled = true }
+  }, [controller.loadPlanningChildren, controller.planningNodes, controller.tasks, expandedTaskIds, hierarchyMode, taskId, view])
 
   useEffect(() => {
     const snapshot = taskboardReturnSnapshot(location.state)
@@ -118,7 +156,8 @@ export function TaskboardView(): React.ReactNode {
     || filters.labelIds?.length
     || filters.priorities?.length
     || filters.unread
-    || filters.datePreset,
+    || filters.datePreset
+    || hierarchyMode === 'ready',
   )
 
   const updateFilter = (patch: Record<string, string | null>): void => {
@@ -221,7 +260,7 @@ export function TaskboardView(): React.ReactNode {
       </WorkspaceHeaderItem>
       {!taskId ? <TaskboardToolbar
         archived={filters.archived}
-        count={controller.tasks.length}
+        count={projectedTasks.length}
         hasActiveFilters={hasActiveFilters}
         labelIds={filters.labelIds ?? []}
         labels={availableLabels}
@@ -231,6 +270,7 @@ export function TaskboardView(): React.ReactNode {
         unreadCount={controller.unreadCount}
         datePreset={filters.datePreset}
         sort={filters.sort}
+        hierarchyMode={hierarchyMode}
         otherTasksOpen={otherTasksOpen}
         ganttZoom={ganttZoom}
         ganttHideCompleted={ganttHideCompleted}
@@ -240,6 +280,7 @@ export function TaskboardView(): React.ReactNode {
         projects={controller.projects}
         query={filters.query}
         onChange={updateFilter}
+        onHierarchyModeChange={mode => updateFilter({ hierarchy: mode === 'roots' ? null : mode, expanded: mode === 'roots' ? null : searchParams.get('expanded') })}
         onViewChange={changeView}
         onOtherTasksToggle={() => setOtherTasksOpen(value => !value)}
         onGanttToday={() => setGanttTodayRequest(value => value + 1)}
@@ -264,12 +305,16 @@ export function TaskboardView(): React.ReactNode {
                 archived={filters.archived}
                 pendingTaskIds={controller.pendingTaskIds}
                 projectNames={projectNames}
-                tasks={controller.tasks}
+                tasks={projectedTasks}
+                planningNodes={controller.planningNodes}
+                expandedTaskIds={expandedTaskIds}
+                hierarchyMode={hierarchyMode}
                 onMove={moveTask}
                 onLinkThread={linkDroppedThread}
                 onNewTask={setCreateStatus}
                 onOpen={openTask}
                 onStart={requestStart}
+                onToggleTask={id => toggleExpandedTask(id, expandedTaskIds, updateFilter)}
               />
             </div>
             {otherTasksOpen ? (
@@ -277,7 +322,7 @@ export function TaskboardView(): React.ReactNode {
                 archived={filters.archived}
                 pendingTaskIds={controller.pendingTaskIds}
                 projectNames={projectNames}
-                tasks={controller.tasks}
+                tasks={projectedTasks}
                 onClose={() => {
                   setOtherTasksOpen(false)
                   requestAnimationFrame(() => otherTasksTriggerRef.current?.focus())
@@ -297,11 +342,15 @@ export function TaskboardView(): React.ReactNode {
             pendingTaskIds={controller.pendingTaskIds}
             projectId={filters.projectId}
             projectNames={projectNames}
-            tasks={controller.tasks}
+            tasks={projectedTasks}
+            planningNodes={controller.planningNodes}
+            expandedTaskIds={expandedTaskIds}
+            hierarchyMode={hierarchyMode}
             onMove={moveTask}
             onOpen={openTask}
             onStart={requestStart}
             onUpdate={controller.updateTask}
+            onToggleTask={id => toggleExpandedTask(id, expandedTaskIds, updateFilter)}
           />
         ) : null}
         {!taskId && view === 'gantt' ? (
@@ -311,7 +360,8 @@ export function TaskboardView(): React.ReactNode {
               hideCompleted={ganttHideCompleted}
               pendingTaskIds={controller.pendingTaskIds}
               projectNames={projectNames}
-              tasks={controller.tasks}
+              tasks={projectedTasks}
+              planningSteps={controller.planningSteps}
               todayRequest={ganttTodayRequest}
               restoreViewport={returnSnapshot?.view === 'gantt' && returnSnapshot.search === searchParams.toString()
                 ? returnSnapshot
@@ -335,13 +385,14 @@ export function TaskboardView(): React.ReactNode {
           labels={controller.labels}
           onAddComment={controller.addComment}
           onDeleteComment={controller.deleteComment}
-          onArchive={async id => { await controller.archiveTask(id); closeTask() }}
+          onArchive={controller.archiveTask}
           onClose={closeTask}
           onDelete={controller.deleteTask}
           onCreateLabel={controller.createLabel}
           onDeleteLabel={controller.deleteLabel}
           onLinkThread={controller.linkThread}
           onMove={moveTask}
+          onOpenTask={openTask}
           onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
           onRestore={controller.restoreTask}
           onSetPrimaryThread={controller.setPrimaryThread}
@@ -416,6 +467,48 @@ export function TaskboardView(): React.ReactNode {
       />
     </section>
   )
+}
+
+export function projectTaskboardHierarchy(
+  tasks: readonly TaskboardWorkflowTaskSummary[],
+  nodes: Readonly<Record<string, TaskboardPlanningNode>>,
+  expandedTaskIds: ReadonlySet<string>,
+  mode: TaskboardHierarchyMode,
+): TaskboardWorkflowTaskSummary[] {
+  const roots = tasks.filter(task => nodes[task.id]?.parentTaskId === null || !nodes[task.id])
+  if (mode === 'roots') return roots
+  if (mode === 'ready') {
+    return tasks.filter(task => {
+      const node = nodes[task.id]
+      return !node || node.readiness.status === 'ready'
+    })
+  }
+  return tasks.filter(task => {
+    let parentId = nodes[task.id]?.parentTaskId ?? null
+    const visited = new Set<string>()
+    while (parentId) {
+      if (visited.has(parentId) || !expandedTaskIds.has(parentId)) return false
+      visited.add(parentId)
+      parentId = nodes[parentId]?.parentTaskId ?? null
+    }
+    return true
+  })
+}
+
+function taskboardHierarchyMode(params: URLSearchParams): TaskboardHierarchyMode {
+  const value = params.get('hierarchy')
+  return value === 'expanded' || value === 'ready' ? value : 'roots'
+}
+
+function toggleExpandedTask(
+  taskId: string,
+  expandedTaskIds: ReadonlySet<string>,
+  updateFilter: (patch: Record<string, string | null>) => void,
+): void {
+  const next = new Set(expandedTaskIds)
+  if (next.has(taskId)) next.delete(taskId)
+  else next.add(taskId)
+  updateFilter({ expanded: next.size ? [...next].join(',') : null })
 }
 
 export function parseTaskboardFilters(params: URLSearchParams): TaskboardFilters {

@@ -1,8 +1,9 @@
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Archive, ArrowLeft, MessageSquare, Play, RotateCcw, Star, Unlink } from 'lucide-react'
 import type {
   TaskboardPriority,
+  TaskboardPlanAggregate,
   TaskboardLabel,
   TaskboardWorkflowStatus,
   TaskboardWorkflowTaskDetails,
@@ -15,6 +16,7 @@ import { MarkdownMessage } from '../../markdown/index.js'
 import { canStartTask, TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { useTaskboardThreadCandidates } from '../state/useTaskboardThreadCandidates.js'
 import { TaskContextPanel } from './TaskContextPanel.js'
+import { TaskPlanPanel } from './TaskPlanPanel.js'
 
 type Props = {
   open: boolean
@@ -27,8 +29,9 @@ type Props = {
   readOnly: boolean
   labels: readonly TaskboardLabel[]
   onClose: () => void
+  onOpenTask: (taskId: string) => void
   onStart: (taskId: string) => void
-  onArchive: (taskId: string) => Promise<void>
+  onArchive: (taskId: string, includeLinkedThreads?: boolean) => Promise<void>
   onRestore: (taskId: string) => Promise<void>
   onUpdate: (taskId: string, patch: {
     title?: string
@@ -103,6 +106,7 @@ export function TaskDetailsDrawer({
   readOnly,
   labels,
   onClose,
+  onOpenTask,
   onStart,
   onArchive,
   onRestore,
@@ -135,6 +139,11 @@ export function TaskDetailsDrawer({
   const [dueDate, setDueDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [restoreOpen, setRestoreOpen] = useState(false)
+  const [includeLinkedThreads, setIncludeLinkedThreads] = useState(false)
+  const [waitingPrerequisites, setWaitingPrerequisites] = useState<readonly string[]>([])
+  const [planningSummary, setPlanningSummary] = useState<TaskboardPlanAggregate | null>(null)
   const [transitionAction, setTransitionAction] = useState<'accept' | 'return_work' | 'report_blocked' | null>(null)
   const [transitionNote, setTransitionNote] = useState('')
   const [linkThreadId, setLinkThreadId] = useState('')
@@ -162,6 +171,11 @@ export function TaskDetailsDrawer({
     setEditing(false)
     setEditingCommentId(null)
     setDeleteOpen(false)
+    setArchiveOpen(false)
+    setRestoreOpen(false)
+    setIncludeLinkedThreads(false)
+    setWaitingPrerequisites([])
+    setPlanningSummary(null)
     setLinkThreadId('')
     setLinkThreadQuery('')
   }, [task?.id, task?.version])
@@ -169,6 +183,13 @@ export function TaskDetailsDrawer({
   useEffect(() => {
     setLabelNames(Object.fromEntries(labels.map(label => [label.id, label.name])))
   }, [labels])
+
+  const handleReadinessChange = useCallback((values: readonly string[]) => {
+    setWaitingPrerequisites(values)
+  }, [])
+  const handleSummaryChange = useCallback((value: TaskboardPlanAggregate) => {
+    setPlanningSummary(value)
+  }, [])
 
   const addComment = async (): Promise<void> => {
     if (!task || taskMutationReadOnly || !comment.trim()) return
@@ -257,6 +278,13 @@ export function TaskDetailsDrawer({
                 </>
               )}
             </section>
+            <TaskPlanPanel
+              taskId={task.id}
+              readOnly={taskMutationReadOnly || task.status === 'done' || task.status === 'canceled'}
+              onOpenTask={onOpenTask}
+              onReadinessChange={handleReadinessChange}
+              onSummaryChange={handleSummaryChange}
+            />
             <TaskContextPanel taskId={task.id} readOnly={taskMutationReadOnly || task.status === 'done' || task.status === 'canceled'} />
             <section className="taskboard-drawer__section">
               <h3>关联对话 <span>{detail.threads.length}</span></h3>
@@ -326,11 +354,12 @@ export function TaskDetailsDrawer({
             <aside className="taskboard-detail__aside" aria-label="任务属性和活动">
             <div className="taskboard-drawer__actions">
               {canStartTask(task) ? (
-                <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => onStart(task.id)}>
+                <Button color="secondary" disabled={pending || taskMutationReadOnly || waitingPrerequisites.length > 0} onClick={() => onStart(task.id)}>
                   <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   开始执行
                 </Button>
               ) : null}
+              {canStartTask(task) && waitingPrerequisites.length > 0 ? <p className="task-plan-panel__waiting">尚不可执行，等待：{waitingPrerequisites.join('、')}</p> : null}
               {task.status === 'in_review' ? (
                 <>
                   <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('accept') }}>通过审核</Button>
@@ -341,11 +370,11 @@ export function TaskDetailsDrawer({
                 <Button color="secondary" disabled={pending || taskMutationReadOnly} onClick={() => { setTransitionNote(''); setTransitionAction('report_blocked') }}>报告阻碍</Button>
               ) : null}
               {task.archivedAt === null ? (
-                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onArchive(task.id)}>
+                <Button color="secondary" disabled={pending || readOnly} onClick={() => { setIncludeLinkedThreads(false); setArchiveOpen(true) }}>
                   <Archive aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />归档
                 </Button>
               ) : (
-                <Button color="secondary" disabled={pending || readOnly} onClick={() => void onRestore(task.id)}>
+                <Button color="secondary" disabled={pending || readOnly} onClick={() => setRestoreOpen(true)}>
                   <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />恢复
                 </Button>
               )}
@@ -391,7 +420,7 @@ export function TaskDetailsDrawer({
             <section className="taskboard-drawer__danger-zone">
               <div>
                 <h3>永久删除</h3>
-                <p>{task.archivedAt === null ? '请先归档任务，再执行永久删除。' : '删除任务、评论和活动记录。关联对话本身会保留。'}</p>
+                <p>{task.archivedAt === null ? '请先归档整棵任务树，再执行永久删除。' : '删除任务树、步骤、阻碍和任务上下文。关联对话本身会保留。'}</p>
               </div>
               <Button color="danger" disabled={readOnly || task.archivedAt === null} onClick={() => setDeleteOpen(true)}>永久删除任务</Button>
             </section>
@@ -400,7 +429,7 @@ export function TaskDetailsDrawer({
         ) : null}
         <ConfirmationDialog
           actionLabel="永久删除"
-          description="此操作无法撤销；关联对话不会被删除。"
+          description={`此操作无法撤销；将删除任务树中的任务、步骤、阻碍和任务上下文。${planningSummary ? ` 当前包含 ${planningSummary.descendantTaskCount} 个后代任务。` : ''}关联对话不会被删除。`}
           open={deleteOpen}
           title="永久删除这个任务？"
           tone="danger"
@@ -409,6 +438,29 @@ export function TaskDetailsDrawer({
             void onDelete(task.id).then(onClose)
           }}
           onCancel={() => setDeleteOpen(false)}
+        />
+        <ConfirmationDialog
+          actionLabel="归档任务树"
+          description={`默认递归归档当前任务和 ${planningSummary?.descendantTaskCount ?? 0} 个未归档后代。当前任务直接关联 ${detail?.threads.length ?? 0} 个对话。`}
+          open={archiveOpen}
+          suppression={{ checked: includeLinkedThreads, label: '同时归档任务树关联对话', onCheckedChange: setIncludeLinkedThreads }}
+          title="归档这棵任务树？"
+          onAction={() => {
+            if (!task) return
+            void onArchive(task.id, includeLinkedThreads).then(() => { setArchiveOpen(false); onClose() })
+          }}
+          onCancel={() => setArchiveOpen(false)}
+        />
+        <ConfirmationDialog
+          actionLabel="恢复任务树"
+          description="只恢复最近一次未恢复归档批次中实际被该批次归档的任务；此前已归档的后代保持归档，关联对话不会自动恢复。"
+          open={restoreOpen}
+          title="恢复上次归档的任务树？"
+          onAction={() => {
+            if (!task) return
+            void onRestore(task.id).then(() => setRestoreOpen(false))
+          }}
+          onCancel={() => setRestoreOpen(false)}
         />
         <InputDialog
           allowEmpty={transitionAction === 'accept'}

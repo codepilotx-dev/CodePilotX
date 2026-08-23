@@ -112,7 +112,8 @@ import {
   resolveSessionReferenceShortcut,
   type SessionReferenceContext,
 } from "./sessionReferenceActions.js";
-import { CreateTaskDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { CreateTaskDialog, createTaskboardTaskFromDialog } from '../../taskboard/components/CreateTaskDialog.js'
+import { LinkExistingTaskDialog } from '../../taskboard/components/LinkExistingTaskDialog.js'
 import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
 import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
@@ -236,6 +237,7 @@ export function ConversationPage(): React.ReactNode {
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const [createTaskOpen, setCreateTaskOpen] = React.useState(false)
+  const [linkTaskOpen, setLinkTaskOpen] = React.useState(false)
   const [taskboardCandidate, setTaskboardCandidate] = React.useState<TaskboardWorkflowThreadCandidate | undefined>()
   const [taskboardProjects, setTaskboardProjects] = React.useState<Awaited<ReturnType<typeof desktopClient.listProjects>>>([])
   const threadTaskboard = useThreadTaskboardAction()
@@ -875,6 +877,18 @@ export function ConversationPage(): React.ReactNode {
           >
             {displayedTaskboardAction.label}
           </PopoverItem>
+          {displayedTaskboardAction.kind === 'create' ? (
+            <PopoverItem
+              disabled={displayedTaskboardAction.disabled || !taskboardCandidate}
+              icon={<Workflow size={APP_ICON_SIZE} />}
+              onClick={() => {
+                closeSessionMenu()
+                setLinkTaskOpen(true)
+              }}
+            >
+              关联已有任务
+            </PopoverItem>
+          ) : null}
           <PopoverSeparator />
           <PopoverItem
             disabled={!hasActiveSession || !sideChatAvailable}
@@ -1259,17 +1273,23 @@ export function ConversationPage(): React.ReactNode {
       />
       <CreateTaskDialog
         initialProjectId={taskboardCandidate?.projectId}
-        initialStatus="in_review"
+        initialStatus="backlog"
         initialThread={taskboardCandidate}
         initialTitle={taskboardCandidate?.title}
         open={createTaskOpen}
         projects={taskboardProjects}
         onClose={() => setCreateTaskOpen(false)}
         onCreate={async input => {
-          const result = await desktopClient.createTaskboardWorkflowTask!(input)
+          const result = await createTaskboardTaskFromDialog(input)
           setCreateTaskOpen(false)
           navigate(`/taskboard/${encodeURIComponent(result.task.task.id)}`)
         }}
+      />
+      <LinkExistingTaskDialog
+        open={linkTaskOpen}
+        thread={taskboardCandidate}
+        onClose={() => setLinkTaskOpen(false)}
+        onLinked={taskId => navigate(`/taskboard/${encodeURIComponent(taskId)}`)}
       />
       {conversationFork.dialog}
       {activeSessionId && workspacePath ? (

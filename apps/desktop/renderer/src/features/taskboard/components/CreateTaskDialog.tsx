@@ -13,6 +13,19 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
+
+export type CreateTaskDialogInput = {
+  projectId: string
+  title: string
+  description?: string
+  status: TaskboardWorkflowStatus
+  priority: TaskboardPriority
+  startDate?: string | null
+  dueDate?: string | null
+  threadLinks?: readonly { threadId: string; role: 'primary' | 'supporting' }[]
+  parentTaskId?: string
+}
 
 type Props = {
   open: boolean
@@ -22,16 +35,7 @@ type Props = {
   initialThread?: TaskboardWorkflowThreadCandidate
   initialTitle?: string
   onClose: () => void
-  onCreate: (input: {
-    projectId: string
-    title: string
-    description?: string
-    status: TaskboardWorkflowStatus
-    priority: TaskboardPriority
-    startDate?: string | null
-    dueDate?: string | null
-    threadLinks?: readonly { threadId: string; role: 'primary' | 'supporting' }[]
-  }) => Promise<void>
+  onCreate: (input: CreateTaskDialogInput) => Promise<void>
 }
 
 export function CreateTaskDialog({
@@ -51,6 +55,8 @@ export function CreateTaskDialog({
   const [priority, setPriority] = useState<TaskboardPriority>('none')
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [parentTaskId, setParentTaskId] = useState('')
+  const [parentTasks, setParentTasks] = useState<readonly { id: string; number: number; title: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
@@ -66,9 +72,24 @@ export function CreateTaskDialog({
     setPriority('none')
     setStartDate('')
     setDueDate('')
+    setParentTaskId('')
     setError(null)
     setSubmitting(false)
   }, [initialProjectId, initialStatus, initialThread, initialTitle, open, projects])
+
+  useEffect(() => {
+    if (!open || !projectId || !desktopClient.listTaskboardWorkflowTasks) {
+      setParentTasks([])
+      return
+    }
+    let active = true
+    void desktopClient.listTaskboardWorkflowTasks({ projectId, archived: false, limit: 200 }).then(result => {
+      if (active) setParentTasks(result.tasks.map(({ id, number, title }) => ({ id, number, title })))
+    }).catch(() => {
+      if (active) setParentTasks([])
+    })
+    return () => { active = false }
+  }, [open, projectId])
 
   const submit = async (): Promise<void> => {
     if (!projectId || !title.trim()) return
@@ -84,6 +105,7 @@ export function CreateTaskDialog({
         priority,
         startDate: startDate || null,
         dueDate: dueDate || null,
+        ...(parentTaskId ? { parentTaskId } : {}),
         ...(initialThreadLinks
           ? { threadLinks: initialThreadLinks }
           : {}),
@@ -140,6 +162,13 @@ export function CreateTaskDialog({
               </select>
             </label>
             <label>
+              <span>任务层级</span>
+              <select aria-label="任务层级" value={parentTaskId} onChange={event => setParentTaskId(event.currentTarget.value)}>
+                <option value="">创建顶级任务</option>
+                {parentTasks.map(parent => <option key={parent.id} value={parent.id}>作为 #{parent.number} {parent.title} 的子任务</option>)}
+              </select>
+            </label>
+            <label>
               <span>标题</span>
               <input aria-label="标题" autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
             </label>
@@ -183,6 +212,22 @@ export function CreateTaskDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+export async function createTaskboardTaskFromDialog(input: CreateTaskDialogInput) {
+  const { parentTaskId, ...createInput } = input
+  if (parentTaskId && (!desktopClient.reparentTaskboardPlanningChild || !desktopClient.readTaskboardWorkflowTask
+    || !(await desktopClient.getRuntimeCapabilities()).includes('taskboard.planning.v1'))) {
+    throw new Error('当前 Agent 不支持创建子任务。')
+  }
+  const created = await desktopClient.createTaskboardWorkflowTask!(createInput)
+  if (!parentTaskId) return created
+  await desktopClient.reparentTaskboardPlanningChild({
+    childTaskId: created.task.task.id,
+    expectedVersion: created.task.task.version,
+    parentTaskId,
+  })
+  return desktopClient.readTaskboardWorkflowTask({ taskId: created.task.task.id })
 }
 
 export function taskboardInitialThreadLinks(

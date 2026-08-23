@@ -1,6 +1,6 @@
 import type React from 'react'
-import { CalendarDays, MessageSquare, Play, TriangleAlert } from 'lucide-react'
-import type { TaskboardWorkflowTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
+import { CalendarDays, ChevronDown, ChevronRight, MessageSquare, Play, TriangleAlert } from 'lucide-react'
+import type { TaskboardPlanAggregate, TaskboardWorkflowTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { canStartTask, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
@@ -16,6 +16,13 @@ type Props = {
   onOpen: () => void
   onStart: () => void
   onDragStart: (event: React.DragEvent<HTMLElement>) => void
+  hierarchy?: {
+    depth: number
+    aggregate: TaskboardPlanAggregate
+    expandable: boolean
+    expanded: boolean
+    onToggle: () => void
+  }
 }
 
 export function TaskCard({
@@ -29,6 +36,7 @@ export function TaskCard({
   onOpen,
   onStart,
   onDragStart,
+  hierarchy,
 }: Props): React.ReactNode {
   const runningThreads = task.threads.filter(
     thread => thread.attention === 'running',
@@ -51,11 +59,24 @@ export function TaskCard({
       data-priority={task.priority}
       data-taskboard-task-id={task.id}
       data-unread={task.attention.unread || undefined}
+      data-task-depth={hierarchy?.depth || undefined}
       draggable={!pending}
       onDragStart={onDragStart}
     >
       {sessionDropActive ? (
         <span className="taskboard-card__drop-hint">松开以关联会话</span>
+      ) : null}
+      {hierarchy?.expandable ? (
+        <IconButton
+          aria-expanded={hierarchy.expanded}
+          className="taskboard-card__tree-toggle"
+          color="ghostSecondary"
+          size="toolbar"
+          title={`${hierarchy.expanded ? '收起' : '展开'} ${task.title} 的子任务`}
+          onClick={hierarchy.onToggle}
+        >
+          {hierarchy.expanded ? <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />}
+        </IconButton>
       ) : null}
       <button
         aria-label={`打开任务：${task.title}`}
@@ -97,6 +118,20 @@ export function TaskCard({
           <span className="taskboard-card__due" data-overdue={isOverdue(task.dueDate) || undefined}>
             <CalendarDays aria-hidden="true" size={APP_ICON_SIZE - 2} />
             {formatTaskDate(task.dueDate)}
+          </span>
+        ) : null}
+        {hierarchy && (
+          hierarchy.aggregate.directTotal > 0
+          || hierarchy.aggregate.descendantTaskCount > 0
+          || hierarchy.aggregate.openBlockerCount > 0
+          || hierarchy.aggregate.readyUnreadCount > 0
+        ) ? (
+          <span className="taskboard-card__plan-summary">
+            {hierarchy.aggregate.directTotal > 0 ? <span>{hierarchy.aggregate.directDone}/{hierarchy.aggregate.directTotal} 步</span> : null}
+            {hierarchy.aggregate.directSkipped > 0 ? <span>{hierarchy.aggregate.directSkipped} 跳过</span> : null}
+            {hierarchy.aggregate.descendantTaskCount > 0 ? <span>{hierarchy.aggregate.descendantTaskCount} 子任务</span> : null}
+            {hierarchy.aggregate.openBlockerCount > 0 ? <span>{hierarchy.aggregate.openBlockerCount} 阻碍</span> : null}
+            {hierarchy.aggregate.readyUnreadCount > 0 ? <span>{hierarchy.aggregate.readyUnreadCount} 已解锁</span> : null}
           </span>
         ) : null}
       </button>

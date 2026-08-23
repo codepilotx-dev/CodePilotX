@@ -7,6 +7,8 @@ import type {
 import { TASKBOARD_COLUMNS } from '../taskboardConstants.js'
 import type { TaskMovePlacement } from '../state/useTaskboardController.js'
 import { BoardColumn } from './BoardColumn.js'
+import type { TaskboardPlanningNode } from '../state/taskboardStore.js'
+import type { TaskboardHierarchyMode } from '../TaskboardView.js'
 
 type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -22,6 +24,10 @@ type Props = {
     placement?: TaskMovePlacement,
   ) => Promise<void>
   onLinkThread: (taskId: string, threadId: string) => Promise<void>
+  planningNodes?: Readonly<Record<string, TaskboardPlanningNode>>
+  expandedTaskIds?: ReadonlySet<string>
+  hierarchyMode?: TaskboardHierarchyMode
+  onToggleTask?: (taskId: string) => void
 }
 
 export function TaskboardBoard({
@@ -34,6 +40,10 @@ export function TaskboardBoard({
   onNewTask,
   onMove,
   onLinkThread,
+  planningNodes = {},
+  expandedTaskIds = new Set(),
+  hierarchyMode = 'roots',
+  onToggleTask,
 }: Props): React.ReactNode {
   const [taskDragActive, setTaskDragActive] = useState(false)
   const visibleColumns = taskboardBoardColumns(tasks, taskDragActive)
@@ -54,12 +64,16 @@ export function TaskboardBoard({
           pendingTaskIds={pendingTaskIds}
           projectNames={projectNames}
           tasks={tasks.filter(task => task.status === column.status)}
+          planningNodes={planningNodes}
+          expandedTaskIds={expandedTaskIds}
+          hierarchyMode={hierarchyMode}
           onMove={onMove}
           onLinkThread={onLinkThread}
           onNewTask={() => onNewTask(column.status)}
           onOpen={onOpen}
           onStart={onStart}
           onTaskDragActiveChange={setTaskDragActive}
+          onToggleTask={onToggleTask}
         />
       ))}
     </div>

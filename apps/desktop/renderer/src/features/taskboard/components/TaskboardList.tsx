@@ -6,6 +6,8 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { canStartTask, TASKBOARD_ALL_STATUSES, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { readTaskboardCollapsedStatuses, rememberTaskboardCollapsedStatuses } from '../state/taskboardViewPreferences.js'
+import type { TaskboardPlanningNode } from '../state/taskboardStore.js'
+import type { TaskboardHierarchyMode } from '../TaskboardView.js'
 
 type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -16,6 +18,10 @@ type Props = {
   onStart: (taskId: string) => void
   onMove: (taskId: string, status: TaskboardWorkflowStatus) => Promise<void>
   onUpdate: (taskId: string, patch: { priority: TaskboardPriority }) => Promise<void>
+  planningNodes: Readonly<Record<string, TaskboardPlanningNode>>
+  expandedTaskIds: ReadonlySet<string>
+  hierarchyMode: TaskboardHierarchyMode
+  onToggleTask: (taskId: string) => void
 }
 
 export function TaskboardList(props: Props): React.ReactNode {
@@ -51,15 +57,25 @@ export function TaskboardList(props: Props): React.ReactNode {
               <div className="taskboard-list__rows">
                 {statusTasks.map(task => {
                   const needsInput = task.threads.some(thread => thread.attention === 'needs_input')
+                  const planning = props.planningNodes[task.id]
+                  const expandable = props.hierarchyMode === 'expanded' && planning && (
+                    !planning.loaded || planning.aggregate.descendantTaskCount > 0
+                  )
                   return (
-                    <article className="taskboard-list__row" data-taskboard-task-id={task.id} data-unread={task.attention.unread || undefined} key={task.id}>
-                      <button className="taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
-                        <span className="taskboard-list__identity">
-                          <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
-                          <strong>{task.title}</strong>
-                        </span>
-                        {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
-                      </button>
+                    <article className="taskboard-list__row" data-task-depth={planning?.depth || undefined} data-taskboard-task-id={task.id} data-unread={task.attention.unread || undefined} key={task.id}>
+                      <div className="taskboard-list__task-cell">
+                        {expandable ? <IconButton aria-expanded={props.expandedTaskIds.has(task.id)} color="ghostSecondary" size="toolbar" title={props.expandedTaskIds.has(task.id) ? '收起子任务' : '展开子任务'} onClick={() => props.onToggleTask(task.id)}>{props.expandedTaskIds.has(task.id) ? <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />}</IconButton> : <span className="taskboard-list__tree-spacer" />}
+                        <button className="taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
+                          <span className="taskboard-list__identity">
+                            <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
+                            <strong>{task.title}</strong>
+                            {planning && (planning.aggregate.directTotal > 0 || planning.aggregate.descendantTaskCount > 0 || planning.aggregate.openBlockerCount > 0) ? (
+                              <small>{planning.aggregate.directDone}/{planning.aggregate.directTotal} 步{planning.aggregate.directSkipped ? ` · ${planning.aggregate.directSkipped} 跳过` : ''} · {planning.aggregate.descendantTaskCount} 子任务 · {planning.aggregate.openBlockerCount} 阻碍{planning.aggregate.readyUnreadCount ? ` · ${planning.aggregate.readyUnreadCount} 已解锁` : ''}</small>
+                            ) : null}
+                          </span>
+                          {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
+                        </button>
+                      </div>
                       <select aria-label={`${task.title}的状态`} disabled={props.pendingTaskIds.has(task.id)} value={task.status} onChange={event => void props.onMove(task.id, event.currentTarget.value as TaskboardWorkflowStatus)}>
                         {TASKBOARD_ALL_STATUSES.map(value => <option key={value} value={value}>{taskboardStatusLabel(value)}</option>)}
                       </select>

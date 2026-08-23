@@ -171,6 +171,11 @@
       border-color: var(--cpx-sys-color-border-focus);
       background: var(--cpx-sys-color-selected);
     }
+
+    &[data-task-depth] {
+      margin-inline-start: var(--cpx-sys-space-3);
+      border-inline-start-color: var(--cpx-sys-color-border-focus);
+    }
   }
 
   .taskboard-card__drop-hint {
@@ -303,6 +308,25 @@
       outline: 0;
       box-shadow: var(--cpx-sys-focus-ring-inset);
     }
+  }
+
+  .taskboard-list__task-cell {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: center;
+    min-width: 0;
+  }
+
+  .taskboard-list__row[data-task-depth] .taskboard-list__task-cell {
+    padding-inline-start: var(--cpx-sys-space-3);
+  }
+
+  .taskboard-list__task-cell .taskboard-list__open {
+    padding-inline-start: var(--cpx-sys-space-1);
+  }
+
+  .taskboard-list__tree-spacer {
+    width: 32px;
   }
 
   .taskboard-list__identity {
@@ -478,7 +502,8 @@
     font-size: var(--cpx-sys-font-size-xs);
   }
 
-  .taskboard-gantt__unscheduled-list > button {
+  .taskboard-gantt__unscheduled-list > button,
+  .taskboard-gantt__unscheduled-step {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) auto minmax(76px, auto) minmax(76px, auto) minmax(110px, auto);
     align-items: center;
@@ -492,6 +517,12 @@
     background: transparent;
     text-align: start;
     cursor: pointer;
+  }
+
+  .taskboard-gantt__unscheduled-step {
+    grid-template-columns: minmax(220px, 1fr) minmax(90px, auto) minmax(110px, auto);
+    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   .taskboard-gantt__unscheduled-list > button:hover {

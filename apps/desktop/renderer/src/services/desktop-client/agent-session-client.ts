@@ -147,6 +147,8 @@ export const RENDERER_CAPABILITIES = [
   'speech.transcription.v1',
   'taskboard.v1',
   'taskboard.workflow.v1',
+  'taskboard.context.v1',
+  'taskboard.planning.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',

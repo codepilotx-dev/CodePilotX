@@ -356,6 +356,20 @@ export type DesktopTaskboardApi = {
   applyTaskContextProposal?(input: RpcParams<'taskboard/context/ai-apply'>): Promise<RpcResult<'taskboard/context/ai-apply'>>
   discardTaskContextProposal?(input: RpcParams<'taskboard/context/ai-discard'>): Promise<RpcResult<'taskboard/context/ai-discard'>>
   readTaskContextPromotion?(input: RpcParams<'taskboard/context/promotion-status'>): Promise<RpcResult<'taskboard/context/promotion-status'>>
+  listTaskboardPlanningRoots?(input: RpcParams<'taskboard/planning/roots'>): Promise<RpcResult<'taskboard/planning/roots'>>
+  readTaskboardPlanning?(input: RpcParams<'taskboard/planning/read'>): Promise<RpcResult<'taskboard/planning/read'>>
+  applyTaskboardPlanning?(input: WithoutOperationId<RpcParams<'taskboard/planning/apply'>>): Promise<RpcResult<'taskboard/planning/apply'>>
+  updateTaskboardPlanningStep?(input: WithoutOperationId<RpcParams<'taskboard/planning/step/update'>>): Promise<RpcResult<'taskboard/planning/step/update'>>
+  promoteTaskboardPlanningStep?(input: WithoutOperationId<RpcParams<'taskboard/planning/step/promote'>>): Promise<RpcResult<'taskboard/planning/step/promote'>>
+  reorderTaskboardPlanningItem?(input: WithoutOperationId<RpcParams<'taskboard/planning/item/reorder'>>): Promise<RpcResult<'taskboard/planning/item/reorder'>>
+  reparentTaskboardPlanningChild?(input: WithoutOperationId<RpcParams<'taskboard/planning/child/reparent'>>): Promise<RpcResult<'taskboard/planning/child/reparent'>>
+  setTaskboardPlanningDependencies?(input: WithoutOperationId<RpcParams<'taskboard/planning/dependencies/set'>>): Promise<RpcResult<'taskboard/planning/dependencies/set'>>
+  createTaskboardPlanningBlocker?(input: WithoutOperationId<RpcParams<'taskboard/planning/blocker/create'>>): Promise<RpcResult<'taskboard/planning/blocker/create'>>
+  resolveTaskboardPlanningBlocker?(input: WithoutOperationId<RpcParams<'taskboard/planning/blocker/resolve'>>): Promise<RpcResult<'taskboard/planning/blocker/resolve'>>
+  markTaskboardPlanningAttentionRead?(input: WithoutOperationId<RpcParams<'taskboard/planning/attention/mark-read'>>): Promise<RpcResult<'taskboard/planning/attention/mark-read'>>
+  archiveTaskboardPlanningTree?(input: WithoutOperationId<RpcParams<'taskboard/planning/archive-tree'>>): Promise<RpcResult<'taskboard/planning/archive-tree'>>
+  restoreTaskboardPlanningTree?(input: WithoutOperationId<RpcParams<'taskboard/planning/restore-tree'>>): Promise<RpcResult<'taskboard/planning/restore-tree'>>
+  deleteTaskboardPlanningTree?(input: WithoutOperationId<RpcParams<'taskboard/planning/delete-tree'>>): Promise<RpcResult<'taskboard/planning/delete-tree'>>
   listTaskboardWorkflowTasks?(input: RpcParams<'taskboard/workflow/list'>): Promise<RpcResult<'taskboard/workflow/list'>>
   readTaskboardWorkflowTask?(input: RpcParams<'taskboard/workflow/read'>): Promise<RpcResult<'taskboard/workflow/read'>>
   createTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/create'>>): Promise<RpcResult<'taskboard/workflow/create'>>

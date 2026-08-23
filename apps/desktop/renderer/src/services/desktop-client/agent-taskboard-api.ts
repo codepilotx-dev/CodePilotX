@@ -4,7 +4,7 @@ import type { DesktopTaskboardApi } from './types.js'
 
 type Dependencies = {
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1' | 'taskboard.context.v1'>,
+    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1' | 'taskboard.context.v1' | 'taskboard.planning.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   mockClient: DesktopTaskboardApi
@@ -49,6 +49,16 @@ export function createAgentTaskboardApi({
     requireAgentCapability('taskboard.context.v1')
     return operation()
   })
+  const executePlanning = <T>(operation: () => Promise<T>): Promise<T> =>
+    withRequiredAgent(async () => {
+      requireAgentCapability('taskboard.planning.v1')
+      return operation()
+    })
+  const executePlanningRead = <T>(operation: () => Promise<T>): Promise<T> =>
+    withAgentOrMock(async () => {
+      requireAgentCapability('taskboard.planning.v1')
+      return operation()
+    }, () => Promise.reject(new Error('浏览器预览不支持任务规划。')))
 
   return {
     readTaskContext: params => executeContext(() => rpc.call('taskboard/context/read', params)),
@@ -57,6 +67,56 @@ export function createAgentTaskboardApi({
     applyTaskContextProposal: params => executeContext(() => rpc.call('taskboard/context/ai-apply', params)),
     discardTaskContextProposal: params => executeContext(() => rpc.call('taskboard/context/ai-discard', params)),
     readTaskContextPromotion: params => executeContext(() => rpc.call('taskboard/context/promotion-status', params)),
+    listTaskboardPlanningRoots: params => executePlanningRead(() => rpc.call('taskboard/planning/roots', params)),
+    readTaskboardPlanning: params => executePlanningRead(() => rpc.call('taskboard/planning/read', params)),
+    applyTaskboardPlanning: params => executePlanning(() => rpc.call('taskboard/planning/apply', {
+      ...params,
+      operationId: operationId(),
+    })),
+    updateTaskboardPlanningStep: params => executePlanning(() => rpc.call('taskboard/planning/step/update', {
+      ...params,
+      operationId: operationId(),
+    })),
+    promoteTaskboardPlanningStep: params => executePlanning(() => rpc.call('taskboard/planning/step/promote', {
+      ...params,
+      operationId: operationId(),
+    })),
+    reorderTaskboardPlanningItem: params => executePlanning(() => rpc.call('taskboard/planning/item/reorder', {
+      ...params,
+      operationId: operationId(),
+    })),
+    reparentTaskboardPlanningChild: params => executePlanning(() => rpc.call('taskboard/planning/child/reparent', {
+      ...params,
+      operationId: operationId(),
+    })),
+    setTaskboardPlanningDependencies: params => executePlanning(() => rpc.call('taskboard/planning/dependencies/set', {
+      ...params,
+      operationId: operationId(),
+    })),
+    createTaskboardPlanningBlocker: params => executePlanning(() => rpc.call('taskboard/planning/blocker/create', {
+      ...params,
+      operationId: operationId(),
+    })),
+    resolveTaskboardPlanningBlocker: params => executePlanning(() => rpc.call('taskboard/planning/blocker/resolve', {
+      ...params,
+      operationId: operationId(),
+    })),
+    markTaskboardPlanningAttentionRead: params => executePlanning(() => rpc.call('taskboard/planning/attention/mark-read', {
+      ...params,
+      operationId: operationId(),
+    })),
+    archiveTaskboardPlanningTree: params => executePlanning(() => rpc.call('taskboard/planning/archive-tree', {
+      ...params,
+      operationId: operationId(),
+    })),
+    restoreTaskboardPlanningTree: params => executePlanning(() => rpc.call('taskboard/planning/restore-tree', {
+      ...params,
+      operationId: operationId(),
+    })),
+    deleteTaskboardPlanningTree: params => executePlanning(() => rpc.call('taskboard/planning/delete-tree', {
+      ...params,
+      operationId: operationId(),
+    })),
     listTaskboardWorkflowTasks: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/list', params)),
     readTaskboardWorkflowTask: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/read', params)),
     createTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/create', {
