@@ -149,18 +149,79 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps component tokens private to shared component styles', async () => {
-    const [tokens, rightDock, sidebar, modal, popover] = await Promise.all([
-      Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
-      Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
-      Bun.file(new URL('../src/styles/features/layout-sidebar.scss', import.meta.url)).text(),
+    const [
+      systemTokens,
+      tokens,
+      rightDock,
+      sidebar,
+      chrome,
+      workbench,
+      modal,
+      popover,
+    ] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/design-system/codex-semantic-tokens.scss',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/features/_layout-right-dock.scss',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL('../src/styles/features/layout-sidebar.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/styles/features/layout-chrome.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/features/_layout-workbench.scss',
+          import.meta.url,
+        ),
+      ).text(),
       Bun.file(new URL('../src/styles/modal.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
     ])
 
+    // Window chrome and workspace regions stay independently addressable while
+    // panels follow the workspace surface by default.
+    expect(systemTokens).toContain(
+      '--cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+    expect(systemTokens).toContain(
+      '--cpx-sys-color-workbench-sidebar-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+    expect(systemTokens).toContain(
+      '--cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);',
+    )
+    expect(systemTokens).toContain(
+      '--cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);',
+    )
+    expect(systemTokens).not.toContain(
+      '--cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+
     // Verify token definitions in codex-semantic-tokens.scss
-    expect(tokens).toContain('--cpx-comp-dock-bg: var(--cpx-sys-color-surface-panel);')
+    expect(tokens).toContain(
+      '--cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);',
+    )
     expect(tokens).toContain('--cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);')
-    expect(tokens).toContain('--cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-recessed);')
+    expect(tokens).toContain(
+      '--cpx-comp-sidebar-bg: var(--cpx-sys-color-workbench-sidebar-bg);',
+    )
+    expect(tokens).toContain(
+      '--cpx-comp-workbench-panel-bg: var(--cpx-sys-color-workbench-panel-bg);',
+    )
+    expect(tokens).toContain(
+      '--cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-workbench-main-bg);',
+    )
     expect(tokens).toContain('--cpx-comp-sidebar-border: 0;')
     expect(tokens).toContain('--cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);')
     expect(tokens).toContain('--cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);')
@@ -173,7 +234,10 @@ describe('Codex CPX design system token contract', () => {
     expect(sidebar).not.toContain('--cpx-comp-sidebar-bg')
     expect(sidebar).not.toContain('--cpx-comp-sidebar-border')
     expect(sidebar).not.toContain('--cpx-comp-sidebar-item-active-bg')
-    expect(sidebar).toContain('--cpx-sys-color-surface-recessed')
+    expect(sidebar).toContain('--cpx-sys-color-workbench-sidebar-bg')
+    expect(rightDock).toContain('--cpx-sys-color-workbench-panel-bg')
+    expect(chrome).toContain('--cpx-sys-color-workbench-titlebar-bg')
+    expect(workbench).toContain('--cpx-sys-color-workbench-main-bg')
     expect(modal).toContain('--cpx-comp-modal-bg')
     expect(modal).toContain('--cpx-comp-modal-shadow')
     expect(popover).toContain('--cpx-comp-dropdown-menu-bg')

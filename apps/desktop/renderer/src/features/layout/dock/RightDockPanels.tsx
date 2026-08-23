@@ -134,7 +134,7 @@ export function RightDockSkillPreviewPanel({
   return (
     <ScrollArea
       aria-label={`${tab.skill.name} 技能内容`}
-      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
@@ -153,7 +153,7 @@ export function RightDockPlanPanel({
     return (
       <ScrollArea
         aria-label="计划"
-        className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+        className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
@@ -168,7 +168,7 @@ export function RightDockPlanPanel({
   return (
     <ScrollArea
       aria-label="计划"
-      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">

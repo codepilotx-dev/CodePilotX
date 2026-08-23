@@ -16,6 +16,13 @@
   --cpx-sys-color-surface-editor: #f4f4f4;
   --cpx-sys-color-scrim: rgb(0 0 0 / 26%);
 
+  // Workbench region surfaces. Keep regions independently addressable while
+  // the panel regions follow the workspace surface by default.
+  --cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-sys-color-workbench-sidebar-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);
+
   --cpx-sys-color-fg-primary: #1a1c1f;
   --cpx-sys-color-fg-secondary: #606163;
   --cpx-sys-color-fg-tertiary: #8e8f90;

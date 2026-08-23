@@ -9,7 +9,7 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
 }
@@ -34,7 +34,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-dock {
@@ -63,7 +63,7 @@
   overflow: hidden;
   padding-left: var(--cpx-sys-space-3);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-dock-header {
@@ -92,7 +92,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-panel-tabs-empty-state {
@@ -105,7 +105,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: var(--cpx-sys-space-2);
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   user-select: none;
 }
 
@@ -167,7 +167,7 @@
 .bottom-panel-empty-state {
   width: 100%;
   height: 100%;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-panel-tabs-empty-state__icon {
@@ -527,7 +527,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .workbench-tab-panel {
@@ -599,7 +599,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -630,7 +630,7 @@
 }
 
 .right-dock-plan-scroll-area {
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-dock-plan-document .md-body :not(pre) > code {

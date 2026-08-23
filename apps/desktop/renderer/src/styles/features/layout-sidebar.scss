@@ -9,7 +9,7 @@
   flex-direction: column;
   overflow: hidden;
   border-right: 0;
-  background: var(--cpx-sys-color-surface-recessed);
+  background: var(--cpx-sys-color-workbench-sidebar-bg);
   color: var(--cpx-sys-color-fg-primary);
   user-select: none;
   font-family: var(--cpx-sys-font-family-sans);
@@ -21,7 +21,7 @@
 
   &.is-docked {
     z-index: 1;
-    background: var(--cpx-sys-color-surface-recessed);
+    background: var(--cpx-sys-color-workbench-sidebar-bg);
   }
 
   &.is-collapsed {

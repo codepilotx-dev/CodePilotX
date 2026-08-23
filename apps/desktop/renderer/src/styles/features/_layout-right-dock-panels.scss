@@ -6,7 +6,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-dock-file-browser {
@@ -17,7 +17,7 @@
   min-height: 0;
   height: 100%;
   width: 100%;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   overflow: hidden;
 
   .right-dock-open-file-placeholder {
@@ -131,7 +131,7 @@
   gap: var(--cpx-sys-space-2);
   padding: 0 var(--cpx-sys-space-2);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -336,7 +336,7 @@
 }
 
 .right-dock-open-file-layout {
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
 }
 
 .right-dock-open-file-tree {
@@ -614,7 +614,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   overflow: hidden;
 }
 
@@ -779,7 +779,7 @@
   height: 2rem;
   align-items: center;
   gap: var(--cpx-sys-space-2);
-  background: var(--color-app-chrome);
+  background: var(--cpx-sys-color-workbench-panel-bg);
   padding: 0 var(--cpx-sys-space-3);
   color: var(--color-app-text);
   font-size: var(--cpx-sys-font-size-sm);

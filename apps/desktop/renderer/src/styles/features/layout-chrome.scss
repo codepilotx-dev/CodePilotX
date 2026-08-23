@@ -1,13 +1,13 @@
 .desktop-menubar {
   --desktop-titlebar-height: var(--application-menubar-height);
   height: var(--desktop-titlebar-height);
-  background: var(--cpx-sys-color-surface-canvas);
+  background: var(--cpx-sys-color-workbench-titlebar-bg);
   box-sizing: border-box;
 }
 
 .app-menubar {
   height: 100%;
-  background: var(--cpx-sys-color-surface-canvas);
+  background: var(--cpx-sys-color-workbench-titlebar-bg);
   user-select: none;
   box-sizing: border-box;
 }

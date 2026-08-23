@@ -127,12 +127,12 @@
   --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
 
   // 8. Sidebar & RightDock Component
-  --cpx-comp-sidebar-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-comp-sidebar-bg: var(--cpx-sys-color-workbench-sidebar-bg);
   --cpx-comp-sidebar-border: 0;
   --cpx-comp-sidebar-item-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-sidebar-item-active-bg: var(--cpx-sys-color-selected);
   --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-md);
-  --cpx-comp-dock-bg: var(--cpx-sys-color-surface-panel);
+  --cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);
   --cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-dock-tab-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-dock-tab-active-bg: var(--cpx-sys-color-selected);
@@ -140,8 +140,8 @@
   --cpx-comp-dock-tab-height: 46px;
 
   // 9. Workbench Component
-  --cpx-comp-workbench-panel-bg: var(--cpx-sys-color-surface-panel);
-  --cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-workbench-panel-bg: var(--cpx-sys-color-workbench-panel-bg);
+  --cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-workbench-main-bg);
   --cpx-comp-workbench-tab-active-bg: var(--cpx-sys-color-selected);
   --cpx-comp-workbench-tab-height: 46px;
   --cpx-comp-workbench-tab-hover-bg: var(--cpx-sys-color-hover);

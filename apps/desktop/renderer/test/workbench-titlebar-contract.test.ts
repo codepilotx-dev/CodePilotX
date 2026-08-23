@@ -32,8 +32,11 @@ describe('workbench chrome contract', () => {
     expect(chrome).toContain(
       '--desktop-titlebar-height: var(--application-menubar-height)',
     )
+    expect(chrome).toContain('--cpx-sys-color-workbench-titlebar-bg')
     expect(workspaceHeader).toContain('height: var(--workspace-header-height)')
     expect(workspaceHeader).toContain('position: absolute')
+    expect(workspaceHeader).toContain('background: transparent')
+    expect(workspaceHeader).not.toContain('--cpx-sys-color-workbench-titlebar-bg')
     expect(layout).toContain('<DesktopWorkspaceHeader')
     expect(layout).toContain('desktop-main-route__header-spacer')
   })
