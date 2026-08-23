@@ -29,6 +29,10 @@
   --cpx-sys-color-fg-disabled: #b1b2b3;
   --cpx-sys-color-fg-on-accent: #ffffff;
 
+  // Static user-authored message surface. This is not an interaction state.
+  --cpx-sys-color-message-user-bg:
+    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
+
   --cpx-sys-color-border-subtle: rgba(26, 28, 31, 0.049);
   --cpx-sys-color-border-default: rgba(26, 28, 31, 0.078);
   --cpx-sys-color-border-strong: rgba(26, 28, 31, 0.117);

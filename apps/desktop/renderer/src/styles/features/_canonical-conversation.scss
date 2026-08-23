@@ -497,11 +497,7 @@
     overflow: hidden;
     border: 0;
     border-radius: var(--cpx-sys-radius-lg);
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-surface-panel) 78%,
-      transparent
-    );
+    background: var(--cpx-sys-color-message-user-bg);
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
     line-height: var(--cpx-sys-line-height-reading);

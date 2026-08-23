@@ -134,7 +134,7 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--cpx-sys-color-fg-secondary']).toBe('#bcbcbc')
     expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#8b8b8b')
     expect(dark['--cpx-sys-color-border-subtle']).toBe(
-      'rgba(255, 255, 255, 0.042)',
+      'rgba(255, 255, 255, 0.056)',
     )
     expect(dark['--cpx-sys-color-border-default']).toBe(
       'rgba(255, 255, 255, 0.084)',
@@ -403,6 +403,26 @@ describe('fixed Codex UI themes', () => {
           contrast,
         },
       })).toEqual(variables)
+    }
+  })
+
+  test('keeps dark subtle borders near the Codex five-percent baseline', () => {
+    const expected = [
+      [0, 'rgba(255, 255, 255, 0.05)'],
+      [60, 'rgba(255, 255, 255, 0.056)'],
+      [100, 'rgba(255, 255, 255, 0.06)'],
+    ] as const
+
+    for (const [contrast, border] of expected) {
+      const variables = deriveThemeVariables({
+        ...DEFAULT_DARK_THEME,
+        theme: {
+          ...DEFAULT_DARK_THEME.theme,
+          contrast,
+        },
+      })
+
+      expect(variables['--cpx-sys-color-border-subtle']).toBe(border)
     }
   })
 

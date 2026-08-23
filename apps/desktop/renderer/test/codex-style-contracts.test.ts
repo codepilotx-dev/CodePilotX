@@ -192,6 +192,56 @@ describe('Codex CPX design system token contract', () => {
     expect(rightDock).not.toContain('--cpx-sys-shadow-prominent')
   })
 
+  test('keeps user messages and inline summaries on dedicated semantics', async () => {
+    const [systemTokens, conversation, summary] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/features/_canonical-conversation.scss',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL('../src/styles/features/_thread-summary.scss', import.meta.url),
+      ).text(),
+    ])
+
+    expect(
+      systemTokens.match(/--cpx-sys-color-message-user-bg:/g),
+    ).toHaveLength(1)
+    expect(systemTokens).toMatch(
+      /--cpx-sys-color-message-user-bg:\s*color-mix\(in srgb, var\(--cpx-sys-color-fg-primary\) 5%, transparent\);/,
+    )
+    expect(
+      conversation.match(/--cpx-sys-color-message-user-bg/g),
+    ).toHaveLength(1)
+    expect(conversation).toContain(
+      'background: var(--cpx-sys-color-message-user-bg);',
+    )
+    expect(conversation).not.toContain(
+      'var(--cpx-sys-color-surface-panel) 78%',
+    )
+
+    expect(
+      summary.match(/--thread-summary-inline-width:/g),
+    ).toHaveLength(1)
+    expect(summary).toMatch(
+      /\.workflow-page__main\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 75\);/,
+    )
+    expect(summary).toMatch(
+      /\.workflow-page__main\[data-thread-summary-inline="true"\][\s\S]*?padding-inline-end: calc\([\s\S]*?var\(--thread-summary-inline-width\)/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-inline\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-popover,[\s\S]*?\.thread-summary-error\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,
+    )
+    expect(summary).not.toMatch(/width:\s*(?:272|300)px/)
+  })
+
   test('keeps component tokens private to shared component styles', async () => {
     const [
       systemTokens,
@@ -282,6 +332,21 @@ describe('Codex CPX design system token contract', () => {
     expect(rightDock).toContain('--cpx-sys-color-workbench-panel-bg')
     expect(chrome).toContain('--cpx-sys-color-workbench-titlebar-bg')
     expect(workbench).toContain('--cpx-sys-color-workbench-main-bg')
+    expect(workbench).toMatch(
+      /\.desktop-main\s*\{[^}]*border-left: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.right-dock\s*\{[^}]*border-left: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.bottom-panel\s*\{[^}]*border-top: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.workbench-panel-header\s*\{[^}]*border-bottom: 1px solid var\(--cpx-sys-color-border-subtle\);/,
+    )
+    expect(workbench).not.toMatch(
+      /\.desktop-workspace-panel--bottom\s*\{[^}]*border-top:/,
+    )
     expect(modal).toContain('--cpx-comp-modal-bg')
     expect(modal).toContain('--cpx-comp-modal-shadow')
     expect(popover).toContain('--cpx-comp-dropdown-menu-bg')

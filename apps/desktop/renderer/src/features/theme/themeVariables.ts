@@ -500,7 +500,7 @@ function deriveDarkPalette(
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: rgba(accentOnDark, 0.7 + contrast * 0.1),
     borderHeavy: rgba(ink, 0.12 + contrast * 0.06),
-    borderLight: rgba(ink, 0.03 + contrast * 0.02),
+    borderLight: rgba(ink, 0.05 + contrast * 0.01),
     buttonPrimaryBackground: rgbString(primaryText),
     buttonPrimaryBackgroundActive: rgba(ink, 0.07 + contrast * 0.05),
     buttonPrimaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),

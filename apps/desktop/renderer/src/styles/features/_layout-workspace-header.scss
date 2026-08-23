@@ -30,7 +30,7 @@
   }
 
   &[data-divider]::before {
-    border-bottom: 0.5px solid var(--cpx-sys-color-border-subtle);
+    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   }
 }
 

@@ -173,7 +173,6 @@
   background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
-  animation: workflow-item-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
 .execution-plan-card__steps-scroller {

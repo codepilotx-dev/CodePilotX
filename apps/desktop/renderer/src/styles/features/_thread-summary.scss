@@ -1,5 +1,11 @@
+.workflow-page__main {
+  --thread-summary-inline-width: calc(var(--cpx-sys-space-1) * 75);
+}
+
 .workflow-page__main[data-thread-summary-inline="true"] {
-  padding-inline-end: calc(calc(var(--cpx-sys-space-1) * 68) + (var(--cpx-sys-space-4) * 2));
+  padding-inline-end: calc(
+    var(--thread-summary-inline-width) + (var(--cpx-sys-space-4) * 2)
+  );
   transition: padding-inline-end var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
@@ -9,7 +15,7 @@
   top: var(--cpx-sys-space-4);
   right: var(--cpx-sys-space-4);
   bottom: var(--cpx-sys-space-4);
-  width: 272px;
+  width: var(--thread-summary-inline-width);
   min-height: 0;
   transform-origin: right center;
 }
@@ -17,7 +23,7 @@
 .thread-summary-popover,
 .thread-summary-panel,
 .thread-summary-error {
-  width: 300px;
+  width: var(--thread-summary-inline-width);
   max-width: 100%;
 }
 

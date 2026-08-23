@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  THREAD_SUMMARY_PANEL_WIDTH,
   deriveThreadSummaryState,
   resolveThreadSummaryDisplayMode,
   resolveThreadSummaryDisplayModeUpdate,
@@ -15,6 +16,7 @@ import {
 
 describe("thread summary state", () => {
   test("resolves the exact responsive boundaries", () => {
+    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(300);
     expect(resolveThreadSummaryDisplayMode(959)).toBe("overlay");
     expect(resolveThreadSummaryDisplayMode(960)).toBe("shift");
     expect(resolveThreadSummaryDisplayMode(1535)).toBe("shift");
