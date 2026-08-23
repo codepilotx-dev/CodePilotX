@@ -31,9 +31,11 @@
 - [desktop] 外观设置补齐真实系统字体与字体样式选择：preload 新增类型化 `listSystemFonts()`（Local Font Access 只返回 family/fullName/postscriptName/style，字段限长、去重、稳定排序，不支持/拒绝/失败安全降级为自由文本输入）；主题设置保留式升级为 V7（新增可空 `uiFace`/`codeFace`，清除时显式持久化 `null`，V1–V5 历史重置策略与高版本拒绝覆盖不变）；新增主题字体加载工具，以唯一 alias 注册本地 face 并置于原家族之前，加载失败自动回退；UI 字体展示全部家族、代码字体按 Canvas 等宽检测过滤，默认 face 只保存家族；“偏好设置”顺序对齐 Codex：指针光标、减少动态效果、界面字号、代码字号、差异标记、字体平滑（仅 macOS）。
 - [Agent/desktop/renderer] 统一三种上游协议（OpenAI Responses / OpenAI Completions / Anthropic Messages）的富工具结果：在 shared thread 增加可选 `resultBlocks`（text / citation / json / artifact）与完成元数据 `completion`，PiEventAdapter 将工具结果安全投影为同一 canonical item/event；history schema 前向迁移至 33，新增独立 `item_artifacts` 表与受控 blob 存储，新增 `artifact/read` RPC 与 `artifacts.read.v1` capability（跨 thread / 未知 ID / 非法定位拒绝，缺表环境降级 capability）；renderer 在工具卡片渲染四类结果块，图片 artifact 复用附件预览、其他类型为通用文件项，并按状态展示已取消的会话/轮次。
 - [agent/runtime] 新增 `runtime_composition_plans` 表（history schema 34）与 RuntimeCompositionService/Repository，持久化 Turn 的模型、权限、Skills、MCP、工具和 Prompt 快照；缺表环境 fresh turn 走 ephemeral、恢复时 fail-closed。
+- [agent/desktop] 补齐工作目录、会话 ID 与系统深链复制，支持 CodePilotX Agent 分页读取关联会话，并为外部 Agent 提供按会话 ID 查询的 SQLite 只读语义视图。
 
 ### Changed
 
+- [development] 允许主 Agent 按任务范围和上下文复杂度自主选择 OpenCode 的 DeepSeek 或 MiniMax 模型执行受控小阶段，同时保留文件冻结、同 session 返修和独立验收要求。
 - [desktop/renderer] 将消息附件与本地上下文导入改为客户端启动时预热的延迟模块，保持首次发送无需临时加载模块，同时恢复 Renderer 入口体积预算。
 - [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
 - [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
@@ -119,6 +121,7 @@
 
 ### Fixed
 
+- [desktop] 修复可信主窗口的文本剪贴板写入权限，恢复工作目录、会话 ID、深度链接及其他普通复制操作。
 - [desktop] 修复从任务工作台创建或继续主会话后启动指令未同步到 Composer、导致新会话输入框保持空白的问题。
 - [desktop/renderer] 图片附件打开控件不再复用通用 Button，避免默认尺寸、背景和边框覆盖缩略图。
 - [desktop/renderer] 修正 Skills 实时更新测试，使其匹配复用的全局事件订阅。
