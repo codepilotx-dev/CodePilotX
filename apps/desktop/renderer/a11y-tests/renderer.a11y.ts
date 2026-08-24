@@ -192,8 +192,19 @@ test('WCAG 2.2 AA: taskboard open states', async ({ page }, testInfo) => {
 
   // 新建任务对话框
   await page.getByRole('button', { name: '新建任务' }).click()
-  await expect(page.getByRole('dialog', { name: '新建任务' })).toBeVisible()
+  const createTaskDialog = page.getByRole('dialog', { name: '新建任务' })
+  await expect(createTaskDialog).toBeVisible()
   await expectNoWcagViolations(page, testInfo)
+
+  await createTaskDialog.getByLabel('项目').click()
+  await expect(page.getByRole('listbox')).toBeVisible()
+  await expectNoWcagViolations(page, testInfo)
+  await page.keyboard.press('Escape')
+
+  await createTaskDialog.getByLabel('开始日期').click()
+  await expect(page.getByRole('grid', { name: /开始日期/ })).toBeVisible()
+  await expectNoWcagViolations(page, testInfo)
+  await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
 
   // 任务详情 drawer

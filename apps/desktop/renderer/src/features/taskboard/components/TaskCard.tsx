@@ -80,7 +80,7 @@ export function TaskCard({
       ) : null}
       <button
         aria-label={`打开任务：${task.title}`}
-        className="taskboard-card__open"
+        className="interactive-row interactive-row--adaptive taskboard-card__open"
         type="button"
         onClick={onOpen}
       >

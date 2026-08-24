@@ -9,9 +9,14 @@ import type {
   TaskboardWorkflowTaskDetails,
 } from '@codepilotx/shared/taskboard'
 import { Button } from '../../../components/ui/Button.js'
+import { Checkbox } from '../../../components/ui/Checkbox.js'
+import { DatePicker } from '../../../components/ui/DatePicker.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { ConfirmationDialog, InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { Input } from '../../../components/ui/Input.js'
+import { Select } from '../../../components/ui/Select.js'
+import { Textarea } from '../../../components/ui/Textarea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { canStartTask, TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { useTaskboardThreadCandidates } from '../state/useTaskboardThreadCandidates.js'
@@ -184,6 +189,13 @@ export function TaskDetailsDrawer({
     setLabelNames(Object.fromEntries(labels.map(label => [label.id, label.name])))
   }, [labels])
 
+  useEffect(() => {
+    if (threadCandidates.loading || !linkThreadId) return
+    if (!threadCandidates.threads.some(thread => thread.threadId === linkThreadId)) {
+      setLinkThreadId('')
+    }
+  }, [linkThreadId, threadCandidates.loading, threadCandidates.threads])
+
   const handleReadinessChange = useCallback((values: readonly string[]) => {
     setWaitingPrerequisites(values)
   }, [])
@@ -257,12 +269,12 @@ export function TaskDetailsDrawer({
               </div>
               {editing ? (
                 <form className="taskboard-edit-form" onSubmit={event => { event.preventDefault(); void saveTask() }}>
-                  <label><span>标题</span><input maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} /></label>
-                  <label><span>说明</span><textarea rows={10} value={description} onChange={event => setDescription(event.currentTarget.value)} /></label>
+                  <label><span>标题</span><Input maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} /></label>
+                  <label><span>说明</span><Textarea rows={10} value={description} onChange={event => setDescription(event.currentTarget.value)} /></label>
                   {labels.length > 0 ? (
                     <fieldset className="taskboard-edit-form__labels">
                       <legend>标签</legend>
-                      {labels.map(label => <label key={label.id}><input checked={labelIds.includes(label.id)} type="checkbox" onChange={() => setLabelIds(current => current.includes(label.id) ? current.filter(id => id !== label.id) : [...current, label.id])} />{label.name}</label>)}
+                      {labels.map(label => <Checkbox checked={labelIds.includes(label.id)} key={label.id} onCheckedChange={checked => setLabelIds(current => checked === true ? [...current, label.id] : current.filter(id => id !== label.id))}>{label.name}</Checkbox>)}
                     </fieldset>
                   ) : null}
                   <Button color="secondary" disabled={!title.trim()} loading={saving} type="submit">保存内容</Button>
@@ -302,11 +314,24 @@ export function TaskDetailsDrawer({
                 </ul>
               )}
               <div className="taskboard-thread-linker">
-                <input aria-label="搜索要关联的对话" placeholder="搜索历史会话" value={linkThreadQuery} onChange={event => setLinkThreadQuery(event.currentTarget.value)} />
-                <select aria-label="选择要关联的对话" disabled={taskMutationReadOnly} value={linkThreadId} onChange={event => setLinkThreadId(event.currentTarget.value)}>
-                  <option value="">选择项目中的对话</option>
-                  {threadCandidates.threads.map(thread => <option key={thread.threadId} value={thread.threadId}>{thread.title || '未命名会话'}</option>)}
-                </select>
+                <Select
+                  ariaLabel="选择要关联的对话"
+                  disabled={taskMutationReadOnly}
+                  emptyText="没有找到可关联的会话"
+                  loading={threadCandidates.loading}
+                  options={threadCandidates.threads.map(thread => ({
+                    value: thread.threadId,
+                    label: thread.title || '未命名会话',
+                    detail: thread.latestTurnStatus ? `最近状态：${thread.latestTurnStatus}` : undefined,
+                  }))}
+                  placeholder="搜索项目中的历史会话"
+                  searchable
+                  searchPlaceholder="搜索历史会话"
+                  searchValue={linkThreadQuery}
+                  value={linkThreadId}
+                  onSearchChange={setLinkThreadQuery}
+                  onValueChange={setLinkThreadId}
+                />
                 <Button color="secondary" disabled={taskMutationReadOnly || !linkThreadId} onClick={() => {
                   if (!linkThreadId) return
                   void onLinkThread(task.id, linkThreadId).then(() => setLinkThreadId(''))
@@ -332,7 +357,7 @@ export function TaskDetailsDrawer({
                         if (!editingCommentBody.trim()) return
                         void onUpdateComment(item.value.id, editingCommentBody.trim()).then(() => setEditingCommentId(null))
                       }}>
-                        <textarea aria-label="编辑评论" rows={3} value={editingCommentBody} onChange={event => setEditingCommentBody(event.currentTarget.value)} />
+                        <Textarea aria-label="编辑评论" rows={3} value={editingCommentBody} onChange={event => setEditingCommentBody(event.currentTarget.value)} />
                         <Button color="ghostSecondary" size="compact" type="button" onClick={() => setEditingCommentId(null)}>取消</Button>
                         <Button color="secondary" disabled={!editingCommentBody.trim()} size="compact" type="submit">保存</Button>
                       </form>
@@ -344,7 +369,7 @@ export function TaskDetailsDrawer({
                 {mergeTaskTimeline(detail).length === 0 ? <p className="taskboard-drawer__empty">用评论记录决策、检查结果或下一步。</p> : null}
               </div>
               <form className="taskboard-comment-form" onSubmit={event => { event.preventDefault(); void addComment() }}>
-                <textarea aria-label="添加评论" disabled={taskMutationReadOnly} placeholder="记录一个执行备注…" rows={3} value={comment} onChange={event => setComment(event.currentTarget.value)} />
+                <Textarea aria-label="添加评论" disabled={taskMutationReadOnly} placeholder="记录一个执行备注…" rows={3} value={comment} onChange={event => setComment(event.currentTarget.value)} />
                 <Button color="secondary" disabled={taskMutationReadOnly || !comment.trim()} loading={commenting} type="submit">
                   <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />添加评论
                 </Button>
@@ -385,32 +410,31 @@ export function TaskDetailsDrawer({
               </div>
                 <form className="taskboard-edit-form taskboard-edit-form--properties" onSubmit={event => { event.preventDefault(); void saveTask() }}>
                   <TaskboardTaskProperties
-                    statusField={<label><span>阶段</span><select disabled={taskMutationReadOnly || pending} value={status} onChange={event => {
-                      const nextStatus = event.currentTarget.value as TaskboardWorkflowStatus
+                    statusField={<label><span>阶段</span><Select ariaLabel="阶段" disabled={taskMutationReadOnly || pending} options={TASKBOARD_ALL_COLUMNS.map(column => ({ value: column.status, label: column.label }))} value={status} onValueChange={nextStatus => {
                       void moveTaskDetailsStatus({
                         previousStatus: status,
                         nextStatus,
                         setStatus,
                         onMove: next => onMove(task.id, next),
                       })
-                    }}>{TASKBOARD_ALL_COLUMNS.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></label>}
-                    priorityField={<label><span>优先级</span><select value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>{(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}</select></label>}
+                    }} /></label>}
+                    priorityField={<label><span>优先级</span><Select<TaskboardPriority> ariaLabel="优先级" options={(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => ({ value, label: TASKBOARD_PRIORITY_LABELS[value] }))} value={priority} onValueChange={setPriority} /></label>}
                   />
                   <div>
-                    <label><span>开始日期</span><input type="date" value={startDate} onChange={event => setStartDate(event.currentTarget.value)} /></label>
-                    <label><span>截止日期</span><input type="date" value={dueDate} onChange={event => setDueDate(event.currentTarget.value)} /></label>
+                    <label><span>开始日期</span><DatePicker ariaLabel="开始日期" max={dueDate || undefined} value={startDate} onValueChange={setStartDate} /></label>
+                    <label><span>截止日期</span><DatePicker ariaLabel="截止日期" min={startDate || undefined} value={dueDate} onValueChange={setDueDate} /></label>
                   </div>
                   <fieldset className="taskboard-label-manager">
                     <legend>标签管理</legend>
                     {labels.map(label => (
                       <div key={label.id}>
-                        <input aria-label={`标签名称：${label.name}`} maxLength={40} value={labelNames[label.id] ?? label.name} onChange={event => setLabelNames(current => ({ ...current, [label.id]: event.currentTarget.value }))} />
+                        <Input aria-label={`标签名称：${label.name}`} maxLength={40} value={labelNames[label.id] ?? label.name} onChange={event => setLabelNames(current => ({ ...current, [label.id]: event.currentTarget.value }))} />
                         <Button color="ghostSecondary" disabled={taskMutationReadOnly || !(labelNames[label.id] ?? '').trim() || (labelNames[label.id] ?? '').trim() === label.name} size="compact" onClick={() => void onUpdateLabel(label.id, (labelNames[label.id] ?? '').trim())}>重命名</Button>
                         <Button color="danger" disabled={taskMutationReadOnly} size="compact" onClick={() => void onDeleteLabel(label.id)}>删除</Button>
                       </div>
                     ))}
                     <div>
-                      <input aria-label="新标签名称" maxLength={40} placeholder="新标签名称" value={newLabelName} onChange={event => setNewLabelName(event.currentTarget.value)} />
+                      <Input aria-label="新标签名称" maxLength={40} placeholder="新标签名称" value={newLabelName} onChange={event => setNewLabelName(event.currentTarget.value)} />
                       <Button color="secondary" disabled={taskMutationReadOnly || !newLabelName.trim()} size="compact" onClick={() => void onCreateLabel(task.projectId, newLabelName.trim()).then(() => setNewLabelName(''))}>新建标签</Button>
                     </div>
                   </fieldset>

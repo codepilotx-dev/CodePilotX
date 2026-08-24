@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Gantt, type GanttStatic, type Task as GanttTask } from 'dhtmlx-gantt'
 import type { TaskboardPlanStep, TaskboardWorkflowStatus, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import type { TaskboardGanttZoom } from '../state/taskboardViewPreferences.js'
@@ -13,6 +14,8 @@ import {
 } from '../taskboardGanttModel.js'
 import { TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { focusTaskboardReturnAnchor } from '../state/taskboardNavigationRestore.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 
 type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
@@ -329,16 +332,21 @@ export default function TaskboardGantt({
       <div className="taskboard-gantt__timeline">
         <div className="taskboard-gantt__canvas" ref={containerRef} />
         {todayMarkerLeft !== null ? <div className="taskboard-gantt__today" style={{ left: todayMarkerLeft }}><span>今天</span></div> : null}
-        <button
+        <IconButton
           aria-expanded={!gridCollapsed}
           aria-label={gridCollapsed ? '展开任务标题' : '收起任务标题'}
           className="taskboard-gantt__grid-toggle"
+          color="ghostSecondary"
+          size="toolbar"
           style={{ left: gridCollapsed ? 12 : gridWidth }}
+          title={gridCollapsed ? '展开任务标题' : '收起任务标题'}
           type="button"
           onClick={toggleGrid}
         >
-          {gridCollapsed ? '›' : '‹'}
-        </button>
+          {gridCollapsed
+            ? <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+            : <ChevronLeft aria-hidden="true" size={APP_ICON_SIZE} />}
+        </IconButton>
         {scheduledTasks.length === 0 ? (
           <div className="taskboard-gantt__empty">
             {visibleTasks.length === 0
@@ -352,7 +360,7 @@ export default function TaskboardGantt({
           <header><strong>未排期</strong><span>{unscheduledTasks.length + visiblePlanningSteps.length}</span></header>
           <div className="taskboard-gantt__unscheduled-list">
             {unscheduledTasks.map(task => (
-              <button data-taskboard-task-id={task.id} key={task.id} type="button" onClick={() => onOpen(task.id)}>
+              <button className="interactive-row interactive-row--adaptive" data-taskboard-task-id={task.id} key={task.id} type="button" onClick={() => onOpen(task.id)}>
                 <span className="taskboard-gantt__unscheduled-identity">
                   <small>{projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
                   <strong>{task.title}</strong>

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, MessageSquare, Play, TriangleAlert } from 'l
 import { useEffect, useState } from 'react'
 import type { TaskboardPriority, TaskboardWorkflowStatus, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { Select } from '../../../components/ui/Select.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { canStartTask, TASKBOARD_ALL_STATUSES, TASKBOARD_PRIORITY_LABELS, taskboardStatusLabel } from '../taskboardConstants.js'
 import { readTaskboardCollapsedStatuses, rememberTaskboardCollapsedStatuses } from '../state/taskboardViewPreferences.js'
@@ -48,7 +49,7 @@ export function TaskboardList(props: Props): React.ReactNode {
         const closed = collapsed.has(status)
         return (
           <section className="taskboard-list__group" data-status={status} key={status}>
-            <button aria-expanded={!closed} className="taskboard-list__group-header" type="button" onClick={() => toggle(status)}>
+            <button aria-expanded={!closed} className="interactive-row interactive-row--adaptive taskboard-list__group-header" type="button" onClick={() => toggle(status)}>
               {closed ? <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
               <span className="taskboard-list__status-dot" aria-hidden="true" />
               <strong>{taskboardStatusLabel(status)}</strong><span>{statusTasks.length}</span>
@@ -65,7 +66,7 @@ export function TaskboardList(props: Props): React.ReactNode {
                     <article className="taskboard-list__row" data-task-depth={planning?.depth || undefined} data-taskboard-task-id={task.id} data-unread={task.attention.unread || undefined} key={task.id}>
                       <div className="taskboard-list__task-cell">
                         {expandable ? <IconButton aria-expanded={props.expandedTaskIds.has(task.id)} color="ghostSecondary" size="toolbar" title={props.expandedTaskIds.has(task.id) ? '收起子任务' : '展开子任务'} onClick={() => props.onToggleTask(task.id)}>{props.expandedTaskIds.has(task.id) ? <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />}</IconButton> : <span className="taskboard-list__tree-spacer" />}
-                        <button className="taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
+                        <button className="interactive-row interactive-row--adaptive taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
                           <span className="taskboard-list__identity">
                             <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
                             <strong>{task.title}</strong>
@@ -76,12 +77,22 @@ export function TaskboardList(props: Props): React.ReactNode {
                           {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
                         </button>
                       </div>
-                      <select aria-label={`${task.title}的状态`} disabled={props.pendingTaskIds.has(task.id)} value={task.status} onChange={event => void props.onMove(task.id, event.currentTarget.value as TaskboardWorkflowStatus)}>
-                        {TASKBOARD_ALL_STATUSES.map(value => <option key={value} value={value}>{taskboardStatusLabel(value)}</option>)}
-                      </select>
-                      <select aria-label={`${task.title}的优先级`} disabled={props.pendingTaskIds.has(task.id)} value={task.priority} onChange={event => void props.onUpdate(task.id, { priority: event.currentTarget.value as TaskboardPriority })}>
-                        {(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>)}
-                      </select>
+                      <Select
+                        ariaLabel={`${task.title}的状态`}
+                        disabled={props.pendingTaskIds.has(task.id)}
+                        onValueChange={value => void props.onMove(task.id, value)}
+                        options={TASKBOARD_ALL_STATUSES.map(value => ({ value, label: taskboardStatusLabel(value) }))}
+                        triggerClassName="taskboard-list__inline-select"
+                        value={task.status}
+                      />
+                      <Select
+                        ariaLabel={`${task.title}的优先级`}
+                        disabled={props.pendingTaskIds.has(task.id)}
+                        onValueChange={value => void props.onUpdate(task.id, { priority: value })}
+                        options={(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => ({ value, label: TASKBOARD_PRIORITY_LABELS[value] }))}
+                        triggerClassName="taskboard-list__inline-select"
+                        value={task.priority}
+                      />
                       <span className="taskboard-list__threads">
                         {needsInput ? <TriangleAlert aria-label="等待处理" size={APP_ICON_SIZE - 2} /> : <MessageSquare aria-hidden="true" size={APP_ICON_SIZE - 2} />}{task.threads.length}
                       </span>

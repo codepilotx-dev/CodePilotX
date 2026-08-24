@@ -9,6 +9,7 @@ import type {
 } from '@codepilotx/shared/taskboard'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { Select } from '../../../components/ui/Select.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -127,30 +128,24 @@ export function LinkExistingTaskDialog({ open, thread, onClose, onLinked }: Prop
           </header>
           <form className="taskboard-dialog__form" onSubmit={event => { event.preventDefault(); void submit() }}>
             <label>
-              <span>搜索任务</span>
-              <input
-                aria-label="搜索任务"
-                autoFocus
-                placeholder="按标题或描述搜索"
-                value={query}
-                onChange={event => setQuery(event.currentTarget.value)}
-              />
-            </label>
-            <label>
               <span>任务</span>
-              <select
-                aria-label="任务"
-                disabled={loading || tasks.length === 0}
-                size={Math.min(8, Math.max(3, tasks.length))}
+              <Select
+                ariaLabel="任务"
+                emptyText="没有匹配的任务"
+                loading={loading}
+                onSearchChange={setQuery}
+                onValueChange={setSelectedTaskId}
+                options={tasks.map(task => ({
+                  value: task.id,
+                  label: `#${task.number} · ${task.title}`,
+                  detail: `${taskboardStatusLabel(task.status)} · ${task.threads.length} 个会话`,
+                }))}
+                placeholder="选择任务"
+                searchable
+                searchPlaceholder="按标题或描述搜索"
+                searchValue={query}
                 value={selectedTaskId}
-                onChange={event => setSelectedTaskId(event.currentTarget.value)}
-              >
-                {tasks.map(task => (
-                  <option key={task.id} value={task.id}>
-                    #{task.number} · {task.title} · {taskboardStatusLabel(task.status)} · {task.threads.length} 个会话
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             {loading ? <p className="taskboard-drawer__empty" role="status">正在查找任务…</p> : null}
             {!loading && tasks.length === 0 && !error ? <p className="taskboard-drawer__empty">没有匹配的任务。</p> : null}

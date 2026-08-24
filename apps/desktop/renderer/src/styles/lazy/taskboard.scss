@@ -24,10 +24,6 @@
     flex: none;
   }
 
-  .taskboard-toolbar__view {
-    border-radius: var(--cpx-sys-radius-full);
-  }
-
   .taskboard-toolbar__tools {
     justify-content: flex-end;
     min-width: 0;
@@ -780,7 +776,7 @@
     .taskboard-toolbar {
       gap: var(--cpx-sys-space-2);
     }
-    .taskboard-toolbar__view svg,
+    .taskboard-toolbar__views .segmented-control-item svg,
     .taskboard-toolbar__count,
     .taskboard-filter,
     .taskboard-toolbar__tools > .ui-button span {

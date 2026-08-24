@@ -9,7 +9,11 @@ import type {
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
+import { DatePicker } from '../../../components/ui/DatePicker.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { Input } from '../../../components/ui/Input.js'
+import { Select } from '../../../components/ui/Select.js'
+import { Textarea } from '../../../components/ui/Textarea.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { TASKBOARD_ALL_COLUMNS, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
@@ -146,47 +150,55 @@ export function CreateTaskDialog({
           }}>
             <label>
               <span>项目</span>
-              <select required aria-label="项目" disabled={Boolean(initialThread)} value={projectId} onChange={event => setProjectId(event.currentTarget.value)}>
-                <option disabled value="">选择项目</option>
-                {projects.filter(project => project.projectId).map(project => (
-                  <option key={project.projectId} value={project.projectId}>{project.name}</option>
-                ))}
-              </select>
+              <Select
+                ariaLabel="项目"
+                disabled={Boolean(initialThread)}
+                onValueChange={setProjectId}
+                options={projects.filter(project => project.projectId).map(project => ({ value: project.projectId!, label: project.name }))}
+                placeholder="选择项目"
+                searchable
+                searchPlaceholder="搜索项目"
+                value={projectId}
+              />
             </label>
             <label>
               <span>状态</span>
-              <select aria-label="状态" value={status} onChange={event => setStatus(event.currentTarget.value as TaskboardWorkflowStatus)}>
-                {TASKBOARD_ALL_COLUMNS.map(column => (
-                  <option key={column.status} value={column.status}>{column.label}</option>
-                ))}
-              </select>
+              <Select<TaskboardWorkflowStatus> ariaLabel="状态" onValueChange={setStatus} options={TASKBOARD_ALL_COLUMNS.map(column => ({ value: column.status, label: column.label }))} value={status} />
             </label>
             <label>
               <span>任务层级</span>
-              <select aria-label="任务层级" value={parentTaskId} onChange={event => setParentTaskId(event.currentTarget.value)}>
-                <option value="">创建顶级任务</option>
-                {parentTasks.map(parent => <option key={parent.id} value={parent.id}>作为 #{parent.number} {parent.title} 的子任务</option>)}
-              </select>
+              <Select
+                ariaLabel="任务层级"
+                onValueChange={setParentTaskId}
+                options={[
+                  { value: '', label: '创建顶级任务' },
+                  ...parentTasks.map(parent => ({ value: parent.id, label: `作为 #${parent.number} ${parent.title} 的子任务` })),
+                ]}
+                searchable
+                searchPlaceholder="搜索父任务"
+                value={parentTaskId}
+              />
             </label>
             <label>
               <span>标题</span>
-              <input aria-label="标题" autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
+              <Input aria-label="标题" autoFocus maxLength={200} required value={title} onChange={event => setTitle(event.currentTarget.value)} />
             </label>
             <label>
               <span>描述</span>
-              <textarea aria-label="描述" rows={5} value={description} onChange={event => setDescription(event.currentTarget.value)} />
+              <Textarea aria-label="描述" rows={5} value={description} onChange={event => setDescription(event.currentTarget.value)} />
             </label>
             <label>
               <span>优先级</span>
-              <select aria-label="优先级" value={priority} onChange={event => setPriority(event.currentTarget.value as TaskboardPriority)}>
-                {(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => (
-                  <option key={value} value={value}>{TASKBOARD_PRIORITY_LABELS[value]}</option>
-                ))}
-              </select>
+              <Select<TaskboardPriority>
+                ariaLabel="优先级"
+                onValueChange={setPriority}
+                options={(Object.keys(TASKBOARD_PRIORITY_LABELS) as TaskboardPriority[]).map(value => ({ value, label: TASKBOARD_PRIORITY_LABELS[value] }))}
+                value={priority}
+              />
             </label>
             <div className="taskboard-dialog__date-row">
-              <label><span>开始日期</span><input aria-label="开始日期" type="date" value={startDate} onChange={event => setStartDate(event.currentTarget.value)} /></label>
-              <label><span>截止日期</span><input aria-label="截止日期" type="date" value={dueDate} onChange={event => setDueDate(event.currentTarget.value)} /></label>
+              <label><span>开始日期</span><DatePicker ariaLabel="开始日期" max={dueDate || undefined} value={startDate} onValueChange={setStartDate} /></label>
+              <label><span>截止日期</span><DatePicker ariaLabel="截止日期" min={startDate || undefined} value={dueDate} onValueChange={setDueDate} /></label>
             </div>
             {initialThread ? (
               <fieldset className="taskboard-dialog__threads">

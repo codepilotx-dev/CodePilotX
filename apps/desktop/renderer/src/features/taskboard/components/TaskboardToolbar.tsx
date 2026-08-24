@@ -12,6 +12,9 @@ import { Button } from '../../../components/ui/Button.js'
 import { PopoverCheckboxItem, PopoverItem, PopoverLabel, PopoverRadioGroup, PopoverRadioItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
+import { Select } from '../../../components/ui/Select.js'
+import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
 import type { TaskboardGanttZoom, TaskboardLayout } from '../state/taskboardViewPreferences.js'
@@ -96,29 +99,30 @@ export function TaskboardToolbar({
 
   return (
     <div className="taskboard-toolbar" aria-label="任务看板工具栏">
-      <div className="taskboard-toolbar__views" role="group" aria-label="任务视图">
-        <Button aria-pressed={view === 'board'} className="taskboard-toolbar__view" color={view === 'board' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('board')}>
-          <Columns3 aria-hidden="true" size={APP_ICON_SIZE} />
-          议题看板
-          <span className="taskboard-toolbar__count" aria-label={`${count} 个任务`}>{count}</span>
-        </Button>
-        <Button aria-pressed={view === 'list'} className="taskboard-toolbar__view" color={view === 'list' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('list')}>
-          <List aria-hidden="true" size={APP_ICON_SIZE} />
-          列表视图
-        </Button>
-        <Button aria-pressed={view === 'gantt'} className="taskboard-toolbar__view" color={view === 'gantt' ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={() => onViewChange('gantt')}>
-          <ChartGantt aria-hidden="true" size={APP_ICON_SIZE} />
-          甘特图
-        </Button>
-      </div>
+      <SegmentedControl
+        ariaLabel="任务视图"
+        className="taskboard-toolbar__views"
+        onChange={onViewChange}
+        options={[
+          { value: 'board', label: <><Columns3 aria-hidden="true" size={APP_ICON_SIZE} />议题看板<span className="taskboard-toolbar__count" aria-label={`${count} 个任务`}>{count}</span></> },
+          { value: 'list', label: <><List aria-hidden="true" size={APP_ICON_SIZE} />列表视图</> },
+          { value: 'gantt', label: <><ChartGantt aria-hidden="true" size={APP_ICON_SIZE} />甘特图</> },
+        ]}
+        value={view}
+      />
       <div className="taskboard-toolbar__tools">
         <label className="taskboard-filter">
           <span className="taskboard-filter__label">层级</span>
-          <select aria-label="任务层级" value={hierarchyMode} onChange={event => onHierarchyModeChange(event.currentTarget.value as TaskboardHierarchyMode)}>
-            <option value="roots">仅顶级</option>
-            <option value="expanded">展开子任务</option>
-            <option value="ready">仅显示可执行项</option>
-          </select>
+          <Select
+            ariaLabel="任务层级"
+            onValueChange={onHierarchyModeChange}
+            options={[
+              { value: 'roots', label: '仅顶级' },
+              { value: 'expanded', label: '展开子任务' },
+              { value: 'ready', label: '仅显示可执行项' },
+            ]}
+            value={hierarchyMode}
+          />
         </label>
         <form
           className="taskboard-toolbar__search"
@@ -142,16 +146,21 @@ export function TaskboardToolbar({
         </form>
         <label className="taskboard-filter">
           <span className="taskboard-filter__label">项目</span>
-          <select
-            aria-label="项目"
+          <Select
+            ariaLabel="项目"
+            emptyText="没有可用项目"
+            onValueChange={value => onChange({ projectId: value || null, view: null })}
+            options={[
+              { value: '', label: '全部项目' },
+              ...projects.filter(project => project.projectId).map(project => ({
+                value: project.projectId!,
+                label: project.name,
+              })),
+            ]}
+            searchable
+            searchPlaceholder="搜索项目"
             value={projectId ?? ''}
-            onChange={event => onChange({ projectId: event.currentTarget.value || null, view: null })}
-          >
-            <option value="">全部项目</option>
-            {projects.filter(project => project.projectId).map(project => (
-              <option key={project.projectId} value={project.projectId}>{project.name}</option>
-            ))}
-          </select>
+          />
         </label>
         <PopoverMenu
         align="end"
@@ -241,9 +250,11 @@ export function TaskboardToolbar({
             <Button color="ghostSecondary" size="compact" type="button" onClick={onGanttToday}>
               <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />今天
             </Button>
-            <Button aria-pressed={ganttHideCompleted} color={ganttHideCompleted ? 'ghostActive' : 'ghostSecondary'} size="compact" type="button" onClick={() => onGanttHideCompletedChange(!ganttHideCompleted)}>
-              <EyeOff aria-hidden="true" size={APP_ICON_SIZE} />隐藏完成
-            </Button>
+            <label className="taskboard-filter">
+              <EyeOff aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className="taskboard-filter__label">隐藏完成</span>
+              <ToggleSwitch ariaLabel="隐藏已完成任务" checked={ganttHideCompleted} onChange={onGanttHideCompletedChange} />
+            </label>
             <PopoverMenu
               align="end"
               open={ganttZoomOpen}

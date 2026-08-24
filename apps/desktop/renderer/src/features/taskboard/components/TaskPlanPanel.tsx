@@ -5,6 +5,10 @@ import type {
   TaskboardPlanningSnapshot,
 } from '@codepilotx/shared/taskboard'
 import { Button } from '../../../components/ui/Button.js'
+import { Checkbox } from '../../../components/ui/Checkbox.js'
+import { Input } from '../../../components/ui/Input.js'
+import { Select } from '../../../components/ui/Select.js'
+import { Textarea } from '../../../components/ui/Textarea.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 
 type Props = {
@@ -311,8 +315,8 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
                   if (!editingTitle.trim()) return
                   void updateStep(item, { title: editingTitle.trim(), description: editingDescription.trim() }).then(() => setEditingStepId(null))
                 }}>
-                  <input aria-label="步骤标题" maxLength={200} value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} />
-                  <textarea aria-label="步骤描述" rows={3} value={editingDescription} onChange={event => setEditingDescription(event.currentTarget.value)} />
+                  <Input aria-label="步骤标题" maxLength={200} value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} />
+                  <Textarea aria-label="步骤描述" rows={3} value={editingDescription} onChange={event => setEditingDescription(event.currentTarget.value)} />
                   <div className="task-plan-panel__actions"><Button color="ghostSecondary" size="compact" type="button" onClick={() => setEditingStepId(null)}>取消</Button><Button color="secondary" disabled={busy || !editingTitle.trim()} size="compact" type="submit">保存</Button></div>
                 </form>
               ) : null}
@@ -320,7 +324,7 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
                 <form className="task-plan-panel__dependencies" onSubmit={event => { event.preventDefault(); void saveDependencies(item) }}>
                   <strong>当前项将在以下项目全部完成后可执行</strong>
                   {snapshot.items.filter(candidate => candidate.id !== item.id).map(candidate => (
-                    <label key={candidate.id}><input checked={prerequisiteIds.includes(candidate.id)} type="checkbox" onChange={event => setPrerequisiteIds(current => event.currentTarget.checked ? [...current, candidate.id] : current.filter(id => id !== candidate.id))} />{itemTitle(candidate)}</label>
+                    <Checkbox checked={prerequisiteIds.includes(candidate.id)} key={candidate.id} onCheckedChange={checked => setPrerequisiteIds(current => checked === true ? [...current, candidate.id] : current.filter(id => id !== candidate.id))}>{itemTitle(candidate)}</Checkbox>
                   ))}
                   {snapshot.items.length === 1 ? <small>暂无可选择的同级前置项。</small> : null}
                   <div className="task-plan-panel__actions"><Button color="ghostSecondary" size="compact" type="button" onClick={() => setDependencyItemId(null)}>取消</Button><Button color="secondary" disabled={busy} size="compact" type="submit">保存条件</Button></div>
@@ -344,7 +348,7 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
                   if (!reason) return
                   void updateStep(item, { status: 'skipped', skipReason: reason }).then(() => setSkipItemId(null))
                 }}>
-                  <input aria-label={`跳过“${item.title}”的原因`} autoFocus placeholder="填写跳过原因" value={skipReason} onChange={event => setSkipReason(event.currentTarget.value)} />
+                  <Input aria-label={`跳过“${item.title}”的原因`} autoFocus placeholder="填写跳过原因" value={skipReason} onChange={event => setSkipReason(event.currentTarget.value)} />
                   <Button color="ghostSecondary" size="compact" type="button" onClick={() => setSkipItemId(null)}>取消</Button>
                   <Button color="secondary" disabled={busy || !skipReason.trim()} size="compact" type="submit">确认跳过</Button>
                 </form>
@@ -356,11 +360,11 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
       {!readOnly && snapshot ? (
         <div className="task-plan-panel__create-forms">
           <form className="task-plan-panel__inline-form" onSubmit={event => { event.preventDefault(); void addStep() }}>
-            <input aria-label="新步骤标题" maxLength={200} placeholder="添加一个轻量步骤" value={newStepTitle} onChange={event => setNewStepTitle(event.currentTarget.value)} />
+            <Input aria-label="新步骤标题" maxLength={200} placeholder="添加一个轻量步骤" value={newStepTitle} onChange={event => setNewStepTitle(event.currentTarget.value)} />
             <Button color="secondary" disabled={busy || !newStepTitle.trim()} loading={busy} size="compact" type="submit">新增步骤</Button>
           </form>
           <form className="task-plan-panel__inline-form" onSubmit={event => { event.preventDefault(); void addChildTask() }}>
-            <input aria-label="新子任务标题" maxLength={200} placeholder="添加一个独立子任务" value={newChildTitle} onChange={event => setNewChildTitle(event.currentTarget.value)} />
+            <Input aria-label="新子任务标题" maxLength={200} placeholder="添加一个独立子任务" value={newChildTitle} onChange={event => setNewChildTitle(event.currentTarget.value)} />
             <Button color="secondary" disabled={busy || !newChildTitle.trim()} size="compact" type="submit">新增子任务</Button>
           </form>
         </div>
@@ -379,7 +383,7 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
               {!readOnly && blocker.status === 'open' ? <Button color="ghostSecondary" disabled={busy} size="compact" onClick={() => { setResolvingBlockerId(blocker.id); setResolution('') }}>解决</Button> : null}
               {resolvingBlockerId === blocker.id ? (
                 <form className="task-plan-panel__inline-form" onSubmit={event => { event.preventDefault(); void resolveBlocker(blocker.id, blocker.version) }}>
-                  <input aria-label="阻碍解决说明" autoFocus placeholder="填写解决说明" value={resolution} onChange={event => setResolution(event.currentTarget.value)} />
+                  <Input aria-label="阻碍解决说明" autoFocus placeholder="填写解决说明" value={resolution} onChange={event => setResolution(event.currentTarget.value)} />
                   <Button color="ghostSecondary" size="compact" type="button" onClick={() => setResolvingBlockerId(null)}>取消</Button>
                   <Button color="secondary" disabled={busy || !resolution.trim()} size="compact" type="submit">确认解决</Button>
                 </form>
@@ -390,11 +394,16 @@ export function TaskPlanPanel({ taskId, readOnly, onOpenTask, onReadinessChange,
       ) : null}
       {!readOnly && snapshot ? (
         <form className="task-plan-panel__blocker-form" onSubmit={event => { event.preventDefault(); void createBlocker() }}>
-          <select aria-label="阻碍关联范围" value={blockerItemId} onChange={event => setBlockerItemId(event.currentTarget.value)}>
-            <option value="">整个任务</option>
-            {snapshot.items.filter(item => item.kind === 'step').map(item => <option key={item.id} value={item.id}>{itemTitle(item)}</option>)}
-          </select>
-          <input aria-label="阻碍原因" placeholder="记录一个阻碍" value={blockerReason} onChange={event => setBlockerReason(event.currentTarget.value)} />
+          <Select
+            ariaLabel="阻碍关联范围"
+            options={[
+              { value: '', label: '整个任务' },
+              ...snapshot.items.filter(item => item.kind === 'step').map(item => ({ value: item.id, label: itemTitle(item) })),
+            ]}
+            value={blockerItemId}
+            onValueChange={setBlockerItemId}
+          />
+          <Input aria-label="阻碍原因" placeholder="记录一个阻碍" value={blockerReason} onChange={event => setBlockerReason(event.currentTarget.value)} />
           <Button color="secondary" disabled={busy || !blockerReason.trim()} size="compact" type="submit">添加阻碍</Button>
         </form>
       ) : null}

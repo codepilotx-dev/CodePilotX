@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { addCalendarMonths, formatDateValue, parseDateValue } from '../src/components/ui/DatePicker.js'
 import { taskboardInitialThreadLinks } from '../src/features/taskboard/components/CreateTaskDialog.js'
 import { collectTaskboardWorkflowPages, taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
 import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardLayout } from '../src/features/taskboard/state/taskboardViewPreferences.js'
@@ -82,6 +83,13 @@ describe('taskboard workflow renderer behavior', () => {
     expect(readTaskboardGanttZoom(params)).toBe('month')
     expect(readTaskboardGanttHideCompleted(params)).toBe(true)
     expect(readTaskboardGanttZoom(new URLSearchParams('zoom=quarter'))).toBe('week')
+  })
+
+  test('system date picker keeps local date values valid across leap days and month bounds', () => {
+    expect(formatDateValue(parseDateValue('2028-02-29')!)).toBe('2028-02-29')
+    expect(parseDateValue('2026-02-29')).toBeNull()
+    expect(formatDateValue(addCalendarMonths(parseDateValue('2026-01-31')!, 1))).toBe('2026-02-28')
+    expect(formatDateValue(addCalendarMonths(parseDateValue('2028-03-31')!, -1))).toBe('2028-02-29')
   })
 
   test('detail navigation restores the saved view scroll and task anchor after reload or history return', () => {

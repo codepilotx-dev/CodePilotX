@@ -10,6 +10,9 @@ import type {
 import type { TaskboardWorkflowStartMode, TaskboardWorkflowTaskSummary } from '@codepilotx/shared/taskboard'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { Input } from '../../../components/ui/Input.js'
+import { RadioGroup, RadioItem } from '../../../components/ui/RadioGroup.js'
+import { Select } from '../../../components/ui/Select.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { environmentDomainClient } from '../../../services/desktop-client/environment-domain-client.js'
@@ -145,42 +148,45 @@ export function StartTaskDialog({
           {primaryThread ? (
             <fieldset className="taskboard-dialog__threads">
               <legend>主会话</legend>
-              <label>
-                <input checked={startMode === 'continue_primary'} name="task-start-mode" type="radio" onChange={() => setStartMode('continue_primary')} />
-                继续当前主会话
-              </label>
-              {!primaryActive ? (
-                <label>
-                  <input checked={startMode === 'new_primary'} name="task-start-mode" type="radio" onChange={() => setStartMode('new_primary')} />
-                  新建主会话（原主会话保留为辅助会话）
-                </label>
-              ) : <small>主会话正在运行或等待处理，将直接打开现有会话。</small>}
+              <RadioGroup ariaLabel="主会话启动方式" onValueChange={value => setStartMode(value as TaskboardWorkflowStartMode)} value={startMode}>
+                <RadioItem label="继续当前主会话" value="continue_primary" />
+                {!primaryActive ? (
+                  <RadioItem label="新建主会话（原主会话保留为辅助会话）" value="new_primary" />
+                ) : null}
+              </RadioGroup>
+              {primaryActive ? <small>主会话正在运行或等待处理，将直接打开现有会话。</small> : null}
             </fieldset>
           ) : null}
           {createsPrimary ? (
-            <div className="taskboard-execution-options" role="radiogroup" aria-label="执行位置">
-              <ExecutionOption checked={mode === 'local'} icon={<HardDrive />} label="当前项目" detail="直接使用项目的本地工作目录" onChange={() => setMode('local')} />
-              <ExecutionOption checked={mode === 'existing_worktree'} icon={<Trees />} label="已有工作树" detail="在已就绪的托管工作树中继续" onChange={() => setMode('existing_worktree')} />
-              <ExecutionOption checked={mode === 'new_worktree'} icon={<GitBranch />} label="新工作树" detail="隔离创建分支或复制当前改动" onChange={() => setMode('new_worktree')} />
-            </div>
+            <RadioGroup ariaLabel="执行位置" className="taskboard-execution-options" onValueChange={value => setMode(value as Mode)} value={mode}>
+              <RadioItem detail="直接使用项目的本地工作目录" icon={<HardDrive />} label="当前项目" value="local" variant="card" />
+              <RadioItem detail="在已就绪的托管工作树中继续" icon={<Trees />} label="已有工作树" value="existing_worktree" variant="card" />
+              <RadioItem detail="隔离创建分支或复制当前改动" icon={<GitBranch />} label="新工作树" value="new_worktree" variant="card" />
+            </RadioGroup>
           ) : null}
           {createsPrimary && mode === 'existing_worktree' ? (
             <label className="taskboard-dialog__field">
               <span>托管工作树</span>
-              <select value={worktreeId} onChange={event => setWorktreeId(event.currentTarget.value)}>
-                <option disabled value="">选择已就绪的工作树</option>
-                {readyWorktrees.map(worktree => (
-                  <option key={worktree.id} value={worktree.id}>{worktree.branchName ?? worktree.id}</option>
-                ))}
-              </select>
+              <Select
+                ariaLabel="托管工作树"
+                emptyText="当前项目没有已就绪的托管工作树"
+                onValueChange={setWorktreeId}
+                options={readyWorktrees.map(worktree => ({ value: worktree.id, label: worktree.branchName ?? worktree.id }))}
+                placeholder="选择已就绪的工作树"
+                searchable
+                searchPlaceholder="搜索工作树"
+                value={worktreeId}
+              />
               {readyWorktrees.length === 0 ? <small>当前项目没有已就绪的托管工作树。</small> : null}
             </label>
           ) : null}
           {createsPrimary && mode === 'new_worktree' ? (
             <div className="taskboard-dialog__nested">
-              <label><input checked={startingState === 'working_tree'} name="starting-state" type="radio" onChange={() => setStartingState('working_tree')} />复制当前工作目录改动</label>
-              <label><input checked={startingState === 'branch'} name="starting-state" type="radio" onChange={() => setStartingState('branch')} />从分支创建</label>
-              {startingState === 'branch' ? <input aria-label="起始分支" placeholder="例如 main" value={branchName} onChange={event => setBranchName(event.currentTarget.value)} /> : null}
+              <RadioGroup ariaLabel="新工作树起始状态" onValueChange={value => setStartingState(value as 'working_tree' | 'branch')} value={startingState}>
+                <RadioItem label="复制当前工作目录改动" value="working_tree" />
+                <RadioItem label="从分支创建" value="branch" />
+              </RadioGroup>
+              {startingState === 'branch' ? <Input aria-label="起始分支" placeholder="例如 main" value={branchName} onChange={event => setBranchName(event.currentTarget.value)} /> : null}
             </div>
           ) : null}
           {operation?.status === 'awaiting_setup_decision' ? (
@@ -238,26 +244,4 @@ export function taskboardStartActionLabel(
   return hasPrimaryThread && startMode === 'continue_primary'
     ? '继续主会话'
     : '创建主会话'
-}
-
-function ExecutionOption({
-  checked,
-  icon,
-  label,
-  detail,
-  onChange,
-}: {
-  checked: boolean
-  icon: React.ReactNode
-  label: string
-  detail: string
-  onChange: () => void
-}): React.ReactNode {
-  return (
-    <label className="taskboard-execution-option" data-checked={checked || undefined}>
-      <input checked={checked} name="execution" type="radio" onChange={onChange} />
-      <span className="taskboard-execution-option__icon" aria-hidden="true">{icon}</span>
-      <span><strong>{label}</strong><small>{detail}</small></span>
-    </label>
-  )
 }

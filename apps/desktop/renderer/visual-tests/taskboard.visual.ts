@@ -142,6 +142,10 @@ test('new task dialog renders as a floating surface with field layout', async ({
   await expect(dialog.getByLabel('标题')).toBeFocused()
   await expect(dialog.getByLabel('描述')).toBeVisible()
   await expect(dialog.getByLabel('优先级')).toBeVisible()
+  await expect(dialog.locator('select, input[type="date"], input[type="radio"], input[type="checkbox"]')).toHaveCount(0)
+  await dialog.getByLabel('开始日期').click()
+  await expect(page.getByRole('grid', { name: /开始日期/ })).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(dialog.getByRole('button', { name: '创建任务' })).toBeVisible()
   await expect(page.locator('body')).toHaveScreenshot(
     'taskboard-create-dialog.png',
