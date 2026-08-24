@@ -141,6 +141,8 @@
     padding: 0 var(--cpx-sys-space-2) var(--cpx-sys-space-3);
     overflow-y: auto;
     scrollbar-width: thin;
+    background: var(--cpx-sys-color-workbench-sidebar-bg);
+    border-radius: var(--cpx-sys-radius-xl);
   }
 
   .taskboard-board-layout .taskboard-column__empty {
