@@ -46,15 +46,30 @@ Renderer 只使用三层变量：
 
 ### 圆角
 
-按形态选择 `indicator / compact / control / container / floating / prominent / pill`。既有六级语义继续固定为 `2 / 4 / 8 / 12 / 16 / 9999px`；`prominent` 的基础值为 `20px`，只表示持续覆盖工作区的主要 Composer 和 inline 线程环境摘要。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius。
+圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
-`--cpx-sys-radius-optical-scale` 是选择性光学校正，不是主题设置。支持 `corner-shape` 时，明确接入的控件使用 `--cpx-sys-corner-shape: superellipse(1.5)` 和 `1.25` 倍半径；不支持时保持普通圆角与基础数值。现有 `control / container / floating` 不得因此全局放大，`pill` 只用于真正的胶囊和圆形控件，也不参与 superellipse。Feature 禁止创建 message、Composer、Summary 等同值 system Token；嵌套表面优先继承外层半径，或根据实际 inset 从外层曲率推导。
+| 基础 Token | 回退值 | 支持 superellipse 时 |
+| --- | ---: | ---: |
+| `--cpx-sys-radius-2xs` | 2px | 2.5px |
+| `--cpx-sys-radius-xs` | 4px | 5px |
+| `--cpx-sys-radius-sm` | 6px | 7.5px |
+| `--cpx-sys-radius-md` | 8px | 10px |
+| `--cpx-sys-radius-lg` | 10px | 12.5px |
+| `--cpx-sys-radius-xl` | 12px | 15px |
+| `--cpx-sys-radius-2xl` | 16px | 20px |
+| `--cpx-sys-radius-3xl` | 20px | 25px |
+| `--cpx-sys-radius-4xl` | 24px | 30px |
+| `--cpx-sys-radius-full` | 9999px | 9999px |
 
-Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent`，只有真实 `default + single-line` 使用 `pill`。`single-line` radius variant 用于覆盖默认胶囊并继续复用 `prominent`，`compact` 使用经过光学校正的 `container`。禁止根据路由、placement、空输入、附件或历史截图推测 Composer 曲率。
+跨 Feature 语义固定映射为 `indicator → 2xs`、`compact → xs`、`control → md`、`container → lg`、`floating → xl`、`prominent → 3xl`、`pill → full`。普通输入与图标按钮使用 `md`，列表行与普通卡片使用 `lg`，菜单和 Popover 使用 `xl`，用户消息使用 `2xl`，多行 Composer、inline 线程环境摘要与 Dialog 使用 `3xl`。`4xl` 是完整刻度中的预留层级，没有匹配职责时不得为了消费 Token 强行使用。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius，也不得创建 message、Composer、Summary 等同值 system Token。
+
+`--cpx-sys-radius-optical-scale` 是统一光学校正，不是主题设置；它只能在 `2xs` 至 `4xl` 基础 Token 中计算一次，消费方不得再次乘 scale。支持 `corner-shape` 时，`md` 至 `4xl` 使用公共 `--cpx-sys-corner-shape: superellipse(1.5)`，不支持时使用表中的回退值；`2xs / xs / sm / full` 保持普通 round。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据实际 inset 选择下一档较小刻度。
+
+Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent / 3xl`，只有真实 `default + single-line` 使用 `pill / full`。`single-line` radius variant 用于覆盖默认胶囊并继续复用 `prominent / 3xl`，`compact` 使用 `container / lg`。禁止根据路由、placement、空输入、附件或历史截图推测 Composer 曲率。
 
 ### 动效
 
-时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
+时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 90 / 100 / 120 / 120 / 900ms`：hover 与按压使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
 
 ### 阴影与层级
 
