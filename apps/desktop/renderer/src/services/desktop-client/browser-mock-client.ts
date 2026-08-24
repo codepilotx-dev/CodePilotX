@@ -1049,9 +1049,35 @@ export function createBrowserMockDesktopClient(
         nextCursor: null,
       }
     },
+    listTaskboardWorkflowTasks: async input => {
+      const fixture = createBrowserTaskboardFixture()
+      if (!fixture) return { tasks: [], unreadCount: 0, nextCursor: null }
+      const query = input.query?.trim().toLocaleLowerCase('zh-CN')
+      const tasks = fixture.workflowTasks.filter(task => {
+        if (input.projectId && task.projectId !== input.projectId) return false
+        if (input.statuses?.length && !input.statuses.includes(task.status)) return false
+        if (input.priorities?.length && !input.priorities.includes(task.priority)) return false
+        if (input.labelIds?.length && !input.labelIds.every(id => task.labels.some(label => label.id === id))) return false
+        if ((input.archived ?? false) !== (task.archivedAt !== null)) return false
+        if (input.unread !== undefined && task.attention.unread !== input.unread) return false
+        if (query && !`${task.title}\n${task.description}`.toLocaleLowerCase('zh-CN').includes(query)) return false
+        return true
+      })
+      return {
+        tasks,
+        unreadCount: tasks.filter(task => task.attention.unread).length,
+        nextCursor: null,
+      }
+    },
     readTaskboardTask: async input => {
       const fixture = createBrowserTaskboardFixture()
       const task = fixture?.details.get(input.taskId)
+      if (!task) throw new Error('TASKBOARD_TASK_NOT_FOUND: 浏览器 mock 模式没有该任务。')
+      return { task }
+    },
+    readTaskboardWorkflowTask: async input => {
+      const fixture = createBrowserTaskboardFixture()
+      const task = fixture?.workflowDetails.get(input.taskId)
       if (!task) throw new Error('TASKBOARD_TASK_NOT_FOUND: 浏览器 mock 模式没有该任务。')
       return { task }
     },

@@ -1,7 +1,7 @@
 // Adapted from dashi-taskboard commit 9b2aeb5; modified for CodePilotX.
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, Plus } from 'lucide-react'
+import { Archive, Ban, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, Play, Plus, Sparkles } from 'lucide-react'
 import type {
   TaskboardWorkflowStatus,
   TaskboardWorkflowTaskSummary,
@@ -114,8 +114,9 @@ export function BoardColumn({
     const payload = readTaskDragPayload(event.dataTransfer)
     setDragInsert(null)
     if (!payload) return
-    const placement = resolveTaskDropPlacement(tasks, payload)
-    void onMove(payload.taskId, status, {
+    const nextStatus = resolveBoardColumnDropStatus(tasks, payload.taskId, status)
+    const placement = resolveTaskDropPlacement(tasks.filter(task => task.status === nextStatus), payload)
+    void onMove(payload.taskId, nextStatus, {
       beforeTaskId: placement.beforeTaskId,
       afterTaskId: placement.afterTaskId,
     }).then(() => {
@@ -148,8 +149,14 @@ export function BoardColumn({
     if (!payload || payload.taskId === targetTaskId) return
     const bounds = event.currentTarget.getBoundingClientRect()
     const placeAfter = event.clientY >= bounds.top + bounds.height / 2
-    const placement = resolveTaskDropPlacement(tasks, payload, targetTaskId, placeAfter)
-    void onMove(payload.taskId, status, {
+    const nextStatus = resolveBoardColumnDropStatus(tasks, payload.taskId, status)
+    const placement = resolveTaskDropPlacement(
+      tasks.filter(task => task.status === nextStatus),
+      payload,
+      targetTaskId,
+      placeAfter,
+    )
+    void onMove(payload.taskId, nextStatus, {
       beforeTaskId: placement.beforeTaskId,
       afterTaskId: placement.afterTaskId,
     }).then(() => {
@@ -196,7 +203,7 @@ export function BoardColumn({
   const projectPeersOf = (taskId: string): TaskboardWorkflowTaskSummary[] => {
     const task = tasks.find(candidate => candidate.id === taskId)
     return task
-      ? tasks.filter(candidate => candidate.projectId === task.projectId)
+      ? tasks.filter(candidate => candidate.projectId === task.projectId && candidate.status === task.status)
       : []
   }
 
@@ -213,14 +220,15 @@ export function BoardColumn({
       }}
     >
       <header className="taskboard-column__header">
-        <span className="taskboard-column__dot" aria-hidden="true" />
+        <span className="taskboard-column__header-icon" aria-hidden="true">
+          <StatusColumnIcon status={status} />
+        </span>
         <h2>{label}</h2>
-        <span className="taskboard-column__count">{tasks.length}</span>
         <IconButton
           aria-label={`新建任务到${label}`}
           className="taskboard-column__add"
           color="ghostSecondary"
-          size="iconMd"
+          size="toolbar"
           title={`新建任务到${label}`}
           type="button"
           onClick={onNewTask}
@@ -242,63 +250,63 @@ export function BoardColumn({
             const insertBefore = dragInsert?.taskId === task.id && !dragInsert.placeAfter
             const insertAfter = dragInsert?.taskId === task.id && dragInsert.placeAfter
             return (
-            <div
-              className="taskboard-column__card-slot"
-              data-drag-insert={insertBefore ? 'before' : insertAfter ? 'after' : undefined}
-              key={task.id}
-              onDragEnter={event => handleCardDragEnter(event, task.id)}
-              onDragLeave={handleCardDragLeave}
-              onDragOver={event => {
-                if (hasSidebarSessionDrag(event.dataTransfer)) {
-                  if (!canAcceptSessionDrop(task, pendingTaskIds, projectNames)) return
-                  event.preventDefault()
-                  event.dataTransfer.dropEffect = 'copy'
-                  setSessionDropTaskId(task.id)
-                  return
-                }
-                if (hasTaskDrag(event.dataTransfer)) event.preventDefault()
-              }}
-              onDrop={event => handleCardDrop(event, task.id)}
-            >
-              <TaskCard
-                dataDragDisplaced={displacedTaskId === task.id}
-                dataDragging={draggingTaskId === task.id}
-                menu={(
-                  <TaskMoveMenu
-                    pending={pendingTaskIds.has(task.id)}
-                    projectPeers={projectPeersOf(task.id)}
-                    status={status}
-                    task={task}
-                    onMove={moveAndAnnounce}
-                  />
-                )}
-                pending={pendingTaskIds.has(task.id)}
-                projectName={projectNames.get(task.projectId) ?? '项目已移除'}
-                sessionDropActive={sessionDropTaskId === task.id}
-                task={task}
-                hierarchy={planningNodes[task.id] ? {
-                  depth: planningNodes[task.id].depth,
-                  aggregate: planningNodes[task.id].aggregate,
-                  expandable: hierarchyMode === 'expanded' && (
-                    !planningNodes[task.id].loaded
-                    || planningNodes[task.id].aggregate.descendantTaskCount > 0
-                  ),
-                  expanded: expandedTaskIds.has(task.id),
-                  onToggle: () => onToggleTask?.(task.id),
-                } : undefined}
-                onDragStart={event => {
-                  setDraggingTaskId(task.id)
-                  onTaskDragActiveChange?.(canStartTask(task))
-                  event.dataTransfer.effectAllowed = 'move'
-                  event.dataTransfer.setData(
-                    TASK_DRAG_TYPE,
-                    JSON.stringify({ taskId: task.id, projectId: task.projectId } satisfies TaskDragPayload),
-                  )
+              <div
+                className="taskboard-column__card-slot"
+                data-drag-insert={insertBefore ? 'before' : insertAfter ? 'after' : undefined}
+                key={task.id}
+                onDragEnter={event => handleCardDragEnter(event, task.id)}
+                onDragLeave={handleCardDragLeave}
+                onDragOver={event => {
+                  if (hasSidebarSessionDrag(event.dataTransfer)) {
+                    if (!canAcceptSessionDrop(task, pendingTaskIds, projectNames)) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'copy'
+                    setSessionDropTaskId(task.id)
+                    return
+                  }
+                  if (hasTaskDrag(event.dataTransfer)) event.preventDefault()
                 }}
-                onOpen={() => onOpen(task.id)}
-                onStart={() => onStart(task.id)}
-              />
-            </div>
+                onDrop={event => handleCardDrop(event, task.id)}
+              >
+                <TaskCard
+                  dataDragDisplaced={displacedTaskId === task.id}
+                  dataDragging={draggingTaskId === task.id}
+                  menu={(
+                    <TaskMoveMenu
+                      pending={pendingTaskIds.has(task.id)}
+                      projectPeers={projectPeersOf(task.id)}
+                      status={task.status}
+                      task={task}
+                      onMove={moveAndAnnounce}
+                    />
+                  )}
+                  pending={pendingTaskIds.has(task.id)}
+                  projectName={projectNames.get(task.projectId) ?? '项目已移除'}
+                  sessionDropActive={sessionDropTaskId === task.id}
+                  task={task}
+                  hierarchy={planningNodes[task.id] ? {
+                    depth: planningNodes[task.id].depth,
+                    aggregate: planningNodes[task.id].aggregate,
+                    expandable: hierarchyMode === 'expanded' && (
+                      !planningNodes[task.id].loaded
+                      || planningNodes[task.id].aggregate.descendantTaskCount > 0
+                    ),
+                    expanded: expandedTaskIds.has(task.id),
+                    onToggle: () => onToggleTask?.(task.id),
+                  } : undefined}
+                  onDragStart={event => {
+                    setDraggingTaskId(task.id)
+                    onTaskDragActiveChange?.(canStartTask(task))
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData(
+                      TASK_DRAG_TYPE,
+                      JSON.stringify({ taskId: task.id, projectId: task.projectId } satisfies TaskDragPayload),
+                    )
+                  }}
+                  onOpen={() => onOpen(task.id)}
+                  onStart={() => onStart(task.id)}
+                />
+              </div>
             )
           })
         })()}
@@ -427,6 +435,14 @@ export function resolveTaskDropPlacement(
   }
 }
 
+export function resolveBoardColumnDropStatus(
+  tasks: readonly Pick<TaskboardWorkflowTaskSummary, 'id' | 'status'>[],
+  taskId: string,
+  targetStatus: TaskboardWorkflowStatus,
+): TaskboardWorkflowStatus {
+  return tasks.find(task => task.id === taskId)?.status ?? targetStatus
+}
+
 function readTaskDragPayload(dataTransfer: DataTransfer): TaskDragPayload | null {
   try {
     const value = JSON.parse(dataTransfer.getData(TASK_DRAG_TYPE)) as Partial<TaskDragPayload>
@@ -454,4 +470,23 @@ function canAcceptSessionDrop(
 
 function moveLabel(status: TaskboardWorkflowStatus): string {
   return `移到${taskboardStatusLabel(status)}`
+}
+
+function StatusColumnIcon({ status }: { status: TaskboardWorkflowStatus }): React.ReactNode {
+  switch (status) {
+    case 'todo':
+      return <Sparkles aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'in_progress':
+      return <Play aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'in_review':
+      return <CheckCircle2 aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'backlog':
+      return <Archive aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'done':
+      return <CheckCheck aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    case 'canceled':
+      return <Ban aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    default:
+      return <span className="taskboard-column__dot" aria-hidden="true" />
+  }
 }

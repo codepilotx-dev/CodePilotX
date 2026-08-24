@@ -19,12 +19,12 @@ import { composerDraftStore } from '../session/composer/composerDraftStore.js'
 import { AgentRpcError } from '../../services/agentRpcClient.js'
 import { TaskboardBoard } from './components/TaskboardBoard.js'
 import { TaskboardList } from './components/TaskboardList.js'
-import { OtherTasksPanel } from './components/OtherTasksPanel.js'
+import { TaskboardArchive } from './components/TaskboardArchive.js'
 import { TaskboardToolbar } from './components/TaskboardToolbar.js'
 import { CreateTaskDialog } from './components/CreateTaskDialog.js'
 import { StartTaskDialog } from './components/StartTaskDialog.js'
 import { TaskDetailsDrawer } from './components/TaskDetailsDrawer.js'
-import { activeTaskboardPrimaryThreadId, canStartTask, TASKBOARD_PRIORITY_LABELS } from './taskboardConstants.js'
+import { activeTaskboardPrimaryThreadId, canStartTask, taskboardStatusLabel, TASKBOARD_PRIORITY_LABELS } from './taskboardConstants.js'
 import { useTaskboardController, type TaskboardFilters } from './state/useTaskboardController.js'
 import {
   readTaskboardGanttHideCompleted,
@@ -57,13 +57,11 @@ export function TaskboardView(): React.ReactNode {
   const controller = useTaskboardController(filters, taskId)
   const [createStatus, setCreateStatus] = useState<TaskboardWorkflowStatus | null>(null)
   const [startTaskId, setStartTaskId] = useState<string | null>(null)
-  const [otherTasksOpen, setOtherTasksOpen] = useState(false)
   const [dropNotice, setDropNotice] = useState<string | null>(null)
   const [dropError, setDropError] = useState<string | null>(null)
   const [ganttTodayRequest, setGanttTodayRequest] = useState(0)
   const [returnSnapshot, setReturnSnapshot] = useState<TaskboardReturnSnapshot | null>(null)
   const boardAreaRef = useRef<HTMLDivElement>(null)
-  const otherTasksTriggerRef = useRef<HTMLButtonElement>(null)
   const [blockedRequest, setBlockedRequest] = useState<{
     taskId: string
     resolve: () => void
@@ -95,7 +93,7 @@ export function TaskboardView(): React.ReactNode {
         : await controller.loadPlanningChildren(id)
       if (recursive) for (const child of children) await load(child.id, true)
     }
-    if (hierarchyMode === 'ready') {
+    if (hierarchyMode === 'ready' || view === 'archive') {
       const roots = controller.tasks.filter(task => controller.planningNodes[task.id]?.parentTaskId === null)
       void (async () => { for (const root of roots) await load(root.id, true) })()
     } else {
@@ -129,13 +127,18 @@ export function TaskboardView(): React.ReactNode {
         ? area.querySelector<HTMLElement>('.taskboard-board-scroll')
         : view === 'list'
           ? area.querySelector<HTMLElement>('.taskboard-list')
-          : area.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
+          : view === 'archive'
+            ? area.querySelector<HTMLElement>('.taskboard-archive')
+            : area.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
       if (!container) return
       const verticalContainer = view === 'board'
         ? anchor.closest<HTMLElement>('.taskboard-column__cards')
         : container
       applyTaskboardReturnScroll(returnSnapshot, container, verticalContainer ?? container)
-      anchor.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+      const focusTarget = anchor.matches('button')
+        ? anchor
+        : anchor.querySelector<HTMLElement>('button')
+      focusTarget?.focus({ preventScroll: true })
       setReturnSnapshot(null)
     })
     return () => cancelAnimationFrame(frame)
@@ -150,6 +153,17 @@ export function TaskboardView(): React.ReactNode {
     }
     return [...labels.values()].sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
   }, [controller.tasks])
+  const compatibilitySummary = useMemo(() => {
+    const visible = controller.compatibilityWarnings.slice(0, 3).map((warning) => {
+      const task = controller.tasks.find(item => item.id === warning.taskId)
+      if (!task) return null
+      const projectName = projectNames.get(task.projectId) ?? '项目已移除'
+      return `${projectName} · #${task.number} → ${taskboardStatusLabel(warning.fallbackStatus)}`
+    }).filter((item): item is string => item !== null)
+    if (visible.length === 0) return null
+    const remaining = controller.compatibilityWarnings.length - visible.length
+    return `${visible.join('；')}${remaining > 0 ? `；另有 ${remaining} 项` : ''}`
+  }, [controller.compatibilityWarnings, controller.tasks, projectNames])
   const startTask = findTask(controller.tasks, controller.detail, startTaskId)
   const hasActiveFilters = Boolean(
     filters.query
@@ -158,7 +172,7 @@ export function TaskboardView(): React.ReactNode {
     || filters.priorities?.length
     || filters.unread
     || filters.datePreset
-    || hierarchyMode === 'ready',
+    || (view !== 'archive' && hierarchyMode === 'ready'),
   )
 
   const updateFilter = (patch: Record<string, string | null>): void => {
@@ -177,7 +191,9 @@ export function TaskboardView(): React.ReactNode {
       ? area?.querySelector<HTMLElement>('.taskboard-board-scroll')
       : view === 'list'
         ? area?.querySelector<HTMLElement>('.taskboard-list')
-        : area?.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
+        : view === 'archive'
+          ? area?.querySelector<HTMLElement>('.taskboard-archive')
+          : area?.querySelector<HTMLElement>('.taskboard-gantt__unscheduled')
     const verticalContainer = view === 'board'
       ? anchor?.closest<HTMLElement>('.taskboard-column__cards')
       : container
@@ -203,7 +219,11 @@ export function TaskboardView(): React.ReactNode {
   }
   const changeView = (nextView: TaskboardLayout): void => {
     rememberTaskboardLayout(nextView, filters.projectId)
-    updateFilter({ view: nextView })
+    updateFilter({
+      view: nextView,
+      archived: null,
+      ...(nextView === 'archive' ? { sort: null } : {}),
+    })
   }
   const moveTask = (
     nextTaskId: string,
@@ -261,13 +281,14 @@ export function TaskboardView(): React.ReactNode {
               { value: 'board', label: '议题看板' },
               { value: 'list', label: '列表视图' },
               { value: 'gantt', label: '甘特图' },
+              { value: 'archive', label: '已归档' },
             ]}
             value={view}
           />
         ) : null}
       </WorkspaceHeaderItem>
       <WorkspaceHeaderItem align="end" id="taskboard.actions" order={100} slot="right">
-        {!taskId ? (
+        {!taskId && view !== 'archive' ? (
           <Button color="secondary" onClick={() => setCreateStatus('backlog')}>
             <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             新建任务
@@ -275,8 +296,7 @@ export function TaskboardView(): React.ReactNode {
         ) : null}
       </WorkspaceHeaderItem>
       {!taskId ? <TaskboardToolbar
-        archived={filters.archived}
-        count={projectedTasks.length}
+        count={view === 'archive' ? controller.tasks.length : projectedTasks.length}
         hasActiveFilters={hasActiveFilters}
         labelIds={filters.labelIds ?? []}
         labels={availableLabels}
@@ -287,37 +307,46 @@ export function TaskboardView(): React.ReactNode {
         datePreset={filters.datePreset}
         sort={filters.sort}
         hierarchyMode={hierarchyMode}
-        otherTasksOpen={otherTasksOpen}
         ganttZoom={ganttZoom}
         ganttHideCompleted={ganttHideCompleted}
-        otherTasksTriggerRef={otherTasksTriggerRef}
         priority={filters.priorities?.[0]}
         projectId={filters.projectId}
         projects={controller.projects}
         query={filters.query}
         onChange={updateFilter}
         onHierarchyModeChange={mode => updateFilter({ hierarchy: mode === 'roots' ? null : mode, expanded: mode === 'roots' ? null : searchParams.get('expanded') })}
-        onOtherTasksToggle={() => setOtherTasksOpen(value => !value)}
         onGanttToday={() => setGanttTodayRequest(value => value + 1)}
         onGanttZoomChange={(zoom: TaskboardGanttZoom) => updateFilter({ zoom })}
         onGanttHideCompletedChange={hidden => updateFilter({ hideCompleted: hidden ? '1' : null })}
       /> : null}
       <div className="taskboard-board-area" ref={boardAreaRef}>
-        {controller.error ? (
+        {controller.loadError ? (
           <div className="taskboard-notice" role="alert">
             <strong>无法读取任务看板</strong>
-            <span>{controller.error}</span>
+            <span>{controller.loadError}</span>
             <Button color="secondary" onClick={() => void controller.refresh()}>重试</Button>
+          </div>
+        ) : null}
+        {controller.operationError ? (
+          <div className="taskboard-notice" role="alert">
+            <strong>任务操作失败</strong>
+            <span>{controller.operationError}</span>
+            <Button color="secondary" onClick={controller.dismissOperationError}>关闭</Button>
+          </div>
+        ) : null}
+        {compatibilitySummary ? (
+          <div className="taskboard-notice" data-tone="warning" role="status">
+            <strong>部分任务已兼容读取</strong>
+            <span>{compatibilitySummary}。移动或重新设置任务阶段后会写回合法状态。</span>
           </div>
         ) : null}
         {controller.loading && controller.tasks.length === 0 ? (
           <div className="taskboard-loading" role="status">正在排列任务跑道…</div>
         ) : null}
         {!taskId && view === 'board' ? (
-          <div className="taskboard-board-layout" data-other-open={otherTasksOpen || undefined}>
+          <div className="taskboard-board-layout">
             <div className="taskboard-board-scroll">
               <TaskboardBoard
-                archived={filters.archived}
                 pendingTaskIds={controller.pendingTaskIds}
                 projectNames={projectNames}
                 tasks={projectedTasks}
@@ -332,24 +361,6 @@ export function TaskboardView(): React.ReactNode {
                 onToggleTask={id => toggleExpandedTask(id, expandedTaskIds, updateFilter)}
               />
             </div>
-            {otherTasksOpen ? (
-              <OtherTasksPanel
-                archived={filters.archived}
-                pendingTaskIds={controller.pendingTaskIds}
-                projectNames={projectNames}
-                tasks={projectedTasks}
-                onClose={() => {
-                  setOtherTasksOpen(false)
-                  requestAnimationFrame(() => otherTasksTriggerRef.current?.focus())
-                }}
-                onMove={moveTask}
-                onLinkThread={linkDroppedThread}
-                onArchivedChange={archived => updateFilter({ archived: archived ? '1' : null })}
-                onNewTask={setCreateStatus}
-                onOpen={openTask}
-                onStart={requestStart}
-              />
-            ) : null}
           </div>
         ) : null}
         {!taskId && view === 'list' ? (
@@ -387,6 +398,13 @@ export function TaskboardView(): React.ReactNode {
               onUpdateDates={(id, startDate, dueDate) => controller.updateTask(id, { startDate, dueDate })}
             />
           </Suspense>
+        ) : null}
+        {!taskId && view === 'archive' ? (
+          <TaskboardArchive
+            projectNames={projectNames}
+            tasks={controller.tasks}
+            onOpen={openTask}
+          />
         ) : null}
         <TaskDetailsDrawer
           detail={controller.detail}
@@ -535,7 +553,7 @@ export function parseTaskboardFilters(params: URLSearchParams): TaskboardFilters
     ...(params.get('query') ? { query: params.get('query')! } : {}),
     ...(params.get('label') ? { labelIds: params.get('label')!.split(',').filter(Boolean) } : {}),
     ...(priority && priority in TASKBOARD_PRIORITY_LABELS ? { priorities: [priority] } : {}),
-    archived: params.get('archived') === '1',
+    archived: params.get('view') === 'archive' || params.get('archived') === '1',
     ...(params.get('unread') === '1' ? { unread: true } : {}),
     ...(isDatePreset(datePreset) ? { datePreset } : {}),
     ...(isSort(sort) ? { sort } : {}),

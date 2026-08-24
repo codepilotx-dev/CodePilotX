@@ -17,6 +17,7 @@ import {
   TaskboardThreadRoleSchema,
   TaskboardWorkflowDatePresetSchema,
   TaskboardWorkflowDateSchema,
+  TaskboardWorkflowReadWarningSchema,
   TaskboardWorkflowSortSchema,
   TaskboardWorkflowStartModeSchema,
   TaskboardWorkflowStatusSchema,
@@ -678,6 +679,22 @@ export const TaskboardRpcMethods = {
     result: WorkflowTaskResultSchema,
     errors: TaskboardErrors,
     capability: "taskboard.workflow.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "taskboard/workflow/diagnostics": defineMethod({
+    params: Schema.Struct({
+      taskIds: Schema.Array(OpaqueIDSchema).check(
+        Schema.isMinLength(1),
+        Schema.isMaxLength(500),
+      ),
+    }),
+    result: Schema.Struct({
+      warnings: Schema.Array(TaskboardWorkflowReadWarningSchema),
+    }),
+    errors: TaskboardErrors,
+    capability: "taskboard.workflow.diagnostics.v1",
     mutation: false,
     exactParams: true,
     exactResult: true,

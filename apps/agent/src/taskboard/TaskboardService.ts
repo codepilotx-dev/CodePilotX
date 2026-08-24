@@ -148,6 +148,10 @@ export class TaskboardService {
     return task
   }
 
+  workflowDiagnostics(taskIds: readonly string[]) {
+    return { warnings: this.repository.listWorkflowReadWarnings(taskIds) }
+  }
+
   listWorkflowThreadCandidates(input: Parameters<TaskboardRepository["listWorkflowThreadCandidates"]>[0]) {
     this.project(input.projectId)
     return this.repository.listWorkflowThreadCandidates(input)

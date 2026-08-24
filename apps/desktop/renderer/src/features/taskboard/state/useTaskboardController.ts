@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import type {
+  ProtocolCapability,
   RpcParams,
+  RpcResult,
   TaskboardStartExecution,
   TaskboardStartOperation,
 } from '@codepilotx/agent-protocol'
@@ -11,6 +13,7 @@ import type {
   TaskboardWorkflowSort,
   TaskboardWorkflowStartMode,
   TaskboardWorkflowStatus,
+  TaskboardWorkflowReadWarning,
   TaskboardWorkflowTask,
   TaskboardWorkflowTaskDetails,
   TaskboardWorkflowTaskSummary,
@@ -22,6 +25,7 @@ import {
   createTaskboardStore,
   type TaskboardViewState,
 } from './taskboardStore.js'
+import { isTaskboardWorkflowStatus } from '../taskboardConstants.js'
 
 export type TaskboardFilters = {
   projectId?: string
@@ -44,6 +48,7 @@ export function useTaskboardController(
   selectedTaskId: string | undefined,
 ): TaskboardViewState & {
   refresh: () => Promise<void>
+  dismissOperationError: () => void
   createTask: (input: {
     projectId: string
     title: string
@@ -110,7 +115,7 @@ export function useTaskboardController(
 
   const refresh = useCallback(async (): Promise<void> => {
     const request = ++listRequestRef.current
-    store.patch({ loading: true, error: null })
+    store.patch({ loading: true, loadError: null })
     try {
       const current = filtersRef.current
       const capabilities = await desktopClient.getRuntimeCapabilities()
@@ -159,10 +164,19 @@ export function useTaskboardController(
         projects,
         sessions: sessions.map(session => session.item),
         loading: false,
+        compatibilityWarnings: [],
       })
+      const compatibilityWarnings = await loadTaskboardCompatibilityWarnings(
+        capabilities,
+        result.tasks.map(task => task.id),
+        desktopClient.readTaskboardWorkflowDiagnostics,
+      )
+      if (request === listRequestRef.current) {
+        store.patch({ compatibilityWarnings })
+      }
     } catch (error) {
       if (request !== listRequestRef.current) return
-      store.patch({ loading: false, error: errorMessage(error) })
+      store.patch({ loading: false, loadError: taskboardErrorMessage(error) })
     }
   }, [filterKey, store])
 
@@ -210,7 +224,7 @@ export function useTaskboardController(
       store.patch({
         detail: null,
         detailLoading: false,
-        detailError: errorMessage(error),
+        detailError: taskboardErrorMessage(error),
       })
     }
   }, [store])
@@ -259,7 +273,7 @@ export function useTaskboardController(
       unreadCount: previous?.attention.unread && !summary.attention.unread
         ? Math.max(0, current.unreadCount - 1)
         : current.unreadCount,
-      error: null,
+      operationError: null,
     })
   }, [selectedTaskId, store])
 
@@ -269,7 +283,7 @@ export function useTaskboardController(
   ): Promise<void> => {
     const conflict = error instanceof AgentRpcError && error.errorCode === 'CONFLICT'
     store.patch({
-      error: conflict ? '任务已在其他窗口更新，已重新加载最新内容。' : errorMessage(error),
+      operationError: conflict ? '任务已在其他窗口更新，已重新加载最新内容。' : taskboardErrorMessage(error),
     })
     if (conflict) {
       await refresh()
@@ -283,7 +297,9 @@ export function useTaskboardController(
   ): Promise<T> => {
     store.setTaskPending(taskId, true)
     try {
-      return await operation()
+      const result = await operation()
+      store.patch({ operationError: null })
+      return result
     } catch (error) {
       await handleMutationError(error, taskId)
       throw error
@@ -331,30 +347,46 @@ export function useTaskboardController(
   return useMemo(() => ({
     ...state,
     refresh,
+    dismissOperationError: () => store.patch({ operationError: null }),
     createTask: async input => {
+      if (!isTaskboardWorkflowStatus(input.status)) {
+        const error = invalidTaskboardWorkflowStatusError()
+        store.patch({ operationError: error.message })
+        throw error
+      }
       const { parentTaskId, ...createInput } = input
-      if (parentTaskId) {
-        const capabilities = await desktopClient.getRuntimeCapabilities()
-        if (!capabilities.includes('taskboard.planning.v1') || !desktopClient.reparentTaskboardPlanningChild) {
-          throw new Error('当前 Agent 不支持创建子任务。')
+      try {
+        if (parentTaskId) {
+          const capabilities = await desktopClient.getRuntimeCapabilities()
+          if (!capabilities.includes('taskboard.planning.v1') || !desktopClient.reparentTaskboardPlanningChild) {
+            throw new Error('当前 Agent 不支持创建子任务。')
+          }
         }
+        const result = await desktopClient.createTaskboardWorkflowTask!(
+          taskboardCreateTaskRpcInput(createInput),
+        )
+        let detail = result.task
+        if (parentTaskId) {
+          await desktopClient.reparentTaskboardPlanningChild!({
+            childTaskId: detail.task.id,
+            expectedVersion: detail.task.version,
+            parentTaskId,
+          })
+          detail = (await desktopClient.readTaskboardWorkflowTask!({ taskId: detail.task.id })).task
+        }
+        applyDetails(detail)
+        return detail.task.id
+      } catch (error) {
+        await handleMutationError(error, '')
+        throw error
       }
-      const result = await desktopClient.createTaskboardWorkflowTask!(
-        taskboardCreateTaskRpcInput(createInput),
-      )
-      let detail = result.task
-      if (parentTaskId) {
-        await desktopClient.reparentTaskboardPlanningChild!({
-          childTaskId: detail.task.id,
-          expectedVersion: detail.task.version,
-          parentTaskId,
-        })
-        detail = (await desktopClient.readTaskboardWorkflowTask!({ taskId: detail.task.id })).task
-      }
-      applyDetails(detail)
-      return detail.task.id
     },
     moveTask: async (taskId, status, placement) => {
+      if (!isTaskboardWorkflowStatus(status)) {
+        const error = invalidTaskboardWorkflowStatusError()
+        store.patch({ operationError: error.message })
+        throw error
+      }
       const task = state.tasks.find(candidate => candidate.id === taskId)
       if (!task || task.status === status && !placement) return
       const rollback = state.tasks
@@ -408,6 +440,11 @@ export function useTaskboardController(
       if (selectedTaskId === taskId) await refreshDetail(taskId)
     },
     updateTask: async (taskId, patch) => {
+      if ('status' in patch && !isTaskboardWorkflowStatus(patch.status)) {
+        const error = invalidTaskboardWorkflowStatusError()
+        store.patch({ operationError: error.message })
+        throw error
+      }
       const task = findTask(state.tasks, state.detail?.task, taskId)
       if (!task) return
       const result = await runTaskMutation(taskId, () => desktopClient.updateTaskboardWorkflowTask!({
@@ -476,7 +513,7 @@ export function useTaskboardController(
     createLabel: async (projectId, name) => {
       try {
         const result = await desktopClient.createTaskboardLabel({ projectId, name })
-        store.patch({ labels: [...store.getSnapshot().labels, result.label] })
+        store.patch({ labels: [...store.getSnapshot().labels, result.label], operationError: null })
       } catch (error) {
         await handleMutationError(error, selectedTaskId ?? '')
         throw error
@@ -505,6 +542,7 @@ export function useTaskboardController(
               labels: snapshot.detail.task.labels.map(candidate => candidate.id === labelId ? result.label : candidate),
             },
           } : null,
+          operationError: null,
         })
       } catch (error) {
         await handleMutationError(error, selectedTaskId ?? '')
@@ -533,6 +571,7 @@ export function useTaskboardController(
               labels: snapshot.detail.task.labels.filter(candidate => candidate.id !== labelId),
             },
           } : null,
+          operationError: null,
         })
       } catch (error) {
         await handleMutationError(error, selectedTaskId ?? '')
@@ -569,10 +608,7 @@ export function useTaskboardController(
         applyDetails(result.task)
         return prepared.role
       } catch (error) {
-        if (error instanceof AgentRpcError && error.errorCode === 'CONFLICT') {
-          await refresh()
-          if (selectedTaskId === taskId) await refreshDetail(taskId)
-        }
+        await handleMutationError(error, taskId)
         throw error
       } finally {
         store.setTaskPending(taskId, false)
@@ -622,7 +658,9 @@ export function useTaskboardController(
           ),
           authorizeBacklog: true,
         })
-        return await waitForStart(result.operation)
+        const completed = await waitForStart(result.operation)
+        store.patch({ operationError: null })
+        return completed
       } catch (error) {
         await handleMutationError(error, taskId)
         throw error
@@ -631,18 +669,32 @@ export function useTaskboardController(
       }
     },
     retryStartSetup: async operation => {
-      const result = await desktopClient.retryTaskboardStartSetup({
-        operationId: operation.operationId,
-        revision: operation.revision,
-      })
-      return waitForStart(result.operation)
+      try {
+        const result = await desktopClient.retryTaskboardStartSetup({
+          operationId: operation.operationId,
+          revision: operation.revision,
+        })
+        const completed = await waitForStart(result.operation)
+        store.patch({ operationError: null })
+        return completed
+      } catch (error) {
+        await handleMutationError(error, '')
+        throw error
+      }
     },
     continueStartWithoutSetup: async operation => {
-      const result = await desktopClient.continueTaskboardStartWithoutSetup({
-        operationId: operation.operationId,
-        revision: operation.revision,
-      })
-      return waitForStart(result.operation)
+      try {
+        const result = await desktopClient.continueTaskboardStartWithoutSetup({
+          operationId: operation.operationId,
+          revision: operation.revision,
+        })
+        const completed = await waitForStart(result.operation)
+        store.patch({ operationError: null })
+        return completed
+      } catch (error) {
+        await handleMutationError(error, '')
+        throw error
+      }
     },
     loadPlanningChildren,
   }), [applyDetails, handleMutationError, loadPlanningChildren, refresh, runTaskMutation, selectedTaskId, state, store])
@@ -924,6 +976,50 @@ function taskThreads(
     ?? (detail?.task.id === taskId ? detail.threads : [])
 }
 
-function errorMessage(error: unknown): string {
+export function taskboardErrorMessage(error: unknown): string {
+  if (isProtocolSchemaError(error)) {
+    return '任务数据格式不兼容，请更新 CodePilotX 和 Agent 后重试。'
+  }
   return error instanceof Error ? error.message : String(error)
+}
+
+export async function loadTaskboardCompatibilityWarnings(
+  capabilities: readonly ProtocolCapability[],
+  taskIds: readonly string[],
+  readDiagnostics: ((
+    input: RpcParams<'taskboard/workflow/diagnostics'>,
+  ) => Promise<RpcResult<'taskboard/workflow/diagnostics'>>) | undefined,
+): Promise<readonly TaskboardWorkflowReadWarning[]> {
+  if (
+    taskIds.length === 0
+    || !capabilities.includes('taskboard.workflow.diagnostics.v1')
+    || !readDiagnostics
+  ) return []
+  try {
+    const warnings: TaskboardWorkflowReadWarning[] = []
+    for (let index = 0; index < taskIds.length; index += 500) {
+      const result = await readDiagnostics({
+        taskIds: taskIds.slice(index, index + 500),
+      })
+      warnings.push(...result.warnings)
+    }
+    return warnings
+  } catch {
+    // Diagnostics are compatibility hints. A failure must not fail the main task list.
+    return []
+  }
+}
+
+function isProtocolSchemaError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const name = 'name' in error ? (error as { name?: unknown }).name : undefined
+  const tag = '_tag' in error ? (error as { _tag?: unknown })._tag : undefined
+  return name === 'SchemaError'
+    || name === 'ParseError'
+    || tag === 'SchemaError'
+    || tag === 'ParseError'
+}
+
+function invalidTaskboardWorkflowStatusError(): Error {
+  return new Error('任务阶段无效，请重新选择后重试')
 }

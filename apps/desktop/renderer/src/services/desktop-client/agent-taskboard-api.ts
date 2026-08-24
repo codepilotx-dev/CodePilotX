@@ -4,7 +4,7 @@ import type { DesktopTaskboardApi } from './types.js'
 
 type Dependencies = {
   requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1' | 'taskboard.context.v1' | 'taskboard.planning.v1'>,
+    name: Extract<ProtocolCapability, 'taskboard.v1' | 'taskboard.workflow.v1' | 'taskboard.workflow.diagnostics.v1' | 'taskboard.context.v1' | 'taskboard.planning.v1'>,
   ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   mockClient: DesktopTaskboardApi
@@ -44,6 +44,11 @@ export function createAgentTaskboardApi({
       requireAgentCapability('taskboard.workflow.v1')
       return operation()
     }, () => Promise.reject(new Error('浏览器预览不支持会话任务看板。')))
+  const executeWorkflowDiagnosticsRead = <T>(operation: () => Promise<T>): Promise<T> =>
+    withAgentOrMock(async () => {
+      requireAgentCapability('taskboard.workflow.diagnostics.v1')
+      return operation()
+    }, () => Promise.reject(new Error('浏览器预览不支持任务看板兼容诊断。')))
   const operationId = (): string => crypto.randomUUID()
   const executeContext = <T>(operation: () => Promise<T>): Promise<T> => withRequiredAgent(async () => {
     requireAgentCapability('taskboard.context.v1')
@@ -119,6 +124,9 @@ export function createAgentTaskboardApi({
     })),
     listTaskboardWorkflowTasks: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/list', params)),
     readTaskboardWorkflowTask: params => executeWorkflowRead(() => rpc.call('taskboard/workflow/read', params)),
+    readTaskboardWorkflowDiagnostics: params => executeWorkflowDiagnosticsRead(
+      () => rpc.call('taskboard/workflow/diagnostics', params),
+    ),
     createTaskboardWorkflowTask: params => executeWorkflow(() => rpc.call('taskboard/workflow/create', {
       ...params,
       operationId: operationId(),

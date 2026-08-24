@@ -17,6 +17,43 @@ const fixture = async () => {
 }
 
 describe("TaskboardRepository", () => {
+  test("非法工作流状态只读回退旧任务状态并通过诊断报告", async () => {
+    const { db, project } = await fixture()
+    const created = db.createWorkflowTask({
+      projectId: project.id,
+      title: "前向状态",
+      status: "in_progress",
+    })
+    const outsideRequest = db.createWorkflowTask({
+      projectId: project.id,
+      title: "未请求的前向状态",
+      status: "todo",
+    })
+    db.sqlite.exec("PRAGMA ignore_check_constraints = ON")
+    db.sqlite.query("UPDATE taskboard_task_workflows SET status = ? WHERE task_id = ?")
+      .run("", created.task.id)
+    db.sqlite.query("UPDATE taskboard_task_workflows SET status = ? WHERE task_id = ?")
+      .run("future_status", outsideRequest.task.id)
+    db.sqlite.exec("PRAGMA ignore_check_constraints = OFF")
+
+    expect(db.readWorkflowTask(created.task.id)?.task.status).toBe("in_progress")
+    const listed = db.listWorkflowTasks({ projectId: project.id })
+    expect(listed.tasks.find(task => task.id === created.task.id)?.status).toBe("in_progress")
+    expect(listed.tasks.find(task => task.id === outsideRequest.task.id)?.status).toBe("todo")
+    expect(listed).not.toHaveProperty("warnings")
+    const roots = db.repositories.planning.listRoots({ projectId: project.id })
+    expect(roots.roots.find(root => root.task.id === created.task.id)?.task.status).toBe("in_progress")
+    expect(roots).not.toHaveProperty("warnings")
+    expect(db.listWorkflowReadWarnings([created.task.id, created.task.id])).toEqual([{
+      code: "workflow-status-fallback",
+      taskId: created.task.id,
+      fallbackStatus: "in_progress",
+    }])
+    expect(db.sqlite.query("SELECT status FROM taskboard_task_workflows WHERE task_id = ?")
+      .get(created.task.id)).toEqual({ status: "" })
+    db.close()
+  })
+
   test("五态核心记录前向投影为七态，兼容状态和标题更新不会清除扩展状态", async () => {
     const { db, project } = await fixture()
     const created = db.createTask({ projectId: project.id, title: "兼容投影", status: "in_progress" })

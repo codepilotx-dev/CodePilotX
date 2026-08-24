@@ -8,11 +8,11 @@ import type {
 } from '@codepilotx/shared/taskboard'
 import { parseTaskboardFilters, projectTaskboardHierarchy } from '../src/features/taskboard/TaskboardView.js'
 import type { TaskboardPlanningNode } from '../src/features/taskboard/state/taskboardStore.js'
-import { optimisticallyMoveTask, taskboardCreateTaskRpcInput, taskboardLocalDateKey } from '../src/features/taskboard/state/useTaskboardController.js'
-import { resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
+import { optimisticallyMoveTask, taskboardCreateTaskRpcInput, taskboardErrorMessage, taskboardLocalDateKey } from '../src/features/taskboard/state/useTaskboardController.js'
+import { resolveBoardColumnDropStatus, resolveTaskDropPlacement } from '../src/features/taskboard/components/BoardColumn.js'
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
-import { taskboardBoardColumns, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
-import { OtherTasksPanel } from '../src/features/taskboard/components/OtherTasksPanel.js'
+import { taskboardBoardColumns, taskboardTasksForColumn, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
+import { TaskboardArchive } from '../src/features/taskboard/components/TaskboardArchive.js'
 import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { taskboardPlanReorderAnchors, unresolvedPlanPrerequisiteTitles } from '../src/features/taskboard/components/TaskPlanPanel.js'
 import {
@@ -20,7 +20,7 @@ import {
   resolveActivatedSessionComposerInput,
 } from '../src/features/session/composer/composerDraftStore.js'
 import { RENDERER_CAPABILITIES } from '../src/services/desktop-client/agent-session-client.js'
-import { canStartTask } from '../src/features/taskboard/taskboardConstants.js'
+import { canStartTask, isTaskboardWorkflowStatus } from '../src/features/taskboard/taskboardConstants.js'
 import { activeTaskboardPrimaryThreadId } from '../src/features/taskboard/taskboardConstants.js'
 import { isInputDialogSubmitDisabled } from '../src/components/ui/ConfirmationDialog.js'
 import { taskboardStartActionLabel, taskboardStartCreatesPrimary } from '../src/features/taskboard/components/StartTaskDialog.js'
@@ -28,8 +28,27 @@ import { taskboardStartActionLabel, taskboardStartCreatesPrimary } from '../src/
 test('renderer negotiates the taskboard capability', () => {
   expect(RENDERER_CAPABILITIES).toContain('taskboard.v1')
   expect(RENDERER_CAPABILITIES).toContain('taskboard.workflow.v1')
+  expect(RENDERER_CAPABILITIES).toContain('taskboard.workflow.diagnostics.v1')
   expect(RENDERER_CAPABILITIES).toContain('taskboard.context.v1')
   expect(RENDERER_CAPABILITIES).toContain('taskboard.planning.v1')
+})
+
+test('taskboard workflow status guard rejects empty and unknown wire values', () => {
+  expect(isTaskboardWorkflowStatus('blocked')).toBe(true)
+  expect(isTaskboardWorkflowStatus('')).toBe(false)
+  expect(isTaskboardWorkflowStatus('waiting')).toBe(false)
+  expect(isTaskboardWorkflowStatus(null)).toBe(false)
+})
+
+test('taskboard schema failures use a safe compatibility message', () => {
+  const schemaError = Object.assign(new Error('internal schema path and payload'), {
+    name: 'SchemaError',
+  })
+
+  expect(taskboardErrorMessage(schemaError)).toBe(
+    '任务数据格式不兼容，请更新 CodePilotX 和 Agent 后重试。',
+  )
+  expect(taskboardErrorMessage(new Error('普通错误'))).toBe('普通错误')
 })
 
 test('input dialog permits empty input only when the caller opts in', () => {
@@ -137,7 +156,6 @@ describe('taskboard board structure', () => {
     }
     const markup = renderToStaticMarkup(
       <TaskboardBoard
-        archived={false}
         expandedTaskIds={new Set()}
         hierarchyMode="expanded"
         pendingTaskIds={new Set()}
@@ -179,15 +197,18 @@ describe('taskboard board structure', () => {
     expect(taskboardStartActionLabel(false, 'new_primary')).toBe('创建主会话')
   })
 
-  test('renders the active workflow columns and hides an empty blocked column', () => {
+  test('renders the fixed six workflow columns in product order', () => {
     const markup = renderBoard([])
 
     expect(columnStatuses(markup)).toEqual([
       'todo',
       'in_progress',
       'in_review',
+      'backlog',
+      'done',
+      'canceled',
     ])
-    expect(markup).toContain('data-column-count="3"')
+    expect(markup).toContain('data-column-count="6"')
     expect(markup).toContain('暂无任务')
     const columnAddLabels = new Set(
       [...markup.matchAll(/aria-label="(新建任务到[^"]+)"/g)].map(match => match[1]),
@@ -196,55 +217,48 @@ describe('taskboard board structure', () => {
       '新建任务到等待认领',
       '新建任务到处理中',
       '新建任务到等你确认',
+      '新建任务到待立项',
+      '新建任务到完成',
+      '新建任务到取消',
     ]))
   })
 
-  test('adds the blocked column only when a blocked task exists', () => {
-    const markup = renderBoard([task('a', 'todo', 1024), task('b', 'blocked', 2048)])
+  test('groups blocked and in-progress tasks in the processing column', () => {
+    const tasks = [
+      task('active', 'in_progress', 1024),
+      task('blocked', 'blocked', 2048),
+    ]
+    const processingColumn = taskboardBoardColumns().find(column => column.status === 'in_progress')!
+    const markup = renderBoard(tasks)
 
-    expect(columnStatuses(markup)).toEqual([
-      'todo',
-      'in_progress',
-      'blocked',
-      'in_review',
-    ])
-    expect(markup).toContain('data-column-count="4"')
+    expect(columnStatuses(markup)).toEqual(['todo', 'in_progress', 'in_review', 'backlog', 'done', 'canceled'])
+    expect(taskboardTasksForColumn(tasks, processingColumn).map(task => task.id)).toEqual(['active', 'blocked'])
     expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(2)
   })
 
-  test('temporarily exposes the empty blocked drop target during an active task drag', () => {
-    expect(taskboardBoardColumns([task('a', 'todo', 1024)], true).map(column => column.status)).toEqual([
-      'todo',
-      'in_progress',
-      'blocked',
-      'in_review',
-    ])
+  test('preserves blocked on same-column reorder and maps external drops to in-progress', () => {
+    const blocked = task('blocked', 'blocked', 1024)
+
+    expect(resolveBoardColumnDropStatus([blocked], blocked.id, 'in_progress')).toBe('blocked')
+    expect(resolveBoardColumnDropStatus([blocked], 'external', 'in_progress')).toBe('in_progress')
   })
 
-  test('other tasks panel keeps archived selection aligned with archived data', () => {
+  test('archive sorts by archived time and keeps each task original status label', () => {
     const archivedTasks = [
-      { ...task('a', 'done', 1024), archivedAt: 2048 },
-      { ...task('b', 'canceled', 2048), archivedAt: 3072 },
+      { ...task('older', 'done', 1024), archivedAt: 2048 },
+      { ...task('newer', 'blocked', 2048), archivedAt: 3072 },
     ]
     const markup = renderToStaticMarkup(
-      <OtherTasksPanel
-        archived
-        pendingTaskIds={new Set()}
-        projectNames={new Map()}
+      <TaskboardArchive
+        projectNames={new Map([[archivedTasks[0]!.projectId, '项目']])}
         tasks={archivedTasks}
-        onArchivedChange={() => {}}
-        onClose={() => {}}
-        onMove={async () => {}}
-        onLinkThread={async () => {}}
-        onNewTask={() => {}}
         onOpen={() => {}}
-        onStart={() => {}}
       />,
     )
 
-    expect(markup).toContain('aria-selected="true"')
-    expect(markup).toContain('aria-label="已归档，2 个任务"')
-    expect((markup.match(/class="taskboard-card"/g) ?? []).length).toBe(2)
+    expect(markup.indexOf('打开已归档任务：newer')).toBeLessThan(markup.indexOf('打开已归档任务：older'))
+    expect(markup).toContain('遇到阻碍')
+    expect(markup).toContain('完成')
   })
 
   test('column header add button carries its own status', () => {

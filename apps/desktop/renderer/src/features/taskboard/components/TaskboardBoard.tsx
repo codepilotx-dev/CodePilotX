@@ -1,5 +1,4 @@
 import type React from 'react'
-import { useState } from 'react'
 import type {
   TaskboardWorkflowStatus,
   TaskboardWorkflowTaskSummary,
@@ -14,7 +13,6 @@ type Props = {
   tasks: readonly TaskboardWorkflowTaskSummary[]
   projectNames: ReadonlyMap<string, string>
   pendingTaskIds: ReadonlySet<string>
-  archived: boolean
   onOpen: (taskId: string) => void
   onStart: (taskId: string) => void
   onNewTask: (status: TaskboardWorkflowStatus) => void
@@ -34,7 +32,6 @@ export function TaskboardBoard({
   tasks,
   projectNames,
   pendingTaskIds,
-  archived,
   onOpen,
   onStart,
   onNewTask,
@@ -45,17 +42,11 @@ export function TaskboardBoard({
   hierarchyMode = 'roots',
   onToggleTask,
 }: Props): React.ReactNode {
-  const [taskDragActive, setTaskDragActive] = useState(false)
-  const visibleColumns = taskboardBoardColumns(tasks, taskDragActive)
+  const visibleColumns = taskboardBoardColumns()
   return (
     <div
       className="taskboard-board"
-      data-archived={archived || undefined}
       data-column-count={visibleColumns.length}
-      style={{
-        '--taskboard-main-column-count': visibleColumns.length,
-        '--taskboard-main-min-width': `${visibleColumns.length * 300 + Math.max(0, visibleColumns.length - 1) * 24}px`,
-      } as React.CSSProperties}
     >
       {visibleColumns.map(column => (
         <BoardColumn
@@ -63,7 +54,7 @@ export function TaskboardBoard({
           {...column}
           pendingTaskIds={pendingTaskIds}
           projectNames={projectNames}
-          tasks={tasks.filter(task => task.status === column.status)}
+          tasks={taskboardTasksForColumn(tasks, column)}
           planningNodes={planningNodes}
           expandedTaskIds={expandedTaskIds}
           hierarchyMode={hierarchyMode}
@@ -72,7 +63,6 @@ export function TaskboardBoard({
           onNewTask={() => onNewTask(column.status)}
           onOpen={onOpen}
           onStart={onStart}
-          onTaskDragActiveChange={setTaskDragActive}
           onToggleTask={onToggleTask}
         />
       ))}
@@ -81,12 +71,13 @@ export function TaskboardBoard({
 }
 
 export function taskboardBoardColumns(
-  tasks: readonly Pick<TaskboardWorkflowTaskSummary, 'status'>[],
-  taskDragActive: boolean,
 ): typeof TASKBOARD_COLUMNS {
-  return TASKBOARD_COLUMNS.filter(column => (
-    column.status !== 'blocked'
-    || taskDragActive
-    || tasks.some(task => task.status === 'blocked')
-  ))
+  return TASKBOARD_COLUMNS
+}
+
+export function taskboardTasksForColumn<T extends Pick<TaskboardWorkflowTaskSummary, 'status'>>(
+  tasks: readonly T[],
+  column: (typeof TASKBOARD_COLUMNS)[number],
+): T[] {
+  return tasks.filter(task => column.taskStatuses.some(status => status === task.status))
 }

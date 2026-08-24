@@ -2733,6 +2733,15 @@ const fixtures = {
   "taskboard/workflow/read": methodFixture("taskboard/workflow/read", {
     taskId: taskboardTask.id,
   }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/diagnostics": methodFixture("taskboard/workflow/diagnostics", {
+    taskIds: [taskboardTask.id],
+  }, {
+    warnings: [{
+      code: "workflow-status-fallback",
+      taskId: taskboardTask.id,
+      fallbackStatus: "in_progress",
+    }],
+  }),
   "taskboard/workflow/create": methodFixture("taskboard/workflow/create", {
     operationId: "operation:workflow-create",
     projectId: project.id,
@@ -2931,22 +2940,34 @@ const fixtures = {
 describe("RPC method schema contracts", () => {
   test("任务看板按兼容能力分组并在 wire 边界限制正文和标签", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
-    expect(methods).toHaveLength(53)
+    expect(methods).toHaveLength(54)
     const workflowMethods = methods.filter(([method]) => method.startsWith("taskboard/workflow/"))
+    const workflowDiagnostics = workflowMethods.filter(([method]) => method === "taskboard/workflow/diagnostics")
+    const workflowOperations = workflowMethods.filter(([method]) => method !== "taskboard/workflow/diagnostics")
     const contextMethods = methods.filter(([method]) => method.startsWith("taskboard/context/"))
     const planningMethods = methods.filter(([method]) => method.startsWith("taskboard/planning/"))
     const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/") && !method.startsWith("taskboard/context/") && !method.startsWith("taskboard/planning/"))
-    expect(workflowMethods).toHaveLength(11)
+    expect(workflowMethods).toHaveLength(12)
     expect(contextMethods).toHaveLength(6)
     expect(planningMethods).toHaveLength(14)
-    expect(workflowMethods.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
+    expect(workflowOperations.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
+    expect(workflowDiagnostics.every(([, definition]) => definition.capability === "taskboard.workflow.diagnostics.v1")).toBe(true)
     expect(contextMethods.every(([, definition]) => definition.capability === "taskboard.context.v1")).toBe(true)
     expect(planningMethods.every(([, definition]) => definition.capability === "taskboard.planning.v1")).toBe(true)
     expect(legacyMethods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
     expect(Capabilities).toContain("taskboard.v1")
     expect(Capabilities).toContain("taskboard.workflow.v1")
+    expect(Capabilities).toContain("taskboard.workflow.diagnostics.v1")
     expect(Capabilities).toContain("taskboard.context.v1")
     expect(Capabilities).toContain("taskboard.planning.v1")
+
+    const decodeDiagnostics = Schema.decodeUnknownSync(
+      RpcMethods["taskboard/workflow/diagnostics"].params,
+    )
+    expect(() => decodeDiagnostics({ taskIds: [] })).toThrow()
+    expect(() => decodeDiagnostics({
+      taskIds: Array.from({ length: 501 }, (_, index) => `task:${index}`),
+    })).toThrow()
 
     const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
     expect(() => decodeCreate({
@@ -3026,7 +3047,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(258)
+    expect(methods).toHaveLength(259)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -3347,7 +3368,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(252)
+    expect(Object.keys(RpcMethods)).toHaveLength(253)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

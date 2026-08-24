@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { addCalendarMonths, formatDateValue, parseDateValue } from '../src/components/ui/DatePicker.js'
 import { taskboardInitialThreadLinks } from '../src/features/taskboard/components/CreateTaskDialog.js'
-import { collectTaskboardWorkflowPages, taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
-import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardLayout } from '../src/features/taskboard/state/taskboardViewPreferences.js'
+import { collectTaskboardWorkflowPages, loadTaskboardCompatibilityWarnings, taskboardCreateTaskRpcInput, taskboardStartMode, taskboardThreadLinksForDrop, taskboardTransitionRpcInput } from '../src/features/taskboard/state/useTaskboardController.js'
+import { readTaskboardGanttHideCompleted, readTaskboardGanttZoom, readTaskboardLayout, rememberTaskboardLayout } from '../src/features/taskboard/state/taskboardViewPreferences.js'
 import { beginSidebarSessionDrag, readSidebarSessionDrag, SIDEBAR_SESSION_DRAG_TYPE } from '../src/features/taskboard/taskboardDragData.js'
 import { deriveThreadTaskboardAction } from '../src/features/taskboard/state/threadTaskboardAction.js'
 import { executeBlockedTransition } from '../src/features/taskboard/state/taskboardBlockedTransition.js'
@@ -85,6 +85,34 @@ describe('taskboard workflow renderer behavior', () => {
     expect(readTaskboardGanttZoom(new URLSearchParams('zoom=quarter'))).toBe('week')
   })
 
+  test('archive URL state supports the explicit view and legacy archived query', () => {
+    expect(readTaskboardLayout(new URLSearchParams('view=archive'))).toBe('archive')
+    expect(readTaskboardLayout(new URLSearchParams('archived=1'))).toBe('archive')
+  })
+
+  test('archive is a transient route and is not persisted as the preferred layout', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    const writes: Array<[string, string]> = []
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          setItem: (key: string, value: string) => writes.push([key, value]),
+        },
+      },
+    })
+
+    try {
+      rememberTaskboardLayout('archive', 'project:1')
+      expect(writes).toEqual([])
+      rememberTaskboardLayout('list', 'project:1')
+      expect(writes).toEqual([['codepilotx.taskboard.view.project:1', 'list']])
+    } finally {
+      if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+    }
+  })
+
   test('system date picker keeps local date values valid across leap days and month bounds', () => {
     expect(formatDateValue(parseDateValue('2028-02-29')!)).toBe('2028-02-29')
     expect(parseDateValue('2026-02-29')).toBeNull()
@@ -154,6 +182,71 @@ describe('taskboard workflow renderer behavior', () => {
     expect(result.tasks).toHaveLength(502)
     expect(result.tasks.at(-1)).toBe(502)
     expect(result.unreadCount).toBe(7)
+  })
+
+  test('workflow diagnostics run only when negotiated and preserve typed warnings', async () => {
+    const inputs: string[][] = []
+    const warnings = await loadTaskboardCompatibilityWarnings(
+      ['taskboard.workflow.diagnostics.v1'],
+      ['task:1', 'task:2'],
+      async input => {
+        inputs.push(input.taskIds)
+        return {
+          warnings: [{
+            code: 'workflow-status-fallback',
+            taskId: 'task:2',
+            fallbackStatus: 'backlog',
+          }],
+        }
+      },
+    )
+
+    expect(inputs).toEqual([['task:1', 'task:2']])
+    expect(warnings).toEqual([{
+      code: 'workflow-status-fallback',
+      taskId: 'task:2',
+      fallbackStatus: 'backlog',
+    }])
+  })
+
+  test('workflow diagnostics chunk every loaded task id to the protocol limit', async () => {
+    const batchSizes: number[] = []
+    const taskIds = Array.from({ length: 501 }, (_, index) => `task:${index + 1}`)
+
+    await loadTaskboardCompatibilityWarnings(
+      ['taskboard.workflow.diagnostics.v1'],
+      taskIds,
+      async input => {
+        batchSizes.push(input.taskIds.length)
+        return { warnings: [] }
+      },
+    )
+
+    expect(batchSizes).toEqual([500, 1])
+  })
+
+  test('workflow diagnostics never fail the loaded task list', async () => {
+    let calls = 0
+    const unavailable = await loadTaskboardCompatibilityWarnings(
+      ['taskboard.workflow.v1'],
+      ['task:1'],
+      async () => {
+        calls += 1
+        return { warnings: [] }
+      },
+    )
+    const failed = await loadTaskboardCompatibilityWarnings(
+      ['taskboard.workflow.diagnostics.v1'],
+      ['task:1'],
+      async () => {
+        calls += 1
+        throw new Error('diagnostics unavailable')
+      },
+    )
+
+    expect(unavailable).toEqual([])
+    expect(failed).toEqual([])
+    expect(calls).toBe(1)
   })
 
   test('start mode is derived from the current task links', () => {

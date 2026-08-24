@@ -4,6 +4,33 @@ import { createAgentTaskboardApi } from '../src/services/desktop-client/agent-ta
 import type { DesktopTaskboardApi } from '../src/services/desktop-client/types.js'
 
 describe('desktop taskboard planning client', () => {
+  test('gates and forwards workflow diagnostics without an operation id', async () => {
+    const capabilities: ProtocolCapability[] = []
+    const calls: Array<{ method: string; params: unknown }> = []
+    const rpc = {
+      call: async (method: string, params: unknown) => {
+        calls.push({ method, params })
+        return { warnings: [] }
+      },
+    } as Parameters<typeof createAgentTaskboardApi>[0]['rpc']
+    const api = createAgentTaskboardApi({
+      requireAgentCapability: capability => capabilities.push(capability),
+      rpc,
+      mockClient: {} as DesktopTaskboardApi,
+      withRequiredAgent: operation => operation(),
+      withAgentOrMock: agentOperation => agentOperation(),
+    })
+
+    await api.readTaskboardWorkflowDiagnostics!({ taskIds: ['task:1'] })
+
+    expect(capabilities).toEqual(['taskboard.workflow.diagnostics.v1'])
+    expect(calls).toEqual([{
+      method: 'taskboard/workflow/diagnostics',
+      params: { taskIds: ['task:1'] },
+    }])
+    expect(calls[0]!.params).not.toHaveProperty('operationId')
+  })
+
   test('gates and forwards every planning RPC while supplying operation ids', async () => {
     const capabilities: ProtocolCapability[] = []
     const calls: Array<{ method: string; params: unknown }> = []

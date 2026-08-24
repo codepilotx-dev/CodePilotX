@@ -175,13 +175,21 @@ test('WCAG 2.2 AA: popover open state', async ({ page }, testInfo) => {
 
 test('WCAG 2.2 AA: taskboard open states', async ({ page }, testInfo) => {
   await preparePage(page, '/?visualCase=taskboard#/taskboard')
-  await expect(page.locator('.taskboard-column')).toHaveCount(5)
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
 
   // 筛选弹出菜单（工具栏）
   await page.getByRole('button', { name: '筛选' }).click()
   await expect(page.getByRole('menu')).toBeVisible()
   await expectNoWcagViolations(page, testInfo)
   await page.keyboard.press('Escape')
+
+  // 独立归档 Surface
+  const workspaceToolbar = page.getByRole('toolbar', { name: '工作区工具栏' })
+  await workspaceToolbar.getByRole('button', { name: '已归档' }).click()
+  await expect(page.getByRole('region', { name: '已归档任务' })).toBeVisible()
+  await expectNoWcagViolations(page, testInfo)
+  await workspaceToolbar.getByRole('button', { name: '议题看板' }).click()
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
 
   // 拖拽替代操作：卡片移动菜单
   await page.getByRole('button', { name: '移动任务：重构看板五列布局与流程箭头' }).click()

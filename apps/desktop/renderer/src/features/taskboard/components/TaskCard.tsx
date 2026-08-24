@@ -1,9 +1,9 @@
 import type React from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, MessageSquare, Play, TriangleAlert } from 'lucide-react'
+import { ChevronDown, ChevronRight, MessageSquare, Play, TriangleAlert } from 'lucide-react'
 import type { TaskboardPlanAggregate, TaskboardWorkflowTaskSummary, TaskboardWorktreeStatus } from '@codepilotx/shared/taskboard'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { canStartTask, TASKBOARD_PRIORITY_LABELS } from '../taskboardConstants.js'
+import { canStartTask } from '../taskboardConstants.js'
 
 type Props = {
   task: TaskboardWorkflowTaskSummary
@@ -48,6 +48,12 @@ export function TaskCard({
     ?? task.threads[0]
   const execution = executionThread?.execution
 
+  const formattedId = task.id.startsWith('visual-')
+    ? `ID: ${task.id.toUpperCase()}`
+    : task.number
+      ? `ID: ${projectName ? `${projectName.toUpperCase().replace(/\s+/g, '-')}` : 'LOCAL'}-${task.number}`
+      : `ID: ${task.id.toUpperCase().slice(0, 16)}`
+
   return (
     <article
       aria-busy={pending || undefined}
@@ -57,6 +63,7 @@ export function TaskCard({
       data-session-drop={sessionDropActive ? '' : undefined}
       data-pending={pending || undefined}
       data-priority={task.priority}
+      data-status={task.status}
       data-taskboard-task-id={task.id}
       data-unread={task.attention.unread || undefined}
       data-task-depth={hierarchy?.depth || undefined}
@@ -84,40 +91,57 @@ export function TaskCard({
         type="button"
         onClick={onOpen}
       >
-        <span className="taskboard-card__context">
-          <span className="taskboard-card__project" title={projectName}>
-            {projectName} · <span className="taskboard-card__number">#{task.number}</span>
+        <span className="taskboard-card__heading">
+          <span className="taskboard-card__context">
+          <span className="taskboard-card__project" title={formattedId}>
+            {formattedId}
           </span>
+          {task.status === 'blocked' ? (
+            <span className="taskboard-card__blocked" aria-label="任务状态：遇到阻碍">
+              <TriangleAlert aria-hidden="true" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <span>阻碍</span>
+            </span>
+          ) : null}
           {needsInput ? (
             <span className="taskboard-card__attention" title="关联对话需要处理">
               <TriangleAlert
                 aria-hidden="true"
-                size={APP_ICON_SIZE - 2}
+                size={12}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>
           ) : null}
           {task.attention.unread ? <span className="taskboard-unread-dot" aria-label="待整理任务" /> : null}
-          {task.priority !== 'none' ? (
-            <span className="taskboard-card__priority">
-              {TASKBOARD_PRIORITY_LABELS[task.priority]}
+          <span className="taskboard-card__status-dot" data-status={task.status} aria-hidden="true" />
+          </span>
+          <strong className="taskboard-card__title" title={task.title}>{task.title}</strong>
+        </span>
+        <span className="taskboard-card__body">
+          {task.description ? (
+            <span className="taskboard-card__description" title={task.description}>
+              {task.description}
             </span>
           ) : null}
-        </span>
-        <strong>{task.title}</strong>
-        {task.description ? <p>{task.description}</p> : null}
-        {task.labels.length > 0 ? (
-          <span className="taskboard-card__labels">
-            {task.labels.slice(0, 2).map(label => (
-              <span key={label.id}>{label.name}</span>
-            ))}
-            {task.labels.length > 2 ? <span>+{task.labels.length - 2}</span> : null}
-          </span>
-        ) : null}
-        {task.dueDate ? (
-          <span className="taskboard-card__due" data-overdue={isOverdue(task.dueDate) || undefined}>
-            <CalendarDays aria-hidden="true" size={APP_ICON_SIZE - 2} />
-            {formatTaskDate(task.dueDate)}
+          <span className="taskboard-card__facts">
+          {task.status === 'in_progress' || runningThreads > 0 ? (
+          <span className="taskboard-card__processing-row">
+            <span className="taskboard-card__processing-badge">
+              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" className="taskboard-processing-grid">
+                <circle cx="3" cy="3" r="1.2" fill="currentColor" />
+                <circle cx="6" cy="3" r="1.2" fill="currentColor" />
+                <circle cx="9" cy="3" r="1.2" fill="currentColor" />
+                <circle cx="3" cy="6" r="1.2" fill="currentColor" />
+                <circle cx="6" cy="6" r="1.2" fill="currentColor" />
+                <circle cx="9" cy="6" r="1.2" fill="currentColor" />
+                <circle cx="3" cy="9" r="1.2" fill="currentColor" />
+                <circle cx="6" cy="9" r="1.2" fill="currentColor" />
+                <circle cx="9" cy="9" r="1.2" fill="currentColor" />
+              </svg>
+              <span className="taskboard-card__processing-text">正在处理...</span>
+            </span>
+            <span className="taskboard-card__processing-bars" aria-hidden="true">
+              <span /><span /><span /><span />
+            </span>
           </span>
         ) : null}
         {hierarchy && (
@@ -134,62 +158,35 @@ export function TaskCard({
             {hierarchy.aggregate.readyUnreadCount > 0 ? <span>{hierarchy.aggregate.readyUnreadCount} 已解锁</span> : null}
           </span>
         ) : null}
+          </span>
+        </span>
       </button>
       <footer className="taskboard-card__footer">
         <span className="taskboard-card__execution-summary">
           <span className="taskboard-card__threads">
-            <MessageSquare
-              aria-hidden="true"
-              size={APP_ICON_SIZE - 2}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <MessageSquare aria-hidden="true" size={APP_ICON_SIZE - 2} strokeWidth={APP_ICON_STROKE_WIDTH} />
             {task.threads.length}
             {runningThreads > 0 ? <span className="taskboard-card__running">· {runningThreads} 执行中</span> : null}
             {needsInput ? <span className="taskboard-card__needs-input">· 等待输入</span> : null}
           </span>
           {execution?.branchName ? (
-            <span className="taskboard-card__branch" title={execution.branchName}>
-              {execution.branchName}
-            </span>
+            <span className="taskboard-card__branch" title={execution.branchName}>{execution.branchName}</span>
           ) : null}
           {execution?.kind === 'worktree' ? (
-            <span className="taskboard-card__worktree">
-              工作树 · {worktreeStatusLabel(execution.status)}
-            </span>
+            <span className="taskboard-card__worktree">工作树 · {worktreeStatusLabel(execution.status)}</span>
           ) : null}
         </span>
         <span className="taskboard-card__actions">
           {menu}
           {canStartTask(task) ? (
-            <IconButton
-              color="ghostSecondary"
-              disabled={pending}
-              size="toolbar"
-              title="开始执行"
-              onClick={onStart}
-            >
-              <Play
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
+            <IconButton color="ghostSecondary" disabled={pending} size="toolbar" title="开始执行" onClick={onStart}>
+              <Play aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
         </span>
       </footer>
     </article>
   )
-}
-
-function formatTaskDate(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' })
-    .format(new Date(`${value}T12:00:00`))
-}
-
-function isOverdue(value: string): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return new Date(`${value}T00:00:00`).getTime() < today.getTime()
 }
 
 function worktreeStatusLabel(status: TaskboardWorktreeStatus): string {

@@ -2,7 +2,7 @@ import type { TaskboardWorkflowStatus } from '@codepilotx/shared/taskboard'
 import type { TaskboardGanttZoom } from '../taskboardGanttModel.js'
 export type { TaskboardGanttZoom } from '../taskboardGanttModel.js'
 
-export type TaskboardLayout = 'board' | 'list' | 'gantt'
+export type TaskboardLayout = 'board' | 'list' | 'gantt' | 'archive'
 
 const VIEW_STORAGE_PREFIX = 'codepilotx.taskboard.view.'
 const COLLAPSED_STORAGE_PREFIX = 'codepilotx.taskboard.list.collapsed.'
@@ -12,6 +12,7 @@ export function readTaskboardLayout(
   projectId?: string,
 ): TaskboardLayout {
   const routeView = params.get('view')
+  if (routeView === 'archive' || params.get('archived') === '1') return 'archive'
   if (routeView === 'board' || routeView === 'list' || routeView === 'gantt') return routeView
   try {
     const stored = window.localStorage.getItem(`${VIEW_STORAGE_PREFIX}${projectId ?? 'all'}`)
@@ -66,6 +67,7 @@ export function rememberTaskboardLayout(
   view: TaskboardLayout,
   projectId?: string,
 ): void {
+  if (view === 'archive') return
   try {
     window.localStorage.setItem(`${VIEW_STORAGE_PREFIX}${projectId ?? 'all'}`, view)
   } catch {

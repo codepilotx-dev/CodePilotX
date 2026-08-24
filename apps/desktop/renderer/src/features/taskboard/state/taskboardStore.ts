@@ -5,6 +5,7 @@ import type {
   TaskboardPlanStep,
   TaskboardWorkflowTaskDetails,
   TaskboardWorkflowTaskSummary,
+  TaskboardWorkflowReadWarning,
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
@@ -26,7 +27,9 @@ export type TaskboardViewState = {
   unreadCount: number
   loading: boolean
   detailLoading: boolean
-  error: string | null
+  loadError: string | null
+  operationError: string | null
+  compatibilityWarnings: readonly TaskboardWorkflowReadWarning[]
   detailError: string | null
   detailReadOnly: boolean
   pendingTaskIds: ReadonlySet<string>
@@ -43,7 +46,9 @@ const INITIAL_STATE: TaskboardViewState = {
   unreadCount: 0,
   loading: true,
   detailLoading: false,
-  error: null,
+  loadError: null,
+  operationError: null,
+  compatibilityWarnings: [],
   detailError: null,
   detailReadOnly: false,
   pendingTaskIds: new Set(),

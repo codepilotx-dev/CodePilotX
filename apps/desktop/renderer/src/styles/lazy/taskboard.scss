@@ -39,106 +39,53 @@
   }
 
   .taskboard-board-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    position: relative;
-    gap: var(--cpx-sys-space-6);
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
     flex: 1;
     height: 100%;
     overflow: hidden;
-
-    &[data-other-open] {
-      grid-template-columns: minmax(0, 1fr) clamp(280px, 30vw, 360px);
-    }
   }
 
   .taskboard-board-scroll {
+    display: flex;
     min-width: 0;
     min-height: 0;
+    flex: 1;
     height: 100%;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     scrollbar-width: thin;
+    padding-block-end: var(--cpx-sys-space-2);
   }
 
   .taskboard-board-layout .taskboard-board {
-    grid-auto-flow: unset;
-    grid-auto-columns: unset;
-    grid-template-columns: repeat(var(--taskboard-main-column-count, 3), minmax(300px, 1fr));
-    align-items: stretch;
-    width: 100%;
-    min-width: var(--taskboard-main-min-width, 948px);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
     height: 100%;
-    gap: var(--cpx-sys-space-6);
+    min-height: 0;
+    gap: var(--cpx-sys-space-4);
+    width: max(100%, calc(840px + 2 * var(--cpx-sys-space-4)));
+    min-width: calc(840px + 2 * var(--cpx-sys-space-4));
     overflow: visible;
-  }
-
-  .taskboard-other {
-    display: grid;
-    grid-template-rows: 40px auto minmax(0, 1fr);
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-    overflow: hidden;
-    border-inline-start: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-canvas);
-  }
-
-  .taskboard-other__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-2);
-    padding-inline: var(--cpx-sys-space-3) var(--cpx-sys-space-2);
-    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
-
-    strong {
-      font-size: var(--cpx-sys-font-size-sm);
-      font-weight: var(--cpx-sys-font-weight-medium);
-    }
-  }
-
-  .taskboard-other__tabs {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-    padding: var(--cpx-sys-space-2);
-    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
-
-    .ui-button {
-      min-width: 0;
-      padding-inline: var(--cpx-sys-space-1);
-    }
-
-    button span:last-child {
-      color: var(--cpx-sys-color-fg-tertiary);
-    }
-  }
-
-  .taskboard-other > .taskboard-column {
-    min-height: 0;
   }
 
   .taskboard-board-layout .taskboard-column {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .taskboard-board-layout .taskboard-column__header {
-    margin-block-end: var(--cpx-sys-space-2);
-    border: 0;
-    border-radius: var(--cpx-sys-radius-lg);
+    flex: initial;
+    width: auto;
+    min-width: 0;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .taskboard-board-layout .taskboard-column__cards {
     min-height: 0;
-    padding: 0 var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-2);
     overflow-y: auto;
     scrollbar-width: thin;
     background: var(--cpx-sys-color-workbench-sidebar-bg);
@@ -148,21 +95,115 @@
   .taskboard-board-layout .taskboard-column__empty {
     min-height: 112px;
     margin-block-start: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .taskboard-column[data-status="blocked"] {
-    --status-color: var(--cpx-sys-color-warning);
   }
 
   .taskboard-column[data-status="canceled"] {
     --status-color: var(--cpx-sys-color-fg-tertiary);
   }
 
-  .taskboard-card {
-    box-shadow: none;
+  .taskboard-card[data-status="blocked"] {
+    border-color: var(--cpx-sys-color-warning);
+  }
 
+  .taskboard-card__blocked {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-1);
+    flex: none;
+    color: var(--cpx-sys-color-warning);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-medium);
+  }
+
+  .taskboard-archive {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .taskboard-archive__columns,
+  .taskboard-archive__row {
+    grid-template-columns: minmax(260px, 1fr) 100px 88px minmax(140px, 180px) 64px 136px;
+    min-width: 900px;
+  }
+
+  .taskboard-archive__columns {
+    position: sticky;
+    z-index: 1;
+    inset-block-start: 0;
+    display: grid;
+    align-items: center;
+    gap: var(--cpx-sys-space-3);
+    min-height: 34px;
+    padding-inline: var(--cpx-sys-space-4);
+    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-canvas);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-xs);
+  }
+
+  .taskboard-archive .taskboard-archive__row {
+    display: grid;
+    align-items: center;
+    gap: var(--cpx-sys-space-3);
+    width: 100%;
+    min-height: 52px;
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
+    border: 0;
+    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
+    background: transparent;
+    color: var(--cpx-sys-color-fg-secondary);
+    text-align: start;
+  }
+
+  .taskboard-archive__identity {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--cpx-sys-space-3);
+    min-width: 0;
+
+    > span {
+      display: grid;
+      min-width: 0;
+      gap: var(--cpx-sys-space-1);
+    }
+
+    strong,
+    small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong { color: var(--cpx-sys-color-fg-primary); }
+    small { color: var(--cpx-sys-color-fg-tertiary); }
+  }
+
+  .taskboard-archive__project {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .taskboard-archive__threads {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-1);
+  }
+
+  .taskboard-archive__empty {
+    display: grid;
+    justify-items: center;
+    gap: var(--cpx-sys-space-2);
+    padding: calc(var(--cpx-sys-space-1) * 12) var(--cpx-sys-space-4);
+    color: var(--cpx-sys-color-fg-tertiary);
+
+    strong { color: var(--cpx-sys-color-fg-primary); }
+  }
+
+  .taskboard-card {
     &[data-unread] {
       border-color: var(--cpx-sys-color-border-focus);
     }
@@ -198,18 +239,6 @@
     flex: none;
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-sys-color-border-focus);
-  }
-
-  .taskboard-card__due {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
-
-    &[data-overdue] {
-      color: var(--cpx-sys-color-danger);
-    }
   }
 
   .taskboard-list {
@@ -749,20 +778,6 @@
     .taskboard-detail__aside {
       padding-inline-start: 0;
       border-inline-start: 0;
-    }
-    .taskboard-board-layout[data-other-open] {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .taskboard-board-layout[data-other-open] .taskboard-other {
-      position: absolute;
-      inset-block: 0;
-      inset-inline-end: 0;
-      z-index: 3;
-      width: min(360px, calc(100% - var(--cpx-sys-space-6)));
-      border: 1px solid var(--cpx-sys-color-border-subtle);
-      border-radius: var(--cpx-sys-radius-lg) 0 0 var(--cpx-sys-radius-lg);
-      background: var(--cpx-sys-color-surface-canvas);
-      box-shadow: var(--cpx-sys-shadow-floating);
     }
     .taskboard-list__columns,
     .taskboard-list__row { grid-template-columns: minmax(0, 1fr) 112px 72px 36px; }

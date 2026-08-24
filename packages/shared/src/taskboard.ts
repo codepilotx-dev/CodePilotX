@@ -235,6 +235,13 @@ export const TaskboardWorkflowStatusSchema = Schema.Literals([
 ])
 export type TaskboardWorkflowStatus = typeof TaskboardWorkflowStatusSchema.Type
 
+export const TaskboardWorkflowReadWarningSchema = Schema.Struct({
+  code: Schema.Literal("workflow-status-fallback"),
+  taskId: NonEmptyStringSchema,
+  fallbackStatus: TaskboardWorkflowStatusSchema,
+})
+export type TaskboardWorkflowReadWarning = typeof TaskboardWorkflowReadWarningSchema.Type
+
 export const TaskboardWorkflowDateSchema = Schema.String.check(
   Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/),
 )

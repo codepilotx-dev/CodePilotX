@@ -147,6 +147,7 @@ export const RENDERER_CAPABILITIES = [
   'speech.transcription.v1',
   'taskboard.v1',
   'taskboard.workflow.v1',
+  'taskboard.workflow.diagnostics.v1',
   'taskboard.context.v1',
   'taskboard.planning.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
@@ -1902,6 +1903,8 @@ export function createAgentSessionDesktopClient(
     readTaskContextPromotion: input => loadAgentTaskboardApi().then(api => api.readTaskContextPromotion!(input)),
     readTaskboardWorkflowTask: input =>
       loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowTask!(input)),
+    readTaskboardWorkflowDiagnostics: input =>
+      loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowDiagnostics!(input)),
     createTaskboardWorkflowTask: input =>
       loadAgentTaskboardApi().then(api => api.createTaskboardWorkflowTask!(input)),
     updateTaskboardWorkflowTask: input =>
