@@ -4149,6 +4149,62 @@ test('settings shell search and appearance source contracts', async ({
   ).toHaveAttribute('data-state', 'on')
 })
 
+test('appearance color controls match the integrated Codex geometry', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/settings/appearance')
+  await closeTransientErrorToast(page)
+
+  const modeGroup = page.getByRole('radiogroup', { name: '外观模式' })
+  for (const variantLabel of ['浅色', '深色'] as const) {
+    await modeGroup.getByRole('radio', { name: variantLabel }).click()
+    const colorInputs = page.locator('.appearance-color-input')
+    await expect(colorInputs).toHaveCount(3)
+    const colorControlContracts = await colorInputs.evaluateAll(inputs =>
+      inputs.map(input => {
+        const control = input.closest<HTMLElement>('.appearance-color-control')!
+        const swatch = control.querySelector<HTMLElement>('.appearance-color-swatch')!
+        const controlBounds = control.getBoundingClientRect()
+        const inputStyle = getComputedStyle(input)
+        const controlStyle = getComputedStyle(control)
+        const swatchBounds = swatch.getBoundingClientRect()
+        return {
+          controlHeight: controlBounds.height,
+          controlMaxWidth: controlStyle.maxWidth,
+          controlWidth: controlBounds.width,
+          inputBackground: inputStyle.backgroundColor,
+          inputColorMatchesControl: inputStyle.color === controlStyle.color,
+          inputOpacity: inputStyle.opacity,
+          swatchHeight: swatchBounds.height,
+          swatchWidth: swatchBounds.width,
+        }
+      }),
+    )
+    expect(colorControlContracts).toEqual(Array.from({ length: 3 }, () => ({
+      controlHeight: 28,
+      controlMaxWidth: '136px',
+      controlWidth: 136,
+      inputBackground: 'rgba(0, 0, 0, 0)',
+      inputColorMatchesControl: true,
+      inputOpacity: '1',
+      swatchHeight: 14,
+      swatchWidth: 14,
+    })))
+
+    const accentInput = page.getByRole('textbox', {
+      name: `${variantLabel}强调色`,
+    })
+    await accentInput.fill('#12abef')
+    await expect(accentInput).toHaveValue('#12ABEF')
+    await page.getByRole('button', {
+      name: `${variantLabel}强调色颜色选择器`,
+    }).click()
+    await expect(page.locator('.appearance-color-palette')).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
+})
+
 for (const mode of MODES) {
   test(`appearance ${mode} diff preview matches the canonical review surface`, async ({
     page,

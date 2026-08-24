@@ -171,56 +171,42 @@
   width: 100%;
   max-width: 136px;
   height: 28px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: var(--cpx-sys-radius-md);
+  gap: var(--cpx-sys-space-2);
+  padding-inline: var(--cpx-sys-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--cpx-sys-radius-control);
+}
 
-  .ui-input {
-    width: 100%;
-    height: 26px;
-    min-width: 0;
-    padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-2);
-    border: 0;
-    background: transparent;
-    color: inherit;
-    box-shadow: none;
-    font-family: var(--cpx-sys-font-family-mono);
-    font-size: var(--cpx-sys-font-size-code);
-    text-transform: uppercase;
+.appearance-color-control:has(.appearance-color-input:focus-visible) {
+  outline: 2px solid var(--cpx-sys-color-border-focus);
+  outline-offset: 1px;
+}
 
-    &:focus {
-      background: transparent;
-    }
-  }
+.appearance-color-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  text-transform: uppercase;
 }
 
 .appearance-color-swatch {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: var(--cpx-sys-radius-pill);
-  background: transparent;
+  background: var(--appearance-color-swatch-background);
   cursor: pointer;
-  box-shadow: none;
-
-  &::before {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 14px;
-    height: 14px;
-    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
-    border-radius: var(--cpx-sys-radius-pill);
-    background: var(--appearance-color-swatch-background);
-    box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent);
-    content: "";
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-  }
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .appearance-color-popover {
@@ -408,5 +394,6 @@
   .appearance-color-control,
   .appearance-font-input {
     width: min(100%, 240px);
+    max-width: 240px;
   }
 }

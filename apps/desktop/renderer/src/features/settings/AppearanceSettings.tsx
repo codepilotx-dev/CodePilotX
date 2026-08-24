@@ -176,11 +176,13 @@ function ColorControl({
           }}
         />
       </AnchoredPopover>
-      <Input
+      <input
         aria-label={ariaLabel}
-        invalid={!HEX_COLOR.test(draft)}
+        aria-invalid={!HEX_COLOR.test(draft) || undefined}
+        className="appearance-color-input"
         maxLength={7}
         spellCheck={false}
+        type="text"
         value={draft}
         onBlur={commit}
         onChange={event => {
@@ -199,7 +201,13 @@ function ColorControl({
             event.currentTarget.blur()
           }
         }}
-        style={{ color: foreground }}
+        style={{
+          background: 'transparent',
+          border: 0,
+          borderRadius: 0,
+          color: foreground,
+          outline: 'none',
+        }}
       />
     </div>
   )
