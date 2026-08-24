@@ -134,11 +134,11 @@ export class WindowManager {
     this.#sendStartupStatus()
   }
 
-  async loadApplication(agentOrigin: string): Promise<void> {
+  async loadApplication(applicationOriginInput: string): Promise<void> {
     const navigationGeneration = ++this.#navigationGeneration
     this.#startupPageActive = false
     const mainWindow = this.#ensureMainWindow()
-    const applicationOrigin = normalizeOrigin(agentOrigin)
+    const applicationOrigin = normalizeOrigin(applicationOriginInput)
     const applicationUrl = createRendererApplicationUrl(
       applicationOrigin,
       this.#options.startupTheme,

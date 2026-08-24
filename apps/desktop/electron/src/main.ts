@@ -32,6 +32,7 @@ import {
   configureAuthCookie,
   verifyAuthCookie,
 } from "./security/auth-session.js"
+import { resolveRendererApplicationOrigin } from "./security/renderer-application-origin.js"
 import { readStartupAppearanceConfig } from "./settings/startup-appearance-config.js"
 import { AppearanceSettingsStore } from "./settings/appearance-settings-store.js"
 import {
@@ -400,6 +401,12 @@ async function startDesktop(): Promise<void> {
     logger: activeLogger,
     loadConnection: async (candidate, guard) => {
       guard.assertCurrent()
+      const applicationOrigin = resolveRendererApplicationOrigin({
+        agentOrigin: candidate.origin,
+        isPackaged: app.isPackaged,
+        managedAgent: candidate.managed,
+        rendererDevUrl: process.env.CODEPILOTX_RENDERER_DEV_URL,
+      })
       activeWindows.showStartupStatus(
         "正在验证 Agent 认证",
         candidate.origin,
@@ -408,11 +415,11 @@ async function startDesktop(): Promise<void> {
       guard.assertCurrent()
       await verifyAuthCookie(candidate.origin, activeLogger)
       guard.assertCurrent()
-      petOverlay?.setApplicationOrigin(candidate.origin)
+      petOverlay?.setApplicationOrigin(applicationOrigin)
       guard.assertCurrent()
-      activeWindows.showStartupStatus("正在加载桌面界面", candidate.origin)
+      activeWindows.showStartupStatus("正在加载桌面界面", applicationOrigin)
       guard.assertCurrent()
-      await activeWindows.loadApplication(candidate.origin)
+      await activeWindows.loadApplication(applicationOrigin)
       guard.assertCurrent()
     },
     onConnected: async (connection, guard) => {
