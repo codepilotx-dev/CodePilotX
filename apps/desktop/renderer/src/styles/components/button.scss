@@ -1,6 +1,8 @@
 /* ===== Shared Button Patterns ===== */
 
 .ui-button {
+  --button-radius-scale: 1;
+
   box-sizing: border-box;
   display: inline-flex;
   height: var(--button-size);
@@ -10,7 +12,7 @@
   gap: 4px;
   padding: 0 var(--button-padding-inline);
   border: 1px solid transparent;
-  border-radius: var(--button-radius);
+  border-radius: calc(var(--button-radius) * var(--button-radius-scale));
   background: transparent;
   box-shadow: none;
   font-size: var(--button-font-size);
@@ -348,12 +350,9 @@
 }
 
 @supports (corner-shape: superellipse(1.5)) {
-  :root {
-    --button-radius-scale: 1.25;
-  }
-
   .ui-button:is(
       [data-size="icon"],
+      [data-size="iconLarge"],
       [data-size="iconMd"],
       [data-size="iconSm"],
       [data-size="compact"],
@@ -362,7 +361,9 @@
       [data-size="toolbar"],
       [data-size="toolbarLabel"]
     ) {
-    corner-shape: superellipse(1.5);
+    --button-radius-scale: var(--cpx-sys-radius-optical-scale);
+
+    corner-shape: var(--cpx-sys-corner-shape);
   }
 }
 

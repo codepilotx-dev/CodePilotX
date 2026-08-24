@@ -192,6 +192,132 @@ describe('Codex CPX design system token contract', () => {
     expect(rightDock).not.toContain('--cpx-sys-shadow-prominent')
   })
 
+  test('keeps optical radius correction opt-in and role-driven', async () => {
+    const [systemTokens, buttons, composer, conversation, summary, cards, rightDock] =
+      await Promise.all([
+        Bun.file(
+          new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/components/button.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_composer-shell.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL(
+            '../src/styles/features/_canonical-conversation.scss',
+            import.meta.url,
+          ),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_thread-summary.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/components/card.scss', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url),
+        ).text(),
+      ])
+
+    expect(
+      systemTokens.match(/--cpx-sys-radius-optical-scale:/g),
+    ).toHaveLength(2)
+    expect(systemTokens.match(/--cpx-sys-corner-shape:/g)).toHaveLength(2)
+    expect(systemTokens.match(/--cpx-sys-radius-prominent:/g)).toHaveLength(1)
+    expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1;')
+    expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1.25;')
+    expect(systemTokens).toContain('--cpx-sys-corner-shape: round;')
+    expect(systemTokens).toContain(
+      '--cpx-sys-corner-shape: superellipse(1.5);',
+    )
+    expect(systemTokens).toMatch(
+      /--cpx-sys-radius-prominent:\s*calc\(\s*20px \* var\(--cpx-sys-radius-optical-scale\)\s*\);/,
+    )
+    for (const [role, value] of [
+      ['control', '8px'],
+      ['container', '12px'],
+      ['floating', '16px'],
+    ]) {
+      expect(systemTokens).toContain(`--cpx-sys-radius-${role}: ${value};`)
+      expect(systemTokens).not.toMatch(
+        new RegExp(`--cpx-sys-radius-${role}:[^;]*optical-scale`),
+      )
+    }
+
+    expect(buttons).toContain('--button-radius-scale: 1;')
+    expect(buttons).toContain(
+      'border-radius: calc(var(--button-radius) * var(--button-radius-scale));',
+    )
+    const shapedButtons = buttons.slice(
+      buttons.indexOf('@supports (corner-shape: superellipse(1.5))'),
+      buttons.indexOf('.segmented-control[data-variant="inset"]'),
+    )
+    expect(shapedButtons).toContain(
+      '--button-radius-scale: var(--cpx-sys-radius-optical-scale);',
+    )
+    expect(shapedButtons).toContain(
+      'corner-shape: var(--cpx-sys-corner-shape);',
+    )
+    for (const pillSize of [
+      'default',
+      'large',
+      'composer',
+      'composerSm',
+      'composerUtility',
+    ]) {
+      expect(shapedButtons).not.toContain(`[data-size="${pillSize}"]`)
+    }
+
+    expect(composer).toContain(
+      '--composer-radius: var(--cpx-sys-radius-prominent);',
+    )
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-layout="single-line"\]\[data-composer-radius-variant="default"\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-pill\);/,
+    )
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-radius-variant="single-line"\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-prominent\);/,
+    )
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-radius-variant="compact"\][\s\S]*?var\(--cpx-sys-radius-container\) \* var\(--cpx-sys-radius-optical-scale\)/,
+    )
+    expect(composer).not.toMatch(
+      /\.composer-stack\[data-placement="new-session"\][^{]*\{[^}]*--composer-radius/,
+    )
+    expect(composer).toContain(
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface]',
+    )
+    expect(composer).toContain(
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface="coding"]',
+    )
+    expect(composer).toContain(
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface="working"]',
+    )
+    expect(composer).toContain(
+      '.composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"]',
+    )
+    expect(composer).not.toContain(
+      'calc(var(--cpx-sys-radius-xl) * 2)',
+    )
+    expect(
+      conversation.match(
+        /var\(--cpx-sys-radius-floating\) \* var\(--cpx-sys-radius-optical-scale\)/g,
+      ),
+    ).toHaveLength(2)
+    expect(conversation).toContain(
+      'corner-shape: var(--cpx-sys-corner-shape);',
+    )
+    expect(summary).toContain(
+      'border-radius: var(--cpx-sys-radius-prominent);',
+    )
+    expect(summary).toContain(
+      'corner-shape: var(--cpx-sys-corner-shape);',
+    )
+    expect(cards).not.toContain('--cpx-sys-radius-prominent')
+    expect(rightDock).not.toContain('--cpx-sys-radius-prominent')
+  })
+
   test('keeps user messages and inline summaries on dedicated semantics', async () => {
     const [systemTokens, conversation, summary] = await Promise.all([
       Bun.file(

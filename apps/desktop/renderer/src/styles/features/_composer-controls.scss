@@ -320,7 +320,7 @@
     padding-inline: var(--cpx-sys-space-2);
   }
 
-  .composer-model-chip {
+  .composer-model-chip:not([aria-expanded="true"]) {
     max-width: 96px;
     padding-inline: var(--cpx-sys-space-2);
   }
@@ -575,7 +575,7 @@
     display: none;
   }
 
-  .composer .composer-model-chip {
+  .composer .composer-model-chip:not([aria-expanded="true"]) {
     max-width: 128px;
   }
 }

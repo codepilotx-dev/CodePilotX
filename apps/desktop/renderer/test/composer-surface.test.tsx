@@ -112,6 +112,46 @@ describe('composer surface variant', () => {
     expect(chat).toContain('data-surface="chat"')
   })
 
+  test('Composer 独立投影首页外壳、实际布局与圆角角色', () => {
+    const defaults = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ placement: 'thread' })} />,
+    )
+    const home = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          layout: 'multiline',
+          radiusVariant: 'default',
+          utilityBarVariant: 'home',
+        })}
+      />,
+    )
+    const singleLine = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          layout: 'single-line',
+          radiusVariant: 'single-line',
+        })}
+      />,
+    )
+    const compact = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({ radiusVariant: 'compact' })}
+      />,
+    )
+
+    expect(defaults).toContain('data-composer-layout="multiline"')
+    expect(defaults).toContain('data-composer-radius-variant="default"')
+    expect(defaults).toContain(
+      'data-composer-utility-bar-variant="default"',
+    )
+    expect(home).toContain('data-composer-layout="multiline"')
+    expect(home).toContain('data-composer-radius-variant="default"')
+    expect(home).toContain('data-composer-utility-bar-variant="home"')
+    expect(singleLine).toContain('data-composer-layout="single-line"')
+    expect(singleLine).toContain('data-composer-radius-variant="single-line"')
+    expect(compact).toContain('data-composer-radius-variant="compact"')
+  })
+
   test('Coding 未选 workspace 时保留进入项目工作入口', () => {
     const html = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'coding' })} />,
@@ -138,7 +178,7 @@ describe('composer surface variant', () => {
         {...composerCardProps({ surface: 'chat', workspace: WORKSPACE })}
       />,
     )
-    expect(html).not.toContain('composer-utility-bar')
+    expect(html).not.toContain('class="composer-utility-bar')
     expect(html).not.toContain('Alpha 工作区')
     expect(html).toContain('composer-input-surface')
     expect(html).toContain('aria-label="发送"')
@@ -170,7 +210,7 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('class="rm-empty"')
   })
 
-  test('模型与思考等级渲染为两个独立按钮', () => {
+  test('模型与推理强度渲染为统一入口', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({
@@ -193,10 +233,10 @@ describe('composer surface variant', () => {
 
     expect(html).toContain('composer-model-chip')
     expect(html).toContain('>Claude Sonnet</span>')
-    expect(html).toContain('class="interactive-row interactive-row--composer chip-button subtle composer-thinking-chip"')
-    expect(html).toContain('aria-label="思考等级：高"')
-    expect(html).toContain('>高</button>')
-    expect(html).not.toContain('composer-model-chip-thinking')
+    expect(html).toContain('composer-model-chip-thinking')
+    expect(html).toContain('>高</span>')
+    expect(html).toContain('aria-label="模型与推理设置：Claude Sonnet，高"')
+    expect(html).not.toContain('composer-thinking-chip')
   })
 
   test('不支持思考等级时隐藏等级按钮并保留现有等级映射', () => {
@@ -207,6 +247,7 @@ describe('composer surface variant', () => {
     const deepSeekOptions = resolveThinkingOptions(true, regularOptions)
 
     expect(html).not.toContain('composer-thinking-chip')
+    expect(html).not.toContain('composer-model-chip-thinking')
     expect(resolveThinkingLabel(regularOptions, 'default')).toBe('默认')
     expect(deepSeekOptions.map(option => option.label)).toEqual(['关闭', '高', '超高'])
     expect(resolveThinkingLabel(deepSeekOptions, 'enabled')).toBe('超高')

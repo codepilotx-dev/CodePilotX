@@ -8,6 +8,12 @@ export type ComposerPlacement =
   | 'thread'
   | 'side-task'
 
+export type ComposerLayout = 'single-line' | 'multiline'
+
+export type ComposerRadiusVariant = 'default' | 'single-line' | 'compact'
+
+export type ComposerUtilityBarVariant = 'default' | 'home'
+
 /** 新建页展示上下文；thread 内不设置，保持现有行为。 */
 export type ComposerSurface = 'coding' | 'working' | 'chat'
 

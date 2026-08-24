@@ -12,21 +12,37 @@
 .composer {
   z-index: var(--cpx-sys-z-composer);
   container-type: inline-size;
-  border-radius: var(--cpx-sys-radius-xl);
+  border-radius: var(--composer-radius);
 }
 
 .composer-stack {
+  --composer-radius: var(--cpx-sys-radius-prominent);
+
   z-index: var(--cpx-sys-z-composer);
   container-type: inline-size;
   isolation: isolate;
-  border-radius: var(--cpx-sys-radius-xl);
+  border-radius: var(--composer-radius);
   box-shadow: none;
+}
+
+.composer-stack[data-composer-layout="single-line"][data-composer-radius-variant="default"] {
+  --composer-radius: var(--cpx-sys-radius-pill);
+}
+
+.composer-stack[data-composer-radius-variant="single-line"] {
+  --composer-radius: var(--cpx-sys-radius-prominent);
+}
+
+.composer-stack[data-composer-radius-variant="compact"] {
+  --composer-radius: calc(
+    var(--cpx-sys-radius-container) * var(--cpx-sys-radius-optical-scale)
+  );
 }
 
 .composer-input-surface {
   z-index: 2;
   order: 2;
-  border-radius: calc(var(--cpx-sys-radius-xl) * 2);
+  border-radius: var(--composer-radius);
 }
 
 .composer-utility-bar {
@@ -37,7 +53,7 @@
   overflow-y: hidden;
   border: 0;
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-xl) var(--cpx-sys-radius-xl) 0 0;
+  border-radius: var(--composer-radius) var(--composer-radius) 0 0;
   background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   scrollbar-width: none;
@@ -58,7 +74,7 @@
 }
 
 /* Working 新建页：输入面在上、工具条在下，紧贴无双边框。 */
-.composer-stack[data-surface="working"][data-placement="new-session"] {
+.composer-stack[data-composer-utility-bar-variant="home"][data-surface="working"] {
   .composer-input-surface {
     z-index: 2;
     order: 1;
@@ -78,17 +94,8 @@
   }
 }
 
-@supports (corner-shape: superellipse(1.5)) {
-  .composer-stack[data-placement="new-session"][data-surface] {
-    &,
-    .composer-input-surface {
-      corner-shape: superellipse(1.5);
-    }
-  }
-}
-
 @media (forced-colors: active) {
-  .composer-stack[data-placement="new-session"][data-surface]
+  .composer-stack[data-composer-utility-bar-variant="home"][data-surface]
     .composer-input-surface {
     outline: 1px solid CanvasText;
     box-shadow: none;
@@ -96,12 +103,9 @@
 }
 
 /* 新建首页共用同一 Composer，surface 只决定工具条的产品层级。 */
-.composer-stack[data-placement="new-session"][data-surface] {
-  border-radius: var(--cpx-sys-radius-pill);
-
+.composer-stack[data-composer-utility-bar-variant="home"][data-surface] {
   .composer-input-surface {
     border: 0;
-    border-radius: calc(var(--cpx-sys-radius-xl) * 2);
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-surface-control) 90%,
@@ -116,7 +120,7 @@
 }
 
 /* Coding 首页：环境条在后，输入面覆盖其下沿。 */
-.composer-stack[data-placement="new-session"][data-surface="coding"] {
+.composer-stack[data-composer-utility-bar-variant="home"][data-surface="coding"] {
   .composer-input-surface {
     z-index: 2;
     order: 2;
@@ -604,8 +608,13 @@
 }
 
 @supports (corner-shape: superellipse(1.5)) {
-  .composer {
-    corner-shape: superellipse(1.5);
+  .composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"],
+  .composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"]
+    .composer-input-surface,
+  .composer-stack[data-composer-radius-variant="compact"],
+  .composer-stack[data-composer-radius-variant="compact"]
+    .composer-input-surface {
+    corner-shape: var(--cpx-sys-corner-shape);
   }
 }
 
@@ -630,7 +639,15 @@
 }
 
 .composer-model-chip {
+  min-width: 0;
   max-width: 180px;
+  flex-shrink: 1;
+  transition: inline-size var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
+}
+
+.composer-model-chip[aria-expanded="true"] {
+  inline-size: 224px;
+  max-inline-size: 224px;
 }
 
 .composer-model-chip-label {
@@ -644,10 +661,10 @@
   font-weight: var(--cpx-sys-font-weight-regular);
 }
 
-.composer-thinking-chip {
-  min-width: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1));
-  padding-inline: var(--cpx-sys-space-2);
-  justify-content: center;
+.composer-model-chip-thinking {
+  flex-shrink: 0;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-weight: var(--cpx-sys-font-weight-regular);
 }
 
 .chip-button-spinner {
@@ -656,4 +673,10 @@
   animation-duration: var(--cpx-sys-motion-loading);
   animation-timing-function: var(--cpx-sys-ease-standard);
   animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-model-chip {
+    transition: none;
+  }
 }

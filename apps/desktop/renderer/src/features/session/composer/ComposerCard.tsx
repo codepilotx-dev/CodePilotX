@@ -78,7 +78,6 @@ import { ModelPickerPopover } from "./ModelPickerPopover.js";
 import {
   resolveThinkingLabel,
   resolveThinkingOptions,
-  ThinkingLevelPopover,
 } from "./ThinkingLevelPopover.js";
 import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
 import type {
@@ -92,10 +91,13 @@ import {
   type ComposerDocument,
   type ComposerDraftKey,
   type ComposerDeliveryIntent,
+  type ComposerLayout,
   type ComposerPlacement,
+  type ComposerRadiusVariant,
   type ComposerSubmitOutcome,
   type ComposerSubmitShortcut,
   type ComposerSurface,
+  type ComposerUtilityBarVariant,
   type WorkingPlugin,
 } from "./composerTypes.js";
 import {
@@ -131,7 +133,6 @@ type ComposerDropdown =
   | "context"
   | "permission"
   | "model"
-  | "reasoning"
   | "project"
   | "mode"
   | "branch"
@@ -343,6 +344,9 @@ type Props = {
   onCompositionEnd?: () => void;
   submitShortcut?: ComposerSubmitShortcut;
   surface?: ComposerSurface;
+  layout?: ComposerLayout;
+  radiusVariant?: ComposerRadiusVariant;
+  utilityBarVariant?: ComposerUtilityBarVariant;
   workingPlugin?: WorkingPlugin | null;
   taskPlanningAvailable?: boolean;
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void;
@@ -450,6 +454,9 @@ export function ComposerCard({
   onCompositionEnd,
   submitShortcut = "enter",
   surface,
+  layout = "multiline",
+  radiusVariant = "default",
+  utilityBarVariant = "default",
   workingPlugin,
   taskPlanningAvailable = false,
   onWorkingPluginChange,
@@ -581,7 +588,7 @@ export function ComposerCard({
       sessionBusy,
       reasoningAvailable: showThinkingOptions,
       onOpenModel: () => setOpenDropdown("model"),
-      onOpenReasoning: () => setOpenDropdown("reasoning"),
+      onOpenReasoning: () => setOpenDropdown("model"),
       onOpenStatus: () => setOpenDropdown("status"),
       onOpenMcp: onOpenMcpSettings,
       onPlanModeChange,
@@ -1229,6 +1236,9 @@ export function ComposerCard({
       className="composer-stack tw:relative tw:flex tw:w-full tw:flex-col"
       data-placement={placement}
       data-surface={surface}
+      data-composer-layout={layout}
+      data-composer-radius-variant={radiusVariant}
+      data-composer-utility-bar-variant={utilityBarVariant}
       aria-busy={submitting}
       onDragEnter={(event) => {
         if (!onAddFiles || !event.dataTransfer.types.includes("Files")) return;
@@ -1775,22 +1785,40 @@ export function ComposerCard({
             ) : null}
             <ModelPickerPopover
               align="end"
+              deepSeekThinkingControls={deepSeekThinkingControls}
               open={openDropdown === "model"}
               providerOptions={providerOptions}
               selectedModelPreset={selectedModelPreset}
               selectedProviderID={selectedProviderID}
+              showThinkingOptions={showThinkingOptions}
               side="top"
               sideOffset={4}
+              thinkingMode={thinkingMode}
+              thinkingOptions={thinkingOptions}
               trigger={
                 <ChipButton
                   active={openDropdown === "model"}
+                  aria-label={
+                    showThinkingOptions
+                      ? `模型与推理设置：${selectedModelLabel}，${selectedThinkingLabel}`
+                      : `模型：${selectedModelLabel}`
+                  }
                   className="subtle composer-model-chip"
                   loading={modelCatalogLoading}
-                  title={`${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle}`}
+                  title={
+                    showThinkingOptions
+                      ? `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle} · 推理强度：${selectedThinkingLabel}`
+                      : `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle}`
+                  }
                 >
                   <span className="composer-model-chip-label">
                     {selectedModelLabel}
                   </span>
+                  {showThinkingOptions ? (
+                    <span className="composer-model-chip-thinking">
+                      {selectedThinkingLabel}
+                    </span>
+                  ) : null}
                 </ChipButton>
               }
               onOpenChange={(open) => {
@@ -1798,34 +1826,9 @@ export function ComposerCard({
               }}
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
+              onProviderSearch={onProviderSearch}
+              onThinkingChange={onThinkingChange}
             />
-
-            {showThinkingOptions ? (
-              <ThinkingLevelPopover
-                align="end"
-                deepSeekThinkingControls={deepSeekThinkingControls}
-                open={openDropdown === "reasoning"}
-                side="top"
-                sideOffset={4}
-                thinkingMode={thinkingMode}
-                thinkingOptions={thinkingOptions}
-                trigger={
-                  <ChipButton
-                    active={openDropdown === "reasoning"}
-                    aria-label={`思考等级：${selectedThinkingLabel}`}
-                    className="subtle composer-thinking-chip"
-                    showChevron={false}
-                    title={`思考等级：${selectedThinkingLabel}`}
-                  >
-                    {selectedThinkingLabel}
-                  </ChipButton>
-                }
-                onOpenChange={(open) => {
-                  setOpenDropdown(open ? "reasoning" : null);
-                }}
-                onThinkingChange={onThinkingChange}
-              />
-            ) : null}
 
             {capabilities.dictation ? (
               <Suspense fallback={null}>

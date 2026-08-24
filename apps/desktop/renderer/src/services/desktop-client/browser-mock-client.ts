@@ -175,6 +175,10 @@ export function createBrowserMockDesktopClient(
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
+  const modelPickerVisualFixture =
+    import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('visualModelPicker') === '1'
   if (visualFixture || performanceFixture) {
     settings = { ...settings, providerID: 'mock', model: 'mock' }
   }
@@ -195,6 +199,18 @@ export function createBrowserMockDesktopClient(
   const provider = {
     ...mockModelProvider(settings.providerID),
     ...(visualFixture || performanceFixture ? { defaultModels: ['mock'] } : {}),
+    ...(modelPickerVisualFixture
+      ? {
+          apiKeyConfigured: true,
+          modelMetadata: {
+            mock: {
+              id: 'mock',
+              name: 'Browser Mock',
+              reasoning: true,
+            },
+          },
+        }
+      : {}),
   }
   const providerCatalogVisualFixture: DesktopModelProviderSummary[] | null =
     import.meta.env.DEV

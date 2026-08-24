@@ -25,9 +25,12 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
   ComposerDocument,
+  ComposerLayout,
   ComposerPlacement,
+  ComposerRadiusVariant,
   ComposerSubmitShortcut,
   ComposerSurface,
+  ComposerUtilityBarVariant,
   WorkingPlugin,
 } from './composerTypes.js'
 import {
@@ -43,9 +46,12 @@ export type {
   ComposerCapabilities,
   ComposerCollaborationMode,
   ComposerExecutionMode,
+  ComposerLayout,
   ComposerPlacement,
+  ComposerRadiusVariant,
   ComposerStackMode,
   ComposerSubmitShortcut,
+  ComposerUtilityBarVariant,
 } from './composerTypes.js'
 
 type ProviderModelOption = {
@@ -63,6 +69,9 @@ export type DesktopComposerProps = {
   capabilities?: Partial<ComposerCapabilities>
   submitShortcut?: ComposerSubmitShortcut
   surface?: ComposerSurface
+  layout?: ComposerLayout
+  radiusVariant?: ComposerRadiusVariant
+  utilityBarVariant?: ComposerUtilityBarVariant
   workingPlugin?: WorkingPlugin | null
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
   onWorkingPluginAvailabilityChange?: (available: boolean) => void
@@ -170,6 +179,9 @@ export function DesktopComposer({
   capabilities,
   submitShortcut,
   surface,
+  layout,
+  radiusVariant,
+  utilityBarVariant,
   workingPlugin,
   onWorkingPluginChange,
   onWorkingPluginAvailabilityChange,
@@ -357,6 +369,9 @@ export function DesktopComposer({
       }}
       submitShortcut={submitShortcut}
       surface={surface}
+      layout={layout}
+      radiusVariant={radiusVariant}
+      utilityBarVariant={utilityBarVariant}
       workingPlugin={workingPlugin}
       taskPlanningAvailable={taskPlanningAvailable}
       onWorkingPluginChange={handleWorkingPluginChange}

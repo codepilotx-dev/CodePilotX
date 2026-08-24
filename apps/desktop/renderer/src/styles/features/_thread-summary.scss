@@ -33,10 +33,15 @@
 
 .thread-summary-panel,
 .thread-summary-error {
-  border-radius: calc(
-    var(--cpx-sys-radius-floating) + var(--cpx-sys-space-1)
-  );
+  border-radius: var(--cpx-sys-radius-prominent);
   color: var(--cpx-sys-color-fg-primary);
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+  .thread-summary-panel,
+  .thread-summary-error {
+    corner-shape: var(--cpx-sys-corner-shape);
+  }
 }
 
 .thread-summary-panel {

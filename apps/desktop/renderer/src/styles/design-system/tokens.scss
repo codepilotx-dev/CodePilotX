@@ -102,6 +102,13 @@
   --cpx-sys-radius-floating: 16px;
   --cpx-sys-radius-pill: 9999px;
 
+  // Opt-in optical correction for shaped corners. Existing roles stay stable.
+  --cpx-sys-radius-optical-scale: 1;
+  --cpx-sys-corner-shape: round;
+  --cpx-sys-radius-prominent: calc(
+    20px * var(--cpx-sys-radius-optical-scale)
+  );
+
   // Legacy T-Shirt aliases (sourced from semantic roles)
   --cpx-sys-radius-xs: var(--cpx-sys-radius-indicator);
   --cpx-sys-radius-sm: var(--cpx-sys-radius-compact);
@@ -242,4 +249,11 @@
   --floating-composer-h: 142px;
   --composer-width: 48rem;
   --context-menu-item-padding: 6px;
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+  :root {
+    --cpx-sys-radius-optical-scale: 1.25;
+    --cpx-sys-corner-shape: superellipse(1.5);
+  }
 }
