@@ -111,7 +111,7 @@
     gap: var(--cpx-sys-space-1);
     flex: none;
     color: var(--cpx-sys-color-warning);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 
@@ -140,7 +140,7 @@
     border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
     background: var(--cpx-sys-color-surface-canvas);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-archive .taskboard-archive__row {
@@ -241,7 +241,7 @@
     padding: var(--cpx-sys-space-3);
     background: color-mix(in srgb, var(--cpx-sys-color-selected) 88%, transparent);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
     pointer-events: none;
   }
@@ -284,7 +284,7 @@
     min-height: 32px;
     padding-inline: calc(var(--cpx-sys-space-1) * 10) var(--cpx-sys-space-2);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -317,7 +317,7 @@
 
     strong {
       color: var(--cpx-sys-color-fg-primary);
-      font-size: var(--cpx-sys-font-size-sm);
+      font-size: var(--cpx-sys-font-size-md);
     }
   }
 
@@ -439,7 +439,7 @@
 
   .taskboard-dialog__thread-role {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
   }
   .taskboard-list__empty {
     margin: 0;
@@ -508,7 +508,7 @@
     background: var(--cpx-sys-color-surface-canvas);
 
     --dhx-gantt-font-family: var(--cpx-sys-font-family-sans);
-    --dhx-gantt-font-size: var(--cpx-sys-font-size-sm);
+    --dhx-gantt-font-size: var(--cpx-sys-font-size-md);
     --dhx-gantt-base-colors-background: var(--cpx-sys-color-surface-canvas);
     --dhx-gantt-base-colors-background-alt: var(--cpx-sys-color-surface-raised);
     --dhx-gantt-base-colors-border: var(--cpx-sys-color-border-subtle);
@@ -567,7 +567,7 @@
     background: var(--cpx-sys-color-surface-recessed);
     color: var(--cpx-sys-color-fg-secondary);
     border-color: var(--cpx-sys-color-border-subtle);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-gantt .gantt_scale_line {
@@ -696,7 +696,7 @@
     flex: none;
     color: var(--cpx-sys-color-fg-tertiary);
     font-variant-numeric: tabular-nums;
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-gantt__tree-node strong {
@@ -726,7 +726,7 @@
     align-items: center;
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border-radius: var(--cpx-sys-radius-full);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     line-height: var(--cpx-sys-line-height-tight);
     background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 15%, transparent);
     color: var(--cpx-sys-color-fg-secondary);
@@ -745,11 +745,11 @@
 
   .taskboard-gantt__scale-day small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-gantt__scale-day strong {
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 
@@ -863,7 +863,7 @@
   .taskboard-gantt__bar-copy strong {
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -872,7 +872,7 @@
   .taskboard-gantt__bar-copy small {
     flex: none;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-variant-numeric: tabular-nums;
   }
 
@@ -880,7 +880,7 @@
     flex: none;
     color: var(--cpx-sys-color-danger);
     font-weight: var(--cpx-sys-font-weight-bold);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
     border-radius: var(--cpx-sys-radius-xs);
     background: color-mix(in srgb, var(--cpx-sys-color-danger) 15%, transparent);
@@ -942,7 +942,7 @@
     border-radius: var(--cpx-sys-radius-full);
     color: var(--cpx-sys-color-fg-on-accent);
     background: var(--cpx-sys-color-danger);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-bold);
     line-height: var(--cpx-sys-line-height-tight);
     transform: translateX(-50%);
@@ -986,7 +986,7 @@
     place-items: center;
     color: var(--cpx-sys-color-fg-tertiary);
     pointer-events: none;
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
   }
 
   /* Unscheduled Tasks Floating Trigger & Drawer */
@@ -1005,7 +1005,7 @@
     color: var(--cpx-sys-color-fg-primary);
     box-shadow: var(--cpx-sys-shadow-floating);
     cursor: pointer;
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
     font-weight: var(--cpx-sys-font-weight-medium);
     transition: background var(--cpx-sys-motion-feedback);
   }
@@ -1025,7 +1025,7 @@
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-sys-color-accent);
     color: var(--cpx-sys-color-fg-on-accent);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-bold);
   }
 
@@ -1061,7 +1061,7 @@
     gap: var(--cpx-sys-space-2);
     font-weight: var(--cpx-sys-font-weight-bold);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
   }
 
   .taskboard-gantt__unscheduled-drawer header .drawer-title span.count {
@@ -1069,12 +1069,12 @@
     border-radius: var(--cpx-sys-radius-full);
     background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 20%, transparent);
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-gantt__unscheduled-drawer header .drawer-hint {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .taskboard-gantt__unscheduled-list {
@@ -1128,7 +1128,7 @@
     display: flex;
     align-items: center;
     gap: var(--cpx-sys-space-2);
-    font-size: var(--cpx-sys-font-size-xs);
+    font-size: var(--cpx-sys-font-size-sm);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 
@@ -1136,7 +1136,7 @@
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
     font-weight: var(--cpx-sys-font-weight-medium);
-    font-size: var(--cpx-sys-font-size-sm);
+    font-size: var(--cpx-sys-font-size-md);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1175,7 +1175,7 @@
 
   @media (max-width: 700px) {
     .taskboard-gantt {
-      --dhx-gantt-font-size: var(--cpx-sys-font-size-xs);
+      --dhx-gantt-font-size: var(--cpx-sys-font-size-sm);
     }
   }
 
