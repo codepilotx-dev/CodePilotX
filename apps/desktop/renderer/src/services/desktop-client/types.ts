@@ -25,6 +25,10 @@ import type {
   DesktopComposerPathReadInput,
 } from '@codepilotx/shared/desktop-attachment-ipc'
 import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
+import type {
+  DesktopOpenWindowInput,
+  DesktopWindowIpcBridge,
+} from '@codepilotx/shared/desktop-window-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -67,6 +71,7 @@ type DesktopClientWindow = {
     openPathWithTarget?(targetPath: string, targetId: string): Promise<void>
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
+    & Partial<DesktopWindowIpcBridge>
     & Partial<DesktopDataLocationIpcBridge>
     & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
@@ -456,6 +461,10 @@ export type DesktopModelProviderRefreshApi = {
   refreshModelProviders(): Promise<void>
 }
 
+export type DesktopWindowApi = {
+  openWindow(input: DesktopOpenWindowInput): Promise<void>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -469,4 +478,5 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &
   DesktopLocalContextApi &
-  DesktopModelProviderRefreshApi
+  DesktopModelProviderRefreshApi &
+  DesktopWindowApi

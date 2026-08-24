@@ -26,8 +26,7 @@ type BrowserEntry = {
 }
 
 export interface DesktopBrowserControllerOptions {
-  getMainWindow(): BrowserWindow | undefined
-  publish(state: DesktopBrowserSnapshot): void
+  publish(owner: BrowserWindow, state: DesktopBrowserSnapshot): void
   logger: DesktopLogger
 }
 
@@ -35,26 +34,27 @@ const EMPTY_BOUNDS: DesktopBrowserBounds = { x: 0, y: 0, width: 0, height: 0 }
 
 export class DesktopBrowserController {
   readonly #options: DesktopBrowserControllerOptions
-  readonly #entries = new Map<string, BrowserEntry>()
+  readonly #entries = new Map<number, Map<string, BrowserEntry>>()
 
   constructor(options: DesktopBrowserControllerOptions) {
     this.#options = options
   }
 
-  getState(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#entries.get(tabId)
+  getState(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entries = this.#ownerEntries(owner, false)
+    const entry = entries?.get(tabId)
     if (
       entry
       && (entry.parent.isDestroyed() || entry.view.webContents.isDestroyed())
     ) {
-      this.#entries.delete(tabId)
+      entries?.delete(tabId)
       return emptyBrowserSnapshot(tabId)
     }
     return entry ? this.#snapshot(entry) : emptyBrowserSnapshot(tabId)
   }
 
-  createOrRestore(tabId: string, url?: string): DesktopBrowserSnapshot {
-    const entry = this.#ensureEntry(tabId)
+  createOrRestore(owner: BrowserWindow, tabId: string, url?: string): DesktopBrowserSnapshot {
+    const entry = this.#ensureEntry(owner, tabId)
     entry.open = true
     if (url !== undefined && url.trim() && url !== entry.url) {
       void this.#navigate(entry, url)
@@ -65,38 +65,38 @@ export class DesktopBrowserController {
     return this.#snapshot(entry)
   }
 
-  async navigate(tabId: string, url: string): Promise<DesktopBrowserSnapshot> {
-    const entry = this.#ensureEntry(tabId)
+  async navigate(owner: BrowserWindow, tabId: string, url: string): Promise<DesktopBrowserSnapshot> {
+    const entry = this.#ensureEntry(owner, tabId)
     entry.open = true
     await this.#navigate(entry, url)
     return this.#snapshot(entry)
   }
 
-  reload(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+  reload(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entry = this.#requireEntry(owner, tabId)
     entry.error = null
     entry.view.webContents.reload()
     return this.#snapshot(entry)
   }
 
-  stop(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+  stop(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entry = this.#requireEntry(owner, tabId)
     entry.view.webContents.stop()
     entry.loading = false
     this.#publish(entry)
     return this.#snapshot(entry)
   }
 
-  goBack(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+  goBack(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entry = this.#requireEntry(owner, tabId)
     if (entry.view.webContents.navigationHistory.canGoBack()) {
       entry.view.webContents.navigationHistory.goBack()
     }
     return this.#snapshot(entry)
   }
 
-  goForward(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+  goForward(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entry = this.#requireEntry(owner, tabId)
     if (entry.view.webContents.navigationHistory.canGoForward()) {
       entry.view.webContents.navigationHistory.goForward()
     }
@@ -104,35 +104,37 @@ export class DesktopBrowserController {
   }
 
   setBounds(
+    owner: BrowserWindow,
     tabId: string,
     bounds: DesktopBrowserBounds,
   ): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+    const entry = this.#requireEntry(owner, tabId)
     entry.bounds = normalizeBounds(bounds)
     entry.view.setBounds(entry.bounds)
     this.#applyVisibility(entry)
     return this.#snapshot(entry)
   }
 
-  setVisible(tabId: string, visible: boolean): DesktopBrowserSnapshot {
-    const entry = this.#requireEntry(tabId)
+  setVisible(owner: BrowserWindow, tabId: string, visible: boolean): DesktopBrowserSnapshot {
+    const entry = this.#requireEntry(owner, tabId)
     entry.requestedVisible = visible
     this.#applyVisibility(entry)
     return this.#snapshot(entry)
   }
 
-  focus(tabId: string): void {
-    const entry = this.#requireEntry(tabId)
+  focus(owner: BrowserWindow, tabId: string): void {
+    const entry = this.#requireEntry(owner, tabId)
     if (entry.open && !entry.view.webContents.isDestroyed()) {
       entry.view.webContents.focus()
     }
   }
 
-  close(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#entries.get(tabId)
+  close(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entries = this.#ownerEntries(owner, false)
+    const entry = entries?.get(tabId)
     if (!entry) return emptyBrowserSnapshot(tabId)
     const finalState = emptyBrowserSnapshot(tabId)
-    this.#entries.delete(tabId)
+    entries?.delete(tabId)
     try {
       if (!entry.parent.isDestroyed()) {
         entry.parent.contentView.removeChildView(entry.view)
@@ -141,36 +143,48 @@ export class DesktopBrowserController {
       // The parent can disappear before its child view during application quit.
     }
     if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close()
-    this.#options.publish(finalState)
+    this.#options.publish(owner, finalState)
     return finalState
   }
 
-  clearAllowedSites(tabId: string): DesktopBrowserSnapshot {
-    const entry = this.#entries.get(tabId)
+  clearAllowedSites(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
+    const entry = this.#ownerEntries(owner, false)?.get(tabId)
     return entry ? this.#snapshot(entry) : emptyBrowserSnapshot(tabId)
   }
 
   dispose(): void {
-    for (const tabId of [...this.#entries.keys()]) this.close(tabId)
+    for (const entries of this.#entries.values()) {
+      for (const entry of [...entries.values()]) this.#disposeEntry(entry)
+    }
+    this.#entries.clear()
   }
 
   suspendAll(): void {
-    for (const entry of this.#entries.values()) {
-      if (!entry.view.webContents.isDestroyed()) entry.view.setVisible(false)
+    for (const entries of this.#entries.values()) {
+      for (const entry of entries.values()) {
+        if (!entry.view.webContents.isDestroyed()) entry.view.setVisible(false)
+      }
     }
   }
 
-  #ensureEntry(tabId: string): BrowserEntry {
-    const existing = this.#entries.get(tabId)
+  disposeOwner(owner: BrowserWindow): void {
+    const entries = this.#ownerEntries(owner, false)
+    if (!entries) return
+    for (const entry of entries.values()) this.#disposeEntry(entry)
+    this.#entries.delete(owner.webContents.id)
+  }
+
+  #ensureEntry(owner: BrowserWindow, tabId: string): BrowserEntry {
+    const entries = this.#ownerEntries(owner, true)
+    const existing = entries.get(tabId)
     if (
       existing
       && !existing.parent.isDestroyed()
       && !existing.view.webContents.isDestroyed()
     ) return existing
 
-    if (existing) this.#entries.delete(tabId)
-    const parent = this.#options.getMainWindow()
-    if (!parent || parent.isDestroyed()) {
+    if (existing) entries.delete(tabId)
+    if (owner.isDestroyed()) {
       throw new Error("桌面窗口尚未就绪")
     }
     const view = new WebContentsView({
@@ -186,7 +200,7 @@ export class DesktopBrowserController {
     const entry: BrowserEntry = {
       tabId,
       view,
-      parent,
+      parent: owner,
       open: true,
       requestedVisible: true,
       bounds: { ...EMPTY_BOUNDS },
@@ -195,8 +209,8 @@ export class DesktopBrowserController {
       loading: false,
       error: null,
     }
-    this.#entries.set(tabId, entry)
-    parent.contentView.addChildView(view)
+    entries.set(tabId, entry)
+    owner.contentView.addChildView(view)
     view.setBounds(entry.bounds)
     view.setVisible(false)
     this.#configureSecurity(entry)
@@ -296,8 +310,8 @@ export class DesktopBrowserController {
     }
   }
 
-  #requireEntry(tabId: string): BrowserEntry {
-    const entry = this.#entries.get(tabId)
+  #requireEntry(owner: BrowserWindow, tabId: string): BrowserEntry {
+    const entry = this.#ownerEntries(owner, false)?.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) {
       throw new Error("浏览器标签页尚未打开")
     }
@@ -333,8 +347,34 @@ export class DesktopBrowserController {
 
   #publish(entry: BrowserEntry): void {
     if (!entry.view.webContents.isDestroyed()) {
-      this.#options.publish(this.#snapshot(entry))
+      this.#options.publish(entry.parent, this.#snapshot(entry))
     }
+  }
+
+  #ownerEntries(owner: BrowserWindow, create: true): Map<string, BrowserEntry>
+  #ownerEntries(owner: BrowserWindow, create: false): Map<string, BrowserEntry> | undefined
+  #ownerEntries(owner: BrowserWindow, create: boolean): Map<string, BrowserEntry> | undefined {
+    const ownerId = owner.webContents.id
+    const existing = this.#entries.get(ownerId)
+    if (existing || !create) return existing
+    const entries = new Map<string, BrowserEntry>()
+    this.#entries.set(ownerId, entries)
+    owner.webContents.once("destroyed", () => {
+      for (const entry of entries.values()) this.#disposeEntry(entry)
+      this.#entries.delete(ownerId)
+    })
+    return entries
+  }
+
+  #disposeEntry(entry: BrowserEntry): void {
+    try {
+      if (!entry.parent.isDestroyed()) {
+        entry.parent.contentView.removeChildView(entry.view)
+      }
+    } catch {
+      // The parent can disappear before its child view during application quit.
+    }
+    if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close()
   }
 }
 

@@ -1,4 +1,4 @@
-import { ipcMain, type WebContents } from "electron"
+import { ipcMain, type BrowserWindow, type WebContents } from "electron"
 import {
   DESKTOP_BROWSER_IPC_CHANNELS,
   type CreateOrRestoreDesktopBrowserInput,
@@ -11,67 +11,76 @@ import type { DesktopBrowserController } from "../browser/browser-controller.js"
 
 interface BrowserIpcDependencies {
   controller: DesktopBrowserController
-  isMainWindowSender(sender: WebContents): boolean
+  windowForSender(sender: WebContents): BrowserWindow | undefined
 }
 
 export function registerBrowserIpc(dependencies: BrowserIpcDependencies): void {
-  const { controller, isMainWindowSender } = dependencies
-  const tabInput = (sender: WebContents, input: unknown): DesktopBrowserTabInput => {
-    requireMainWindowSender(sender, isMainWindowSender)
-    return requireTabInput(input)
+  const { controller, windowForSender } = dependencies
+  const senderWindow = (sender: WebContents): BrowserWindow => {
+    const owner = windowForSender(sender)
+    if (!owner) throw new Error("IPC 调用来源无效")
+    return owner
   }
 
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.getState, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.getState(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.getState(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.createOrRestore, (event, input) => {
-    requireMainWindowSender(event.sender, isMainWindowSender)
+    const owner = senderWindow(event.sender)
     const value = requireCreateInput(input)
-    return controller.createOrRestore(value.tabId, value.url)
+    return controller.createOrRestore(owner, value.tabId, value.url)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.navigate, async (event, input) => {
-    requireMainWindowSender(event.sender, isMainWindowSender)
+    const owner = senderWindow(event.sender)
     const value = requireNavigateInput(input)
-    return controller.navigate(value.tabId, value.url)
+    return controller.navigate(owner, value.tabId, value.url)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.reload, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.reload(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.reload(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.stop, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.stop(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.stop(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.goBack, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.goBack(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.goBack(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.goForward, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.goForward(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.goForward(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.setBounds, (event, input) => {
-    requireMainWindowSender(event.sender, isMainWindowSender)
+    const owner = senderWindow(event.sender)
     const value = requireBoundsInput(input)
-    return controller.setBounds(value.tabId, value.bounds)
+    return controller.setBounds(owner, value.tabId, value.bounds)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.setVisible, (event, input) => {
-    requireMainWindowSender(event.sender, isMainWindowSender)
+    const owner = senderWindow(event.sender)
     const value = requireVisibleInput(input)
-    return controller.setVisible(value.tabId, value.visible)
+    return controller.setVisible(owner, value.tabId, value.visible)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.focus, (event, input) => {
-    const value = tabInput(event.sender, input)
-    controller.focus(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    controller.focus(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.close, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.close(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.close(owner, value.tabId)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.clearAllowedSites, (event, input) => {
-    const value = tabInput(event.sender, input)
-    return controller.clearAllowedSites(value.tabId)
+    const owner = senderWindow(event.sender)
+    const value = requireTabInput(input)
+    return controller.clearAllowedSites(owner, value.tabId)
   })
 }
 
@@ -148,11 +157,4 @@ function isExactRecord(
 
 function invalidInput(): never {
   throw new Error("浏览器参数无效")
-}
-
-function requireMainWindowSender(
-  sender: WebContents,
-  isAllowed: (sender: WebContents) => boolean,
-): void {
-  if (!isAllowed(sender)) throw new Error("IPC 调用来源无效")
 }

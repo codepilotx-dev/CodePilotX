@@ -17,20 +17,18 @@ export function registerDataLocationIpc(
 ): void {
   const { store, windows, installDirectory, relaunch } = dependencies
   ipcMain.handle(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get, event => {
-    requireMainWindow(event.sender.id, windows)
+    requireApplicationWindow(event.sender, windows)
     return store.state()
   })
   ipcMain.handle(
     DESKTOP_DATA_LOCATION_IPC_CHANNELS.choose,
     async (event, workspaceRoots: unknown) => {
-      requireMainWindow(event.sender.id, windows)
+      const owner = requireApplicationWindow(event.sender, windows)
       const options: OpenDialogOptions = {
         title: "选择 CodePilotX 用户数据的父目录",
         properties: ["openDirectory", "createDirectory"],
       }
-      const result = windows.mainWindow
-        ? await dialog.showOpenDialog(windows.mainWindow, options)
-        : await dialog.showOpenDialog(options)
+      const result = await dialog.showOpenDialog(owner, options)
       const selected = result.canceled ? null : result.filePaths[0] ?? null
       if (!selected) return null
       const change = await store.schedule(
@@ -43,13 +41,13 @@ export function registerDataLocationIpc(
     },
   )
   ipcMain.handle(DESKTOP_DATA_LOCATION_IPC_CHANNELS.retry, event => {
-    requireMainWindow(event.sender.id, windows)
+    requireApplicationWindow(event.sender, windows)
     setImmediate(relaunch)
   })
   ipcMain.handle(
     DESKTOP_DATA_LOCATION_IPC_CHANNELS.restore,
     async event => {
-      requireMainWindow(event.sender.id, windows)
+      requireApplicationWindow(event.sender, windows)
       await store.restoreActive()
       setImmediate(relaunch)
     },
@@ -68,8 +66,13 @@ function normalizeWorkspaceRoots(value: unknown): string[] {
   return value
 }
 
-function requireMainWindow(senderId: number, windows: WindowManager): void {
-  if (windows.mainWindow?.webContents.id !== senderId) {
+function requireApplicationWindow(
+  sender: Electron.WebContents,
+  windows: WindowManager,
+): Electron.BrowserWindow {
+  const owner = windows.windowForSender(sender)
+  if (!owner) {
     throw new Error("IPC 调用来源无效")
   }
+  return owner
 }

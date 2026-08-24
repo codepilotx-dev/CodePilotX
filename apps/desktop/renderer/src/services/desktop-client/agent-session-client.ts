@@ -1752,6 +1752,9 @@ export function createAgentSessionDesktopClient(
       requireAgentCapability('local-context.paths.v1')
       return rpc.call('context/path/list', input)
     }),
+    openWindow: input =>
+      environment.window?.codePilotXDesktop?.openWindow?.(input)
+      ?? Promise.resolve(),
     getSpeechStatus: () => withAgentOrMock(
       async () => (await loadSpeechApi()).getSpeechStatus(),
       () => mockClient.getSpeechStatus(),
@@ -3534,6 +3537,9 @@ export function createAgentSessionDesktopClient(
     getAuthStatus: async () => mockAuthStatus(),
     getRuntimeStatus: async () => mockRuntimeStatus(),
     isWindowMaximized: async () => bridgeWindowMaximized(),
+    newWindow: () =>
+      environment.window?.codePilotXDesktop?.openWindow?.({ kind: 'home' })
+      ?? Promise.resolve(),
     // 其余方法只在用户交互或导航后调用，按需经 lazy facade 加载 Mock chunk。
     applyWorkspaceReviewOperation: lazyMock('applyWorkspaceReviewOperation'),
     cancelCopilotLogin: lazyMock('cancelCopilotLogin'),
@@ -3555,7 +3561,6 @@ export function createAgentSessionDesktopClient(
     listSkillsCatalog: lazyMock('listSkillsCatalog'),
     logOut: lazyMock('logOut'),
     minimizeWindow: lazyMock('minimizeWindow'),
-    newWindow: lazyMock('newWindow'),
     openDevTools: lazyMock('openDevTools'),
     openExternalURL: lazyMock('openExternalURL'),
     openSettings: lazyMock('openSettings'),

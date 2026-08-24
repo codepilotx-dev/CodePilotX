@@ -656,6 +656,17 @@ export function ConversationPage(): React.ReactNode {
     }
   }, [canRegenerateSessionTitle, onRefreshSessionTitle]);
 
+  const openConversationInNewWindow = React.useCallback((): void => {
+    if (!activeSessionId) return;
+    setSessionMenuOpen(false);
+    void desktopClient.openWindow({
+      kind: "thread",
+      threadId: activeSessionId,
+    }).catch((error) => {
+      window.dispatchEvent(new CustomEvent("desktop:error", { detail: error }));
+    });
+  }, [activeSessionId]);
+
   React.useEffect(() => {
     setRenameDialogOpen(false);
     setRenameValue("");
@@ -947,7 +958,11 @@ export function ConversationPage(): React.ReactNode {
             添加自动化...
           </PopoverItem>
           <PopoverSeparator />
-          <PopoverItem disabled icon={<AppWindow size={APP_ICON_SIZE} />}>
+          <PopoverItem
+            disabled={!activeSessionId}
+            icon={<AppWindow size={APP_ICON_SIZE} />}
+            onClick={openConversationInNewWindow}
+          >
             在新窗口中打开
           </PopoverItem>
         </PopoverMenu>
@@ -963,6 +978,7 @@ export function ConversationPage(): React.ReactNode {
       isSessionPinned,
       latestConversationForkPoint,
       openRenameSessionDialog,
+      openConversationInNewWindow,
       regenerateCurrentSessionTitle,
       titleRegenerating,
       renamingSession,

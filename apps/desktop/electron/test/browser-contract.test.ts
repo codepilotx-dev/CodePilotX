@@ -15,10 +15,12 @@ describe("内置浏览器 IPC 契约", () => {
     )
   })
 
-  test("所有 handler 都要求主 renderer 来源", async () => {
+  test("所有 handler 都按受管 renderer 窗口隔离 Browser owner", async () => {
     const source = await readSource("../src/ipc/register-browser-ipc.ts")
-    expect(source).toContain("requireMainWindowSender(event.sender, isMainWindowSender)")
-    expect(source).toContain("const value = tabInput(event.sender, input)")
+    expect(source).toContain("const owner = senderWindow(event.sender)")
+    expect(source).toContain('if (!owner) throw new Error("IPC 调用来源无效")')
+    expect(source).toContain("controller.getState(owner, value.tabId)")
+    expect(source).toContain("controller.createOrRestore(owner, value.tabId, value.url)")
     expect(source).not.toContain("ipcRenderer")
   })
 })

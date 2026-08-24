@@ -23,7 +23,10 @@ import {
   type DesktopComposerPathListInput,
   type DesktopComposerPathReadInput,
 } from "@codepilotx/shared/desktop-attachment-ipc"
-import { DESKTOP_WINDOW_IPC_CHANNELS } from "@codepilotx/shared/desktop-window-ipc"
+import {
+  DESKTOP_WINDOW_IPC_CHANNELS,
+  normalizeDesktopOpenWindowInput,
+} from "@codepilotx/shared/desktop-window-ipc"
 import { DESKTOP_WORKSPACE_IPC_CHANNELS } from "@codepilotx/shared/desktop-workspace-ipc"
 import { DESKTOP_SHELL_IPC_CHANNELS } from "@codepilotx/shared/desktop-shell-ipc"
 import {
@@ -101,15 +104,12 @@ export function registerDesktopIpc(
   ipcMain.handle(
     DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles,
     async event => {
-      requireMainWindowSender(event, windows)
+      const ownerWindow = requireMainWindowSender(event, windows)
       const options: OpenDialogOptions = {
         title: "Files and folders",
         properties: ["openFile", "multiSelections"],
       }
-      const mainWindow = windows.mainWindow
-      const result = mainWindow
-        ? await dialog.showOpenDialog(mainWindow, options)
-        : await dialog.showOpenDialog(options)
+      const result = await dialog.showOpenDialog(ownerWindow, options)
       if (result.canceled) return []
       retainGrantOwner(event.sender)
       return composerPathGrants.grantPaths(event.sender.id, result.filePaths)
@@ -138,27 +138,28 @@ export function registerDesktopIpc(
     },
   )
 
-  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.minimize, event => {
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.openWindow, (event, input: unknown) => {
     requireMainWindowSender(event, windows)
-    windows.mainWindow?.minimize()
+    const normalized = normalizeDesktopOpenWindowInput(input)
+    if (!normalized) throw new Error("窗口参数无效")
+    windows.openWindow(normalized)
+  })
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.minimize, event => {
+    requireMainWindowSender(event, windows).minimize()
   })
   ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize, event => {
-    requireMainWindowSender(event, windows)
-    const mainWindow = windows.mainWindow
-    if (!mainWindow) return false
-    if (mainWindow.isMaximized()) mainWindow.unmaximize()
-    else mainWindow.maximize()
-    return mainWindow.isMaximized()
+    const target = requireMainWindowSender(event, windows)
+    if (target.isMaximized()) target.unmaximize()
+    else target.maximize()
+    return target.isMaximized()
   })
   ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.close, event => {
-    requireMainWindowSender(event, windows)
-    windows.mainWindow?.close()
+    requireMainWindowSender(event, windows).close()
   })
   ipcMain.handle(
     DESKTOP_WINDOW_IPC_CHANNELS.isMaximized,
     event => {
-      requireMainWindowSender(event, windows)
-      return windows.mainWindow?.isMaximized() ?? false
+      return requireMainWindowSender(event, windows).isMaximized()
     },
   )
   ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.check, async event => {
@@ -293,15 +294,12 @@ export function registerDesktopIpc(
     quitDuringStartup()
   })
   ipcMain.handle(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory, async event => {
-    requireMainWindowSender(event, windows)
+    const ownerWindow = requireMainWindowSender(event, windows)
     const options: OpenDialogOptions = {
       title: "选择项目目录",
       properties: ["openDirectory", "createDirectory"],
     }
-    const mainWindow = windows.mainWindow
-    const result = mainWindow
-      ? await dialog.showOpenDialog(mainWindow, options)
-      : await dialog.showOpenDialog(options)
+    const result = await dialog.showOpenDialog(ownerWindow, options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
 }
@@ -343,18 +341,14 @@ function requireDesktopRendererSender(
   event: Electron.IpcMainInvokeEvent,
   isAllowed: (sender: WebContents) => boolean,
 ): void {
-  if (!isAllowed(event.sender)) {
-    throw new Error("IPC 调用来源无效")
-  }
+  if (!isAllowed(event.sender)) throw new Error("IPC 调用来源无效")
 }
 
 function requireMainWindowSender(
   event: Electron.IpcMainInvokeEvent,
   windows: WindowManager,
-): void {
-  if (!windows.isMainSender(event.sender)) {
-    throw new Error("IPC 调用来源无效")
-  }
+): Electron.BrowserWindow {
+  return windows.requireApplicationWindow(event.sender)
 }
 
 function requireSupervisor(

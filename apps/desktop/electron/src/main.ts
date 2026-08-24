@@ -132,7 +132,8 @@ let terminalManager: TerminalManager | undefined
 let terminalHost: TerminalHostRpcClient | undefined
 let browserController: DesktopBrowserController | undefined
 let deepLinkController: ThreadDeepLinkController | undefined
-let rendererDeepLinkReady = false
+const rendererDeepLinkReady = new Set<number>()
+const rendererDeepLinkTracked = new Set<number>()
 
 const packagedTerminalSmokeResult = process.env.CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT?.trim()
 const packagedTerminalSmokeRequested = process.argv.includes("--codepilotx-packaged-terminal-smoke")
@@ -157,12 +158,18 @@ if (
     deepLinkController = createThreadDeepLinkController({
       getInitialArgv: () => process.argv,
       subscribeRendererReady: () => () => {},
-      isRendererReady: () => rendererDeepLinkReady,
+      isRendererReady: () => {
+        const id = windows?.focusedWindow?.webContents.id
+        return id !== undefined && rendererDeepLinkReady.has(id)
+      },
       focusMainWindow: () => windows?.focus(true),
       notify: payload => {
         const normalized = normalizeDesktopThreadDeepLinkPayload(payload)
         if (normalized !== null) {
-          windows?.send(DESKTOP_DEEP_LINK_IPC_CHANNELS.activated, normalized)
+          windows?.sendToFocused(
+            DESKTOP_DEEP_LINK_IPC_CHANNELS.activated,
+            normalized,
+          )
         }
       },
     })
@@ -234,11 +241,11 @@ async function startDesktop(): Promise<void> {
   registerMicrophoneMediaPermissions({
     session: session.defaultSession,
     getAllowedApplicationOrigin: () => windows?.applicationOrigin,
-    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+    isMainWindowSender: sender => windows?.isApplicationSender(sender) === true,
   })
   registerMicrophoneIpc({
     ipc: ipcMain,
-    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+    isMainWindowSender: sender => windows?.isApplicationSender(sender) === true,
     openMicrophonePrivacySettings: async () => {
       await shell.openExternal(WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL)
     },
@@ -275,7 +282,7 @@ async function startDesktop(): Promise<void> {
     logger,
     updater: electronUpdater.autoUpdater as ElectronAutoUpdaterLike,
     onStatusChange: status => {
-      windows?.send(DESKTOP_UPDATE_IPC_CHANNELS.status, status)
+      windows?.broadcast(DESKTOP_UPDATE_IPC_CHANNELS.status, status)
     },
   })
   const attachmentDownloads = new AttachmentDownloadService({
@@ -283,11 +290,11 @@ async function startDesktop(): Promise<void> {
   })
   const composerPathGrants = new ComposerPathGrantService()
   browserController = new DesktopBrowserController({
-    getMainWindow: () => windows?.mainWindow,
-    publish: state => windows?.send(
-      DESKTOP_BROWSER_IPC_CHANNELS.stateChanged,
-      state,
-    ),
+    publish: (owner, state) => {
+      if (!owner.isDestroyed()) {
+        owner.webContents.send(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, state)
+      }
+    },
     logger,
   })
 
@@ -313,7 +320,7 @@ async function startDesktop(): Promise<void> {
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
     isDesktopRendererSender: sender =>
-      windows?.isMainSender(sender) === true
+      windows?.isApplicationSender(sender) === true
       || petOverlay?.isOverlaySender(sender) === true,
     broadcastDesktopSettingsChanged: settings => {
       broadcastDesktopSettingsChanged(settings)
@@ -325,22 +332,22 @@ async function startDesktop(): Promise<void> {
     actionResolver: terminalHost,
     mirrorSink: terminalHost,
     onEvent: event => {
-      windows?.send(DESKTOP_TERMINAL_IPC_CHANNELS.event, event)
+      windows?.broadcast(DESKTOP_TERMINAL_IPC_CHANNELS.event, event)
     },
   })
   registerTerminalIpc({
     manager: terminalManager,
-    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+    isMainWindowSender: sender => windows?.isApplicationSender(sender) === true,
   })
   registerBrowserIpc({
     controller: browserController,
-    isMainWindowSender: sender => windows?.isMainSender(sender) === true,
+    windowForSender: sender => windows?.windowForSender(sender),
   })
   registerAppearanceIpc(
     appearanceSettings,
     appearance,
     new AppearanceSettingsStore(app.getPath("userData"), logger),
-    sender => windows?.isMainSender(sender) === true,
+    sender => windows?.isApplicationSender(sender) === true,
   )
   registerDataLocationIpc({
     store: dataLocationStore,
@@ -355,21 +362,21 @@ async function startDesktop(): Promise<void> {
     logger,
     factory: createElectronNotificationFactory(),
     resolveIconPath: resolveNotificationIconPath,
-    isMainWindowFocused: () => windows?.mainWindow?.isFocused() === true,
+    isMainWindowFocused: () => windows?.focusedWindow?.isFocused() === true,
     focusMainWindow: () => windows?.focus(true),
     publishActivation: activation =>
       publishNotificationActivation(windows, activation),
   })
   registerNotificationIpc(windows, notificationService)
   ipcMain.handle(DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending, (event) => {
-    if (windows?.isMainSender(event.sender) !== true) return null
+    if (windows?.isApplicationSender(event.sender) !== true) return null
     // 11B 保证 Renderer 先注册 activated listener 再调用 consume，因此
     // 经过主窗口 sender 校验的该 invoke 是可靠的 ready 握手。
-    rendererDeepLinkReady = true
+    trackRendererDeepLinkLifecycle(event.sender)
+    rendererDeepLinkReady.add(event.sender.id)
     return deepLinkController?.consumePendingThreadDeepLink() ?? null
   })
   windows.createStartupWindow()
-  attachDeepLinkReadyLifecycle()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN
     ?? randomBytes(32).toString("base64url")
@@ -427,7 +434,7 @@ async function startDesktop(): Promise<void> {
       activeWindows.showApplication()
     },
     onReconnecting: () => {
-      rendererDeepLinkReady = false
+      rendererDeepLinkReady.clear()
       browserController?.suspendAll()
       windows?.showReconnectWindow()
     },
@@ -533,7 +540,7 @@ app.on("before-quit", (event) => {
 function broadcastDesktopSettingsChanged(
   settings: DesktopSettingsPayload,
 ): void {
-  windows?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
+  windows?.broadcast(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
   petOverlay?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
 }
 
@@ -543,20 +550,19 @@ function disposeDeepLinkController(): void {
   ipcMain.removeHandler(DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending)
 }
 
-// 主窗口主框架重新导航或销毁时重置 ready，避免 reload 后沿用旧 ready；
-// 同文档导航（SPA pushState 等）不重置。窗口/WebContents 在重连与导航间
-// 复用，仅在窗口销毁时更换，因此一次装配覆盖整个生命周期。
-function attachDeepLinkReadyLifecycle(): void {
-  const mainWindow = windows?.mainWindow
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  const webContents = mainWindow.webContents
+// 每个完整工作台窗口独立跟踪 ready。主框架 reload 后必须重新握手，
+// SPA pushState 不影响 ready；destroyed 时只移除该窗口。
+function trackRendererDeepLinkLifecycle(webContents: Electron.WebContents): void {
+  if (rendererDeepLinkTracked.has(webContents.id)) return
+  rendererDeepLinkTracked.add(webContents.id)
   webContents.on("did-start-navigation", (details) => {
     if (details.isMainFrame && !details.isSameDocument) {
-      rendererDeepLinkReady = false
+      rendererDeepLinkReady.delete(webContents.id)
     }
   })
   webContents.on("destroyed", () => {
-    rendererDeepLinkReady = false
+    rendererDeepLinkReady.delete(webContents.id)
+    rendererDeepLinkTracked.delete(webContents.id)
   })
 }
 

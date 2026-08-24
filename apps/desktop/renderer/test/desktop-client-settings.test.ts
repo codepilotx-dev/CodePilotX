@@ -59,6 +59,27 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('opens home and thread windows through the typed desktop bridge', async () => {
+    const calls: unknown[] = []
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          openWindow: async input => {
+            calls.push(input)
+          },
+        },
+      },
+    })
+
+    await client.newWindow()
+    await client.openWindow({ kind: 'thread', threadId: 'thread-1' })
+
+    expect(calls).toEqual([
+      { kind: 'home' },
+      { kind: 'thread', threadId: 'thread-1' },
+    ])
+  })
+
   test('shows composer file entry only with Electron bridge and both Agent capabilities', async () => {
     const bridge = {
       chooseComposerFiles: async () => [],

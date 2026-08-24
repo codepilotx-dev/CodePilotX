@@ -70,7 +70,10 @@ import type {
 import type {
   DesktopMicrophoneIpcBridge,
 } from "@codepilotx/shared/desktop-microphone-ipc"
-import type { DesktopWindowIpcBridge } from "@codepilotx/shared/desktop-window-ipc"
+import type {
+  DesktopOpenWindowInput,
+  DesktopWindowIpcBridge,
+} from "@codepilotx/shared/desktop-window-ipc"
 import type { DesktopWorkspaceIpcBridge } from "@codepilotx/shared/desktop-workspace-ipc"
 import type {
   DesktopExternalOpenTarget,
@@ -175,6 +178,7 @@ const DESKTOP_MICROPHONE_IPC_CHANNELS = {
 } as const satisfies typeof import("@codepilotx/shared/desktop-microphone-ipc").DESKTOP_MICROPHONE_IPC_CHANNELS
 
 const DESKTOP_WINDOW_IPC_CHANNELS = {
+  openWindow: "window:open",
   minimize: "window:minimize",
   toggleMaximize: "window:toggle-maximize",
   close: "window:close",
@@ -357,6 +361,8 @@ const desktop = {
     input: DesktopComposerPathListInput,
   ): Promise<DesktopComposerPathListResult> =>
     ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.listComposerPathGrant, input),
+  openWindow: (input: DesktopOpenWindowInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.openWindow, input),
   minimize: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.minimize),
   toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize),
   close: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.close),

@@ -38,7 +38,7 @@ describe("用户附件 IPC 契约", () => {
     const source = await readSource("../src/ipc/register-desktop-ipc.ts")
     const handlers = source.slice(
       source.indexOf("DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles"),
-      source.indexOf("DESKTOP_WINDOW_IPC_CHANNELS.minimize"),
+      source.indexOf("DESKTOP_WINDOW_IPC_CHANNELS.openWindow"),
     )
     expect(handlers).toContain('properties: ["openFile", "multiSelections"]')
     expect(handlers).not.toContain('"openDirectory"')
