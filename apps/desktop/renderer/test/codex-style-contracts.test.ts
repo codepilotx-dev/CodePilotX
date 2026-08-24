@@ -192,12 +192,70 @@ describe('Codex CPX design system token contract', () => {
     expect(rightDock).not.toContain('--cpx-sys-shadow-prominent')
   })
 
-  test('keeps optical radius correction opt-in and role-driven', async () => {
-    const [systemTokens, buttons, composer, conversation, summary, cards, rightDock] =
-      await Promise.all([
+  test('keeps high-frequency motion immediate and CSS/Motion timings aligned', async () => {
+    const [systemTokens, motionTransitions, modelMenu] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/motion/motionTransitions.ts', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/styles/model-menu-pilot.scss', import.meta.url),
+      ).text(),
+    ])
+
+    for (const [role, duration] of [
+      ['instant', '0ms'],
+      ['feedback', '60ms'],
+      ['exit', '90ms'],
+      ['state', '100ms'],
+      ['enter', '120ms'],
+      ['panel', '120ms'],
+      ['loading', '900ms'],
+    ]) {
+      expect(systemTokens).toContain(
+        `--cpx-sys-motion-${role}: ${duration};`,
+      )
+    }
+
+    expect(motionTransitions).toContain('duration: 0.1,')
+    expect(motionTransitions.match(/duration: 0\.12,/g)).toHaveLength(2)
+    expect(motionTransitions).toContain('duration: 0.09,')
+    expect(motionTransitions).toContain("duration: 0.9,\n  ease: 'linear',")
+
+    expect(modelMenu).not.toContain('260ms')
+    expect(modelMenu).not.toContain('cubic-bezier(0.34, 1.35, 0.64, 1)')
+    expect(modelMenu).toMatch(
+      /\.rm-thick-slider-track:is\(\.is-pointer-down, \.is-dragging\)[\s\S]*?transition-duration: var\(--cpx-sys-motion-instant\);/,
+    )
+    expect(modelMenu).not.toContain(
+      'transition: opacity var(--cpx-sys-motion-panel)',
+    )
+    expect(modelMenu).toMatch(
+      /\.rm-intelligence-view-toggle-icon\s*\{\s*transition: transform var\(--cpx-sys-motion-state\)/,
+    )
+  })
+
+  test('keeps the radius scale optical correction and roles canonical', async () => {
+    const [
+      systemTokens,
+      componentTokens,
+      tailwind,
+      buttons,
+      composer,
+      conversation,
+      summary,
+      cards,
+      rightDock,
+    ] = await Promise.all([
         Bun.file(
           new URL('../src/styles/design-system/tokens.scss', import.meta.url),
         ).text(),
+        Bun.file(
+          new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+        ).text(),
+        Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text(),
         Bun.file(
           new URL('../src/styles/components/button.scss', import.meta.url),
         ).text(),
@@ -225,37 +283,85 @@ describe('Codex CPX design system token contract', () => {
       systemTokens.match(/--cpx-sys-radius-optical-scale:/g),
     ).toHaveLength(2)
     expect(systemTokens.match(/--cpx-sys-corner-shape:/g)).toHaveLength(2)
-    expect(systemTokens.match(/--cpx-sys-radius-prominent:/g)).toHaveLength(1)
     expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1;')
     expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1.25;')
     expect(systemTokens).toContain('--cpx-sys-corner-shape: round;')
     expect(systemTokens).toContain(
       '--cpx-sys-corner-shape: superellipse(1.5);',
     )
-    expect(systemTokens).toMatch(
-      /--cpx-sys-radius-prominent:\s*calc\(\s*20px \* var\(--cpx-sys-radius-optical-scale\)\s*\);/,
-    )
-    for (const [role, value] of [
-      ['control', '8px'],
-      ['container', '12px'],
-      ['floating', '16px'],
+    for (const [size, value] of [
+      ['2xs', '2px'],
+      ['xs', '4px'],
+      ['sm', '6px'],
+      ['md', '8px'],
+      ['lg', '10px'],
+      ['xl', '12px'],
+      ['2xl', '16px'],
+      ['3xl', '20px'],
+      ['4xl', '24px'],
     ]) {
-      expect(systemTokens).toContain(`--cpx-sys-radius-${role}: ${value};`)
-      expect(systemTokens).not.toMatch(
-        new RegExp(`--cpx-sys-radius-${role}:[^;]*optical-scale`),
+      expect(
+        systemTokens.match(new RegExp(`--cpx-sys-radius-${size}:`, 'g')),
+      ).toHaveLength(1)
+      expect(systemTokens).toMatch(
+        new RegExp(
+          `--cpx-sys-radius-${size}:\\s*calc\\(${value} \\* var\\(--cpx-sys-radius-optical-scale\\)\\);`,
+        ),
       )
     }
-
-    expect(buttons).toContain('--button-radius-scale: 1;')
-    expect(buttons).toContain(
-      'border-radius: calc(var(--button-radius) * var(--button-radius-scale));',
+    expect(systemTokens.match(/--cpx-sys-radius-full:/g)).toHaveLength(1)
+    expect(systemTokens).toContain('--cpx-sys-radius-full: 9999px;')
+    expect(systemTokens).not.toMatch(/--cpx-sys-radius-full:[^;]*optical-scale/)
+    for (const [role, size] of [
+      ['indicator', '2xs'],
+      ['compact', 'xs'],
+      ['control', 'md'],
+      ['container', 'lg'],
+      ['floating', 'xl'],
+      ['prominent', '3xl'],
+      ['pill', 'full'],
+    ]) {
+      expect(
+        systemTokens.match(new RegExp(`--cpx-sys-radius-${role}:`, 'g')),
+      ).toHaveLength(1)
+      expect(systemTokens).toContain(
+        `--cpx-sys-radius-${role}: var(--cpx-sys-radius-${size});`,
+      )
+    }
+    for (const size of [
+      '2xs',
+      'xs',
+      'sm',
+      'md',
+      'lg',
+      'xl',
+      '2xl',
+      '3xl',
+      '4xl',
+      'full',
+    ]) {
+      expect(tailwind).toContain(
+        `--radius-${size}: var(--cpx-sys-radius-${size});`,
+      )
+    }
+    expect(tailwind).toMatch(
+      /:where\([\s\S]*?\.tw\\:rounded-md,[\s\S]*?\.tw\\:rounded-lg,[\s\S]*?\.tw\\:rounded-xl,[\s\S]*?\.tw\\:rounded-2xl,[\s\S]*?\.tw\\:rounded-3xl,[\s\S]*?\.tw\\:rounded-4xl[\s\S]*?\)\s*\{\s*corner-shape: var\(--cpx-sys-corner-shape\);/,
     )
+    expect(tailwind).not.toMatch(
+      /\.tw\\:rounded-(?:2xs|xs|sm|full)[\s\S]*?corner-shape:/,
+    )
+    expect(componentTokens).toContain(
+      '--cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);',
+    )
+    expect(componentTokens).toContain(
+      '--cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-lg);',
+    )
+
+    expect(buttons).not.toContain('--button-radius-scale')
+    expect(buttons).toContain('border-radius: var(--button-radius);')
     const shapedButtons = buttons.slice(
       buttons.indexOf('@supports (corner-shape: superellipse(1.5))'),
       buttons.indexOf('.segmented-control[data-variant="inset"]'),
-    )
-    expect(shapedButtons).toContain(
-      '--button-radius-scale: var(--cpx-sys-radius-optical-scale);',
     )
     expect(shapedButtons).toContain(
       'corner-shape: var(--cpx-sys-corner-shape);',
@@ -280,8 +386,9 @@ describe('Codex CPX design system token contract', () => {
       /\.composer-stack\[data-composer-radius-variant="single-line"\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-prominent\);/,
     )
     expect(composer).toMatch(
-      /\.composer-stack\[data-composer-radius-variant="compact"\][\s\S]*?var\(--cpx-sys-radius-container\) \* var\(--cpx-sys-radius-optical-scale\)/,
+      /\.composer-stack\[data-composer-radius-variant="compact"\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-container\);/,
     )
+    expect(composer).not.toContain('var(--cpx-sys-radius-optical-scale)')
     expect(composer).not.toMatch(
       /\.composer-stack\[data-placement="new-session"\][^{]*\{[^}]*--composer-radius/,
     )
@@ -301,10 +408,9 @@ describe('Codex CPX design system token contract', () => {
       'calc(var(--cpx-sys-radius-xl) * 2)',
     )
     expect(
-      conversation.match(
-        /var\(--cpx-sys-radius-floating\) \* var\(--cpx-sys-radius-optical-scale\)/g,
-      ),
+      conversation.match(/border-radius: var\(--cpx-sys-radius-2xl\);/g),
     ).toHaveLength(2)
+    expect(conversation).not.toContain('var(--cpx-sys-radius-optical-scale)')
     expect(conversation).toContain(
       'corner-shape: var(--cpx-sys-corner-shape);',
     )

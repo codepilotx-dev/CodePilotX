@@ -38,6 +38,7 @@ test('1440×920 light board shows five lanes with readable cards', async ({
     await expect(page.getByRole('heading', { name })).toBeVisible()
   }
   await expect(page.locator('.taskboard-card')).toHaveCount(7)
+  await expect(page.getByRole('toolbar', { name: '工作区工具栏' }).getByRole('button', { name: '议题看板' })).toBeVisible()
   await expect(
     page.getByRole('button', { name: '打开任务：重构看板五列布局与流程箭头' }),
   ).toBeVisible()
@@ -89,6 +90,44 @@ test('960×640 keeps fixed column width and scrolls horizontally', async ({
     scrollWidth: node.scrollWidth,
   }))
   expect(scroll.scrollWidth).toBeGreaterThan(scroll.clientWidth)
+
+  const toolbarLocator = page.locator('.taskboard-toolbar')
+  await expect(toolbarLocator.getByLabel('任务层级')).toBeVisible()
+  await expect(toolbarLocator.getByLabel('项目', { exact: true })).toBeVisible()
+  await expect(toolbarLocator.getByRole('searchbox', { name: '搜索任务' })).toBeVisible()
+  await expect(toolbarLocator.getByText('层级', { exact: true })).toHaveCount(0)
+  await expect(toolbarLocator.getByText('项目', { exact: true })).toHaveCount(0)
+  const header = page.getByRole('toolbar', { name: '工作区工具栏' })
+  await expect(header.getByRole('button', { name: '议题看板' })).toBeVisible()
+  await expect(header.getByRole('button', { name: '列表视图' })).toBeVisible()
+  await expect(header.getByRole('button', { name: '甘特图' })).toBeVisible()
+  await expect(toolbarLocator.getByRole('button', { name: /议题看板/ })).toHaveCount(0)
+  await expect(toolbarLocator.getByRole('button', { name: '筛选' })).toBeVisible()
+  await expect(toolbarLocator.getByRole('button', { name: '显示其他任务' })).toBeVisible()
+  await expect(toolbarLocator.getByRole('button', { name: '打开归档区' })).toBeVisible()
+
+  const toolbarBoxes = await page.locator('.taskboard-toolbar__tools > *, .taskboard-toolbar__actions > *').evaluateAll(nodes =>
+    nodes
+      .filter(node => getComputedStyle(node).display !== 'none')
+      .map(node => {
+        const box = node.getBoundingClientRect()
+        return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
+      }),
+  )
+  for (const box of toolbarBoxes) {
+    expect(box.right).toBeGreaterThan(box.left)
+    expect(box.bottom).toBeGreaterThan(box.top)
+  }
+  const toolbar = await toolbarLocator.boundingBox()
+  expect(toolbar).not.toBeNull()
+  for (const box of toolbarBoxes) {
+    expect(box.left).toBeGreaterThanOrEqual(toolbar!.x - 1)
+    expect(box.right).toBeLessThanOrEqual(toolbar!.x + toolbar!.width + 1)
+  }
+  const orderedBoxes = [...toolbarBoxes].sort((left, right) => left.left - right.left)
+  for (let index = 1; index < orderedBoxes.length; index += 1) {
+    expect(orderedBoxes[index - 1]!.right).toBeLessThanOrEqual(orderedBoxes[index]!.left + 1)
+  }
 
   await expect(page.locator('body')).toHaveScreenshot(
     'taskboard-960-columns.png',

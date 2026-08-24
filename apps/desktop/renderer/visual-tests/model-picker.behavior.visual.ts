@@ -110,6 +110,34 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
     getComputedStyle(element).justifyContent,
   )).toBe('center')
   await expectCompactPickerGeometry(picker, 'simple')
+  await expect.poll(() => picker.evaluate(element => {
+    const rootStyle = getComputedStyle(document.documentElement)
+    const menuElement = element.querySelector<HTMLElement>('.rm-intelligence-menu')
+    const trackElement = element.querySelector<HTMLElement>('.rm-intelligence-view-track')
+    const panelElement = element.querySelector<HTMLElement>('.rm-intelligence-view-panel')
+    const toggleIcon = element.querySelector<HTMLElement>('.rm-intelligence-view-toggle-icon')
+    return {
+      feedback: rootStyle.getPropertyValue('--cpx-sys-motion-feedback').trim(),
+      exit: rootStyle.getPropertyValue('--cpx-sys-motion-exit').trim(),
+      state: rootStyle.getPropertyValue('--cpx-sys-motion-state').trim(),
+      enter: rootStyle.getPropertyValue('--cpx-sys-motion-enter').trim(),
+      panel: rootStyle.getPropertyValue('--cpx-sys-motion-panel').trim(),
+      menuDuration: menuElement ? getComputedStyle(menuElement).transitionDuration : '',
+      trackDuration: trackElement ? getComputedStyle(trackElement).transitionDuration : '',
+      panelDuration: panelElement ? getComputedStyle(panelElement).transitionDuration : '',
+      toggleIconDuration: toggleIcon ? getComputedStyle(toggleIcon).transitionDuration : '',
+    }
+  })).toEqual({
+    feedback: '60ms',
+    exit: '90ms',
+    state: '100ms',
+    enter: '120ms',
+    panel: '120ms',
+    menuDuration: '0.12s',
+    trackDuration: '0.12s',
+    panelDuration: '0s',
+    toggleIconDuration: '0.1s',
+  })
 
   const controls = picker.locator('.rm-intelligence-view-controls')
   const slider = picker.getByRole('slider', { name: '调节思考等级' })
