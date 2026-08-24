@@ -126,6 +126,10 @@
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-sm);
   }
+
+  &[data-tone="warning"] {
+    border-color: var(--cpx-sys-color-warning);
+  }
 }
 
 .taskboard-loading {
@@ -139,16 +143,17 @@
 }
 
 .taskboard-board {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: clamp(296px, 23vw, 336px);
-  gap: var(--cpx-sys-space-3);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: var(--cpx-sys-space-4);
   flex: 1;
   min-width: 0;
   min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x proximity;
+  padding-block-end: var(--cpx-sys-space-2);
 }
 
 /* --- 状态列 --- */
@@ -156,39 +161,48 @@
 .taskboard-column {
   --status-color: var(--cpx-sys-color-fg-tertiary);
   position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-2);
+  flex: 0 0 clamp(300px, 22vw, 340px);
+  width: clamp(300px, 22vw, 340px);
+  min-width: 300px;
+  height: 100%;
   min-height: 0;
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-xl);
-  background: color-mix(in srgb, var(--cpx-sys-color-surface-panel) 72%, transparent);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   scroll-snap-align: start;
 }
 
 .taskboard-column[data-status="todo"] {
-  --status-color: var(--cpx-sys-color-charts-purple);
+  --status-color: var(--cpx-sys-color-skill);
 }
 .taskboard-column[data-status="in_progress"] {
-  --status-color: var(--cpx-sys-color-charts-green);
+  --status-color: var(--cpx-sys-color-success);
 }
 .taskboard-column[data-status="in_review"] {
-  --status-color: var(--cpx-sys-color-charts-blue);
+  --status-color: var(--cpx-sys-color-info);
+}
+.taskboard-column[data-status="backlog"] {
+  --status-color: var(--cpx-sys-color-fg-secondary);
 }
 .taskboard-column[data-status="done"] {
   --status-color: var(--cpx-sys-color-success);
 }
+.taskboard-column[data-status="canceled"] {
+  --status-color: var(--cpx-sys-color-fg-tertiary);
+}
 
-/* 列间轻量流程箭头：本页唯一视觉签名；暗色主题与 forced-colors 下降级 */
+/* 列间流程指示箭头：>> 符号 */
 .taskboard-column:not(:last-child)::after {
   content: '';
   position: absolute;
-  top: 16px;
-  right: -10px;
+  top: 14px;
+  right: -12px;
   z-index: 1;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-top: 1.5px solid var(--cpx-sys-color-border-default);
   border-right: 1.5px solid var(--cpx-sys-color-border-default);
   transform: rotate(45deg);
@@ -197,7 +211,7 @@
 
 @media (prefers-color-scheme: dark) {
   .taskboard-column:not(:last-child)::after {
-    opacity: 0.45;
+    opacity: 0.35;
   }
 }
 
@@ -208,46 +222,82 @@
 }
 
 .taskboard-column__header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
   height: 36px;
   padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-3);
-  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-panel);
+  flex: none;
 
   h2 {
     margin: 0;
-    font-size: var(--cpx-sys-font-size-md);
+    flex: 1;
+    font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-medium);
   }
 }
 
-.taskboard-column__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--status-color);
+.taskboard-column__header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
 
-.taskboard-column__count {
-  min-width: 22px;
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
-  border-radius: var(--cpx-sys-radius-full);
-  background: color-mix(in srgb, var(--cpx-sys-color-surface-panel) 70%, transparent);
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  text-align: center;
+.taskboard-column[data-status="todo"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-skill) 12%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-skill) 22%, transparent);
+  color: var(--cpx-sys-color-skill-fg);
+  h2 { color: var(--cpx-sys-color-skill-fg); }
+}
+
+.taskboard-column[data-status="in_progress"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-success) 22%, transparent);
+  color: var(--cpx-sys-color-success-fg);
+  h2 { color: var(--cpx-sys-color-success-fg); }
+}
+
+.taskboard-column[data-status="in_review"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-info) 12%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-info) 22%, transparent);
+  color: var(--cpx-sys-color-info-fg);
+  h2 { color: var(--cpx-sys-color-info-fg); }
+}
+
+.taskboard-column[data-status="backlog"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-secondary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-fg-secondary) 16%, transparent);
+  color: var(--cpx-sys-color-fg-primary);
+  h2 { color: var(--cpx-sys-color-fg-primary); }
+}
+
+.taskboard-column[data-status="done"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-success) 18%, transparent);
+  color: var(--cpx-sys-color-success-fg);
+  h2 { color: var(--cpx-sys-color-success-fg); }
+}
+
+.taskboard-column[data-status="canceled"] .taskboard-column__header {
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 18%, transparent);
+  color: var(--cpx-sys-color-fg-tertiary);
+  h2 { color: var(--cpx-sys-color-fg-tertiary); }
 }
 
 .taskboard-column__cards {
   display: flex;
   flex-direction: column;
   gap: var(--cpx-sys-space-2);
+  flex: 1;
   min-height: 0;
-  padding: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .taskboard-column__card-slot {
@@ -308,14 +358,18 @@
 .taskboard-card {
   position: relative;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-surface-raised);
-  box-shadow: none;
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-sys-color-surface-canvas);
+  box-shadow: var(--cpx-sys-shadow-control);
   overflow: hidden;
+  transition: border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+              box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+              transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
 
   &:focus-within,
   &:hover {
     border-color: var(--cpx-sys-color-border-default);
+    box-shadow: var(--cpx-sys-shadow-floating);
   }
   &[data-pending] {
     opacity: 0.65;
@@ -333,6 +387,8 @@
 .taskboard-card > .taskboard-card__open {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row;
+  flex-direction: column;
   align-items: stretch;
   gap: var(--cpx-sys-space-2);
   min-width: 0;
@@ -348,27 +404,33 @@
     box-shadow: var(--cpx-sys-focus-ring-inset);
     outline: 0;
   }
-  strong {
-    min-width: 0;
-    font-size: var(--cpx-sys-font-size-sm);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    overflow-wrap: anywhere;
-  }
-  p {
-    display: -webkit-box;
-    min-width: 0;
-    margin: 0;
-    overflow: hidden;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
+}
+
+.taskboard-card__heading,
+.taskboard-card__body,
+.taskboard-card__facts {
+  min-width: 0;
+  width: 100%;
+}
+
+.taskboard-card__heading,
+.taskboard-card__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cpx-sys-space-2);
+}
+
+.taskboard-card__facts {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cpx-sys-space-1);
 }
 
 .taskboard-card__context {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--cpx-sys-space-1);
   min-width: 0;
   color: var(--cpx-sys-color-fg-tertiary);
@@ -381,10 +443,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  letter-spacing: 0.02em;
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
-.taskboard-card__number {
-  color: var(--cpx-sys-color-fg-secondary);
+.taskboard-card__status-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--cpx-sys-radius-full);
+  background: transparent;
+
+  &[data-status="in_review"] {
+    background: var(--cpx-sys-color-info);
+  }
+}
+
+.taskboard-card__blocked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-warning);
+  font-size: var(--cpx-sys-font-size-xs);
 }
 
 .taskboard-card__attention {
@@ -393,36 +476,29 @@
   color: var(--cpx-sys-color-warning);
 }
 
-.taskboard-card__priority {
-  flex: none;
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-sys-color-surface-panel);
+.taskboard-card__title,
+.taskboard-card__description {
+  display: -webkit-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.taskboard-card__title {
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-sm);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-normal);
+  margin: 0;
+}
+
+.taskboard-card__description {
   color: var(--cpx-sys-color-fg-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--cpx-sys-font-size-xs);
-}
-
-.taskboard-card[data-priority="urgent"] .taskboard-card__priority {
-  color: var(--cpx-sys-color-danger);
-}
-.taskboard-card[data-priority="high"] .taskboard-card__priority {
-  color: var(--cpx-sys-color-warning);
-}
-
-.taskboard-card__labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cpx-sys-space-1);
-
-  span {
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-surface-panel);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-  }
+  font-size: var(--cpx-sys-font-size-sm);
+  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .taskboard-card__footer {
@@ -445,7 +521,8 @@
   font-size: var(--cpx-sys-font-size-xs);
 }
 
-.taskboard-card__threads {
+.taskboard-card__threads,
+.taskboard-card__actions {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -475,11 +552,77 @@
   margin-inline-end: var(--cpx-sys-space-1);
 }
 
-.taskboard-card__actions {
+/* 正在处理流线行 */
+.taskboard-card__processing-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+  width: 100%;
+  margin-top: var(--cpx-sys-space-1);
+}
+
+.taskboard-card__processing-badge {
   display: inline-flex;
-  flex: none;
   align-items: center;
   gap: var(--cpx-sys-space-1);
+  flex: none;
+  color: var(--cpx-sys-color-success);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
+.taskboard-card__processing-text {
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+}
+
+.taskboard-card__processing-bars {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  flex: 1;
+
+  span {
+    height: 2px;
+    flex: 1;
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-success);
+    opacity: 0.35;
+
+    &:nth-child(1),
+    &:nth-child(2) {
+      opacity: 0.85;
+    }
+  }
+}
+
+.taskboard-card__comment-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
+.taskboard-card__plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+}
+
+.taskboard-card__floating-menu {
+  position: absolute;
+  top: var(--cpx-sys-space-1);
+  right: var(--cpx-sys-space-1);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
+
+  .taskboard-card:hover &,
+  .taskboard-card:focus-within & {
+    opacity: 1;
+  }
 }
 
 /* --- 创建 / 启动浮层 --- */

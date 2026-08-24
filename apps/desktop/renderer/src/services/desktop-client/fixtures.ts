@@ -33,6 +33,8 @@ import type {
   TaskboardThreadExecution,
   TaskboardThreadLink,
   TaskboardThreadRole,
+  TaskboardWorkflowTaskDetails,
+  TaskboardWorkflowTaskSummary,
 } from '@codepilotx/shared/taskboard'
 import type {
   PermissionConfig,
@@ -884,6 +886,8 @@ export type BrowserTaskboardFixture = {
   labels: readonly TaskboardLabel[]
   tasks: readonly TaskboardTaskSummary[]
   details: ReadonlyMap<string, TaskboardTaskDetails>
+  workflowTasks: readonly TaskboardWorkflowTaskSummary[]
+  workflowDetails: ReadonlyMap<string, TaskboardWorkflowTaskDetails>
 }
 
 const TASKBORD_VISUAL_PROJECT_A = 'visual-taskboard-project-a'
@@ -894,7 +898,14 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
   const search = new URLSearchParams(window.location.search)
   if (search.get('visualCase') !== 'taskboard') return null
   if (search.get('taskboardEmpty') === '1') {
-    return { projects: [], labels: [], tasks: [], details: new Map() }
+    return {
+      projects: [],
+      labels: [],
+      tasks: [],
+      details: new Map(),
+      workflowTasks: [],
+      workflowDetails: new Map(),
+    }
   }
 
   const baseTime = Date.UTC(2026, 7, 10, 9, 0, 0)
@@ -941,7 +952,7 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
     linkedAt: timestamp(1_000),
   })
 
-  const summaries: TaskboardTaskSummary[] = [
+  const summaries: Array<Omit<TaskboardWorkflowTaskSummary, 'attention' | 'dueDate' | 'startDate'>> = [
     {
       id: 'visual-task-1',
       projectId: TASKBORD_VISUAL_PROJECT_A,
@@ -1071,11 +1082,65 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
         }),
       ],
     },
+    {
+      id: 'visual-task-8',
+      projectId: TASKBORD_VISUAL_PROJECT_B,
+      number: 205,
+      title: '等待外部验收环境恢复后继续执行',
+      description: '阻碍任务保留真实状态，并在处理中格内提供清晰的文字标记。',
+      status: 'blocked',
+      priority: 'urgent',
+      position: 2048,
+      version: 1,
+      labels: [labels[2]!],
+      archivedAt: null,
+      createdAt: timestamp(7_000),
+      updatedAt: timestamp(7_000),
+      threads: [],
+    },
+    {
+      id: 'visual-task-9',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 105,
+      title: '取消不再采用的独立侧栏方案',
+      description: '保留历史决策，但不再占用主流程的执行空间。',
+      status: 'canceled',
+      priority: 'none',
+      position: 1024,
+      version: 1,
+      labels: [labels[1]!],
+      archivedAt: null,
+      createdAt: timestamp(8_000),
+      updatedAt: timestamp(8_000),
+      threads: [],
+    },
+    {
+      id: 'visual-task-10',
+      projectId: TASKBORD_VISUAL_PROJECT_A,
+      number: 99,
+      title: '归档旧版任务看板交互稿',
+      description: '已完成的历史稿件进入独立归档 Surface。',
+      status: 'done',
+      priority: 'low',
+      position: 1024,
+      version: 1,
+      labels: [labels[0]!],
+      archivedAt: timestamp(9_000),
+      createdAt: timestamp(-172_800_000),
+      updatedAt: timestamp(9_000),
+      threads: [],
+    },
   ]
 
-  const details = new Map<string, TaskboardTaskDetails>()
-  for (const [index, summary] of summaries.entries()) {
-    details.set(summary.id, {
+  const workflowTasks: TaskboardWorkflowTaskSummary[] = summaries.map(task => ({
+    ...task,
+    startDate: null,
+    dueDate: null,
+    attention: { unread: false, unreadAt: null, readAt: null, reason: null },
+  }))
+  const workflowDetails = new Map<string, TaskboardWorkflowTaskDetails>()
+  for (const [index, summary] of workflowTasks.entries()) {
+    workflowDetails.set(summary.id, {
       task: {
         id: summary.id,
         projectId: summary.projectId,
@@ -1088,6 +1153,9 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
         version: summary.version,
         labels: summary.labels.map(item => item),
         archivedAt: summary.archivedAt,
+        startDate: summary.startDate,
+        dueDate: summary.dueDate,
+        attention: summary.attention,
         createdAt: summary.createdAt,
         updatedAt: summary.updatedAt,
       },
@@ -1130,6 +1198,37 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
     })
   }
 
+  const tasks: TaskboardTaskSummary[] = workflowTasks.flatMap(task => {
+    if (!['backlog', 'todo', 'in_progress', 'in_review', 'done'].includes(task.status)) return []
+    return [{
+      id: task.id,
+      projectId: task.projectId,
+      number: task.number,
+      title: task.title,
+      description: task.description,
+      status: task.status as TaskboardTaskSummary['status'],
+      priority: task.priority,
+      position: task.position,
+      version: task.version,
+      labels: task.labels,
+      archivedAt: task.archivedAt,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      threads: task.threads,
+    }]
+  })
+  const details = new Map<string, TaskboardTaskDetails>()
+  for (const task of tasks) {
+    const workflowDetail = workflowDetails.get(task.id)
+    if (!workflowDetail) continue
+    details.set(task.id, {
+      task,
+      threads: task.threads,
+      comments: workflowDetail.comments,
+      activities: workflowDetail.activities,
+    })
+  }
+
   return {
     projects: [
       {
@@ -1144,8 +1243,10 @@ export function createBrowserTaskboardFixture(): BrowserTaskboardFixture | null 
       },
     ],
     labels,
-    tasks: summaries,
+    tasks,
     details,
+    workflowTasks,
+    workflowDetails,
   }
 }
 

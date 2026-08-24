@@ -10,7 +10,7 @@ import {
 
 const TASKS_ROUTE = '/?visualCase=taskboard#/taskboard'
 const EMPTY_ROUTE = '/?visualCase=taskboard&taskboardEmpty=1#/taskboard'
-const COLUMN_NAMES = ['待整理', '待办', '进行中', '待审核', '已完成'] as const
+const COLUMN_NAMES = ['等待认领', '处理中', '等你确认', '待立项', '完成', '取消'] as const
 
 async function openBoard(
   page: import('@playwright/test').Page,
@@ -27,17 +27,17 @@ async function openBoard(
   await closeTransientErrorToast(page)
 }
 
-test('1440×920 light board shows five lanes with readable cards', async ({
+test('1440×920 light board shows the fixed 2×3 workflow matrix', async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await openBoard(page, 'light', TASKS_ROUTE)
 
-  await expect(page.locator('.taskboard-column')).toHaveCount(5)
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
   for (const name of COLUMN_NAMES) {
     await expect(page.getByRole('heading', { name })).toBeVisible()
   }
-  await expect(page.locator('.taskboard-card')).toHaveCount(7)
+  await expect(page.locator('.taskboard-card')).toHaveCount(9)
   await expect(page.getByRole('toolbar', { name: '工作区工具栏' }).getByRole('button', { name: '议题看板' })).toBeVisible()
   await expect(
     page.getByRole('button', { name: '打开任务：重构看板五列布局与流程箭头' }),
@@ -46,13 +46,46 @@ test('1440×920 light board shows five lanes with readable cards', async ({
     page.getByRole('button', { name: /打开任务：为跨项目执行跑道补充一个特别长的任务标题/ }),
   ).toBeVisible()
 
+  const longCardLayout = await page.locator('[data-taskboard-task-id="visual-task-2"]').evaluate((card) => {
+    const open = card.querySelector<HTMLElement>('.taskboard-card__open')!
+    const heading = card.querySelector<HTMLElement>('.taskboard-card__heading')!
+    const title = card.querySelector<HTMLElement>('.taskboard-card__title')!
+    const body = card.querySelector<HTMLElement>('.taskboard-card__body')!
+    const titleStyle = getComputedStyle(title)
+    return {
+      openOverflow: open.scrollWidth - open.clientWidth,
+      titleOverflow: title.scrollWidth - title.clientWidth,
+      titleLines: title.getBoundingClientRect().height / Number.parseFloat(titleStyle.lineHeight),
+      vertical: heading.getBoundingClientRect().bottom <= body.getBoundingClientRect().top,
+    }
+  })
+  expect(longCardLayout.openOverflow).toBeLessThanOrEqual(1)
+  expect(longCardLayout.titleOverflow).toBeLessThanOrEqual(1)
+  expect(longCardLayout.titleLines).toBeLessThanOrEqual(2.1)
+  expect(longCardLayout.vertical).toBe(true)
+
+  const descriptionLayout = await page.locator('[data-taskboard-task-id="visual-task-1"] .taskboard-card__description').evaluate((description) => {
+    const element = description as HTMLElement
+    const style = getComputedStyle(element)
+    return {
+      overflow: element.scrollWidth - element.clientWidth,
+      lines: element.getBoundingClientRect().height / Number.parseFloat(style.lineHeight),
+    }
+  })
+  expect(descriptionLayout.overflow).toBeLessThanOrEqual(1)
+  expect(descriptionLayout.lines).toBeLessThanOrEqual(2.1)
+
   const widths = await page.locator('.taskboard-column').evaluateAll(nodes =>
     nodes.map(node => node.getBoundingClientRect().width),
   )
   for (const width of widths) {
-    expect(width).toBeGreaterThanOrEqual(296)
-    expect(width).toBeLessThanOrEqual(336)
+    expect(width).toBeGreaterThanOrEqual(280)
   }
+  const columnTops = await page.locator('.taskboard-column').evaluateAll(nodes =>
+    nodes.map(node => Math.round(node.getBoundingClientRect().top)),
+  )
+  expect(new Set(columnTops).size).toBe(2)
+  await expect(page.getByText('遇到阻碍', { exact: true })).toBeVisible()
 
   await expect(page.locator('body')).toHaveScreenshot(
     'taskboard-1440-light-board.png',
@@ -64,8 +97,8 @@ test('1440×920 dark board keeps the lane rhythm', async ({ page }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await openBoard(page, 'dark', TASKS_ROUTE)
 
-  await expect(page.locator('.taskboard-column')).toHaveCount(5)
-  await expect(page.locator('.taskboard-card')).toHaveCount(7)
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
+  await expect(page.locator('.taskboard-card')).toHaveCount(9)
   await expect(page.locator('body')).toHaveScreenshot(
     'taskboard-1440-dark-board.png',
     STABLE_SCREENSHOT_OPTIONS,
@@ -82,10 +115,9 @@ test('960×640 keeps fixed column width and scrolls horizontally', async ({
     .locator('.taskboard-column')
     .first()
     .evaluate(node => node.getBoundingClientRect().width)
-  expect(columnWidth).toBeGreaterThanOrEqual(296)
-  expect(columnWidth).toBeLessThanOrEqual(336)
+  expect(columnWidth).toBeGreaterThanOrEqual(280)
 
-  const scroll = await page.locator('.taskboard-board').evaluate(node => ({
+  const scroll = await page.locator('.taskboard-board-scroll').evaluate(node => ({
     clientWidth: node.clientWidth,
     scrollWidth: node.scrollWidth,
   }))
@@ -101,10 +133,11 @@ test('960×640 keeps fixed column width and scrolls horizontally', async ({
   await expect(header.getByRole('button', { name: '议题看板' })).toBeVisible()
   await expect(header.getByRole('button', { name: '列表视图' })).toBeVisible()
   await expect(header.getByRole('button', { name: '甘特图' })).toBeVisible()
+  await expect(header.getByRole('button', { name: '已归档' })).toBeVisible()
   await expect(toolbarLocator.getByRole('button', { name: /议题看板/ })).toHaveCount(0)
   await expect(toolbarLocator.getByRole('button', { name: '筛选' })).toBeVisible()
-  await expect(toolbarLocator.getByRole('button', { name: '显示其他任务' })).toBeVisible()
-  await expect(toolbarLocator.getByRole('button', { name: '打开归档区' })).toBeVisible()
+  await expect(toolbarLocator.getByRole('button', { name: '显示其他任务' })).toHaveCount(0)
+  await expect(toolbarLocator.getByRole('button', { name: '打开归档区' })).toHaveCount(0)
 
   const toolbarBoxes = await page.locator('.taskboard-toolbar__tools > *, .taskboard-toolbar__actions > *').evaluateAll(nodes =>
     nodes
@@ -135,19 +168,41 @@ test('960×640 keeps fixed column width and scrolls horizontally', async ({
   )
 })
 
-test('empty data still renders the five status columns', async ({ page }) => {
+test('archive is a dedicated header surface with a compact history list', async ({ page }) => {
+  await page.setViewportSize(DESKTOP_VIEWPORT)
+  await openBoard(page, 'light', TASKS_ROUTE)
+
+  await page.getByRole('toolbar', { name: '工作区工具栏' })
+    .getByRole('button', { name: '已归档' })
+    .click()
+  await expect(page).toHaveURL(/view=archive/)
+  const archive = page.getByRole('region', { name: '已归档任务' })
+  await expect(archive).toBeVisible()
+  await expect(archive.getByRole('button', { name: '打开已归档任务：归档旧版任务看板交互稿' })).toBeVisible()
+  await expect(archive.getByText('完成', { exact: true })).toBeVisible()
+  await expect(page.locator('.taskboard-column')).toHaveCount(0)
+  await expect(page.locator('.taskboard-other, [data-other-open], [data-workbench-tab-kind="route-panel"]')).toHaveCount(0)
+  await expect(page.locator('.taskboard-toolbar').getByLabel('任务层级')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '新建任务' })).toHaveCount(0)
+  await expect(page.locator('body')).toHaveScreenshot(
+    'taskboard-1440-light-archive.png',
+    STABLE_SCREENSHOT_OPTIONS,
+  )
+})
+
+test('empty data still renders the six status cells', async ({ page }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await openBoard(page, 'light', EMPTY_ROUTE)
 
-  await expect(page.locator('.taskboard-column')).toHaveCount(5)
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
   for (const name of COLUMN_NAMES) {
     await expect(page.getByRole('heading', { name })).toBeVisible()
   }
-  await expect(page.locator('.taskboard-column__empty')).toHaveCount(5)
+  await expect(page.locator('.taskboard-column__empty')).toHaveCount(6)
   await expect(page.locator('.taskboard-card')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '新建任务' })).toBeVisible()
   await expect(page.locator('body')).toHaveScreenshot(
-    'taskboard-empty-five-columns.png',
+    'taskboard-empty-six-cells.png',
     STABLE_SCREENSHOT_OPTIONS,
   )
 })
@@ -210,8 +265,8 @@ test('details drawer stays inside the route with board context and Escape focus 
   ).toBeVisible()
   await expect(drawer.getByRole('button', { name: '开始执行' })).toBeVisible()
 
-  // 看板上下文保持可见：五列与任务卡仍在路由区域渲染
-  await expect(page.locator('.taskboard-column')).toHaveCount(5)
+  // 看板上下文保持可见：六格与任务卡仍在路由区域渲染
+  await expect(page.locator('.taskboard-column')).toHaveCount(6)
   await expect(page.locator('.taskboard-card').first()).toBeVisible()
   const drawerWidth = (await drawer.boundingBox())?.width
   expect(drawerWidth).toBeCloseTo(480, 0)

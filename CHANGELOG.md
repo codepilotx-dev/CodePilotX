@@ -39,6 +39,9 @@
 
 ### Changed
 
+- [desktop/renderer] 彻底重构任务看板泳道与卡片视觉结构以对齐原型：移除列容器大面积灰底色与深色包裹，重构彩色胶囊状态列头（带图标与新建按钮）、列间流程指示箭头与单排横向自适应滚动，精简卡片结构（微缩 ID、右侧状态指示圆点、纯标题无大段描述、单行流线进度条/优先级与评论气泡），卡片改用纯白卡面与细微悬浮阴影。
+
+- [desktop/renderer] 将任务看板未归档状态统一为固定 2×3 主视图，把阻碍任务明确归入处理中，并将已归档任务改为 Header 中独立的紧凑历史 Surface。
 - [desktop/renderer] 建立完整的 2xs–4xl/full 圆角基础刻度并分阶段迁移 Renderer 组件，使普通控件、列表、菜单、消息与高层级浮动表面恢复 Codex 式层级，同时限制大圆角仅用于明确的 prominent 表面。
 - [desktop/renderer] 将任务看板的输入、选择、日期、单复选及行内交互统一接入 Renderer 组件体系，移除 Windows/Chromium 原生控件外观并补齐可搜索选择与日期范围限制。
 - [desktop/renderer] 将 Composer 模型、推理强度与提供商整合为 Codex 风格的简洁/高级选择器，使打开态 Chip 与弹层对齐并居中，按 Switch 语义统一滑杆前景与背景并收紧高级按钮，修复双层 Hover、纵向切换、动态高度空白、悬停 Flyout、Provider 连续选择及拖动档位回跳，同时保留“更高效 / 更智能”端点提示。
@@ -144,6 +147,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务看板长标题和说明挤压成单字列的问题，将卡片改为上下信息结构并限制正文行数。
+- [agent/desktop] 兼容读取异常任务阶段，区分看板读取与操作错误，并通过非阻断诊断提示保留任务可用性。
 - [desktop/development] 修复多个 Git worktree 启动 Desktop 时争用固定 Renderer 端口和全局 Electron 实例的问题，为各 worktree 隔离动态 Vite、Electron 状态与日志，同时复用唯一开发 Agent。
 - [desktop/renderer] 修复任务看板窄侧栏中的任务卡片被通用交互行布局挤压、导致中文标题逐字竖排的问题，恢复标题、说明与元信息的纵向可读排布。
 - [desktop/renderer] 修复任务甘特图依赖尝试加载 Google Inter 字体及 Renderer 在 CSP 元标签中声明无效 `frame-ancestors` 所产生的控制台错误，继续保持网络字体默认拒绝。

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Archive, CalendarClock, EyeOff, PanelRight, SlidersHorizontal } from 'lucide-react'
+import { CalendarClock, EyeOff, SlidersHorizontal } from 'lucide-react'
 import type {
   TaskboardLabel,
   TaskboardPriority,
@@ -27,7 +27,6 @@ type Props = {
   priority?: TaskboardPriority
   labelIds: readonly string[]
   count: number
-  archived: boolean
   loading: boolean
   hasActiveFilters: boolean
   view: TaskboardLayout
@@ -36,11 +35,8 @@ type Props = {
   datePreset?: TaskboardWorkflowDatePreset
   sort?: TaskboardWorkflowSort
   hierarchyMode: TaskboardHierarchyMode
-  otherTasksOpen: boolean
   ganttZoom: TaskboardGanttZoom
   ganttHideCompleted: boolean
-  otherTasksTriggerRef: React.Ref<HTMLButtonElement>
-  onOtherTasksToggle: () => void
   onGanttToday: () => void
   onGanttZoomChange: (zoom: TaskboardGanttZoom) => void
   onGanttHideCompletedChange: (hidden: boolean) => void
@@ -56,7 +52,6 @@ export function TaskboardToolbar({
   priority,
   labelIds,
   count,
-  archived,
   loading,
   hasActiveFilters,
   view,
@@ -65,11 +60,8 @@ export function TaskboardToolbar({
   datePreset,
   sort,
   hierarchyMode,
-  otherTasksOpen,
   ganttZoom,
   ganttHideCompleted,
-  otherTasksTriggerRef,
-  onOtherTasksToggle,
   onGanttToday,
   onGanttZoomChange,
   onGanttHideCompletedChange,
@@ -97,23 +89,28 @@ export function TaskboardToolbar({
   return (
     <div className="taskboard-toolbar" aria-label="任务看板工具栏">
       <div className="taskboard-toolbar__tools">
-        <div className="taskboard-filter taskboard-filter--hierarchy">
-          <Select
-            ariaLabel="任务层级"
-            onValueChange={onHierarchyModeChange}
-            options={[
-              { value: 'roots', label: '仅顶级' },
-              { value: 'expanded', label: '展开子任务' },
-              { value: 'ready', label: '仅显示可执行项' },
-            ]}
-            value={hierarchyMode}
-          />
-        </div>
+        {view !== 'archive' ? (
+          <div className="taskboard-filter taskboard-filter--hierarchy">
+            <Select
+              ariaLabel="任务层级"
+              onValueChange={onHierarchyModeChange}
+              options={[
+                { value: 'roots', label: '仅顶级' },
+                { value: 'expanded', label: '展开子任务' },
+                { value: 'ready', label: '仅显示可执行项' },
+              ]}
+              value={hierarchyMode}
+            />
+          </div>
+        ) : null}
         <div className="taskboard-filter taskboard-filter--project">
           <Select
             ariaLabel="项目"
             emptyText="没有可用项目"
-            onValueChange={value => onChange({ projectId: value || null, view: null })}
+            onValueChange={value => onChange({
+              projectId: value || null,
+              view: view === 'archive' ? 'archive' : null,
+            })}
             options={[
               { value: '', label: '全部项目' },
               ...projects.filter(project => project.projectId).map(project => ({
@@ -212,12 +209,16 @@ export function TaskboardToolbar({
           <PopoverRadioItem value="due_7_days">7 天内到期</PopoverRadioItem>
           <PopoverRadioItem value="no_due_date">无截止日期</PopoverRadioItem>
         </PopoverRadioGroup>
-        <PopoverLabel>排序</PopoverLabel>
-        <PopoverRadioGroup value={sort ?? 'position'} onValueChange={value => onChange({ sort: value === 'position' ? null : value })}>
-          <PopoverRadioItem value="position">看板顺序</PopoverRadioItem>
-          <PopoverRadioItem value="due_date">截止日期</PopoverRadioItem>
-          <PopoverRadioItem value="updated_at">最近更新</PopoverRadioItem>
-        </PopoverRadioGroup>
+        {view !== 'archive' ? (
+          <>
+            <PopoverLabel>排序</PopoverLabel>
+            <PopoverRadioGroup value={sort ?? 'position'} onValueChange={value => onChange({ sort: value === 'position' ? null : value })}>
+              <PopoverRadioItem value="position">看板顺序</PopoverRadioItem>
+              <PopoverRadioItem value="due_date">截止日期</PopoverRadioItem>
+              <PopoverRadioItem value="updated_at">最近更新</PopoverRadioItem>
+            </PopoverRadioGroup>
+          </>
+        ) : null}
         {activeFilterCount > 0 ? (
           <>
             <PopoverSeparator />
@@ -227,11 +228,6 @@ export function TaskboardToolbar({
           </>
         ) : null}
         </PopoverMenu>
-        {view === 'board' ? (
-          <Button ref={otherTasksTriggerRef} aria-controls="taskboard-other-tasks" aria-expanded={otherTasksOpen} aria-label={otherTasksOpen ? '关闭其他任务' : '显示其他任务'} aria-pressed={otherTasksOpen} className="taskboard-toolbar__action" color={otherTasksOpen ? 'ghostActive' : 'ghostSecondary'} size="compact" title={otherTasksOpen ? '关闭其他任务' : '显示其他任务'} onClick={onOtherTasksToggle}>
-            <PanelRight aria-hidden="true" size={APP_ICON_SIZE} /><span className="u-sr-only">其他任务</span>
-          </Button>
-        ) : null}
         {view === 'gantt' ? (
           <>
             <Button aria-label="回到今天" className="taskboard-toolbar__action" color="ghostSecondary" size="compact" title="回到今天" type="button" onClick={onGanttToday}>
@@ -261,19 +257,6 @@ export function TaskboardToolbar({
             </PopoverMenu>
           </>
         ) : null}
-        <Button
-          aria-label={archived ? '返回看板' : '打开归档区'}
-          aria-pressed={archived}
-          className="taskboard-toolbar__action"
-          color={archived ? 'ghostActive' : 'ghostSecondary'}
-          size="compact"
-          title={archived ? '返回看板' : '打开归档区'}
-          type="button"
-          onClick={() => onChange({ archived: archived ? null : '1' })}
-        >
-          <Archive aria-hidden="true" size={APP_ICON_SIZE} />
-          <span className="u-sr-only">{archived ? '返回看板' : '归档区'}</span>
-        </Button>
         {!loading && count === 0 && hasActiveFilters ? (
           <span className="taskboard-toolbar__no-results">
             <span>0 个结果</span>
