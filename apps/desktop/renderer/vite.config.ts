@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, type Plugin, type ProxyOptions, type ServerOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
@@ -33,6 +33,101 @@ const RENDERER_SRC_ROOT = resolve(__dirname, 'src')
 // second copy of the icon in this workspace.
 const WHALE_ICON_PATH = resolve(__dirname, '..', 'build', 'whale-icon.svg')
 const WHALE_ICON_URL = '/whale-icon.svg'
+
+const LOOPBACK_AGENT_ORIGIN_PATTERN = /^http:\/\/127\.0\.0\.1:([0-9]{1,5})$/
+const AUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,4096}$/
+
+type RendererDevEnvironment = Readonly<Record<string, string | undefined>>
+
+function parsePort(value: string | undefined, name: string): number | undefined {
+  if (value === undefined || value === '') return undefined
+  if (!/^[0-9]{1,5}$/.test(value)) {
+    throw new Error(`${name} 必须是有效的回环端口`)
+  }
+  const port = Number(value)
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`${name} 必须是有效的回环端口`)
+  }
+  return port
+}
+
+export function normalizeRendererAgentOrigin(value: string): string {
+  const match = LOOPBACK_AGENT_ORIGIN_PATTERN.exec(value)
+  if (!match || parsePort(match[1], 'CODEPILOTX_AGENT_URL') === undefined) {
+    throw new Error('CODEPILOTX_AGENT_URL 必须是带有效端口的 127.0.0.1 HTTP origin')
+  }
+  return value
+}
+
+function createAuthenticatedProxy(target: string, authToken: string): ProxyOptions {
+  return {
+    target,
+    changeOrigin: false,
+    configure(proxy) {
+      proxy.on('proxyReq', (proxyRequest) => {
+        proxyRequest.setHeader('Authorization', `Bearer ${authToken}`)
+      })
+    },
+  }
+}
+
+export function resolveRendererDevServer(
+  mode: string,
+  environment: RendererDevEnvironment = process.env,
+): Pick<ServerOptions, 'port' | 'hmr' | 'proxy'> {
+  const port = parsePort(
+    environment.CODEPILOTX_RENDERER_PORT,
+    'CODEPILOTX_RENDERER_PORT',
+  )
+  const agentOrigin = environment.CODEPILOTX_AGENT_URL
+  const authToken = environment.CODEPILOTX_AUTH_TOKEN
+  if ((agentOrigin === undefined) !== (authToken === undefined)) {
+    throw new Error('开发 Agent origin 与认证令牌必须同时提供')
+  }
+
+  let proxy: ServerOptions['proxy']
+  if (agentOrigin !== undefined && authToken !== undefined) {
+    const target = normalizeRendererAgentOrigin(agentOrigin)
+    if (!AUTH_TOKEN_PATTERN.test(authToken)) {
+      throw new Error('开发 Agent 认证令牌无效')
+    }
+    proxy = {
+      '/rpc': createAuthenticatedProxy(target, authToken),
+      '/api': createAuthenticatedProxy(target, authToken),
+    }
+  }
+
+  return {
+    port,
+    hmr:
+      mode === 'performance'
+        ? false
+        : mode === 'visual'
+          ? undefined
+          : port === undefined
+            ? {
+                protocol: 'ws',
+                host: '127.0.0.1',
+              }
+            : {
+                protocol: 'ws',
+                host: '127.0.0.1',
+                port,
+                clientPort: port,
+              },
+    proxy,
+  }
+}
+
+export function resolveRendererServerOverrides(
+  command: 'build' | 'serve',
+  mode: string,
+  environment: RendererDevEnvironment = process.env,
+): Pick<ServerOptions, 'port' | 'hmr' | 'proxy'> | Record<string, never> {
+  return command === 'serve'
+    ? resolveRendererDevServer(mode, environment)
+    : {}
+}
 
 function startupSplashAssets(): Plugin {
   return {
@@ -289,7 +384,7 @@ function routeBundleBudget(): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [
     tailwindcss(),
     react(),
@@ -320,17 +415,6 @@ export default defineConfig(({ mode }) => ({
       ],
     },
     strictPort: true,
-    // 页面经动态端口的 Agent 提供，但 HMR WebSocket 必须直连固定的 Renderer 端口。
-    hmr:
-      mode === 'performance'
-        ? false
-        : mode === 'visual'
-          ? undefined
-          : {
-              protocol: 'ws',
-              host: '127.0.0.1',
-              port: 7788,
-              clientPort: 7788,
-            },
+    ...resolveRendererServerOverrides(command, mode),
   },
 }))

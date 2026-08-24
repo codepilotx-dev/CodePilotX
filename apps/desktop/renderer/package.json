@@ -9,7 +9,7 @@
     "styles:codex:check": "bun run scripts/inventory-codex-styles.ts --check --fail-on-parse-error",
     "themes:codex:generate": "bun run scripts/generate-codex-themes.ts",
     "themes:codex:check": "bun run scripts/generate-codex-themes.ts --check",
-    "dev": "vite --host 127.0.0.1 --port 7788",
+    "dev": "vite --host 127.0.0.1",
     "dev:performance": "vite --mode performance --host 127.0.0.1",
     "dev:visual": "vite --mode visual --host 127.0.0.1",
     "typecheck": "tsc -b",
