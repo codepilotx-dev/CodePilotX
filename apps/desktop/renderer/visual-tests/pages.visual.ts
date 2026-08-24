@@ -86,7 +86,7 @@ async function expectNewSessionComposerContract(
     }
   })
 
-  expect(contract.stackWidth).toBeLessThanOrEqual(768)
+  expect(contract.stackWidth).toBeLessThanOrEqual(640)
   expect(contract.inputBorderWidth).toBe('0px')
   expect(contract.inputBorderRadius).toBe('20px')
   expect(contract.inputBoxShadow).not.toBe('none')
@@ -106,13 +106,50 @@ async function expectNewSessionComposerContract(
   }
 }
 
-async function expectWorkingContextualSuggestions(page: Page): Promise<void> {
-  const suggestions = page.getByRole('region', { name: '工作建议' })
-  await expect(suggestions).toBeVisible()
-  await expect(suggestions.locator('.working-suggestion-row')).toHaveCount(4)
+async function expectWorkingHomeContract(page: Page): Promise<void> {
   await expect(
-    suggestions.getByRole('button', { name: '查看工作模板' }),
+    page.getByRole('heading', { name: '我们该处理什么工作？' }),
   ).toBeVisible()
+  await expect(
+    page.locator('.working-chat-view .working-suggestions'),
+  ).toHaveCount(0)
+}
+
+async function expectCodingHomeContract(
+  page: Page,
+  requireFourVisibleCards: boolean,
+): Promise<void> {
+  const mark = page.locator('.coding-chat-view .quick-chat-mark')
+  await expect(mark).toBeVisible()
+  await expect(mark).toHaveCSS('width', '56px')
+  await expect(mark).toHaveCSS('height', '56px')
+
+  const maskImage = await mark.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })
+  expect(maskImage).toMatch(/\/whale-icon\.svg/)
+
+  const cards = page.locator('.coding-chat-view .new-session-suggestion-card')
+  await expect(cards).toHaveCount(4)
+  const visibleCards = await cards.evaluateAll(elements =>
+    elements
+      .filter(element => {
+        const rect = element.getBoundingClientRect()
+        return (
+          getComputedStyle(element).display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        )
+      })
+      .map(element => getComputedStyle(element).borderTopWidth),
+  )
+  expect(visibleCards.length).toBeGreaterThanOrEqual(1)
+  expect(visibleCards.length).toBeLessThanOrEqual(4)
+  if (requireFourVisibleCards) {
+    expect(visibleCards).toHaveLength(4)
+  }
+  expect(visibleCards.every(width => width === '1px')).toBe(true)
 }
 
 for (const mode of VISUAL_MODES) {
@@ -126,7 +163,10 @@ for (const mode of VISUAL_MODES) {
         await expectNewSessionComposerContract(page, scenario.surface)
       }
       if (scenario.id === 'working') {
-        await expectWorkingContextualSuggestions(page)
+        await expectWorkingHomeContract(page)
+      }
+      if (scenario.id === 'new') {
+        await expectCodingHomeContract(page, true)
       }
       await closeTransientErrorToast(page, 3_000)
       await expect(page.locator('body')).toHaveScreenshot(
@@ -205,7 +245,10 @@ visualTest('provider catalog preserves logo slot and three-column spacing', asyn
 for (const mode of VISUAL_MODES) {
   for (const scenario of FORMAL_ROUTES.filter(
     route =>
-      route.id === 'new' || route.id === 'working' || route.id === 'thread',
+      route.id === 'new' ||
+      route.id === 'chat' ||
+      route.id === 'working' ||
+      route.id === 'thread',
   )) {
     visualTest(`formal page ${scenario.id} ${mode} compact`, async ({ page }) => {
       await page.setViewportSize(COMPACT_VIEWPORT)
@@ -216,7 +259,10 @@ for (const mode of VISUAL_MODES) {
         await expectNewSessionComposerContract(page, scenario.surface)
       }
       if (scenario.id === 'working') {
-        await expectWorkingContextualSuggestions(page)
+        await expectWorkingHomeContract(page)
+      }
+      if (scenario.id === 'new') {
+        await expectCodingHomeContract(page, false)
       }
       await closeTransientErrorToast(page, 3_000)
       await expect(page.locator('body')).toHaveScreenshot(
