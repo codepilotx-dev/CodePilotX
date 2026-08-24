@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
   acquireDevAgentLock, agentDataDir, cleanupDevAgentRuntime, localNoProxy,
-  publishDevAgentRuntime, rendererDevURL, terminateProcessTree,
+  publishDevAgentRuntime, terminateProcessTree,
 } from "./dev-runtime"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
@@ -76,7 +76,6 @@ async function run() {
       CODEPILOTX_CONSOLE_LOG: "debug",
       CODEPILOTX_LOG_DETAIL: "development",
       CODEPILOTX_RENDERER_DIST: fileURLToPath(new URL("../dist/renderer", import.meta.url)),
-      CODEPILOTX_RENDERER_DEV_URL: rendererDevURL,
     },
     stdin: "inherit", stdout: "pipe", stderr: "pipe",
   })
@@ -114,7 +113,7 @@ async function run() {
     })
     const body = await response.json() as { instanceToken?: unknown }
     if (!response.ok || body.instanceToken !== instanceToken) throw new Error("health identity mismatch")
-    await publishDevAgentRuntime({ schemaVersion: 1, ownerPid: process.pid, agentPid: agent.pid, origin, authToken, instanceToken, rendererDevUrl: rendererDevURL })
+    await publishDevAgentRuntime({ schemaVersion: 2, ownerPid: process.pid, agentPid: agent.pid, origin, authToken, instanceToken })
     console.log("开发 Agent 已就绪。现在可在另一个终端运行：bun run dev:desktop")
     const code = await agent.exited
     if (!stopping && code !== 0) process.exitCode = code || 1
@@ -130,6 +129,6 @@ try {
 } catch (error) {
   await cleanupDevAgentRuntime(instanceToken)
   const code = error instanceof Error ? error.message : ""
-  console.error(code === "AGENT_ALREADY_RUNNING" ? "开发 Agent 已在运行。" : code === "AGENT_LOCKED" ? "另一个开发 Agent 正在启动或仍持有启动锁。" : "开发 Agent 启动失败。")
+  console.error(code === "AGENT_ALREADY_RUNNING" ? "开发 Agent 已在运行。" : code === "LEGACY_AGENT_RUNNING" ? "检测到旧版开发 Agent。请停止后重新运行：bun run dev:agent" : code === "AGENT_LOCKED" ? "另一个开发 Agent 正在启动或仍持有启动锁。" : "开发 Agent 启动失败。")
   process.exit(1)
 }

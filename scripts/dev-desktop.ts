@@ -1,9 +1,14 @@
-import { join } from "node:path"
+import { mkdir, realpath } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
-import { agentDataDir, localNoProxy, readDevAgentRuntime, rendererDevURL, terminateProcessTree, verifyDevAgent } from "./dev-runtime"
+import {
+  agentDataDir, allocateLoopbackPort, configuredRendererPort, createWorktreeInstance,
+  localNoProxy, readDevAgentRuntime, readLegacyDevAgentRuntime, terminateProcessTree, verifyDevAgent,
+} from "./dev-runtime"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const unavailable = "未发现可用的开发 Agent。请先在另一个终端运行：bun run dev:agent"
+const legacyUnavailable = "检测到旧版开发 Agent。请停止后重新运行：bun run dev:agent"
+const rendererUnavailable = "Renderer 开发服务启动失败。请检查 CODEPILOTX_DEV_RENDERER_PORT 或端口占用。"
 type Child = ReturnType<typeof Bun.spawn>
 const children: Child[] = []
 
@@ -18,17 +23,45 @@ function spawn(command: string[], env: Record<string, string | undefined> = {}) 
   return child
 }
 
-async function waitForRenderer(child: Child) {
+async function waitForRenderer(child: Child, rendererOrigin: string) {
   const deadline = Date.now() + 20_000
   while (Date.now() < deadline) {
     const exited = await Promise.race([child.exited.then(() => true), Bun.sleep(150).then(() => false)])
     if (exited) throw new Error("renderer exited")
     try {
-      const response = await fetch(rendererDevURL, { signal: AbortSignal.timeout(1_000) })
+      const response = await fetch(rendererOrigin, { signal: AbortSignal.timeout(1_000) })
       if (response.ok) return
     } catch { /* keep waiting */ }
   }
   throw new Error("renderer timeout")
+}
+
+async function startRenderer(agentOrigin: string, authToken: string) {
+  const configured = configuredRendererPort()
+  const attempts = configured ? 1 : 3
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let port: number
+    try {
+      port = await allocateLoopbackPort(configured)
+    } catch {
+      if (configured || attempt === attempts - 1) throw new Error("renderer port unavailable")
+      continue
+    }
+    const rendererOrigin = `http://127.0.0.1:${port}`
+    const renderer = spawn([process.execPath, "run", "--cwd", "apps/desktop/renderer", "dev"], {
+      CODEPILOTX_RENDERER_PORT: String(port),
+      CODEPILOTX_AGENT_URL: agentOrigin,
+      CODEPILOTX_AUTH_TOKEN: authToken,
+    })
+    try {
+      await waitForRenderer(renderer, rendererOrigin)
+      return { renderer, rendererOrigin, port }
+    } catch {
+      terminateProcessTree(renderer)
+      if (configured || attempt === attempts - 1) throw new Error("renderer unavailable")
+    }
+  }
+  throw new Error("renderer unavailable")
 }
 
 let stopping = false
@@ -42,17 +75,34 @@ process.on("SIGTERM", stopOwnedChildren)
 process.on("exit", stopOwnedChildren)
 
 try {
-  const runtime = await readDevAgentRuntime()
-  if (!await verifyDevAgent(runtime)) throw new Error("unavailable")
-  const renderer = spawn([process.execPath, "run", "--cwd", "apps/desktop/renderer", "dev"])
-  await waitForRenderer(renderer)
+  let runtime
+  try {
+    runtime = await readDevAgentRuntime()
+  } catch {
+    try {
+      const legacy = await readLegacyDevAgentRuntime()
+      if (await verifyDevAgent(legacy)) throw new Error("LEGACY_AGENT_RUNNING")
+    } catch (error) {
+      if (error instanceof Error && error.message === "LEGACY_AGENT_RUNNING") throw error
+    }
+    throw new Error("AGENT_UNAVAILABLE")
+  }
+  if (!await verifyDevAgent(runtime)) throw new Error("AGENT_UNAVAILABLE")
+
+  const instance = createWorktreeInstance(await realpath(root))
+  await mkdir(instance.userDataDir, { recursive: true, mode: 0o700 })
+  await mkdir(instance.logDir, { recursive: true, mode: 0o700 })
+  const { renderer, rendererOrigin, port } = await startRenderer(runtime.origin, runtime.authToken)
+  console.log(`Renderer 已就绪（端口 ${port}，worktree ${instance.shortId}）。`)
   const electron = spawn([process.execPath, "run", "--cwd", "apps/desktop/electron", "dev"], {
     CODEPILOTX_AGENT_URL: runtime.origin,
+    CODEPILOTX_RENDERER_DEV_URL: rendererOrigin,
     CODEPILOTX_AGENT_MANAGED: "1",
     CODEPILOTX_AUTH_TOKEN: runtime.authToken,
     CODEPILOTX_BUN_PATH: process.execPath,
     CODEPILOTX_DATA_DIR: agentDataDir,
-    CODEPILOTX_LOG_DIR: join(agentDataDir, "logs"),
+    CODEPILOTX_USER_DATA_DIR: instance.userDataDir,
+    CODEPILOTX_LOG_DIR: instance.logDir,
     CODEPILOTX_CONSOLE_LOG: "debug",
     CODEPILOTX_LOG_DETAIL: "development",
   })
@@ -63,8 +113,9 @@ try {
   if (outcome.source !== "Electron" || outcome.code !== 0) console.error(`${outcome.source} 开发进程已退出（code=${outcome.code}）`)
   stopOwnedChildren()
   process.exit(outcome.source === "Electron" ? outcome.code : outcome.code || 1)
-} catch {
-  console.error(unavailable)
+} catch (error) {
+  const code = error instanceof Error ? error.message : ""
+  console.error(code === "LEGACY_AGENT_RUNNING" ? legacyUnavailable : code.includes("renderer") ? rendererUnavailable : unavailable)
   stopOwnedChildren()
   process.exit(1)
 }
