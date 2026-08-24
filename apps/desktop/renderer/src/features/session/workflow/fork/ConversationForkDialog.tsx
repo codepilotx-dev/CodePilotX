@@ -137,10 +137,11 @@ function DestinationButton({
   onClick: () => void
 }): React.ReactNode {
   return (
-    <Button color="primary"
-      className="conversation-fork-dialog__destination tw:h-auto tw:w-full tw:justify-start tw:gap-4 tw:px-4 tw:py-3 tw:text-left"
+    <button
+      className="conversation-fork-dialog__destination"
       disabled={disabled}
       onClick={onClick}
+      type="button"
     >
       <GitFork
         aria-hidden="true"
@@ -156,7 +157,7 @@ function DestinationButton({
           {description}
         </span>
       </span>
-    </Button>
+    </button>
   )
 }
 

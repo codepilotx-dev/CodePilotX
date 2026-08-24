@@ -1,6 +1,5 @@
 import { FileText, Image, ImageOff, X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 
@@ -115,13 +114,14 @@ export function AttachmentFilePill({
       title={detail ? `${name} · ${detail}` : name}
     >
       {onOpen ? (
-        <Button color="primary"
+        <button
           aria-label={`打开 ${name}`}
           className="attachment-file-pill__open"
           onClick={onOpen}
+          type="button"
         >
           {content}
-        </Button>
+        </button>
       ) : (
         <span className="attachment-file-pill__open">{content}</span>
       )}

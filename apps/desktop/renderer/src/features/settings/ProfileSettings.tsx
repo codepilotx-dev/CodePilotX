@@ -20,6 +20,7 @@ import type {
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   SkeletonBlock,
@@ -184,14 +185,16 @@ export function ProfileSettings(): React.ReactNode {
                 </div>
                 {user ? (
                   <Popover.Trigger asChild>
-                    <button
+                    <IconButton
                       className="profile-avatar-badge"
-                      title={currentStatus?.message ?? '设置状态'}
+                      color="ghostSecondary"
                       onClick={openStatusEditor}
+                      size="toolbar"
+                      title={currentStatus?.message ?? '设置状态'}
                       type="button"
                     >
                       {statusEmojiGlyph(currentStatus?.emoji)}
-                    </button>
+                    </IconButton>
                   </Popover.Trigger>
                 ) : null}
               </div>
@@ -347,7 +350,14 @@ export function ProfileSettings(): React.ReactNode {
             <div className="profile-status-popover-header">
               <strong>设置 GitHub 状态</strong>
               <Popover.Close asChild>
-                <button type="button">×</button>
+                <IconButton
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="关闭状态设置"
+                  type="button"
+                >
+                  ×
+                </IconButton>
               </Popover.Close>
             </div>
             <div className="profile-status-field">

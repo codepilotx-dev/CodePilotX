@@ -500,6 +500,7 @@ export function ProviderEditorDialog({
                 <div className="provider-editor-models-list">
                   {models.map((model, index) => {
                     const isExpanded = expandedModels.has(index)
+                    const modelDetailsId = `${titleId}-model-${index}-details`
                     return (
                       <div
                         className="provider-editor-model-card"
@@ -508,9 +509,14 @@ export function ProviderEditorDialog({
                       >
                         <div
                           className="provider-editor-model-card-header"
-                          onClick={() => toggleExpandModel(index)}
                         >
-                          <div className="provider-editor-model-card-summary">
+                          <button
+                            aria-controls={modelDetailsId}
+                            aria-expanded={isExpanded}
+                            className="provider-editor-model-card-summary"
+                            type="button"
+                            onClick={() => toggleExpandModel(index)}
+                          >
                             <span className="provider-editor-model-card-chevron">
                               {isExpanded ? (
                                 <ChevronDown aria-hidden size={APP_ICON_SIZE} />
@@ -535,12 +541,9 @@ export function ProviderEditorDialog({
                                 Vision
                               </span>
                             ) : null}
-                          </div>
+                          </button>
 
-                          <div
-                            className="provider-editor-model-card-controls"
-                            onClick={event => event.stopPropagation()}
-                          >
+                          <div className="provider-editor-model-card-controls">
                             <ToggleSwitch
                               ariaLabel="启用模型"
                               checked={model.enabled}
@@ -561,16 +564,20 @@ export function ProviderEditorDialog({
                           </div>
                         </div>
 
-                        {isExpanded ? (
-                          <div className="provider-editor-model-card-body">
+                        <div
+                          className="provider-editor-model-card-body"
+                          hidden={!isExpanded}
+                          id={modelDetailsId}
+                        >
+                          {isExpanded ? (
                             <ModelEditor
                               model={model}
                               onChange={next => setModels(current => current.map((item, itemIndex) => (
                                 itemIndex === index ? next : item
                               )))}
                             />
-                          </div>
-                        ) : null}
+                          ) : null}
+                        </div>
                       </div>
                     )
                   })}

@@ -1,12 +1,10 @@
 import type React from "react";
-import { useState } from "react";
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   Boxes,
   BrainCircuit,
-  ChevronDown,
   Clock3,
   FolderKanban,
   Presentation,
@@ -21,12 +19,8 @@ import { newSessionPath } from "../../session/newSessionSurface.js";
 import type { NewSessionSurface } from "../../session/newSessionSurface.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
-import {
-  PopoverRadioGroup,
-  PopoverRadioItem,
-} from "../../../components/ui/PopoverItem.js";
 import * as Popover from '@radix-ui/react-popover'
-import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
+import { Select } from "../../../components/ui/Select.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
 import { SidebarRow } from "./SidebarRow.js";
@@ -235,7 +229,6 @@ export function SidebarHeader({
   hasUnread?: boolean
   onOpenCommandMenu: () => void
 }): React.ReactNode {
-  const [modeMenuOpen, setModeMenuOpen] = useState(false)
   const navigate = useNavigate()
   const {
     sidebarProductMode,
@@ -245,7 +238,6 @@ export function SidebarHeader({
     sidebarActivityCoachmarkDismissed,
     setSidebarActivityCoachmarkDismissed,
   } = useDesktopSettings()
-  const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
   const timelineToggleLabel = sidebarTimelineEnabled
     ? "关闭活动视图"
     : "查看活动"
@@ -259,47 +251,18 @@ export function SidebarHeader({
 
   return (
     <header className="sidebar-header">
-      <PopoverMenu
-        align="start"
-        className="popover-menu--no-icons sidebar-product-mode-menu"
-        maxWidth="calc(100vw - 24px)"
-        open={modeMenuOpen}
-        side="bottom"
+      <Select
+        ariaLabel="切换工作模式"
+        options={SIDEBAR_PRODUCT_MODE_ORDER.map(value => ({
+          value,
+          label: SIDEBAR_PRODUCT_MODE_META[value].label,
+          detail: SIDEBAR_PRODUCT_MODE_META[value].description,
+        }))}
+        triggerClassName="sidebar-product-mode-trigger"
+        value={sidebarProductMode}
         width={232}
-        trigger={
-          <Button
-            aria-label={`切换工作模式，当前为 ${activeMode.label}`}
-            className="sidebar-product-mode-trigger"
-            color="ghostActive"
-            size="medium"
-            type="button"
-          >
-            <span>{activeMode.label}</span>
-            <ChevronDown aria-hidden="true" size={14} />
-          </Button>
-        }
-        onOpenChange={setModeMenuOpen}
-      >
-        <PopoverRadioGroup
-          value={sidebarProductMode}
-          onValueChange={value =>
-            handleModeChange(value as SidebarProductMode)
-          }
-        >
-          {SIDEBAR_PRODUCT_MODE_ORDER.map(value => {
-            const option = SIDEBAR_PRODUCT_MODE_META[value]
-            return (
-              <PopoverRadioItem
-                description={option.description}
-                key={value}
-                value={value}
-              >
-                {option.label}
-              </PopoverRadioItem>
-            )
-          })}
-        </PopoverRadioGroup>
-      </PopoverMenu>
+        onValueChange={handleModeChange}
+      />
       <div className="sidebar-header-actions">
         <IconButton
           aria-haspopup="dialog"

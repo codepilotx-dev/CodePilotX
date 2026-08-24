@@ -19,6 +19,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
@@ -248,10 +249,11 @@ export function RightDockFilesPanel({
           </div>
           <div className="file-breadcrumb-toolbar__actions">
             {workspacePath ? (
-              <button
-                aria-label={copied ? '已复制路径' : '复制工作区路径'}
+              <IconButton
                 className="file-breadcrumb-toolbar__action"
-                title={copied ? '已复制' : '复制工作区路径'}
+                color="ghostSecondary"
+                size="toolbar"
+                title={copied ? '已复制路径' : '复制工作区路径'}
                 type="button"
                 onClick={handleCopyWorkspacePath}
               >
@@ -268,13 +270,14 @@ export function RightDockFilesPanel({
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 )}
-              </button>
+              </IconButton>
             ) : null}
-            <button
+            <IconButton
               ref={treeToggleRef}
-              aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
               aria-pressed={treeVisible}
               className="file-breadcrumb-toolbar__action"
+              color="ghostSecondary"
+              size="toolbar"
               title={treeVisible ? '隐藏文件树' : '显示文件树'}
               type="button"
               onClick={() => setTreeVisible(current => !current)}
@@ -284,7 +287,7 @@ export function RightDockFilesPanel({
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </button>
+            </IconButton>
           </div>
         </header>
         <motion.div
@@ -477,8 +480,15 @@ export function RightDockFilePreviewPanel({
     setSelectedText('')
   }
 
-  async function toggleMarkdownViewMode(): Promise<void> {
-    if (!resolvedMarkdownViewMode || switchingMarkdownMode || document.conflict) {
+  async function toggleMarkdownViewMode(
+    targetMode: MarkdownFileViewMode,
+  ): Promise<void> {
+    if (
+      !resolvedMarkdownViewMode ||
+      targetMode === resolvedMarkdownViewMode ||
+      switchingMarkdownMode ||
+      document.conflict
+    ) {
       return
     }
     setSwitchingMarkdownMode(true)
@@ -489,9 +499,7 @@ export function RightDockFilePreviewPanel({
       ) {
         return
       }
-      onSetMarkdownViewMode(
-        resolvedMarkdownViewMode === 'rich' ? 'source' : 'rich',
-      )
+      onSetMarkdownViewMode(targetMode)
     } finally {
       setSwitchingMarkdownMode(false)
     }
@@ -558,8 +566,8 @@ export function RightDockFilePreviewPanel({
           workspace={workspace}
           workspacePath={workspacePath}
           onToggleTree={() => setTreeVisible(current => !current)}
-          onToggleMarkdownViewMode={() => {
-            void toggleMarkdownViewMode()
+          onToggleMarkdownViewMode={targetMode => {
+            void toggleMarkdownViewMode(targetMode)
           }}
         />
         <motion.div

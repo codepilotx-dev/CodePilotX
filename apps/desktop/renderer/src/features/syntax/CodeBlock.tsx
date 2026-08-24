@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, Pencil } from 'lucide-react'
+import { IconButton } from '../../components/ui/IconButton.js'
 
 import {
   APP_ICON_SIZE,
@@ -173,14 +174,29 @@ export function CodeBlock({
           </span>
         )}
         <span className="md-code-actions tw:flex tw:items-center">
-          <button
-            aria-label={copied ? '已复制代码' : '复制代码'}
+          {onChangeCode && !isEditingCode ? (
+            <IconButton
+              color="ghostSecondary"
+              size="toolbar"
+              title="编辑代码"
+              type="button"
+              onClick={() => {
+                setEditCodeValue(code)
+                setIsEditingCode(true)
+              }}
+            >
+              <Pencil aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+          ) : null}
+          <IconButton
             className={cx(
               'md-code-action md-code-copy',
               copied && 'is-copied',
               'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
             )}
-            title={copied ? '已复制' : '复制代码'}
+            color="ghostSecondary"
+            size="toolbar"
+            title={copied ? '已复制代码' : '复制代码'}
             type="button"
             onClick={() => void handleCopy()}
           >
@@ -197,7 +213,7 @@ export function CodeBlock({
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             )}
-          </button>
+          </IconButton>
         </span>
       </figcaption>
       <pre
@@ -210,12 +226,6 @@ export function CodeBlock({
           'tw:whitespace-pre',
           onChangeCode && !isEditingCode && 'tw:cursor-text',
         )}
-        onClick={() => {
-          if (onChangeCode && !isEditingCode) {
-            setEditCodeValue(code)
-            setIsEditingCode(true)
-          }
-        }}
       >
         {isEditingCode ? (
           <textarea

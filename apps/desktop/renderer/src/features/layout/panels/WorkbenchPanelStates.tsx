@@ -191,22 +191,20 @@ export function WorkbenchPanelLauncher({
     <div aria-label="可用面板标签" className="right-panel-tabs-empty-state">
       <div className="right-panel-tabs-empty-state__actions">
         {actions.map(action => (
-          <Button
-            allowShrink
+          <button
             className="right-panel-tabs-empty-state__item"
-            color="ghost"
             disabled={action.disabled}
             key={action.id}
-            size="default"
             title={action.reason}
             onClick={action.onSelect}
+            type="button"
           >
             <span className="right-panel-tabs-empty-state__icon">
               {action.icon}
             </span>
             <strong>{action.label}</strong>
             {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
-          </Button>
+          </button>
         ))}
       </div>
     </div>

@@ -5,13 +5,18 @@
   appearance: none;
   display: inline-flex;
   width: auto;
+  min-height: var(--cpx-comp-row-height-composer);
   align-items: center;
+  gap: var(--cpx-comp-row-gap);
   padding: 0 var(--cpx-comp-row-padding-inline);
   border: 0;
+  border-radius: var(--cpx-sys-radius-full);
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-accent);
   line-height: var(--cpx-sys-line-height-tight);
+  cursor: pointer;
+  outline: none;
 
   &.subtle {
     color: var(--cpx-sys-color-fg-primary);
@@ -21,20 +26,37 @@
     display: block;
     flex-shrink: 0;
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
+    cursor: default;
+    opacity: 0.55;
+  }
 }
 
 /* --- Meta Chip --- */
 .meta-chip {
+  appearance: none;
   display: inline-flex;
   width: auto;
+  min-height: var(--cpx-comp-row-height-composer);
   align-items: center;
+  gap: var(--cpx-comp-row-gap);
   max-width: 220px;
   padding: 0 var(--cpx-comp-row-padding-inline);
   border: 0;
+  border-radius: var(--cpx-sys-radius-full);
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-tertiary);
   line-height: var(--cpx-sys-line-height-tight);
+  cursor: pointer;
+  outline: none;
 
   > svg {
     display: block;
@@ -48,6 +70,28 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     line-height: var(--cpx-sys-line-height-tight);
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:active:not(:disabled),
+  &[aria-expanded='true'] {
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
+    cursor: default;
+    opacity: 0.55;
   }
 }
 

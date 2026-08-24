@@ -134,7 +134,7 @@
     background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-primary);
   }
@@ -142,6 +142,10 @@
   &:focus-visible {
     outline: 1px solid var(--cpx-sys-color-accent);
     outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
   }
 
   strong {

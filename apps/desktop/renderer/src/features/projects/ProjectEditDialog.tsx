@@ -321,43 +321,42 @@ export function ProjectEditDialog({
                       {folder.role === 'primary' ? (
                         <span className="project-edit-primary-badge">主目录</span>
                       ) : (
-                        <button
-                          aria-label={`将 ${folder.name} 设为主目录`}
+                        <IconButton
                           className="project-edit-folder-action"
+                          color="ghostSecondary"
                           disabled={busy}
-                          title="设为主目录"
+                          size="toolbar"
+                          title={`将 ${folder.name} 设为主目录`}
                           type="button"
                           onClick={() => setPrimary(folder.id)}
                         >
                           <Star size={APP_ICON_SIZE} />
-                        </button>
+                        </IconButton>
                       )}
                       {folder.availability === 'missing' ? (
-                        <button
-                          aria-label={`重新选择目录 ${folder.name}`}
+                        <IconButton
                           className="project-edit-folder-action"
+                          color="ghostSecondary"
                           disabled={busy}
-                          title="重新选择目录"
+                          size="toolbar"
+                          title={`重新选择目录 ${folder.name}`}
                           type="button"
                           onClick={() => void reselectFolder(folder)}
                         >
                           <RefreshCw size={APP_ICON_SIZE} />
-                        </button>
+                        </IconButton>
                       ) : null}
-                      <button
-                        aria-label={`移除目录 ${folder.name}`}
+                      <IconButton
                         className="project-edit-folder-action"
+                        color="ghostSecondary"
                         disabled={busy || folder.role === 'primary'}
-                        title={
-                          folder.role === 'primary'
-                            ? '请先设置其他主目录'
-                            : '从项目移除'
-                        }
+                        size="toolbar"
+                        title={`移除目录 ${folder.name}`}
                         type="button"
                         onClick={() => removeFolder(folder)}
                       >
                         <X size={APP_ICON_SIZE} />
-                      </button>
+                      </IconButton>
                     </div>
                   ))}
                   <button

@@ -330,17 +330,37 @@
     border: 0;
     border-radius: var(--cpx-sys-radius-md);
     background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 2%, transparent);
-    cursor: pointer;
-    outline: 0;
 
     &.active {
       background: var(--cpx-sys-color-selected);
     }
+  }
+}
 
-    &:focus-visible {
-      outline: none;
-      box-shadow: var(--cpx-sys-focus-ring-inset);
-    }
+.review-file-summary {
+  appearance: none;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  flex: 1 1 auto;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cpx-sys-radius-sm);
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:focus-visible {
+    box-shadow: var(--cpx-sys-focus-ring-inset);
   }
 }
 
@@ -413,10 +433,13 @@
 }
 
 .review-file-row.preview-header:hover .review-file-actions,
-.review-file-row.preview-header:focus-visible .review-file-actions,
 .review-file-row.preview-header:focus-within .review-file-actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+.review-diff-file-body {
+  display: contents;
 }
 
 :root[data-reduce-motion='on'] {
@@ -1270,7 +1293,27 @@
   .review-scope-trigger {
     width: auto;
     display: inline-flex;
+    min-height: var(--cpx-sys-space-8);
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+    padding: 0 var(--cpx-sys-space-2);
+    border: 0;
+    border-radius: var(--cpx-sys-radius-compact);
+    background: transparent;
+    color: var(--cpx-sys-color-fg-primary);
+    font: inherit;
     font-weight: var(--cpx-sys-font-weight-medium);
+    cursor: pointer;
+
+    &:hover,
+    &[data-state='open'] {
+      background: var(--cpx-sys-color-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cpx-sys-color-border-focus);
+      outline-offset: 1px;
+    }
   }
 
   .review-scope-trigger-label {

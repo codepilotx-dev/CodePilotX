@@ -3,7 +3,6 @@ import { ArrowDown, Check, CircleX, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { ExecutionPlanItem } from "@codepilotx/shared/thread";
 
-import { Button } from "../../../components/ui/Button.js";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -196,7 +195,7 @@ export function ComposerChangeSummary({
           role="group"
         >
           {executionPlan ? (
-            <Button color="ghostSecondary"
+            <button type="button"
               aria-controls={planPanelId}
               aria-expanded={planExpanded}
               className="composer-change-summary__plan"
@@ -211,7 +210,7 @@ export function ComposerChangeSummary({
                 status={planLifecycle}
               />
               {planStatusText}
-            </Button>
+            </button>
           ) : null}
           {executionPlan && changedFileCount > 0 ? (
             <span
@@ -222,7 +221,7 @@ export function ComposerChangeSummary({
             </span>
           ) : null}
           {changedFileCount > 0 ? (
-            <Button color="ghostSecondary"
+            <button type="button"
               aria-controls={filesPanelId}
               aria-expanded={filesExpanded}
               aria-label={diffStatsAvailable
@@ -246,7 +245,7 @@ export function ComposerChangeSummary({
                   <em>-{formattedDeletions}</em>
                 </span>
               ) : null}
-            </Button>
+            </button>
           ) : null}
         </div>
       </motion.div>
@@ -323,13 +322,13 @@ function ComposerChangedFilesPreviewPresence({
             const fileName = basenameOf(file.path);
             return (
               <div key={file.path} role="listitem">
-                <Button
+                <button
                   aria-label={statsAvailable
                     ? `${file.path}，新增 ${file.additions} 行，删除 ${file.deletions} 行`
                     : `${file.path}，增删行数统计暂不可用`}
                   className="composer-change-summary__file-row"
-                  color="ghostSecondary"
                   title={file.path}
+                  type="button"
                   onClick={() => onOpenFile(file.path)}
                 >
                   <span className="composer-change-summary__file-name">
@@ -344,7 +343,7 @@ function ComposerChangedFilesPreviewPresence({
                       <em>-{formatSummaryNumber(file.deletions ?? 0)}</em>
                     </span>
                   ) : null}
-                </Button>
+                </button>
               </div>
             );
           })}

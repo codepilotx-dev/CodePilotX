@@ -1,7 +1,9 @@
 import type React from 'react'
+import { useRef } from 'react'
 import { ExternalLink, MoreHorizontal } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -15,7 +17,11 @@ type Props = {
   busy?: boolean
   error?: string | null
   onOpenDetails: (item: PluginCatalogItem, trigger: HTMLButtonElement) => void
-  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement) => void
+  onPrimaryAction: (
+    item: PluginCatalogItem,
+    trigger: HTMLButtonElement,
+    checked?: boolean,
+  ) => void
 }
 
 export function PluginCatalogRow({
@@ -27,6 +33,7 @@ export function PluginCatalogRow({
 }: Props): React.ReactNode {
   const action = pluginPrimaryAction(item)
   const errorId = error ? `plugin-row-${item.id}-error` : undefined
+  const toggleRef = useRef<HTMLButtonElement>(null)
 
   return (
     <li
@@ -56,22 +63,31 @@ export function PluginCatalogRow({
       ) : null}
 
       <div className="plugin-catalog-row__actions">
-        {action ? (
+        {action?.kind === 'toggle-builtin' ? (
+          <ToggleSwitch
+            ref={toggleRef}
+            ariaLabel={`启用 ${item.name}`}
+            checked={action.checked}
+            disabled={action.disabled || busy}
+            onChange={checked => {
+              const trigger = toggleRef.current
+              if (trigger) onPrimaryAction(item, trigger, checked)
+            }}
+          />
+        ) : action ? (
           <Button color="primary"
             aria-describedby={errorId}
-            aria-pressed={action.pressed}
+            className="plugin-catalog-row__external-action"
             disabled={action.disabled}
             loading={busy}
             onClick={event => onPrimaryAction(item, event.currentTarget)}
           >
             {action.label}
-            {action.kind === 'open-external' ? (
-              <ExternalLink
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            ) : null}
+            <ExternalLink
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </Button>
         ) : null}
         <IconButton

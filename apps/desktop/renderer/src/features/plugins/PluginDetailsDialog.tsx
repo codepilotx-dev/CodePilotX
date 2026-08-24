@@ -5,6 +5,7 @@ import { ExternalLink, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -21,7 +22,11 @@ type Props = {
   error?: string | null
   restoreFocusElement?: HTMLElement | null
   onOpenChange: (open: boolean) => void
-  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement) => void
+  onPrimaryAction: (
+    item: PluginCatalogItem,
+    trigger: HTMLButtonElement,
+    checked?: boolean,
+  ) => void
 }
 
 const CATEGORY_LABELS: Record<PluginCatalogItem['category'], string> = {
@@ -42,6 +47,7 @@ export function PluginDetailsDialog({
   const retainedItem = useLastNonNull(currentItem)
   const item = open ? currentItem : retainedItem
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
 
   if (!item) return null
 
@@ -113,21 +119,29 @@ export function PluginDetailsDialog({
               <Dialog.Close asChild>
                 <Button color="secondary">关闭</Button>
               </Dialog.Close>
-              {action ? (
+              {action?.kind === 'toggle-builtin' ? (
+                <ToggleSwitch
+                  ref={toggleRef}
+                  ariaLabel={`启用 ${item.name}`}
+                  checked={action.checked}
+                  disabled={action.disabled || busy}
+                  onChange={checked => {
+                    const trigger = toggleRef.current
+                    if (trigger) onPrimaryAction(item, trigger, checked)
+                  }}
+                />
+              ) : action ? (
                 <Button color="primary"
-                  aria-pressed={action.pressed}
                   disabled={action.disabled}
                   loading={busy}
                   onClick={event => onPrimaryAction(item, event.currentTarget)}
                 >
                   {action.label}
-                  {action.kind === 'open-external' ? (
-                    <ExternalLink
-                      aria-hidden="true"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  ) : null}
+                  <ExternalLink
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
                 </Button>
               ) : null}
             </footer>

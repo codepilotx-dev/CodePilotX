@@ -468,14 +468,16 @@ export function McpEditorDialog({
                 </FormCard>
               )}
 
-              <Button color="secondary"
+              <button
                 aria-controls="mcp-advanced-options"
                 aria-expanded={advanced}
+                className="mcp-editor-advanced-disclosure"
+                type="button"
                 onClick={() => setAdvanced(current => !current)}
               >
                 {advanced ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
                 高级选项
-              </Button>
+              </button>
               {advanced ? (
                 <div id="mcp-advanced-options" className="tw:grid tw:gap-4">
                   <FormCard>

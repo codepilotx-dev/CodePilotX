@@ -126,14 +126,13 @@ export function SidebarProjectHoverCardOverlay({
         <div className="sidebar-project-hover-card-folders">
           {folders.map(folder => (
             folder.path ? (
-              <Button
-                color="ghostSecondary"
+              <button
                 className="sidebar-project-hover-card-folder"
                 disabled={
                   isUnavailable || folder.availability === 'missing'
                 }
                 key={folder.id}
-                size="compact"
+                type="button"
                 title={folder.path}
                 onClick={() => {
                   onOpenFolder(folder.path)
@@ -142,7 +141,7 @@ export function SidebarProjectHoverCardOverlay({
               >
                 <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />
                 <span className="sidebar-project-hover-card-folder-path">{folder.path}</span>
-              </Button>
+              </button>
             ) : null
           ))}
         </div>

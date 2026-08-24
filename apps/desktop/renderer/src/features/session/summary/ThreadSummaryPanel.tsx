@@ -168,7 +168,7 @@ export function ThreadSummaryPanel({
           actionLabel="暂不支持创建本地环境"
         >
           <button
-            className="interactive-row interactive-row--adaptive thread-summary-row"
+            className="interactive-row interactive-row--nav thread-summary-row"
             title="打开变更审查"
             type="button"
             onClick={onOpenReview}
@@ -189,7 +189,7 @@ export function ThreadSummaryPanel({
             title={model.environment.workspacePath}
           >
             <button
-              className="interactive-row interactive-row--adaptive thread-summary-row-group__main"
+              className="interactive-row interactive-row--nav thread-summary-row-group__main"
               type="button"
               onClick={onOpenWorkspacePath}
             >
@@ -217,7 +217,7 @@ export function ThreadSummaryPanel({
             onOpenChange={setBranchPopoverOpen}
             trigger={
               <button
-                className="interactive-row interactive-row--adaptive thread-summary-row"
+                className="interactive-row interactive-row--nav thread-summary-row"
                 data-state={branchPopoverOpen ? "open" : "closed"}
                 title={model.environment.branchName ?? "未检测到 Git 分支"}
                 type="button"
@@ -256,7 +256,7 @@ export function ThreadSummaryPanel({
       {model.plan ? (
         <ThreadSummarySection title="计划">
           <button
-            className="interactive-row interactive-row--adaptive thread-summary-row"
+            className="interactive-row interactive-row--nav thread-summary-row"
             type="button"
             onClick={() => onOpenPlan(model.plan!)}
           >
@@ -274,7 +274,7 @@ export function ThreadSummaryPanel({
         >
           {sourcePreview.items.map((source) => (
             <a
-              className="interactive-row interactive-row--adaptive thread-summary-row"
+              className="interactive-row interactive-row--nav thread-summary-row"
               href={source.url}
               key={source.url}
               rel="noreferrer"
@@ -287,7 +287,7 @@ export function ThreadSummaryPanel({
           ))}
           <button
             aria-haspopup="dialog"
-            className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-source-toggle"
+            className="interactive-row interactive-row--nav thread-summary-row thread-summary-source-toggle"
             type="button"
             onClick={() => setSourcesPanelOpen(true)}
           >
@@ -327,7 +327,7 @@ function ThreadSummarySubagentsRow({
   return (
     <div
       aria-label={`子智能体：${label}`}
-      className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-subagents-summary"
+      className="thread-summary-row thread-summary-subagents-summary"
       title={subagents.map((subagent) => subagent.name).join("、")}
     >
       <span className="thread-summary-subagents-summary__avatars">
@@ -381,7 +381,7 @@ function ThreadSummarySourcesPanel({
           <div className="thread-summary-sources-panel__list" role="list">
             {sources.map((source) => (
               <a
-                className="interactive-row interactive-row--adaptive"
+                className="interactive-row interactive-row--nav"
                 href={source.url}
                 key={source.url}
                 rel="noreferrer"
@@ -502,7 +502,7 @@ function SummaryGitActionRow({
   const row = (
     <button
       aria-disabled={!enabled}
-      className="interactive-row interactive-row--adaptive thread-summary-row"
+      className="interactive-row interactive-row--nav thread-summary-row"
       type="button"
       onClick={(event) => {
         if (!enabled) {

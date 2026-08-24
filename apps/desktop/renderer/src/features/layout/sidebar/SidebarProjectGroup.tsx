@@ -212,6 +212,7 @@ function SidebarProjectGroupComponent({
       data-current={isCurrent || undefined}
       data-sidebar-project-key={projectKey}
       type="button"
+      onClick={() => onToggleProjectCollapsed(collapseKey)}
     >
       <span>
         {managedProject.name}
@@ -247,7 +248,6 @@ function SidebarProjectGroupComponent({
                 className="project-appearance-marker"
               />
             }
-            onClick={() => onToggleProjectCollapsed(collapseKey)}
             onMouseEnter={() => setHovered(true)}
             trailing={
               <div

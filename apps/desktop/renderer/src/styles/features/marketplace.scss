@@ -790,7 +790,7 @@ button.plugins-card-title:focus-visible,
     grid-row: auto;
   }
 
-  .plugin-catalog-row__actions .ui-button {
+  .plugin-catalog-row__external-action {
     width: 100%;
   }
 
@@ -1245,5 +1245,30 @@ button.plugins-card-title:focus-visible,
     outline: 2px solid Highlight;
     outline-offset: 2px;
     box-shadow: none;
+  }
+}
+.mcp-editor-advanced-disclosure {
+  display: inline-flex;
+  min-height: var(--cpx-sys-space-8);
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-2);
+  border: 0;
+  border-radius: var(--cpx-sys-radius-compact);
+  background: transparent;
+  color: var(--cpx-sys-color-fg-secondary);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &[aria-expanded='true'] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
   }
 }

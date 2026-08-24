@@ -103,8 +103,6 @@ function BasicSelect<T extends string>({
         aria-label={ariaLabel}
         className={cx(
           'ui-select-trigger',
-          'interactive-row',
-          'interactive-row--toolbar',
           'settings-dropdown',
           'settings-dropdown-trigger',
           triggerClassName,
@@ -285,8 +283,6 @@ function SearchableSelect<T extends string>({
           aria-label={ariaLabel}
           className={cx(
             'ui-select-trigger',
-            'interactive-row',
-            'interactive-row--toolbar',
             'settings-dropdown',
             'settings-dropdown-trigger',
             triggerClassName,

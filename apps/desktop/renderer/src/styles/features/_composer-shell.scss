@@ -683,3 +683,23 @@
     transition: none;
   }
 }
+.send-button {
+  width: var(--cpx-sys-space-8);
+  height: var(--cpx-sys-space-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-fg-primary);
+  color: var(--cpx-sys-color-surface-canvas);
+  transition:
+    background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}

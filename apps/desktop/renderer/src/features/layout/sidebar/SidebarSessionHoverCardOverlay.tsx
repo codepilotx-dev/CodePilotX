@@ -75,11 +75,13 @@ export function SidebarSessionHoverCardOverlay({
               }}
             />
           ) : (
-            <span
+            <button
               aria-busy={regeneratingTitle}
               aria-live="polite"
               className="sidebar-session-hover-card-title-group"
+              disabled={regeneratingTitle}
               title="单击重命名"
+              type="button"
               onClick={onStartRename}
             >
               {regeneratingTitle ? (
@@ -93,7 +95,7 @@ export function SidebarSessionHoverCardOverlay({
                   <Laptop aria-hidden="true" className="sidebar-session-hover-card-device-icon" size={14} strokeWidth={1.75} />
                 </>
               )}
-            </span>
+            </button>
           )}
           <span className="sidebar-session-hover-card-trailing">
             <span className="sidebar-session-hover-card-time">

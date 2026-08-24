@@ -38,8 +38,8 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
   ref,
 ): ReactNode {
   const rowClassName = cx(
-    "interactive-row",
-    "interactive-row--nav",
+    asChild ? "interactive-row" : undefined,
+    asChild ? "interactive-row--nav" : undefined,
     "sidebar-row",
     `sidebar-row--${layout}`,
     active ? "active" : undefined,

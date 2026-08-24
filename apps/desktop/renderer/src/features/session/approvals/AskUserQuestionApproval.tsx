@@ -344,7 +344,6 @@ export function AskUserQuestionApproval({
               const focused = state.focused === questionOption.id
               return (
                 <div
-                  aria-checked={Boolean(state.custom.trim())}
                   className={[
                     'inline-approval-option custom',
                     focused ? 'focused' : '',
@@ -353,17 +352,13 @@ export function AskUserQuestionApproval({
                     .filter(Boolean)
                     .join(' ')}
                   key={questionOption.id}
-                  role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
-                  tabIndex={0}
-                  onClick={event => {
-                    if (
-                      event.target instanceof HTMLElement &&
-                      (event.target.tagName === 'TEXTAREA' ||
-                        event.target.isContentEditable)
-                    ) {
-                      return
-                    }
-                    focusCustomInput()
+                >
+                  <input
+                    aria-label="使用自定义回答"
+                    checked={Boolean(state.custom.trim())}
+                    name={`ask-user-question-${currentQuestionIndex}`}
+                    type={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+                    onChange={() => {
                     updateQuestion(currentQuestion.question, current =>
                       selectQuestionOption(
                         current,
@@ -372,8 +367,9 @@ export function AskUserQuestionApproval({
                         'focus',
                       ),
                     )
+                    focusCustomInput()
                   }}
-                >
+                  />
                   <span
                     className="inline-approval-option-custom-icon"
                     aria-hidden="true"

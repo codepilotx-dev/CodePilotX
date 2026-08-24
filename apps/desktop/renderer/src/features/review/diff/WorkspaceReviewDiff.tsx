@@ -560,6 +560,7 @@ export function ReviewDiffFilePreview({
   const hasContent = file.hunks.some((hunk) => hunk.lines.length > 0);
   const isCollapsed = collapsedDiffPaths.has(file.path);
   const displayPath = splitReviewDisplayPath(file.path);
+  const diffBodyId = React.useId();
 
   const virtualize = React.useMemo(() => {
     if (!renderBody || isCollapsed || !hasContent) return false;
@@ -694,13 +695,6 @@ export function ReviewDiffFilePreview({
     );
   }
 
-  function handleKeyDown(e: React.KeyboardEvent): void {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleCollapseDiff(file.path);
-    }
-  }
-
   return (
     <section
       className={
@@ -721,42 +715,44 @@ export function ReviewDiffFilePreview({
             ? "review-file-row active preview-header"
             : "review-file-row preview-header"
         }
-        role="button"
-        tabIndex={0}
-        aria-expanded={!isCollapsed}
-        onClick={() => toggleCollapseDiff(file.path)}
-        onKeyDown={handleKeyDown}
       >
-        <FileIcon
-          associationMode="extension-only"
-          aria-hidden="true"
-          className="review-file-icon"
-          path={file.path}
-          size={APP_ICON_SIZE}
-        />
-        <span className="review-file-path" title={file.path}>
-          <span className="review-file-path__content">
-            <span className="review-file-path__directory">
-              {displayPath.directory}
-            </span>
-            <span className="review-file-path__name">
-              {displayPath.fileName}
+        <button
+          aria-controls={diffBodyId}
+          aria-expanded={!isCollapsed}
+          className="review-file-summary"
+          type="button"
+          onClick={() => toggleCollapseDiff(file.path)}
+        >
+          <FileIcon
+            associationMode="extension-only"
+            aria-hidden="true"
+            className="review-file-icon"
+            path={file.path}
+            size={APP_ICON_SIZE}
+          />
+          <span className="review-file-path" title={file.path}>
+            <span className="review-file-path__content">
+              <span className="review-file-path__directory">
+                {displayPath.directory}
+              </span>
+              <span className="review-file-path__name">
+                {displayPath.fileName}
+              </span>
             </span>
           </span>
-        </span>
-        <span className="review-file-counts">
-          <strong>+{formatPanelNumber(file.additions)}</strong>
-          <em>-{formatPanelNumber(file.deletions)}</em>
-        </span>
+          <span className="review-file-counts">
+            <strong>+{formatPanelNumber(file.additions)}</strong>
+            <em>-{formatPanelNumber(file.deletions)}</em>
+          </span>
+        </button>
         <div
           className="review-file-actions review-file-actions-primary"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
           role="group"
           aria-label="文件查看操作"
         >
           <Tooltip content={isCollapsed ? "展开文件差异" : "折叠文件差异"}>
             <IconButton
+              aria-controls={diffBodyId}
               aria-expanded={!isCollapsed}
               className="review-file-toggle"
               color="ghostSecondary"
@@ -788,8 +784,6 @@ export function ReviewDiffFilePreview({
         </div>
         <div
           className="review-file-actions review-file-actions-secondary"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
           role="group"
           aria-label="文件 Git 操作"
         >
@@ -844,7 +838,9 @@ export function ReviewDiffFilePreview({
           )}
         </div>
       </div>
-      {diffBody}
+      <div className="review-diff-file-body" id={diffBodyId}>
+        {diffBody}
+      </div>
     </section>
   );
 }

@@ -88,18 +88,6 @@ function speechStatusDescription(
   return 'SenseVoice Small 在本机离线转写，音频不会发送到云端。'
 }
 
-function LearnMoreLink() {
-  return (
-    <a
-      className='settings-row-link'
-      href='#'
-      onClick={(e) => e.preventDefault()}
-    >
-      了解更多有关高风险的信息。
-    </a>
-  );
-}
-
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return (
     <OpenTargetIcon
@@ -394,7 +382,6 @@ export function GeneralSettings({
               <>
                 CodePilotX 可以读取和编辑其工作区中的文件。CodePilotX
                 会自动审核额外访问权限请求。自动审核可能会出错。
-                <LearnMoreLink />
               </>
             }
             control={
@@ -412,7 +399,6 @@ export function GeneralSettings({
               <>
                 当 CodePilotX
                 以完全访问权限运行时，无需你批准，即可自动放行所有权限工具，编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
-                <LearnMoreLink />
               </>
             }
             control={

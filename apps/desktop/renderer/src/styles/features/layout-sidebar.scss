@@ -296,7 +296,7 @@
     gap: var(--cpx-sys-space-2);
   }
 
-  .ui-button {
+  .sidebar-show-more-button {
     font-size: var(--cpx-sys-font-size-ui);
     font-weight: 400;
   }
@@ -1118,8 +1118,8 @@
   margin-top: var(--cpx-sys-space-1);
 }
 
-.ui-button.sidebar-project-hover-card-folder,
-.ui-button.sidebar-project-hover-card-edit {
+.sidebar-project-hover-card-folder,
+.sidebar-project-hover-card-edit {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1136,12 +1136,18 @@
   font-size: var(--cpx-sys-font-size-xs);
   font-weight: var(--cpx-sys-font-weight-regular);
   text-align: left;
+  cursor: pointer;
 
   &:hover:not(:disabled) {
     border-color: transparent;
     background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-primary);
     box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
   }
 
   svg {

@@ -21,18 +21,6 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 
-function LearnMoreLink() {
-  return (
-    <a
-      className="settings-row-link"
-      href="#"
-      onClick={event => event.preventDefault()}
-    >
-      了解更多
-    </a>
-  )
-}
-
 export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { draft } = settings
@@ -135,7 +123,6 @@ export function ConfigSettings(): React.ReactNode {
           <h2 className="settings-page-title">配置</h2>
           <p className="settings-page-desc">
             配置审批策略和命令执行范围。
-            <LearnMoreLink />
           </p>
         </div>
 

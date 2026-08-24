@@ -150,41 +150,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  border: var(--mcp-form-input-border);
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--mcp-form-input-bg);
-  color: var(--cpx-sys-color-fg-secondary);
-  cursor: pointer;
-  font-size: var(--cpx-sys-font-size-md);
-  font-family: inherit;
-  outline: none;
-  transition:
-    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-}
-
-.mcp-form-boolean:hover {
-  border-color: var(--cpx-sys-color-border-default);
-  background: var(--cpx-sys-color-hover);
-}
-
-.mcp-form-boolean-on {
-  background: var(--cpx-sys-color-selected);
-  border-color: var(--cpx-sys-color-accent);
-  color: var(--cpx-sys-color-fg-primary);
-}
-
-.mcp-form-boolean-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--cpx-sys-radius-pill);
-  background: var(--cpx-sys-color-fg-tertiary);
-  transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-}
-
-.mcp-form-boolean-on .mcp-form-boolean-thumb {
-  background: var(--cpx-sys-color-accent);
 }
 
 .mcp-form-boolean-label {
@@ -199,56 +164,7 @@
 }
 
 .mcp-form-option {
-  display: grid;
-  grid-template-columns: var(--cpx-sys-space-5) 1fr;
-  align-items: center;
-  gap: var(--cpx-sys-space-2);
   width: 100%;
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  border: var(--mcp-form-input-border);
-  border-radius: var(--mcp-form-input-radius);
-  background: var(--mcp-form-input-bg);
-  color: var(--cpx-sys-color-fg-secondary);
-  cursor: pointer;
-  font-size: var(--cpx-sys-font-size-md);
-  font-family: inherit;
-  text-align: left;
-  outline: none;
-  transition:
-    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-}
-
-.mcp-form-option:hover {
-  border-color: var(--cpx-sys-color-border-default);
-  background: var(--cpx-sys-color-hover);
-}
-
-.mcp-form-option.selected {
-  background: var(--cpx-sys-color-selected);
-  border-color: var(--cpx-sys-color-border-default);
-  color: var(--cpx-sys-color-fg-primary);
-}
-
-.mcp-form-option-index {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--cpx-sys-space-5);
-  height: var(--cpx-sys-space-5);
-  border-radius: var(--cpx-sys-radius-full);
-  background: color-mix(in srgb, var(--cpx-sys-color-fg-secondary) 12%, transparent);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-bold);
-}
-
-.mcp-form-option.selected .mcp-form-option-index {
-  background: var(--cpx-sys-color-accent);
-  color: var(--cpx-sys-color-surface-canvas);
-}
-
-.mcp-form-option-label {
-  font-weight: var(--cpx-sys-font-weight-regular);
 }
 
 /* Actions row */

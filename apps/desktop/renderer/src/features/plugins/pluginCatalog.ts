@@ -61,12 +61,18 @@ export type PluginStatusFilter =
   | 'disabled'
   | 'unavailable'
 
-export type PluginPrimaryAction = {
-  kind: Exclude<PluginActionKind, 'none'>
-  label: string
-  disabled: boolean
-  pressed?: boolean
-}
+export type PluginPrimaryAction =
+  | {
+      kind: 'toggle-builtin'
+      label: string
+      disabled: boolean
+      checked: boolean
+    }
+  | {
+      kind: 'open-external'
+      label: string
+      disabled: boolean
+    }
 
 export const MINIMAX_CLI_DOCS_URL =
   'https://platform.minimax.io/docs/token-plan/minimax-cli'
@@ -265,7 +271,7 @@ export function pluginPrimaryAction(
       kind: 'toggle-builtin',
       label: '禁用',
       disabled: false,
-      pressed: true,
+      checked: true,
     }
   }
   if (item.status === 'disabled') {
@@ -273,7 +279,7 @@ export function pluginPrimaryAction(
       kind: 'toggle-builtin',
       label: '启用',
       disabled: false,
-      pressed: false,
+      checked: false,
     }
   }
 
@@ -281,6 +287,7 @@ export function pluginPrimaryAction(
     kind: 'toggle-builtin',
     label: item.status === 'loading' ? '正在检查' : '当前不可用',
     disabled: true,
+    checked: false,
   }
 }
 

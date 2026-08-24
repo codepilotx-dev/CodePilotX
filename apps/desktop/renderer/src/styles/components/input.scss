@@ -1,5 +1,23 @@
 /* ===== Shared Input / Control Patterns ===== */
 
+.settings-input,
+.settings-textarea,
+.settings-input-number,
+.search-input-row,
+.plugins-search,
+.plugins-filter,
+.right-dock-search {
+  border-color: var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-comp-input-radius);
+  background: var(--cpx-sys-color-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
+}
+
+.plugins-card-action,
+.settings-dropdown {
+  border-radius: var(--cpx-comp-button-radius-md);
+}
+
 .ui-input {
   min-width: 0;
   padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);
@@ -92,14 +110,50 @@
 }
 
 .ui-select-trigger {
+  appearance: none;
   display: inline-flex;
   width: auto;
+  min-height: var(--cpx-comp-row-height-toolbar);
   max-width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-comp-input-gap);
+  padding: 0 var(--cpx-comp-row-padding-inline);
   border: 1px solid var(--cpx-comp-input-border);
+  border-radius: var(--cpx-comp-row-radius);
+  background: var(--cpx-comp-input-bg);
+  color: var(--cpx-comp-input-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+
+  &:hover:not(:disabled) {
+    border-color: var(--cpx-sys-color-border-strong);
+    background: var(--cpx-sys-color-hover);
+  }
+
+  &:focus-visible {
+    border-color: var(--cpx-sys-color-border-focus);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
+  }
+
+  &[data-state='open'] {
+    background: var(--cpx-sys-color-selected);
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
+    cursor: default;
+    opacity: 0.55;
+  }
 }
 
 .ui-select-value {

@@ -23,6 +23,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -601,17 +602,18 @@ function EnvironmentDetail({
                   >
                     {sourceStatusLabel(source.status)}
                   </span>
-                  <button
-                    aria-label={`预览来源 ${source.name}`}
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={busy !== null || source.status !== 'available'}
-                    title="预览"
+                    size="toolbar"
+                    title={`预览来源 ${source.name}`}
                     type="button"
                     onClick={() => void previewSource(source)}
                   >
                     <Eye size={APP_ICON_SIZE} />
-                  </button>
-                  <button
-                    aria-label={`重新关联来源 ${source.name}`}
+                  </IconButton>
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={
                       busy !== null
                       || source.storage !== 'workspace-file'
@@ -621,7 +623,8 @@ function EnvironmentDetail({
                       source.storage !== 'workspace-file'
                       || source.status === 'available'
                     }
-                    title="重新关联"
+                    size="toolbar"
+                    title={`重新关联来源 ${source.name}`}
                     type="button"
                     onClick={() => {
                       if (source.storage !== 'workspace-file') return
@@ -631,11 +634,12 @@ function EnvironmentDetail({
                     }}
                   >
                     <RefreshCw size={APP_ICON_SIZE} />
-                  </button>
-                  <button
-                    aria-label={`移除来源 ${source.name}`}
+                  </IconButton>
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={busy !== null}
-                    title="移除"
+                    size="toolbar"
+                    title={`移除来源 ${source.name}`}
                     type="button"
                     onClick={() => void run(`remove:${source.id}`, async () => {
                       if (
@@ -653,7 +657,7 @@ function EnvironmentDetail({
                     })}
                   >
                     <Trash2 size={APP_ICON_SIZE} />
-                  </button>
+                  </IconButton>
                 </div>
               ))}
             </div>
@@ -663,13 +667,15 @@ function EnvironmentDetail({
             <div className="environment-source-preview">
               <header>
                 <strong>{preview.source.name}</strong>
-                <button
-                  aria-label="关闭来源预览"
+                <IconButton
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="关闭来源预览"
                   type="button"
                   onClick={() => setPreview(null)}
                 >
                   <X size={APP_ICON_SIZE} />
-                </button>
+                </IconButton>
               </header>
               {preview.encoding === 'base64' ? (
                 <img

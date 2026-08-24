@@ -8,6 +8,7 @@ import {
   exitTween,
   motionTransition,
 } from '../features/motion/motionTransitions.js'
+import { IconButton } from './ui/IconButton.js'
 
 type Props = {
   message: string | null
@@ -87,13 +88,15 @@ function GlobalErrorPresence({
       <div className="global-error-toast-scroll-area tw:min-w-0 tw:overflow-hidden tw:overflow-y-auto">
         <div className="global-error-toast-scroll-content">{message}</div>
       </div>
-      <button
-        aria-label={isError ? '关闭错误提示' : '关闭通知'}
+      <IconButton
+        color="ghostSecondary"
         onClick={onDismiss}
+        size="toolbar"
+        title={isError ? '关闭错误提示' : '关闭通知'}
         type="button"
       >
         ×
-      </button>
+      </IconButton>
     </motion.div>
   )
 }

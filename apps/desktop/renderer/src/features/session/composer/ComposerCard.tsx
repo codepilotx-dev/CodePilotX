@@ -1548,8 +1548,6 @@ export function ComposerCard({
                 aria-label="选择权限模式"
                 data-theme-component="dropdown-trigger"
                 className={[
-                  "interactive-row",
-                  "interactive-row--composer",
                   "chip-button",
                   getPermissionClassName(permissionMode),
                   openDropdown === "permission" ? "active" : "",
@@ -1627,7 +1625,7 @@ export function ComposerCard({
                 <span className="toolbar-divider" />
                 <button
                   aria-pressed="true"
-                  className="interactive-row interactive-row--composer chip-button composer-plan-mode-chip active"
+                  className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
                     onGoalModeChange?.(false);
                   }}
@@ -1658,7 +1656,7 @@ export function ComposerCard({
                 <span className="toolbar-divider" />
                 <button
                   aria-pressed="true"
-                  className="interactive-row interactive-row--composer chip-button composer-plan-mode-chip active"
+                  className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
                     onPlanModeChange?.(false);
                   }}
@@ -1689,7 +1687,7 @@ export function ComposerCard({
                 <span className="toolbar-divider" />
                 <button
                   aria-pressed="true"
-                  className="interactive-row interactive-row--composer chip-button composer-plan-mode-chip active"
+                  className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
                     onLocalRouterModeChange?.("off");
                   }}

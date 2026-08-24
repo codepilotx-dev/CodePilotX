@@ -1,6 +1,9 @@
 import { CornerDownLeft, X } from 'lucide-react'
 import React from 'react'
 import { Button } from '../../../components/ui/Button.js'
+import { Checkbox } from '../../../components/ui/Checkbox.js'
+import { RadioGroup, RadioItem } from '../../../components/ui/RadioGroup.js'
+import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import type {
   McpElicitationBooleanSchema,
   McpElicitationConstOption,
@@ -430,23 +433,16 @@ function BooleanField({
   onChange: (value: unknown) => void
 }): React.ReactNode {
   return (
-    <button
-      id={`mcp-field-${name}`}
-      type="button"
-      role="switch"
-      aria-checked={value}
-      className={
-        value
-          ? 'mcp-form-boolean mcp-form-boolean-on'
-          : 'mcp-form-boolean'
-      }
-      onClick={() => onChange(!value)}
-    >
-      <span className="mcp-form-boolean-thumb" />
+    <div className="mcp-form-boolean">
+      <ToggleSwitch
+        ariaLabel={schema.title ?? name}
+        checked={value}
+        onChange={onChange}
+      />
       <span className="mcp-form-boolean-label">
         {value ? '是' : '否'}
       </span>
-    </button>
+    </div>
   )
 }
 
@@ -465,33 +461,22 @@ function SingleSelectField({
 }): React.ReactNode {
   const options = getSelectOptions(schema)
   return (
-    <div className="mcp-form-option-group" role="radiogroup">
-      {options.map((option) => {
-        const isSelected = value === option.value
-        return (
-          <button
-            key={option.value}
-            id={isSelected ? `mcp-field-${name}` : undefined}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            className={
-              isSelected
-                ? 'mcp-form-option selected'
-                : 'mcp-form-option'
-            }
-            onClick={() => onChange(option.value)}
-          >
-            <span className="mcp-form-option-index">
-              {option.label[0]?.toUpperCase() ?? '?'}
-            </span>
-            <span className="mcp-form-option-label">
-              {option.label}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+    <RadioGroup
+      ariaLabel={schema.title ?? name}
+      className="mcp-form-option-group"
+      value={value}
+      onValueChange={onChange}
+    >
+      {options.map(option => (
+        <RadioItem
+          className="mcp-form-option"
+          key={option.value}
+          label={option.label}
+          value={option.value}
+          variant="card"
+        />
+      ))}
+    </RadioGroup>
   )
 }
 
@@ -526,25 +511,14 @@ function MultiSelectField({
       {options.map((option) => {
         const isSelected = selectedSet.has(option.value)
         return (
-          <button
+          <Checkbox
+            checked={isSelected}
+            className="mcp-form-option"
             key={option.value}
-            type="button"
-            role="checkbox"
-            aria-checked={isSelected}
-            className={
-              isSelected
-                ? 'mcp-form-option selected'
-                : 'mcp-form-option'
-            }
-            onClick={() => toggle(option.value)}
+            onCheckedChange={() => toggle(option.value)}
           >
-            <span className="mcp-form-option-index">
-              {isSelected ? '✓' : ''}
-            </span>
-            <span className="mcp-form-option-label">
-              {option.label}
-            </span>
-          </button>
+            {option.label}
+          </Checkbox>
         )
       })}
     </div>

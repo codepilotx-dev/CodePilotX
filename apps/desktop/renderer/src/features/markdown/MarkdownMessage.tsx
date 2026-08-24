@@ -17,6 +17,7 @@ import {
   AppContextMenu,
   type AppContextMenuAction,
 } from '../../components/ui/AppContextMenu.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -772,9 +773,10 @@ function MarkdownTable({
   return (
     <figure className="md-table-block">
       <div className="md-table-actions">
-        <button
-          aria-label={copied ? '已复制' : '复制表格'}
+        <IconButton
           className={cx('md-table-copy', copied && 'is-copied')}
+          color="ghostSecondary"
+          size="toolbar"
           title={copied ? '已复制' : '复制表格'}
           type="button"
           onClick={() => void copyTable()}
@@ -792,7 +794,7 @@ function MarkdownTable({
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           )}
-        </button>
+        </IconButton>
       </div>
       <div className="md-table-scroll">
         <table>
@@ -1388,7 +1390,7 @@ function FileReferenceButton({
         if (open) loadTargets()
       }}
       trigger={
-        <span
+        <button
           aria-label={`打开文件 ${reference.path}`}
           className={className}
           data-file-reference=""
@@ -1405,15 +1407,9 @@ function FileReferenceButton({
             open(false)
           }}
           onFocus={prefetch}
-          onKeyDown={event => {
-            if (event.key !== 'Enter' && event.key !== ' ') return
-            event.preventDefault()
-            open(true)
-          }}
           onMouseEnter={prefetch}
           onPointerDown={prefetch}
-          role="button"
-          tabIndex={0}
+          type="button"
           title={title}
         >
           <span className="md-file-reference__content">
@@ -1426,7 +1422,7 @@ function FileReferenceButton({
             </span>
             <span className="md-file-reference__label">{children}</span>
           </span>
-        </span>
+        </button>
       }
       width={240}
     />

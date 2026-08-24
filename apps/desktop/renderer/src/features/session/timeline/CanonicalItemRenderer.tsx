@@ -1018,10 +1018,10 @@ export function PatchSummaryView({
         ))}
       </div>
       {hiddenFileCount > 0 ? (
-        <Button
+        <button
           aria-expanded={filesExpanded}
           className="canonical-patch-card__disclosure"
-          color="ghostSecondary"
+          type="button"
           onClick={() => setFilesExpanded((expanded) => !expanded)}
         >
           {filesExpanded ? "收起文件" : `再显示 ${hiddenFileCount} 个文件`}
@@ -1030,7 +1030,7 @@ export function PatchSummaryView({
           ) : (
             <ChevronDown aria-hidden="true" />
           )}
-        </Button>
+        </button>
       ) : null}
       {actionError ? (
         <p className="canonical-patch-card__error" role="alert">

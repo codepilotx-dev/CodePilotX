@@ -801,7 +801,7 @@
     font-weight: inherit;
     white-space: nowrap;
 
-    &.ui-button:hover:not(:disabled) {
+    &:hover:not(:disabled) {
       border-color: transparent;
       background: color-mix(
         in srgb,
@@ -811,7 +811,7 @@
       box-shadow: none;
     }
 
-    &.ui-button:focus-visible {
+    &:focus-visible {
       z-index: 2;
       outline: none;
       box-shadow: var(--cpx-sys-focus-ring-inset);
@@ -1036,7 +1036,7 @@
     }
   }
 
-  &__file-row.ui-button {
+  &__file-row {
     display: flex;
     width: 100%;
     min-width: 0;
@@ -1054,10 +1054,13 @@
     font-weight: var(--cpx-sys-font-weight-medium);
     text-align: start;
 
-    &:hover:not(:disabled) {
-      border-color: transparent;
+    &:hover {
       background: var(--cpx-sys-color-hover);
-      box-shadow: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cpx-sys-color-border-focus);
+      outline-offset: 1px;
     }
   }
 
@@ -1088,6 +1091,33 @@
   em {
     color: var(--cpx-sys-color-danger);
     font-style: normal;
+  }
+}
+
+.conversation-fork-dialog__destination {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-container);
+  background: var(--cpx-sys-color-surface-canvas);
+  color: var(--cpx-sys-color-fg-primary);
+  text-align: left;
+  transition:
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
+
+  &:hover:not(:disabled) {
+    border-color: var(--cpx-sys-color-border-strong);
+    background: var(--cpx-sys-color-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
   }
 }
 
@@ -1159,8 +1189,8 @@
 }
 
 @media (forced-colors: active) {
-  .composer-change-summary__plan.ui-button:focus-visible,
-  .composer-change-summary__changes.ui-button:focus-visible {
+  .composer-change-summary__plan:focus-visible,
+  .composer-change-summary__changes:focus-visible {
     box-shadow: none;
     outline: 2px solid Highlight;
     outline-offset: -2px;

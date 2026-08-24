@@ -18,7 +18,6 @@ export type ButtonColor =
   | 'outline'
   | 'primary'
   | 'secondary'
-  | 'segmentedInsetSelected'
 
 export type ButtonContentLayout = 'default' | 'balanced'
 export type ButtonRadius = 'default' | 'large'

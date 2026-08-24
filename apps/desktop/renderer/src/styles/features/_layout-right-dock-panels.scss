@@ -179,7 +179,6 @@
 }
 
 .file-breadcrumb-toolbar__action,
-.file-breadcrumb-toolbar__view-mode,
 .file-breadcrumb-toolbar__open-menu {
   display: inline-flex;
   height: var(--cpx-sys-space-6);
@@ -262,10 +261,7 @@
 }
 
 .file-breadcrumb-toolbar__view-mode {
-  padding: 0 var(--cpx-sys-space-2);
-  font-size: var(--cpx-sys-font-size-sm);
-  color: var(--cpx-sys-color-fg-primary);
-  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .file-breadcrumb-toolbar__open {
@@ -445,6 +441,31 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.attachment-directory-entry {
+  display: flex;
+  width: 100%;
+  min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-1));
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-2);
+  border: 0;
+  border-radius: var(--cpx-sys-radius-compact);
+  background: transparent;
+  color: var(--cpx-sys-color-fg-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--cpx-sys-color-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: -2px;
+  }
 }
 
 .right-dock-file-preview-scroll-content {
@@ -643,7 +664,6 @@
 
 @media (forced-colors: active) {
   .file-breadcrumb-toolbar__action:focus-visible,
-  .file-breadcrumb-toolbar__view-mode:focus-visible,
   .file-breadcrumb-toolbar__open-menu:focus-visible {
     box-shadow: none;
     outline: 2px solid Highlight;

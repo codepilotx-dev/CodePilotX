@@ -199,6 +199,7 @@ export function PluginsView(): React.ReactNode {
   async function runPluginAction(
     item: PluginCatalogItem,
     trigger: HTMLButtonElement,
+    checked?: boolean,
   ): Promise<void> {
     if (busyPluginIds.has(item.id)) return
     const action = pluginPrimaryAction(item)
@@ -223,11 +224,11 @@ export function PluginsView(): React.ReactNode {
     }
 
     setBusyPluginIds(current => new Set(current).add(item.id))
-    const previousEnabled = item.status === 'enabled'
+    const nextEnabled = checked ?? !action.checked
     try {
       const result = await setBuiltinPluginEnabled(
         item.builtinPluginId,
-        !previousEnabled,
+        nextEnabled,
       )
       setAnnouncement(`${item.name}已${result.enabled ? '启用' : '禁用'}。`)
       const remainsVisible =
@@ -235,7 +236,7 @@ export function PluginsView(): React.ReactNode {
         (pluginStatus === 'enabled' && result.enabled) ||
         (pluginStatus === 'disabled' && !result.enabled)
       window.requestAnimationFrame(() => {
-        if (remainsVisible) trigger.focus()
+        if (remainsVisible && trigger.isConnected) trigger.focus()
         else {
           setDetailOpen(false)
           window.requestAnimationFrame(() => statusTriggerRef.current?.focus())
@@ -245,7 +246,10 @@ export function PluginsView(): React.ReactNode {
       const message = error instanceof Error ? error.message : `${item.name}状态更新失败。`
       setPluginErrors(current => ({ ...current, [item.id]: message }))
       setAnnouncement(message)
-      window.requestAnimationFrame(() => trigger.focus())
+      window.requestAnimationFrame(() => {
+        if (trigger.isConnected) trigger.focus()
+        else statusTriggerRef.current?.focus()
+      })
     } finally {
       setBusyPluginIds(current => {
         const next = new Set(current)
@@ -504,8 +508,8 @@ export function PluginsView(): React.ReactNode {
                                 setSelectedPluginId(plugin.id)
                                 setDetailOpen(true)
                               }}
-                              onPrimaryAction={(plugin, trigger) => {
-                                void runPluginAction(plugin, trigger)
+                              onPrimaryAction={(plugin, trigger, checked) => {
+                                void runPluginAction(plugin, trigger, checked)
                               }}
                             />
                           ))}
@@ -521,8 +525,8 @@ export function PluginsView(): React.ReactNode {
                 error={selectedPlugin ? pluginErrors[selectedPlugin.id] : null}
                 item={selectedPlugin}
                 onOpenChange={setDetailOpen}
-                onPrimaryAction={(plugin, trigger) => {
-                  void runPluginAction(plugin, trigger)
+                onPrimaryAction={(plugin, trigger, checked) => {
+                  void runPluginAction(plugin, trigger, checked)
                 }}
                 open={detailOpen && selectedPlugin !== null}
                 restoreFocusElement={detailTrigger}

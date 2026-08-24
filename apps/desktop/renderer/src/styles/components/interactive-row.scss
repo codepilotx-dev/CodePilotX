@@ -12,6 +12,7 @@
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
   position: relative;
+  --interactive-row-current-gap: var(--cpx-comp-row-gap);
   box-sizing: border-box;
   display: flex;
   min-height: var(--interactive-row-current-min-height);
@@ -92,49 +93,6 @@
     --cpx-comp-row-padding-block-rich,
     6px
   );
-}
-
-.interactive-row--toolbar {
-  --interactive-row-current-min-height: var(--cpx-comp-row-height-toolbar);
-  --interactive-row-current-radius: var(--cpx-comp-row-radius);
-  --interactive-row-current-padding-inline: var(
-    --cpx-comp-row-padding-inline
-  );
-  --interactive-row-current-font-size: var(
-    --cpx-sys-font-size-md
-  );
-  --interactive-row-current-line-height: var(
-    --cpx-sys-line-height-tight
-  );
-}
-
-.interactive-row--composer {
-  --interactive-row-current-min-height: var(--cpx-comp-row-height-composer);
-  --interactive-row-current-radius: var(--cpx-sys-radius-full);
-  --interactive-row-current-padding-inline: var(
-    --cpx-comp-row-padding-inline
-  );
-  --interactive-row-current-gap: var(--cpx-comp-row-gap);
-  --interactive-row-current-font-size: var(
-    --cpx-sys-font-size-md
-  );
-  --interactive-row-current-line-height: var(
-    --cpx-sys-line-height-tight
-  );
-
-  corner-shape: round;
-}
-
-.interactive-row--adaptive {
-  --interactive-row-current-min-height: var(
-    --cpx-comp-row-height-nav
-  );
-  --interactive-row-current-radius: var(--cpx-comp-row-radius);
-  --interactive-row-current-padding-inline: var(
-    --cpx-comp-row-padding-inline
-  );
-  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),

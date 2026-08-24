@@ -341,11 +341,17 @@
 }
 
 .thread-summary-subagents-summary {
+  box-sizing: border-box;
+  min-height: var(--cpx-sys-space-7);
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+  padding: 0 var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-container);
+  color: var(--cpx-sys-color-fg-primary);
   cursor: default;
-
-  &:hover {
-    background: transparent;
-  }
+  font-size: var(--cpx-sys-font-size-md);
+  line-height: var(--cpx-sys-line-height-tight);
+  user-select: none;
 }
 
 .thread-summary-subagents-summary__avatars {

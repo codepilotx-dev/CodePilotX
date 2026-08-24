@@ -20,6 +20,7 @@ import {
 } from 'react'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.js'
@@ -190,7 +191,7 @@ function DirectoryAttachmentPreview({ tab }: Props): React.ReactNode {
         <div className="right-dock-file-preview-scroll-area">
           {entries.length ? entries.map(entry => (
             <button
-              className="chat-input__dropdown-item"
+              className="attachment-directory-entry"
               key={entry.relativePath}
               onClick={() => openEntry(entry)}
               type="button"
@@ -402,12 +403,17 @@ function TextAttachmentPreview({
     <section style={panelStyle}>
       <AttachmentToolbar value={value}>
         {formatted.markdown ? (
-          <Button color="primary"
+          <SegmentedControl
+            ariaLabel="Markdown 查看模式"
             className="file-breadcrumb-toolbar__view-mode"
-            onClick={() => setMarkdownSource(current => !current)}
-          >
-            {markdownSource ? '预览' : '源码'}
-          </Button>
+            onChange={nextValue => setMarkdownSource(nextValue === 'source')}
+            options={[
+              { value: 'preview', label: '预览' },
+              { value: 'source', label: '源码' },
+            ]}
+            overflowMode="fit"
+            value={markdownSource ? 'source' : 'preview'}
+          />
         ) : null}
         <IconButton
           color="ghostSecondary"

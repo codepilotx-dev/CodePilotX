@@ -17,18 +17,6 @@ const PERSONALITY_OPTIONS: Array<{
   { value: 'encouraging', label: '鼓励' },
 ]
 
-function LearnMoreLink() {
-  return (
-    <a
-      className="settings-row-link personalization-learn-more-link"
-      href="#"
-      onClick={event => event.preventDefault()}
-    >
-      了解更多
-    </a>
-  )
-}
-
 type Props = {
   onError?: (message: string) => void
   onNotice?: (message: string) => void
@@ -82,7 +70,6 @@ export function PersonalizationSettings({
           description={
             <>
               为此主机上的所有任务向 CodePilotX 提供额外说明和上下文。
-              <LearnMoreLink />
             </>
           }
         >

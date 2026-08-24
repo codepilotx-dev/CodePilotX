@@ -197,7 +197,7 @@ function ReleaseNotesContent({
             <p>
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
-            <Button color="primary" loading={refreshing} onClick={onRefresh}>
+            <Button className="whats-new-fallback-action" color="primary" loading={refreshing} onClick={onRefresh}>
               {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
@@ -215,7 +215,7 @@ function ReleaseNotesContent({
             return (
               <li key={release.tagName}>
                 <button
-                  aria-pressed={selected}
+                  aria-current={current ? 'true' : undefined}
                   className="whats-new-version-item"
                   data-selected={selected || undefined}
                   type="button"

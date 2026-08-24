@@ -2947,24 +2947,37 @@ html[data-theme="dark"] .model-center-key-dialog {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cpx-sys-space-3);
-  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  cursor: pointer;
-  user-select: none;
+  gap: 0;
   background: var(--cpx-sys-color-surface-panel);
-
-  &:hover {
-    background: var(--cpx-sys-color-hover);
-  }
 }
 
 .provider-editor-model-card-summary {
+  appearance: none;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
   flex-wrap: wrap;
   flex: 1;
+  align-self: stretch;
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background: var(--cpx-sys-color-hover);
+  }
+
+  &:focus-visible {
+    box-shadow: var(--cpx-sys-focus-ring-inset);
+  }
 
   .provider-editor-model-card-chevron {
     color: var(--cpx-sys-color-fg-secondary);
@@ -3020,6 +3033,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   align-items: center;
   gap: var(--cpx-sys-space-2);
   flex-shrink: 0;
+  padding-right: var(--cpx-sys-space-4);
 }
 
 .provider-editor-model-card-body {
@@ -3028,6 +3042,10 @@ html[data-theme="dark"] .model-center-key-dialog {
   background: var(--cpx-sys-color-surface-raised);
   display: grid;
   gap: var(--cpx-sys-space-4);
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .provider-editor-model-toggles-row {
