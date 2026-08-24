@@ -39,6 +39,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将 Renderer CSS 资源门禁改为显式基线、软告警与硬失败分层，并将任务看板隔离为独立路由资源预算。
 - [desktop/renderer] 为 Composer 思考强度滑块增加连续拖动与轻磁吸，改用合成层位移和填充缩放消除拖动迟滞，并将 Codex 式弹簧阻尼限制在 Thumb 按压反馈上。
 - [desktop/renderer] 建立完整的 2xs–4xl/full 圆角基础刻度并分阶段迁移 Renderer 组件，使普通控件、列表、菜单、消息与高层级浮动表面恢复 Codex 式层级，同时限制大圆角仅用于明确的 prominent 表面。
 - [desktop/renderer] 将任务看板的输入、选择、日期、单复选及行内交互统一接入 Renderer 组件体系，移除 Windows/Chromium 原生控件外观并补齐可搜索选择与日期范围限制。
@@ -145,6 +146,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务看板路由懒加载时误用面板 Spinner 的问题，恢复工作区内鲸鱼扫光加载状态。
 - [desktop/renderer] 将思考强度滑块改为拖动预览、松手单次提交，修复快速拖动时等级文字因受控状态连续回传而乱跳。
 - [desktop/development] 修复多个 Git worktree 启动 Desktop 时争用固定 Renderer 端口和全局 Electron 实例的问题，为各 worktree 隔离动态 Vite、Electron 状态与日志，同时复用唯一开发 Agent。
 - [desktop/renderer] 修复任务看板窄侧栏中的任务卡片被通用交互行布局挤压、导致中文标题逐字竖排的问题，恢复标题、说明与元信息的纵向可读排布。
