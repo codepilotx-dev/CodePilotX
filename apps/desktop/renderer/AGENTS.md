@@ -30,7 +30,9 @@
 - 危险、选中、禁用、加载和焦点状态可以保留语义差异。纯图标工具按钮、导航、标签页、分段控件和开关必须使用各自组件，禁止套用动作按钮容器。
 - 所有 Renderer Token 任务必须先阅读 `docs/design/renderer-token-system.md`；颜色任务还必须阅读 `docs/design/renderer-color-system.md`。
 - 非颜色 Token 的选择顺序固定为“内容角色 → 组件/布局角色 → 密度 → 状态/动效 → 层级”。Feature 只能使用公共 `--cpx-sys-*`、拥有选择器内的动态局部变量和颜色契约允许的组件槽位，禁止消费 `--cpx-comp-*` 几何 Token。
-- 排版使用 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / code`。间距使用 4px 开放刻度或明确 `--cpx-sys-layout-*`。圆角使用 `indicator / compact / control / container / floating / pill`。动效使用 `instant / feedback / exit / state / enter / panel / loading`。全局层级按 `local / sticky / dock / composer / modal / popover / tooltip / toast` 递增。
+- 排版使用 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / code`。间距使用 4px 开放刻度或明确 `--cpx-sys-layout-*`。圆角使用 `indicator / compact / control / container / floating / prominent / pill`。动效使用 `instant / feedback / exit / state / enter / panel / loading`。全局层级按 `local / sticky / dock / composer / modal / popover / tooltip / toast` 递增。
+- 圆角光学校正必须通过 `--cpx-sys-radius-optical-scale` 与 `--cpx-sys-corner-shape` 接入；Feature 不得硬编码 `superellipse(1.5)`、重复创建 scale，或复制 Codex 的 T-shirt 圆角体系。`radius-prominent` 只允许持续覆盖工作区的主要 Composer 与 inline 线程摘要使用；用户消息使用 opt-in floating 曲率，pill 继续保留传统胶囊轮廓。
+- Composer 的首页外壳、实际布局和圆角角色必须分别通过 `data-composer-utility-bar-variant`、`data-composer-layout` 和 `data-composer-radius-variant` 表达。`placement` 与 `surface` 不得直接决定圆角；`home` 只表示首页工具条结构。只有真实单行布局的 default radius 才允许使用 pill，multiline default 必须使用 `radius-prominent`。
 - 禁止为页面、实例或历史像素值创建平行 Token。
 - Feature 只能消费 `--cpx-sys-color-*` 公共语义颜色；颜色类 `--cpx-comp-*` 只属于基础组件内部。选择顺序固定为“业务 tone → surface → foreground/border → 交互态”。找不到语义时必须先扩展规范，禁止按页面或视觉外观临时命名颜色。
 - Workbench 大区域必须通过独立的 `--cpx-sys-color-workbench-*` 区域 token 取色，禁止在布局 Feature 中直接绑定基础 surface。

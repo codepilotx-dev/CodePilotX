@@ -46,7 +46,11 @@ Renderer 只使用三层变量：
 
 ### 圆角
 
-按形态选择 `indicator / compact / control / container / floating / pill`。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius。
+按形态选择 `indicator / compact / control / container / floating / prominent / pill`。既有六级语义继续固定为 `2 / 4 / 8 / 12 / 16 / 9999px`；`prominent` 的基础值为 `20px`，只表示持续覆盖工作区的主要 Composer 和 inline 线程环境摘要。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius。
+
+`--cpx-sys-radius-optical-scale` 是选择性光学校正，不是主题设置。支持 `corner-shape` 时，明确接入的控件使用 `--cpx-sys-corner-shape: superellipse(1.5)` 和 `1.25` 倍半径；不支持时保持普通圆角与基础数值。现有 `control / container / floating` 不得因此全局放大，`pill` 只用于真正的胶囊和圆形控件，也不参与 superellipse。Feature 禁止创建 message、Composer、Summary 等同值 system Token；嵌套表面优先继承外层半径，或根据实际 inset 从外层曲率推导。
+
+Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent`，只有真实 `default + single-line` 使用 `pill`。`single-line` radius variant 用于覆盖默认胶囊并继续复用 `prominent`，`compact` 使用经过光学校正的 `container`。禁止根据路由、placement、空输入、附件或历史截图推测 Composer 曲率。
 
 ### 动效
 
