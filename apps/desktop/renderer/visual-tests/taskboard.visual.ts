@@ -27,6 +27,46 @@ async function openBoard(
   await closeTransientErrorToast(page)
 }
 
+test('task cards keep hover feedback on the outer flat surface', async ({
+  page,
+}) => {
+  await page.setViewportSize(DESKTOP_VIEWPORT)
+  await openBoard(page, 'light', TASKS_ROUTE)
+
+  const firstCard = page.locator('.taskboard-card').first()
+  const cardSurfaceBeforeHover = await firstCard.evaluate(card => {
+    const open = card.querySelector<HTMLElement>('.taskboard-card__open')!
+    const cardStyle = getComputedStyle(card)
+    const openStyle = getComputedStyle(open)
+    return {
+      cardBackground: cardStyle.backgroundColor,
+      cardBorder: cardStyle.borderColor,
+      cardShadow: cardStyle.boxShadow,
+      openBackground: openStyle.backgroundColor,
+    }
+  })
+
+  await firstCard.hover()
+
+  const cardSurfaceAfterHover = await firstCard.evaluate(card => {
+    const open = card.querySelector<HTMLElement>('.taskboard-card__open')!
+    const cardStyle = getComputedStyle(card)
+    const openStyle = getComputedStyle(open)
+    return {
+      cardBackground: cardStyle.backgroundColor,
+      cardBorder: cardStyle.borderColor,
+      cardShadow: cardStyle.boxShadow,
+      openBackground: openStyle.backgroundColor,
+    }
+  })
+
+  expect(cardSurfaceBeforeHover.cardShadow).toBe('none')
+  expect(cardSurfaceAfterHover.cardShadow).toBe('none')
+  expect(cardSurfaceAfterHover.cardBackground).not.toBe(cardSurfaceBeforeHover.cardBackground)
+  expect(cardSurfaceAfterHover.cardBorder).not.toBe(cardSurfaceBeforeHover.cardBorder)
+  expect(cardSurfaceAfterHover.openBackground).toBe(cardSurfaceBeforeHover.openBackground)
+})
+
 test('1440×920 light board shows the fixed 2×3 workflow matrix', async ({
   page,
 }) => {

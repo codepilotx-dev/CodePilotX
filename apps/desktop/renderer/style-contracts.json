@@ -231,5 +231,13 @@
       }
     ],
     "literalSpacingExceptions": []
+  },
+  "interactionContract": {
+    "interactiveRowAllowedFiles": [
+      "src/components/ui/PopoverItem.tsx",
+      "src/components/ui/SearchablePopoverContent.tsx",
+      "src/features/layout/sidebar/SidebarRow.tsx",
+      "src/features/session/summary/ThreadSummaryPanel.tsx"
+    ]
   }
 }

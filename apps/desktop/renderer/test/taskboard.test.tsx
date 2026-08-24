@@ -13,6 +13,7 @@ import { resolveBoardColumnDropStatus, resolveTaskDropPlacement } from '../src/f
 import { BoardColumn } from '../src/features/taskboard/components/BoardColumn.js'
 import { taskboardBoardColumns, taskboardTasksForColumn, TaskboardBoard } from '../src/features/taskboard/components/TaskboardBoard.js'
 import { TaskboardArchive } from '../src/features/taskboard/components/TaskboardArchive.js'
+import { TaskboardList } from '../src/features/taskboard/components/TaskboardList.js'
 import { moveTaskDetailsStatus, TaskDetailsDrawer } from '../src/features/taskboard/components/TaskDetailsDrawer.js'
 import { taskboardPlanReorderAnchors, unresolvedPlanPrerequisiteTitles } from '../src/features/taskboard/components/TaskPlanPanel.js'
 import {
@@ -176,6 +177,9 @@ describe('taskboard board structure', () => {
     expect(markup).toContain('1 阻碍')
     expect(markup).toContain('1 已解锁')
     expect(markup).toContain('aria-label="展开 root 的子任务"')
+    expect(markup).toContain('class="taskboard-card__open"')
+    expect(markup).not.toContain('interactive-row interactive-row--adaptive taskboard-card__open')
+    expect(markup).not.toMatch(/class="[^"]*ui-button[^"]*taskboard-card__open/)
   })
 
   test('start action distinguishes active, continued, and newly created primary threads', () => {
@@ -259,6 +263,33 @@ describe('taskboard board structure', () => {
     expect(markup.indexOf('打开已归档任务：newer')).toBeLessThan(markup.indexOf('打开已归档任务：older'))
     expect(markup).toContain('遇到阻碍')
     expect(markup).toContain('完成')
+    expect(markup).toContain('class="taskboard-archive__row"')
+    expect(markup).not.toContain('interactive-row')
+    expect(markup).not.toContain('ui-button')
+  })
+
+  test('list disclosures and task openers keep native feature-owned button surfaces', () => {
+    const item = task('list-task', 'todo', 1024)
+    const markup = renderToStaticMarkup(
+      <TaskboardList
+        expandedTaskIds={new Set()}
+        hierarchyMode="flat"
+        pendingTaskIds={new Set()}
+        planningNodes={{}}
+        projectNames={new Map([[item.projectId, '项目']])}
+        tasks={[item]}
+        onMove={async () => {}}
+        onOpen={() => {}}
+        onStart={() => {}}
+        onToggleTask={() => {}}
+        onUpdate={async () => {}}
+      />,
+    )
+
+    expect(markup).toContain('class="taskboard-list__group-header"')
+    expect(markup).toContain('class="taskboard-list__open"')
+    expect(markup).not.toContain('interactive-row')
+    expect(markup).not.toMatch(/class="[^"]*ui-button[^"]*taskboard-list__(?:group-header|open)/)
   })
 
   test('column header add button carries its own status', () => {

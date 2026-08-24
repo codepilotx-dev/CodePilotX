@@ -39,6 +39,7 @@ describe('plugin catalog state', () => {
       kind: 'toggle-builtin',
       label: '当前不可用',
       disabled: true,
+      checked: false,
     })
   })
 
@@ -64,6 +65,7 @@ describe('plugin catalog state', () => {
       kind: 'toggle-builtin',
       label: '正在检查',
       disabled: true,
+      checked: false,
     })
   })
 })
@@ -153,7 +155,7 @@ describe('plugin catalog presentation selectors', () => {
       kind: 'toggle-builtin',
       label: '启用',
       disabled: false,
-      pressed: false,
+      checked: false,
     })
   })
 })

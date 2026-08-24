@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TooltipProvider } from "../src/components/ui/Tooltip.js";
 import {
   countReviewDiffLines,
+  ReviewDiffFilePreview,
   shouldVirtualizeReviewFile,
 } from "../src/features/review/diff/WorkspaceReviewDiff.js";
 import type {
@@ -36,6 +40,63 @@ describe("review diff virtualization", () => {
       false,
       false,
     ]);
+  });
+
+  test("文件摘要 disclosure 与文件操作保持 sibling", () => {
+    const file = reviewFile("src/example.ts", 1);
+    const html = renderToStaticMarkup(
+      createElement(
+        TooltipProvider,
+        null,
+        createElement(ReviewDiffFilePreview, {
+          active: false,
+          attachedComments: new Map(),
+          collapsedDiffPaths: new Set(),
+          diffMarkerStyle: "color",
+          draft: null,
+          file,
+          fileLoadState: { status: "loaded" },
+          largeWorkspaceMode: false,
+          pending: false,
+          previewHeight: 100,
+          renderBody: false,
+          scope: "unstaged",
+          sectionRef: () => {},
+          showWordDiff: false,
+          summaryLoadState: "success",
+          view: "inline",
+          workspacePath: null,
+          wrapLines: false,
+          onApplyOperation: () => {},
+          onCancelDraft: () => {},
+          onCreateDraft: () => {},
+          onDeleteComment: () => {},
+          onDraftBodyChange: () => {},
+          onResolveComment: () => {},
+          onRetryFile: () => {},
+          onSaveDraft: () => {},
+          toggleCollapseDiff: () => {},
+        }),
+      ),
+    );
+    const summaryStart = html.indexOf('class="review-file-summary"');
+    const summaryTagStart = html.lastIndexOf("<button", summaryStart);
+    const summaryTagEnd = html.indexOf(">", summaryStart);
+    const summaryEnd = html.indexOf("</button>", summaryStart);
+    const actionsStart = html.indexOf(
+      'class="review-file-actions review-file-actions-primary"',
+    );
+    const controls = html
+      .slice(summaryTagStart, summaryTagEnd)
+      .match(/aria-controls="([^"]+)"/)?.[1];
+
+    expect(summaryStart).toBeGreaterThan(-1);
+    expect(summaryEnd).toBeGreaterThan(summaryStart);
+    expect(actionsStart).toBeGreaterThan(summaryEnd);
+    expect(html).not.toContain('class="review-file-row preview-header" role="button"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(controls).toBeTruthy();
+    expect(html).toContain(`class="review-diff-file-body" id="${controls}"`);
   });
 });
 

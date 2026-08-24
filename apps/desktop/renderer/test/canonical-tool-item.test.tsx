@@ -17,6 +17,7 @@ import {
   ToolExecutionCard,
 } from "../src/features/session/timeline/CanonicalItemRenderer.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+import { AttachmentFilePill } from "../src/features/session/attachments/AttachmentRowPrimitives.js";
 import { threadPatchDiffToDesktopFile } from "../src/features/session/timeline/FileMutationDiffContent.js";
 import {
   createThreadPatchDiffLoader,
@@ -49,6 +50,19 @@ function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
 }
 
 describe("canonical tool item display", () => {
+  test("keeps file attachment pills independent from action button geometry", () => {
+    const markup = renderToStaticMarkup(
+      <AttachmentFilePill
+        detail="text/plain · 42 B"
+        name="notes.txt"
+        onOpen={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('<button aria-label="打开 notes.txt" class="attachment-file-pill__open" type="button">');
+    expect(markup).not.toMatch(/class="[^"]*attachment-file-pill__open[^"]*ui-button/);
+  });
+
   test("formats command durations independently from semantic summaries", () => {
     expect(formatToolDuration(250)).toBe("1 秒");
     expect(formatToolDuration(84_000)).toBe("1 分 24 秒");

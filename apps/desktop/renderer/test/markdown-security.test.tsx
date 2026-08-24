@@ -78,7 +78,8 @@ describe('Markdown file references', () => {
     )
 
     expect(html).toContain('data-file-reference=""')
-    expect(html).toContain('role="button"')
+    expect(html).toContain('type="button"')
+    expect(html).not.toContain('role="button"')
     expect(html).toContain('md-file-reference__icon')
     expect(html).toContain('md-file-reference__label')
     expect(html).toContain('src/main.ts')

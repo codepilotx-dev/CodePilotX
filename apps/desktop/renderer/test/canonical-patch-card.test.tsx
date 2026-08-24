@@ -44,7 +44,8 @@ describe("canonical patch card", () => {
     expect(markup).not.toContain("src/file-4.ts");
     expect(markup).toContain("再显示 1 个文件");
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain('data-color="ghostSecondary"');
+    expect(markup).toContain('class="canonical-patch-card__disclosure"');
+    expect(markup).not.toContain('ui-button canonical-patch-card__disclosure');
   });
 
   test("does not render a disclosure for three or fewer files", () => {

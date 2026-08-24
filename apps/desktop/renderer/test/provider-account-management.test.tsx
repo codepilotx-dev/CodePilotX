@@ -50,6 +50,26 @@ describe('model center account management', () => {
     expect(html).not.toContain('class="ui-remote-image provider-card-logo"')
     expect(html.match(/class="provider-card-logo"/g)).toHaveLength(2)
   })
+
+  test('模型卡标题仅由独立 disclosure button 控制展开', async () => {
+    const source = await Bun.file(
+      new URL(
+        '../src/features/models/provider-management/ProviderEditorDialog.tsx',
+        import.meta.url,
+      ),
+    ).text()
+
+    expect(source).toMatch(
+      /<div\s+className="provider-editor-model-card-header"\s*>/,
+    )
+    expect(source).toMatch(
+      /<button\s+aria-controls=\{modelDetailsId\}\s+aria-expanded=\{isExpanded\}\s+className="provider-editor-model-card-summary"/,
+    )
+    expect(source).toMatch(
+      /<\/button>\s+<div className="provider-editor-model-card-controls">/,
+    )
+    expect(source).not.toContain('onClick={event => event.stopPropagation()}')
+  })
 })
 
 function billingSource(): UsageSourceDescriptor {

@@ -10,6 +10,19 @@ import {
 import { ExecutionPlanCard } from "../src/features/session/workflow/ExecutionPlanCard";
 
 describe("ExecutionPlanCard", () => {
+  test("changed-file preview uses a feature-owned native row", async () => {
+    const [componentSource, stylesheet] = await Promise.all([
+      Bun.file(new URL("../src/features/session/composer/ComposerChangeSummary.tsx", import.meta.url)).text(),
+      Bun.file(new URL("../src/styles/features/_session-page.scss", import.meta.url)).text(),
+    ]);
+
+    expect(componentSource).toContain('<button\n                  aria-label={statsAvailable');
+    expect(componentSource).toContain('className="composer-change-summary__file-row"');
+    expect(componentSource).not.toContain('<Button\n                  aria-label={statsAvailable');
+    expect(stylesheet).toContain('&__file-row {');
+    expect(stylesheet).not.toContain('&__file-row.ui-button');
+  });
+
   test("shows the compact current-turn checklist without the former card chrome", () => {
     const item = executionPlanItem();
 
@@ -255,12 +268,9 @@ describe("ExecutionPlanCard", () => {
     );
     expect(streamingHtml).toContain("<button");
     expect(streamingHtml.match(/<button/g)).toHaveLength(3);
-    expect(streamingHtml).toContain("ui-button");
     expect(streamingHtml).toContain("composer-change-summary__plan");
     expect(streamingHtml).toContain("composer-change-summary__changes");
-    expect(
-      streamingHtml.match(/data-color="ghostSecondary"/g),
-    ).toHaveLength(2);
+    expect(streamingHtml).not.toMatch(/class="[^"]*ui-button[^"]*composer-change-summary__(?:plan|changes)/);
     expect(streamingHtml).toContain(
       "composer-change-summary__return-presence",
     );
@@ -294,9 +304,7 @@ describe("ExecutionPlanCard", () => {
     expect(completedWithFilesHtml).toContain("已全部完成");
     expect(completedWithFilesHtml).toContain("1 个文件已更改");
     expect(completedWithFilesHtml).toContain("composer-change-summary__separator");
-    expect(
-      completedWithFilesHtml.match(/data-color="ghostSecondary"/g),
-    ).toHaveLength(2);
+    expect(completedWithFilesHtml).not.toMatch(/class="[^"]*ui-button[^"]*composer-change-summary__(?:plan|changes)/);
     expect(interruptedHtml).toContain(
       'aria-label="执行计划已中断，已完成 1 / 3 步"',
     );

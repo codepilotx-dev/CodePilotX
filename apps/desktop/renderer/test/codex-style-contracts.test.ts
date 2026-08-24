@@ -1,6 +1,28 @@
 import { describe, expect, test } from 'bun:test'
 
 describe('Codex CPX design system token contract', () => {
+  test('guards interaction semantics and visual ownership without broad exceptions', async () => {
+    const [checker, manifestText] = await Promise.all([
+      Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),
+      Bun.file(new URL('../style-contracts.json', import.meta.url)).text(),
+    ])
+    const manifest = JSON.parse(manifestText) as {
+      interactionContract: { interactiveRowAllowedFiles: string[] }
+    }
+
+    expect(manifest.interactionContract.interactiveRowAllowedFiles).toEqual([
+      'src/components/ui/PopoverItem.tsx',
+      'src/components/ui/SearchablePopoverContent.tsx',
+      'src/features/layout/sidebar/SidebarRow.tsx',
+      'src/features/session/summary/ThreadSummaryPanel.tsx',
+    ])
+    expect(checker).toContain('feature styles must not target .ui-button')
+    expect(checker).toContain('legacy interactive-row escape modifier is forbidden')
+    expect(checker).toContain('Button must not represent persistent pressed/selected state')
+    expect(checker).toContain('Popover radio-group trigger must not use Button')
+    expect(checker).toContain('stale interactive-row allowed file')
+  })
+
   test('governs feature colors through precise, stale-detectable exceptions', async () => {
     const [checker, manifestText, guidance] = await Promise.all([
       Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),

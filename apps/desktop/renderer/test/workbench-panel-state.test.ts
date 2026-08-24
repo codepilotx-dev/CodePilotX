@@ -57,6 +57,7 @@ import {
 import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
 import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
 import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFrame.js'
+import { WorkbenchPanelLauncher } from '../src/features/layout/panels/WorkbenchPanelStates.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -74,6 +75,25 @@ function open(
 }
 
 describe('workbench dynamic tab state', () => {
+  test('launcher rows own their native interactive surface', () => {
+    const markup = renderToStaticMarkup(createElement(WorkbenchPanelLauncher, {
+      actions: [{
+        disabled: true,
+        icon: createElement('span', null, '图'),
+        id: 'review',
+        label: '代码审查',
+        onSelect: () => undefined,
+        reason: '当前不可用',
+        shortcut: 'Ctrl+R',
+      }],
+    }))
+
+    expect(markup).toContain('<button class="right-panel-tabs-empty-state__item" disabled="" title="当前不可用" type="button">')
+    expect(markup).toContain('<strong>代码审查</strong>')
+    expect(markup).toContain('<kbd>Ctrl+R</kbd>')
+    expect(markup).not.toContain('ui-button')
+  })
+
   test('dock frame leaves live geometry to the panel presence owner', () => {
     const markup = renderToStaticMarkup(createElement(
       WorkbenchDockFrame,

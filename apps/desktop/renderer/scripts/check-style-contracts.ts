@@ -75,6 +75,9 @@ type StyleContractManifest = {
     colorMixExceptions: Array<{ file: string; localProperty: string; reason: string }>
   }
   featureTokenContract: FeatureTokenContract
+  interactionContract: {
+    interactiveRowAllowedFiles: string[]
+  }
 }
 
 const workspaceRoot = resolve(import.meta.dir, '..')
@@ -375,6 +378,49 @@ for (const root of manifest.featureTokenContract.scriptRoots) {
   }
   for (const file of scriptFiles) {
     if (isPathInside(absoluteRoot, file)) featureTokenScriptFiles.add(file)
+  }
+}
+
+/*
+ * Interaction ownership: action buttons, compact rows and feature-owned
+ * clickable surfaces must not share each other's visual contracts.
+ */
+const interactiveRowAllowedFiles = new Set(
+  manifest.interactionContract.interactiveRowAllowedFiles.map(normalizeFeatureTokenFile),
+)
+for (const file of [...styleFiles, ...scriptFiles]) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  if (/interactive-row--(?:adaptive|composer|toolbar)\b/.test(source)) {
+    errors.push(`legacy interactive-row escape modifier is forbidden: ${path}`)
+  }
+}
+for (const file of featureTokenStyleFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  if (/\.ui-button\b/.test(source)) {
+    errors.push(`feature styles must not target .ui-button: ${path}`)
+  }
+}
+for (const file of featureTokenScriptFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  const usesInteractiveRow = /\binteractive-row(?:--[\w-]+)?\b/.test(source)
+  if (usesInteractiveRow && !interactiveRowAllowedFiles.has(path)) {
+    errors.push(`interactive-row is not allowed outside the reviewed menu/nav/summary files: ${path}`)
+  }
+  if (/<Button\b[^>]*\baria-(?:pressed|selected)\s*=/s.test(source)) {
+    errors.push(`Button must not represent persistent pressed/selected state: ${path}`)
+  }
+  if (/PopoverRadioGroup/.test(source) && /trigger=\{?\s*<Button\b/s.test(source)) {
+    errors.push(`Popover radio-group trigger must not use Button: ${path}`)
+  }
+}
+for (const file of interactiveRowAllowedFiles) {
+  const absoluteFile = resolve(workspaceRoot, file)
+  const source = await isFile(absoluteFile) ? await readFile(absoluteFile, 'utf8') : undefined
+  if (source === undefined || !/\binteractive-row(?:--[\w-]+)?\b/.test(source)) {
+    errors.push(`stale interactive-row allowed file: ${file}`)
   }
 }
 

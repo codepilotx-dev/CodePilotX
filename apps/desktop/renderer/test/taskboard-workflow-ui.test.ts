@@ -18,8 +18,12 @@ import { reconcileTaskboardStartSession } from '../src/services/desktop-client/t
 import { mergeUniqueTaskboardThreadCandidates } from '../src/features/taskboard/state/useTaskboardThreadCandidates.js'
 import {
   formatTaskboardLocalDate,
+  getTaskboardThisWeekRange,
+  getTaskboardTodayRange,
+  isTaskboardTaskOverdue,
   parseTaskboardLocalDate,
   projectTaskboardGanttGroups,
+  projectTaskboardGanttHierarchy,
   projectTaskboardGanttTask,
   taskboardGanttUnscheduledReason,
   taskboardExclusiveEndDate,
@@ -423,6 +427,88 @@ describe('taskboard workflow renderer behavior', () => {
       startDate: '2026-08-20',
       dueDate: '2026-08-22',
     })
+  })
+
+  test('gantt hierarchy projects parent-child tree with calculated span', () => {
+    const parentTask: TaskboardGanttTaskInput = {
+      id: 'task:parent',
+      number: 10,
+      title: '父任务 Epic',
+      status: 'in_progress',
+      startDate: null,
+      dueDate: null,
+    }
+    const child1: TaskboardGanttTaskInput = {
+      id: 'task:child1',
+      number: 11,
+      title: '子任务 1',
+      status: 'in_progress',
+      startDate: '2026-08-20',
+      dueDate: '2026-08-24',
+    }
+    const child2: TaskboardGanttTaskInput = {
+      id: 'task:child2',
+      number: 12,
+      title: '子任务 2',
+      status: 'todo',
+      startDate: '2026-08-25',
+      dueDate: '2026-08-28',
+    }
+    const standalone: TaskboardGanttTaskInput = {
+      id: 'task:standalone',
+      number: 13,
+      title: '独立任务',
+      status: 'todo',
+      startDate: '2026-08-21',
+      dueDate: '2026-08-23',
+    }
+
+    const planningNodes = {
+      'task:parent': { parentTaskId: null },
+      'task:child1': { parentTaskId: 'task:parent' },
+      'task:child2': { parentTaskId: 'task:parent' },
+      'task:standalone': { parentTaskId: null },
+    }
+
+    const tree = projectTaskboardGanttHierarchy([parentTask, child1, child2, standalone], planningNodes)
+    expect(tree.length).toBe(2)
+    expect(tree[0].task.id).toBe('task:parent')
+    expect(tree[0].isParent).toBe(true)
+    expect(tree[0].children.length).toBe(2)
+    expect(tree[0].scheduled).toBe(true)
+    expect(formatTaskboardLocalDate(tree[0].startDate!)).toBe('2026-08-20')
+    expect(formatTaskboardLocalDate(tree[0].endDateExclusive!)).toBe('2026-08-29') // 2026-08-28 + 1
+    expect(tree[1].task.id).toBe('task:standalone')
+    expect(tree[1].isParent).toBe(false)
+  })
+
+  test('gantt detects overdue tasks and calculates today / this week presets', () => {
+    const overdueTask: TaskboardGanttTaskInput = {
+      id: 'task:overdue',
+      number: 20,
+      title: '已逾期任务',
+      status: 'in_progress',
+      startDate: '2026-08-01',
+      dueDate: '2026-08-10',
+    }
+    const doneTask: TaskboardGanttTaskInput = {
+      id: 'task:done',
+      number: 21,
+      title: '已完成任务',
+      status: 'done',
+      startDate: '2026-08-01',
+      dueDate: '2026-08-10',
+    }
+
+    const testToday = new Date(2026, 7, 24) // 2026-08-24
+    expect(isTaskboardTaskOverdue(overdueTask, testToday)).toBe(true)
+    expect(isTaskboardTaskOverdue(doneTask, testToday)).toBe(false)
+
+    const todayRange = getTaskboardTodayRange()
+    expect(todayRange.startDate).toBe(todayRange.dueDate)
+
+    const thisWeekRange = getTaskboardThisWeekRange()
+    expect(thisWeekRange.startDate <= thisWeekRange.dueDate).toBe(true)
   })
 })
 
