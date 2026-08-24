@@ -16,6 +16,7 @@ import type {
   TaskboardWorkflowAttention,
   TaskboardWorkflowAttentionReason,
   TaskboardWorkflowDatePreset,
+  TaskboardWorkflowReadWarning,
   TaskboardWorkflowSort,
   TaskboardWorkflowStatus,
   TaskboardWorkflowTask,
@@ -28,6 +29,7 @@ import type {
 import {
   TASKBOARD_POSITION_GAP,
   taskboardAttentionFromTurnStatus,
+  TaskboardWorkflowStatusSchema,
 } from "@codepilotx/shared/taskboard"
 import type {
   TaskboardStartExecution,
@@ -35,6 +37,7 @@ import type {
 } from "@codepilotx/agent-protocol/taskboard"
 import { AgentError, type EventEnvelope } from "../../domain"
 import { ReviewRepositoryDatabase } from "./review-repository"
+import { Schema } from "effect"
 
 type TaskRow = {
   id: string
@@ -103,7 +106,7 @@ type StartOperationRow = {
 }
 
 type WorkflowRow = {
-  status: TaskboardWorkflowStatus
+  status: unknown
   position: number
   start_date: string | null
   due_date: string | null
@@ -150,6 +153,23 @@ const parse = <T>(value: string): T => JSON.parse(value) as T
 
 const taskNotFound = () => new AgentError("TASKBOARD_TASK_NOT_FOUND", "任务不存在", 404)
 const conflict = () => new AgentError("CONFLICT", "任务已在其他窗口更新", 409)
+const resolveWorkflowReadStatus = (
+  taskId: string,
+  status: unknown,
+  fallbackStatus: TaskboardStatus,
+): { status: TaskboardWorkflowStatus; warning: TaskboardWorkflowReadWarning | null } => {
+  if (Schema.is(TaskboardWorkflowStatusSchema)(status)) {
+    return { status, warning: null }
+  }
+  return {
+    status: fallbackStatus,
+    warning: {
+      code: "workflow-status-fallback",
+      taskId,
+      fallbackStatus,
+    },
+  }
+}
 const legacyStatus = (status: TaskboardWorkflowStatus): TaskboardStatus => {
   if (status === "blocked") return "in_progress"
   if (status === "canceled") return "done"
@@ -225,6 +245,9 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
 
   private workflowTask(task: TaskboardTask): TaskboardWorkflowTask {
     const workflow = this.workflowRow(task.id)
+    const resolvedStatus = workflow
+      ? resolveWorkflowReadStatus(task.id, workflow.status, task.status).status
+      : task.status
     const attention: TaskboardWorkflowAttention = {
       unread: workflow?.unread === 1,
       unreadAt: workflow?.unread_at ?? null,
@@ -233,12 +256,24 @@ export class TaskboardRepositoryDatabase extends ReviewRepositoryDatabase {
     }
     return {
       ...task,
-      status: workflow?.status ?? task.status,
+      status: resolvedStatus,
       position: workflow?.position ?? task.position,
       startDate: workflow?.start_date ?? null,
       dueDate: workflow?.due_date ?? null,
       attention,
     }
+  }
+
+  listWorkflowReadWarnings(taskIds: readonly string[]): TaskboardWorkflowReadWarning[] {
+    const warnings: TaskboardWorkflowReadWarning[] = []
+    for (const taskId of new Set(taskIds)) {
+      const task = this.taskRow(taskId)
+      const workflow = this.workflowRow(taskId)
+      if (!task || !workflow) continue
+      const resolved = resolveWorkflowReadStatus(taskId, workflow.status, task.status)
+      if (resolved.warning) warnings.push(resolved.warning)
+    }
+    return warnings
   }
 
   listThreadLinks(taskId: string): TaskboardThreadLink[] {

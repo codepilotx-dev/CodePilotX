@@ -60,6 +60,7 @@ export const taskboardHandlers = {
       case "taskboard/task/start/continue-without-setup": return { operation: await runtime.dependencies.taskboardStart.continueWithoutSetup(params) }
       case "taskboard/workflow/list": return service.listWorkflow(params)
       case "taskboard/workflow/read": return { task: service.readWorkflow(params.taskId) }
+      case "taskboard/workflow/diagnostics": return service.workflowDiagnostics(params.taskIds)
       case "taskboard/workflow/create": return { task: await service.createWorkflow(params) }
       case "taskboard/workflow/update": return { task: await service.updateWorkflow(params) }
       case "taskboard/workflow/move": return { task: await service.moveWorkflow(params) }

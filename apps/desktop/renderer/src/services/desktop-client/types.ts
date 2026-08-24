@@ -377,6 +377,7 @@ export type DesktopTaskboardApi = {
   deleteTaskboardPlanningTree?(input: WithoutOperationId<RpcParams<'taskboard/planning/delete-tree'>>): Promise<RpcResult<'taskboard/planning/delete-tree'>>
   listTaskboardWorkflowTasks?(input: RpcParams<'taskboard/workflow/list'>): Promise<RpcResult<'taskboard/workflow/list'>>
   readTaskboardWorkflowTask?(input: RpcParams<'taskboard/workflow/read'>): Promise<RpcResult<'taskboard/workflow/read'>>
+  readTaskboardWorkflowDiagnostics?(input: RpcParams<'taskboard/workflow/diagnostics'>): Promise<RpcResult<'taskboard/workflow/diagnostics'>>
   createTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/create'>>): Promise<RpcResult<'taskboard/workflow/create'>>
   updateTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/update'>>): Promise<RpcResult<'taskboard/workflow/update'>>
   moveTaskboardWorkflowTask?(input: WithoutOperationId<RpcParams<'taskboard/workflow/move'>>): Promise<RpcResult<'taskboard/workflow/move'>>
