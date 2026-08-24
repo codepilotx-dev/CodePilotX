@@ -330,9 +330,12 @@
   }
 }
 
-.taskboard-card__open {
+.taskboard-card > .taskboard-card__open {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: var(--cpx-sys-space-2);
+  min-width: 0;
   width: 100%;
   padding: var(--cpx-sys-space-3);
   border: 0;
@@ -346,12 +349,14 @@
     outline: 0;
   }
   strong {
+    min-width: 0;
     font-size: var(--cpx-sys-font-size-sm);
     font-weight: var(--cpx-sys-font-weight-medium);
     overflow-wrap: anywhere;
   }
   p {
     display: -webkit-box;
+    min-width: 0;
     margin: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-secondary);
