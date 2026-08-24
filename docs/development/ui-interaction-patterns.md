@@ -23,6 +23,11 @@
 | Shimmer | 骨架屏流光 | `SkeletonBlock` 的默认伪元素动画 |
 | Button Loading | 按钮加载状态 | `Button loading` 或 `ChipButton loading` |
 | Page Loader | 页面加载器 | `FullScreenWhaleLoading` |
+| Action Button | 文字动作按钮 | `components/ui/Button` |
+| Icon Action | 纯图标工具动作 | `components/ui/IconButton` |
+| Navigation / Menu / Compact Row | 导航、菜单或紧凑列表行 | 对应专用组件；确属共享紧凑行时使用 `interactive-row` |
+| Clickable Surface | 可点击卡片、缩略图、文件胶囊或实体行 | 原生 `button`/`a` 语义与 Feature 自有视觉 |
+| Persistent Choice | 持久模式或多项选择 | `SegmentedControl`、`Select`、Toggle 等对应控件 |
 
 ## 拖拽交互
 
@@ -69,6 +74,13 @@
 
 ## 容易混淆的边界
 
+- HTML 的 `button` 语义不等于动作 Button 视觉。可点击卡片、缩略图、文件胶囊和
+  实体行保留原生 `button` 键盘语义，但由 Feature 单独拥有几何、hover 和 focus，
+  不附加 `.ui-button` 或 `.interactive-row`。
+- `Button` 用于提交、确认、重试、清除等一次性动作；纯图标工具动作使用
+  `IconButton`；持久模式选择使用 `SegmentedControl`、`Select` 或 Toggle。
+- 禁止通过把 `primary` 改为 `ghost` 掩盖错误的视觉所有权，也禁止改用
+  `div onClick` 规避按钮样式冲突。
 - Placeholder 表示拖动落点；Skeleton 表示尚未返回的数据结构。
 - Skeleton 定义占位布局；Shimmer 只是其加载动效。
 - Tooltip 是短说明；Popover 是锚定内容；Dropdown 是菜单或选择行为。

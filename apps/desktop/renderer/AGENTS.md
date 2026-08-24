@@ -26,8 +26,9 @@
 
 ## 组件与样式契约
 
-- 所有文字动作按钮及“图标 + 文字”动作按钮必须复用 `components/ui/Button`，并使用统一高度、内边距、圆角、边框和主题自适应中性背景。禁止通过 primary/secondary 变体区分视觉层级。
+- 所有文字动作按钮及“图标 + 文字”动作按钮必须复用 `components/ui/Button`，并使用统一高度、内边距、圆角、边框和主题自适应背景。`primary` / `secondary` 只允许在真实 Action Button 内表达动作强调，不得用于把 selector、card、row、disclosure 或 toggle 伪装成动作按钮。
 - 危险、选中、禁用、加载和焦点状态可以保留语义差异。纯图标工具按钮、导航、标签页、分段控件和开关必须使用各自组件，禁止套用动作按钮容器。
+- HTML 的 `button` 语义不等于动作 Button 视觉语义。可点击卡片、缩略图、文件胶囊和实体行必须保留正确的原生 `button`/`a` 语义，并由 Feature 单独拥有几何、hover 和 focus；禁止附加 `.ui-button` 或 `.interactive-row`，禁止仅切换 Button 颜色变体掩盖冲突，也禁止改用 `div onClick` 规避约束。
 - 所有 Renderer Token 任务必须先阅读 `docs/design/renderer-token-system.md`；颜色任务还必须阅读 `docs/design/renderer-color-system.md`。
 - 非颜色 Token 的选择顺序固定为“内容角色 → 组件/布局角色 → 密度 → 状态/动效 → 层级”。Feature 只能使用公共 `--cpx-sys-*`、拥有选择器内的动态局部变量和颜色契约允许的组件槽位，禁止消费 `--cpx-comp-*` 几何 Token。
 - 排版使用 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / code`。间距使用 4px 开放刻度或明确 `--cpx-sys-layout-*`。圆角先从 `2xs / xs / sm / md / lg / xl / 2xl / 3xl / 4xl / full` 基础刻度选择，再通过 `indicator / compact / control / container / floating / prominent / pill` 表达跨 Feature 语义；组件不得建立同值的私有 system 刻度。动效使用 `instant / feedback / exit / state / enter / panel / loading`。全局层级按 `local / sticky / dock / composer / modal / popover / tooltip / toast` 递增。
