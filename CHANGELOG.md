@@ -39,7 +39,7 @@
 ### Changed
 
 - [desktop/renderer] 将任务看板的输入、选择、日期、单复选及行内交互统一接入 Renderer 组件体系，移除 Windows/Chromium 原生控件外观并补齐可搜索选择与日期范围限制。
-- [desktop/renderer] 将 Composer 模型、推理强度与提供商整合为 Codex 风格的简洁/高级选择器，使打开态 Chip 与弹层对齐并收紧高级按钮和推理滑杆，修复纵向切换、动态高度空白、悬停 Flyout、Provider 连续选择及拖动档位回跳，同时保留“更高效 / 更智能”端点提示。
+- [desktop/renderer] 将 Composer 模型、推理强度与提供商整合为 Codex 风格的简洁/高级选择器，使打开态 Chip 与弹层对齐并居中，按 Switch 语义统一滑杆前景与背景并收紧高级按钮，修复双层 Hover、纵向切换、动态高度空白、悬停 Flyout、Provider 连续选择及拖动档位回跳，同时保留“更高效 / 更智能”端点提示。
 - [desktop/renderer] 建立主题自适应的圆角光学校正与 prominent 曲率语义，使按钮、会话 Composer、用户消息和线程环境摘要在支持环境中使用一致的 Codex 风格超椭圆轮廓，同时保持其他 Renderer 圆角不变。
 - [desktop/renderer] 收紧 Composer 执行计划与 Diff 文件预览卡片的宽度、间距和排版，并统一为主题自适应的 Codex 风格 rich tooltip 层级。
 - [desktop/renderer] 对齐 Codex 的紧凑比例，收窄思考等级弹层及其轨道、滑块和内部留白，避免遮挡会话内容。

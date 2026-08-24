@@ -17,11 +17,17 @@
 
   .rm-thick-slider-track {
     position: relative;
+    box-sizing: border-box;
     width: 100%;
     height: 24px;
     margin-block: 2px;
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-full);
-    background: var(--cpx-sys-color-surface-control);
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 14%,
+      var(--cpx-comp-surface-panel)
+    );
     cursor: pointer;
     user-select: none;
     touch-action: none;
@@ -29,7 +35,16 @@
     transition: box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
     &:focus-visible {
-      box-shadow: var(--cpx-sys-focus-ring);
+      outline: 2px solid var(--cpx-sys-color-border-focus);
+      outline-offset: 2px;
+    }
+
+    &:hover {
+      background: color-mix(
+        in srgb,
+        var(--cpx-sys-color-fg-primary) 20%,
+        var(--cpx-comp-surface-panel)
+      );
     }
   }
 
@@ -83,13 +98,13 @@
   .rm-thick-slider-thumb {
     position: absolute;
     top: -2px;
+    box-sizing: border-box;
     width: 28px;
     height: 28px;
+    border: 1px solid var(--cpx-sys-color-border-default);
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-comp-switch-thumb-fill);
-    box-shadow:
-      0 1px 3px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 30%, transparent),
-      0 3px 8px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 20%, transparent);
+    box-shadow: var(--cpx-sys-shadow-control);
     cursor: grab;
     z-index: 3;
     pointer-events: none;
@@ -102,9 +117,7 @@
       transition: transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
       cursor: grabbing;
       transform: scale(1.08);
-      box-shadow:
-        0 2px 6px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 35%, transparent),
-        0 6px 14px color-mix(in srgb, var(--cpx-sys-color-fg-primary) 25%, transparent);
+      box-shadow: var(--cpx-sys-shadow-control);
     }
   }
 
@@ -113,6 +126,20 @@
 /* --------------------------------------------------
  * Unified model, reasoning and provider picker
  * -------------------------------------------------- */
+
+.composer .composer-model-chip[data-state="open"] {
+  width: 224px;
+  max-width: 224px;
+  flex-basis: 224px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+@container (max-width: 519px) {
+  .composer .composer-model-chip[data-state="open"] {
+    flex-shrink: 1;
+  }
+}
 
 .rm-intelligence-picker {
   --popover-overflow-y: hidden;
@@ -294,6 +321,9 @@
 }
 
 .rm-intelligence-view-toggle {
+  --cpx-comp-row-hover-bg: transparent;
+  --cpx-comp-row-pressed-bg: transparent;
+
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -306,8 +336,10 @@
 
   &:hover:not(:disabled),
   &[data-highlighted],
-  &:active:not(:disabled) {
+  &:active:not(:disabled),
+  &:focus-visible {
     background: transparent;
+    box-shadow: none;
   }
 
   &:hover:not(:disabled) .rm-intelligence-view-toggle-content,
@@ -393,6 +425,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .composer .composer-model-chip {
+    transition: none;
+  }
+
   .rm-intelligence-menu,
   .rm-intelligence-view-track,
   .rm-intelligence-view-panel,
