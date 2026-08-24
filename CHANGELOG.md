@@ -39,6 +39,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将 Chat、Working 与 Coding 新建首页按 Codex/ChatGPT 参考逻辑收敛为聚焦布局，恢复 Coding 鲸鱼与四张建议卡边界，并将 Working 建议移出首屏。
 - [desktop/renderer] 将 Renderer CSS 资源门禁改为显式基线、软告警与硬失败分层，并将任务看板隔离为独立路由资源预算。
 - [desktop/renderer] 为 Composer 思考强度滑块增加连续拖动与轻磁吸，改用合成层位移和填充缩放消除拖动迟滞，并将 Codex 式弹簧阻尼限制在 Thumb 按压反馈上。
 - [desktop/renderer] 彻底重构任务看板泳道与卡片视觉结构以对齐原型：移除列容器大面积灰底色与深色包裹，重构彩色胶囊状态列头（带图标与新建按钮）、列间流程指示箭头与单排横向自适应滚动，精简卡片结构（微缩 ID、右侧状态指示圆点、纯标题无大段描述、单行流线进度条/优先级与评论气泡），卡片改用纯白卡面与细微悬浮阴影。

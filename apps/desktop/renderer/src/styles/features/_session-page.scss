@@ -20,7 +20,7 @@
 }
 
 .quick-chat-view {
-  --quick-chat-surface-width: min(var(--cpx-sys-layout-content-max-width, 48rem), 100%);
+  --quick-chat-surface-width: min(40rem, 100%);
   --composer-surface-top-padding: 0.85em 1em 0.7em;
   --composer-surface-top-border: 0;
   --composer-surface-top-radius: var(--cpx-sys-radius-xl);
@@ -95,10 +95,8 @@
     padding: 0;
     border: 0;
     background-color: var(--cpx-sys-color-fg-primary);
-    mask-image: url('../../../../build/whale-icon.svg');
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    mask-position: center;
+    -webkit-mask: url('/whale-icon.svg') center / contain no-repeat;
+    mask: url('/whale-icon.svg') center / contain no-repeat;
     opacity: 0.3;
     transform: scale(1) rotate(0deg);
     transform-origin: center;
@@ -279,7 +277,7 @@
 
 .new-session-suggestion-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
   gap: var(--cpx-sys-space-3);
 }
 
@@ -311,10 +309,10 @@
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  border: 0;
+  border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-floating);
-  background: var(--cpx-sys-color-surface-canvas);
-  box-shadow: var(--cpx-sys-shadow-resting);
+  background: transparent;
+  box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   text-align: left;
   animation: new-session-suggestion-card-enter var(--cpx-sys-motion-enter)
@@ -477,19 +475,19 @@
   }
 }
 
-@container (max-width: 42.249rem) {
+@container (max-width: 38.249rem) {
   .new-session-suggestion-card:nth-child(n + 4) {
     display: none;
   }
 }
 
-@container (max-width: 31.499rem) {
+@container (max-width: 28.499rem) {
   .new-session-suggestion-card:nth-child(n + 3) {
     display: none;
   }
 }
 
-@container (max-width: 20.749rem) {
+@container (max-width: 18.749rem) {
   .new-session-suggestion-card:nth-child(n + 2) {
     display: none;
   }
