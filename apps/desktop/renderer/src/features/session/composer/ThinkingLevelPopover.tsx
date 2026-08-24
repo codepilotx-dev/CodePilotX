@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { animate, motion, useMotionValue, useTransform } from 'motion/react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DesktopThinkingMode } from '../../../../shared/types.js'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { cx } from '../../../utils/cx.js'
 
 export type ThinkingOption = {
@@ -12,6 +14,7 @@ export type ThinkingLevelControlProps = {
   thinkingMode: DesktopThinkingMode
   thinkingOptions: ThinkingOption[]
   onThinkingChange: (mode: DesktopThinkingMode) => void
+  onThinkingPreviewChange?: (mode: DesktopThinkingMode | null) => void
   onEndpointLabelsVisibleChange?: (visible: boolean) => void
 }
 
@@ -19,11 +22,35 @@ type ThickPillSliderProps = {
   options: ThinkingOption[]
   value: DesktopThinkingMode
   onChange: (value: DesktopThinkingMode) => void
+  onPreviewChange?: (value: DesktopThinkingMode | null) => void
   onEndpointLabelsVisibleChange?: (visible: boolean) => void
 }
 
 const ENDPOINT_LABEL_HOLD_DELAY_MS = 150
 const ENDPOINT_LABEL_DRAG_DISTANCE_PX = 4
+const SLIDER_TRACK_PADDING_PX = 14
+const SLIDER_MAGNET_RADIUS = 0.28
+const SLIDER_MAGNET_STRENGTH = 0.45
+const SLIDER_POSITION_TRANSITION = {
+  duration: 0.15,
+  ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
+} as const
+const SLIDER_EXTERNAL_POSITION_TRANSITION = {
+  duration: 0.3,
+  ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
+} as const
+const SLIDER_THUMB_ACTIVE_SPRING = {
+  type: 'spring',
+  stiffness: 420,
+  damping: 38,
+  mass: 1,
+} as const
+const SLIDER_THUMB_REST_SPRING = {
+  type: 'spring',
+  stiffness: 220,
+  damping: 26,
+  mass: 1,
+} as const
 
 const DEEPSEEK_THINKING_OPTIONS: ThinkingOption[] = [
   { value: 'disabled', label: '关闭' },
@@ -45,13 +72,33 @@ export function resolveThinkingLabel(
   return options.find(option => option.value === thinkingMode)?.label ?? '默认'
 }
 
-/**
- * 具有物理阻尼感（Damped Spring）与零闪烁 Pointer Capture 的厚胶囊离散滑块
- */
+export function resolveMagneticSliderPosition(
+  rawIndex: number,
+  stepCount: number,
+): number {
+  const safeStepCount = Math.max(0, stepCount)
+  const clamped = Math.max(0, Math.min(safeStepCount, rawIndex))
+  const anchor = Math.round(clamped)
+  const distance = Math.abs(anchor - clamped)
+
+  if (distance >= SLIDER_MAGNET_RADIUS) return clamped
+
+  const proximity = 1 - distance / SLIDER_MAGNET_RADIUS
+  const smoothPull = proximity * proximity * (3 - 2 * proximity)
+  return clamped
+    + (anchor - clamped) * smoothPull * SLIDER_MAGNET_STRENGTH
+}
+
+function normalizeSliderIndex(index: number, stepCount: number): number {
+  return stepCount > 0 ? index / stepCount : 0
+}
+
+/** 直接跟随 Pointer，并仅在 Thumb 按压反馈上使用弹簧的厚胶囊离散滑块。 */
 function ThickPillSlider({
   options,
   value,
   onChange,
+  onPreviewChange,
   onEndpointLabelsVisibleChange,
 }: ThickPillSliderProps): React.ReactNode {
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -60,27 +107,66 @@ function ThickPillSlider({
   const endpointLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const endpointLabelsVisibleRef = useRef(false)
   const previewIndexRef = useRef<number | null>(null)
-  const lastEmittedIndexRef = useRef<number | null>(null)
   const pendingIndexRef = useRef<number | null>(null)
+  const draggingRef = useRef(false)
+  const positionAnimationRef = useRef<ReturnType<typeof animate> | null>(null)
   const [isPointerDown, setIsPointerDown] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const resolvedCurrentIndex = options.findIndex(option => option.value === value)
   const currentIndex = Math.max(0, resolvedCurrentIndex)
   const totalSteps = options.length
-  const stepCount = Math.max(1, totalSteps - 1)
+  const stepCount = Math.max(0, totalSteps - 1)
   const activeIndex = Math.min(stepCount, previewIndex ?? currentIndex)
-  const activeRatio = totalSteps > 1 ? activeIndex / stepCount : 0
+  const initialPosition = normalizeSliderIndex(currentIndex, stepCount)
+  const position = useMotionValue(initialPosition)
+  const trackTravel = useMotionValue(0)
+  const rangeScaleX = useTransform(() => {
+    const trackWidth = trackTravel.get() + 28
+    if (trackWidth <= 0) return 0
+    return (SLIDER_TRACK_PADDING_PX + position.get() * trackTravel.get()) / trackWidth
+  })
+  const thumbX = useTransform(() => position.get() * trackTravel.get())
 
-  const computeIndex = (clientX: number): number => {
+  const stopPositionAnimation = useCallback((): void => {
+    positionAnimationRef.current?.stop()
+    positionAnimationRef.current = null
+  }, [])
+
+  const settlePosition = useCallback((index: number, quick = false): void => {
+    const target = normalizeSliderIndex(index, stepCount)
+    stopPositionAnimation()
+    if (prefersReducedMotion || Math.abs(position.get() - target) < 0.0001) {
+      position.set(target)
+      return
+    }
+    positionAnimationRef.current = animate(position, target, {
+      ...(quick ? SLIDER_POSITION_TRANSITION : SLIDER_EXTERNAL_POSITION_TRANSITION),
+    })
+  }, [position, prefersReducedMotion, stepCount, stopPositionAnimation])
+
+  useLayoutEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const measure = (): void => {
+      trackTravel.set(Math.max(0, track.getBoundingClientRect().width - 28))
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [trackTravel])
+
+  const computeRawIndex = (clientX: number): number => {
     if (!trackRef.current) return 0
     const rect = trackRef.current.getBoundingClientRect()
-    const trackPadding = 14
-    const usableWidth = Math.max(1, rect.width - trackPadding * 2)
-    const offsetX = clientX - rect.left - trackPadding
+    const usableWidth = Math.max(1, rect.width - SLIDER_TRACK_PADDING_PX * 2)
+    const offsetX = clientX - rect.left - SLIDER_TRACK_PADDING_PX
     const ratio = Math.max(0, Math.min(1, offsetX / usableWidth))
-    return Math.round(ratio * stepCount)
+    return ratio * stepCount
   }
 
   const clearEndpointLabelTimer = (): void => {
@@ -96,27 +182,58 @@ function ThickPillSlider({
   }
 
   const updateFromPointer = (clientX: number): number => {
-    const targetIndex = computeIndex(clientX)
-    previewIndexRef.current = targetIndex
-    setPreviewIndex(targetIndex)
-    if (lastEmittedIndexRef.current !== targetIndex && options[targetIndex]) {
-      lastEmittedIndexRef.current = targetIndex
-      onChange(options[targetIndex].value)
+    const rawIndex = computeRawIndex(clientX)
+    const semanticIndex = Math.round(rawIndex)
+    const magneticIndex = resolveMagneticSliderPosition(rawIndex, stepCount)
+    position.set(normalizeSliderIndex(magneticIndex, stepCount))
+    if (previewIndexRef.current !== semanticIndex) {
+      previewIndexRef.current = semanticIndex
+      setPreviewIndex(semanticIndex)
+      const option = options[semanticIndex]
+      if (option) onPreviewChange?.(option.value)
     }
-    return targetIndex
+    return semanticIndex
   }
 
-  const finishPointerInteraction = (pointerId: number): void => {
+  const finishPointerState = (pointerId: number): void => {
     clearEndpointLabelTimer()
     setEndpointLabelsVisible(false)
     activePointerRef.current = null
     pointerStartRef.current = null
-    pendingIndexRef.current = previewIndexRef.current
+    draggingRef.current = false
     setIsPointerDown(false)
     setIsDragging(false)
     if (trackRef.current?.hasPointerCapture(pointerId)) {
       trackRef.current.releasePointerCapture(pointerId)
     }
+  }
+
+  const commitPointerInteraction = (
+    pointerId: number,
+    snappedIndex: number,
+  ): void => {
+    const option = options[snappedIndex]
+    previewIndexRef.current = snappedIndex
+    settlePosition(snappedIndex, true)
+    if (option && option.value !== value) {
+      pendingIndexRef.current = snappedIndex
+      onChange(option.value)
+    } else {
+      previewIndexRef.current = null
+      pendingIndexRef.current = null
+      setPreviewIndex(null)
+      onPreviewChange?.(null)
+    }
+    finishPointerState(pointerId)
+  }
+
+  const cancelPointerInteraction = (pointerId: number): void => {
+    previewIndexRef.current = null
+    pendingIndexRef.current = null
+    settlePosition(currentIndex, true)
+    setPreviewIndex(null)
+    onPreviewChange?.(null)
+    finishPointerState(pointerId)
   }
 
   useEffect(() => {
@@ -128,30 +245,51 @@ function ThickPillSlider({
     ) {
       previewIndexRef.current = null
       pendingIndexRef.current = null
-      lastEmittedIndexRef.current = currentIndex
+      stopPositionAnimation()
+      position.set(normalizeSliderIndex(currentIndex, stepCount))
       setPreviewIndex(null)
+      onPreviewChange?.(null)
       return
     }
     if (pendingIndex !== null && currentIndex === pendingIndex) {
       previewIndexRef.current = null
       pendingIndexRef.current = null
-      lastEmittedIndexRef.current = currentIndex
       setPreviewIndex(null)
+      onPreviewChange?.(null)
     } else if (pendingIndex === null) {
+      const hadPreview = previewIndexRef.current !== null
       previewIndexRef.current = null
-      lastEmittedIndexRef.current = currentIndex
+      if (stepCount === 0) {
+        stopPositionAnimation()
+        position.set(0)
+      } else {
+        settlePosition(currentIndex)
+      }
       setPreviewIndex(null)
+      if (hadPreview) onPreviewChange?.(null)
     }
-  }, [currentIndex, isPointerDown, options.length, resolvedCurrentIndex])
+  }, [
+    currentIndex,
+    isPointerDown,
+    options.length,
+    position,
+    resolvedCurrentIndex,
+    onPreviewChange,
+    settlePosition,
+    stepCount,
+    stopPositionAnimation,
+  ])
 
   useEffect(
     () => () => {
       clearEndpointLabelTimer()
+      stopPositionAnimation()
+      onPreviewChange?.(null)
       if (endpointLabelsVisibleRef.current) {
         onEndpointLabelsVisibleChange?.(false)
       }
     },
-    [onEndpointLabelsVisibleChange],
+    [onEndpointLabelsVisibleChange, onPreviewChange, stopPositionAnimation],
   )
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -159,8 +297,9 @@ function ThickPillSlider({
     event.stopPropagation()
     activePointerRef.current = event.pointerId
     pointerStartRef.current = { x: event.clientX, y: event.clientY }
+    draggingRef.current = false
     pendingIndexRef.current = null
-    lastEmittedIndexRef.current = currentIndex
+    stopPositionAnimation()
     trackRef.current?.setPointerCapture(event.pointerId)
     setIsPointerDown(true)
     updateFromPointer(event.clientX)
@@ -183,27 +322,30 @@ function ThickPillSlider({
     ) {
       clearEndpointLabelTimer()
       setEndpointLabelsVisible(true)
+      if (!draggingRef.current) {
+        draggingRef.current = true
+        setIsDragging(true)
+      }
     }
-    setIsDragging(true)
     updateFromPointer(event.clientX)
   }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (activePointerRef.current !== event.pointerId) return
-    updateFromPointer(event.clientX)
-    finishPointerInteraction(event.pointerId)
+    const snappedIndex = updateFromPointer(event.clientX)
+    commitPointerInteraction(event.pointerId, snappedIndex)
   }
 
   const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (activePointerRef.current !== event.pointerId) return
-    finishPointerInteraction(event.pointerId)
+    cancelPointerInteraction(event.pointerId)
   }
 
   const handleLostPointerCapture = (
     event: React.PointerEvent<HTMLDivElement>,
   ): void => {
     if (activePointerRef.current !== event.pointerId) return
-    finishPointerInteraction(event.pointerId)
+    cancelPointerInteraction(event.pointerId)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -247,14 +389,13 @@ function ThickPillSlider({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <div
+        <motion.div
           className={cx(
             'rm-thick-slider-range',
-            isDragging && 'is-dragging',
             activeIndex === 0 && options[0]?.value === 'disabled' && 'is-disabled-level',
           )}
           style={{
-            width: `calc(14px + (100% - 28px) * ${activeRatio})`,
+            scaleX: rangeScaleX,
           }}
         />
 
@@ -275,12 +416,27 @@ function ThickPillSlider({
           )
         })}
 
-        <div
-          className={cx('rm-thick-slider-thumb', isDragging && 'is-dragging')}
+        <motion.div
+          className="rm-thick-slider-thumb-rail"
           style={{
-            left: `calc((100% - 28px) * ${activeRatio})`,
+            x: thumbX,
           }}
-        />
+        >
+          <motion.div
+            className="rm-thick-slider-thumb-spring"
+            initial={false}
+            animate={{ scale: !prefersReducedMotion && isPointerDown ? 32 / 28 : 1 }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0 }
+                : isPointerDown
+                  ? SLIDER_THUMB_ACTIVE_SPRING
+                  : SLIDER_THUMB_REST_SPRING
+            }
+          >
+            <span className="rm-thick-slider-thumb" />
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   )
@@ -291,6 +447,7 @@ export function ThinkingLevelControl({
   thinkingMode,
   thinkingOptions,
   onThinkingChange,
+  onThinkingPreviewChange,
   onEndpointLabelsVisibleChange,
 }: ThinkingLevelControlProps): React.ReactNode {
   const effectiveOptions = resolveThinkingOptions(
@@ -303,6 +460,7 @@ export function ThinkingLevelControl({
         options={effectiveOptions}
         value={thinkingMode}
         onChange={onThinkingChange}
+        onPreviewChange={onThinkingPreviewChange}
         onEndpointLabelsVisibleChange={onEndpointLabelsVisibleChange}
       />
     </div>

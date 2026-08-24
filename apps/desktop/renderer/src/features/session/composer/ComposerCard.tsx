@@ -482,6 +482,8 @@ export function ComposerCard({
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
   );
+  const [thinkingPreviewMode, setThinkingPreviewMode] =
+    useState<DesktopThinkingMode | null>(null);
   const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
@@ -546,7 +548,7 @@ export function ComposerCard({
   );
   const selectedThinkingLabel = resolveThinkingLabel(
     effectiveThinkingOptions,
-    thinkingMode,
+    thinkingPreviewMode ?? thinkingMode,
   );
   const taskPlanningSkill = skillCommands.find(
     command => command.skill.name === "taskboard-planner",
@@ -1794,6 +1796,7 @@ export function ComposerCard({
               side="top"
               sideOffset={4}
               thinkingMode={thinkingMode}
+              thinkingPreviewMode={thinkingPreviewMode}
               thinkingOptions={thinkingOptions}
               trigger={
                 <ChipButton
@@ -1822,12 +1825,14 @@ export function ComposerCard({
                 </ChipButton>
               }
               onOpenChange={(open) => {
+                if (!open) setThinkingPreviewMode(null);
                 setOpenDropdown(open ? "model" : null);
               }}
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
               onProviderSearch={onProviderSearch}
               onThinkingChange={onThinkingChange}
+              onThinkingPreviewChange={setThinkingPreviewMode}
             />
 
             {capabilities.dictation ? (

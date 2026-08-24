@@ -34,8 +34,10 @@ export type ModelPickerPopoverProps = {
   deepSeekThinkingControls: boolean
   showThinkingOptions: boolean
   thinkingMode: DesktopThinkingMode
+  thinkingPreviewMode?: DesktopThinkingMode | null
   thinkingOptions: ThinkingOption[]
   onThinkingChange: (mode: DesktopThinkingMode) => void
+  onThinkingPreviewChange?: (mode: DesktopThinkingMode | null) => void
   onProviderModelChange: (providerID: ModelProviderID, modelID: string) => void
   onProviderOpen?: (providerID: ModelProviderID) => void
   onProviderSearch?: (providerID: ModelProviderID, query: string) => void
@@ -128,8 +130,10 @@ export function ModelPickerPopover({
   deepSeekThinkingControls,
   showThinkingOptions,
   thinkingMode,
+  thinkingPreviewMode,
   thinkingOptions,
   onThinkingChange,
+  onThinkingPreviewChange,
   onProviderModelChange,
   onProviderOpen,
   onProviderSearch,
@@ -179,7 +183,7 @@ export function ModelPickerPopover({
   )
   const selectedThinkingLabel = resolveThinkingLabel(
     effectiveThinkingOptions,
-    thinkingMode,
+    thinkingPreviewMode ?? thinkingMode,
   )
   const effectivePickerView = showThinkingOptions ? pickerView : 'advanced'
   const activePanelHeight =
@@ -371,6 +375,7 @@ export function ModelPickerPopover({
                     thinkingMode={thinkingMode}
                     thinkingOptions={thinkingOptions}
                     onThinkingChange={onThinkingChange}
+                    onThinkingPreviewChange={onThinkingPreviewChange}
                     onEndpointLabelsVisibleChange={setEndpointLabelsVisible}
                   />
                 ) : null}
