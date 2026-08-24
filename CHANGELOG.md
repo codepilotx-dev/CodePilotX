@@ -144,6 +144,7 @@
 
 ### Fixed
 
+- [desktop/development] 修复多个 Git worktree 启动 Desktop 时争用固定 Renderer 端口和全局 Electron 实例的问题，为各 worktree 隔离动态 Vite、Electron 状态与日志，同时复用唯一开发 Agent。
 - [desktop/renderer] 修复任务看板窄侧栏中的任务卡片被通用交互行布局挤压、导致中文标题逐字竖排的问题，恢复标题、说明与元信息的纵向可读排布。
 - [desktop/renderer] 修复任务甘特图依赖尝试加载 Google Inter 字体及 Renderer 在 CSP 元标签中声明无效 `frame-ancestors` 所产生的控制台错误，继续保持网络字体默认拒绝。
 - [desktop/renderer] 收紧高频交互动效并取消推理滑杆直接操作时的位置缓动，使模型菜单、浮层、悬停与滑杆反馈更及时。
