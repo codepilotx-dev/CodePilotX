@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createHash, randomUUID } from "node:crypto"
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import { join } from "node:path"
 import extractZip from "extract-zip"
 import { AgentError } from "../src/domain"
@@ -11,6 +12,7 @@ import { SPEECH_ARTIFACTS, SPEECH_EXECUTABLE } from "../src/speech/SpeechCatalog
 import { SpeechTranscriptionService } from "../src/speech/SpeechTranscriptionService"
 
 const roots: string[] = []
+const require = createRequire(import.meta.url)
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }) })
 const temporaryRoot = async () => {
   const root = join(process.cwd(), ".tmp-tests", `speech-${randomUUID()}`)
@@ -87,7 +89,17 @@ describe("speech RPC handler", () => {
 })
 
 describe("speech installer supply-chain guards", () => {
-  test("patched extract-zip rejects symlinks that escape the extraction root", async () => {
+  test("vendored extract-zip is the CodePilotX security build", async () => {
+    const packagePath = require.resolve("extract-zip/package.json")
+    const packageJson = JSON.parse(await readFile(packagePath, "utf8")) as { version?: string }
+
+    expect(packageJson.version).toBe("2.0.2-codepilotx.1")
+    expect(packagePath.replaceAll("\\", "/")).toContain(
+      "/node_modules/.bun/extract-zip@file+vendor+extract-zip",
+    )
+  })
+
+  test("vendored extract-zip rejects relative symlinks that escape the extraction root", async () => {
     const root = await temporaryRoot()
     const archive = join(root, "symlink-escape.zip")
     const destination = join(root, "extract")
@@ -101,6 +113,36 @@ describe("speech installer supply-chain guards", () => {
       "points outside of the target directory",
     )
     expect(await readFile(outside, "utf8")).toBe("sentinel")
+  })
+
+  test("vendored extract-zip rejects absolute symlink targets", async () => {
+    const root = await temporaryRoot()
+    const archive = join(root, "absolute-symlink.zip")
+    const destination = join(root, "extract")
+    const maliciousZip = "UEsDBBQAAAAAAHwDGV1zSK4yDAAAAAwAAAAJAAAAc2FmZS9saW5rL291dHNpZGUudHh0UEsBAhQAFAAAAAAAfAMZXXNIrjIMAAAADAAAAAkAAAAAAAAAAAAAAACgAAAAAHNhZmUvbGlua1BLBQYAAAAAAQABADcAAAAzAAAAAAA="
+    await writeFile(archive, Buffer.from(maliciousZip, "base64"))
+    await mkdir(destination)
+
+    await expect(extractZip(archive, { dir: destination })).rejects.toThrow(
+      "points outside of the target directory",
+    )
+  })
+
+  test("vendored extract-zip preserves nested files and onEntry callbacks", async () => {
+    const root = await temporaryRoot()
+    const archive = join(root, "normal.zip")
+    const destination = join(root, "extract")
+    const normalZip = "UEsDBBQAAAAAADEDGV2GphA2BQAAAAUAAAAQAAAAbmVzdGVkL2hlbGxvLnR4dGhlbGxvUEsBAhQAFAAAAAAAMQMZXYamEDYFAAAABQAAABAAAAAAAAAAAAAAAAAAAAAAAG5lc3RlZC9oZWxsby50eHRQSwUGAAAAAAEAAQA+AAAAMwAAAAAA"
+    const entries: string[] = []
+    await writeFile(archive, Buffer.from(normalZip, "base64"))
+
+    await extractZip(archive, {
+      dir: destination,
+      onEntry: (entry) => entries.push(entry.fileName),
+    })
+
+    expect(await readFile(join(destination, "nested", "hello.txt"), "utf8")).toBe("hello")
+    expect(entries).toEqual(["nested/hello.txt"])
   })
 
   test("rejects untrusted redirects, checksum mismatch and oversized responses", async () => {
