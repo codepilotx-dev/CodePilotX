@@ -16,9 +16,9 @@
   "scripts": {
     "desktop:css:check": "bun run --cwd apps/desktop/renderer css:check",
     "dev": "bun run scripts/dev.ts",
-    "dev:agent": "bun run --cwd apps/agent dev",
+    "dev:agent": "bun run scripts/dev-agent.ts",
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
-    "dev:desktop": "bun run scripts/dev.ts",
+    "dev:desktop": "bun run scripts/dev-desktop.ts",
     "dev:electron": "bun run --cwd apps/desktop/electron dev",
     "debug:mcp:stdio": "bun apps/agent/scripts/mcp-debug-server.ts --transport=stdio",
     "debug:mcp:http": "bun apps/agent/scripts/mcp-debug-server.ts --transport=http --port=43121",
