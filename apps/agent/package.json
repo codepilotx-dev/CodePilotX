@@ -22,7 +22,7 @@
     "ajv-formats": "3.0.1",
     "diff": "8.0.4",
     "effect": "4.0.0-beta.83",
-    "extract-zip": "2.0.1",
+    "extract-zip": "file:../../vendor/extract-zip",
     "hono": "4.12.32",
     "ignore": "7.0.5",
     "jsonc-parser": "3.3.1",

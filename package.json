@@ -50,6 +50,7 @@
   },
   "overrides": {
     "brace-expansion": "5.0.9",
+    "extract-zip": "file:./vendor/extract-zip",
     "fast-uri": "3.1.5",
     "ip-address": "10.4.0",
     "js-yaml": "4.3.1",
@@ -59,7 +60,6 @@
   },
   "patchedDependencies": {
     "effect@4.0.0-beta.83": "patches/effect@4.0.0-beta.83.patch",
-    "extract-zip@2.0.1": "patches/extract-zip@2.0.1.patch",
     "gcp-metadata@8.1.2": "patches/gcp-metadata@8.1.2.patch"
   }
 }
