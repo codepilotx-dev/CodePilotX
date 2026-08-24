@@ -106,6 +106,9 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
       Math.abs(triggerBox.x + triggerBox.width - (pickerBox.x + pickerBox.width)),
     )
   }).toBeLessThanOrEqual(1)
+  await expect.poll(() => trigger.evaluate(element =>
+    getComputedStyle(element).justifyContent,
+  )).toBe('center')
   await expectCompactPickerGeometry(picker, 'simple')
 
   const controls = picker.locator('.rm-intelligence-view-controls')
@@ -119,6 +122,10 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
   expect((await sliderTrack.boundingBox())?.height).toBe(24)
   expect((await sliderThumb.boundingBox())?.height).toBe(28)
   expect((await picker.locator('.rm-thinking-level-control').boundingBox())?.height).toBe(32)
+  const trackBackground = await sliderTrack.evaluate(element =>
+    getComputedStyle(element).backgroundColor,
+  )
+  expect(trackBackground).not.toBe('rgba(0, 0, 0, 0)')
 
   await page.mouse.click(
     sliderBounds!.x + sliderBounds!.width * 0.25,
@@ -187,6 +194,21 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
   expect(toggleContentBox).not.toBeNull()
   expect(controlsBox).not.toBeNull()
   expect(toggleContentBox!.width).toBeLessThan(controlsBox!.width / 2)
+  const toggleBackgroundBeforeHover = await toggle.evaluate(element =>
+    getComputedStyle(element).backgroundColor,
+  )
+  const toggleContentBackgroundBeforeHover = await toggle
+    .locator('.rm-intelligence-view-toggle-content')
+    .evaluate(element => getComputedStyle(element).backgroundColor)
+  await toggle.hover()
+  await expect.poll(() => toggle.evaluate(element =>
+    getComputedStyle(element).backgroundColor,
+  )).toBe(toggleBackgroundBeforeHover)
+  await expect.poll(() => toggle
+    .locator('.rm-intelligence-view-toggle-content')
+    .evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(
+    toggleContentBackgroundBeforeHover,
+  )
 
   await toggle.click()
   await expect(menu).toHaveAttribute('data-view', 'advanced')
