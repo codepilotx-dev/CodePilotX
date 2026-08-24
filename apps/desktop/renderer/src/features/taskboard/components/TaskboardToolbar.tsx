@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { Archive, CalendarClock, ChartGantt, Columns3, EyeOff, List, PanelRight, SlidersHorizontal } from 'lucide-react'
+import { Archive, CalendarClock, EyeOff, PanelRight, SlidersHorizontal } from 'lucide-react'
 import type {
   TaskboardLabel,
   TaskboardPriority,
@@ -12,7 +12,6 @@ import { Button } from '../../../components/ui/Button.js'
 import { PopoverCheckboxItem, PopoverItem, PopoverLabel, PopoverRadioGroup, PopoverRadioItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
-import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { Select } from '../../../components/ui/Select.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
@@ -41,7 +40,6 @@ type Props = {
   ganttZoom: TaskboardGanttZoom
   ganttHideCompleted: boolean
   otherTasksTriggerRef: React.Ref<HTMLButtonElement>
-  onViewChange: (view: TaskboardLayout) => void
   onOtherTasksToggle: () => void
   onGanttToday: () => void
   onGanttZoomChange: (zoom: TaskboardGanttZoom) => void
@@ -71,7 +69,6 @@ export function TaskboardToolbar({
   ganttZoom,
   ganttHideCompleted,
   otherTasksTriggerRef,
-  onViewChange,
   onOtherTasksToggle,
   onGanttToday,
   onGanttZoomChange,
@@ -99,20 +96,8 @@ export function TaskboardToolbar({
 
   return (
     <div className="taskboard-toolbar" aria-label="任务看板工具栏">
-      <SegmentedControl
-        ariaLabel="任务视图"
-        className="taskboard-toolbar__views"
-        onChange={onViewChange}
-        options={[
-          { value: 'board', label: <><Columns3 aria-hidden="true" size={APP_ICON_SIZE} />议题看板<span className="taskboard-toolbar__count" aria-label={`${count} 个任务`}>{count}</span></> },
-          { value: 'list', label: <><List aria-hidden="true" size={APP_ICON_SIZE} />列表视图</> },
-          { value: 'gantt', label: <><ChartGantt aria-hidden="true" size={APP_ICON_SIZE} />甘特图</> },
-        ]}
-        value={view}
-      />
       <div className="taskboard-toolbar__tools">
-        <label className="taskboard-filter">
-          <span className="taskboard-filter__label">层级</span>
+        <div className="taskboard-filter taskboard-filter--hierarchy">
           <Select
             ariaLabel="任务层级"
             onValueChange={onHierarchyModeChange}
@@ -123,7 +108,24 @@ export function TaskboardToolbar({
             ]}
             value={hierarchyMode}
           />
-        </label>
+        </div>
+        <div className="taskboard-filter taskboard-filter--project">
+          <Select
+            ariaLabel="项目"
+            emptyText="没有可用项目"
+            onValueChange={value => onChange({ projectId: value || null, view: null })}
+            options={[
+              { value: '', label: '全部项目' },
+              ...projects.filter(project => project.projectId).map(project => ({
+                value: project.projectId!,
+                label: project.name,
+              })),
+            ]}
+            searchable
+            searchPlaceholder="搜索项目"
+            value={projectId ?? ''}
+          />
+        </div>
         <form
           className="taskboard-toolbar__search"
           onSubmit={event => {
@@ -144,24 +146,8 @@ export function TaskboardToolbar({
             variant="compact"
           />
         </form>
-        <label className="taskboard-filter">
-          <span className="taskboard-filter__label">项目</span>
-          <Select
-            ariaLabel="项目"
-            emptyText="没有可用项目"
-            onValueChange={value => onChange({ projectId: value || null, view: null })}
-            options={[
-              { value: '', label: '全部项目' },
-              ...projects.filter(project => project.projectId).map(project => ({
-                value: project.projectId!,
-                label: project.name,
-              })),
-            ]}
-            searchable
-            searchPlaceholder="搜索项目"
-            value={projectId ?? ''}
-          />
-        </label>
+      </div>
+      <div className="taskboard-toolbar__actions">
         <PopoverMenu
         align="end"
         open={filterOpen}
@@ -169,13 +155,14 @@ export function TaskboardToolbar({
         trigger={
           <Button
             aria-label="筛选"
-            className="taskboard-toolbar__filter-trigger"
+            className="taskboard-toolbar__action taskboard-toolbar__filter-trigger"
             color={activeFilterCount > 0 ? 'ghostActive' : 'ghostSecondary'}
             size="compact"
+            title="筛选"
             type="button"
           >
             <SlidersHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
-            筛选
+            <span className="u-sr-only">筛选</span>
             {activeFilterCount > 0 ? (
               <span className="taskboard-toolbar__filter-badge">{activeFilterCount}</span>
             ) : null}
@@ -241,14 +228,14 @@ export function TaskboardToolbar({
         ) : null}
         </PopoverMenu>
         {view === 'board' ? (
-          <Button ref={otherTasksTriggerRef} aria-controls="taskboard-other-tasks" aria-expanded={otherTasksOpen} aria-pressed={otherTasksOpen} color={otherTasksOpen ? 'ghostActive' : 'ghostSecondary'} size="compact" onClick={onOtherTasksToggle}>
-            <PanelRight aria-hidden="true" size={APP_ICON_SIZE} />其他任务
+          <Button ref={otherTasksTriggerRef} aria-controls="taskboard-other-tasks" aria-expanded={otherTasksOpen} aria-label={otherTasksOpen ? '关闭其他任务' : '显示其他任务'} aria-pressed={otherTasksOpen} className="taskboard-toolbar__action" color={otherTasksOpen ? 'ghostActive' : 'ghostSecondary'} size="compact" title={otherTasksOpen ? '关闭其他任务' : '显示其他任务'} onClick={onOtherTasksToggle}>
+            <PanelRight aria-hidden="true" size={APP_ICON_SIZE} /><span className="u-sr-only">其他任务</span>
           </Button>
         ) : null}
         {view === 'gantt' ? (
           <>
-            <Button color="ghostSecondary" size="compact" type="button" onClick={onGanttToday}>
-              <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />今天
+            <Button aria-label="回到今天" className="taskboard-toolbar__action" color="ghostSecondary" size="compact" title="回到今天" type="button" onClick={onGanttToday}>
+              <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} /><span className="u-sr-only">今天</span>
             </Button>
             <label className="taskboard-filter">
               <EyeOff aria-hidden="true" size={APP_ICON_SIZE} />
@@ -275,14 +262,17 @@ export function TaskboardToolbar({
           </>
         ) : null}
         <Button
+          aria-label={archived ? '返回看板' : '打开归档区'}
           aria-pressed={archived}
+          className="taskboard-toolbar__action"
           color={archived ? 'ghostActive' : 'ghostSecondary'}
           size="compact"
+          title={archived ? '返回看板' : '打开归档区'}
           type="button"
           onClick={() => onChange({ archived: archived ? null : '1' })}
         >
           <Archive aria-hidden="true" size={APP_ICON_SIZE} />
-          {archived ? '返回看板' : '归档区'}
+          <span className="u-sr-only">{archived ? '返回看板' : '归档区'}</span>
         </Button>
         {!loading && count === 0 && hasActiveFilters ? (
           <span className="taskboard-toolbar__no-results">

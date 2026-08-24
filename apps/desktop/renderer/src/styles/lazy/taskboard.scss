@@ -3,8 +3,8 @@
 @layer features {
   @include meta.load-css('../features/taskboard');
 
-  .taskboard-toolbar__views,
   .taskboard-toolbar__tools,
+  .taskboard-toolbar__actions,
   .taskboard-dialog__date-row {
     display: flex;
     align-items: center;
@@ -20,13 +20,15 @@
     gap: var(--cpx-sys-space-4);
   }
 
-  .taskboard-toolbar__views {
-    flex: none;
+  .taskboard-toolbar__tools {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-width: 0;
   }
 
-  .taskboard-toolbar__tools {
+  .taskboard-toolbar__actions {
+    flex: none;
     justify-content: flex-end;
-    min-width: 0;
     margin-inline-start: auto;
   }
 
@@ -760,8 +762,6 @@
       background: var(--cpx-sys-color-surface-canvas);
       box-shadow: var(--cpx-sys-shadow-floating);
     }
-    .taskboard-filter__label { display: none; }
-    .taskboard-toolbar__search { flex-basis: 180px; }
     .taskboard-list__columns,
     .taskboard-list__row { grid-template-columns: minmax(0, 1fr) 112px 72px 36px; }
     .taskboard-list__columns > :nth-child(2),
@@ -773,21 +773,41 @@
   }
 
   @media (max-width: 700px) {
+    .taskboard-gantt {
+      --dhx-gantt-font-size: var(--cpx-sys-font-size-xs);
+    }
+  }
+
+  @container taskboard (max-width: 880px) {
     .taskboard-toolbar {
       gap: var(--cpx-sys-space-2);
     }
-    .taskboard-toolbar__views .segmented-control-item svg,
-    .taskboard-toolbar__count,
-    .taskboard-filter,
-    .taskboard-toolbar__tools > .ui-button span {
+
+    .taskboard-toolbar__tools,
+    .taskboard-toolbar__actions {
+      gap: var(--cpx-sys-space-1);
+    }
+
+    .taskboard-toolbar__search {
+      flex: 1 1 180px;
+      min-width: 120px;
+      max-width: 240px;
+    }
+
+    .taskboard-filter--hierarchy .ui-select-trigger {
+      width: 108px;
+    }
+
+    .taskboard-filter--project .ui-select-trigger {
+      width: 120px;
+    }
+
+    .taskboard-filter__label {
       display: none;
     }
-    .taskboard-toolbar__search {
-      flex: 1 1 132px;
-      min-width: 96px;
-    }
-    .taskboard-gantt {
-      --dhx-gantt-font-size: var(--cpx-sys-font-size-xs);
+
+    .taskboard-toolbar__no-results {
+      display: none;
     }
   }
 }

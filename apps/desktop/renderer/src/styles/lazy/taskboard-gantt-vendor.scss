@@ -2,4 +2,11 @@
 
 @layer vendor {
   @include meta.load-css('dhtmlx-gantt/codebase/dhtmlxgantt.css');
+
+  // dhtmlx-gantt defaults to remote Google Inter faces. Keep every Gantt-owned
+  // surface, including nodes mounted outside the taskboard container, on the
+  // application font stack so the desktop CSP never needs a network font grant.
+  :root {
+    --dhx-gantt-font-family: var(--cpx-sys-font-family-sans);
+  }
 }

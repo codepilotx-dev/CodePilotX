@@ -12,6 +12,7 @@ import type { TaskboardPlanningNode } from './state/taskboardStore.js'
 import { Button } from '../../components/ui/Button.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { InputDialog } from '../../components/ui/ConfirmationDialog.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
@@ -250,6 +251,21 @@ export function TaskboardView(): React.ReactNode {
 
   return (
     <section className="taskboard-view" data-detail={taskId ? '' : undefined}>
+      <WorkspaceHeaderItem align="start" id="taskboard.views" order={0} slot="left">
+        {!taskId ? (
+          <SegmentedControl
+            ariaLabel="任务视图"
+            className="taskboard-header__views"
+            onChange={changeView}
+            options={[
+              { value: 'board', label: '议题看板' },
+              { value: 'list', label: '列表视图' },
+              { value: 'gantt', label: '甘特图' },
+            ]}
+            value={view}
+          />
+        ) : null}
+      </WorkspaceHeaderItem>
       <WorkspaceHeaderItem align="end" id="taskboard.actions" order={100} slot="right">
         {!taskId ? (
           <Button color="secondary" onClick={() => setCreateStatus('backlog')}>
@@ -281,7 +297,6 @@ export function TaskboardView(): React.ReactNode {
         query={filters.query}
         onChange={updateFilter}
         onHierarchyModeChange={mode => updateFilter({ hierarchy: mode === 'roots' ? null : mode, expanded: mode === 'roots' ? null : searchParams.get('expanded') })}
-        onViewChange={changeView}
         onOtherTasksToggle={() => setOtherTasksOpen(value => !value)}
         onGanttToday={() => setGanttTodayRequest(value => value + 1)}
         onGanttZoomChange={(zoom: TaskboardGanttZoom) => updateFilter({ zoom })}

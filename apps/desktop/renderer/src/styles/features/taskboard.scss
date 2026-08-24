@@ -1,4 +1,6 @@
 .taskboard-view {
+  container-name: taskboard;
+  container-type: inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--cpx-sys-space-3);
@@ -32,26 +34,22 @@
   white-space: nowrap;
 }
 
-.taskboard-toolbar__count {
-  min-width: 24px;
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-full);
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: normal;
-  text-align: center;
-}
-
 .taskboard-toolbar__search {
   display: flex;
   flex: 0 1 300px;
   min-width: 160px;
+
+  > * {
+    width: 100%;
+  }
 }
 
 .taskboard-toolbar__filter-badge {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--cpx-sys-space-1));
+  inset-inline-end: calc(-1 * var(--cpx-sys-space-1));
   min-width: 16px;
-  padding: 0 var(--cpx-sys-space-1);
+  padding-inline: 0;
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-secondary);
@@ -80,6 +78,22 @@
   .ui-select-trigger {
     min-width: 108px;
   }
+}
+
+.taskboard-filter--hierarchy .ui-select-trigger {
+  width: 108px;
+}
+
+.taskboard-filter--project .ui-select-trigger {
+  width: 136px;
+}
+
+.taskboard-toolbar__action {
+  position: relative;
+  width: 28px;
+  min-width: 28px;
+  flex: none;
+  padding-inline: var(--cpx-sys-space-1);
 }
 
 /* --- 看板区域 --- */
