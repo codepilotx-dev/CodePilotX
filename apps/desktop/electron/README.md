@@ -2,6 +2,8 @@
 
 主进程只负责窗口安全配置与 Bun Agent sidecar 生命周期，不承载 Agent 业务逻辑。
 
+开发态先在独立终端运行 `bun run dev:agent`，再在另一个终端运行 `bun run dev:desktop`。后者从用户数据目录读取并验证开发 Agent runtime，只管理 Renderer 与 Electron，不停止独立 Agent。
+
 ## 环境变量
 
 - `CODEPILOTX_AGENT_URL`：复用已由开发编排器启动的 Agent，例如 `http://127.0.0.1:43120`。设置后 Electron 不会重复启动或停止 sidecar。
@@ -19,4 +21,4 @@
 {"type":"ready","host":"127.0.0.1","port":43120}
 ```
 
-主进程随后轮询 `/health`，将认证令牌写入 `codepilotx_session` HttpOnly、SameSite=Strict Cookie，再加载页面。
+主进程随后轮询 `/api/ready`，将认证令牌写入 `codepilotx_session` HttpOnly、SameSite=Strict Cookie，再加载页面。

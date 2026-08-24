@@ -59,8 +59,13 @@ pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
 git clone https://github.com/codepilotx-dev/CodePilotX.git
 Set-Location CodePilotX
 bun install --frozen-lockfile
-bun run dev
+# 终端 A：启动并持有开发 Agent
+bun run dev:agent
+# 终端 B：连接已有 Agent，启动 Renderer 与 Desktop
+bun run dev:desktop
 ```
+
+`bun run dev` 仅显示上述分步启动提示。关闭 Desktop 不会停止开发 Agent；结束终端 A 才会停止它。
 
 常用验证命令：
 
