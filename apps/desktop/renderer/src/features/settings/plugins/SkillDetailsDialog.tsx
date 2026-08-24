@@ -83,7 +83,7 @@ export function SkillDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -144,13 +144,13 @@ export function SkillDetailsDialog({
                 </p>
               ) : error ? (
                 <div
-                  className="tw:rounded-md tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
+                  className="tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
                   role="alert"
                 >
                   {error}
                 </div>
               ) : (
-                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-code tw:text-app-text">
+                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-code tw:text-app-text">
                   {content}
                 </pre>
               )}

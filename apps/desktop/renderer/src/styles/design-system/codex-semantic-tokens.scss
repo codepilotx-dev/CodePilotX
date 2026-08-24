@@ -28,7 +28,7 @@
   --cpx-comp-button-radius-md: var(--cpx-sys-radius-md);
   --cpx-comp-button-radius-lg: var(--cpx-sys-radius-lg);
   --cpx-comp-button-radius-xl: var(--cpx-sys-radius-xl);
-  --cpx-comp-button-radius-2xl: var(--cpx-sys-radius-xl);
+  --cpx-comp-button-radius-2xl: var(--cpx-sys-radius-2xl);
   --cpx-comp-button-size-compact: 24px;
   --cpx-comp-button-size-toolbar: 28px;
   --cpx-comp-button-size-medium: 32px;
@@ -122,7 +122,7 @@
   --cpx-comp-modal-backdrop-filter: blur(var(--cpx-sys-blur-md));
   --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
-  --cpx-comp-modal-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);
   --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface-editor);
   --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
 
@@ -131,12 +131,12 @@
   --cpx-comp-sidebar-border: 0;
   --cpx-comp-sidebar-item-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-sidebar-item-active-bg: var(--cpx-sys-color-selected);
-  --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-md);
+  --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-lg);
   --cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);
   --cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-dock-tab-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-dock-tab-active-bg: var(--cpx-sys-color-selected);
-  --cpx-comp-dock-tab-radius: var(--cpx-sys-radius-md);
+  --cpx-comp-dock-tab-radius: var(--cpx-sys-radius-lg);
   --cpx-comp-dock-tab-height: 46px;
 
   // 9. Workbench Component
@@ -160,7 +160,7 @@
   --cpx-comp-composer-safe-pad: 78px;
   --cpx-comp-composer-border: var(--cpx-sys-color-border-default);
   --cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);
-  --cpx-comp-composer-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-composer-radius: var(--cpx-sys-radius-3xl);
 
   // 12. Terminal Component
   --cpx-comp-terminal-bg: var(--cpx-sys-color-surface-editor);
@@ -200,7 +200,7 @@
   --cpx-comp-row-height-menu-rich: 44px;
   --cpx-comp-row-height-toolbar: 28px;
   --cpx-comp-row-height-composer: 28px;
-  --cpx-comp-row-radius: var(--cpx-sys-radius-md);
+  --cpx-comp-row-radius: var(--cpx-sys-radius-lg);
   --cpx-comp-row-padding-inline: 8px;
   --cpx-comp-row-padding-block: 5px;
   --cpx-comp-row-padding-block-rich: 6px;

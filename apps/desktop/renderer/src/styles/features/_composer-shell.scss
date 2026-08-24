@@ -34,9 +34,7 @@
 }
 
 .composer-stack[data-composer-radius-variant="compact"] {
-  --composer-radius: calc(
-    var(--cpx-sys-radius-container) * var(--cpx-sys-radius-optical-scale)
-  );
+  --composer-radius: var(--cpx-sys-radius-container);
 }
 
 .composer-input-surface {

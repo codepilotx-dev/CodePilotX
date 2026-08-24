@@ -9,6 +9,7 @@
 .plugins-empty {
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
+  corner-shape: var(--cpx-sys-corner-shape);
   background: var(--cpx-comp-surface-panel);
   box-shadow: none;
 }
@@ -32,6 +33,7 @@
 
 .ds-surface-raised {
   border-radius: var(--cpx-sys-radius-xl);
+  corner-shape: var(--cpx-sys-corner-shape);
 }
 
 .desktop-sidebar.is-floating {

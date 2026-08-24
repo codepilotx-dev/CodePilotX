@@ -356,7 +356,7 @@ export function SidebarHeader({
               align="end"
               side="bottom"
               sideOffset={8}
-              className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:rounded-lg tw:border tw:border-border tw:p-3.5 tw:outline-none"
+              className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:rounded-xl tw:border tw:border-border tw:p-3.5 tw:outline-none"
             >
               <div className="tw:flex tw:flex-col tw:gap-2.5">
                 <p className="tw:text-xs tw:text-foreground">

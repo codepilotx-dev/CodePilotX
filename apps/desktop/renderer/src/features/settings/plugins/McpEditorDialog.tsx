@@ -311,7 +311,7 @@ export function McpEditorDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()

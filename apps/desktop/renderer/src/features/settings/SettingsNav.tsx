@@ -221,7 +221,7 @@ function SearchResults({
           <button
             aria-selected={selected}
             className={[
-              "tw:grid tw:w-full tw:min-w-0 tw:gap-0.5 tw:rounded-sm tw:px-3 tw:py-2 tw:text-left tw:outline-none",
+              "tw:grid tw:w-full tw:min-w-0 tw:gap-0.5 tw:rounded-lg tw:px-3 tw:py-2 tw:text-left tw:outline-none",
               selected
                 ? "tw:bg-app-selected tw:text-app-text"
                 : "tw:text-app-text tw:hover:bg-app-hover",

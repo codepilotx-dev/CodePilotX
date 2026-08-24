@@ -56,7 +56,7 @@
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-sys-color-accent);
     transition:
-      width 260ms cubic-bezier(0.34, 1.35, 0.64, 1),
+      width var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
       opacity var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
     z-index: 1;
     pointer-events: none;
@@ -82,8 +82,8 @@
     z-index: 2;
     opacity: 0.55;
     transition:
-      opacity 260ms cubic-bezier(0.34, 1.35, 0.64, 1),
-      background 260ms cubic-bezier(0.34, 1.35, 0.64, 1);
+      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+      background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
     &.is-passed {
       background: var(--cpx-comp-switch-thumb-fill);
@@ -109,7 +109,7 @@
     z-index: 3;
     pointer-events: none;
     transition:
-      left 260ms cubic-bezier(0.34, 1.35, 0.64, 1),
+      left var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
       transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
       box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
@@ -121,6 +121,13 @@
     }
   }
 
+  .rm-thick-slider-track:is(.is-pointer-down, .is-dragging) {
+    .rm-thick-slider-range,
+    .rm-thick-slider-dot,
+    .rm-thick-slider-thumb {
+      transition-duration: var(--cpx-sys-motion-instant);
+    }
+  }
 }
 
 /* --------------------------------------------------
@@ -198,11 +205,6 @@
   min-width: 0;
   flex: 0 0 auto;
   opacity: 1;
-}
-
-.rm-intelligence-menu[data-transitions-ready]
-  .rm-intelligence-view-panel {
-  transition: opacity var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }
 
 .rm-intelligence-view-panel[data-active="false"] {
@@ -293,7 +295,7 @@
 .rm-intelligence-view-toggle,
 .rm-thinking-slider-endpoints {
   min-height: 32px;
-  transition: opacity var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
+  transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
 .rm-thinking-slider-endpoints {
@@ -359,7 +361,7 @@
 }
 
 .rm-intelligence-view-toggle-icon {
-  transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
 .rm-intelligence-view-controls[data-expanded="true"]

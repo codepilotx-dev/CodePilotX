@@ -1250,7 +1250,7 @@ function SidebarSection({
       transition={motionTransition(reducedMotion, layoutTween)}
     >
       <div
-        className="sidebar-section-header tw:rounded-sm tw:px-2 tw:py-1.25 tw:text-base"
+        className="sidebar-section-header tw:rounded-lg tw:px-2 tw:py-1.25 tw:text-base"
       >
         <h2 className="sidebar-section-title">
           <button

@@ -83,6 +83,7 @@
   overflow-y: var(--popover-overflow-y, auto);
   overscroll-behavior: contain;
   border-radius: var(--cpx-comp-dropdown-menu-radius);
+  corner-shape: var(--cpx-sys-corner-shape);
   color: var(--cpx-sys-color-fg-primary);
   font-size: var(--cpx-sys-font-size-md);
   outline: none;
@@ -149,6 +150,7 @@
   backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
   box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
   border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-xl));
+  corner-shape: var(--cpx-sys-corner-shape);
 }
 
 .tooltip-content {
@@ -157,6 +159,7 @@
   backdrop-filter: var(--cpx-comp-tooltip-backdrop-filter, blur(8px));
   box-shadow: var(--cpx-comp-tooltip-shadow, var(--cpx-sys-shadow-floating));
   border-radius: var(--cpx-comp-tooltip-radius, var(--cpx-sys-radius-xl));
+  corner-shape: var(--cpx-sys-corner-shape);
 }
 
 .popover-scroll-content {

@@ -206,7 +206,7 @@
     display: inline;
     padding: 0.12em 0.38em 0.14em;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--cpx-sys-radius-xs);
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-fg-primary) 6%,
@@ -641,7 +641,7 @@
 .md-code-comment__target:focus-visible {
   outline: 2px solid var(--cpx-sys-color-accent);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: var(--cpx-sys-radius-xs);
 }
 
 .md-code-comment__target code {

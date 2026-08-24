@@ -63,7 +63,7 @@ export function ConfirmationDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <AlertDialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-3xl tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
@@ -158,7 +158,7 @@ export function InputDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-3xl tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={event => {
                 event.preventDefault()

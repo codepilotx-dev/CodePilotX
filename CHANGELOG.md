@@ -38,6 +38,7 @@
 
 ### Changed
 
+- [desktop/renderer] 建立完整的 2xs–4xl/full 圆角基础刻度并分阶段迁移 Renderer 组件，使普通控件、列表、菜单、消息与高层级浮动表面恢复 Codex 式层级，同时限制大圆角仅用于明确的 prominent 表面。
 - [desktop/renderer] 将任务看板的输入、选择、日期、单复选及行内交互统一接入 Renderer 组件体系，移除 Windows/Chromium 原生控件外观并补齐可搜索选择与日期范围限制。
 - [desktop/renderer] 将 Composer 模型、推理强度与提供商整合为 Codex 风格的简洁/高级选择器，使打开态 Chip 与弹层对齐并居中，按 Switch 语义统一滑杆前景与背景并收紧高级按钮，修复双层 Hover、纵向切换、动态高度空白、悬停 Flyout、Provider 连续选择及拖动档位回跳，同时保留“更高效 / 更智能”端点提示。
 - [desktop/renderer] 建立主题自适应的圆角光学校正与 prominent 曲率语义，使按钮、会话 Composer、用户消息和线程环境摘要在支持环境中使用一致的 Codex 风格超椭圆轮廓，同时保持其他 Renderer 圆角不变。
@@ -142,6 +143,9 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复任务甘特图依赖尝试加载 Google Inter 字体及 Renderer 在 CSP 元标签中声明无效 `frame-ancestors` 所产生的控制台错误，继续保持网络字体默认拒绝。
+- [desktop/renderer] 收紧高频交互动效并取消推理滑杆直接操作时的位置缓动，使模型菜单、浮层、悬停与滑杆反馈更及时。
+- [desktop/renderer] 修复任务看板工具栏按整窗宽度响应而在侧栏占用空间时发生控件拥挤的问题，将纯文字视图切换移至工作区 Header，并让内容工具栏按任务区宽度收缩、前置层级与项目选择器且移除重复提示。
 - [desktop/renderer] 修复外观设置颜色选择框被拆成色块与空白输入区的问题，使浅色和深色主题的强调色、背景色及前景色恢复为 Codex 风格的一体式颜色控件。
 - [desktop/renderer] 修正新会话首页因页面位置误用胶囊圆角的问题，引入独立的 Composer utility bar、布局和圆角角色语义，使首页与会话页的多行输入面统一使用 prominent 曲率。
 - [desktop] 修复用户主题与系统主题不同时，桌面重新加载期间鲸鱼加载页短暂闪成相反明暗主题的问题。

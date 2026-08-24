@@ -94,28 +94,28 @@
   --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
   --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 
-  // System Radius (Semantic Roles)
-  --cpx-sys-radius-indicator: 2px;
-  --cpx-sys-radius-compact: 4px;
-  --cpx-sys-radius-control: 8px;
-  --cpx-sys-radius-container: 12px;
-  --cpx-sys-radius-floating: 16px;
-  --cpx-sys-radius-pill: 9999px;
-
-  // Opt-in optical correction for shaped corners. Existing roles stay stable.
+  // System Radius (Foundational Scale)
   --cpx-sys-radius-optical-scale: 1;
   --cpx-sys-corner-shape: round;
-  --cpx-sys-radius-prominent: calc(
-    20px * var(--cpx-sys-radius-optical-scale)
-  );
+  --cpx-sys-radius-2xs: calc(2px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-xs: calc(4px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-sm: calc(6px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-md: calc(8px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-lg: calc(10px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-xl: calc(12px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-2xl: calc(16px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-3xl: calc(20px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-4xl: calc(24px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-full: 9999px;
 
-  // Legacy T-Shirt aliases (sourced from semantic roles)
-  --cpx-sys-radius-xs: var(--cpx-sys-radius-indicator);
-  --cpx-sys-radius-sm: var(--cpx-sys-radius-compact);
-  --cpx-sys-radius-md: var(--cpx-sys-radius-control);
-  --cpx-sys-radius-lg: var(--cpx-sys-radius-container);
-  --cpx-sys-radius-xl: var(--cpx-sys-radius-floating);
-  --cpx-sys-radius-full: var(--cpx-sys-radius-pill);
+  // System Radius (Semantic Roles)
+  --cpx-sys-radius-indicator: var(--cpx-sys-radius-2xs);
+  --cpx-sys-radius-compact: var(--cpx-sys-radius-xs);
+  --cpx-sys-radius-control: var(--cpx-sys-radius-md);
+  --cpx-sys-radius-container: var(--cpx-sys-radius-lg);
+  --cpx-sys-radius-floating: var(--cpx-sys-radius-xl);
+  --cpx-sys-radius-prominent: var(--cpx-sys-radius-3xl);
+  --cpx-sys-radius-pill: var(--cpx-sys-radius-full);
 
   // System Typography
   --cpx-sys-font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -193,11 +193,11 @@
 
   // System Motion (Semantic Roles)
   --cpx-sys-motion-instant: 0ms;
-  --cpx-sys-motion-feedback: 90ms;
-  --cpx-sys-motion-exit: 120ms;
-  --cpx-sys-motion-state: 140ms;
-  --cpx-sys-motion-enter: 160ms;
-  --cpx-sys-motion-panel: 200ms;
+  --cpx-sys-motion-feedback: 60ms;
+  --cpx-sys-motion-exit: 90ms;
+  --cpx-sys-motion-state: 100ms;
+  --cpx-sys-motion-enter: 120ms;
+  --cpx-sys-motion-panel: 120ms;
   --cpx-sys-motion-loading: 900ms;
 
   // Legacy alias

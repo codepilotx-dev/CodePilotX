@@ -43,6 +43,7 @@
   resize: vertical;
   border: 1px solid var(--cpx-comp-input-border);
   border-radius: var(--cpx-comp-input-radius);
+  corner-shape: var(--cpx-sys-corner-shape);
   background: var(--cpx-comp-input-bg);
   color: var(--cpx-comp-input-fg);
   font-size: var(--cpx-sys-font-size-md);
@@ -230,6 +231,7 @@
 .settings-input {
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-comp-input-radius);
+  corner-shape: var(--cpx-sys-corner-shape);
   background: var(--cpx-sys-color-surface-recessed);
   color: var(--cpx-sys-color-fg-primary);
   padding: var(--cpx-comp-input-padding-block) var(--cpx-comp-input-padding-inline);

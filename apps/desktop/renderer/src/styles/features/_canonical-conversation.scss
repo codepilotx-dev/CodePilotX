@@ -496,9 +496,7 @@
     padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
     overflow: hidden;
     border: 0;
-    border-radius: calc(
-      var(--cpx-sys-radius-floating) * var(--cpx-sys-radius-optical-scale)
-    );
+    border-radius: var(--cpx-sys-radius-2xl);
     background: var(--cpx-sys-color-message-user-bg);
     color: var(--cpx-sys-color-fg-primary);
     font-size: var(--cpx-sys-font-size-md);
@@ -519,9 +517,7 @@
     min-width: 0;
     padding: var(--cpx-sys-space-3);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: calc(
-      var(--cpx-sys-radius-floating) * var(--cpx-sys-radius-optical-scale)
-    );
+    border-radius: var(--cpx-sys-radius-2xl);
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-fg-primary) 5%,

@@ -51,7 +51,7 @@ export function ConversationForkDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:rounded-2xl tw:p-6"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:rounded-3xl tw:p-6"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">

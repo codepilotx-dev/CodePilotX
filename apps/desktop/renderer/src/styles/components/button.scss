@@ -1,8 +1,6 @@
 /* ===== Shared Button Patterns ===== */
 
 .ui-button {
-  --button-radius-scale: 1;
-
   box-sizing: border-box;
   display: inline-flex;
   height: var(--button-size);
@@ -12,7 +10,7 @@
   gap: 4px;
   padding: 0 var(--button-padding-inline);
   border: 1px solid transparent;
-  border-radius: calc(var(--button-radius) * var(--button-radius-scale));
+  border-radius: var(--button-radius);
   background: transparent;
   box-shadow: none;
   font-size: var(--button-font-size);
@@ -361,8 +359,6 @@
       [data-size="toolbar"],
       [data-size="toolbarLabel"]
     ) {
-    --button-radius-scale: var(--cpx-sys-radius-optical-scale);
-
     corner-shape: var(--cpx-sys-corner-shape);
   }
 }
