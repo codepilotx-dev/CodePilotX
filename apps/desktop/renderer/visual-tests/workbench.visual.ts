@@ -2568,6 +2568,115 @@ for (const mode of MODES) {
   })
 }
 
+test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+
+  const projectsToggle = page.locator('[data-sidebar-section-id="projects"]')
+  if (await projectsToggle.count()) {
+    if (await projectsToggle.getAttribute('aria-expanded') === 'false') {
+      await projectsToggle.click()
+    }
+  }
+
+  const projectButton = page.locator('.sidebar-project-button[data-current]').first()
+  await expect(projectButton).toBeVisible()
+  if (await projectButton.getAttribute('aria-expanded') === 'false') {
+    await projectButton.click()
+  }
+
+  const projectRow = page.locator('.sidebar-project-header:has(.sidebar-project-button[data-current])').first()
+  const navRow = page.locator('.sidebar-nav-link').first()
+  await expect(projectRow).toBeVisible()
+  await expect(navRow).toBeVisible()
+
+  await page.evaluate(() => {
+    const row = document.createElement('li')
+    row.className = 'sidebar-row sidebar-row--grid sidebar-row--session sidebar-row--no-leading sidebar-session-row active selected'
+    row.dataset.visualSidebarSessionFixture = 'true'
+    const button = document.createElement('button')
+    button.className = 'sidebar-session-button'
+    button.type = 'button'
+    button.textContent = '视觉契约会话'
+    row.append(button)
+    document.body.append(row)
+  })
+  const activeSessionRow = page.locator('[data-visual-sidebar-session-fixture="true"]')
+  await expect(activeSessionRow).toBeVisible()
+
+  const sidebarRowRadius = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.borderRadius = 'var(--cpx-sys-radius-lg)'
+    document.body.append(probe)
+    const radius = getComputedStyle(probe).borderRadius
+    probe.remove()
+    return radius
+  })
+  for (const row of [navRow, projectRow, activeSessionRow]) {
+    await expect(row).toHaveCSS('min-height', '30px')
+    await expect(row).toHaveCSS('border-radius', sidebarRowRadius)
+  }
+  await expect(projectButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(activeSessionRow.locator('.sidebar-session-button')).toHaveCSS(
+    'background-color',
+    'rgba(0, 0, 0, 0)',
+  )
+
+  const sidebarHoverBackground = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.background = 'var(--cpx-sys-color-hover)'
+    document.body.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  await projectRow.hover()
+  await expect(projectRow).toHaveCSS('background-color', sidebarHoverBackground)
+  const sidebarSelectedBackground = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.background = 'var(--cpx-sys-color-selected)'
+    document.body.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  await expect(activeSessionRow).toHaveCSS(
+    'background-color',
+    sidebarSelectedBackground,
+  )
+  await activeSessionRow.hover()
+  await expect(activeSessionRow).toHaveCSS(
+    'background-color',
+    sidebarSelectedBackground,
+  )
+
+  await projectButton.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(projectRow).toHaveCSS('outline-style', 'solid')
+  await expect(projectRow).toHaveCSS('outline-width', '2px')
+  await expect(projectButton).toHaveCSS('outline-style', 'none')
+
+  const sessionButton = activeSessionRow.locator('.sidebar-session-button')
+  await sessionButton.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(activeSessionRow).toHaveCSS('outline-style', 'solid')
+  await expect(sessionButton).toHaveCSS('outline-style', 'none')
+
+  const expandedBeforeTailAction = await projectButton.getAttribute('aria-expanded')
+  await projectRow.hover()
+  await projectRow.getByRole('button', { name: '更多' }).click()
+  await expect(projectButton).toHaveAttribute(
+    'aria-expanded',
+    expandedBeforeTailAction ?? 'true',
+  )
+  await page.keyboard.press('Escape')
+})
+
 test('sidebar footer reserves space outside the task scroll viewport', async ({
   page,
 }) => {

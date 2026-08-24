@@ -13,7 +13,6 @@ describe('Codex CPX design system token contract', () => {
     expect(manifest.interactionContract.interactiveRowAllowedFiles).toEqual([
       'src/components/ui/PopoverItem.tsx',
       'src/components/ui/SearchablePopoverContent.tsx',
-      'src/features/layout/sidebar/SidebarRow.tsx',
       'src/features/session/summary/ThreadSummaryPanel.tsx',
     ])
     expect(checker).toContain('feature styles must not target .ui-button')

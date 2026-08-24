@@ -128,7 +128,22 @@ for (const uiFontSize of [11, 16]) {
 
     await expect(page.locator('.app-menubar')).toHaveCSS('height', '36px')
     await expect(page.locator('.desktop-workspace-header')).toHaveCSS('height', '46px')
-    await expect(page.locator('.sidebar-product-mode-trigger')).toHaveCSS('height', '32px')
+    const productModeTrigger = page.locator('.sidebar-product-mode-trigger')
+    const sidebarTitleRadius = await page.evaluate(() => {
+      const probe = document.createElement('div')
+      probe.style.borderRadius = 'var(--cpx-sys-radius-xl)'
+      document.body.append(probe)
+      const radius = getComputedStyle(probe).borderRadius
+      probe.remove()
+      return radius
+    })
+    await expect(productModeTrigger).toHaveCSS('height', '32px')
+    await expect(productModeTrigger).toHaveCSS('border-radius', sidebarTitleRadius)
+    await expect(productModeTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(productModeTrigger).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)')
+    await expect(productModeTrigger).not.toHaveClass(/settings-dropdown/)
+    expect(await productModeTrigger.evaluate(element => element.tagName)).toBe('BUTTON')
+
     await expectBox(page.getByRole('button', { name: '搜索任务' }), 28)
     await expectBox(page.locator('.sidebar-timeline-toggle-button'), 28)
     await expectBox(page.getByRole('button', { name: '帮助' }), 28)
@@ -158,3 +173,54 @@ for (const uiFontSize of [11, 16]) {
     expect(danger.color).not.toBe(dangerSolid.color)
   })
 }
+
+test('sidebar product mode uses the Codex title trigger and radio menu', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/threads/visual-rich', {
+    waitUntil: 'domcontentloaded',
+  })
+
+  const productModeTrigger = page.getByRole('button', {
+    name: '切换工作模式，当前为 Coding',
+  })
+  const sidebarTitleRadius = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.borderRadius = 'var(--cpx-sys-radius-xl)'
+    document.body.append(probe)
+    const radius = getComputedStyle(probe).borderRadius
+    probe.remove()
+    return radius
+  })
+  await expect(productModeTrigger).toHaveCSS('height', '32px')
+  await expect(productModeTrigger).toHaveCSS('border-radius', sidebarTitleRadius)
+  await expect(productModeTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(productModeTrigger).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)')
+  expect(await productModeTrigger.evaluate(element => element.tagName)).toBe('BUTTON')
+
+  await productModeTrigger.click()
+  const productModeMenu = page.locator('.sidebar-product-mode-menu')
+  await expect(productModeMenu).toBeVisible()
+  const sidebarHoverBackground = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.background = 'var(--cpx-sys-color-hover)'
+    document.body.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  await expect(productModeTrigger).toHaveCSS(
+    'background-color',
+    sidebarHoverBackground,
+  )
+  await expect(productModeMenu.getByText('Coding', { exact: true })).toBeVisible()
+  await expect(productModeMenu.getByText('Working', { exact: true })).toBeVisible()
+  await expect(productModeMenu.getByText('Chat', { exact: true })).toBeVisible()
+  await expect(productModeMenu.getByText('构建、调试并发布', { exact: true })).toBeVisible()
+
+  await productModeMenu.getByRole('menuitemradio', { name: /Working/u }).click()
+  await expect(productModeMenu).toHaveCount(0)
+  await expect(page).toHaveURL(/#\/new\?surface=working$/u)
+  await expect(page.getByRole('button', {
+    name: '切换工作模式，当前为 Working',
+  })).toBeVisible()
+})
