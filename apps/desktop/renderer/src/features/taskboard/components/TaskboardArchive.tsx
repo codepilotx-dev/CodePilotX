@@ -26,7 +26,7 @@ export function TaskboardArchive({ tasks, projectNames, onOpen }: Props): React.
         {archivedTasks.map(task => (
           <button
             aria-label={`打开已归档任务：${task.title}`}
-            className="interactive-row interactive-row--adaptive taskboard-archive__row"
+            className="taskboard-archive__row"
             data-taskboard-task-id={task.id}
             key={task.id}
             type="button"

@@ -357,28 +357,34 @@
 
 .taskboard-card {
   position: relative;
+  padding: var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
   background: var(--cpx-sys-color-surface-canvas);
-  box-shadow: var(--cpx-sys-shadow-control);
+  box-shadow: none;
   overflow: hidden;
-  transition: border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
-              box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
-              transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
+  transition:
+    border-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    transform var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
 
   &:focus-within,
   &:hover {
     border-color: var(--cpx-sys-color-border-default);
-    box-shadow: var(--cpx-sys-shadow-floating);
+    background: var(--cpx-sys-color-hover);
+    box-shadow: none;
   }
+
   &[data-pending] {
     opacity: 0.65;
   }
+
   &[data-dragging] {
     opacity: 0.72;
     box-shadow: var(--cpx-sys-shadow-floating);
     transform: translateY(-2px);
   }
+
   &[data-drag-displaced] {
     transform: translateY(3px);
   }
@@ -388,7 +394,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-auto-flow: row;
-  flex-direction: column;
   align-items: stretch;
   gap: var(--cpx-sys-space-2);
   min-width: 0;

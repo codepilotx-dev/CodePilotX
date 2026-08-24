@@ -60,6 +60,7 @@ export function TaskboardView(): React.ReactNode {
   const [dropNotice, setDropNotice] = useState<string | null>(null)
   const [dropError, setDropError] = useState<string | null>(null)
   const [ganttTodayRequest, setGanttTodayRequest] = useState(0)
+  const [ganttFitAllRequest, setGanttFitAllRequest] = useState(0)
   const [returnSnapshot, setReturnSnapshot] = useState<TaskboardReturnSnapshot | null>(null)
   const boardAreaRef = useRef<HTMLDivElement>(null)
   const [blockedRequest, setBlockedRequest] = useState<{
@@ -316,6 +317,7 @@ export function TaskboardView(): React.ReactNode {
         onChange={updateFilter}
         onHierarchyModeChange={mode => updateFilter({ hierarchy: mode === 'roots' ? null : mode, expanded: mode === 'roots' ? null : searchParams.get('expanded') })}
         onGanttToday={() => setGanttTodayRequest(value => value + 1)}
+        onGanttFitAll={() => setGanttFitAllRequest(value => value + 1)}
         onGanttZoomChange={(zoom: TaskboardGanttZoom) => updateFilter({ zoom })}
         onGanttHideCompletedChange={hidden => updateFilter({ hideCompleted: hidden ? '1' : null })}
       /> : null}
@@ -387,8 +389,10 @@ export function TaskboardView(): React.ReactNode {
               pendingTaskIds={controller.pendingTaskIds}
               projectNames={projectNames}
               tasks={projectedTasks}
+              planningNodes={controller.planningNodes}
               planningSteps={controller.planningSteps}
               todayRequest={ganttTodayRequest}
+              fitAllRequest={ganttFitAllRequest}
               restoreViewport={returnSnapshot?.view === 'gantt' && returnSnapshot.search === searchParams.toString()
                 ? returnSnapshot
                 : null}

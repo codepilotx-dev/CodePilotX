@@ -45,6 +45,17 @@ export interface TaskboardGanttGroupProjection<T extends TaskboardGanttTaskInput
   tasks: TaskboardGanttProjectedTask<T>[]
 }
 
+export interface TaskboardGanttHierarchyItem<T extends TaskboardGanttTaskInput = TaskboardGanttTaskInput> {
+  task: T
+  parentTaskId: string | null
+  children: TaskboardGanttHierarchyItem<T>[]
+  isParent: boolean
+  scheduled: boolean
+  startDate: Date | null
+  endDateExclusive: Date | null
+  isOverdue: boolean
+}
+
 export function parseTaskboardLocalDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (!match) return null
@@ -112,6 +123,40 @@ export function projectTaskboardGanttTask<T extends TaskboardGanttTaskInput>(
   }
 }
 
+export function isTaskboardTaskOverdue(
+  task: Pick<TaskboardGanttTaskInput, 'dueDate' | 'status'>,
+  today = new Date(),
+): boolean {
+  if (!task.dueDate || task.status === 'done' || task.status === 'canceled') return false
+  const due = parseTaskboardLocalDate(task.dueDate)
+  if (!due) return false
+  const todayDate = parseTaskboardLocalDate(formatTaskboardLocalDate(today))
+  if (!todayDate) return false
+  return due.getTime() < todayDate.getTime()
+}
+
+export function getTaskboardTodayRange(): { startDate: string; dueDate: string } {
+  const todayStr = formatTaskboardLocalDate(new Date())
+  return { startDate: todayStr, dueDate: todayStr }
+}
+
+export function getTaskboardThisWeekRange(): { startDate: string; dueDate: string } {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek
+
+  const monday = new Date(today)
+  monday.setDate(monday.getDate() + mondayOffset)
+  const sunday = new Date(today)
+  sunday.setDate(sunday.getDate() + sundayOffset)
+
+  return {
+    startDate: formatTaskboardLocalDate(monday),
+    dueDate: formatTaskboardLocalDate(sunday),
+  }
+}
+
 export function taskboardGanttUnscheduledReason(
   task: Pick<TaskboardGanttTaskInput, 'startDate' | 'dueDate'>,
 ): '未设置日期' | '缺少开始日期' | '缺少截止日期' | '日期范围无效' | null {
@@ -144,4 +189,76 @@ export function projectTaskboardGanttGroups<T extends TaskboardGanttTaskInput>(
       ? [{ status: group.status, label: group.label, tasks: groupTasks }]
       : []
   })
+}
+
+export function projectTaskboardGanttHierarchy<T extends TaskboardGanttTaskInput>(
+  tasks: readonly T[],
+  planningNodes: Readonly<Record<string, { parentTaskId: string | null }>>,
+  hideCompleted = false,
+): TaskboardGanttHierarchyItem<T>[] {
+  const taskMap = new Map<string, T>()
+  for (const task of tasks) {
+    taskMap.set(task.id, task)
+  }
+
+  const childMap = new Map<string, string[]>()
+  const rootIds: string[] = []
+
+  for (const task of tasks) {
+    const parentId = planningNodes[task.id]?.parentTaskId ?? null
+    if (parentId && taskMap.has(parentId)) {
+      const list = childMap.get(parentId) ?? []
+      list.push(task.id)
+      childMap.set(parentId, list)
+    } else {
+      rootIds.push(task.id)
+    }
+  }
+
+  const buildNode = (taskId: string, parentTaskId: string | null): TaskboardGanttHierarchyItem<T> | null => {
+    const task = taskMap.get(taskId)
+    if (!task) return null
+
+    const rawChildrenIds = childMap.get(taskId) ?? []
+    const children = rawChildrenIds
+      .map(childId => buildNode(childId, taskId))
+      .filter((child): child is TaskboardGanttHierarchyItem<T> => child !== null)
+
+    const isParent = children.length > 0
+    const directSchedule = projectTaskboardGanttTask(task)
+    let scheduled = directSchedule.scheduled
+    let startDate = directSchedule.startDate
+    let endDateExclusive = directSchedule.endDateExclusive
+
+    if (!scheduled && isParent) {
+      const scheduledChildren = children.filter(c => c.scheduled && c.startDate && c.endDateExclusive)
+      if (scheduledChildren.length > 0) {
+        const minStart = Math.min(...scheduledChildren.map(c => c.startDate!.getTime()))
+        const maxEnd = Math.max(...scheduledChildren.map(c => c.endDateExclusive!.getTime()))
+        scheduled = true
+        startDate = new Date(minStart)
+        endDateExclusive = new Date(maxEnd)
+      }
+    }
+
+    const isCompleted = task.status === 'done' || task.status === 'canceled'
+    if (hideCompleted && isCompleted && children.length === 0) {
+      return null
+    }
+
+    return {
+      task,
+      parentTaskId,
+      children,
+      isParent,
+      scheduled,
+      startDate,
+      endDateExclusive,
+      isOverdue: isTaskboardTaskOverdue(task),
+    }
+  }
+
+  return rootIds
+    .map(id => buildNode(id, null))
+    .filter((node): node is TaskboardGanttHierarchyItem<T> => node !== null)
 }

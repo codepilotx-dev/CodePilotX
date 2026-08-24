@@ -155,6 +155,17 @@
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     text-align: start;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--cpx-sys-color-hover);
+      color: var(--cpx-sys-color-fg-primary);
+    }
+
+    &:focus-visible {
+      outline: 0;
+      box-shadow: var(--cpx-sys-focus-ring-inset);
+    }
   }
 
   .taskboard-archive__identity {
@@ -204,6 +215,8 @@
   }
 
   .taskboard-card {
+    padding: var(--cpx-sys-space-2);
+
     &[data-unread] {
       border-color: var(--cpx-sys-color-border-focus);
     }
@@ -292,6 +305,16 @@
     text-align: start;
     cursor: pointer;
 
+    &:hover {
+      background: var(--cpx-sys-color-hover);
+      color: var(--cpx-sys-color-fg-primary);
+    }
+
+    &:focus-visible {
+      outline: 0;
+      box-shadow: var(--cpx-sys-focus-ring-inset);
+    }
+
     strong {
       color: var(--cpx-sys-color-fg-primary);
       font-size: var(--cpx-sys-font-size-sm);
@@ -332,6 +355,11 @@
     color: var(--cpx-sys-color-fg-secondary);
     text-align: start;
     cursor: pointer;
+
+    &:hover {
+      background: var(--cpx-sys-color-hover);
+      color: var(--cpx-sys-color-fg-primary);
+    }
 
     &:focus-visible {
       outline: 0;
@@ -487,7 +515,16 @@
     --dhx-gantt-base-colors-border-light: var(--cpx-sys-color-border-subtle);
     --dhx-gantt-base-colors-text-base: var(--cpx-sys-color-fg-primary);
     --dhx-gantt-base-colors-text-light: var(--cpx-sys-color-fg-secondary);
-    --dhx-gantt-base-colors-select: color-mix(in srgb, var(--cpx-sys-color-accent) 10%, transparent);
+    --dhx-gantt-base-colors-select: var(--cpx-sys-color-selected);
+    --dhx-gantt-base-colors-hover-color: var(--cpx-sys-color-hover);
+    --dhx-gantt-container-background: var(--cpx-sys-color-surface-canvas);
+    --dhx-gantt-container-color: var(--cpx-sys-color-fg-primary);
+    --dhx-gantt-scale-background: var(--cpx-sys-color-surface-recessed);
+    --dhx-gantt-scale-color: var(--cpx-sys-color-fg-secondary);
+    --dhx-gantt-grid-scale-background: var(--cpx-sys-color-surface-recessed);
+    --dhx-gantt-timeline-scale-background: var(--cpx-sys-color-surface-recessed);
+    --dhx-gantt-grid-body-background: transparent;
+    --dhx-gantt-task-row-background: transparent;
     --dhx-gantt-box-shadow-s: none;
     --dhx-gantt-box-shadow-m: none;
     --dhx-gantt-box-shadow-l: none;
@@ -503,162 +540,204 @@
     flex: 1;
     min-height: 220px;
     overflow: hidden;
+    transition: background var(--cpx-sys-motion-feedback);
   }
 
-  .taskboard-gantt__unscheduled {
-    flex: none;
-    max-height: min(34%, 280px);
-    overflow: auto;
-    border-block-start: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-raised);
+  .taskboard-gantt__timeline.is-dragging-over {
+    background: color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent);
+    outline: 2px dashed var(--cpx-sys-color-accent);
+    outline-offset: -4px;
   }
 
-  .taskboard-gantt__unscheduled > header {
-    position: sticky;
-    z-index: 1;
-    inset-block-start: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    min-height: 38px;
-    padding-inline: var(--cpx-sys-space-4);
-    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-raised);
+  /* dhtmlx-gantt Core & Scales */
+  .taskboard-gantt .gantt_container,
+  .taskboard-gantt .gantt_layout_root,
+  .taskboard-gantt .gantt_grid,
+  .taskboard-gantt .gantt_task {
+    background: var(--cpx-sys-color-surface-canvas);
+    border-color: var(--cpx-sys-color-border-subtle);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
-  .taskboard-gantt__unscheduled > header span {
-    color: var(--cpx-sys-color-fg-tertiary);
+  .taskboard-gantt .gantt_grid_scale,
+  .taskboard-gantt .gantt_task_scale,
+  .taskboard-gantt .gantt_scale_line,
+  .taskboard-gantt .gantt_scale_cell,
+  .taskboard-gantt .gantt_grid_head_cell {
+    background: var(--cpx-sys-color-surface-recessed);
+    color: var(--cpx-sys-color-fg-secondary);
+    border-color: var(--cpx-sys-color-border-subtle);
     font-size: var(--cpx-sys-font-size-xs);
   }
 
-  .taskboard-gantt__unscheduled-list > button,
-  .taskboard-gantt__unscheduled-step {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto minmax(76px, auto) minmax(76px, auto) minmax(110px, auto);
+  .taskboard-gantt .gantt_scale_line {
+    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
+  }
+
+  .taskboard-gantt .gantt_grid_head_cell {
+    display: flex;
     align-items: center;
-    gap: var(--cpx-sys-space-3);
-    width: 100%;
-    min-height: 48px;
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
-    border: 0;
-    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
-    color: var(--cpx-sys-color-fg-secondary);
-    background: transparent;
-    text-align: start;
-    cursor: pointer;
-  }
-
-  .taskboard-gantt__unscheduled-step {
-    grid-template-columns: minmax(220px, 1fr) minmax(90px, auto) minmax(110px, auto);
-    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-
-  .taskboard-gantt__unscheduled-list > button:hover {
-    background: var(--cpx-sys-color-selected);
-  }
-
-  .taskboard-gantt__unscheduled-list > button:focus-visible {
-    outline: 2px solid var(--cpx-sys-color-accent);
-    outline-offset: -2px;
-  }
-
-  .taskboard-gantt__unscheduled-identity {
-    display: grid;
-    min-width: 0;
-  }
-
-  .taskboard-gantt__unscheduled-identity small {
-    color: var(--cpx-sys-color-fg-tertiary);
-  }
-
-  .taskboard-gantt__unscheduled-identity strong {
-    overflow: hidden;
+    padding-inline: var(--cpx-sys-space-3);
+    font-weight: var(--cpx-sys-font-weight-bold);
     color: var(--cpx-sys-color-fg-primary);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
-  .taskboard-gantt .gantt_layout_root,
-  .taskboard-gantt .gantt_grid,
-  .taskboard-gantt .gantt_task,
-  .taskboard-gantt .gantt_grid_scale,
-  .taskboard-gantt .gantt_task_scale {
-    background: var(--cpx-sys-color-surface-canvas);
-  }
-
-  .taskboard-gantt .gantt_grid_scale,
-  .taskboard-gantt .gantt_task_scale {
-    color: var(--cpx-sys-color-fg-secondary);
-    border-color: var(--cpx-sys-color-border-subtle);
+  .taskboard-gantt .gantt_grid_data,
+  .taskboard-gantt .gantt_task_data {
+    background: transparent;
   }
 
   .taskboard-gantt .gantt_row,
   .taskboard-gantt .gantt_task_row {
     background: transparent;
     border-color: var(--cpx-sys-color-border-subtle);
+    transition: background var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt .gantt_row:hover,
+  .taskboard-gantt .gantt_task_row:hover {
+    background: var(--cpx-sys-color-hover);
+  }
+
+  .taskboard-gantt .gantt_row.gantt_selected,
+  .taskboard-gantt .gantt_task_row.gantt_selected {
+    background: var(--cpx-sys-color-selected);
+  }
+
+  .taskboard-gantt .gantt_cell,
+  .taskboard-gantt .gantt_task_cell {
+    border-color: var(--cpx-sys-color-border-subtle);
+    border-right-style: solid;
   }
 
   .taskboard-gantt .gantt_task_cell.is-weekend,
   .taskboard-gantt .gantt_scale_cell.is-weekend {
-    background: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 62%, transparent);
+    background: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 45%, transparent);
   }
 
   .taskboard-gantt .gantt_task_cell.is-today,
   .taskboard-gantt .gantt_scale_cell.is-today {
-    background: color-mix(in srgb, var(--cpx-sys-color-accent) 5%, transparent);
+    background: color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent);
   }
 
-  .taskboard-gantt__group,
-  .taskboard-gantt__issue,
-  .taskboard-gantt__bar-copy,
-  .taskboard-gantt__scale-day {
-    display: flex;
+  .taskboard-gantt .gantt_scale_cell.is-today {
+    color: var(--cpx-sys-color-accent);
+    font-weight: var(--cpx-sys-font-weight-bold);
+  }
+
+  .taskboard-gantt .gantt_resizer {
+    background: var(--cpx-sys-color-border-subtle);
+    width: var(--cpx-sys-space-1);
+    opacity: 0.8;
+    transition: background var(--cpx-sys-motion-feedback), opacity var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt .gantt_resizer:hover {
+    background: var(--cpx-sys-color-accent);
+    opacity: 1;
+  }
+
+  /* Tree Grid Rows & Icons */
+  .taskboard-gantt .gantt_tree_icon {
+    display: inline-flex;
     align-items: center;
-    min-width: 0;
+    justify-content: center;
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
+    margin-inline-end: var(--cpx-sys-space-1);
+    color: var(--cpx-sys-color-fg-tertiary);
+    cursor: pointer;
+    vertical-align: middle;
   }
 
-  .taskboard-gantt__group {
-    justify-content: space-between;
-    gap: var(--cpx-sys-space-2);
+  .taskboard-gantt .gantt_tree_icon:hover {
     color: var(--cpx-sys-color-fg-primary);
   }
 
-  .taskboard-gantt__group small {
-    color: var(--cpx-sys-color-fg-tertiary);
+  .taskboard-gantt .gantt_close,
+  .taskboard-gantt .gantt_open {
+    background-image: none;
+    position: relative;
   }
 
-  .taskboard-gantt__issue {
+  .taskboard-gantt .gantt_close::before,
+  .taskboard-gantt .gantt_open::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-1) var(--cpx-sys-space-1);
+    border-color: transparent transparent transparent currentColor;
+    transition: transform var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt .gantt_open::before {
+    transform: rotate(90deg);
+  }
+
+  .taskboard-gantt .gantt_file,
+  .taskboard-gantt .gantt_folder_open,
+  .taskboard-gantt .gantt_folder_closed {
+    background-image: none;
+    display: none;
+  }
+
+  .taskboard-gantt__tree-node {
+    display: flex;
+    align-items: center;
     gap: var(--cpx-sys-space-2);
+    min-width: 0;
     height: 100%;
+    padding-inline-end: var(--cpx-sys-space-2);
   }
 
-  .taskboard-gantt__issue > small {
+  .taskboard-gantt__tree-node small {
     flex: none;
     color: var(--cpx-sys-color-fg-tertiary);
     font-variant-numeric: tabular-nums;
+    font-size: var(--cpx-sys-font-size-xs);
   }
 
-  .taskboard-gantt__issue > strong {
+  .taskboard-gantt__tree-node strong {
     overflow: hidden;
+    color: var(--cpx-sys-color-fg-primary);
     font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .taskboard-gantt__issue > i {
+  .taskboard-gantt__tree-node.is-parent strong {
+    font-weight: var(--cpx-sys-font-weight-bold);
+  }
+
+  .taskboard-gantt__tree-node i.unread-dot {
     flex: none;
-    width: 6px;
-    height: 6px;
+    width: var(--cpx-sys-space-1);
+    height: var(--cpx-sys-space-1);
     margin-inline-start: auto;
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-sys-color-accent);
   }
 
+  .taskboard-gantt__tree-status-pill {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-full);
+    font-size: var(--cpx-sys-font-size-xs);
+    line-height: var(--cpx-sys-line-height-tight);
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 15%, transparent);
+    color: var(--cpx-sys-color-fg-secondary);
+    border: 1px solid color-mix(in srgb, var(--cpx-sys-color-border-subtle) 30%, transparent);
+  }
+
   .taskboard-gantt__scale-day {
+    display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     gap: var(--cpx-sys-space-1);
     height: 100%;
     line-height: var(--cpx-sys-line-height-none);
@@ -669,80 +748,212 @@
     font-size: var(--cpx-sys-font-size-xs);
   }
 
-  .taskboard-gantt .taskboard-gantt__bar {
-    --taskboard-gantt-status: var(--cpx-sys-color-fg-tertiary);
-    overflow: hidden;
+  .taskboard-gantt__scale-day strong {
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-medium);
+  }
+
+  /* Task Bars */
+  .taskboard-gantt .gantt_task_line {
+    background: transparent;
     border: 0;
     border-radius: var(--cpx-sys-radius-md);
-    background: var(--taskboard-gantt-status);
     box-shadow: none;
   }
 
-  .taskboard-gantt .taskboard-gantt__status-todo { --taskboard-gantt-status: var(--cpx-sys-color-charts-purple); }
-  .taskboard-gantt .taskboard-gantt__status-in_progress { --taskboard-gantt-status: var(--cpx-sys-color-charts-green); }
-  .taskboard-gantt .taskboard-gantt__status-blocked { --taskboard-gantt-status: var(--cpx-sys-color-danger); }
-  .taskboard-gantt .taskboard-gantt__status-in_review { --taskboard-gantt-status: var(--cpx-sys-color-charts-blue); }
-  .taskboard-gantt .taskboard-gantt__status-backlog { --taskboard-gantt-status: var(--cpx-sys-color-fg-tertiary); }
-  .taskboard-gantt .taskboard-gantt__status-done { --taskboard-gantt-status: var(--cpx-sys-color-success); }
-  .taskboard-gantt .taskboard-gantt__status-canceled { --taskboard-gantt-status: var(--cpx-sys-color-fg-tertiary); }
-
-  .taskboard-gantt__bar-copy {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    height: 100%;
-    padding-inline: var(--cpx-sys-space-2);
-    line-height: var(--cpx-sys-line-height-tight);
+  .taskboard-gantt .gantt_task_line:hover .gantt_task_drag {
+    opacity: 1;
   }
 
-  .taskboard-gantt__bar-copy strong,
-  .taskboard-gantt__bar-copy small {
-    max-width: 100%;
+  .taskboard-gantt .taskboard-gantt__bar {
+    position: relative;
     overflow: hidden;
-    color: var(--cpx-sys-color-fg-on-accent);
+    border-radius: var(--cpx-sys-radius-md);
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 45%, transparent);
+    box-shadow: var(--cpx-sys-shadow-control);
+    transition: filter var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt .taskboard-gantt__bar:hover {
+    filter: brightness(1.08);
+  }
+
+  .taskboard-gantt .taskboard-gantt__bar.is-overdue {
+    border-color: var(--cpx-sys-color-danger);
+  }
+
+  .taskboard-gantt .taskboard-gantt__parent-bar {
+    position: relative;
+    height: var(--cpx-sys-space-2);
+    margin-top: var(--cpx-sys-space-3);
+    border-radius: var(--cpx-sys-radius-xs);
+    background: var(--cpx-sys-color-fg-secondary);
+    opacity: 0.85;
+  }
+
+  .taskboard-gantt .taskboard-gantt__parent-bar::before,
+  .taskboard-gantt .taskboard-gantt__parent-bar::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+  }
+
+  .taskboard-gantt .taskboard-gantt__parent-bar::before {
+    left: 0;
+    border-width: 5px 4px 0 0;
+    border-color: var(--cpx-sys-color-fg-secondary) transparent transparent transparent;
+  }
+
+  .taskboard-gantt .taskboard-gantt__parent-bar::after {
+    right: 0;
+    border-width: 5px 0 0 4px;
+    border-color: var(--cpx-sys-color-fg-secondary) transparent transparent transparent;
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-todo {
+    background: color-mix(in srgb, var(--cpx-sys-color-charts-purple) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-charts-purple) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-in_progress {
+    background: color-mix(in srgb, var(--cpx-sys-color-charts-green) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-charts-green) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-blocked {
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-danger) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-in_review {
+    background: color-mix(in srgb, var(--cpx-sys-color-charts-blue) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-charts-blue) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-backlog {
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-done {
+    background: color-mix(in srgb, var(--cpx-sys-color-success) 22%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-success) 45%, transparent);
+  }
+
+  .taskboard-gantt .taskboard-gantt__status-canceled {
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 15%, transparent);
+    border-color: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 30%, transparent);
+  }
+
+  .taskboard-gantt__bar-copy {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+    height: 100%;
+    padding-inline: var(--cpx-sys-space-3);
+    line-height: var(--cpx-sys-line-height-none);
+    pointer-events: none;
+  }
+
+  .taskboard-gantt__bar-copy strong {
+    overflow: hidden;
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-medium);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .taskboard-gantt__bar-copy small {
-    opacity: 0.78;
+    flex: none;
+    color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-sys-font-size-xs);
+    font-variant-numeric: tabular-nums;
   }
 
-  .taskboard-gantt__group-bar {
-    height: 3px;
-    border: 0;
-    border-radius: 0;
-    background: var(--taskboard-gantt-status);
-    box-shadow: none;
+  .taskboard-gantt__bar-copy .overdue-tag {
+    flex: none;
+    color: var(--cpx-sys-color-danger);
+    font-weight: var(--cpx-sys-font-weight-bold);
+    font-size: var(--cpx-sys-font-size-xs);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
+    border-radius: var(--cpx-sys-radius-xs);
+    background: color-mix(in srgb, var(--cpx-sys-color-danger) 15%, transparent);
   }
 
+  .taskboard-gantt .gantt_task_drag {
+    width: var(--cpx-sys-space-2);
+    height: 100%;
+    top: 0;
+    opacity: 0;
+    transition: opacity var(--cpx-sys-motion-feedback);
+    z-index: var(--cpx-sys-z-local);
+  }
+
+  .taskboard-gantt .gantt_task_drag::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: var(--cpx-sys-space-1);
+    height: var(--cpx-sys-space-4);
+    transform: translateY(-50%);
+    border-radius: var(--cpx-sys-radius-2xs);
+    background: var(--cpx-sys-color-fg-primary);
+    box-shadow: var(--cpx-sys-shadow-control);
+  }
+
+  .taskboard-gantt .gantt_task_drag.task_left {
+    left: 0;
+  }
+
+  .taskboard-gantt .gantt_task_drag.task_left::after {
+    left: 2px;
+  }
+
+  .taskboard-gantt .gantt_task_drag.task_right {
+    right: 0;
+  }
+
+  .taskboard-gantt .gantt_task_drag.task_right::after {
+    right: 2px;
+  }
+
+  /* Today Marker */
   .taskboard-gantt__today {
     position: absolute;
     inset-block: 62px 0;
-    z-index: 3;
-    width: 1px;
+    z-index: var(--cpx-sys-z-sticky);
+    width: 2px;
     pointer-events: none;
     background: var(--cpx-sys-color-danger);
+    box-shadow: var(--cpx-sys-shadow-floating);
   }
 
   .taskboard-gantt__today > span {
     position: absolute;
-    inset-block-start: -22px;
+    inset-block-start: -24px;
     inset-inline-start: 50%;
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
-    border-radius: var(--cpx-sys-radius-sm);
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-full);
     color: var(--cpx-sys-color-fg-on-accent);
     background: var(--cpx-sys-color-danger);
     font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-bold);
     line-height: var(--cpx-sys-line-height-tight);
     transform: translateX(-50%);
+    box-shadow: var(--cpx-sys-shadow-control);
+    white-space: nowrap;
   }
 
   .taskboard-gantt__grid-toggle {
     position: absolute;
     inset-block-start: 50%;
-    z-index: 4;
+    z-index: var(--cpx-sys-z-sticky);
     display: grid;
     place-items: center;
     width: 22px;
@@ -752,9 +963,15 @@
     border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
     color: var(--cpx-sys-color-fg-secondary);
     background: var(--cpx-sys-color-surface-raised);
-    box-shadow: none;
+    box-shadow: var(--cpx-sys-shadow-control);
     cursor: pointer;
     transform: translate(-1px, -50%);
+    transition: background var(--cpx-sys-motion-feedback), color var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt__grid-toggle:hover {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   .taskboard-gantt__grid-toggle:focus-visible {
@@ -769,6 +986,173 @@
     place-items: center;
     color: var(--cpx-sys-color-fg-tertiary);
     pointer-events: none;
+    font-size: var(--cpx-sys-font-size-sm);
+  }
+
+  /* Unscheduled Tasks Floating Trigger & Drawer */
+  .taskboard-gantt__unscheduled-badge {
+    position: absolute;
+    inset-inline-end: var(--cpx-sys-space-5);
+    inset-block-end: var(--cpx-sys-space-5);
+    z-index: var(--cpx-sys-z-dock);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
+    border-radius: var(--cpx-sys-radius-full);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-raised);
+    color: var(--cpx-sys-color-fg-primary);
+    box-shadow: var(--cpx-sys-shadow-floating);
+    cursor: pointer;
+    font-size: var(--cpx-sys-font-size-sm);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    transition: background var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt__unscheduled-badge:hover {
+    background: var(--cpx-sys-color-hover);
+    box-shadow: var(--cpx-sys-shadow-prominent);
+  }
+
+  .taskboard-gantt__unscheduled-badge span.badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--cpx-sys-space-5);
+    height: var(--cpx-sys-space-5);
+    padding-inline: var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-full);
+    background: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-fg-on-accent);
+    font-size: var(--cpx-sys-font-size-xs);
+    font-weight: var(--cpx-sys-font-weight-bold);
+  }
+
+  .taskboard-gantt__unscheduled-drawer {
+    position: absolute;
+    inset-inline-end: var(--cpx-sys-space-5);
+    inset-block-end: var(--cpx-sys-space-5);
+    z-index: var(--cpx-sys-z-dock);
+    width: min(calc(100% - 40px), 700px);
+    max-height: 380px;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--cpx-sys-radius-lg);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-raised);
+    box-shadow: var(--cpx-sys-shadow-prominent);
+    overflow: hidden;
+  }
+
+  .taskboard-gantt__unscheduled-drawer header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+    border-block-end: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-recessed);
+  }
+
+  .taskboard-gantt__unscheduled-drawer header .drawer-title {
+    display: flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+    font-weight: var(--cpx-sys-font-weight-bold);
+    color: var(--cpx-sys-color-fg-primary);
+    font-size: var(--cpx-sys-font-size-sm);
+  }
+
+  .taskboard-gantt__unscheduled-drawer header .drawer-title span.count {
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+    border-radius: var(--cpx-sys-radius-full);
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 20%, transparent);
+    color: var(--cpx-sys-color-fg-secondary);
+    font-size: var(--cpx-sys-font-size-xs);
+  }
+
+  .taskboard-gantt__unscheduled-drawer header .drawer-hint {
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-xs);
+  }
+
+  .taskboard-gantt__unscheduled-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--cpx-sys-space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--cpx-sys-space-2);
+  }
+
+  .taskboard-gantt__unscheduled-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+    border-radius: var(--cpx-sys-radius-md);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    background: var(--cpx-sys-color-surface-canvas);
+    cursor: grab;
+    user-select: none;
+    transition: background var(--cpx-sys-motion-feedback), border-color var(--cpx-sys-motion-feedback);
+  }
+
+  .taskboard-gantt__unscheduled-card:hover {
+    background: var(--cpx-sys-color-hover);
+    border-color: var(--cpx-sys-color-border-default);
+  }
+
+  .taskboard-gantt__unscheduled-card:active {
+    cursor: grabbing;
+  }
+
+  .taskboard-gantt__unscheduled-card .card-drag-handle {
+    flex: none;
+    color: var(--cpx-sys-color-fg-tertiary);
+    display: flex;
+    align-items: center;
+  }
+
+  .taskboard-gantt__unscheduled-card .card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cpx-sys-space-1);
+  }
+
+  .taskboard-gantt__unscheduled-card .card-info .card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+    font-size: var(--cpx-sys-font-size-xs);
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  .taskboard-gantt__unscheduled-card .card-info .card-title {
+    overflow: hidden;
+    color: var(--cpx-sys-color-fg-primary);
+    font-weight: var(--cpx-sys-font-weight-medium);
+    font-size: var(--cpx-sys-font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .taskboard-gantt__unscheduled-card .card-badges {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-2);
+  }
+
+  .taskboard-gantt__unscheduled-card .card-actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--cpx-sys-space-1);
   }
 
   @media (max-width: 900px) {

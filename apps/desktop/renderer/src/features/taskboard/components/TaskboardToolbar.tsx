@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { CalendarClock, EyeOff, SlidersHorizontal } from 'lucide-react'
+import { CalendarClock, EyeOff, Maximize2, SlidersHorizontal } from 'lucide-react'
 import type {
   TaskboardLabel,
   TaskboardPriority,
@@ -9,6 +9,7 @@ import type {
 } from '@codepilotx/shared/taskboard'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverCheckboxItem, PopoverItem, PopoverLabel, PopoverRadioGroup, PopoverRadioItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
@@ -38,6 +39,7 @@ type Props = {
   ganttZoom: TaskboardGanttZoom
   ganttHideCompleted: boolean
   onGanttToday: () => void
+  onGanttFitAll?: () => void
   onGanttZoomChange: (zoom: TaskboardGanttZoom) => void
   onGanttHideCompletedChange: (hidden: boolean) => void
   onChange: (patch: Record<string, string | null>) => void
@@ -63,6 +65,7 @@ export function TaskboardToolbar({
   ganttZoom,
   ganttHideCompleted,
   onGanttToday,
+  onGanttFitAll,
   onGanttZoomChange,
   onGanttHideCompletedChange,
   onChange,
@@ -70,7 +73,6 @@ export function TaskboardToolbar({
 }: Props): React.ReactNode {
   const [query, setQuery] = useState(appliedQuery ?? '')
   const [filterOpen, setFilterOpen] = useState(false)
-  const [ganttZoomOpen, setGanttZoomOpen] = useState(false)
   useEffect(() => setQuery(appliedQuery ?? ''), [appliedQuery])
 
   const clearFilters = (): void => {
@@ -146,115 +148,113 @@ export function TaskboardToolbar({
       </div>
       <div className="taskboard-toolbar__actions">
         <PopoverMenu
-        align="end"
-        open={filterOpen}
-        width={224}
-        trigger={
-          <Button
-            aria-label="筛选"
-            className="taskboard-toolbar__action taskboard-toolbar__filter-trigger"
-            color={activeFilterCount > 0 ? 'ghostActive' : 'ghostSecondary'}
-            size="compact"
-            title="筛选"
-            type="button"
-          >
-            <SlidersHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
-            <span className="u-sr-only">筛选</span>
-            {activeFilterCount > 0 ? (
-              <span className="taskboard-toolbar__filter-badge">{activeFilterCount}</span>
-            ) : null}
-          </Button>
-        }
-        onOpenChange={setFilterOpen}
-      >
-        <PopoverLabel>优先级</PopoverLabel>
-        <PopoverRadioGroup
-          value={priority ?? 'all'}
-          onValueChange={value => {
-            onChange({ priority: value === 'all' ? null : value })
-            setFilterOpen(false)
-          }}
+          align="end"
+          open={filterOpen}
+          width={224}
+          trigger={
+            <IconButton
+              className="taskboard-toolbar__action taskboard-toolbar__filter-trigger"
+              color={activeFilterCount > 0 ? 'ghostActive' : 'ghostSecondary'}
+              title="筛选"
+              size="toolbar"
+              type="button"
+            >
+              <SlidersHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
+              {activeFilterCount > 0 ? (
+                <span className="taskboard-toolbar__filter-badge">{activeFilterCount}</span>
+              ) : null}
+            </IconButton>
+          }
+          onOpenChange={setFilterOpen}
         >
-          <PopoverRadioItem value="all">全部</PopoverRadioItem>
-          {(['urgent', 'high', 'medium', 'low'] as const).map(value => (
-            <PopoverRadioItem key={value} value={value}>
-              {TASKBOARD_PRIORITY_LABELS[value]}
-            </PopoverRadioItem>
-          ))}
-        </PopoverRadioGroup>
-        {labels.length > 0 ? (
-          <>
-            <PopoverSeparator />
-            <PopoverLabel>标签</PopoverLabel>
-            {labels.map(label => (
-              <PopoverCheckboxItem
-                checked={labelIds.includes(label.id)}
-                key={label.id}
-                onCheckedChange={() => toggleLabel(label.id)}
-              >
-                {label.name}
-              </PopoverCheckboxItem>
+          <PopoverLabel>优先级</PopoverLabel>
+          <PopoverRadioGroup
+            value={priority ?? 'all'}
+            onValueChange={value => {
+              onChange({ priority: value === 'all' ? null : value })
+              setFilterOpen(false)
+            }}
+          >
+            <PopoverRadioItem value="all">全部</PopoverRadioItem>
+            {(['urgent', 'high', 'medium', 'low'] as const).map(value => (
+              <PopoverRadioItem key={value} value={value}>
+                {TASKBOARD_PRIORITY_LABELS[value]}
+              </PopoverRadioItem>
             ))}
-          </>
-        ) : null}
-        <PopoverSeparator />
-        <PopoverCheckboxItem checked={unread} onCheckedChange={() => onChange({ unread: unread ? null : '1' })}>
-          待整理（{unreadCount}）
-        </PopoverCheckboxItem>
-        <PopoverLabel>截止日期</PopoverLabel>
-        <PopoverRadioGroup value={datePreset ?? 'all'} onValueChange={value => onChange({ date: value === 'all' ? null : value })}>
-          <PopoverRadioItem value="all">全部日期</PopoverRadioItem>
-          <PopoverRadioItem value="overdue">已逾期</PopoverRadioItem>
-          <PopoverRadioItem value="due_today">今天到期</PopoverRadioItem>
-          <PopoverRadioItem value="due_7_days">7 天内到期</PopoverRadioItem>
-          <PopoverRadioItem value="no_due_date">无截止日期</PopoverRadioItem>
-        </PopoverRadioGroup>
-        {view !== 'archive' ? (
-          <>
-            <PopoverLabel>排序</PopoverLabel>
-            <PopoverRadioGroup value={sort ?? 'position'} onValueChange={value => onChange({ sort: value === 'position' ? null : value })}>
-              <PopoverRadioItem value="position">看板顺序</PopoverRadioItem>
-              <PopoverRadioItem value="due_date">截止日期</PopoverRadioItem>
-              <PopoverRadioItem value="updated_at">最近更新</PopoverRadioItem>
-            </PopoverRadioGroup>
-          </>
-        ) : null}
-        {activeFilterCount > 0 ? (
-          <>
-            <PopoverSeparator />
-            <PopoverItem onClick={() => { clearFilters(); setFilterOpen(false) }}>
-              清除筛选
-            </PopoverItem>
-          </>
-        ) : null}
+          </PopoverRadioGroup>
+          {labels.length > 0 ? (
+            <>
+              <PopoverSeparator />
+              <PopoverLabel>标签</PopoverLabel>
+              {labels.map(label => (
+                <PopoverCheckboxItem
+                  checked={labelIds.includes(label.id)}
+                  key={label.id}
+                  onCheckedChange={() => toggleLabel(label.id)}
+                >
+                  {label.name}
+                </PopoverCheckboxItem>
+              ))}
+            </>
+          ) : null}
+          <PopoverSeparator />
+          <PopoverCheckboxItem checked={unread} onCheckedChange={() => onChange({ unread: unread ? null : '1' })}>
+            待整理（{unreadCount}）
+          </PopoverCheckboxItem>
+          <PopoverLabel>截止日期</PopoverLabel>
+          <PopoverRadioGroup value={datePreset ?? 'all'} onValueChange={value => onChange({ date: value === 'all' ? null : value })}>
+            <PopoverRadioItem value="all">全部日期</PopoverRadioItem>
+            <PopoverRadioItem value="overdue">已逾期</PopoverRadioItem>
+            <PopoverRadioItem value="due_today">今天到期</PopoverRadioItem>
+            <PopoverRadioItem value="due_7_days">7 天内到期</PopoverRadioItem>
+            <PopoverRadioItem value="no_due_date">无截止日期</PopoverRadioItem>
+          </PopoverRadioGroup>
+          {view !== 'archive' ? (
+            <>
+              <PopoverLabel>排序</PopoverLabel>
+              <PopoverRadioGroup value={sort ?? 'position'} onValueChange={value => onChange({ sort: value === 'position' ? null : value })}>
+                <PopoverRadioItem value="position">看板顺序</PopoverRadioItem>
+                <PopoverRadioItem value="due_date">截止日期</PopoverRadioItem>
+                <PopoverRadioItem value="updated_at">最近更新</PopoverRadioItem>
+              </PopoverRadioGroup>
+            </>
+          ) : null}
+          {activeFilterCount > 0 ? (
+            <>
+              <PopoverSeparator />
+              <PopoverItem onClick={() => { clearFilters(); setFilterOpen(false) }}>
+                清除筛选
+              </PopoverItem>
+            </>
+          ) : null}
         </PopoverMenu>
         {view === 'gantt' ? (
           <>
-            <Button aria-label="回到今天" className="taskboard-toolbar__action" color="ghostSecondary" size="compact" title="回到今天" type="button" onClick={onGanttToday}>
-              <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} /><span className="u-sr-only">今天</span>
-            </Button>
+            <IconButton className="taskboard-toolbar__action" color="ghostSecondary" size="toolbar" title="回到今天" type="button" onClick={onGanttToday}>
+              <CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />
+            </IconButton>
+            {onGanttFitAll ? (
+              <IconButton className="taskboard-toolbar__action" color="ghostSecondary" size="toolbar" title="适配全部任务" type="button" onClick={onGanttFitAll}>
+                <Maximize2 aria-hidden="true" size={APP_ICON_SIZE} />
+              </IconButton>
+            ) : null}
             <label className="taskboard-filter">
               <EyeOff aria-hidden="true" size={APP_ICON_SIZE} />
               <span className="taskboard-filter__label">隐藏完成</span>
               <ToggleSwitch ariaLabel="隐藏已完成任务" checked={ganttHideCompleted} onChange={onGanttHideCompletedChange} />
             </label>
-            <PopoverMenu
-              align="end"
-              open={ganttZoomOpen}
+            <Select
+              ariaLabel="时间刻度"
+              options={[
+                { value: 'day', label: '日视图' },
+                { value: 'week', label: '周视图' },
+                { value: 'month', label: '月视图' },
+              ]}
+              triggerClassName="taskboard-toolbar__zoom-select"
+              value={ganttZoom}
               width={156}
-              trigger={<Button color="ghostSecondary" size="compact" type="button">{ganttZoomLabel(ganttZoom)}</Button>}
-              onOpenChange={setGanttZoomOpen}
-            >
-              <PopoverLabel>时间刻度</PopoverLabel>
-              <PopoverRadioGroup value={ganttZoom} onValueChange={value => {
-                onGanttZoomChange(value as TaskboardGanttZoom)
-                setGanttZoomOpen(false)
-              }}>
-                <PopoverRadioItem value="day">日视图</PopoverRadioItem>
-                <PopoverRadioItem value="week">周视图</PopoverRadioItem>
-                <PopoverRadioItem value="month">月视图</PopoverRadioItem>
-              </PopoverRadioGroup>
-            </PopoverMenu>
+              onValueChange={onGanttZoomChange}
+            />
           </>
         ) : null}
         {!loading && count === 0 && hasActiveFilters ? (
@@ -268,10 +268,4 @@ export function TaskboardToolbar({
       </div>
     </div>
   )
-}
-
-function ganttZoomLabel(zoom: TaskboardGanttZoom): string {
-  if (zoom === 'day') return '日'
-  if (zoom === 'month') return '月'
-  return '周'
 }

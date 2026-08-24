@@ -49,7 +49,7 @@ export function TaskboardList(props: Props): React.ReactNode {
         const closed = collapsed.has(status)
         return (
           <section className="taskboard-list__group" data-status={status} key={status}>
-            <button aria-expanded={!closed} className="interactive-row interactive-row--adaptive taskboard-list__group-header" type="button" onClick={() => toggle(status)}>
+            <button aria-expanded={!closed} className="taskboard-list__group-header" type="button" onClick={() => toggle(status)}>
               {closed ? <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
               <span className="taskboard-list__status-dot" aria-hidden="true" />
               <strong>{taskboardStatusLabel(status)}</strong><span>{statusTasks.length}</span>
@@ -66,7 +66,7 @@ export function TaskboardList(props: Props): React.ReactNode {
                     <article className="taskboard-list__row" data-task-depth={planning?.depth || undefined} data-taskboard-task-id={task.id} data-unread={task.attention.unread || undefined} key={task.id}>
                       <div className="taskboard-list__task-cell">
                         {expandable ? <IconButton aria-expanded={props.expandedTaskIds.has(task.id)} color="ghostSecondary" size="toolbar" title={props.expandedTaskIds.has(task.id) ? '收起子任务' : '展开子任务'} onClick={() => props.onToggleTask(task.id)}>{props.expandedTaskIds.has(task.id) ? <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />}</IconButton> : <span className="taskboard-list__tree-spacer" />}
-                        <button className="interactive-row interactive-row--adaptive taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
+                        <button className="taskboard-list__open" type="button" onClick={() => props.onOpen(task.id)}>
                           <span className="taskboard-list__identity">
                             <small>{props.projectNames.get(task.projectId) ?? '项目已移除'} · #{task.number}</small>
                             <strong>{task.title}</strong>
