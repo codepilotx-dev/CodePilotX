@@ -4,6 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import {
+  BUNDLE_BUDGET_METRIC_NAMES,
+  evaluateBundleBudget,
+  parseBundleBudgetBaseline,
+  type BundleBudgetEvaluation,
+  type BundleBudgetMetricName,
+} from './scripts/bundle-budget-policy.js'
 
 // Two-layer real gates for the /new route. The entry gate bounds the static
 // shell graph (Vite entry plus `chunk.imports`). The entry now intentionally
@@ -14,17 +21,19 @@ import { gzipSync } from 'node:zlib'
 // dynamic isolation. Each surface gate bounds the interactive first screen
 // graph reachable from explicit module manifests. Raw JS is the primary metric
 // because the desktop server returns Bun.file without Content-Encoding; gzip
-// stays as a regression aid. Ceilings are set to final measured values × 1.05
-// (rounded up to 5 KiB) after the optimization batches landed.
+// stays as a regression aid. JS keeps fixed post-optimization ceilings. CSS uses
+// an explicitly accepted baseline with warning and failure growth bands, split
+// between the static entry, /new interactive union and owned lazy routes.
 const ENTRY_RAW_BUDGET_KIB = 2625
 const ENTRY_GZIP_BUDGET_KIB = 760
 const SURFACE_RAW_BUDGET_KIB = 2840
 const SURFACE_GZIP_BUDGET_KIB = 825
-const CSS_RAW_BUDGET_KIB = 785
-const CSS_RAW_BUDGET = CSS_RAW_BUDGET_KIB * 1024
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
 ) as { version: string }
+const bundleBudgetBaseline = parseBundleBudgetBaseline(JSON.parse(
+  readFileSync(resolve(__dirname, 'bundle-budget-baseline.json'), 'utf8'),
+))
 
 const RENDERER_SRC_ROOT = resolve(__dirname, 'src')
 
@@ -175,6 +184,10 @@ const NEW_SURFACE_MODULES: Record<string, readonly string[]> = {
   ],
 }
 
+const ROUTE_BUDGET_MODULES = {
+  taskboard: ['features/taskboard/TaskboardView.tsx'],
+} as const
+
 type BundleChunk = {
   fileName: string
   isEntry: boolean
@@ -242,29 +255,60 @@ function measureGraph(
   return { rawBytes, gzipBytes }
 }
 
-function cssUnionBytes(
+function collectCssFiles(
   chunks: Map<string, BundleChunk>,
-  assets: Record<string, { type?: string; source?: unknown }>,
   fileNames: Iterable<string>,
-): number {
+): Set<string> {
   const cssFiles = new Set<string>()
   for (const fileName of fileNames) {
     for (const cssFile of chunks.get(fileName)?.viteMetadata?.importedCss ?? []) {
       cssFiles.add(cssFile)
     }
   }
-  return [...cssFiles].reduce((total, fileName) => {
-    const asset = assets[fileName]
-    if (!asset || asset.type !== 'asset') {
-      return total
-    }
-    if (typeof asset.source === 'string') {
-      return total + Buffer.byteLength(asset.source)
-    }
-    return asset.source instanceof Uint8Array
-      ? total + asset.source.byteLength
-      : total
-  }, 0)
+  return cssFiles
+}
+
+function assetByteLength(
+  asset: { type?: string; source?: unknown } | undefined,
+): number {
+  if (!asset || asset.type !== 'asset') return 0
+  if (typeof asset.source === 'string') return Buffer.byteLength(asset.source)
+  return asset.source instanceof Uint8Array ? asset.source.byteLength : 0
+}
+
+function measureCssAssets(
+  assets: Record<string, { type?: string; source?: unknown }>,
+  cssFiles: Iterable<string>,
+): number {
+  let total = 0
+  for (const fileName of cssFiles) total += assetByteLength(assets[fileName])
+  return total
+}
+
+function difference(
+  left: Iterable<string>,
+  right: ReadonlySet<string>,
+): Set<string> {
+  return new Set([...left].filter(value => !right.has(value)))
+}
+
+function formatKib(bytes: number): string {
+  return `${(bytes / 1024).toFixed(1)} KiB`
+}
+
+function formatCssBudget(
+  label: string,
+  evaluation: BundleBudgetEvaluation,
+): string {
+  const deltaPrefix = evaluation.deltaBytes >= 0 ? '+' : ''
+  return [
+    `${label}: ${formatKib(evaluation.observedBytes)} (${evaluation.observedBytes} bytes)`,
+    `baseline ${formatKib(evaluation.baselineBytes)} (${evaluation.baselineBytes} bytes)`,
+    `delta ${deltaPrefix}${formatKib(evaluation.deltaBytes)}`,
+    `warn ${formatKib(evaluation.warningLimitBytes)}`,
+    `fail ${formatKib(evaluation.failureLimitBytes)}`,
+    evaluation.status.toUpperCase(),
+  ].join('; ')
 }
 
 function routeBundleBudget(): Plugin {
@@ -314,7 +358,68 @@ function routeBundleBudget(): Plugin {
         for (const fileName of graph) surfaceGraphs.add(fileName)
       }
 
-      const interactiveCssBytes = cssUnionBytes(chunks, bundle, surfaceGraphs)
+      const routeGraphs = new Map<string, Set<string>>()
+      for (const [route, modules] of Object.entries(ROUTE_BUDGET_MODULES)) {
+        const absolutePaths = modules.map(module =>
+          normalizeSlashes(resolve(RENDERER_SRC_ROOT, module)),
+        )
+        const found = findChunksContainingModules(chunks, absolutePaths)
+        const missingModules = absolutePaths.filter(
+          path => ![...found.values()].some(hits => hits.has(path)),
+        )
+        if (missingModules.length > 0) {
+          this.error(
+            `Route "${route}" manifest modules missing from the build: ${missingModules.join(', ')}`,
+          )
+        }
+        const rootChunks = [...found.keys()]
+        const entryRoots = rootChunks.filter(fileName => entryGraph.has(fileName))
+        if (entryRoots.length > 0) {
+          this.error(
+            `Route "${route}" must remain outside the static entry graph: ${entryRoots.join(', ')}`,
+          )
+        }
+        routeGraphs.set(route, collectStaticGraph(chunks, rootChunks))
+      }
+
+      const taskboardGraph = routeGraphs.get('taskboard')
+      if (!taskboardGraph) {
+        this.error('Route "taskboard" budget graph is missing')
+      }
+      const entryCssFiles = collectCssFiles(chunks, entryGraph)
+      const interactiveCssFiles = collectCssFiles(chunks, surfaceGraphs)
+      const taskboardCssFiles = collectCssFiles(chunks, taskboardGraph)
+      const taskboardIncrementalCssFiles = difference(
+        taskboardCssFiles,
+        entryCssFiles,
+      )
+      const taskboardInitialCssFiles = new Set([
+        ...entryCssFiles,
+        ...taskboardCssFiles,
+      ])
+      const cssMetrics: Record<BundleBudgetMetricName, number> = {
+        entryCssRawBytes: measureCssAssets(bundle, entryCssFiles),
+        newInteractiveCssRawBytes: measureCssAssets(bundle, interactiveCssFiles),
+        taskboardInitialIncrementalCssRawBytes: measureCssAssets(
+          bundle,
+          taskboardIncrementalCssFiles,
+        ),
+      }
+      const taskboardInitialCssRawBytes = measureCssAssets(
+        bundle,
+        taskboardInitialCssFiles,
+      )
+      const largestAsyncCss = Object.entries(bundle)
+        .filter(([fileName, asset]) => (
+          fileName.endsWith('.css')
+          && !entryCssFiles.has(fileName)
+          && asset.type === 'asset'
+        ))
+        .map(([fileName, asset]) => ({
+          fileName,
+          rawBytes: assetByteLength(asset),
+        }))
+        .sort((left, right) => right.rawBytes - left.rawBytes)[0]
 
       const largestChunk = [...chunks.values()]
         .map((chunk: any) => ({
@@ -342,9 +447,37 @@ function routeBundleBudget(): Plugin {
           `/new?surface=${surface} interactive JS: ${(measure.rawBytes / 1024).toFixed(1)} KiB raw / ${(measure.gzipBytes / 1024).toFixed(1)} KiB gzip (+${((measure.rawBytes - entryMeasure.rawBytes) / 1024).toFixed(1)} KiB raw vs entry)`,
         )
       }
+      const cssBudgetLabels: Record<BundleBudgetMetricName, string> = {
+        entryCssRawBytes: 'CSS entry',
+        newInteractiveCssRawBytes: 'CSS /new interactive union',
+        taskboardInitialIncrementalCssRawBytes: 'CSS taskboard initial incremental',
+      }
+      const cssBudgetFailures: string[] = []
+      for (const name of BUNDLE_BUDGET_METRIC_NAMES) {
+        const evaluation = evaluateBundleBudget(
+          bundleBudgetBaseline.metrics[name],
+          cssMetrics[name],
+        )
+        const message = formatCssBudget(cssBudgetLabels[name], evaluation)
+        if (evaluation.status === 'warning') this.warn(message)
+        else this.info(message)
+        if (evaluation.status === 'failure') cssBudgetFailures.push(message)
+
+        const warningAllowance = evaluation.warningLimitBytes - evaluation.baselineBytes
+        if (evaluation.deltaBytes <= -warningAllowance) {
+          this.info(
+            `${cssBudgetLabels[name]} is ${formatKib(-evaluation.deltaBytes)} below its accepted baseline; the baseline can be tightened after review`,
+          )
+        }
+      }
       this.info(
-        `/new interactive CSS union: ${(interactiveCssBytes / 1024).toFixed(1)} KiB raw`,
+        `CSS taskboard initial total: ${formatKib(taskboardInitialCssRawBytes)} raw`,
       )
+      if (largestAsyncCss) {
+        this.info(
+          `Largest async CSS chunk: ${largestAsyncCss.fileName} (${formatKib(largestAsyncCss.rawBytes)} raw)`,
+        )
+      }
       if (largestChunk) {
         this.info(
           `Largest JS chunk: ${largestChunk.fileName} (${(largestChunk.rawBytes / 1024).toFixed(1)} KiB raw / ${(largestChunk.gzipBytes / 1024).toFixed(1)} KiB gzip)`,
@@ -375,10 +508,8 @@ function routeBundleBudget(): Plugin {
           )
         }
       }
-      if (interactiveCssBytes > CSS_RAW_BUDGET) {
-        this.error(
-          `/new interactive CSS union exceeds budget (${(interactiveCssBytes / 1024).toFixed(1)} KiB raw; limit ${CSS_RAW_BUDGET_KIB} KiB)`,
-        )
+      if (cssBudgetFailures.length > 0) {
+        this.error(`Renderer CSS bundle budget failed:\n${cssBudgetFailures.join('\n')}`)
       }
     },
   }

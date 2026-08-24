@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
+import { FullScreenWhaleLoading } from './components/ui/FullScreenWhaleLoading.js'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
@@ -12,7 +13,6 @@ import { PluginsView } from './features/plugins/PluginsView.js'
 import { ProjectsView } from './features/projects/ProjectsView.js'
 import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
 import { ModelCenterView } from './features/models/ModelCenterView.js'
-import { TaskboardView } from './features/taskboard/TaskboardView.js'
 import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
 import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
@@ -22,6 +22,27 @@ const PetOverlayPage = lazy(() =>
     default: module.PetOverlayPage,
   })),
 )
+
+const TaskboardView = lazy(() =>
+  import('./features/taskboard/TaskboardView.js').then(module => ({
+    default: module.TaskboardView,
+  })),
+)
+
+function TaskboardRoute(): ReactNode {
+  return (
+    <Suspense
+      fallback={(
+        <FullScreenWhaleLoading
+          label="正在加载任务看板…"
+          variant="contained"
+        />
+      )}
+    >
+      <TaskboardView />
+    </Suspense>
+  )
+}
 
 const routeErrorElement = <RouteErrorPage />
 
@@ -63,8 +84,8 @@ const router = createHashRouter([
           { path: 'threads/:threadId', element: <ConversationPage /> },
           { path: 'projects', element: <ProjectsView /> },
           { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'taskboard', element: <TaskboardView /> },
-          { path: 'taskboard/:taskId', element: <TaskboardView /> },
+          { path: 'taskboard', element: <TaskboardRoute /> },
+          { path: 'taskboard/:taskId', element: <TaskboardRoute /> },
           { path: 'models', element: <ModelCenterView /> },
           { path: 'plugins', element: <PluginsView /> },
           { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
