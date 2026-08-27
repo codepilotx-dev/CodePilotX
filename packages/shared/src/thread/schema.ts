@@ -111,6 +111,7 @@ export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
   creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
   workspace: Schema.optional(ThreadWorkspaceSchema),
@@ -124,6 +125,7 @@ export type Thread = typeof ThreadSchema.Type
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
   creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
   workspace: Schema.optional(ThreadWorkspaceSchema),
