@@ -82,11 +82,11 @@ describe("Skills catalog", () => {
     const workspace = await temporaryDirectory()
     const user = await temporaryDirectory()
     const builtin = await temporaryDirectory()
-    const builtinRoot = join(builtin, "taskboard-planner")
+    const builtinRoot = join(builtin, "builtin-helper")
     await mkdir(builtinRoot, { recursive: true })
     await writeFile(join(builtinRoot, "SKILL.md"), [
       "---",
-      "name: taskboard-planner",
+      "name: builtin-helper",
       "description: builtin planner",
       "allowed-tools:",
       "  - request_user_input",
@@ -94,7 +94,7 @@ describe("Skills catalog", () => {
       "---",
       "builtin body",
     ].join("\n"), "utf8")
-    await writeSkill(user, ".agents", "taskboard-planner", "---\nname: taskboard-planner\ndescription: user planner\n---\nuser body")
+    await writeSkill(user, ".agents", "builtin-helper", "---\nname: builtin-helper\ndescription: user planner\n---\nuser body")
 
     const userService = new SkillService()
     const userCatalog = await userService.scan({
@@ -104,16 +104,16 @@ describe("Skills catalog", () => {
       builtinSkillsRoot: builtin,
     })
     expect(userCatalog.skills).toMatchObject([{
-      name: "taskboard-planner",
+      name: "builtin-helper",
       origin: "user",
       description: "user planner",
     }])
     expect(userCatalog.shadowed).toContainEqual(expect.objectContaining({
-      name: "taskboard-planner",
-      ignoredPath: "builtin://taskboard-planner/SKILL.md",
+      name: "builtin-helper",
+      ignoredPath: "builtin://builtin-helper/SKILL.md",
     }))
 
-    await writeSkill(workspace, ".codepilotx", "taskboard-planner", "---\nname: taskboard-planner\ndescription: workspace planner\n---\nworkspace body")
+    await writeSkill(workspace, ".codepilotx", "builtin-helper", "---\nname: builtin-helper\ndescription: workspace planner\n---\nworkspace body")
     const workspaceService = new SkillService()
     const workspaceCatalog = await workspaceService.scan({
       workspaceRoot: workspace,
@@ -122,7 +122,7 @@ describe("Skills catalog", () => {
       builtinSkillsRoot: builtin,
     })
     expect(workspaceCatalog.skills[0]).toMatchObject({
-      name: "taskboard-planner",
+      name: "builtin-helper",
       origin: "workspace",
       description: "workspace planner",
     })
@@ -135,12 +135,12 @@ describe("Skills catalog", () => {
       builtinSkillsRoot: builtin,
     })
     expect(builtinCatalog.skills[0]).toMatchObject({
-      name: "taskboard-planner",
-      path: "builtin://taskboard-planner/SKILL.md",
+      name: "builtin-helper",
+      path: "builtin://builtin-helper/SKILL.md",
       origin: "builtin",
       allowedTools: ["request_user_input", "taskboard_create"],
     })
-    expect((await builtinOnly.read("taskboard-planner")).body.trim()).toBe("builtin body")
+    expect((await builtinOnly.read("builtin-helper")).body.trim()).toBe("builtin body")
   })
 
   test("使用 YAML 解析复杂 frontmatter 并读取 allowedTools ceiling", async () => {

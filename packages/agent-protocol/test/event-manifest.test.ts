@@ -150,69 +150,26 @@ describe("event manifest invariants", () => {
     }
   })
 
-  test("publishes taskboard changes as minimal durable global invalidations", () => {
-    expect(EventManifest["taskboard/changed"]).toMatchObject({
+  test("publishes session group changes as minimal durable global invalidations", () => {
+    expect(EventManifest["session-group/changed"]).toMatchObject({
       durability: "durable",
       stream: "global",
-      capability: "taskboard.v1",
-      reconcilesWith: "taskboard/task/list",
+      capability: "session-group.v1",
+      reconcilesWith: "session-group/list",
     })
     const decode = Schema.decodeUnknownSync(
-      EventManifest["taskboard/changed"].payload,
+      EventManifest["session-group/changed"].payload,
       { onExcessProperty: "error" },
     )
     const payload = {
-      projectId: "project:1",
-      taskId: "task:1",
-      resource: "task" as const,
-      action: "updated" as const,
+      groupId: "session-group:1",
+      reason: "step_changed" as const,
+      stepId: "session-group-step:1",
+      revision: 2,
       changedAt: 1,
     }
     expect(decode(payload)).toEqual(payload)
-    expect(() => decode({ ...payload, description: "不得进入事件日志" })).toThrow()
+    expect(() => decode({ ...payload, summary: "不得进入事件日志" })).toThrow()
     expect(() => decode({ ...payload, cwd: "C:\\sensitive" })).toThrow()
-  })
-
-  test("publishes workflow changes without task content", () => {
-    expect(EventManifest["taskboard/workflow/changed"]).toMatchObject({
-      durability: "durable",
-      stream: "global",
-      capability: "taskboard.workflow.v1",
-      reconcilesWith: "taskboard/workflow/list",
-    })
-    const decode = Schema.decodeUnknownSync(
-      EventManifest["taskboard/workflow/changed"].payload,
-      { onExcessProperty: "error" },
-    )
-    const payload = {
-      projectId: "project:1",
-      taskId: "task:1",
-      resource: "attention" as const,
-      action: "updated" as const,
-      changedAt: 1,
-    }
-    expect(decode(payload)).toEqual(payload)
-    expect(() => decode({ ...payload, note: "不得进入事件日志" })).toThrow()
-  })
-
-  test("publishes planning changes as minimal durable global invalidations", () => {
-    expect(EventManifest["taskboard/planning/changed"]).toMatchObject({
-      durability: "durable",
-      stream: "global",
-      capability: "taskboard.planning.v1",
-      reconcilesWith: "taskboard/planning/roots",
-    })
-    const decode = Schema.decodeUnknownSync(
-      EventManifest["taskboard/planning/changed"].payload,
-      { onExcessProperty: "error" },
-    )
-    const payload = {
-      projectId: "project:1",
-      rootTaskId: "task:root",
-      changedTaskId: "task:child",
-      changedAt: 1,
-    }
-    expect(decode(payload)).toEqual(payload)
-    expect(() => decode({ ...payload, blockerReason: "不得进入事件日志" })).toThrow()
   })
 })

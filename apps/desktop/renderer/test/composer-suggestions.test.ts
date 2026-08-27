@@ -436,7 +436,7 @@ describe('working suggestions', () => {
     ).toEqual({
       state: { kind: 'hidden', reason: 'prompt-filled' },
       prompt: '创建一个新文档。先问我它应该是什么主题。',
-      plugin: 'task-planning',
+      plugin: null,
     })
     expect(
       selectWorkingSuggestionTask(

@@ -131,7 +131,7 @@ describe('Working contextual suggestion state', () => {
     expect(selectWorkingContextualSuggestion(contextualSuggestions[0])).toEqual({
       state: { kind: 'hidden', reason: 'prompt-filled' },
       prompt: '继续处理失败任务',
-      plugin: 'task-planning',
+      plugin: null,
     })
   })
 

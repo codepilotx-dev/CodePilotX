@@ -1460,15 +1460,15 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
-  test("taskboard/changed 缺 taskboard.v1 时不允许 durable 投递，thread/updated 在 events.replay.v1 下允许", async () => {
+  test("session-group/changed 缺 session-group.v1 时不允许 durable 投递，thread/updated 在 events.replay.v1 下允许", async () => {
     const { eventDeliveryAllowed } = await import("../src/transport/server")
-    const taskboardEvent = {
+    const sessionGroupEvent = {
       id: 0,
       afterSequence: 1,
       threadId: null,
       turnId: null,
-      method: "taskboard/changed",
-      params: { projectId: "project:1", taskId: null, resource: "task" as const, action: "created" as const, changedAt: 1 },
+      method: "session-group/changed",
+      params: { groupId: "group:1", reason: "created" as const, revision: 1, changedAt: 1 },
       createdAt: Date.now(),
     }
     const threadEvent = {
@@ -1480,11 +1480,11 @@ describe("RPC v4 Router", () => {
       params: { thread: { id: "thread:1", title: "test", projectId: null, createdAt: 1, updatedAt: 1, deletedAt: null, unreadAt: null, readThroughAt: null }, version: 1 },
       createdAt: Date.now(),
     }
-    const withTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "taskboard.v1"]) }
-    expect(eventDeliveryAllowed(taskboardEvent, withTaskboard)).toBe(true)
-    const withoutTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
-    expect(eventDeliveryAllowed(taskboardEvent, withoutTaskboard)).toBe(false)
-    expect(eventDeliveryAllowed(threadEvent, withoutTaskboard)).toBe(true)
+    const withSessionGroup = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "session-group.v1"]) }
+    expect(eventDeliveryAllowed(sessionGroupEvent, withSessionGroup)).toBe(true)
+    const withoutSessionGroup = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
+    expect(eventDeliveryAllowed(sessionGroupEvent, withoutSessionGroup)).toBe(false)
+    expect(eventDeliveryAllowed(threadEvent, withoutSessionGroup)).toBe(true)
   })
 
   test("event subscriptions track high-watermarks, acknowledgements and closure", async () => {

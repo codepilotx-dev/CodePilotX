@@ -27,8 +27,6 @@ const ROUTES = [
   ['plugins', '/?visualCase=empty#/plugins'],
   ['automations', '/?visualCase=empty#/automations'],
   ['pets', '/?visualCase=empty#/pets'],
-  ['taskboard', '/?visualCase=taskboard#/taskboard'],
-  ['taskboard-empty', '/?visualCase=taskboard&taskboardEmpty=1#/taskboard'],
   [
     'settings-appearance',
     '/?visualCase=empty&visualThemeSeedDelayMs=300#/settings/appearance',
@@ -171,56 +169,6 @@ test('WCAG 2.2 AA: popover open state', async ({ page }, testInfo) => {
   await brightness.focus()
   await brightness.press('End')
   await expect(brightness).toHaveAttribute('aria-valuenow', '100')
-})
-
-test('WCAG 2.2 AA: taskboard open states', async ({ page }, testInfo) => {
-  await preparePage(page, '/?visualCase=taskboard#/taskboard')
-  await expect(page.locator('.taskboard-column')).toHaveCount(6)
-
-  // 筛选弹出菜单（工具栏）
-  await page.getByRole('button', { name: '筛选' }).click()
-  await expect(page.getByRole('menu')).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-  await page.keyboard.press('Escape')
-
-  // 独立归档 Surface
-  const workspaceToolbar = page.getByRole('toolbar', { name: '工作区工具栏' })
-  await workspaceToolbar.getByRole('button', { name: '已归档' }).click()
-  await expect(page.getByRole('region', { name: '已归档任务' })).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-  await workspaceToolbar.getByRole('button', { name: '议题看板' }).click()
-  await expect(page.locator('.taskboard-column')).toHaveCount(6)
-
-  // 拖拽替代操作：卡片移动菜单
-  await page.getByRole('button', { name: '移动任务：重构看板五列布局与流程箭头' }).click()
-  await expect(page.getByRole('menu')).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: '上移' })).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-  await page.keyboard.press('Escape')
-
-  // 新建任务对话框
-  await page.getByRole('button', { name: '新建任务' }).click()
-  const createTaskDialog = page.getByRole('dialog', { name: '新建任务' })
-  await expect(createTaskDialog).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-
-  await createTaskDialog.getByLabel('项目').click()
-  await expect(page.getByRole('listbox')).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-  await page.keyboard.press('Escape')
-
-  await createTaskDialog.getByLabel('开始日期').click()
-  await expect(page.getByRole('grid', { name: /开始日期/ })).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-
-  // 任务详情 drawer
-  await page
-    .getByRole('button', { name: '打开任务：重构看板五列布局与流程箭头' })
-    .click()
-  await expect(page.locator('.taskboard-drawer')).toBeVisible()
-  await expectNoWcagViolations(page, testInfo)
 })
 
 test('keyboard users can bypass the application chrome', async ({ page }) => {

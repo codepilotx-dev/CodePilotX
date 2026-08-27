@@ -24,7 +24,7 @@ describe('desktop live event subscription filters', () => {
     skills: ['skill/updated'],
     tooling: ['tooling/updated'],
     mcp: ['mcp/updated'],
-    taskboard: [],
+    sessionGroups: [],
     global: [
       'catalog/updated',
       'provider/credential/updated',

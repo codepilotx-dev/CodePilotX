@@ -43,7 +43,7 @@ describe('Renderer bundle budget policy', () => {
         entryCssRawBytes: 1,
         newInteractiveCssRawBytes: 1,
       },
-    })).toThrow('taskboardInitialIncrementalCssRawBytes')
+    })).toThrow('sessionGroupsInitialIncrementalCssRawBytes')
 
     expect(() => parseBundleBudgetBaseline({
       schemaVersion: 1,
@@ -52,7 +52,7 @@ describe('Renderer bundle budget policy', () => {
       metrics: {
         entryCssRawBytes: -1,
         newInteractiveCssRawBytes: 1,
-        taskboardInitialIncrementalCssRawBytes: 1,
+        sessionGroupsInitialIncrementalCssRawBytes: 1,
       },
     })).toThrow('entryCssRawBytes')
   })

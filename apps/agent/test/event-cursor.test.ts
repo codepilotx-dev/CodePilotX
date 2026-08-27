@@ -48,8 +48,8 @@ describe("Agent SSE event cursor", () => {
   test("eventDeliveryAllowed blocks durable event without required capability, permits thread/updated with events.replay.v1", () => {
     const taskboardEvent = {
       id: 1, afterSequence: 2, threadId: null as string | null, turnId: null as string | null,
-      method: "taskboard/changed",
-      params: { projectId: "p1", taskId: null, resource: "task" as const, action: "created" as const, changedAt: 1 },
+      method: "session-group/changed",
+      params: { groupId: "g1", reason: "created" as const, revision: 1, changedAt: 1 },
       createdAt: Date.now(),
     } as EventEnvelope
     const threadEvent = {
@@ -58,7 +58,7 @@ describe("Agent SSE event cursor", () => {
       params: { thread: { id: "t1", title: "t", projectId: null, createdAt: 1, updatedAt: 1, deletedAt: null, unreadAt: null, readThroughAt: null }, version: 1 },
       createdAt: Date.now(),
     } as EventEnvelope
-    const withTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "taskboard.v1"]) }
+    const withTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "session-group.v1"]) }
     expect(eventDeliveryAllowed(taskboardEvent, withTaskboard)).toBe(true)
     const withoutTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
     expect(eventDeliveryAllowed(taskboardEvent, withoutTaskboard)).toBe(false)
@@ -68,8 +68,8 @@ describe("Agent SSE event cursor", () => {
   test("capability gate blocks delivery but cursor still advances past filtered events", async () => {
     const taskboardEvent = {
       id: 1, afterSequence: 2, threadId: "t1" as string | null, turnId: null as string | null,
-      method: "taskboard/changed",
-      params: { projectId: "p1", taskId: null, resource: "task" as const, action: "created" as const, changedAt: 1 },
+      method: "session-group/changed",
+      params: { groupId: "g1", reason: "created" as const, revision: 1, changedAt: 1 },
       createdAt: Date.now(),
     } as EventEnvelope
     const threadEvent = {

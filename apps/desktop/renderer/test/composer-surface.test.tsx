@@ -2,16 +2,12 @@ import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DesktopWorkspace } from '../shared/types.js'
 import { ComposerCard } from '../src/features/session/composer/ComposerCard.js'
-import type { ComposerSkillCommand } from '../src/features/session/composer/composerSlashCommands.js'
 import {
   resolveMagneticSliderPosition,
   resolveThinkingLabel,
   resolveThinkingOptions,
 } from '../src/features/session/composer/ThinkingLevelPopover.js'
-import {
-  resolveActiveComposerSkillToken,
-  resolveComposerCanSubmit,
-} from '../src/features/session/composer/useDesktopComposerController.js'
+import { resolveComposerCanSubmit } from '../src/features/session/composer/useDesktopComposerController.js'
 
 type ComposerCardProps = Parameters<typeof ComposerCard>[0]
 
@@ -19,19 +15,6 @@ const WORKSPACE: DesktopWorkspace = {
   name: 'Alpha 工作区',
   path: 'C:\\alpha',
   branchName: 'feature/working-surface',
-}
-
-const TASKBOARD_PLANNER: ComposerSkillCommand = {
-  id: 'skill:taskboard-planner',
-  trigger: 'taskboard-planner',
-  title: 'taskboard-planner',
-  description: '规划任务',
-  source: 'skill',
-  skill: {
-    name: 'taskboard-planner',
-    path: 'builtin://taskboard-planner/SKILL.md',
-    scope: 'system',
-  },
 }
 
 function composerCardProps(
@@ -79,24 +62,6 @@ function composerCardProps(
 }
 
 describe('composer surface variant', () => {
-  test('Working 任务规划使用实际生效的同名 Skill 路径', () => {
-    const workspaceOverride: ComposerSkillCommand = {
-      ...TASKBOARD_PLANNER,
-      skill: {
-        ...TASKBOARD_PLANNER.skill,
-        path: 'C:/workspace/.codepilotx/skills/taskboard-planner/SKILL.md',
-        scope: 'repo',
-      },
-    }
-
-    expect(resolveActiveComposerSkillToken(
-      'task-planning',
-      null,
-      [workspaceOverride],
-    )?.skill.path).toBe(workspaceOverride.skill.path)
-    expect(resolveActiveComposerSkillToken('task-planning', null, [])).toBeNull()
-  })
-
   test('Coding、Working 与 Chat 输出各自的 data-surface 标记', () => {
     const coding = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'coding' })} />,
@@ -161,26 +126,27 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('选择文件夹')
   })
 
-  test('Coding 选中 workspace 后保留本地、分支与项目行为', () => {
+  test('Coding 选中 workspace 后显示会话组、分支与项目行为', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({ surface: 'coding', workspace: WORKSPACE })}
       />,
     )
     expect(html).toContain('Alpha 工作区')
-    expect(html).toContain('本地')
+    expect(html).toContain('会话组')
     expect(html).toContain('feature/working-surface')
     expect(html).toContain('选择分支')
   })
 
-  test('Chat 不渲染项目工具条，但保留输入与提交结构', () => {
+  test('Chat 不渲染项目选择，但保留会话组、输入与提交结构', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
         {...composerCardProps({ surface: 'chat', workspace: WORKSPACE })}
       />,
     )
-    expect(html).not.toContain('class="composer-utility-bar')
+    expect(html).toContain('class="composer-bottom composer-utility-bar')
     expect(html).not.toContain('Alpha 工作区')
+    expect(html).toContain('会话组')
     expect(html).toContain('composer-input-surface')
     expect(html).toContain('aria-label="发送"')
   })
@@ -269,25 +235,6 @@ describe('composer surface variant', () => {
     expect(resolveMagneticSliderPosition(0.8, 0)).toBe(0)
   })
 
-  test('Working 仅在任务规划 Skill 可用时显示插件入口', () => {
-    const unavailable = renderToStaticMarkup(
-      <ComposerCard {...composerCardProps({ surface: 'working' })} />,
-    )
-    const html = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({
-          surface: 'working',
-          skillCommands: [TASKBOARD_PLANNER],
-          taskPlanningAvailable: true,
-        })}
-      />,
-    )
-    expect(html).toContain('选择文件夹')
-    expect(html).toContain('插件')
-    expect(html).not.toContain('进入项目工作')
-    expect(unavailable).not.toContain('插件')
-  })
-
   test('Working 选中 workspace 后显示工作区名称并隐藏 Local 和分支', () => {
     const html = renderToStaticMarkup(
       <ComposerCard
@@ -298,21 +245,6 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('本地')
     expect(html).not.toContain('feature/working-surface')
     expect(html).not.toContain('选择分支')
-  })
-
-  test('Working 选择规划任务后底栏保持通用插件入口', () => {
-    const html = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({
-          surface: 'working',
-          workingPlugin: 'task-planning',
-          skillCommands: [TASKBOARD_PLANNER],
-          taskPlanningAvailable: true,
-        })}
-      />,
-    )
-    expect(html).toContain('选择工作插件')
-    expect(html).not.toContain('取消工作插件')
   })
 
   test('Composer 发送门禁不依赖 Git/Review 状态，非 Git 项目仍可提交', () => {

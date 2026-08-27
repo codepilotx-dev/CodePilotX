@@ -168,9 +168,9 @@ describe('desktop runtime skills client', () => {
 
   test('maps the stable builtin skill URI to the non-editable system source', async () => {
     const builtinSkill = {
-      name: 'taskboard-planner',
-      description: 'Plan taskboard tasks.',
-      path: 'builtin://taskboard-planner/SKILL.md',
+      name: 'builtin-helper',
+      description: 'Run built-in helper.',
+      path: 'builtin://builtin-helper/SKILL.md',
       scope: 'user',
       format: 'codepilotx',
       enabled: true,
@@ -193,7 +193,7 @@ describe('desktop runtime skills client', () => {
     await expect(client.listRuntimeSkills(workspace)).resolves.toMatchObject({
       state: 'ready',
       data: [{
-        name: 'taskboard-planner',
+        name: 'builtin-helper',
         path: builtinSkill.path,
         scope: 'system',
         source: 'system',

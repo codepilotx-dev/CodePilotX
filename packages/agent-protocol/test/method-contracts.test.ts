@@ -411,10 +411,10 @@ const authSession = {
   expiresAt: 2,
 }
 
-const methodFixture = <M extends RpcMethod>(
+const methodFixture = <M extends string>(
   _method: M,
-  params: RpcParams<M>,
-  result: RpcResult<M>,
+  params: M extends RpcMethod ? RpcParams<M> : unknown,
+  result: M extends RpcMethod ? RpcResult<M> : unknown,
 ) => ({ params, result })
 
 type MethodFixtures = {
@@ -422,7 +422,7 @@ type MethodFixtures = {
     readonly params: RpcParams<M>
     readonly result: RpcResult<M>
   }
-}
+} & Readonly<Record<string, { readonly params: unknown; readonly result: unknown }>>
 
 const taskboardTask = {
   id: "taskboard-task:1",
@@ -2821,6 +2821,64 @@ const fixtures = {
     mode: "continue_primary",
     authorizeBacklog: true,
   }, { operation: taskboardStartOperation }),
+  "session-group/list": methodFixture("session-group/list", {
+    query: "登录",
+    limit: 20,
+  }, {
+    groups: [],
+    nextCursor: null,
+  }),
+  "session-group/read": methodFixture("session-group/read", {
+    groupId: "session-group:1",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复", description: "跨项目排查登录问题", version: 1,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1,
+    },
+    memberships: [],
+  }),
+  "session-group/create": methodFixture("session-group/create", {
+    name: "登录修复", description: "跨项目排查登录问题", operationId: "operation:session-group-create",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复", description: "跨项目排查登录问题", version: 1,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1,
+    },
+  }),
+  "session-group/update": methodFixture("session-group/update", {
+    groupId: "session-group:1", expectedVersion: 1, patch: { name: "登录修复组" }, operationId: "operation:session-group-update",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复组", description: "跨项目排查登录问题", version: 2,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 2,
+    },
+  }),
+  "session-group/delete": methodFixture("session-group/delete", {
+    groupId: "session-group:1", expectedVersion: 2, operationId: "operation:session-group-delete",
+  }, { groupId: "session-group:1", deletedAt: 3 }),
+  "session-group/membership/set": methodFixture("session-group/membership/set", {
+    threadId: "thread:1", groupId: "session-group:1", operationId: "operation:session-group-membership",
+  }, { membership: { groupId: "session-group:1", threadId: "thread:1", joinedAt: 2 } }),
+  "session-group/context/read": methodFixture("session-group/context/read", {
+    groupId: "session-group:1", sections: ["objective"],
+  }, {
+    state: { groupId: "session-group:1", contextRevision: 1, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 1 },
+    entries: [],
+  }),
+  "session-group/context/update": methodFixture("session-group/context/update", {
+    groupId: "session-group:1", expectedContextRevision: 1,
+    changes: [{ op: "add", section: "objective", title: "目标", content: "修复登录问题" }],
+    operationId: "operation:session-group-context",
+  }, {
+    state: { groupId: "session-group:1", contextRevision: 2, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 2 },
+    entries: [],
+  }),
+  "session-group/step/list": methodFixture("session-group/step/list", {
+    groupId: "session-group:1", limit: 20,
+  }, { steps: [], nextCursor: null }),
+  "session-group/step/diff": methodFixture("session-group/step/diff", {
+    groupId: "session-group:1", stepId: "session-group-step:1", path: "src/index.ts",
+  }, { stepId: "session-group-step:1", files: [] }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -2938,55 +2996,22 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("任务看板按兼容能力分组并在 wire 边界限制正文和标签", () => {
-    const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("taskboard/"))
-    expect(methods).toHaveLength(54)
-    const workflowMethods = methods.filter(([method]) => method.startsWith("taskboard/workflow/"))
-    const workflowDiagnostics = workflowMethods.filter(([method]) => method === "taskboard/workflow/diagnostics")
-    const workflowOperations = workflowMethods.filter(([method]) => method !== "taskboard/workflow/diagnostics")
-    const contextMethods = methods.filter(([method]) => method.startsWith("taskboard/context/"))
-    const planningMethods = methods.filter(([method]) => method.startsWith("taskboard/planning/"))
-    const legacyMethods = methods.filter(([method]) => !method.startsWith("taskboard/workflow/") && !method.startsWith("taskboard/context/") && !method.startsWith("taskboard/planning/"))
-    expect(workflowMethods).toHaveLength(12)
-    expect(contextMethods).toHaveLength(6)
-    expect(planningMethods).toHaveLength(14)
-    expect(workflowOperations.every(([, definition]) => definition.capability === "taskboard.workflow.v1")).toBe(true)
-    expect(workflowDiagnostics.every(([, definition]) => definition.capability === "taskboard.workflow.diagnostics.v1")).toBe(true)
-    expect(contextMethods.every(([, definition]) => definition.capability === "taskboard.context.v1")).toBe(true)
-    expect(planningMethods.every(([, definition]) => definition.capability === "taskboard.planning.v1")).toBe(true)
-    expect(legacyMethods.every(([, definition]) => definition.capability === "taskboard.v1")).toBe(true)
-    expect(Capabilities).toContain("taskboard.v1")
-    expect(Capabilities).toContain("taskboard.workflow.v1")
-    expect(Capabilities).toContain("taskboard.workflow.diagnostics.v1")
-    expect(Capabilities).toContain("taskboard.context.v1")
-    expect(Capabilities).toContain("taskboard.planning.v1")
+  test("会话组使用唯一能力并停止公开任务看板协议", () => {
+    const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("session-group/"))
+    expect(methods).toHaveLength(10)
+    expect(methods.every(([, definition]) => definition.capability === "session-group.v1")).toBe(true)
+    expect(Object.keys(RpcMethods).some(method => method.startsWith("taskboard/"))).toBe(false)
+    expect(Capabilities).toContain("session-group.v1")
+    expect(Capabilities.some(capability => capability.startsWith("taskboard."))).toBe(false)
 
-    const decodeDiagnostics = Schema.decodeUnknownSync(
-      RpcMethods["taskboard/workflow/diagnostics"].params,
-    )
-    expect(() => decodeDiagnostics({ taskIds: [] })).toThrow()
-    expect(() => decodeDiagnostics({
-      taskIds: Array.from({ length: 501 }, (_, index) => `task:${index}`),
-    })).toThrow()
-
-    const decodeCreate = Schema.decodeUnknownSync(RpcMethods["taskboard/task/create"].params)
+    const decodeCreate = Schema.decodeUnknownSync(RpcMethods["session-group/create"].params)
     expect(() => decodeCreate({
-      ...fixtures["taskboard/task/create"].params,
-      title: "x".repeat(201),
+      ...fixtures["session-group/create"].params,
+      name: "x".repeat(121),
     })).toThrow()
     expect(() => decodeCreate({
-      ...fixtures["taskboard/task/create"].params,
-      description: "x".repeat(65_537),
-    })).toThrow()
-    expect(() => decodeCreate({
-      ...fixtures["taskboard/task/create"].params,
-      labelIds: Array.from({ length: 21 }, (_, index) => `label:${index}`),
-    })).toThrow()
-
-    const decodeComment = Schema.decodeUnknownSync(RpcMethods["taskboard/comment/create"].params)
-    expect(() => decodeComment({
-      ...fixtures["taskboard/comment/create"].params,
-      body: "x".repeat(32_769),
+      ...fixtures["session-group/create"].params,
+      description: "x".repeat(4_001),
     })).toThrow()
   })
 
@@ -3047,8 +3072,9 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(259)
-    expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
+    expect(methods).toHaveLength(215)
+    const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
+    expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
       const definition = AllRpcMethods[method]
@@ -3324,6 +3350,15 @@ describe("RPC method schema contracts", () => {
     })
     expect(decode({
       ...common,
+      sessionGroupId: "session-group:1",
+      workspace: { kind: "project", projectId: project.id },
+    })).toEqual({
+      ...common,
+      sessionGroupId: "session-group:1",
+      workspace: { kind: "project", projectId: project.id },
+    })
+    expect(decode({
+      ...common,
       workspace: {
         kind: "project",
         projectId: project.id,
@@ -3368,7 +3403,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(253)
+    expect(Object.keys(RpcMethods)).toHaveLength(209)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

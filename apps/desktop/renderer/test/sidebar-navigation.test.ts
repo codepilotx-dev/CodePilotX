@@ -117,7 +117,7 @@ describe('Codex 侧栏导航', () => {
   test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
       { view: 'new', label: '新建对话', path: '/new' },
-      { view: 'taskboard', label: '任务看板', path: '/taskboard' },
+      { view: 'sessionGroups', label: '会话组', path: '/session-groups' },
       { view: 'automations', label: '自动化', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
       { view: 'models', label: '供应商', path: '/models' },
@@ -235,14 +235,14 @@ describe('Codex 侧栏导航', () => {
     ).toEqual(alwaysViews)
   })
 
-  test('协商 taskboard.v1 后任务看板位于新建对话之后、项目之前', () => {
+  test('协商 session-group.v1 后会话组位于新建对话之后、项目之前', () => {
     expect(sidebarNavItems(
       true,
       undefined,
-      readySidebarCapabilities('taskboard.v1'),
+      readySidebarCapabilities('session-group.v1'),
     ).map(item => item.view)).toEqual([
       'new',
-      'taskboard',
+      'sessionGroups',
       'projects',
       'automations',
     ])

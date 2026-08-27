@@ -50,21 +50,21 @@ describe("SkillManagementService", () => {
   test("内置 Skill 保持 builtin:// 身份、兼容 user wire scope，并可持久禁用", async () => {
     const { root, workspace, dataRoot, userHome, database, settings } = await fixture()
     const builtinSkillsRoot = join(root, "builtin-skills")
-    const builtinDocument = join(builtinSkillsRoot, "taskboard-planner", "SKILL.md")
+    const builtinDocument = join(builtinSkillsRoot, "builtin-helper", "SKILL.md")
     await mkdir(dirname(builtinDocument), { recursive: true })
-    await writeFile(builtinDocument, "---\nname: taskboard-planner\ndescription: builtin planner\n---\nbuiltin", "utf8")
+    await writeFile(builtinDocument, "---\nname: builtin-helper\ndescription: builtin planner\n---\nbuiltin", "utf8")
     const service = new SkillManagementService(settings, { dataRoot, userHome, builtinSkillsRoot })
 
     const listed = await service.list({ workspace })
-    const builtin = listed.skills.find((skill) => skill.name === "taskboard-planner")
+    const builtin = listed.skills.find((skill) => skill.name === "builtin-helper")
     expect(builtin).toEqual(expect.objectContaining({
-      path: "builtin://taskboard-planner/SKILL.md",
+      path: "builtin://builtin-helper/SKILL.md",
       scope: "user",
       enabled: true,
     }))
     await expect(service.read({ workspace, path: builtin!.path })).resolves.toMatchObject({
       content: expect.stringContaining("builtin"),
-      skill: { path: "builtin://taskboard-planner/SKILL.md", scope: "user" },
+      skill: { path: "builtin://builtin-helper/SKILL.md", scope: "user" },
     })
 
     await service.setEnabled({
@@ -74,7 +74,7 @@ describe("SkillManagementService", () => {
     })
     const runtime = new SkillManagementService(settings, { dataRoot, userHome, builtinSkillsRoot }).runtimeService()
     const catalog = await runtime.scan({ workspaceRoot: workspace, dataRoot, userHome })
-    expect(catalog.skills.map((skill) => skill.name)).not.toContain("taskboard-planner")
+    expect(catalog.skills.map((skill) => skill.name)).not.toContain("builtin-helper")
     expect(database.profileSqlite.query(
       "SELECT value FROM app_settings WHERE key = 'skills.runtime.v1'",
     ).get()).toBeTruthy()

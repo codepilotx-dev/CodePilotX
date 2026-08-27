@@ -69,14 +69,46 @@ const seedSemanticBoundary = (db: AgentDatabase, input: { turnID: string; thread
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
+  test("v39 到 v40 新增空会话组表并保留旧任务看板记录", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v39-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const project = db.createProject({ id: "project:v39", rootPath: join(root, "workspace"), name: "旧项目" })
+    const taskId = "task:legacy-v39"
+    db.sqlite.query(`INSERT INTO taskboard_tasks
+      (id, project_id, number, title, description, status, priority, position, version, archived_at, created_at, updated_at)
+      VALUES (?, ?, 1, '旧任务', '', 'todo', 'none', 0, 1, NULL, 1, 1)`).run(taskId, project.id)
+    for (const table of [
+      "session_group_operations",
+      "session_group_context_entries",
+      "session_group_context_state",
+      "session_group_steps",
+      "session_group_memberships",
+      "session_groups",
+    ]) db.sqlite.query(`DROP TABLE ${table}`).run()
+    db.sqlite.exec("PRAGMA user_version = 39")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 40 })
+    expect(reopened.sqlite.query("SELECT title FROM taskboard_tasks WHERE id = ?").get(taskId)).toEqual({ title: "旧任务" })
+    expect(reopened.repositories.sessionGroups.list()).toEqual([])
+    reopened.close()
+  })
+
   test("v35 工作流表补齐排序位置并保留已有任务", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v35-"))
     paths.push(root)
     const historyPath = join(root, "agent.sqlite")
     const profilePath = join(root, "profile.sqlite")
     const db = new AgentDatabase({ historyPath, profilePath })
-    const task = db.createTask({ projectId: "project:migration", title: "保留的任务", status: "todo" })
-    const expectedPosition = task.task.position
+    const taskId = "task:workflow-v35"
+    const expectedPosition = 0
+    db.sqlite.query(`INSERT INTO taskboard_tasks
+      (id, project_id, number, title, description, status, priority, position, version, archived_at, created_at, updated_at)
+      VALUES (?, 'project:migration', 1, '保留的任务', '', 'todo', 'none', ?, 1, NULL, 1, 1)`).run(taskId, expectedPosition)
     db.sqlite.exec(`
       DROP TRIGGER taskboard_workflow_after_task_insert;
       DROP TRIGGER taskboard_workflow_after_legacy_status_change;
@@ -99,10 +131,10 @@ describe("数据库兼容与迁移", () => {
 
     const reopened = new AgentDatabase({ historyPath, profilePath })
     expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    expect(reopened.sqlite.query("SELECT position FROM taskboard_task_workflows WHERE task_id = ?").get(task.task.id))
+    expect(reopened.sqlite.query("SELECT position FROM taskboard_task_workflows WHERE task_id = ?").get(taskId))
       .toEqual({ position: expectedPosition })
-    expect(reopened.listWorkflowTasks({ projectId: "project:migration" }).tasks.map(({ id }) => id))
-      .toEqual([task.task.id])
+    expect(reopened.sqlite.query("SELECT id FROM taskboard_tasks WHERE project_id = ?").all("project:migration"))
+      .toEqual([{ id: taskId }])
     reopened.close()
   })
 
@@ -1001,7 +1033,7 @@ describe("数据库兼容与迁移", () => {
     migrated.close()
   })
 
-  test("schema 38 前向迁移到 39 只新增任务规划表并保留未知对象", async () => {
+  test("schema 38 前向迁移到当前版本新增任务规划和会话组表并保留未知对象", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v38-to-v39-"))
     paths.push(root)
     const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
@@ -1018,7 +1050,7 @@ describe("数据库兼容与迁移", () => {
     legacy.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 39 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 40 })
     expect((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('taskboard_plan_items','taskboard_plan_dependencies','taskboard_blockers','taskboard_archive_batches','taskboard_archive_batch_tasks')").all() as Array<{ name: string }>).map(row => row.name).sort()).toEqual([
       "taskboard_archive_batch_tasks",
       "taskboard_archive_batches",

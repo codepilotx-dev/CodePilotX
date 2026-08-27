@@ -19,9 +19,9 @@ const plugin: PluginCatalogItem = {
 }
 
 const builtinSkill: DesktopInstalledSkill = {
-  name: 'taskboard-planner',
-  description: 'Plan taskboard tasks.',
-  path: 'builtin://taskboard-planner/SKILL.md',
+  name: 'builtin-helper',
+  description: 'Run built-in helper.',
+  path: 'builtin://builtin-helper/SKILL.md',
   scope: 'system',
   source: 'system',
   format: 'codepilotx',
@@ -58,7 +58,7 @@ describe('plugin and skill detail deep links', () => {
     )
     const workspaceSkill: DesktopInstalledSkill = {
       ...builtinSkill,
-      path: 'F:\\workspace\\.agents\\skills\\taskboard-planner\\SKILL.md',
+      path: 'F:\\workspace\\.agents\\skills\\builtin-helper\\SKILL.md',
       scope: 'repo',
       source: 'workspace',
     }
@@ -75,8 +75,8 @@ describe('plugin and skill detail deep links', () => {
     expect(safeInternalRoute('https://example.com')).toBeNull()
     expect(safeInternalRoute('//example.com')).toBeNull()
     expect(safeInternalRoute('/\\example.com')).toBeNull()
-    expect(safeInternalRoute('/taskboard?view=list#task-1')).toBe(
-      '/taskboard?view=list#task-1',
+    expect(safeInternalRoute('/session-groups?view=list#group-1')).toBe(
+      '/session-groups?view=list#group-1',
     )
     expect(resolvePluginDetailsDeepLink(
       new URLSearchParams({
