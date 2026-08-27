@@ -10,4 +10,4 @@ export type {
   StoredEncryptedCredential,
 } from "./repository-core"
 
-export { TaskboardRepositoryDatabase as RepositoryDatabase } from "./taskboard-repository"
+export { ReviewRepositoryDatabase as RepositoryDatabase } from "./review-repository"

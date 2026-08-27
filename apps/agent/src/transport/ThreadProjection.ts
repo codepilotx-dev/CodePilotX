@@ -248,11 +248,13 @@ export class ThreadProjection {
 
 
   private projectThreadRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
+    const sessionGroupId = this.db.repositories.sessionGroups.membership(String(row.id))?.group_id ?? null
     return {
       id: String(row.id),
       title: String(row.title),
       projectID: row.project_id == null ? null : String(row.project_id),
       gitBranch: row.git_branch == null ? null : String(row.git_branch),
+      sessionGroupId,
       ...(row.creation_surface ? { creationSurface: row.creation_surface as Thread["creationSurface"] } : {}),
       ...(workspace ? { workspace } : {}),
       settings: {
@@ -725,10 +727,12 @@ export class ThreadProjection {
     return rows.map((row): ThreadListItem => {
       const id = String(row.id)
       const workspace = this.db.threadWorkspace(id)
+      const sessionGroupId = this.db.repositories.sessionGroups.membership(id)?.group_id ?? null
       return {
         id,
         projectID: row.project_id == null ? null : String(row.project_id),
         gitBranch: row.git_branch == null ? null : String(row.git_branch),
+        sessionGroupId,
         ...(row.creation_surface ? { creationSurface: row.creation_surface as ThreadListItem["creationSurface"] } : {}),
         ...(workspace ? { workspace } : {}),
         title: String(row.title),

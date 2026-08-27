@@ -32,7 +32,7 @@ import { resolveEffectivePermissionConfig } from "../permission/EffectivePermiss
 import { TurnCoordinator, type TurnTerminalStatus } from "./TurnCoordinator"
 import { TurnRunner } from "./TurnRunner"
 import type { ThreadTitleService } from "./ThreadTitleService"
-import type { TaskContextService } from "../task-context/TaskContextService"
+import type { SessionGroupService } from "../session-group/SessionGroupService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -140,12 +140,7 @@ export class ThreadService {
     resumeCheckpoints?: ResumeCheckpointResolver,
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
-    private readonly firstTurnAdmission?: (threadID: string) => readonly EventEnvelope[],
-    private readonly taskboardExecutionContext?: (threadID: string) => {
-      instruction: string
-      activeTools: readonly string[]
-    } | null,
-    private readonly taskContext?: TaskContextService,
+    private readonly sessionGroups?: SessionGroupService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -230,6 +225,7 @@ export class ThreadService {
     title?: string
     settings?: ThreadSettings
     operationID: string
+    sessionGroupID?: string
     bindExecution?: (threadID: string) => void
     workspace:
       | {
@@ -244,6 +240,7 @@ export class ThreadService {
       title: input.title ?? null,
       settings: input.settings ?? null,
       workspace: input.workspace,
+      sessionGroupID: input.sessionGroupID ?? null,
     })).digest("hex")
     const duplicate = this.db.threadForCreateOperation(input.operationID)
     if (duplicate) {
@@ -252,7 +249,11 @@ export class ThreadService {
     }
     if (input.workspace.kind === "project") {
       const projectID = input.workspace.projectID
+      let groupEvent: EventEnvelope | null = null
       const created = this.db.transaction(() => {
+        if (input.sessionGroupID && !this.db.repositories.sessionGroups.read(input.sessionGroupID)) {
+          throw new AgentError("SESSION_GROUP_NOT_FOUND", "会话组不存在", 404)
+        }
         const record = this.db.createThread({
           creationSurface: input.creationSurface,
           title: input.title,
@@ -262,8 +263,13 @@ export class ThreadService {
           requestHash,
         })
         input.bindExecution?.(record.id)
+        if (input.sessionGroupID) {
+          this.db.repositories.sessionGroups.setMembership(record.id, input.sessionGroupID)
+          groupEvent = this.db.insertEvent(record.id, null, "session-group/changed", { groupId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
+        }
         return record
       })
+      if (groupEvent) await this.publish([groupEvent])
       this.refreshPromptSettings(created.id)
       return created
     }
@@ -274,22 +280,34 @@ export class ThreadService {
       threadID,
       ...(input.workspace.prompt === undefined ? {} : { prompt: input.workspace.prompt }),
     })
+    let groupEvent: EventEnvelope | null = null
     try {
-      const created = this.db.createThread({
-        id: threadID,
-        creationSurface: input.creationSurface,
-        title: input.title,
-        settings: input.settings,
-        workspace: {
-          kind: "projectless",
-          workspaceRoot: allocation.sessionRoot,
-          cwd: allocation.cwd,
-          outputDirectory: allocation.outputDirectory,
-        },
-        operationID: input.operationID,
-        requestHash,
+      const created = this.db.transaction(() => {
+        if (input.sessionGroupID && !this.db.repositories.sessionGroups.read(input.sessionGroupID)) {
+          throw new AgentError("SESSION_GROUP_NOT_FOUND", "会话组不存在", 404)
+        }
+        const record = this.db.createThread({
+          id: threadID,
+          creationSurface: input.creationSurface,
+          title: input.title,
+          settings: input.settings,
+          workspace: {
+            kind: "projectless",
+            workspaceRoot: allocation.sessionRoot,
+            cwd: allocation.cwd,
+            outputDirectory: allocation.outputDirectory,
+          },
+          operationID: input.operationID,
+          requestHash,
+        })
+        if (input.sessionGroupID) {
+          this.db.repositories.sessionGroups.setMembership(record.id, input.sessionGroupID)
+          groupEvent = this.db.insertEvent(record.id, null, "session-group/changed", { groupId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
+        }
+        return record
       })
       await this.workspaceResolver.activateProjectless(allocation)
+      if (groupEvent) await this.publish([groupEvent])
       this.refreshPromptSettings(created.id)
       return created
     } catch (cause) {
@@ -520,16 +538,13 @@ export class ThreadService {
       }
       await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       let created
-      let taskboardEvents: readonly EventEnvelope[] = []
       created = this.db.transaction(() => {
         const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
         this.db.bindInputAttachments(inputID, attachmentIDs)
         this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
-        taskboardEvents = this.firstTurnAdmission?.(threadID) ?? []
         return value
       })
       await this.publishCreatedTurn(created)
-      for (const taskboardEvent of taskboardEvents) await Effect.runPromise(this.hub.publish(taskboardEvent))
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)
@@ -797,7 +812,6 @@ export class ThreadService {
       const sideChat = this.sideChat(threadID)
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
       const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
-      const taskboardContext = this.taskboardExecutionContext?.(threadID) ?? null
       const project = runtime.kind === "project"
         ? this.db.getProject(runtime.projectID) as unknown as {
             settings?: { instructions?: string }
@@ -842,7 +856,6 @@ export class ThreadService {
         ...(sideChat ? { delegationEnabled: false } : {}),
         ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
-        ...(taskboardContext ? { activeDeferredTools: taskboardContext.activeTools } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
       }).exposed
@@ -901,22 +914,13 @@ export class ThreadService {
       promptSections.splice(
         promptSections.length - 1,
         0,
-        ...(taskboardContext ? [{
-          id: "taskboard.execution",
+        ...(this.sessionGroups?.promptForThread(threadID) ? [{
+          id: "session-group.shared",
           role: "developer" as const,
           cache: "dynamic" as const,
           authority: "builtin" as const,
-          source: { type: "runtime" as const, name: "taskboard-primary" },
-          content: taskboardContext.instruction,
-          requiredTools: [...taskboardContext.activeTools],
-        }] : []),
-        ...(this.taskContext?.promptForThread(threadID) ? [{
-          id: "task-context.shared",
-          role: "developer" as const,
-          cache: "dynamic" as const,
-          authority: "builtin" as const,
-          source: { type: "runtime" as const, name: "task-context" },
-          content: this.taskContext.promptForThread(threadID)!,
+          source: { type: "runtime" as const, name: "session-group" },
+          content: this.sessionGroups.promptForThread(threadID)!,
         }] : []),
         ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
         ...(exposedTools.some((tool) => tool === "Edit" || tool === "Write" || tool === "apply_patch")
@@ -958,7 +962,6 @@ export class ThreadService {
           },
         } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
-        ...(taskboardContext ? { activeDeferredTools: taskboardContext.activeTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle) => {
           composedBundle = bundle
@@ -1029,6 +1032,11 @@ export class ThreadService {
             if (!approval.toolCallID) throw new AgentError("APPROVAL_TOOL_CALL_ID_MISSING", "权限审批缺少 tool call id", 500)
             await this.approvals.attachRunState(approval.toolCallID, approval.checkpoint.state, approval.checkpoint.interruption)
           } else await this.questions.checkpoint(threadID, turnID, agent.id, approval)
+          if (approval.kind !== "subagents") await this.sessionGroups?.captureTurn({
+            threadId: threadID,
+            turnId: turnID,
+            status: approval.kind === "permission" ? "waiting_permission" : "waiting_question",
+          }).catch(() => undefined)
         },
       })
       if (result.status === "paused") {
@@ -1048,12 +1056,7 @@ export class ThreadService {
           phase: "after",
         }).catch(() => undefined)
       }
-      await this.taskContext?.captureAndBroadcast({
-        threadId: threadID,
-        turnId: turnID,
-        verified: true,
-        summary: secretScrubber.scrubText(result.output),
-      })
+      await this.sessionGroups?.captureTurn({ threadId: threadID, turnId: turnID, status: "completed", summary: result.output }).catch(() => undefined)
       await this.coordinator.exclusive(threadID, async () => {
         this.coordinator.closeAdmission(threadID, turnID)
         if (this.db.hasGuideMailbox(turnID)) {
@@ -1066,7 +1069,7 @@ export class ThreadService {
       })
     } catch (cause) {
       if (controller.signal.aborted) {
-        await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: turnID, verified: false, summary: "Turn 被中断；只保留可能已经发生的副作用供人工核对。" })
+        await this.sessionGroups?.captureTurn({ threadId: threadID, turnId: turnID, status: "interrupted", summary: "Turn 被中断；修改可能已经发生，请结合 Diff 核对。" }).catch(() => undefined)
         await this.coordinator.exclusive(threadID, async () => {
           const current = this.db.activeTurn(threadID)
           if (current?.id !== turnID) return
@@ -1087,7 +1090,7 @@ export class ThreadService {
         return
       }
       const message = cause instanceof Error ? cause.message : String(cause)
-      await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: turnID, verified: false, summary: "Turn 执行失败；只保留可能已经发生的副作用供人工核对。" })
+      await this.sessionGroups?.captureTurn({ threadId: threadID, turnId: turnID, status: "failed", summary: "Turn 执行失败；修改可能已经发生，请结合 Diff 核对。", failure: message }).catch(() => undefined)
       terminalStatus = await this.runner.terminalize({
         threadID,
         turnID,

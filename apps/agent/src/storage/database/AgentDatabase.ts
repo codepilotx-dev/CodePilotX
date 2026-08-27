@@ -11,12 +11,11 @@ import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
-import { taskboardRepository } from "../repositories/taskboard-repository"
-import { TaskboardPlanningRepository } from "../repositories/taskboard-planning-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
+import { SessionGroupRepository } from "../repositories/session-group-repository"
 import { configureConnection } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
@@ -61,7 +60,6 @@ export class AgentDatabase extends RepositoryDatabase {
       throw cause
     }
     super(sqlite, profileSqlite)
-    const taskboard = taskboardRepository(this)
     this.repositories = {
       threads: threadRepository(this),
       executions: executionRepository(this),
@@ -74,9 +72,8 @@ export class AgentDatabase extends RepositoryDatabase {
       credentials: credentialRepositoryDatabase(this),
       context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
-      taskboard,
-      planning: new TaskboardPlanningRepository(taskboard),
       runtimeCompositions: new RuntimeCompositionRepository(this),
+      sessionGroups: new SessionGroupRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)

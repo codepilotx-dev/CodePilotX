@@ -113,6 +113,7 @@ export const threadHandlers = {
             ...(settings ? { settings } : {}),
             workspace,
             operationID: stringParam(params, "operationId"),
+            ...(typeof params.sessionGroupId === "string" ? { sessionGroupID: params.sessionGroupId } : {}),
             ...(prepared ? { bindExecution: prepared.bind } : {}),
           })
         } catch (cause) {

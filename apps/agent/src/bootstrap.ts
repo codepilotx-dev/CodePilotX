@@ -104,14 +104,7 @@ import { WorktreeRepository } from "./worktree/WorktreeRepository";
 import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingService";
 import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
 import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
-import { TaskboardService } from "./taskboard/TaskboardService";
-import { TaskboardStartService } from "./taskboard/TaskboardStartService";
-import { TaskboardPlanningService } from "./taskboard/TaskboardPlanningService";
-import { createTaskboardDefinitions } from "./tool/Taskboard/definitions";
-import { TaskContextService } from "./task-context/TaskContextService";
-import { createTaskContextDefinitions } from "./tool/TaskContext/definitions";
-import { TaskContextSummaryService } from "./task-context/TaskContextSummaryService";
-import { TaskContextPromotionService } from "./task-context/TaskContextPromotionService";
+import { SessionGroupService } from "./session-group/SessionGroupService";
 import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
 import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
@@ -230,9 +223,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     }));
     const hub = yield* EventHub.make;
-    const taskContext = new TaskContextService(db, hub);
-    const taskboard = new TaskboardService(db, hub, db.repositories.taskboard, taskContext, Date.now, db.repositories.planning);
-    const taskboardPlanning = new TaskboardPlanningService(db, hub, db.repositories.planning);
+    const sessionGroups = new SessionGroupService(db, hub);
+    queueMicrotask(() => { void sessionGroups.recoverMissingSteps() });
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
     });
@@ -401,7 +393,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         };
       },
     });
-    const taskContextSummary = new TaskContextSummaryService(db, piModels, configService, taskContext);
     const providers = new PiModelCatalogAdapter(piModels);
     const modelHealth = new ModelHealthService(
       piModels,
@@ -491,8 +482,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
-    for (const definition of createTaskboardDefinitions(taskboard, taskboardPlanning)) tools.register(definition);
-    for (const definition of createTaskContextDefinitions(taskContext)) tools.register(definition);
     tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)));
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
@@ -720,7 +709,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           review.prepareThreadSnapshotCleanup(threadID),
         );
       },
-      taskContext,
     );
     const threadTitles = new ThreadTitleService(
       db,
@@ -754,7 +742,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
-      taskContext,
     );
     resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
@@ -782,19 +769,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       resumeCheckpoints,
       false,
       localContextPaths,
-      (threadId) => taskboard.admitPrimaryThread(threadId),
-      (threadId) => taskboard.primaryExecutionContext(threadId),
-      taskContext,
-    );
-    const taskboardStart = new TaskboardStartService(
-      db,
-      hub,
-      db.repositories.taskboard,
-      threads,
-      worktrees,
-      threadExecutions,
-      Date.now,
-      db.repositories.planning,
+      sessionGroups,
     );
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -907,15 +882,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       environmentDeltas,
       speech,
       threadExecutions,
-      taskboard,
-      taskboardPlanning,
-      taskboardStart,
-      taskContext,
-      taskContextSummary,
+      sessionGroups,
     });
-    const taskContextPromotion = new TaskContextPromotionService(db, memory);
-    taskContext.setPromotionDrain(() => { void taskContextPromotion.drain() });
-    queueMicrotask(() => { void taskContextPromotion.drain() });
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
     void providers.refresh(false).catch(() => undefined).then(async () => {
       const nextCatalogRevision = providers.catalogRevision?.() ?? 0;

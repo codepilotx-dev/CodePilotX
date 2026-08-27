@@ -34,6 +34,18 @@ const TASKBOARD_PLANNING_SCHEMA = [
   "CREATE INDEX taskboard_archive_batch_tasks_task ON taskboard_archive_batch_tasks(task_id, batch_id)",
 ] as const
 
+const SESSION_GROUP_SCHEMA = [
+  "CREATE TABLE session_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 120), description TEXT NOT NULL DEFAULT '' CHECK(length(description) <= 4000), version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE session_group_memberships (group_id TEXT NOT NULL REFERENCES session_groups(id) ON DELETE CASCADE, thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE, joined_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(group_id, thread_id))",
+  "CREATE TABLE session_group_steps (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES session_groups(id) ON DELETE CASCADE, sequence INTEGER NOT NULL, source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, source_thread_title TEXT NOT NULL, source_turn_id TEXT NOT NULL UNIQUE, project_id TEXT, workspace_label TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('waiting_permission','waiting_question','completed','failed','interrupted','cancelled')), summary TEXT NOT NULL CHECK(length(summary) <= 8000), checkpoints TEXT NOT NULL DEFAULT '[]', changed_files TEXT NOT NULL DEFAULT '[]', validations TEXT NOT NULL DEFAULT '[]', failure TEXT, revision INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(group_id, sequence))",
+  "CREATE TABLE session_group_context_state (group_id TEXT PRIMARY KEY REFERENCES session_groups(id) ON DELETE CASCADE, context_revision INTEGER NOT NULL DEFAULT 1, summarized_through_sequence INTEGER NOT NULL DEFAULT 0, digest TEXT NOT NULL DEFAULT '' CHECK(length(digest) <= 6000), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE session_group_context_entries (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES session_groups(id) ON DELETE CASCADE, section TEXT NOT NULL CHECK(section IN ('objective','code_map','decision','finding','progress','validation','risk','fix')), title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 120), content TEXT NOT NULL CHECK(length(content) BETWEEN 1 AND 2000), status TEXT NOT NULL CHECK(status IN ('active','superseded','retired')), version INTEGER NOT NULL DEFAULT 1, source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, source_turn_id TEXT, supersedes_entry_id TEXT REFERENCES session_group_context_entries(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE TABLE session_group_operations (operation_id TEXT PRIMARY KEY, method TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  "CREATE INDEX session_group_memberships_group_joined ON session_group_memberships(group_id, joined_at, thread_id)",
+  "CREATE INDEX session_group_steps_group_sequence ON session_group_steps(group_id, sequence DESC)",
+  "CREATE INDEX session_group_context_entries_group_section ON session_group_context_entries(group_id, section, status, updated_at DESC)",
+] as const
+
 export const FINAL_SCHEMA = [
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
@@ -112,6 +124,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE taskboard_task_attention (\n          task_id TEXT PRIMARY KEY REFERENCES taskboard_tasks(id) ON DELETE CASCADE,\n          unread INTEGER NOT NULL DEFAULT 0 CHECK(unread IN (0,1)),\n          unread_at INTEGER,\n          read_at INTEGER,\n          reason TEXT CHECK(reason IS NULL OR reason IN ('review_requested','blocked','agent_comment','execution_attention')),\n          updated_at INTEGER NOT NULL\n        )",
   ...TASK_CONTEXT_SCHEMA,
   ...TASKBOARD_PLANNING_SCHEMA,
+  ...SESSION_GROUP_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1069,6 +1082,10 @@ const migrateHistory38To39 = (sqlite: Database) => sqlite.exec(TASKBOARD_PLANNIN
   .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
   .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
 
+const migrateHistory39To40 = (sqlite: Database) => sqlite.exec(SESSION_GROUP_SCHEMA.map(statement => statement
+  .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+  .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1280,6 +1297,7 @@ class SchemaInitializer {
           36: () => migrateHistory36To37(this.sqlite),
           37: () => migrateHistory37To38(this.sqlite),
           38: () => migrateHistory38To39(this.sqlite),
+          39: () => migrateHistory39To40(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

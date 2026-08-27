@@ -4,7 +4,6 @@ import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import { normalizeThreadTitle } from "./ThreadTitleService"
-import type { TaskContextService } from "../task-context/TaskContextService"
 
 export type ThreadMetadataPatch = {
   title?: string | null
@@ -45,7 +44,6 @@ export class ThreadHistoryService {
     private readonly prepareThreadCleanup?: (
       threadID: string,
     ) => () => Promise<void>,
-    private readonly taskContext?: TaskContextService,
   ) {}
 
   getListItem(threadID: string): ThreadListItem | null {
@@ -148,7 +146,6 @@ export class ThreadHistoryService {
       updatedAt: next.updatedAt,
     })
     await Effect.runPromise(this.hub.publish(event))
-    if (patch.archived === true) await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: `thread-archive:${updatedAt}`, sourceKind: "thread", sourceId: `archive:${updatedAt}`, verified: true, summary: "关联会话已归档；既有任务上下文与 Evidence 保留，停止依赖该会话的后续自动收录。" })
     return next
   }
 
@@ -191,7 +188,6 @@ export class ThreadHistoryService {
     const existing = this.getListItem(threadID)
     if (!existing) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
     const cleanup = this.prepareThreadCleanup?.(threadID)
-    await this.taskContext?.captureAndBroadcast({ threadId: threadID, turnId: `thread-delete:${Date.now()}`, sourceKind: "thread", sourceId: "delete", verified: true, summary: "关联会话已删除；已复制到任务上下文的内容继续保留，来源会话不再可用。" })
     const event = this.db.transaction(() => {
       const active = this.db.sqlite.query(`
         WITH RECURSIVE subtree(id) AS (
