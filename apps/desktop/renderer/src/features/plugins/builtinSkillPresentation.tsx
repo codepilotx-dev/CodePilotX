@@ -1,7 +1,6 @@
 import { ListChecks } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
-import taskboardPlannerIcon from '../../assets/builtin-skills/taskboard-planner.png'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -19,12 +18,7 @@ export type BuiltinSkillPresentation = {
  */
 export const BUILTIN_SKILL_PRESENTATIONS: Readonly<
   Record<string, BuiltinSkillPresentation>
-> = {
-  'taskboard-planner': {
-    label: '规划任务',
-    icon: taskboardPlannerIcon,
-  },
-}
+> = {}
 
 export function isBuiltinSkill(skill: Pick<DesktopInstalledSkill, 'path' | 'source' | 'scope'>): boolean {
   return skill.path.startsWith('builtin://') || (

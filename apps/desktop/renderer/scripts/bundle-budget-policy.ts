@@ -6,7 +6,7 @@ export const BUNDLE_BUDGET_FAILURE_FLOOR_BYTES = 32 * 1024
 export const BUNDLE_BUDGET_METRIC_NAMES = [
   'entryCssRawBytes',
   'newInteractiveCssRawBytes',
-  'taskboardInitialIncrementalCssRawBytes',
+  'sessionGroupsInitialIncrementalCssRawBytes',
 ] as const
 
 export type BundleBudgetMetricName = (typeof BUNDLE_BUDGET_METRIC_NAMES)[number]

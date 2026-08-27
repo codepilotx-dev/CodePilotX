@@ -96,7 +96,6 @@ import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
 import type { SessionLifecycleUpdate } from './SessionCatalogCoordinator.js'
-import { reconcileTaskboardStartSession } from './taskboardStartSessionReconcile.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -145,11 +144,7 @@ export const RENDERER_CAPABILITIES = [
   'release-notes.read.v1',
   'thread.side-chat.v1',
   'speech.transcription.v1',
-  'taskboard.v1',
-  'taskboard.workflow.v1',
-  'taskboard.workflow.diagnostics.v1',
-  'taskboard.context.v1',
-  'taskboard.planning.v1',
+  'session-group.v1' as ProtocolCapability,
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -180,7 +175,6 @@ import type {
   DesktopModelProviderRefreshApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
-  DesktopTaskboardApi,
 } from './types.js'
 
 // Start the two small message-input chunks while the desktop client initializes,
@@ -191,7 +185,7 @@ const localContextImportSupport = import('./localContextImportSupport.js')
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-    & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi
+    & DesktopLocalContextApi & DesktopSpeechApi
     & DesktopModelProviderRefreshApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
@@ -1552,21 +1546,20 @@ export function createAgentSessionDesktopClient(
     return agentModelHealthApiPromise
   }
 
-  type AgentTaskboardApi = ReturnType<
-    (typeof import('./agent-taskboard-api.js'))['createAgentTaskboardApi']
+
+  type AgentSessionGroupApi = ReturnType<
+    (typeof import('./agent-session-group-api.js'))['createAgentSessionGroupApi']
   >
-  let agentTaskboardApiPromise: Promise<AgentTaskboardApi> | null = null
-  const loadAgentTaskboardApi = (): Promise<AgentTaskboardApi> => {
-    agentTaskboardApiPromise ??= import('./agent-taskboard-api.js').then(module =>
-      module.createAgentTaskboardApi({
+  let agentSessionGroupApiPromise: Promise<AgentSessionGroupApi> | null = null
+  const loadAgentSessionGroupApi = (): Promise<AgentSessionGroupApi> => {
+    agentSessionGroupApiPromise ??= import('./agent-session-group-api.js').then(module =>
+      module.createAgentSessionGroupApi({
         requireAgentCapability,
         rpc,
-        mockClient,
         withRequiredAgent,
-        withAgentOrMock,
       }),
     )
-    return agentTaskboardApiPromise
+    return agentSessionGroupApiPromise
   }
 
   let unsubscribeSessionCatalog: (() => void) | null = null
@@ -1893,94 +1886,24 @@ export function createAgentSessionDesktopClient(
       loadAgentToolingApi().then(api => api.installPet(url)),
     removePet: id =>
       loadAgentToolingApi().then(api => api.removePet(id)),
-    listTaskboardWorkflowTasks: input =>
-      loadAgentTaskboardApi().then(api => api.listTaskboardWorkflowTasks!(input)),
-    readTaskContext: input => loadAgentTaskboardApi().then(api => api.readTaskContext!(input)),
-    updateTaskContext: input => loadAgentTaskboardApi().then(api => api.updateTaskContext!(input)),
-    previewTaskContext: input => loadAgentTaskboardApi().then(api => api.previewTaskContext!(input)),
-    applyTaskContextProposal: input => loadAgentTaskboardApi().then(api => api.applyTaskContextProposal!(input)),
-    discardTaskContextProposal: input => loadAgentTaskboardApi().then(api => api.discardTaskContextProposal!(input)),
-    readTaskContextPromotion: input => loadAgentTaskboardApi().then(api => api.readTaskContextPromotion!(input)),
-    readTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowTask!(input)),
-    readTaskboardWorkflowDiagnostics: input =>
-      loadAgentTaskboardApi().then(api => api.readTaskboardWorkflowDiagnostics!(input)),
-    createTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.createTaskboardWorkflowTask!(input)),
-    updateTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.updateTaskboardWorkflowTask!(input)),
-    moveTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.moveTaskboardWorkflowTask!(input)),
-    transitionTaskboardWorkflowTask: input =>
-      loadAgentTaskboardApi().then(api => api.transitionTaskboardWorkflowTask!(input)),
-    markTaskboardWorkflowTaskRead: input =>
-      loadAgentTaskboardApi().then(api => api.markTaskboardWorkflowTaskRead!(input)),
-    listTaskboardWorkflowThreadCandidates: input =>
-      loadAgentTaskboardApi().then(api => api.listTaskboardWorkflowThreadCandidates!(input)),
-    findTaskboardWorkflowTaskByThread: input =>
-      loadAgentTaskboardApi().then(api => api.findTaskboardWorkflowTaskByThread!(input)),
-    linkTaskboardWorkflowThreads: input =>
-      loadAgentTaskboardApi().then(api => api.linkTaskboardWorkflowThreads!(input)),
-    startTaskboardWorkflowTask: input => reconcileTaskboardStartSession(
-      () => loadAgentTaskboardApi().then(api => api.startTaskboardWorkflowTask!(input)),
-      reconcileAgentSessionStore,
-      {
-        mode: input.mode,
-        prepareContinuePrimarySession: restoreArchivedAgentSession,
-      },
-    ),
-    listTaskboardTasks: input =>
-      loadAgentTaskboardApi().then(api => api.listTaskboardTasks(input)),
-    readTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.readTaskboardTask(input)),
-    createTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.createTaskboardTask(input)),
-    updateTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.updateTaskboardTask(input)),
-    moveTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.moveTaskboardTask(input)),
-    archiveTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.archiveTaskboardTask(input)),
-    restoreTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.restoreTaskboardTask(input)),
-    deleteTaskboardTask: input =>
-      loadAgentTaskboardApi().then(api => api.deleteTaskboardTask(input)),
-    linkTaskboardThread: input =>
-      loadAgentTaskboardApi().then(api => api.linkTaskboardThread(input)),
-    unlinkTaskboardThread: input =>
-      loadAgentTaskboardApi().then(api => api.unlinkTaskboardThread(input)),
-    setPrimaryTaskboardThread: input =>
-      loadAgentTaskboardApi().then(api => api.setPrimaryTaskboardThread(input)),
-    createTaskboardComment: input =>
-      loadAgentTaskboardApi().then(api => api.createTaskboardComment(input)),
-    updateTaskboardComment: input =>
-      loadAgentTaskboardApi().then(api => api.updateTaskboardComment(input)),
-    deleteTaskboardComment: input =>
-      loadAgentTaskboardApi().then(api => api.deleteTaskboardComment(input)),
-    listTaskboardLabels: input =>
-      loadAgentTaskboardApi().then(api => api.listTaskboardLabels(input)),
-    createTaskboardLabel: input =>
-      loadAgentTaskboardApi().then(api => api.createTaskboardLabel(input)),
-    updateTaskboardLabel: input =>
-      loadAgentTaskboardApi().then(api => api.updateTaskboardLabel(input)),
-    deleteTaskboardLabel: input =>
-      loadAgentTaskboardApi().then(api => api.deleteTaskboardLabel(input)),
-    startTaskboardTask: input => reconcileTaskboardStartSession(
-      () => loadAgentTaskboardApi().then(api => api.startTaskboardTask(input)),
-      reconcileAgentSessionStore,
-    ),
-    readTaskboardStartStatus: input => reconcileTaskboardStartSession(
-      () => loadAgentTaskboardApi().then(api => api.readTaskboardStartStatus(input)),
-      reconcileAgentSessionStore,
-    ),
-    retryTaskboardStartSetup: input => reconcileTaskboardStartSession(
-      () => loadAgentTaskboardApi().then(api => api.retryTaskboardStartSetup(input)),
-      reconcileAgentSessionStore,
-    ),
-    continueTaskboardStartWithoutSetup: input => reconcileTaskboardStartSession(
-      () => loadAgentTaskboardApi().then(api => api.continueTaskboardStartWithoutSetup(input)),
-      reconcileAgentSessionStore,
-    ),
+    listSessionGroups: () =>
+      loadAgentSessionGroupApi().then(api => api.listSessionGroups()),
+    readSessionGroup: groupId =>
+      loadAgentSessionGroupApi().then(api => api.readSessionGroup(groupId)),
+    createSessionGroup: input =>
+      loadAgentSessionGroupApi().then(api => api.createSessionGroup(input)),
+    updateSessionGroup: input =>
+      loadAgentSessionGroupApi().then(api => api.updateSessionGroup(input)),
+    deleteSessionGroup: (groupId, expectedVersion) =>
+      loadAgentSessionGroupApi().then(api => api.deleteSessionGroup(groupId, expectedVersion)),
+    setSessionGroupMembership: input =>
+      loadAgentSessionGroupApi()
+        .then(api => api.setSessionGroupMembership(input))
+        .then(() => refreshAgentSessionStoreChange({ reloadActive: activeSessionId === input.threadId })),
+    listSessionGroupSteps: groupId =>
+      loadAgentSessionGroupApi().then(api => api.listSessionGroupSteps(groupId)),
+    readSessionGroupStepDiff: input =>
+      loadAgentSessionGroupApi().then(api => api.readSessionGroupStepDiff(input)),
     getGithubAuthStatus: () =>
       loadAgentGitApi().then(api => api.getGithubAuthStatus()),
     startGithubLogin: input =>
@@ -2955,6 +2878,7 @@ export function createAgentSessionDesktopClient(
                 },
             settings,
             ...(creationSurface ? { creationSurface } : {}),
+            ...(options.sessionGroupId ? { sessionGroupId: options.sessionGroupId } : {}),
             title: options.sessionName,
             operationId: crypto.randomUUID(),
           })

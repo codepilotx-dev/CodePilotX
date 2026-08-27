@@ -12,7 +12,7 @@ import {
   FolderOpen,
   GitFork,
   LayoutList,
-  ListTodo,
+  MessagesSquare,
   MessageSquarePlus,
   MoreHorizontal,
   Pencil,
@@ -20,7 +20,6 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react";
-import type { TaskboardWorkflowThreadCandidate } from '@codepilotx/shared/taskboard'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -112,10 +111,6 @@ import {
   resolveSessionReferenceShortcut,
   type SessionReferenceContext,
 } from "./sessionReferenceActions.js";
-import { CreateTaskDialog, createTaskboardTaskFromDialog } from '../../taskboard/components/CreateTaskDialog.js'
-import { LinkExistingTaskDialog } from '../../taskboard/components/LinkExistingTaskDialog.js'
-import { deriveThreadTaskboardAction } from '../../taskboard/state/threadTaskboardAction.js'
-import { useThreadTaskboardAction } from '../../taskboard/state/useThreadTaskboardAction.js'
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 const DesktopComposer = React.lazy(() => import("../composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
@@ -135,6 +130,17 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 ];
 
 const WORKSPACE_HEADER_ICON_SIZE = 16;
+
+async function chooseSessionGroupForThread(threadId: string): Promise<void> {
+  const groups = await desktopClient.listSessionGroups()
+  const choices = groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n')
+  const answer = globalThis.prompt(`输入会话组序号；输入 0 移出会话组：\n${choices}`)?.trim()
+  if (answer === undefined) return
+  const index = Number(answer)
+  const groupId = index === 0 ? null : groups[index - 1]?.id
+  if (index !== 0 && !groupId) return
+  await desktopClient.setSessionGroupMembership({ threadId, groupId })
+}
 
 function escapeCssAttributeValue(value: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -236,11 +242,6 @@ export function ConversationPage(): React.ReactNode {
     [canonicalConversation.turns],
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
-  const [createTaskOpen, setCreateTaskOpen] = React.useState(false)
-  const [linkTaskOpen, setLinkTaskOpen] = React.useState(false)
-  const [taskboardCandidate, setTaskboardCandidate] = React.useState<TaskboardWorkflowThreadCandidate | undefined>()
-  const [taskboardProjects, setTaskboardProjects] = React.useState<Awaited<ReturnType<typeof desktopClient.listProjects>>>([])
-  const threadTaskboard = useThreadTaskboardAction()
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState("");
   const [renamingSession, setRenamingSession] = React.useState(false);
@@ -469,25 +470,6 @@ export function ConversationPage(): React.ReactNode {
   const threadSummary = useThreadSummaryController(workflowMainRef);
   const fallbackTitle = canonicalAuxiliary.fallbackTitle ?? "新对话";
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
-  React.useEffect(() => {
-    if (!sessionMenuOpen || !activeSessionId) return
-    void threadTaskboard.load(activeSessionId)
-    void desktopClient.listSessions().then(sessions => {
-      const session = sessions.find(candidate => candidate.item.id === activeSessionId)?.item
-      if (!session?.projectId) {
-        setTaskboardCandidate(undefined)
-        return
-      }
-      setTaskboardCandidate({
-        threadId: session.id,
-        projectId: session.projectId,
-        title: session.customTitle ?? session.aiTitle ?? session.sessionName ?? renderedSessionTitle,
-        latestTurnStatus: session.latestTurnStatus ?? null,
-        pendingPlanApproval: Boolean(session.pendingPlanApproval),
-        updatedAt: Date.parse(session.lastMessageAt ?? session.createdAt),
-      })
-    })
-  }, [activeSessionId, renderedSessionTitle, sessionMenuOpen, threadTaskboard.load])
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
   const canRegenerateSessionTitle = canRegenerateConversationTitle({
@@ -796,10 +778,6 @@ export function ConversationPage(): React.ReactNode {
 
   const workspaceHeaderTitle = React.useMemo(
     () => {
-      const taskboardAction = deriveThreadTaskboardAction(threadTaskboard.loading, threadTaskboard.lookup)
-      const displayedTaskboardAction = taskboardAction.kind === 'create' && !taskboardCandidate
-        ? { ...taskboardAction, label: '正在读取会话信息…', disabled: true }
-        : taskboardAction
       return (
       <div className="chat-session-title">
         <FolderOpen
@@ -874,32 +852,17 @@ export function ConversationPage(): React.ReactNode {
           </PopoverItem>
           <PopoverSeparator />
           <PopoverItem
-            disabled={displayedTaskboardAction.disabled}
-            icon={<ListTodo size={APP_ICON_SIZE} />}
+            disabled={!activeSessionId || effectiveSessionStatus === "running" || effectiveSessionStatus === "waiting" || effectiveSessionStatus === "queued"}
+            icon={<MessagesSquare size={APP_ICON_SIZE} />}
             onClick={() => {
               closeSessionMenu()
-              if (displayedTaskboardAction.kind === 'open' && threadTaskboard.lookup?.taskId) {
-                navigate(`/taskboard/${encodeURIComponent(threadTaskboard.lookup.taskId)}`)
-              } else if (displayedTaskboardAction.kind === 'create' && taskboardCandidate) {
-                setCreateTaskOpen(true)
-                void desktopClient.listProjects().then(setTaskboardProjects)
-              }
+              if (activeSessionId) void chooseSessionGroupForThread(activeSessionId)
             }}
           >
-            {displayedTaskboardAction.label}
+            {effectiveSessionStatus === "running" || effectiveSessionStatus === "waiting" || effectiveSessionStatus === "queued"
+              ? "当前 Turn 结束后可切换"
+              : "加入或切换会话组"}
           </PopoverItem>
-          {displayedTaskboardAction.kind === 'create' ? (
-            <PopoverItem
-              disabled={displayedTaskboardAction.disabled || !taskboardCandidate}
-              icon={<Workflow size={APP_ICON_SIZE} />}
-              onClick={() => {
-                closeSessionMenu()
-                setLinkTaskOpen(true)
-              }}
-            >
-              关联已有任务
-            </PopoverItem>
-          ) : null}
           <PopoverSeparator />
           <PopoverItem
             disabled={!hasActiveSession || !sideChatAvailable}
@@ -985,9 +948,6 @@ export function ConversationPage(): React.ReactNode {
       renderedSessionTitle,
       sessionMenuOpen,
       workspacePath,
-      taskboardCandidate,
-      threadTaskboard.loading,
-      threadTaskboard.lookup,
     ],
   );
 
@@ -1286,26 +1246,6 @@ export function ConversationPage(): React.ReactNode {
         onCancel={() => {
           if (!renamingSession) setRenameDialogOpen(false);
         }}
-      />
-      <CreateTaskDialog
-        initialProjectId={taskboardCandidate?.projectId}
-        initialStatus="backlog"
-        initialThread={taskboardCandidate}
-        initialTitle={taskboardCandidate?.title}
-        open={createTaskOpen}
-        projects={taskboardProjects}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreate={async input => {
-          const result = await createTaskboardTaskFromDialog(input)
-          setCreateTaskOpen(false)
-          navigate(`/taskboard/${encodeURIComponent(result.task.task.id)}`)
-        }}
-      />
-      <LinkExistingTaskDialog
-        open={linkTaskOpen}
-        thread={taskboardCandidate}
-        onClose={() => setLinkTaskOpen(false)}
-        onLinked={taskId => navigate(`/taskboard/${encodeURIComponent(taskId)}`)}
       />
       {conversationFork.dialog}
       {activeSessionId && workspacePath ? (

@@ -93,14 +93,11 @@ type ControllerOptions = {
 }
 
 export function resolveActiveComposerSkillToken(
-  workingPlugin: WorkingPlugin | null | undefined,
+  _workingPlugin: WorkingPlugin | null | undefined,
   selectedSkillToken: ComposerSkillCommand | null,
-  skillCommands: readonly ComposerSkillCommand[],
+  _skillCommands: readonly ComposerSkillCommand[],
 ): ComposerSkillCommand | null {
-  if (workingPlugin !== 'task-planning') return selectedSkillToken
-  return skillCommands.find(
-    command => command.skill.name === 'taskboard-planner',
-  ) ?? null
+  return selectedSkillToken
 }
 
 export type ResolveComposerCanSubmitInput = {
@@ -183,9 +180,6 @@ export function useDesktopComposerController({
   const [selectedSkillToken, setSelectedSkillToken] =
     useState<ComposerSkillCommand | null>(null)
 
-  const taskPlanningSkill = skillCommands.find(
-    command => command.skill.name === 'taskboard-planner',
-  )
   const activeSkillToken = resolveActiveComposerSkillToken(
     workingPlugin,
     selectedSkillToken,
@@ -207,8 +201,7 @@ export function useDesktopComposerController({
       : undefined,
     [activeSkillInvocation?.name, activeSkillInvocation?.path, input],
   )
-  const workingPluginSkillUnavailable =
-    workingPlugin === 'task-planning' && taskPlanningSkill === undefined
+  const workingPluginSkillUnavailable = false
 
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
@@ -312,27 +305,6 @@ export function useDesktopComposerController({
     composerDocument,
     draftKey,
     planModeActive,
-  ])
-
-  useEffect(() => {
-    if (workingPlugin !== 'task-planning' || !selectedSkillToken) return
-    composerDraftStore.setSkillInvocation(draftKey, undefined)
-    setSelectedSkillToken(null)
-  }, [draftKey, selectedSkillToken, workingPlugin])
-
-  useEffect(() => {
-    if (
-      runtimeSkillsLoaded &&
-      workingPlugin === 'task-planning' &&
-      !taskPlanningSkill
-    ) {
-      onWorkingPluginChange?.(null)
-    }
-  }, [
-    onWorkingPluginChange,
-    runtimeSkillsLoaded,
-    taskPlanningSkill,
-    workingPlugin,
   ])
 
   useEffect(() => {
@@ -681,7 +653,7 @@ export function useDesktopComposerController({
     composerDocument,
     setGoalModeEnabled,
     skillCommands,
-    taskPlanningAvailable: runtimeSkillsLoaded && taskPlanningSkill !== undefined,
+    taskPlanningAvailable: false,
     unsupportedAttachmentReason,
   }
 }

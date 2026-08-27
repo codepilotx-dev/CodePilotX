@@ -326,10 +326,6 @@ export function DesktopComposer({
   }, [onPlanModeChange, planModeActive, workingPlugin])
 
   function handleWorkingPluginChange(plugin: WorkingPlugin | null): void {
-    if (plugin === 'task-planning') {
-      onPlanModeChange(false)
-      handleSkillDeselect()
-    }
     onWorkingPluginChange?.(plugin)
   }
 
@@ -373,7 +369,6 @@ export function DesktopComposer({
       radiusVariant={radiusVariant}
       utilityBarVariant={utilityBarVariant}
       workingPlugin={workingPlugin}
-      taskPlanningAvailable={taskPlanningAvailable}
       onWorkingPluginChange={handleWorkingPluginChange}
       submitting={isSubmitting}
       submitOutcome={lastSubmitOutcome}

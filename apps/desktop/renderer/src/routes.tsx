@@ -23,23 +23,23 @@ const PetOverlayPage = lazy(() =>
   })),
 )
 
-const TaskboardView = lazy(() =>
-  import('./features/taskboard/TaskboardView.js').then(module => ({
-    default: module.TaskboardView,
+const SessionGroupsView = lazy(() =>
+  import('./features/session-groups/SessionGroupsView.js').then(module => ({
+    default: module.SessionGroupsView,
   })),
 )
 
-function TaskboardRoute(): ReactNode {
+function SessionGroupsRoute(): ReactNode {
   return (
     <Suspense
       fallback={(
         <FullScreenWhaleLoading
-          label="正在加载任务看板…"
+          label="正在加载会话组…"
           variant="contained"
         />
       )}
     >
-      <TaskboardView />
+      <SessionGroupsView />
     </Suspense>
   )
 }
@@ -84,8 +84,8 @@ const router = createHashRouter([
           { path: 'threads/:threadId', element: <ConversationPage /> },
           { path: 'projects', element: <ProjectsView /> },
           { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'taskboard', element: <TaskboardRoute /> },
-          { path: 'taskboard/:taskId', element: <TaskboardRoute /> },
+          { path: 'session-groups', element: <SessionGroupsRoute /> },
+          { path: 'session-groups/:groupId', element: <SessionGroupsRoute /> },
           { path: 'models', element: <ModelCenterView /> },
           { path: 'plugins', element: <PluginsView /> },
           { path: 'pull-requests', element: <PullRequestsPlaceholder /> },

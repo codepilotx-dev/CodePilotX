@@ -338,25 +338,25 @@ export function returnToWorkingSuggestionTemplates(
   return { state: { kind: 'templates' }, composerValue: nextValue }
 }
 
-/** 上下文建议只预填草稿并选择本地规划 chip，不负责提交。 */
+/** 上下文建议只预填草稿，不负责提交。 */
 export function selectWorkingContextualSuggestion(
   suggestion: WorkingContextualSuggestion,
-): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin } {
+): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin | null } {
   return {
     state: { kind: 'hidden', reason: 'prompt-filled' },
     prompt: suggestion.prompt,
-    plugin: 'task-planning',
+    plugin: null,
   }
 }
 
 /**
- * 点击第二层后用完整提示词替换 Composer，并选择现有的本地规划任务插件；
+ * 点击第二层后用完整提示词替换 Composer；
  * 调用方只更新草稿，不自动提交。
  */
 export function selectWorkingSuggestionTask(
   state: WorkingSuggestionState,
   taskId: string,
-): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin } | null {
+): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin | null } | null {
   if (state.kind !== 'category') return null
   const category = findWorkingSuggestionCategory(state.categoryId)
   const task = category.tasks.find(item => item.id === taskId)
@@ -364,6 +364,6 @@ export function selectWorkingSuggestionTask(
   return {
     state: { kind: 'hidden', reason: 'prompt-filled' },
     prompt: task.prompt,
-    plugin: 'task-planning',
+    plugin: null,
   }
 }

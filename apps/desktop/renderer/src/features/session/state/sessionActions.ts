@@ -27,6 +27,7 @@ import {
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { canonicalThreadCache } from './canonicalThreadCache.js'
+import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -132,9 +133,17 @@ export async function createSessionForWorkspaceAction(
   options?: { propagateError?: boolean },
 ): Promise<string | null> {
   try {
+    const preferredSessionGroupId = readPreferredSessionGroupId()
+    let sessionGroupId: string | undefined
+    if (preferredSessionGroupId) {
+      const groups = await desktopClient.listSessionGroups().catch(() => [])
+      if (groups.some(group => group.id === preferredSessionGroupId)) sessionGroupId = preferredSessionGroupId
+    }
+    if (preferredSessionGroupId && !sessionGroupId) writePreferredSessionGroupId(null)
     const session = await desktopClient.createSession({
       projectId: target?.projectId,
       workspacePath: target?.path,
+      sessionGroupId,
       creationSurface: settings.creationSurface,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,

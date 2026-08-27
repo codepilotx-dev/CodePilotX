@@ -17,8 +17,8 @@ export type ComposerUtilityBarVariant = 'default' | 'home'
 /** 新建页展示上下文；thread 内不设置，保持现有行为。 */
 export type ComposerSurface = 'coding' | 'working' | 'chat'
 
-/** Working 首页的任务规划 Skill 快捷入口。 */
-export type WorkingPlugin = 'task-planning'
+/** Reserved for future Working plugins; the former task planner was removed. */
+export type WorkingPlugin = never
 
 export type ComposerExecutionMode = 'local' | 'worktree' | 'cloud'
 

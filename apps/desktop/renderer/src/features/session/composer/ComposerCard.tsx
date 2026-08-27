@@ -29,7 +29,7 @@ import {
   Hand,
   ListChecks,
   MessageSquare,
-  Monitor,
+  MessagesSquare,
   Palette,
   Paperclip,
   PawPrint,
@@ -116,6 +116,9 @@ import {
 } from "./composerSlashCommands.js";
 import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
 import { BuiltinSkillIcon } from "../../plugins/builtinSkillPresentation.js";
+import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
+import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
+import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
 
 type Option<T extends string> = {
   value: T;
@@ -134,6 +137,7 @@ type ComposerDropdown =
   | "permission"
   | "model"
   | "project"
+  | "session-group"
   | "mode"
   | "branch"
   | "status"
@@ -348,7 +352,6 @@ type Props = {
   radiusVariant?: ComposerRadiusVariant;
   utilityBarVariant?: ComposerUtilityBarVariant;
   workingPlugin?: WorkingPlugin | null;
-  taskPlanningAvailable?: boolean;
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void;
 };
 
@@ -458,7 +461,6 @@ export function ComposerCard({
   radiusVariant = "default",
   utilityBarVariant = "default",
   workingPlugin,
-  taskPlanningAvailable = false,
   onWorkingPluginChange,
 }: Props): React.ReactNode {
   const editorRef = useRef<ComposerEditorHandle | null>(null);
@@ -482,6 +484,33 @@ export function ComposerCard({
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
   );
+  const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
+
+  const createSessionGroup = useCallback(() => {
+    const name = globalThis.prompt('会话组名称')?.trim()
+    if (!name) return
+    void import('../../../services/desktop-client/index.js').then(({ desktopClient }) =>
+      desktopClient.createSessionGroup({ name }),
+    ).then(group => {
+      setSelectedSessionGroup(group)
+      writePreferredSessionGroupId(group.id)
+    })
+  }, [])
+
+  useEffect(() => {
+    const preferredId = readPreferredSessionGroupId()
+    if (!preferredId) return
+    let active = true
+    void import('../../../services/desktop-client/index.js').then(({ desktopClient }) =>
+      desktopClient.listSessionGroups(),
+    ).then(groups => {
+      if (!active) return
+      const preferred = groups.find(group => group.id === preferredId) ?? null
+      setSelectedSessionGroup(preferred)
+      if (!preferred) writePreferredSessionGroupId(null)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
   const [thinkingPreviewMode, setThinkingPreviewMode] =
     useState<DesktopThinkingMode | null>(null);
   const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
@@ -549,22 +578,6 @@ export function ComposerCard({
   const selectedThinkingLabel = resolveThinkingLabel(
     effectiveThinkingOptions,
     thinkingPreviewMode ?? thinkingMode,
-  );
-  const taskPlanningSkill = skillCommands.find(
-    command => command.skill.name === "taskboard-planner",
-  );
-  const taskPlanningIcon = taskPlanningSkill ? (
-    <BuiltinSkillIcon
-      className="tw:rounded-xs"
-      skill={{
-        name: "taskboard-planner",
-        path: "builtin://taskboard-planner/SKILL.md",
-        scope: "system",
-        source: "system",
-      }}
-    />
-  ) : (
-    <Blocks size={APP_ICON_SIZE} />
   );
   const composerDocument = useMemo(
     () => document ?? (selectedSkillToken
@@ -1904,9 +1917,9 @@ export function ComposerCard({
         />
       </div>
 
-      {placement !== "thread" && surface !== "chat" ? (
+      {placement !== "thread" ? (
         <div className="composer-bottom composer-utility-bar tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-          {subagentMode ? (
+          {surface === "chat" ? null : subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}
               label={workspace?.name ?? "项目"}
@@ -1947,54 +1960,28 @@ export function ComposerCard({
             />
           )}
 
-          {surface === "working" && taskPlanningAvailable ? (
-            <PopoverMenu
-              className="popover-plugin"
-              open={openDropdown === "plugin"}
-              side="top"
-              width={200}
-              onOpenChange={(open) => setOpenDropdown(open ? "plugin" : null)}
-              trigger={
-                <MetaChip
-                  active={openDropdown === "plugin"}
-                  icon={<Blocks size={APP_ICON_SIZE} />}
-                  label="插件"
-                  title="选择工作插件"
-                />
-              }
-            >
-              <div className="popover-header">插件</div>
-              <div className="popover-section">
-                <PopoverItem
-                  icon={taskPlanningIcon}
-                  selected={workingPlugin === "task-planning"}
-                  withCheck
-                  onClick={() => {
-                    onWorkingPluginChange?.(
-                      workingPlugin === "task-planning"
-                        ? null
-                        : "task-planning",
-                    );
-                    closeDropdown();
-                  }}
-                >
-                  规划任务
-                </PopoverItem>
-              </div>
-              <div className="popover-plugin-note">更多工作插件即将支持</div>
-            </PopoverMenu>
-          ) : null}
+          <SessionGroupSwitcherPopover
+            open={openDropdown === "session-group"}
+            side="top"
+            value={selectedSessionGroup?.id ?? null}
+            onOpenChange={open => setOpenDropdown(open ? "session-group" : null)}
+            onCreate={createSessionGroup}
+            onChange={group => {
+              setSelectedSessionGroup(group)
+              writePreferredSessionGroupId(group?.id ?? null)
+            }}
+            trigger={
+              <MetaChip
+                active={openDropdown === "session-group"}
+                icon={<MessagesSquare size={APP_ICON_SIZE} />}
+                label={selectedSessionGroup?.name ?? "会话组"}
+                title={selectedSessionGroup ? `使用会话组：${selectedSessionGroup.name}` : "选择会话组（可不使用）"}
+              />
+            }
+          />
 
           {workspace ? (
             <>
-              {surface !== "working" ? (
-                <MetaChip
-                  icon={<Monitor size={APP_ICON_SIZE} />}
-                  label="本地"
-                  title="本地执行"
-                />
-              ) : null}
-
               {threadGoal ? (
                 <PopoverMenu
                   className="popover-goal popover-menu--grid"

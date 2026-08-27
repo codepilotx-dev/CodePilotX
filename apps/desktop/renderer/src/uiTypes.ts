@@ -11,7 +11,7 @@ import type {
 
 export type AppView =
   | 'new'
-  | 'taskboard'
+  | 'sessionGroups'
   | 'projects'
   | 'search'
   | 'models'

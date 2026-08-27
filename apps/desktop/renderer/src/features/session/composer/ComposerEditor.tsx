@@ -25,7 +25,6 @@ import {
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { ComposerDocument, ComposerDocumentToken } from './composerTypes.js'
 import { composerDocumentsEqual } from './composerSkillToken.js'
-import taskboardPlannerIcon from '../../../assets/builtin-skills/taskboard-planner.png'
 
 export const composerSchema = new Schema({
   nodes: {
@@ -55,17 +54,10 @@ export const composerSchema = new Schema({
           tabindex: '0',
           class: 'composer-inline-skill-token',
         },
-        name === 'taskboard-planner'
-          ? ['img', {
-              alt: '',
-              'aria-hidden': 'true',
-              class: 'composer-inline-skill-token-icon',
-              src: taskboardPlannerIcon,
-            }]
-          : ['span', {
-              'aria-hidden': 'true',
-              class: 'composer-inline-skill-token-fallback-icon',
-            }, '✦'],
+        ['span', {
+          'aria-hidden': 'true',
+          class: 'composer-inline-skill-token-fallback-icon',
+        }, '✦'],
         ['span', { class: 'composer-inline-skill-token-label' }, String(node.attrs.label)],
         ]
       },

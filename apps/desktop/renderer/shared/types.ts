@@ -1192,6 +1192,7 @@ export type DesktopContextUsage = AgentContextUsage
 export type DesktopSessionListItem = {
   id: string
   projectId?: string | null
+  sessionGroupId?: string | null
   appServerThreadId?: string | null
   sessionName: string | null
   aiTitle: string | null
@@ -1346,6 +1347,8 @@ export type CreateDesktopSessionOptions = {
   localRouterMode?: LocalRouterMode
   projectId?: string
   workspacePath?: string
+  /** Optional cross-project context group for the new thread. */
+  sessionGroupId?: string
   /** First submitted text used to name/materialize a projectless workspace. */
   projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig

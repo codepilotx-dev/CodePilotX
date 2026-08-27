@@ -71,6 +71,7 @@ export function agentThreadListItemToDesktop(
   return {
     id: thread.id,
     projectId: thread.projectID,
+    sessionGroupId: thread.sessionGroupId ?? null,
     sessionName: thread.title || null,
     customTitle: null,
     aiTitle: null,
@@ -146,6 +147,7 @@ export function agentThreadSnapshotToDesktop(
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
+    sessionGroupId: snapshot.thread.sessionGroupId ?? null,
     sessionName: snapshot.thread.title || null,
     customTitle: null,
     aiTitle: null,

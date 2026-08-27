@@ -5,6 +5,6 @@
   "metrics": {
     "entryCssRawBytes": 760442,
     "newInteractiveCssRawBytes": 760442,
-    "taskboardInitialIncrementalCssRawBytes": 43038
+    "sessionGroupsInitialIncrementalCssRawBytes": 43038
   }
 }

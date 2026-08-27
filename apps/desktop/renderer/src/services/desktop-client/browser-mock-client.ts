@@ -103,7 +103,6 @@ import type { DesktopClientEnvironment } from './types.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
-  createBrowserTaskboardFixture,
   createBrowserVisualFixture,
   emptyBrowserState,
   emptyReviewDiff,
@@ -129,7 +128,6 @@ import type {
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
   DesktopSpeechStatus,
-  DesktopTaskboardApi,
 } from './types.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
@@ -159,18 +157,10 @@ function mcpUnavailable(): never {
   throw error
 }
 
-function taskboardMutationUnavailable(): never {
-  const error = new Error(
-    'TASKBOARD_MUTATION_UNAVAILABLE: 浏览器 mock 模式不提供任务看板写入。',
-  ) as Error & { code: string }
-  error.code = 'TASKBOARD_MUTATION_UNAVAILABLE'
-  throw error
-}
-
 export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-  & DesktopLocalContextApi & DesktopSpeechApi & DesktopTaskboardApi
+  & DesktopLocalContextApi & DesktopSpeechApi
   & DesktopModelProviderRefreshApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
@@ -801,8 +791,6 @@ export function createBrowserMockDesktopClient(
     }),
     listProjects: async folderPath => {
       if (folderPath) return [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }]
-      const taskboardFixture = createBrowserTaskboardFixture()
-      if (taskboardFixture) return taskboardFixture.projects
       return []
     },
     updateProject: async input => ({
@@ -1032,79 +1020,6 @@ export function createBrowserMockDesktopClient(
           : !snapshot.item.archivedAt
       ),
     ),
-    listTaskboardTasks: async input => {
-      const fixture = createBrowserTaskboardFixture()
-      if (!fixture) return { tasks: [], nextCursor: null }
-      const query = input.query?.trim().toLocaleLowerCase('zh-CN')
-      return {
-        tasks: fixture.tasks.filter(task => {
-          if (input.projectId && task.projectId !== input.projectId) return false
-          if (input.statuses?.length && !input.statuses.includes(task.status)) return false
-          if (input.priorities?.length && !input.priorities.includes(task.priority)) return false
-          if (input.labelIds?.length && !input.labelIds.every(id => task.labels.some(label => label.id === id))) return false
-          if ((input.archived ?? false) !== (task.archivedAt !== null)) return false
-          if (query && !`${task.title}\n${task.description}`.toLocaleLowerCase('zh-CN').includes(query)) return false
-          return true
-        }),
-        nextCursor: null,
-      }
-    },
-    listTaskboardWorkflowTasks: async input => {
-      const fixture = createBrowserTaskboardFixture()
-      if (!fixture) return { tasks: [], unreadCount: 0, nextCursor: null }
-      const query = input.query?.trim().toLocaleLowerCase('zh-CN')
-      const tasks = fixture.workflowTasks.filter(task => {
-        if (input.projectId && task.projectId !== input.projectId) return false
-        if (input.statuses?.length && !input.statuses.includes(task.status)) return false
-        if (input.priorities?.length && !input.priorities.includes(task.priority)) return false
-        if (input.labelIds?.length && !input.labelIds.every(id => task.labels.some(label => label.id === id))) return false
-        if ((input.archived ?? false) !== (task.archivedAt !== null)) return false
-        if (input.unread !== undefined && task.attention.unread !== input.unread) return false
-        if (query && !`${task.title}\n${task.description}`.toLocaleLowerCase('zh-CN').includes(query)) return false
-        return true
-      })
-      return {
-        tasks,
-        unreadCount: tasks.filter(task => task.attention.unread).length,
-        nextCursor: null,
-      }
-    },
-    readTaskboardTask: async input => {
-      const fixture = createBrowserTaskboardFixture()
-      const task = fixture?.details.get(input.taskId)
-      if (!task) throw new Error('TASKBOARD_TASK_NOT_FOUND: 浏览器 mock 模式没有该任务。')
-      return { task }
-    },
-    readTaskboardWorkflowTask: async input => {
-      const fixture = createBrowserTaskboardFixture()
-      const task = fixture?.workflowDetails.get(input.taskId)
-      if (!task) throw new Error('TASKBOARD_TASK_NOT_FOUND: 浏览器 mock 模式没有该任务。')
-      return { task }
-    },
-    listTaskboardLabels: async input => {
-      const fixture = createBrowserTaskboardFixture()
-      if (!fixture) return { labels: [] }
-      return { labels: fixture.labels.filter(label => label.projectId === input.projectId) }
-    },
-    createTaskboardTask: async () => taskboardMutationUnavailable(),
-    updateTaskboardTask: async () => taskboardMutationUnavailable(),
-    moveTaskboardTask: async () => taskboardMutationUnavailable(),
-    archiveTaskboardTask: async () => taskboardMutationUnavailable(),
-    restoreTaskboardTask: async () => taskboardMutationUnavailable(),
-    deleteTaskboardTask: async () => taskboardMutationUnavailable(),
-    linkTaskboardThread: async () => taskboardMutationUnavailable(),
-    unlinkTaskboardThread: async () => taskboardMutationUnavailable(),
-    setPrimaryTaskboardThread: async () => taskboardMutationUnavailable(),
-    createTaskboardComment: async () => taskboardMutationUnavailable(),
-    updateTaskboardComment: async () => taskboardMutationUnavailable(),
-    deleteTaskboardComment: async () => taskboardMutationUnavailable(),
-    createTaskboardLabel: async () => taskboardMutationUnavailable(),
-    updateTaskboardLabel: async () => taskboardMutationUnavailable(),
-    deleteTaskboardLabel: async () => taskboardMutationUnavailable(),
-    startTaskboardTask: async () => taskboardMutationUnavailable(),
-    readTaskboardStartStatus: async () => taskboardMutationUnavailable(),
-    retryTaskboardStartSetup: async () => taskboardMutationUnavailable(),
-    continueTaskboardStartWithoutSetup: async () => taskboardMutationUnavailable(),
     getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
     getSession: async sessionId => {
       if (visualSessionReadDelayMs > 0) {

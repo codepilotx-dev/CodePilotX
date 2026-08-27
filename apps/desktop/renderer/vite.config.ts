@@ -17,7 +17,7 @@ import {
 // includes the common top-level pages, every settings tab and the ordinary
 // workbench UI, so the budget guards against accidental regressions instead of
 // forcing those surfaces back into dynamic chunks; heavyweight leaves (terminal,
-// taskboard gantt, file editor, mermaid/shiki/katex rendering) remain behind
+// session groups, file editor, mermaid/shiki/katex rendering) remain behind
 // dynamic isolation. Each surface gate bounds the interactive first screen
 // graph reachable from explicit module manifests. Raw JS is the primary metric
 // because the desktop server returns Bun.file without Content-Encoding; gzip
@@ -185,7 +185,7 @@ const NEW_SURFACE_MODULES: Record<string, readonly string[]> = {
 }
 
 const ROUTE_BUDGET_MODULES = {
-  taskboard: ['features/taskboard/TaskboardView.tsx'],
+  'session-groups': ['features/session-groups/SessionGroupsView.tsx'],
 } as const
 
 type BundleChunk = {
@@ -382,32 +382,32 @@ function routeBundleBudget(): Plugin {
         routeGraphs.set(route, collectStaticGraph(chunks, rootChunks))
       }
 
-      const taskboardGraph = routeGraphs.get('taskboard')
-      if (!taskboardGraph) {
-        this.error('Route "taskboard" budget graph is missing')
+      const sessionGroupsGraph = routeGraphs.get('session-groups')
+      if (!sessionGroupsGraph) {
+        this.error('Route "session-groups" budget graph is missing')
       }
       const entryCssFiles = collectCssFiles(chunks, entryGraph)
       const interactiveCssFiles = collectCssFiles(chunks, surfaceGraphs)
-      const taskboardCssFiles = collectCssFiles(chunks, taskboardGraph)
-      const taskboardIncrementalCssFiles = difference(
-        taskboardCssFiles,
+      const sessionGroupsCssFiles = collectCssFiles(chunks, sessionGroupsGraph)
+      const sessionGroupsIncrementalCssFiles = difference(
+        sessionGroupsCssFiles,
         entryCssFiles,
       )
-      const taskboardInitialCssFiles = new Set([
+      const sessionGroupsInitialCssFiles = new Set([
         ...entryCssFiles,
-        ...taskboardCssFiles,
+        ...sessionGroupsCssFiles,
       ])
       const cssMetrics: Record<BundleBudgetMetricName, number> = {
         entryCssRawBytes: measureCssAssets(bundle, entryCssFiles),
         newInteractiveCssRawBytes: measureCssAssets(bundle, interactiveCssFiles),
-        taskboardInitialIncrementalCssRawBytes: measureCssAssets(
+        sessionGroupsInitialIncrementalCssRawBytes: measureCssAssets(
           bundle,
-          taskboardIncrementalCssFiles,
+          sessionGroupsIncrementalCssFiles,
         ),
       }
-      const taskboardInitialCssRawBytes = measureCssAssets(
+      const sessionGroupsInitialCssRawBytes = measureCssAssets(
         bundle,
-        taskboardInitialCssFiles,
+        sessionGroupsInitialCssFiles,
       )
       const largestAsyncCss = Object.entries(bundle)
         .filter(([fileName, asset]) => (
@@ -450,7 +450,7 @@ function routeBundleBudget(): Plugin {
       const cssBudgetLabels: Record<BundleBudgetMetricName, string> = {
         entryCssRawBytes: 'CSS entry',
         newInteractiveCssRawBytes: 'CSS /new interactive union',
-        taskboardInitialIncrementalCssRawBytes: 'CSS taskboard initial incremental',
+        sessionGroupsInitialIncrementalCssRawBytes: 'CSS session groups initial incremental',
       }
       const cssBudgetFailures: string[] = []
       for (const name of BUNDLE_BUDGET_METRIC_NAMES) {
@@ -471,7 +471,7 @@ function routeBundleBudget(): Plugin {
         }
       }
       this.info(
-        `CSS taskboard initial total: ${formatKib(taskboardInitialCssRawBytes)} raw`,
+        `CSS session groups initial total: ${formatKib(sessionGroupsInitialCssRawBytes)} raw`,
       )
       if (largestAsyncCss) {
         this.info(

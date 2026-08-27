@@ -270,7 +270,7 @@ export function DesktopSidebar({
 
   function isActiveView(view: AppView): boolean {
     if (view === "new") return location.pathname === "/new";
-    if (view === 'taskboard') return location.pathname.startsWith('/taskboard');
+    if (view === 'sessionGroups') return location.pathname.startsWith('/session-groups');
     if (view === "projects") return location.pathname.startsWith("/projects");
     if (view === "pullRequests") return location.pathname.startsWith("/pull-requests");
     return location.pathname === `/${view}`;
