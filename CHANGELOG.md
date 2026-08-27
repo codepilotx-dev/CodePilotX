@@ -10,20 +10,13 @@
 ### Added
 
 - [desktop] 支持独立启动并发现开发 Agent，多个完整桌面窗口可复用同一 Agent，并可将当前聊天在新窗口中打开。
-- [taskboard] 支持递归子任务、轻量步骤、执行条件、结构化阻碍及任务树跨会话上下文。
 - [desktop/renderer] 为 Composer 文件变更汇总增加会话级 Diff 文件预览，支持查看逐文件增删统计并点击定位到 Review。
-- [agent/desktop/renderer] 新增任务级共享上下文 Capsule：关联的主会话、辅助会话与子 Agent 共享确定性摘要和按需条目，终态执行结果以幂等 Evidence 增量收录，并支持乐观并发发布、AI 预览应用、生命周期冻结及验收后项目记忆提升。
-- [agent/desktop] 内置不可卸载的任务规划 Skill，可在确认后将工作目标拆分并创建为任务看板任务。
-- [desktop/renderer] 为任务工作台新增可拖动排期的甘特图，支持日周月缩放、状态分组、定位今天和未排期任务展示。
 - [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
 - [agent] 新增 HarnessCompositionIdentity、HarnessToolComposition、HarnessTurnComposition、HarnessTurnContext、HarnessStepContext 类型及相关纯函数，实现 Agent Turn 组合身份计算、上下文构建与工具 envelope 校验。
 - [desktop] 新增侧边栏“查看活动”，集中展示进行中、待处理、未读及最近七天会话，并支持来源筛选和增量加载。
 - [Agent/desktop/renderer] 模型目录统一接入 models.dev，在保留 Pi 原生执行、用户自定义 Provider 与加密凭据的同时，自动启用安全的 OpenAI-compatible Provider，并为离线缓存和未适配协议提供明确状态。
 - [desktop/renderer] 支持 GitHub 风格的 Markdown 提示块（Alerts / Callouts，支持 `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]`）：在正文会话时间线与右侧 Markdown 富文本编辑器/预览中统一渲染色彩边框、图标徽标与专属警示色系，富文本编辑中聚焦首行可直接修改围栏标签。
 - [development] 新增 CodePilotX 项目级代码审查、推送前检查、文档规范和简化审计 Skills，使 Agent 按仓库架构与验证契约执行常见工程工作流。
-- [Agent/desktop/renderer] 新增原生任务看板：支持 Project 筛选、五阶段拖拽排序、标签与评论、乐观并发、任务关联执行对话及本地或托管 worktree 启动，并向 Agent 提供受权限约束的任务工具。
-- [Agent/desktop/renderer] 将任务看板升级为真实任务工作台：新增兼容旧五态投影的七态工作流、独立待整理提醒、开始与截止日期、历史会话原子关联、Agent 原子交付/阻碍动作，以及 Board/List 与全页任务详情。
-- [desktop] 修复任务看板与列表同时显示，并还原原版全高看板和右侧其他任务布局。
 - [Agent/desktop/renderer] 新增全局模型健康测试，可用活动凭据并发执行真实最小请求、实时查看模型延迟与安全失败分类、取消批次及逐模型重试，并将 Provider 连接测试统一为真实探针。
 - [Agent/desktop/renderer] 新增 Codex 式本地文件与目录上下文：图片按发送时快照保存，普通文件和目录以任务级只读路径引用接入 Agent，并支持安全的应用内预览与目录浏览。
 - [desktop] 新增基于 SenseVoice GGUF 的本地语音听写、麦克风选择和后台模型安装，录音仅临时处理且不会自动发送。
@@ -39,17 +32,13 @@
 
 ### Changed
 
-- [desktop/renderer] 收紧任务看板卡片说明文字的字号与行高，提升紧凑列表中的信息层级。
-- [desktop/renderer] 提升任务看板、列表、归档、甘特图及任务详情界面的字体层级，改善任务信息与辅助文字的可读性。
-- [desktop/renderer] 全面重构任务工作台甘特图：基于 CPX Design Tokens 深度重塑深浅色主题样式以根除第三方组件亮白色块与对比度问题；引入父子任务树层级投影与父任务概要跨度条；任务条采用现代圆角胶囊与状态色系，支持两端拖拽缩放与逾期警示高亮；未排期任务升级为浮动徽章收纳与卡片抽屉，支持直接拖拽卡片到时间轴任意日期快速排期及今天/本周一键排期；工具栏新增“适配全部任务”视图控制与红线居中对齐。
-- [desktop/renderer] 将 Chat、Working 与 Coding 新建首页按 Codex/ChatGPT 参考逻辑收敛为聚焦布局，恢复 Coding 鲸鱼与四张建议卡边界，并将 Working 建议移出首屏。
-- [desktop/renderer] 将 Renderer CSS 资源门禁改为显式基线、软告警与硬失败分层，并将任务看板隔离为独立路由资源预算。
-- [desktop/renderer] 为 Composer 思考强度滑块增加连续拖动与轻磁吸，改用合成层位移和填充缩放消除拖动迟滞，并将 Codex 式弹簧阻尼限制在 Thumb 按压反馈上。
-- [desktop/renderer] 彻底重构任务看板泳道与卡片视觉结构以对齐原型：移除列容器大面积灰底色与深色包裹，重构彩色胶囊状态列头（带图标与新建按钮）、列间流程指示箭头与单排横向自适应滚动，精简卡片结构（微缩 ID、右侧状态指示圆点、纯标题无大段描述、单行流线进度条/优先级与评论气泡），卡片改用纯白卡面与细微悬浮阴影。
+- [session-group] 将任务看板替换为跨项目会话组，支持组内共享步骤、修改、验证、失败来源和精确 Diff 引用。
 
-- [desktop/renderer] 将任务看板未归档状态统一为固定 2×3 主视图，把阻碍任务明确归入处理中，并将已归档任务改为 Header 中独立的紧凑历史 Surface。
+- [desktop/renderer] 将 Chat、Working 与 Coding 新建首页按 Codex/ChatGPT 参考逻辑收敛为聚焦布局，恢复 Coding 鲸鱼与四张建议卡边界，并将 Working 建议移出首屏。
+- [desktop/renderer] 将 Renderer CSS 资源门禁改为显式基线、软告警与硬失败分层，并将会话组隔离为独立路由资源预算。
+- [desktop/renderer] 为 Composer 思考强度滑块增加连续拖动与轻磁吸，改用合成层位移和填充缩放消除拖动迟滞，并将 Codex 式弹簧阻尼限制在 Thumb 按压反馈上。
+
 - [desktop/renderer] 建立完整的 2xs–4xl/full 圆角基础刻度并分阶段迁移 Renderer 组件，使普通控件、列表、菜单、消息与高层级浮动表面恢复 Codex 式层级，同时限制大圆角仅用于明确的 prominent 表面。
-- [desktop/renderer] 将任务看板的输入、选择、日期、单复选及行内交互统一接入 Renderer 组件体系，移除 Windows/Chromium 原生控件外观并补齐可搜索选择与日期范围限制。
 - [desktop/renderer] 将 Composer 模型、推理强度与提供商整合为 Codex 风格的简洁/高级选择器，使打开态 Chip 与弹层对齐并居中，按 Switch 语义统一滑杆前景与背景并收紧高级按钮，修复双层 Hover、纵向切换、动态高度空白、悬停 Flyout、Provider 连续选择及拖动档位回跳，同时保留“更高效 / 更智能”端点提示。
 - [desktop/renderer] 建立主题自适应的圆角光学校正与 prominent 曲率语义，使按钮、会话 Composer、用户消息和线程环境摘要在支持环境中使用一致的 Codex 风格超椭圆轮廓，同时保持其他 Renderer 圆角不变。
 - [desktop/renderer] 收紧 Composer 执行计划与 Diff 文件预览卡片的宽度、间距和排版，并统一为主题自适应的 Codex 风格 rich tooltip 层级。
@@ -69,15 +58,10 @@
 - [development] 允许主 Agent 按任务范围和上下文复杂度自主选择 OpenCode 的 DeepSeek 或 MiniMax 模型执行受控小阶段，同时保留文件冻结、同 session 返修和独立验收要求。
 - [desktop/renderer] 统一 Renderer 颜色语义与表面层级，收敛 feature 对组件颜色别名和临时混色的依赖，为后续 Agent 增加可执行的选色规范与样式检查，并增强 Composer、会话摘要、审批及 Review Diff 在明暗和自定义主题下的信息层级。
 - [desktop/renderer] 将消息附件与本地上下文导入改为客户端启动时预热的延迟模块，保持首次发送无需临时加载模块，同时恢复 Renderer 入口体积预算。
-- [desktop/renderer] 为任务详情属性布局预留不可见的负责人扩展插槽，不引入未实现的负责人字段或持久化。
-- [desktop/renderer] 统一任务“待整理”术语，明确打开、继续与新建主会话的启动动作，并在甘特图增加独立未排期区域。
 - [desktop/renderer] 将 Skill 选择统一为 Composer 内联 token；内置扩展跳转产品详情，工作区和用户 Skill 在右侧只读打开 SKILL.md。
-- [desktop/renderer] 将主导航、设置与常用工作台界面调整为随桌面端启动加载，减少首次打开页面和面板时由动态分块造成的加载动画与空白，同时继续按需加载终端、甘特图和编辑器等重量级能力。
-- [desktop/renderer] 将 Working“规划任务”入口接入真实 Skill 调用链，并为 Composer 与 Skills 设置增加统一任务规划图标。
-- [desktop/renderer] 支持从侧栏拖动会话到任务卡片完成主/辅助会话关联，并精简新建任务弹窗的会话选择区域。
+- [desktop/renderer] 将主导航、设置与常用工作台界面调整为随桌面端启动加载，减少首次打开页面和面板时由动态分块造成的加载动画与空白，同时继续按需加载终端和编辑器等重量级能力。
 - [agent/desktop/renderer] 将 Material 图标与代码高亮主题收敛为少量按需分片，统一 Repository 公共声明和 Electron 原子 JSON 写入，并简化性能报告为当前指标与预算对比，显著减少源码文件且保持现有运行能力。
 - [docs/agent] 基于当前 CodePilotX 与 OpenAI Codex 固定提交重写 Harness 对标报告，校正已完成能力，并给出以运行组合完整性、Skills/MCP 真按需、Hook、Sandbox/凭据决策和 Durable Goal 为核心的证据化优化路线。
-- [desktop/renderer] 将侧边栏“任务看板”入口图标替换为 `Presentation`。
 - [agent] 将 Pi Harness 物理并入 App Agent，并统一 AgentRuntime 执行门面，减少重复编排层。
 - [development] 明确 OpenCode、MiniMax 等外部 Coding Agent 的受控实施边界，要求核心改造采用小任务串行、冻结行为测试、禁止类型绕过并由主 Agent 独立验收。
 - [agent/runtime] 为 Harness 增加不可变 Turn/Step composition 契约，并统一持久化主 Agent 与子 Agent 的模型、权限、Skills、MCP、工具和 Prompt 快照，确保暂停及恢复期间运行配置保持一致。
@@ -146,9 +130,6 @@
 - [Agent/renderer] 统一 thread snapshot、history、queue 的 SQLite read fence 与 SSE cursor authority，事件以 256 条或 50ms 批量提交、1024 条有界积压并在消费失败后从已提交位置重新对账
 - [release/docs] 后续 GitHub Release 统一改为 source-only：标签流水线使用 GitHub-hosted runner，仅发布 CHANGELOG 正文与 GitHub 自动生成的源码归档，不再依赖自托管签名 runner 或上传 Windows 安装包、更新元数据、校验和及 SBOM；README 改为指导 Windows x64 使用者自行打包
 - [desktop/renderer] 将分段选择与插件来源筛选迁移到 Radix Toggle Group，补齐方向键和 roving focus 键盘导航，同时保持现有视觉与必选行为。
-- [desktop/renderer] 融合 dashi 信息密度重构任务看板：44px 紧凑工具栏（搜索、Project、优先级/标签筛选菜单、归档）替换 Hero 大标题区；五列始终渲染并保持 296–336px 可读宽度、普通窗口横向滚动；列头以状态色 token 着色并绘制轻量 CSS 流程箭头（暗色与 forced-colors 降级）；任务卡改为 12px 圆角紧凑浮层，移除内部分割框与隐藏的 `<details>` 移动菜单，改用 PopoverMenu；列头 `+` 与顶部“新建任务”统一只保留一个文字入口，列内新增按状态预填（复用 RPC 可选 `status`，无协议变更）。
-- [desktop/renderer] 将任务详情 drawer 从悬浮全窗改为路由区域内右侧面板（480px，与右栏同表面语言，960px 以下近全宽浮层），看板上下文保持可见，字段、标签、对话、评论、活动和危险区按面板分组重排，权限、归档与永久删除行为不变。
-- [desktop/renderer] 为任务看板新增浏览器视觉回归基础设施：`visualCase=taskboard` 静态 fixture（五种状态、长标题、标签、运行中、等待输入与 worktree 卡片）、Playwright 场景与 axe 场景；浏览器 mock 仅提供只读 list/read/label fixture，mutation 保持显式不可用。
 - [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
@@ -156,15 +137,10 @@
 - [desktop/renderer] 恢复 Codex 式侧边栏项目、会话与导航行视觉，并修复产品模式切换器误用通用 Select 后产生的边框和悬停样式回归。
 - [desktop/renderer] 完成交互语义与视觉所有权全量收口，统一剩余选择、披露、实体行和图标动作，并增加静态契约防止动作按钮与复合表面再次串扰。
 - [desktop/renderer] 隔离卡片、附件和复合交互表面与动作按钮样式，修复悬停、尺寸和状态视觉串扰。
-- [desktop/renderer] 修复任务看板路由懒加载时误用面板 Spinner 的问题，恢复工作区内鲸鱼扫光加载状态。
 - [desktop/renderer] 将思考强度滑块改为拖动预览、松手单次提交，修复快速拖动时等级文字因受控状态连续回传而乱跳。
-- [desktop/renderer] 修复任务看板长标题和说明挤压成单字列的问题，将卡片改为上下信息结构并限制正文行数。
 - [agent/desktop] 兼容读取异常任务阶段，区分看板读取与操作错误，并通过非阻断诊断提示保留任务可用性。
 - [desktop/development] 修复多个 Git worktree 启动 Desktop 时争用固定 Renderer 端口和全局 Electron 实例的问题，为各 worktree 隔离动态 Vite、Electron 状态与日志，同时复用唯一开发 Agent。
-- [desktop/renderer] 修复任务看板窄侧栏中的任务卡片被通用交互行布局挤压、导致中文标题逐字竖排的问题，恢复标题、说明与元信息的纵向可读排布。
-- [desktop/renderer] 修复任务甘特图依赖尝试加载 Google Inter 字体及 Renderer 在 CSP 元标签中声明无效 `frame-ancestors` 所产生的控制台错误，继续保持网络字体默认拒绝。
 - [desktop/renderer] 收紧高频交互动效并取消推理滑杆直接操作时的位置缓动，使模型菜单、浮层、悬停与滑杆反馈更及时。
-- [desktop/renderer] 修复任务看板工具栏按整窗宽度响应而在侧栏占用空间时发生控件拥挤的问题，将纯文字视图切换移至工作区 Header，并让内容工具栏按任务区宽度收缩、前置层级与项目选择器且移除重复提示。
 - [desktop/renderer] 修复外观设置颜色选择框被拆成色块与空白输入区的问题，使浅色和深色主题的强调色、背景色及前景色恢复为 Codex 风格的一体式颜色控件。
 - [desktop/renderer] 修正新会话首页因页面位置误用胶囊圆角的问题，引入独立的 Composer utility bar、布局和圆角角色语义，使首页与会话页的多行输入面统一使用 prominent 曲率。
 - [desktop] 修复用户主题与系统主题不同时，桌面重新加载期间鲸鱼加载页短暂闪成相反明暗主题的问题。
@@ -176,7 +152,6 @@
 - [desktop/models] 放宽 Provider 目录卡片的内部留白与图文间距，并移除面向用户展示的 models.dev 缓存来源标签。
 - [desktop/renderer] 修正亮色主题中 control、raised 与 recessed 表面的层级方向，并为浮动 Composer 和线程环境摘要恢复克制的 prominent elevation，常驻 Dock、Panel 与普通卡片继续保持零阴影。
 - [desktop/models] 修复 Provider 远程图标及其固定占位在目录卡片中塌缩、连带破坏图文间距的问题，并改为启动后后台校验 models.dev、失败回退缓存，同时提供页面级手动刷新。
-- [agent] 修复 history schema 24 迁移测试夹具误执行新版任务上下文表 DDL、因缺失任务看板依赖表而无法验证逐代迁移的问题。
 - [desktop] 修复 Pi OAuth 登录在认证方式选择提示中持续加载、无法提交，以及授权完成后 Provider 模型目录未立即生效的问题，并确保打包后的 Agent sidecar 内置 OAuth 流程可加载。
 
 - [desktop] 修复 Windows 原生窗口控制区未跟随应用标题栏主题与高度，消除浅色和自定义主题下的顶栏颜色断层。
@@ -184,27 +159,15 @@
 - [desktop/renderer] 修复右侧栏与底部面板拖拽结束时旧比例状态短暂覆盖最终尺寸、导致面板先回跳再落到目标位置的问题。
 - [Agent] 修复图片及文本附件在 input 创建前提前绑定而导致首条发送、排队追问和运行中引导显示“Agent 内部错误”的问题，并将附件绑定纳入 Turn 创建事务。
 - [desktop] 修复可信主窗口的文本剪贴板写入权限，恢复工作目录、会话 ID、深度链接及其他普通复制操作。
-- [desktop] 修复从任务工作台创建或继续主会话后启动指令未同步到 Composer、导致新会话输入框保持空白的问题。
 - [desktop/renderer] 图片附件打开控件不再复用通用 Button，避免默认尺寸、背景和边框覆盖缩略图。
 - [desktop/renderer] 修正 Skills 实时更新测试，使其匹配复用的全局事件订阅。
-- [desktop/renderer] 修复任务工作台从带筛选的 Board、List 或 Gantt 打开详情后，返回、前进后退及刷新详情再返回时丢失滚动位置和任务锚点的问题。
-- [agent] 修复任务工作台新建主会话仅将执行说明预填到草稿、未注入 Agent Turn 且未激活任务工具的问题，使关联 primary 可读取任务并原子提交验收。
 - [agent] 修复正式提问 checkpoint 使用 `toolCallID` 时被替换为随机标识，导致用户回答后无法恢复原工具调用、Turn 直接失败的问题。
 - [desktop/renderer] 修复正式提问从会话历史恢复后使用交互 ID、却只按内部问题 ID 查找待处理请求，导致回答被误报为已失效的问题。
 - [desktop/renderer] 修复全局事件重复占满浏览器连接、发送消息又等待动态上下文模块和完整模型目录，导致提交长期停留在“正在发送”且未创建 Turn 的问题。
-- [agent/desktop] 修复任务日期筛选按 UTC 计算当天导致部分时区凌晨结果错一天的问题，由桌面端显式传递本地日历日期。
-- [desktop/renderer] 修复任务看板在受阻列为空时无法将首个任务拖入的问题，拖动可执行任务期间会临时显示受阻放置目标。
-- [agent/desktop] 修复任务主会话提交计划等待确认时仍显示空闲的问题，使任务摘要正确提示需要处理且不改变任务工作流阶段。
-- [desktop/renderer] 修复任务详情内联切换阶段到受阻后取消或移动请求失败时选择框未回滚并产生未处理 Promise 拒绝的问题。
-- [desktop/renderer] 修复任务工作台继续已归档主会话时无法导航的问题，为会话详情快照补充可选归档时间，并在列表协调前恢复对应会话。
 - [desktop] ConversationEnvironmentControls 在 gitStatus 成功加载前或已确认非 Git 时不调用 local-environment/action/list、worktree/list 与 thread/handoff/pending，清空既有 Git actions/worktrees/遗留错误，请求期间由 Git 变非 Git 时忽略迟到结果与错误；移交等 Git 专属入口保持可发现但禁用并说明“仅 Git 项目可用”，Git 后续成功才加载。
 - [desktop/renderer] canonical 会话批次收到 turn/completed/turn/failed/turn/interrupted 终态事件后，先 deliver 再只读取一次最新历史并 rehydrate 当前 coordinator，用 threadId + generation 双校验拒绝旧结果；对账失败保留实时投影、不设置页面错误、不清空时间线、不循环重连，仅做安全诊断。
 - [desktop] 非 Git 普通项目与无项目会话在 Git status 返回 REPOSITORY_NOT_FOUND（或失败）后跳过 branches 与 Review RPC，避免 review.snapshot/review.summary 因仓库缺失而报错阻断会话，仅投影为 isGitRepo=false、gitStatus=null 与空分支/Review；Git 仓库继续加载 branches 与 unstaged/staged Review。Composer 发送门禁仍仅为空输入、模型未配置、会话未解析、附件错误与正在提交，非 Git 项目仍可正常发送。
-- [desktop/renderer] 修复任务启动创建主会话后会话目录尚未同步便导航、导致提示“找不到对话”的竞态。
-- [desktop/renderer] 修复任务验收说明可选却无法空提交，以及完成、取消和归档任务仍显示执行入口的问题。
 - [desktop/renderer] 还原 Working Composer 内联 Skill 的 Codex 字体比例与透明 mention 样式。
-- [desktop/renderer] 修复新建任务加载历史会话时因瞬时空候选导致页面崩溃，并在候选 RPC 失败时显示明确错误。
-- [agent/storage] 修复早期任务工作流数据库缺少排序位置时导致任务看板无法加载，并前向回填已有任务顺序。
 - [desktop/renderer] 统一对话发送按钮、侧边栏会话行与 Bell 的运行及未读状态来源，修复回复完成后仍显示运行中的问题。
 - [desktop/renderer] 修复侧边栏活动视图引导提示（Coachmark）在每次启动桌面端时重复弹出的问题：补齐桌面设置反序列化中的活动视图字段归一化，确保用户确认关闭后持久化生效且不再弹出。
 
@@ -236,7 +199,6 @@
 - [desktop/renderer] 统一外观页主题编辑器与偏好设置卡片的共享表面、圆角、宽度和 16px 内容网格，使标题、控件及分隔线左右对齐；字体家族与样式下拉改为按当前内容自适应宽度，不再截断常规选项。
 - [desktop] 修复外观 V7 在真实启动与 Agent 保存链中可能降级覆盖高版本配置、系统字体权限被麦克风策略误拒绝、字体 family/face 可不一致，以及已保存字体样式首次进入不可操作的问题。
 - [desktop/renderer] 修复动态滚动内容增长后边缘渐隐状态失真、命令输出渐隐层随内容滚动及 reduced-motion 骨架屏残留高亮，并隔离动画性能夹具、补强视觉与样式契约以避免回归测试假绿。
-- [desktop/renderer] 修复任务看板新建与“开始执行”弹窗缺少背景、边框和阴影导致控件漂浮在遮罩上的问题，统一接入共享 floating-surface（`layer-floating-fill`、`layer-edge-strong`、`radius-floating`、`shadow-floating`）。
 - [desktop] 修复模型配置判定期间启动鲸鱼过早交接的问题，统一整窗加载为带真实阶段滑动文案的鲸鱼扫光动画，并保留局部加载反馈。
 - [desktop/renderer] 将首次模型配置向导改为由用户 `config.json` 中的 `desktop.firstUseSetupCompleted` 一次性标记控制，已有有效模型的旧用户自动完成迁移，手动改回 `0` 可重新进入完整向导。
 - [Agent/desktop/renderer] 修复只保存 API Key、未显式选择默认模型时，Agent 目录 fallback 被伪装成已配置模型、刷新或重启后绕过首次配置门禁的问题；`model/list.defaultModel` 现在只返回显式配置且当前可用的默认模型（含 variant）。
