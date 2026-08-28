@@ -1,4 +1,5 @@
 export * from "./api"
+export * from "./automation"
 export * from "./desktop-theme"
 export * from "./desktop-pet-overlay"
 export * from "./desktop-window-ipc"

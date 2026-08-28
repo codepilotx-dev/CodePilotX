@@ -554,7 +554,105 @@ const taskboardStartOperation = {
   completedAt: 3,
 } as const
 
+const automation = {
+  id: "automation:1",
+  revision: 1,
+  kind: "standalone",
+  name: "每日代码检查",
+  prompt: "检查当前项目中的待办事项。",
+  status: "active",
+  projectId: project.id,
+  targetThreadId: null,
+  execution: { kind: "local" },
+  model: modelRef,
+  reasoningEffort: "medium",
+  permissionConfig: { ...permissionConfig, approvalPolicy: "never" },
+  schedule: { mode: "daily", time: "09:00" },
+  canonicalRrule: "FREQ=DAILY;BYHOUR=9;BYMINUTE=0",
+  timeZone: "Asia/Shanghai",
+  notificationPolicy: "failures",
+  nextRunAt: 2_000,
+  pendingCatchUp: false,
+  activeRunId: null,
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  deletedAt: null,
+} as const
+
+const automationRun = {
+  id: "automation-run:1",
+  automationId: automation.id,
+  trigger: "manual",
+  scheduledFor: 1_500,
+  status: "claimed",
+  threadId: null,
+  turnId: null,
+  worktreeId: null,
+  readAt: null,
+  safeErrorCode: null,
+  createdAt: 1_500,
+  startedAt: null,
+  completedAt: null,
+} as const
+
 const fixtures = {
+  "automation/list": methodFixture("automation/list", {
+    statuses: ["active"],
+    query: "代码",
+  }, { automations: [automation] }),
+  "automation/read": methodFixture("automation/read", {
+    automationId: automation.id,
+  }, { automation }),
+  "automation/create": methodFixture("automation/create", {
+    operationId: "operation:automation-create",
+    kind: automation.kind,
+    name: automation.name,
+    prompt: automation.prompt,
+    projectId: automation.projectId,
+    targetThreadId: automation.targetThreadId,
+    execution: automation.execution,
+    model: automation.model,
+    reasoningEffort: automation.reasoningEffort,
+    permissionConfig: automation.permissionConfig,
+    schedule: automation.schedule,
+    timeZone: automation.timeZone,
+    notificationPolicy: automation.notificationPolicy,
+  }, { automation }),
+  "automation/update": methodFixture("automation/update", {
+    automationId: automation.id,
+    expectedRevision: automation.revision,
+    name: "每日仓库检查",
+  }, { automation: { ...automation, revision: 2, name: "每日仓库检查", updatedAt: 1_100 } }),
+  "automation/delete": methodFixture("automation/delete", {
+    automationId: automation.id,
+    expectedRevision: automation.revision,
+  }, { automation: { ...automation, revision: 2, status: "deleted", nextRunAt: null, deletedAt: 1_200 } }),
+  "automation/run": methodFixture("automation/run", {
+    automationId: automation.id,
+    operationId: "operation:automation-run",
+  }, { run: automationRun }),
+  "automation/run/list": methodFixture("automation/run/list", {
+    automationId: automation.id,
+    unreadOnly: true,
+    limit: 20,
+  }, { runs: [automationRun] }),
+  "automation/run/mark-read": methodFixture("automation/run/mark-read", {
+    runId: automationRun.id,
+  }, { run: { ...automationRun, readAt: 1_600 } }),
+  "automation/run/mark-all-read": methodFixture("automation/run/mark-all-read", {
+    automationId: automation.id,
+  }, { updatedCount: 1 }),
+  "automation/schedule/preview": methodFixture("automation/schedule/preview", {
+    schedule: automation.schedule,
+    timeZone: automation.timeZone,
+    count: 3,
+  }, {
+    preview: {
+      canonicalRrule: automation.canonicalRrule,
+      summary: "每天 09:00",
+      nextRunAt: [2_000, 3_000, 4_000],
+    },
+  }),
   "config/read": methodFixture("config/read", {
     includeLayers: true,
     cwd: "F:/CodeProject/example",
@@ -3072,7 +3170,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(215)
+    expect(methods).toHaveLength(225)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3403,7 +3501,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(209)
+    expect(Object.keys(RpcMethods)).toHaveLength(219)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./api": "./src/api.ts",
+    "./automation": "./src/automation.ts",
     "./events": "./src/llm-event.ts",
     "./desktop-theme": "./src/desktop-theme.ts",
     "./desktop-pet-overlay": "./src/desktop-pet-overlay.ts",

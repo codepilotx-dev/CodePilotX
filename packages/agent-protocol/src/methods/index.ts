@@ -1,5 +1,6 @@
 import type { Schema } from "effect"
 import type { ParamsOf, ResultOf } from "../wire/definition"
+import { AutomationRpcMethods } from "./automation"
 import { BaseRpcMethods } from "./base"
 import { HandoffRpcMethods } from "./handoff"
 import { LocalEnvironmentRpcMethods } from "./local-environment"
@@ -11,6 +12,7 @@ import type { TerminalRpcMethodMap } from "./terminal"
 import type { LocalEnvironmentHostRpcMethodMap } from "./local-environment"
 
 export const RpcMethods = {
+  ...AutomationRpcMethods,
   ...BaseRpcMethods,
   ...HandoffRpcMethods,
   ...LocalEnvironmentRpcMethods,
@@ -40,6 +42,7 @@ export type PublicRpcParams<M extends PublicRpcMethod> = ParamsOf<(typeof RpcMet
 export type PublicRpcResult<M extends PublicRpcMethod> = ResultOf<(typeof RpcMethods)[M]>
 
 export * from "./core"
+export * from "./automation"
 export * from "./config"
 export * from "./extended"
 export * from "./git"

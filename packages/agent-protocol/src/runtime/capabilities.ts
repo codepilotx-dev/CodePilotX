@@ -50,6 +50,7 @@ export const Capabilities = [
   "thread.creation-surface.v1",
   "worktree.manage.v1",
   "session-group.v1",
+  "automation.manage.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

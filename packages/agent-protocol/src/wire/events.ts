@@ -1,4 +1,5 @@
 import { Model, Provider } from "@codepilotx/model-schema"
+import { AutomationRunStatusSchema, AutomationStatusSchema } from "@codepilotx/shared/automation"
 import {
   AgentExecutionSchema,
   ExecutionPlanItemSchema,
@@ -47,6 +48,32 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "automation/changed": defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: AutomationStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "automation.manage.v1",
+    reconcilesWith: "automation/list",
+  }),
+  "automation/runChanged": defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      runId: OpaqueIDSchema,
+      status: AutomationRunStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "automation.manage.v1",
+    reconcilesWith: "automation/run/list",
+  }),
   "config/updated": defineEvent({
     payload: Schema.Struct({
       version: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
