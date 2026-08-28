@@ -127,7 +127,7 @@ input,
 textarea {
   min-width: 0;
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-md);
+  border-radius: 0;
   background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   outline: none;
