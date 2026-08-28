@@ -68,6 +68,7 @@
   @include meta.load-css('features/review');
   @include meta.load-css('features/timeline');
   @include meta.load-css('features/canonical-conversation');
+  @include meta.load-css('features/primary-page');
   @include meta.load-css('features/automation');
   @include meta.load-css('features/pull-requests');
   @include meta.load-css('features/file-editor');

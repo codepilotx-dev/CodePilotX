@@ -130,6 +130,7 @@
   --cpx-sys-font-size-xl: 18px;
   --cpx-sys-font-size-2xl: 20px;
   --cpx-sys-font-size-3xl: 24px;
+  --cpx-sys-font-size-4xl: 28px;
 
   --cpx-sys-line-height-none: 1;
   --cpx-sys-line-height-tight: calc(var(--cpx-sys-font-size-sm) + 5px);
@@ -151,6 +152,7 @@
   --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-space-8) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-code: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono);
 
   // System Spacing (4px Grid)

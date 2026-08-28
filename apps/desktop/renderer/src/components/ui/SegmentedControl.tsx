@@ -88,11 +88,7 @@ export function SegmentedControl<T extends string>({
     event: React.KeyboardEvent<HTMLButtonElement>,
     index: number,
   ): void {
-    let nextIndex: number | null = null
-    if (event.key === 'ArrowRight') nextIndex = (index + 1) % options.length
-    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + options.length) % options.length
-    if (event.key === 'Home') nextIndex = 0
-    if (event.key === 'End') nextIndex = options.length - 1
+    const nextIndex = segmentedTabIndexAfterKey(event.key, index, options.length)
     if (nextIndex === null) return
     event.preventDefault()
     selectByIndex(nextIndex)
@@ -132,4 +128,17 @@ export function SegmentedControl<T extends string>({
       })}
     </div>
   )
+}
+
+export function segmentedTabIndexAfterKey(
+  key: string,
+  index: number,
+  optionCount: number,
+): number | null {
+  if (optionCount <= 0) return null
+  if (key === 'ArrowRight') return (index + 1) % optionCount
+  if (key === 'ArrowLeft') return (index - 1 + optionCount) % optionCount
+  if (key === 'Home') return 0
+  if (key === 'End') return optionCount - 1
+  return null
 }

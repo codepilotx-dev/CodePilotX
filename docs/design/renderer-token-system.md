@@ -30,7 +30,7 @@ Renderer 只使用三层变量：
 
 ### 排版
 
-排版角色为 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / code`，通过 `--cpx-sys-type-*` 使用。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
+排版角色为 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / heading-xl / code`，通过 `--cpx-sys-type-*` 使用。`heading-xl` 仅用于一级页面的主标题。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
 界面字号与代码字号设置仍是主题输入：运行时只更新 `--cpx-sys-font-size-ui`、`--cpx-sys-font-size-code` 及其派生刻度；语义角色自动随之变化。
 
