@@ -1086,6 +1086,11 @@ const migrateHistory39To40 = (sqlite: Database) => sqlite.exec(SESSION_GROUP_SCH
   .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
   .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")).join(";\n"))
 
+// Some prerelease v40 stores were opened after the version bump but before the
+// session-group schema landed. Re-run the additive schema idempotently so those
+// stores are repaired without replacing or rewriting existing data.
+const migrateHistory40To41 = migrateHistory39To40
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1298,6 +1303,7 @@ class SchemaInitializer {
           37: () => migrateHistory37To38(this.sqlite),
           38: () => migrateHistory38To39(this.sqlite),
           39: () => migrateHistory39To40(this.sqlite),
+          40: () => migrateHistory40To41(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

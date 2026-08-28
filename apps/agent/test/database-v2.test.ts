@@ -25,6 +25,14 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA
 const SEMANTIC_VIEW_NAME = "thread_semantic_history_v1"
 const SEMANTIC_VIEW_VERSION = 37
 const TOOL_OUTPUT_SUMMARY_LIMIT = 4000
+const SESSION_GROUP_TABLES = [
+  "session_group_operations",
+  "session_group_context_entries",
+  "session_group_context_state",
+  "session_group_steps",
+  "session_group_memberships",
+  "session_groups",
+] as const
 const SEMANTIC_VIEW_COLUMNS = [
   "thread_id",
   "thread_title",
@@ -69,7 +77,7 @@ const seedSemanticBoundary = (db: AgentDatabase, input: { turnID: string; thread
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
 
 describe("数据库兼容与迁移", () => {
-  test("v39 到 v40 新增空会话组表并保留旧任务看板记录", async () => {
+  test("v39 迁移到当前版本新增空会话组表并保留旧任务看板记录", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v39-"))
     paths.push(root)
     const historyPath = join(root, "agent.sqlite")
@@ -80,20 +88,31 @@ describe("数据库兼容与迁移", () => {
     db.sqlite.query(`INSERT INTO taskboard_tasks
       (id, project_id, number, title, description, status, priority, position, version, archived_at, created_at, updated_at)
       VALUES (?, ?, 1, '旧任务', '', 'todo', 'none', 0, 1, NULL, 1, 1)`).run(taskId, project.id)
-    for (const table of [
-      "session_group_operations",
-      "session_group_context_entries",
-      "session_group_context_state",
-      "session_group_steps",
-      "session_group_memberships",
-      "session_groups",
-    ]) db.sqlite.query(`DROP TABLE ${table}`).run()
+    for (const table of SESSION_GROUP_TABLES) db.sqlite.query(`DROP TABLE ${table}`).run()
     db.sqlite.exec("PRAGMA user_version = 39")
     db.close()
 
     const reopened = new AgentDatabase({ historyPath, profilePath })
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 40 })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(reopened.sqlite.query("SELECT title FROM taskboard_tasks WHERE id = ?").get(taskId)).toEqual({ title: "旧任务" })
+    expect(reopened.repositories.sessionGroups.list()).toEqual([])
+    reopened.close()
+  })
+
+  test("v40 缺少会话组表时迁移到当前版本并保留既有记录", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-v40-incomplete-"))
+    paths.push(root)
+    const historyPath = join(root, "agent.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const db = new AgentDatabase({ historyPath, profilePath })
+    const thread = db.createThread({ title: "保留的会话" })
+    for (const table of SESSION_GROUP_TABLES) db.sqlite.query(`DROP TABLE ${table}`).run()
+    db.sqlite.exec("PRAGMA user_version = 40")
+    db.close()
+
+    const reopened = new AgentDatabase({ historyPath, profilePath })
+    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(reopened.getThread(thread.id)?.title).toBe("保留的会话")
     expect(reopened.repositories.sessionGroups.list()).toEqual([])
     reopened.close()
   })
@@ -1050,7 +1069,7 @@ describe("数据库兼容与迁移", () => {
     legacy.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 40 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('taskboard_plan_items','taskboard_plan_dependencies','taskboard_blockers','taskboard_archive_batches','taskboard_archive_batch_tasks')").all() as Array<{ name: string }>).map(row => row.name).sort()).toEqual([
       "taskboard_archive_batch_tasks",
       "taskboard_archive_batches",
