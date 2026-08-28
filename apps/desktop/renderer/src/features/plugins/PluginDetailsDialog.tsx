@@ -1,19 +1,21 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type React from 'react'
 import { useRef } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
-import { pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
 import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
+import {
+  PluginDetailsMetadata,
+  PluginDetailsPrimaryAction,
+} from './PluginDetailsContent.js'
 
 type Props = {
   item: PluginCatalogItem | null
@@ -29,12 +31,6 @@ type Props = {
   ) => void
 }
 
-const CATEGORY_LABELS: Record<PluginCatalogItem['category'], string> = {
-  included: '内置',
-  manageable: '可管理',
-  external: '外部',
-}
-
 export function PluginDetailsDialog({
   item: currentItem,
   open,
@@ -47,11 +43,8 @@ export function PluginDetailsDialog({
   const retainedItem = useLastNonNull(currentItem)
   const item = open ? currentItem : retainedItem
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const toggleRef = useRef<HTMLButtonElement>(null)
 
   if (!item) return null
-
-  const action = pluginPrimaryAction(item)
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -75,7 +68,11 @@ export function PluginDetailsDialog({
                 className="plugin-details-dialog__plugin-icon"
                 data-plugin-tone={item.tone}
               >
-                <PluginIcon name={item.iconName} />
+                <PluginIcon
+                  logoDarkSource={item.logoDarkSource}
+                  logoSource={item.logoSource}
+                  name={item.iconName}
+                />
               </span>
               <div className="plugin-details-dialog__heading">
                 <Dialog.Title className="plugin-details-dialog__title">
@@ -97,16 +94,7 @@ export function PluginDetailsDialog({
             </header>
 
             <ScrollArea className="plugin-details-dialog__scroll-area">
-              <dl className="plugin-details-dialog__metadata">
-                <div className="plugin-details-dialog__metadata-row">
-                  <dt>来源</dt>
-                  <dd>{CATEGORY_LABELS[item.category]}</dd>
-                </div>
-                <div className="plugin-details-dialog__metadata-row">
-                  <dt>状态</dt>
-                  <dd>{pluginStatusLabel(item)}</dd>
-                </div>
-              </dl>
+              <PluginDetailsMetadata item={item} />
 
               {error ? (
                 <p className="plugin-details-dialog__error" role="status">
@@ -119,31 +107,11 @@ export function PluginDetailsDialog({
               <Dialog.Close asChild>
                 <Button color="secondary">关闭</Button>
               </Dialog.Close>
-              {action?.kind === 'toggle-builtin' ? (
-                <ToggleSwitch
-                  ref={toggleRef}
-                  ariaLabel={`启用 ${item.name}`}
-                  checked={action.checked}
-                  disabled={action.disabled || busy}
-                  onChange={checked => {
-                    const trigger = toggleRef.current
-                    if (trigger) onPrimaryAction(item, trigger, checked)
-                  }}
-                />
-              ) : action ? (
-                <Button color="primary"
-                  disabled={action.disabled}
-                  loading={busy}
-                  onClick={event => onPrimaryAction(item, event.currentTarget)}
-                >
-                  {action.label}
-                  <ExternalLink
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                </Button>
-              ) : null}
+              <PluginDetailsPrimaryAction
+                busy={busy}
+                item={item}
+                onPrimaryAction={onPrimaryAction}
+              />
             </footer>
         </Dialog.Content>
       </Dialog.Portal>

@@ -73,6 +73,8 @@ import {
 } from "./config/DataDirectoryMigration";
 import { SkillManagementService } from "./prompt/SkillManagementService";
 import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
+import { PluginSettingsRepository } from "./storage/repositories/plugin-settings-repository";
+import { PluginManagementService } from "./plugin/PluginManagementService";
 import { McpSettingsRepository } from "./storage/repositories/mcp-settings-repository";
 import { McpConfigService } from "./mcp/McpConfigService";
 import { McpConnectionManager } from "./mcp/McpConnectionManager";
@@ -302,6 +304,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           },
     );
     const pets = new PetService(config.petsDir);
+    const plugins = new PluginManagementService(
+      new PluginSettingsRepository(db),
+      {
+        builtinPluginsRoot: config.builtinPluginsRoot,
+        userHome: homedir(),
+      },
+    );
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
       {
@@ -310,6 +319,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         builtinSkillsRoot: config.builtinSkillsRoot,
       },
       configService,
+      () => plugins.enabledSkillRoots(),
     );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
@@ -932,6 +942,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       pets,
       releaseNotes,
       skills,
+      plugins,
       mcp,
       suggestions,
       usage,

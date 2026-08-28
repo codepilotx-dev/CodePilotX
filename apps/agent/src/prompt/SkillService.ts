@@ -46,11 +46,20 @@ export interface SkillScanOptions {
   includeWorkspace?: boolean;
   /** Read-only root containing application-provided Skills. */
   builtinSkillsRoot?: string;
+  /** Read-only Skill roots contributed by enabled plugins. */
+  pluginSkillRoots?: readonly PluginSkillRoot[];
 }
 
 export type SkillServiceOptions = {
   enabled?: (skill: SkillMetadata) => boolean;
   builtinSkillsRoot?: string;
+  pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>;
+}
+
+export type PluginSkillRoot = {
+  pluginId: string;
+  pluginRoot: string;
+  skillsRoot: string;
 }
 
 export type SkillSearchResult =
@@ -72,6 +81,8 @@ const sha256 = (value: Uint8Array) =>
 const missing = (cause: unknown) =>
   cause instanceof Error && "code" in cause && cause.code === "ENOENT";
 const builtinSkillPath = (directory: string) => `builtin://${directory}/SKILL.md`;
+const pluginSkillPath = (pluginId: string, directory: string) =>
+  `plugin://${pluginId}/skills/${directory}/SKILL.md`;
 
 export const parseSkillDocument = (content: string) => {
   if (content.charCodeAt(0) === 0xfeff) content = content.slice(1);
@@ -125,8 +136,18 @@ export class SkillService {
     dataRoot: string,
     userHome: string,
     builtinSkillsRoot: string | undefined,
+    pluginSkillRoots: readonly PluginSkillRoot[],
   ): string {
-    return sha256(new TextEncoder().encode(`${workspace}:${dataRoot}:${userHome}:${builtinSkillsRoot ?? ""}`))
+    const pluginRoots = pluginSkillRoots
+      .map((root) => `${root.pluginId}:${root.pluginRoot}:${root.skillsRoot}`)
+      .join("|")
+    return sha256(new TextEncoder().encode(
+      `${workspace}:${dataRoot}:${userHome}:${builtinSkillsRoot ?? ""}:${pluginRoots}`,
+    ))
+  }
+
+  private async pluginSkillRoots(options: SkillScanOptions): Promise<readonly PluginSkillRoot[]> {
+    return options.pluginSkillRoots ?? await this.options.pluginSkillRoots?.() ?? []
   }
 
   async skill_search(query: string, limit?: number): Promise<SkillSearchDiagnostics> {
@@ -176,7 +197,7 @@ export class SkillService {
           results.push({
             ok: true,
             name: skillName,
-            path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
+            path: base.publicPath?.(entry.name) ?? canonicalDocument,
             root: directory,
             origin: base.origin,
             format: base.format,
@@ -243,7 +264,7 @@ export class SkillService {
           results.push({
             ok: true,
             name: skillName,
-            path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
+            path: base.publicPath?.(entry.name) ?? canonicalDocument,
             root: directory,
             origin: base.origin,
             format: base.format,
@@ -264,7 +285,14 @@ export class SkillService {
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
     const builtinSkillsRoot = this.builtinSkillsRoot(options);
-    const rootsHash = this.computeRootsHash(workspace, dataRoot, userHome, builtinSkillsRoot)
+    const pluginSkillRoots = await this.pluginSkillRoots(options);
+    const rootsHash = this.computeRootsHash(
+      workspace,
+      dataRoot,
+      userHome,
+      builtinSkillsRoot,
+      pluginSkillRoots,
+    )
 
     if (this.catalogCache?.hash === rootsHash) {
       const filtered = this.catalogCache.skills.filter(s => this.options.enabled?.(s) !== false)
@@ -278,6 +306,7 @@ export class SkillService {
       skillsRoot: string;
       origin: SkillMetadata["origin"];
       format: SkillMetadata["format"];
+      publicPath?: (directory: string) => string;
     }> = [
       ...(options.includeWorkspace === false
         ? []
@@ -305,8 +334,16 @@ export class SkillService {
             skillsRoot: builtinSkillsRoot,
             origin: "builtin" as const,
             format: "codepilotx" as const,
+            publicPath: builtinSkillPath,
           }]
         : []),
+      ...pluginSkillRoots.map((plugin) => ({
+        containmentRoot: plugin.pluginRoot,
+        skillsRoot: plugin.skillsRoot,
+        origin: "builtin" as const,
+        format: "codex" as const,
+        publicPath: (directory: string) => pluginSkillPath(plugin.pluginId, directory),
+      })),
     ];
 
     const bases: Array<(typeof configuredBases)[number] & {
@@ -395,7 +432,7 @@ export class SkillService {
         const metadata: SkillMetadata = {
           name,
           description,
-          path: base.origin === "builtin" ? builtinSkillPath(entry.name) : canonicalDocument,
+          path: base.publicPath?.(entry.name) ?? canonicalDocument,
           root: directory,
           origin: base.origin,
           format: base.format,
@@ -439,11 +476,13 @@ export class SkillService {
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
     const builtinSkillsRoot = this.builtinSkillsRoot(options);
+    const pluginSkillRoots = await this.pluginSkillRoots(options);
     const configuredBases: Array<{
       containmentRoot: string;
       skillsRoot: string;
       origin: SkillMetadata["origin"];
       format: SkillMetadata["format"];
+      publicPath?: (directory: string) => string;
     }> = [
       ...(options.includeWorkspace === false
         ? []
@@ -471,8 +510,16 @@ export class SkillService {
             skillsRoot: builtinSkillsRoot,
             origin: "builtin" as const,
             format: "codepilotx" as const,
+            publicPath: builtinSkillPath,
           }]
         : []),
+      ...pluginSkillRoots.map((plugin) => ({
+        containmentRoot: plugin.pluginRoot,
+        skillsRoot: plugin.skillsRoot,
+        origin: "builtin" as const,
+        format: "codex" as const,
+        publicPath: (directory: string) => pluginSkillPath(plugin.pluginId, directory),
+      })),
     ];
 
     const bases: Array<(typeof configuredBases)[number] & { canonicalSkillsRoot: string }> = []

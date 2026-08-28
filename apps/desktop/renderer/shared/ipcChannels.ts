@@ -41,8 +41,6 @@ export const DESKTOP_API_METHODS = [
   'closeBrowser',
   'setBrowserBounds',
   'clearBrowserAllowedSites',
-  'listBuiltinPlugins',
-  'setBuiltinPluginEnabled',
   'listSkillsCatalog',
   'installSkill',
   'listMcpServers',

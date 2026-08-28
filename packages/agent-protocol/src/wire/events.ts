@@ -170,6 +170,16 @@ export const EventManifest = {
     capability: "skills.manage.v1",
     reconcilesWith: "skill/list",
   }),
+  "plugins/updated": defineEvent({
+    payload: Schema.Struct({
+      generation: SequenceSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "plugins.manage.v1",
+    reconcilesWith: "plugin/list",
+  }),
   "mcp/updated": defineEvent({
     payload: Schema.Struct({
       generation: SequenceSchema,

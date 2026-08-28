@@ -376,6 +376,18 @@ export type DesktopAutomationApi = {
   previewAutomationSchedule(input: RpcParams<'automation/schedule/preview'>): Promise<RpcResult<'automation/schedule/preview'>['preview']>
 }
 
+export type DesktopPluginApi = {
+  listPlugins(
+    workspacePath?: string | null,
+    forceReload?: boolean,
+  ): Promise<RpcResult<'plugin/list'>>
+  setPluginEnabled(
+    pluginId: string,
+    enabled: boolean,
+  ): Promise<RpcResult<'plugin/setEnabled'>['plugin']>
+  onPluginsUpdated(callback: (generation: number) => void): () => void
+}
+
 export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
 
 export type DesktopSessionGroupStep = {
@@ -508,6 +520,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
   DesktopAutomationApi &
+  DesktopPluginApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &

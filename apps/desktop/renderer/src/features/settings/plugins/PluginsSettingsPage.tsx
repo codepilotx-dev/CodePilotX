@@ -25,14 +25,13 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import {
-  PLUGIN_CATALOG_DESCRIPTORS,
-  mergeBuiltinPluginState,
+  mergePluginCatalog,
   pluginStatusLabel,
   type PluginCatalogItem,
 } from '../../plugins/pluginCatalog.js'
 import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
-import { useBuiltinPluginCatalog } from '../../plugins/useBuiltinPluginCatalog.js'
+import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
 import {
   BuiltinSkillIcon,
   getBuiltinSkillPresentation,
@@ -66,10 +65,6 @@ type McpOAuthAttempt = {
   expiresAt: number
 }
 
-const MANAGED_PLUGIN_DESCRIPTORS = PLUGIN_CATALOG_DESCRIPTORS.filter(
-  descriptor => descriptor.category !== 'external',
-)
-
 const VALID_TABS = new Set<Tab>(['plugins', 'mcps', 'skills'])
 
 export function PluginsSettingsPage({
@@ -85,12 +80,12 @@ export function PluginsSettingsPage({
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   const {
-    plugins: builtinPlugins,
+    plugins,
     error: pluginLoadError,
     loading: pluginsLoading,
     refresh: refreshPlugins,
-    setEnabled: setBuiltinPluginEnabled,
-  } = useBuiltinPluginCatalog()
+    setEnabled: setPluginEnabled,
+  } = usePluginCatalog(workspacePath)
   const [optimisticPluginEnabled, setOptimisticPluginEnabled] =
     useState<Record<string, boolean>>({})
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(
@@ -131,15 +126,15 @@ export function PluginsSettingsPage({
 
   const pluginItems = useMemo(
     () =>
-      mergeBuiltinPluginState(
-        MANAGED_PLUGIN_DESCRIPTORS,
-        builtinPlugins?.map(plugin => ({
+      mergePluginCatalog(
+        [],
+        plugins?.filter(plugin => plugin.installed).map(plugin => ({
           ...plugin,
           enabled: optimisticPluginEnabled[plugin.id] ?? plugin.enabled,
         })),
         pluginLoadError,
       ),
-    [builtinPlugins, optimisticPluginEnabled, pluginLoadError],
+    [plugins, optimisticPluginEnabled, pluginLoadError],
   )
 
   const tabOptions = useMemo(() => {
@@ -395,18 +390,15 @@ export function PluginsSettingsPage({
     item: PluginCatalogItem,
     enabled: boolean,
   ): Promise<void> {
-    if (!item.builtinPluginId || busyPluginIds.has(item.id)) return
+    if (!item.installed || busyPluginIds.has(item.id)) return
     setBusyPluginIds(current => new Set(current).add(item.id))
     setPluginErrors(current => ({ ...current, [item.id]: '' }))
     setOptimisticPluginEnabled(current => ({
       ...current,
-      [item.builtinPluginId!]: enabled,
+      [item.id]: enabled,
     }))
     try {
-      await setBuiltinPluginEnabled(
-        item.builtinPluginId,
-        enabled,
-      )
+      await setPluginEnabled(item.id, enabled)
       onNotice?.(`${item.name} 已${enabled ? '启用' : '禁用'}。`)
     } catch (error) {
       const message = errorMessageOf(error, `${item.name} 状态更新失败。`)
@@ -415,7 +407,7 @@ export function PluginsSettingsPage({
     } finally {
       setOptimisticPluginEnabled(current => {
         const next = { ...current }
-        delete next[item.builtinPluginId!]
+        delete next[item.id]
         return next
       })
       setBusyPluginIds(current => without(current, item.id))
@@ -729,7 +721,13 @@ export function PluginsSettingsPage({
                   key={item.id}
                   title={item.name}
                   description={pluginErrors[item.id] || item.description}
-                  icon={<PluginIcon name={item.iconName} />}
+                  icon={(
+                    <PluginIcon
+                      logoDarkSource={item.logoDarkSource}
+                      logoSource={item.logoSource}
+                      name={item.iconName}
+                    />
+                  )}
                   metadata={pluginStatusLabel(item)}
                   dimmed={item.status === 'disabled'}
                   onActivate={trigger => {

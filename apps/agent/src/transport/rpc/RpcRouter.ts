@@ -49,6 +49,7 @@ import type { ToolingManager } from "../../tool/ToolingManager"
 import type { PetService } from "../../pet/PetService"
 import type { ReleaseNotesService } from "../../release-notes/ReleaseNotesService"
 import type { SkillManagementService } from "../../prompt/SkillManagementService"
+import type { PluginManagementService } from "../../plugin/PluginManagementService"
 import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
 import type { UsageService } from "../../usage/UsageService"
@@ -147,6 +148,7 @@ export type RpcRouterDependencies = {
   pets: PetService
   releaseNotes: ReleaseNotesService
   skills?: SkillManagementService
+  plugins?: PluginManagementService
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
   usage: UsageService

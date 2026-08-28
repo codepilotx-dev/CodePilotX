@@ -457,6 +457,9 @@ export class SidecarSupervisor {
       CODEPILOTX_BUILTIN_SKILLS_DIR: this.#app.isPackaged
         ? join(this.#app.resourcesPath, "agent", "skills")
         : process.env.CODEPILOTX_BUILTIN_SKILLS_DIR,
+      CODEPILOTX_BUILTIN_PLUGINS_DIR: this.#app.isPackaged
+        ? join(this.#app.resourcesPath, "agent", "plugins")
+        : process.env.CODEPILOTX_BUILTIN_PLUGINS_DIR,
       CODEPILOTX_LEGACY_DATA_DIR: join(this.#app.getPath("userData"), "agent"),
       CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
         this.#app.getPath("userData"),

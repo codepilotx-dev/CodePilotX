@@ -107,6 +107,24 @@ describe("event manifest invariants", () => {
     })).toThrow()
   })
 
+  test("publishes plugin updates as minimal live invalidations", () => {
+    expect(EventManifest["plugins/updated"]).toMatchObject({
+      durability: "live",
+      stream: "global",
+      capability: "plugins.manage.v1",
+      reconcilesWith: "plugin/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["plugins/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    expect(decode({ generation: 2 })).toEqual({ generation: 2 })
+    expect(() => decode({
+      generation: 2,
+      pluginPath: "C:\\sensitive\\plugin",
+    })).toThrow()
+  })
+
   test("publishes a minimal live usage source invalidation", () => {
     expect(EventManifest["usage/source/updated"]).toMatchObject({
       durability: "live",

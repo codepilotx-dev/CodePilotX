@@ -7,7 +7,12 @@ import {
   SkillSettingsConflictError,
   SkillSettingsRepository,
 } from "../storage/repositories/skill-settings-repository"
-import { SkillService, type SkillMetadata, type SkillScanOptions } from "./SkillService"
+import {
+  SkillService,
+  type PluginSkillRoot,
+  type SkillMetadata,
+  type SkillScanOptions,
+} from "./SkillService"
 
 type SkillStorageRoots = {
   dataRoot: string
@@ -26,7 +31,9 @@ export class SkillManagementError extends Error {
 }
 
 const normalizedIdentityPath = (path: string) => {
-  if (path.startsWith("builtin://")) return path.toLowerCase()
+  if (path.startsWith("builtin://") || path.startsWith("plugin://")) {
+    return path.toLowerCase()
+  }
   const absolute = resolve(path)
   return process.platform === "win32" ? absolute.toLowerCase() : absolute
 }
@@ -65,6 +72,7 @@ export class SkillManagementService {
     private readonly settings: SkillSettingsRepository,
     private readonly roots: SkillStorageRoots,
     private readonly configService?: ConfigService,
+    private readonly pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>,
   ) {}
 
   runtimeService() {
@@ -76,6 +84,7 @@ export class SkillManagementService {
       ...(this.roots.builtinSkillsRoot
         ? { builtinSkillsRoot: this.roots.builtinSkillsRoot }
         : {}),
+      ...(this.pluginSkillRoots ? { pluginSkillRoots: this.pluginSkillRoots } : {}),
       enabled: (skill) => !disabled.has(skillPathIdentity(skill.path)),
     })
   }

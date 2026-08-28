@@ -61,6 +61,10 @@
         "to": "agent/skills"
       },
       {
+        "from": "../../agent/resources/plugins",
+        "to": "agent/plugins"
+      },
+      {
         "from": "../../../dist/renderer",
         "to": "renderer"
       },

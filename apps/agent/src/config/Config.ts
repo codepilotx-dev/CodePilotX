@@ -26,6 +26,7 @@ export interface AgentConfig {
   relocationOperationId: string | null
   legacyAppearanceSettingsPath: string | null
   builtinSkillsRoot: string
+  builtinPluginsRoot: string
   storage: AgentStorageLayout
 }
 
@@ -39,6 +40,9 @@ export interface AgentStorageLayout {
   modelsDevCatalogCache: string
   hooksFile: string
   skillsRoot: string
+  pluginsRoot: string
+  pluginCacheRoot: string
+  pluginInstallStagingRoot: string
   attachmentsRoot: string
   petsRoot: string
   toolingRoot: string
@@ -95,6 +99,18 @@ export const resolveBuiltinSkillsDirectory = (
   return resolve(import.meta.dir, "../../resources/skills")
 }
 
+export const resolveBuiltinPluginsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_PLUGINS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "plugins")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/plugins")
+}
+
 export const resolveAgentStorageLayout = (
   environment: NodeJS.ProcessEnv = process.env,
   userHome = homedir(),
@@ -110,6 +126,9 @@ export const resolveAgentStorageLayout = (
     modelsDevCatalogCache: resolve(dataRoot, "models-dev-catalog.cache.json"),
     hooksFile: resolve(dataRoot, "hooks.json"),
     skillsRoot: resolve(dataRoot, "skills"),
+    pluginsRoot: resolve(dataRoot, "plugins"),
+    pluginCacheRoot: resolve(dataRoot, "plugins", "cache"),
+    pluginInstallStagingRoot: resolve(dataRoot, "plugins", ".install-staging"),
     attachmentsRoot: resolve(dataRoot, "attachments"),
     petsRoot: resolveAgentPetsDirectory(environment, userHome),
     toolingRoot: resolve(
@@ -162,6 +181,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
         ? resolve(process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH)
         : null,
     builtinSkillsRoot: resolveBuiltinSkillsDirectory(),
+    builtinPluginsRoot: resolveBuiltinPluginsDirectory(),
     storage,
   }
 })

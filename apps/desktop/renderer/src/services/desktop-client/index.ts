@@ -45,6 +45,7 @@ export type {
   DesktopReleaseNotesApi,
   DesktopRuntimeCapabilityApi,
   DesktopAutomationApi,
+  DesktopPluginApi,
   DesktopSessionGroupApi,
   DesktopSessionGroup,
   DesktopSessionGroupDetail,

@@ -36,6 +36,7 @@ import type { ToolingManager } from "../tool/ToolingManager"
 import type { PetService } from "../pet/PetService"
 import type { ReleaseNotesService } from "../release-notes/ReleaseNotesService"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
+import type { PluginManagementService } from "../plugin/PluginManagementService"
 import type { McpRuntimeService } from "../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
 import type { ConfigService } from "../config/ConfigService"
@@ -87,6 +88,7 @@ export interface TransportDependencies {
   pets: PetService
   releaseNotes: ReleaseNotesService
   skills: SkillManagementService
+  plugins: PluginManagementService
   mcp: McpRuntimeService
   suggestions: TaskSuggestionService
   logger: AgentLogger
@@ -380,9 +382,9 @@ const eventNextNotification = (
 })
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
