@@ -32,7 +32,11 @@
 
 ### Changed
 
+- [desktop/renderer] 全面重构会话组（Session Groups）工作台视觉与交互：引入现代引导大厅（Hero Banner 与三大核心特性）、统一 SearchInput 搜索过滤与左侧列表卡片元数据、升级成员添加为带搜索的 Select 下拉组件，并优化步骤时间线状态指示、校验徽章与 Diff 折叠预览。
 - [session-group] 将任务看板替换为跨项目会话组，支持组内共享步骤、修改、验证、失败来源和精确 Diff 引用。
+- [desktop/renderer] 将供应商目录、连接、凭据和模型管理从主导航迁入“设置 → 集成 → 供应商”，并保留旧地址重定向。
+- [desktop/renderer] 将全局输入框与多行文本框的基础样式调整为直角边框。
+- [desktop/renderer] 将会话组的“新建”操作从列表标题移至工作区右上角，保持页面级动作位置一致。
 
 - [desktop/renderer] 将 Chat、Working 与 Coding 新建首页按 Codex/ChatGPT 参考逻辑收敛为聚焦布局，恢复 Coding 鲸鱼与四张建议卡边界，并将 Working 建议移出首屏。
 - [desktop/renderer] 将 Renderer CSS 资源门禁改为显式基线、软告警与硬失败分层，并将会话组隔离为独立路由资源预算。
@@ -237,7 +241,14 @@
 - [desktop/renderer] 修复侧栏空态行复用交互行样式（指针、hover、active 与禁用选中）的问题，恢复中性 div 行结构并保持合法 block content model。
 - [desktop/renderer] 修复 Radix 单选分段控件继续使用 inset 反向底色的问题，统一为 Codex 默认的透明容器与弱前景色选中态。
 
+### Fixed
+
+- [agent/storage] 修复已标记为 history schema 40 但缺少会话组表的开发数据库无法自动补齐迁移、导致 Agent 启动失败的问题。
+- [desktop/renderer] 修复会话组新建、编辑和删除依赖桌面环境不支持的原生 `prompt/confirm`、点击操作时报错的问题，改用应用内对话框。
+
 ### Removed
+
+- [desktop/renderer] 移除供应商页面中的全量模型体检界面，保留单连接测试、单模型测速和 Agent 底层健康检查能力。
 
 - [repository/agent/desktop/renderer] 移除过期排障备忘、历史性能基线、未接入的 Renderer/Agent/Electron 实现、测试孤岛与生成资产逐文件副本，降低目录树和维护噪声；本地性能结果继续按忽略规则按需重建。
 - [desktop/renderer] 移除全组件主题视觉 Token 调试工作台（ThemeTokenDebugger）及配套高保真预览、运行时样式注入与配方生成代码，清理相关 SCSS 样式与测试用例。
