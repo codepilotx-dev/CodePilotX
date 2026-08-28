@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop] 新增可恢复的本地自动化调度、任务管理与运行收件箱。
 - [desktop] 支持独立启动并发现开发 Agent，多个完整桌面窗口可复用同一 Agent，并可将当前聊天在新窗口中打开。
 - [desktop/renderer] 为 Composer 文件变更汇总增加会话级 Diff 文件预览，支持查看逐文件增删统计并点击定位到 Review。
 - [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
@@ -32,6 +33,12 @@
 
 ### Changed
 
+- [desktop] 将自动化建议区分隔线移至章节顶部并移除标题内边距。
+- [desktop/renderer] 为自动化建议列表增加 5px 项间距，使相邻建议卡片保持清晰分隔。
+- [desktop/renderer] 为自动化建议列表项增加 5px 内边距，避免内容紧贴悬停区域边缘。
+- [desktop] 恢复自动化建议列表的宽松行距、正文层级与章节分隔。
+- [desktop] 恢复自动化全部页无任务时的空状态指引，并与建议模板同时展示。
+- [desktop] 自动化工作台对齐 Codex 的任务列表、建议区、状态筛选与空状态布局。
 - [desktop/renderer] 按 Codex 列表式信息架构统一项目、会话组、自动化与插件一级页面，复用共享宽版内容轴并收紧标题、说明与页面留白。
 - [desktop/renderer] 全面重构会话组（Session Groups）工作台视觉与交互：引入现代引导大厅（Hero Banner 与三大核心特性）、统一 SearchInput 搜索过滤与左侧列表卡片元数据、升级成员添加为带搜索的 Select 下拉组件，并优化步骤时间线状态指示、校验徽章与 Diff 折叠预览。
 - [session-group] 将任务看板替换为跨项目会话组，支持组内共享步骤、修改、验证、失败来源和精确 Diff 引用。
