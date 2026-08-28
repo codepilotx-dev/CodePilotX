@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowUpRight,
   BookOpen,
   Check,
@@ -12,7 +13,6 @@ import {
   History,
   MessageSquare,
   MessagesSquare,
-  Network,
   Pencil,
   Plus,
   RefreshCw,
@@ -38,6 +38,7 @@ import type {
 } from '../../services/desktop-client/types.js'
 import { cx } from '../../utils/cx.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
+import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { FileMutationDiffBody } from '../session/timeline/FileMutationDiffBody.js'
 import { SessionGroupEditorDialog } from './SessionGroupEditorDialog.js'
 import '../../styles/lazy/session-groups.scss'
@@ -209,6 +210,14 @@ export function SessionGroupsView(): React.ReactNode {
 
   return (
     <>
+      {groupId ? (
+        <WorkspaceHeaderItem align="start" id="session-groups.back" order={0} slot="left">
+          <Link className="session-groups-back" to="/session-groups">
+            <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
+            <span>会话组</span>
+          </Link>
+        </WorkspaceHeaderItem>
+      ) : null}
       <WorkspaceHeaderItem align="end" id="session-groups.actions" order={100} slot="right">
         <Button aria-label="新建会话组" color="primary" size="compact" onClick={openCreateDialog}>
           <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -236,162 +245,30 @@ export function SessionGroupsView(): React.ReactNode {
         onAction={() => void deleteGroup()}
         onCancel={() => setDeleteDialogOpen(false)}
       />
-      <main className="session-groups-view">
-        <aside aria-label="会话组列表" className="session-groups-list">
-          <header className="session-groups-list__header">
-            <div className="session-groups-list__title-row">
-              <MessagesSquare aria-hidden="true" size={18} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              <h1>会话组</h1>
-              <span className="session-groups-count-badge">{groups.length}</span>
-            </div>
-            <IconButton
-              aria-label="新建会话组"
-              color="ghostSecondary"
-              size="toolbar"
-              title="新建会话组"
-              onClick={openCreateDialog}
-            >
-              <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
-          </header>
-
-          <div className="session-groups-search-wrapper">
-            <SearchInput
-              aria-label="搜索会话组"
-              onChange={setSearch}
-              placeholder="搜索名称或说明…"
-              value={search}
-              variant="standard"
-            />
-          </div>
-
-          <div className="session-groups-list__items">
-            {filtered.map(group => {
-              const active = group.id === groupId
-              const timeLabel = formatGroupTime(group.latestStepAt)
-              return (
-                <Link
-                  className={cx('session-group-card', active && 'is-active')}
-                  data-active={active || undefined}
-                  key={group.id}
-                  to={`/session-groups/${encodeURIComponent(group.id)}`}
-                >
-                  <div className="session-group-card__indicator" />
-                  <div className="session-group-card__header">
-                    <strong className="session-group-card__name">{group.name}</strong>
-                    {timeLabel ? <span className="session-group-card__time">{timeLabel}</span> : null}
-                  </div>
-                  <div className="session-group-card__meta">
-                    <span className="session-group-card__stat">
-                      <MessageSquare size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                      {group.memberCount} 会话
-                    </span>
-                    {group.projectLabels.slice(0, 2).map(label => (
-                      <span className="chip-semantic info session-group-card__chip" key={label}>
-                        {label}
-                      </span>
-                    ))}
-                    {group.projectLabels.length > 2 ? (
-                      <span className="session-group-card__more">+{group.projectLabels.length - 2}</span>
-                    ) : null}
-                  </div>
-                  {group.description ? (
-                    <p className="session-group-card__desc">{group.description}</p>
-                  ) : null}
-                  <ChevronRight aria-hidden="true" className="session-group-card__arrow" size={14} />
-                </Link>
-              )
-            })}
-
-            {!loading && groups.length > 0 && filtered.length === 0 ? (
-              <div className="session-groups-empty-state">
-                <p>未找到匹配“{search}”的会话组</p>
-                <Button color="secondary" size="compact" onClick={() => setSearch('')}>
-                  清除搜索
-                </Button>
-              </div>
-            ) : null}
-
-            {!loading && groups.length === 0 ? (
-              <div className="session-groups-empty-state">
-                <p>还没有会话组</p>
-                <Button color="primary" size="compact" onClick={openCreateDialog}>
-                  <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                  <span>新建首个组</span>
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </aside>
-
-        <section aria-live="polite" className="session-group-detail">
+      {groupId ? (
+        <main aria-live="polite" className="session-group-detail-page">
           {error ? (
-            <div className="session-group-notice" role="alert">
+            <div className="session-group-detail-message" role="alert">
               <AlertCircle size={APP_ICON_SIZE} />
-              <span>{error}</span>
-              <Button color="secondary" size="compact" onClick={() => void refresh()}>
-                <RefreshCw size={APP_ICON_SIZE} />
-                <span>重试</span>
-              </Button>
+              <h1>无法打开会话组</h1>
+              <p>{error}</p>
+              <div>
+                <Button color="secondary" size="compact" onClick={() => void refresh()}>
+                  <RefreshCw size={APP_ICON_SIZE} />
+                  <span>重试</span>
+                </Button>
+                <Button color="secondary" size="compact" onClick={() => navigate('/session-groups')}>
+                  返回会话组
+                </Button>
+              </div>
             </div>
           ) : null}
-
           {loading && !detail ? (
             <div className="session-group-loading">
               <Spinner size="medium" />
               <span>正在加载会话组…</span>
             </div>
           ) : null}
-
-          {!loading && !detail && !error ? (
-            <div className="session-group-hero">
-              <div className="session-group-hero__card">
-                <div className="session-group-hero__icon-badge">
-                  <MessagesSquare size={36} strokeWidth={1.75} />
-                </div>
-                <h2 className="session-group-hero__title">让相关会话共享修复脉络</h2>
-                <p className="session-group-hero__subtitle">
-                  将多个相关会话组织在同一个组内，共享修复上下文、自动沉淀决策摘要，实现跨步骤端到端追溯。
-                </p>
-                <div className="session-group-hero__cta">
-                  <Button color="primary" size="large" onClick={openCreateDialog}>
-                    <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    <span>创建首个会话组</span>
-                  </Button>
-                </div>
-                <div className="session-group-hero__features">
-                  <div className="session-group-feature-card">
-                    <div className="session-group-feature-card__icon">
-                      <Network size={20} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </div>
-                    <div className="session-group-feature-card__content">
-                      <h4>跨会话共享上下文</h4>
-                      <p>串联多个分散的调试与开发会话，互通全局目标与决策背景。</p>
-                    </div>
-                  </div>
-                  <div className="session-group-feature-card">
-                    <div className="session-group-feature-card__icon">
-                      <Sparkles size={20} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </div>
-                    <div className="session-group-feature-card__content">
-                      <h4>自动沉淀决策摘要</h4>
-                      <p>每步操作与修复结论自动聚合成上下文，免除跨会话重复说明。</p>
-                    </div>
-                  </div>
-                  <div className="session-group-feature-card">
-                    <div className="session-group-feature-card__icon">
-                      <History size={20} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </div>
-                    <div className="session-group-feature-card__content">
-                      <h4>每步验证可追溯</h4>
-                      <p>完整记录修改细节、验证结果与 Diff 变更，清晰回溯解决路径。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           {detail ? (
             <div className="session-group-detail__inner">
               <header className="session-group-detail__header">
@@ -400,7 +277,7 @@ export function SessionGroupsView(): React.ReactNode {
                     <Sparkles size={11} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     共享上下文
                   </span>
-                  <h2>{detail.group.name}</h2>
+                  <h1>{detail.group.name}</h1>
                   <p>{detail.group.description || '这个组暂未设置详细说明。'}</p>
                 </div>
                 <div className="session-group-actions">
@@ -528,8 +405,90 @@ export function SessionGroupsView(): React.ReactNode {
               </section>
             </div>
           ) : null}
-        </section>
-      </main>
+        </main>
+      ) : (
+        <PrimaryPageLayout
+          className="session-groups-primary-page"
+          description="组织相关会话，共享修复上下文、决策摘要和验证记录。"
+          search={(
+            <SearchInput
+              aria-label="搜索会话组"
+              onChange={setSearch}
+              placeholder="搜索名称或说明…"
+              value={search}
+            />
+          )}
+          title="会话组"
+        >
+          <main aria-live="polite" className="session-groups-index">
+            {error ? (
+              <div className="session-group-notice" role="alert">
+                <AlertCircle size={APP_ICON_SIZE} />
+                <span>{error}</span>
+                <Button color="secondary" size="compact" onClick={() => void refresh()}>
+                  <RefreshCw size={APP_ICON_SIZE} />
+                  <span>重试</span>
+                </Button>
+              </div>
+            ) : null}
+            {loading ? (
+              <div className="session-group-loading">
+                <Spinner size="medium" />
+                <span>正在加载会话组…</span>
+              </div>
+            ) : null}
+            {!loading && !error && filtered.length > 0 ? (
+              <div className="session-groups-table">
+                <div className="session-groups-table__header" aria-hidden="true">
+                  <span>会话组</span>
+                  <span>项目</span>
+                  <span>最近更新</span>
+                </div>
+                <div className="session-groups-table__rows">
+                  {filtered.map(group => (
+                    <Link
+                      className="session-group-row"
+                      key={group.id}
+                      to={`/session-groups/${encodeURIComponent(group.id)}`}
+                    >
+                      <span className="session-group-row__main">
+                        <strong>{group.name}</strong>
+                        <small>
+                          {group.memberCount} 个会话
+                          {group.description ? ` · ${group.description}` : ''}
+                        </small>
+                      </span>
+                      <span className="session-group-row__projects">
+                        {group.projectLabels.length > 0 ? group.projectLabels.slice(0, 2).join('、') : '无项目'}
+                      </span>
+                      <span className="session-group-row__updated">
+                        <span>{formatGroupTime(group.latestStepAt) || '暂无记录'}</span>
+                        <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {!loading && !error && groups.length === 0 ? (
+              <div className="session-groups-empty-state">
+                <MessagesSquare aria-hidden="true" size={32} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <h2>暂无会话组</h2>
+                <p>将相关会话组织在一起，共享上下文并追踪每一步验证。</p>
+                <Button color="secondary" onClick={openCreateDialog}>创建新会话组</Button>
+              </div>
+            ) : null}
+            {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
+              <div className="session-groups-empty-state">
+                <MessagesSquare aria-hidden="true" size={32} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <h2>未找到会话组</h2>
+                <p>没有与“{search}”匹配的会话组。</p>
+                <Button color="secondary" size="compact" onClick={() => setSearch('')}>清除搜索</Button>
+              </div>
+            ) : null}
+          </main>
+        </PrimaryPageLayout>
+      )}
     </>
   )
 }

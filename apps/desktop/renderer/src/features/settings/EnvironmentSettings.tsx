@@ -24,6 +24,7 @@ import type {
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -31,6 +32,8 @@ import {
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
 import { WorkspaceFileTree } from '../layout/WorkspaceFileTree.js'
+import { PrimaryPageLayout } from '../layout/primary-page/index.js'
+import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
@@ -41,6 +44,7 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsSection } from './SettingsSection.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
+  filterEnvironmentProjects,
   isProjectSettingsConflict,
   sortEnvironmentProjects,
 } from './environmentSettingsModel.js'
@@ -76,6 +80,7 @@ function EnvironmentList({
   const [projects, setProjects] = useState<DesktopWorkspace[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [query, setQuery] = useState('')
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -110,6 +115,137 @@ function EnvironmentList({
     }
   }
 
+  const visibleProjects = filterEnvironmentProjects(projects, query)
+
+  const projectRows = visibleProjects.map(project => (
+    <button
+      className="environment-project-row"
+      key={project.projectId ?? project.id ?? project.path}
+      type="button"
+      onClick={() => {
+        if (!project.projectId) {
+          onError('该项目缺少稳定的项目标识。')
+          return
+        }
+        navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
+      }}
+    >
+      <span className="environment-project-icon">
+        <ProjectAppearanceGlyph
+          appearance={
+            project.projectId
+              ? projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE
+              : DEFAULT_PROJECT_APPEARANCE
+          }
+          className="project-appearance-marker"
+          size={APP_ICON_SIZE + 2}
+        />
+      </span>
+      <span className="environment-project-copy">
+        <strong>{project.name}</strong>
+        <span title={project.path}>{project.path}</span>
+      </span>
+      <span className="environment-project-meta">
+        {(project.folders?.length ?? 1)} 个目录
+      </span>
+      <ChevronRight
+        aria-hidden="true"
+        size={APP_ICON_SIZE}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    </button>
+  ))
+
+  const projectList = loading ? (
+    <EnvironmentEmpty>正在载入项目…</EnvironmentEmpty>
+  ) : projects.length === 0 ? (
+    <EnvironmentEmpty>
+      暂无项目。选择一个目录来创建或打开项目。
+    </EnvironmentEmpty>
+  ) : visibleProjects.length === 0 ? (
+    <div className="environment-search-empty">
+      <p>未找到匹配“{query}”的项目。</p>
+      <Button color="secondary" size="compact" onClick={() => setQuery('')}>
+        清除搜索
+      </Button>
+    </div>
+  ) : (
+    <div className="environment-project-list">
+      {projectRows}
+    </div>
+  )
+
+  const projectSection = (
+    <SettingsSection
+      bare
+      title="选择项目"
+      description="最近打开的项目排在前面。"
+    >
+      {projectList}
+    </SettingsSection>
+  )
+
+  if (routeBase === '/projects') {
+    return (
+      <>
+        <WorkspaceHeaderItem
+          align="end"
+          id="projects.add"
+          order={100}
+          slot="right"
+        >
+          <Button color="primary" loading={adding} onClick={() => void addProject()}>
+            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            添加项目
+          </Button>
+        </WorkspaceHeaderItem>
+        <PrimaryPageLayout
+          className="projects-primary-page"
+          description="管理项目环境、默认模型、项目指令和共享来源。"
+          search={(
+            <SearchInput
+              aria-label="搜索项目"
+              onChange={setQuery}
+              placeholder="搜索项目名称或路径…"
+              value={query}
+            />
+          )}
+          title="项目"
+        >
+          <div className="environment-settings environment-primary-content">
+            {loading ? (
+              <div className="environment-primary-empty">正在载入项目…</div>
+            ) : projects.length === 0 ? (
+              <div className="environment-primary-empty">
+                <h2>暂无项目</h2>
+                <p>添加一个本地目录，开始管理项目环境与默认设置。</p>
+                <Button color="secondary" onClick={() => void addProject()}>
+                  添加项目
+                </Button>
+              </div>
+            ) : visibleProjects.length === 0 ? (
+              <div className="environment-primary-empty">
+                <h2>未找到项目</h2>
+                <p>没有与“{query}”匹配的项目。</p>
+                <Button color="secondary" size="compact" onClick={() => setQuery('')}>
+                  清除搜索
+                </Button>
+              </div>
+            ) : (
+              <div className="environment-primary-projects">
+                <div className="environment-primary-projects__header" aria-hidden="true">
+                  <span>项目</span>
+                  <span>目录</span>
+                </div>
+                <div className="environment-project-list">{projectRows}</div>
+              </div>
+            )}
+          </div>
+        </PrimaryPageLayout>
+      </>
+    )
+  }
+
   return (
     <SettingsContentArea>
       <div className="settings-content-inner environment-settings">
@@ -133,57 +269,7 @@ function EnvironmentList({
           title="选择项目"
           description="最近打开的项目排在前面。"
         >
-          {loading ? (
-            <EnvironmentEmpty>正在载入项目…</EnvironmentEmpty>
-          ) : projects.length === 0 ? (
-            <EnvironmentEmpty>
-              暂无项目。选择一个目录来创建或打开项目。
-            </EnvironmentEmpty>
-          ) : (
-            <div className="environment-project-list">
-              {projects.map(project => (
-                <button
-                  className="environment-project-row"
-                  key={project.projectId ?? project.id ?? project.path}
-                  type="button"
-                  onClick={() => {
-                    if (!project.projectId) {
-                      onError('该项目缺少稳定的项目标识。')
-                      return
-                    }
-                    navigate(
-                      `${routeBase}/${encodeURIComponent(project.projectId)}`,
-                    )
-                  }}
-                >
-                  <span className="environment-project-icon">
-                    <ProjectAppearanceGlyph
-                      appearance={
-                        project.projectId
-                          ? projectAppearances[project.projectId]
-                            ?? DEFAULT_PROJECT_APPEARANCE
-                          : DEFAULT_PROJECT_APPEARANCE
-                      }
-                      className="project-appearance-marker"
-                      size={APP_ICON_SIZE + 2}
-                    />
-                  </span>
-                  <span className="environment-project-copy">
-                    <strong>{project.name}</strong>
-                    <span title={project.path}>{project.path}</span>
-                  </span>
-                  <span className="environment-project-meta">
-                    {(project.folders?.length ?? 1)} 个目录
-                  </span>
-                  <Plus
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+          {projectList}
         </SettingsSection>
       </div>
     </SettingsContentArea>
