@@ -43,6 +43,7 @@ import {
 import { groupSkillsForDisplay } from './skillCatalog.js'
 import { useBuiltinPluginCatalog } from './useBuiltinPluginCatalog.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
+import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
@@ -111,7 +112,7 @@ export function PluginsView(): React.ReactNode {
     () => new Set(),
   )
   const statusTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const scrollRegionRef = useRef<HTMLDivElement | null>(null)
+  const scrollRegionRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (tab !== 'skills') return
@@ -299,7 +300,7 @@ export function PluginsView(): React.ReactNode {
   }
 
   return (
-    <section className="plugins-view">
+    <>
       <WorkspaceHeaderItem
         align="start"
         id="plugins.tabs"
@@ -339,18 +340,25 @@ export function PluginsView(): React.ReactNode {
           />
         </IconButton>
       </WorkspaceHeaderItem>
-
-      <div className="plugins-scroll-region" ref={scrollRegionRef}>
-        <div className="plugins-content">
-          <header className="plugins-page-heading">
-            <h1 className="plugins-page-title">{tab === 'plugins' ? '插件' : '技能'}</h1>
-            <p className="plugins-page-description">
-              {tab === 'plugins'
-                ? '浏览 CodePilotX 已内置、可管理或需要外部安装的扩展能力。'
-                : '从 skills.sh 搜索并添加可复用技能。'}
-            </p>
-          </header>
-
+      <PrimaryPageLayout
+        className="plugins-primary-page"
+        description={tab === 'plugins'
+          ? '在常用工具中扩展 CodePilotX 的能力。'
+          : '查找并添加可复用的工作流指令。'}
+        scrollContainerRef={scrollRegionRef}
+        search={(
+          <SearchInput
+            aria-label={tab === 'plugins' ? '搜索插件' : '搜索技能'}
+            onChange={tab === 'plugins' ? setPluginQuery : setSkillQuery}
+            placeholder={tab === 'plugins' ? '搜索插件' : '搜索技能'}
+            value={tab === 'plugins' ? pluginQuery : skillQuery}
+          />
+        )}
+        title={tab === 'plugins' ? '插件' : '技能'}
+      >
+        <div className="plugins-view">
+          <div className="plugins-scroll-region">
+            <div className="plugins-content">
           {tab === 'plugins' ? (
             <div
               aria-labelledby="plugins-tab"
@@ -358,16 +366,6 @@ export function PluginsView(): React.ReactNode {
               id="plugins-panel"
               role="tabpanel"
             >
-              <div className="plugins-sticky-search">
-                <SearchInput
-                  aria-label="搜索插件"
-                  className="plugins-search"
-                  onChange={setPluginQuery}
-                  placeholder="搜索插件"
-                  value={pluginQuery}
-                />
-              </div>
-
               <section
                 aria-labelledby="included-plugins-title"
                 className="plugins-included-overview"
@@ -540,16 +538,6 @@ export function PluginsView(): React.ReactNode {
               id="skills-panel"
               role="tabpanel"
             >
-              <div className="plugins-sticky-search">
-                <SearchInput
-                  aria-label="搜索技能"
-                  className="plugins-search"
-                  onChange={setSkillQuery}
-                  placeholder="搜索技能"
-                  value={skillQuery}
-                />
-              </div>
-
               {skillGroups.installed.length > 0 ? (
                 <section className="plugins-source-group" aria-labelledby="installed-skills-title">
                   <header className="plugins-source-group__header">
@@ -675,9 +663,11 @@ export function PluginsView(): React.ReactNode {
               )}
             </div>
           )}
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </PrimaryPageLayout>
+    </>
   )
 }
 import '../../styles/lazy/marketplace.scss'

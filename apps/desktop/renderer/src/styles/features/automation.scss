@@ -1,107 +1,104 @@
-/* ===== Automation View ===== */
-
-.automation-view {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: var(--cpx-sys-layout-section-gap);
-  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
-  height: 100%;
-  margin: 0 auto;
-  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
-    var(--cpx-sys-layout-page-padding-bottom);
-  color: var(--cpx-sys-color-fg-primary);
-}
-
-.automation-header {
-  gap: var(--cpx-sys-layout-section-gap);
-}
-
-.automation-header-meta {
-  display: grid;
-  gap: var(--cpx-sys-space-2);
-
-  h1 {
-    margin: 0;
-    font-size: var(--cpx-sys-font-size-3xl);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  p {
-    margin: 0;
-    font-size: var(--cpx-sys-font-size-sm);
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-
-  a {
-    color: var(--cpx-sys-color-fg-primary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    margin-left: var(--cpx-sys-space-1);
-  }
-}
-
 .automation-header-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--cpx-sys-layout-toolbar-gap);
+  gap: var(--cpx-sys-space-2);
 }
 
-.automation-canvas {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  justify-items: center;
-  align-content: center;
-  gap: var(--cpx-sys-layout-section-gap);
-  min-height: 460px;
-  padding: var(--cpx-sys-layout-card-padding);
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-sys-color-surface-panel);
-  box-shadow: none;
+.automation-view,
+.automation-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.automation-content {
+  flex: 1 1 auto;
+  gap: var(--cpx-sys-space-8);
 }
 
 .automation-empty-state {
-  justify-items: center;
-}
-
-.automation-cloud {
-  position: relative;
-  display: inline-flex;
+  display: flex;
+  min-height: calc(var(--cpx-sys-space-8) * 6);
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 120px;
-  height: 84px;
-  color: var(--cpx-sys-color-fg-tertiary);
+  gap: var(--cpx-sys-space-2);
+  color: var(--cpx-sys-color-fg-secondary);
+  text-align: center;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    color: var(--cpx-sys-color-fg-primary);
+    font: var(--cpx-sys-type-heading-sm);
+  }
+
+  p {
+    font: var(--cpx-sys-type-body);
+  }
 }
 
-.automation-cloud-prompt {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.automation-suggestions {
+  h2 {
+    margin: 0;
+    padding-bottom: var(--cpx-sys-space-3);
+    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+    font: var(--cpx-sys-type-body-lg);
+  }
+
+  ul {
+    margin: 0;
+    padding: var(--cpx-sys-space-2) 0 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--cpx-sys-space-3);
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-2);
+  }
+}
+
+.automation-suggestion-icon {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: var(--cpx-sys-color-fg-tertiary);
+  padding-top: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-accent);
 }
 
-.automation-quick-starts {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cpx-sys-layout-card-gap);
-  flex-wrap: wrap;
-  justify-content: center;
+.automation-suggestion-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-1);
+
+  > span {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--cpx-sys-space-2);
+  }
+
+  strong {
+    color: var(--cpx-sys-color-fg-primary);
+    font: var(--cpx-sys-type-label);
+  }
+
+  span,
+  small {
+    color: var(--cpx-sys-color-fg-secondary);
+    font: var(--cpx-sys-type-body-sm);
+  }
 }
 
-.automation-quick-icon {
-  svg {
-    width: var(--cpx-sys-space-5);
-    height: var(--cpx-sys-space-5);
-    display: block;
-    stroke-width: 1.75;
+@media (max-width: 720px) {
+  .automation-header-actions > :first-child {
+    display: none;
   }
 }

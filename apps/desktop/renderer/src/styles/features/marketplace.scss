@@ -6,12 +6,6 @@
  */
 
 .plugins-view {
-  --plugins-page-padding-inline: clamp(
-    var(--cpx-sys-space-4),
-    4vw,
-    var(--cpx-sys-layout-page-padding-inline)
-  );
-
   container-name: plugins-page;
   container-type: inline-size;
   display: grid;
@@ -19,18 +13,7 @@
   gap: var(--cpx-sys-space-6);
   width: 100%;
   min-width: 0;
-  max-width: var(--cpx-sys-layout-wide-max-width);
-  margin: 0 auto;
-  padding: var(--cpx-sys-layout-page-padding-block)
-    var(--plugins-page-padding-inline)
-    var(--cpx-sys-layout-page-padding-bottom);
   color: var(--cpx-sys-color-fg-primary);
-}
-
-.plugins-page-heading {
-  display: grid;
-  min-width: 0;
-  gap: var(--cpx-sys-space-1);
 }
 
 .plugins-panel {
@@ -48,105 +31,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.plugins-page-title {
-  margin: 0;
-  color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-3xl);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-relaxed);
-  letter-spacing: -0.01em;
-}
-
-.plugins-page-description {
-  max-width: var(--cpx-sys-layout-content-max-width);
-  margin: 0;
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
-}
-
-.plugins-tabs {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--cpx-sys-space-1);
-  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-}
-
-.plugins-tab {
-  position: relative;
-  min-height: var(--cpx-sys-space-7);
-  padding: 0 var(--cpx-sys-space-2);
-  border: 0;
-  background: transparent;
-  color: var(--cpx-sys-color-fg-secondary);
-  font: inherit;
-  font-size: var(--cpx-sys-font-size-md);
-  cursor: pointer;
-  transition:
-    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-
-  &.is-active,
-  &[aria-selected="true"] {
-    background: var(--cpx-sys-color-selected);
-    color: var(--cpx-sys-color-fg-primary);
-    font-weight: var(--cpx-sys-font-weight-medium);
-  }
-}
-
-.plugins-search {
-  display: inline-flex;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--cpx-sys-space-7);
-  align-items: center;
-  gap: var(--cpx-sys-space-2);
-  padding: 0 var(--cpx-sys-space-3);
-  border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-sys-color-surface-raised);
-  color: var(--cpx-sys-color-fg-tertiary);
-  transition:
-    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    box-shadow var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-
-  &:focus-within {
-    border-color: var(--cpx-sys-color-accent);
-    box-shadow: var(--cpx-sys-focus-ring-soft);
-  }
-
-  svg {
-    flex: 0 0 auto;
-  }
-
-  input {
-    width: 100%;
-    min-width: 0;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--cpx-sys-color-fg-primary);
-    font: inherit;
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-tight);
-
-    &::placeholder {
-      color: var(--cpx-sys-color-fg-tertiary);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-    }
-  }
-
-  &:has(input:disabled) {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
 }
 
 .plugins-category-filter .segmented-control-item,
@@ -434,37 +318,6 @@
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
-/* Plugin catalog workbench: full-width toolbar with a centered content column. */
-.plugins-view {
-  display: block;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: var(--cpx-sys-color-surface-canvas);
-}
-
-.plugins-content {
-  display: grid;
-  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
-  min-width: 0;
-  margin: 0 auto;
-  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
-    var(--cpx-sys-layout-page-padding-bottom);
-  gap: var(--cpx-sys-space-6);
-}
-
-.plugins-content > .plugins-page-heading {
-  gap: var(--cpx-sys-space-1);
-}
-
-.plugins-panel > .plugins-search {
-  width: 100%;
-}
-
 .plugins-included-overview,
 .plugins-source-group {
   min-width: 0;
@@ -737,11 +590,6 @@ button.plugins-card-title:focus-visible,
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .plugins-tabs {
-    width: fit-content;
-  }
-
-  .plugins-search,
   .plugins-controls .search-input,
   .plugins-category-filter,
   .plugins-segmented,
@@ -769,10 +617,6 @@ button.plugins-card-title:focus-visible,
   .plugins-card-action {
     grid-column: 1 / -1;
     width: 100%;
-  }
-
-  .plugins-content {
-    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--cpx-sys-layout-page-padding-bottom);
   }
 
   .plugins-directory-toolbar,
@@ -932,54 +776,25 @@ button.plugins-card-title:focus-visible,
  * CodePilotX semantic tokens.
  */
 .plugins-view {
-  display: flex;
-  width: 100%;
-  height: 100%;
+  display: grid;
   min-height: 0;
-  max-width: none;
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
   background: var(--cpx-sys-color-surface-canvas);
 }
 
 .plugins-scroll-region {
   min-width: 0;
   min-height: 0;
-  flex: 1 1 auto;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  overscroll-behavior: contain;
 }
 
 .plugins-content {
   display: grid;
-  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
+  width: 100%;
   min-width: 0;
-  margin: 0 auto;
-  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
-    var(--cpx-sys-layout-page-padding-bottom);
   gap: var(--cpx-sys-space-6);
 }
 
 .plugins-panel {
   gap: var(--cpx-sys-space-5);
-}
-
-.plugins-sticky-search {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  margin: calc(var(--cpx-sys-space-2) * -1) 0;
-  padding: var(--cpx-sys-space-2) 0;
-  background: var(--cpx-sys-color-surface-canvas);
-}
-
-.plugins-sticky-search .plugins-search {
-  width: 100%;
 }
 
 .plugins-included-overview {
@@ -1014,8 +829,7 @@ button.plugins-card-title:focus-visible,
 }
 
 .plugins-source-group__list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--cpx-sys-space-6);
+  grid-template-columns: 1fr;
 }
 
 .plugin-catalog-row,
@@ -1182,10 +996,6 @@ button.plugins-card-title:focus-visible,
 }
 
 @container plugins-page (max-width: 479px) {
-  .plugins-content {
-    padding: var(--cpx-sys-space-5) var(--cpx-sys-space-4) var(--cpx-sys-layout-page-padding-bottom);
-  }
-
   .plugins-category-filter,
   .plugins-skill-owner-filter {
     width: 100%;
@@ -1229,7 +1039,6 @@ button.plugins-card-title:focus-visible,
 }
 
 @media (forced-colors: active) {
-  .plugins-sticky-search,
   .plugin-catalog-row,
   .skill-catalog-row,
   .plugin-catalog-row__icon,
