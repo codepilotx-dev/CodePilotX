@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { join, resolve } from "node:path"
 import {
   resolveAgentDataDirectory,
+  resolveBuiltinPluginsDirectory,
   resolveBuiltinSkillsDirectory,
   resolveAgentLogDirectory,
   resolveAgentPetsDirectory,
@@ -44,6 +45,9 @@ describe("Agent data directories", () => {
     expect(resolveBuiltinSkillsDirectory({
       CODEPILOTX_BUILTIN_SKILLS_DIR: resolve("D:/agent-skills"),
     })).toBe(resolve("D:/agent-skills"))
+    expect(resolveBuiltinPluginsDirectory({
+      CODEPILOTX_BUILTIN_PLUGINS_DIR: resolve("D:/agent-plugins"),
+    })).toBe(resolve("D:/agent-plugins"))
   })
 
   test("derives every managed directory from the selected data root", () => {
@@ -59,6 +63,9 @@ describe("Agent data directories", () => {
       modelsDevCatalogCache: join(dataRoot, "models-dev-catalog.cache.json"),
       hooksFile: join(dataRoot, "hooks.json"),
       skillsRoot: join(dataRoot, "skills"),
+      pluginsRoot: join(dataRoot, "plugins"),
+      pluginCacheRoot: join(dataRoot, "plugins", "cache"),
+      pluginInstallStagingRoot: join(dataRoot, "plugins", ".install-staging"),
       attachmentsRoot: join(dataRoot, "attachments"),
       petsRoot: join(dataRoot, "pets"),
       toolingRoot: join(dataRoot, "tooling"),
