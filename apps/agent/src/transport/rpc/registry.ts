@@ -8,6 +8,7 @@ import { memoryHandlers } from "./handlers/memory"
 import { localContextHandlers } from "./handlers/local-context"
 import { mcpHandlers } from "./handlers/mcp"
 import { petHandlers } from "./handlers/pet"
+import { pluginHandlers } from "./handlers/plugins"
 import { releaseNotesHandlers } from "./handlers/release-notes"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
@@ -44,6 +45,7 @@ const groups: readonly RpcHandlerGroup[] = [
   reviewHandlers,
   gitHandlers,
   mcpHandlers,
+  pluginHandlers,
   skillHandlers,
   githubHandlers,
   threadHandlers,
