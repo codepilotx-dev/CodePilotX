@@ -1113,6 +1113,51 @@ const fixtures = {
     generation: 2,
     updatedAt: 2,
   }),
+  "plugin/list": methodFixture("plugin/list", {
+    workspace: "C:\\workspace",
+    forceReload: true,
+  }, {
+    plugins: [{
+      id: "task-planning",
+      name: "任务规划",
+      version: "1.0.0",
+      description: "澄清目标、拆解工作并生成可执行的任务规划。",
+      developerName: "CodePilotX",
+      category: "Productivity",
+      source: "bundled",
+      installationPolicy: "INSTALLED_BY_DEFAULT",
+      installed: true,
+      enabled: true,
+      status: "ready",
+      capabilities: ["task-planning"],
+      skills: ["task-planning"],
+    }],
+    generation: 1,
+    updatedAt: 1,
+  }),
+  "plugin/setEnabled": methodFixture("plugin/setEnabled", {
+    pluginId: "task-planning",
+    enabled: false,
+    operationId: "operation:plugin-disable",
+  }, {
+    plugin: {
+      id: "task-planning",
+      name: "任务规划",
+      version: "1.0.0",
+      description: "澄清目标、拆解工作并生成可执行的任务规划。",
+      developerName: "CodePilotX",
+      category: "Productivity",
+      source: "bundled",
+      installationPolicy: "INSTALLED_BY_DEFAULT",
+      installed: true,
+      enabled: false,
+      status: "ready",
+      capabilities: ["task-planning"],
+      skills: ["task-planning"],
+    },
+    generation: 2,
+    updatedAt: 2,
+  }),
   "mcp/list": methodFixture("mcp/list", {
     workspace: "C:\\workspace",
   }, {
@@ -3072,7 +3117,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(215)
+    expect(methods).toHaveLength(217)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3403,9 +3448,66 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(209)
+    expect(Object.keys(RpcMethods)).toHaveLength(211)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
+  })
+
+  test("插件管理使用精确契约并由独立能力保护", () => {
+    expect(Capabilities).toContain("plugins.manage.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("plugins.manage.v1")).toBe("plugins.manage.v1")
+    expect(RpcMethods["plugin/list"]).toMatchObject({
+      capability: "plugins.manage.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/setEnabled"]).toMatchObject({
+      capability: "plugins.manage.v1",
+      mutation: true,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/setEnabled"].errors).toEqual([
+      "PLUGIN_NOT_FOUND",
+      "PLUGIN_NOT_INSTALLED",
+      "PLUGIN_INVALID",
+      "CONFLICT",
+      "PATH_DENIED",
+      "INTERNAL_ERROR",
+    ])
+
+    const decodeListParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/list"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeListParams({})).toEqual({})
+    expect(decodeListParams(fixtures["plugin/list"].params)).toEqual(fixtures["plugin/list"].params)
+
+    const decodeSetEnabledParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/setEnabled"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeSetEnabledParams(fixtures["plugin/setEnabled"].params)).toEqual(fixtures["plugin/setEnabled"].params)
+    expect(() => decodeSetEnabledParams({
+      pluginId: "task-planning",
+      enabled: false,
+    })).toThrow()
+
+    const decodeList = Schema.decodeUnknownSync(
+      RpcMethods["plugin/list"].result,
+      { onExcessProperty: "error" },
+    )
+    const valid = fixtures["plugin/list"].result
+    expect(decodeList(valid)).toEqual(valid)
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], source: "codex-cache" }],
+    })).toThrow()
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], absolutePath: "C:\\sensitive\\plugin" }],
+    })).toThrow()
   })
 
   test("requires authorized projectId instead of internal projectKey for project memory", () => {
