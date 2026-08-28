@@ -32,6 +32,9 @@
 
 ### Changed
 
+- [desktop/renderer] 让插件与技能首页完整继承统一一级页面的标题、说明、搜索、内容轴和纵向间距，仅在目录业务区域保留 Codex 式专属样式。
+- [desktop/renderer] 收紧插件目录的图标与文字尺寸，将 Computer Use 等方形图片裁剪到图标容器圆角内，并为已安装图标上移动效恢复顶部缓冲。
+- [desktop/renderer] 按 Codex 插件目录结构重做插件与技能主页面，增加真实图标的已安装架、紧凑透明双列目录、分类筛选及可深链的页内详情。
 - [desktop/renderer] 按 Codex 列表式信息架构统一项目、会话组、自动化与插件一级页面，复用共享宽版内容轴并收紧标题、说明与页面留白。
 - [desktop/renderer] 全面重构会话组（Session Groups）工作台视觉与交互：引入现代引导大厅（Hero Banner 与三大核心特性）、统一 SearchInput 搜索过滤与左侧列表卡片元数据、升级成员添加为带搜索的 Select 下拉组件，并优化步骤时间线状态指示、校验徽章与 Diff 折叠预览。
 - [session-group] 将任务看板替换为跨项目会话组，支持组内共享步骤、修改、验证、失败来源和精确 Diff 引用。

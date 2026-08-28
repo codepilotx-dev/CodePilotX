@@ -729,7 +729,13 @@ export function PluginsSettingsPage({
                   key={item.id}
                   title={item.name}
                   description={pluginErrors[item.id] || item.description}
-                  icon={<PluginIcon name={item.iconName} />}
+                  icon={(
+                    <PluginIcon
+                      logoDarkSource={item.logoDarkSource}
+                      logoSource={item.logoSource}
+                      name={item.iconName}
+                    />
+                  )}
                   metadata={pluginStatusLabel(item)}
                   dimmed={item.status === 'disabled'}
                   onActivate={trigger => {

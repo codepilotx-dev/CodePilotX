@@ -41,6 +41,8 @@ export type PluginCatalogDescriptor = {
   category: PluginCategory
   actionKind: PluginActionKind
   iconName: PluginIconName
+  logoSource?: string
+  logoDarkSource?: string
   tone: PluginTone
 }
 
@@ -85,7 +87,7 @@ export const PLUGIN_CATEGORY_ORDER = [
 
 export const PLUGIN_CATEGORY_LABELS: Record<PluginCategory, string> = {
   manageable: '可管理',
-  included: '内置',
+  included: 'Featured',
   external: '外部工具',
 }
 
