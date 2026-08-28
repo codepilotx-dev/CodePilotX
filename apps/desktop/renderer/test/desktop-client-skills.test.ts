@@ -134,6 +134,7 @@ describe('desktop runtime skills client', () => {
         'usage/source/updated',
         'model/health/updated',
         'skill/updated',
+        'plugins/updated',
         'tooling/updated',
         'mcp/updated',
         'speech/statusChanged',

@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 describe("SidecarSupervisor owned 生命周期", () => {
-  test("打包 sidecar 使用安装资源中的内置 Skills", async () => {
+  test("打包 sidecar 使用安装资源中的内置 Skills 与 Plugins", async () => {
     delete process.env.CODEPILOTX_AGENT_URL
     const harness = createHarness({
       appRuntime: {
@@ -37,6 +37,9 @@ describe("SidecarSupervisor owned 生命周期", () => {
 
     expect(harness.environments[0]?.CODEPILOTX_BUILTIN_SKILLS_DIR).toBe(
       "C:\\resources\\agent\\skills",
+    )
+    expect(harness.environments[0]?.CODEPILOTX_BUILTIN_PLUGINS_DIR).toBe(
+      "C:\\resources\\agent\\plugins",
     )
     harness.children[0]?.exitOnSignal()
     await supervisor.stop()
