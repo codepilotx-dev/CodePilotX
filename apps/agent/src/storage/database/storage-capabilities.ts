@@ -21,11 +21,18 @@ export type RuntimeCompositionStorageCapabilities = {
   runtimeCompositionPlans: boolean
 }
 
+export type AutomationStorageCapabilities = {
+  automations: boolean
+  automationRuns: boolean
+}
+
 const cache = new WeakMap<Database, ThreadsStorageCapabilities>()
 
 const artifactsCache = new WeakMap<Database, ArtifactsStorageCapabilities>()
 
 const runtimeCompositionCache = new WeakMap<Database, RuntimeCompositionStorageCapabilities>()
+
+const automationCache = new WeakMap<Database, AutomationStorageCapabilities>()
 
 export function probeThreadsStorageCapabilities(
   sqlite: Database,
@@ -81,5 +88,22 @@ export function probeRuntimeCompositionStorageCapabilities(
     ),
   }
   runtimeCompositionCache.set(sqlite, capabilities)
+  return capabilities
+}
+
+/** Read-only probe for the additive schema 42 automation tables. */
+export function probeAutomationStorageCapabilities(
+  sqlite: Database,
+): AutomationStorageCapabilities {
+  const cached = automationCache.get(sqlite)
+  if (cached) return cached
+  const names = new Set((sqlite.query(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('automations','automation_runs')",
+  ).all() as Array<{ name: string }>).map(row => row.name))
+  const capabilities = {
+    automations: names.has("automations"),
+    automationRuns: names.has("automation_runs"),
+  }
+  automationCache.set(sqlite, capabilities)
   return capabilities
 }

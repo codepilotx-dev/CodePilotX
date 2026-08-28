@@ -105,6 +105,14 @@ import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingServ
 import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
 import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
 import { SessionGroupService } from "./session-group/SessionGroupService";
+import { createAutomationDefinitions } from "./tool/Automation/definitions";
+import {
+  AutomationRunCoordinator,
+  AutomationScheduler,
+  AutomationService,
+  ThreadAutomationRunExecutor,
+} from "./automation";
+import { probeAutomationStorageCapabilities } from "./storage/database/storage-capabilities";
 import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
 import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
@@ -771,6 +779,58 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localContextPaths,
       sessionGroups,
     );
+    const automationStorage = probeAutomationStorageCapabilities(db.sqlite);
+    const automationEnabled = automationStorage.automations && automationStorage.automationRuns;
+    const automationRepository = db.repositories.automations;
+    const automationExecutor = new ThreadAutomationRunExecutor(
+      automationRepository,
+      threads,
+      worktrees,
+      threadExecutions,
+    );
+    const automationRuns = new AutomationRunCoordinator(
+      automationRepository,
+      automationExecutor,
+      {
+        getTurnStatus: (turnId) => {
+          const status = db.repositories.executions.getTurnStatus(turnId);
+          if (status === "completed" || status === "failed" || status === "interrupted") return status;
+          if (status === "queued" || status === "running") return status;
+          return status ? "waiting" : null;
+        },
+        runChanged: (run) => publishAgentEvent(db, hub, null, run.turnId, "automation/runChanged", {
+          automationId: run.automationId,
+          runId: run.id,
+          status: run.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    let automationScheduler: AutomationScheduler | null = null;
+    const automation = new AutomationService(automationRepository, {
+      changed: (value) => publishAgentEvent(db, hub, null, null, "automation/changed", {
+        automationId: value.id,
+        revision: value.revision,
+        status: value.status,
+        changedAt: Date.now(),
+      }).then(() => undefined),
+      claimed: (run) => automationRuns.startRun(run),
+      wakeScheduler: () => automationScheduler?.wake(),
+    });
+    automationScheduler = new AutomationScheduler(automationRepository, {
+      onClaimed: (runs) => automationRuns.startRuns(runs),
+      onError: () => undefined,
+    });
+    if (automationEnabled) {
+      for (const definition of createAutomationDefinitions(automation)) tools.register(definition);
+    }
+    const unsubscribeAutomationEvents = hub.listen((signal) => {
+      if (!automationEnabled || signal.kind !== "durable" || !signal.event.turnId) return;
+      if (signal.event.method === "turn/started") void automationRuns.handleTurnRunning(signal.event.turnId);
+      else if (signal.event.method === "turn/completed") void automationRuns.handleTurnTerminal(signal.event.turnId, "completed");
+      else if (signal.event.method === "turn/failed") void automationRuns.handleTurnTerminal(signal.event.turnId, "failed", "TURN_FAILED");
+      else if (signal.event.method === "turn/interrupted") void automationRuns.handleTurnTerminal(signal.event.turnId, "interrupted", "TURN_INTERRUPTED");
+    });
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
       handoffOperations,
@@ -831,7 +891,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       recoverForks: async () => {
         for (const operationId of threadForkOperations.runningOperationIDs()) await threadFork.recover(operationId);
       },
-      startQueues: () => threads.startRecoveredQueues(),
+      recoverAutomations: async () => {
+        if (automationEnabled) await automationRuns.recover();
+      },
+      startQueues: () => {
+        threads.startRecoveredQueues();
+        if (automationEnabled) automationScheduler?.start();
+      },
     });
     yield* Effect.promise(() => startupRecovery.run());
     let disposed = false;
@@ -883,6 +949,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       speech,
       threadExecutions,
       sessionGroups,
+      automation,
     });
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
     void providers.refresh(false).catch(() => undefined).then(async () => {
@@ -896,6 +963,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       if (disposed) return;
       disposed = true;
       await speech.dispose();
+      automationScheduler?.dispose();
+      unsubscribeAutomationEvents();
       unsubscribeExecutionLogs();
       unsubscribeTooling();
       unsubscribeConfig();

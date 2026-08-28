@@ -313,10 +313,11 @@ describe("执行恢复不变量", () => {
       recoverSubagents: () => { order.push("subagents") },
       recoverHandoffs: () => { order.push("handoffs") },
       recoverForks: () => { order.push("forks") },
+      recoverAutomations: () => { order.push("automations") },
       startQueues: () => { order.push("queues") },
     })
     await coordinator.run()
-    expect(order).toEqual(["interrupted", "side-chats", "leases", "questions", "subagents", "handoffs", "forks", "queues"])
+    expect(order).toEqual(["interrupted", "side-chats", "leases", "questions", "subagents", "handoffs", "forks", "automations", "queues"])
 
     const fatalOrder: string[] = []
     const fatal = new StartupRecoveryCoordinator({
@@ -327,6 +328,7 @@ describe("执行恢复不变量", () => {
       recoverSubagents: () => undefined,
       recoverHandoffs: () => undefined,
       recoverForks: () => undefined,
+      recoverAutomations: () => undefined,
       startQueues: () => { fatalOrder.push("queues") },
     })
     await expect(fatal.run()).rejects.toThrow("invariant")

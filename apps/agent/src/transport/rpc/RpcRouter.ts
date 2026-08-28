@@ -65,6 +65,7 @@ import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentD
 import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptionService"
 import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
 import type { SessionGroupService } from "../../session-group/SessionGroupService"
+import type { AutomationService } from "../../automation"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
 import { InteractionService } from "../../interaction/InteractionService"
@@ -163,6 +164,7 @@ export type RpcRouterDependencies = {
   speech: SpeechTranscriptionService
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
+  automation: AutomationService
 }
 
 export type { RpcRouterContext } from "./request-context"

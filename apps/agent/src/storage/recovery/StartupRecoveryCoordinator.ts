@@ -6,6 +6,7 @@ export type StartupRecoveryStages = {
   recoverSubagents: () => void | Promise<void>
   recoverHandoffs: () => void | Promise<void>
   recoverForks: () => void | Promise<void>
+  recoverAutomations: () => void | Promise<void>
   startQueues: () => void
 }
 
@@ -24,6 +25,7 @@ export class StartupRecoveryCoordinator {
     await this.stages.recoverSubagents()
     await this.stages.recoverHandoffs()
     await this.stages.recoverForks()
+    await this.stages.recoverAutomations()
     this.stages.startQueues()
   }
 }

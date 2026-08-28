@@ -46,6 +46,15 @@ const SESSION_GROUP_SCHEMA = [
   "CREATE INDEX session_group_context_entries_group_section ON session_group_context_entries(group_id, section, status, updated_at DESC)",
 ] as const
 
+const AUTOMATION_SCHEMA = [
+  "CREATE TABLE automations (id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1), kind TEXT NOT NULL CHECK(kind IN ('standalone','thread')), name TEXT NOT NULL, prompt TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('active','paused','deleted')), project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, execution TEXT, model_ref TEXT NOT NULL, reasoning_effort TEXT, permission_config TEXT NOT NULL, schedule TEXT NOT NULL, canonical_rrule TEXT NOT NULL, time_zone TEXT NOT NULL, notification_policy TEXT NOT NULL CHECK(notification_policy IN ('all','failures','off')), next_run_at INTEGER, pending_catch_up INTEGER NOT NULL DEFAULT 0 CHECK(pending_catch_up IN (0,1)), active_run_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)",
+  "CREATE TABLE automation_runs (id TEXT PRIMARY KEY, automation_id TEXT NOT NULL REFERENCES automations(id) ON DELETE RESTRICT, operation_id TEXT NOT NULL UNIQUE, trigger TEXT NOT NULL CHECK(trigger IN ('scheduled','startup-catch-up','overlap-catch-up','manual')), scheduled_for INTEGER NOT NULL, status TEXT NOT NULL CHECK(status IN ('claimed','preparing','queued','running','completed','failed','interrupted')), thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL, worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL, read_at INTEGER, safe_error_code TEXT, created_at INTEGER NOT NULL, started_at INTEGER, completed_at INTEGER)",
+  "CREATE INDEX automations_status_next_run ON automations(status, next_run_at)",
+  "CREATE INDEX automation_runs_automation_created ON automation_runs(automation_id, created_at DESC)",
+  "CREATE INDEX automation_runs_thread ON automation_runs(thread_id)",
+  "CREATE UNIQUE INDEX automation_runs_one_active ON automation_runs(automation_id) WHERE status IN ('claimed','preparing','queued','running')",
+] as const
+
 export const FINAL_SCHEMA = [
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
@@ -125,6 +134,7 @@ export const FINAL_SCHEMA = [
   ...TASK_CONTEXT_SCHEMA,
   ...TASKBOARD_PLANNING_SCHEMA,
   ...SESSION_GROUP_SCHEMA,
+  ...AUTOMATION_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1091,6 +1101,11 @@ const migrateHistory39To40 = (sqlite: Database) => sqlite.exec(SESSION_GROUP_SCH
 // stores are repaired without replacing or rewriting existing data.
 const migrateHistory40To41 = migrateHistory39To40
 
+const migrateHistory41To42 = (sqlite: Database) => sqlite.exec(AUTOMATION_SCHEMA.map(statement => statement
+  .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+  .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")
+  .replace(/^CREATE UNIQUE INDEX /, "CREATE UNIQUE INDEX IF NOT EXISTS ")).join(";\n"))
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1304,6 +1319,7 @@ class SchemaInitializer {
           38: () => migrateHistory38To39(this.sqlite),
           39: () => migrateHistory39To40(this.sqlite),
           40: () => migrateHistory40To41(this.sqlite),
+          41: () => migrateHistory41To42(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

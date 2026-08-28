@@ -11,6 +11,7 @@ import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
 import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
+import { AutomationRepository } from "../repositories/automation-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
 import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
@@ -74,6 +75,7 @@ export class AgentDatabase extends RepositoryDatabase {
       turnPatches: new TurnPatchRepository(this),
       runtimeCompositions: new RuntimeCompositionRepository(this),
       sessionGroups: new SessionGroupRepository(this),
+      automations: new AutomationRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)

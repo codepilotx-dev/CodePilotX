@@ -1,6 +1,7 @@
 import { Capabilities, type ProtocolCapability } from "@codepilotx/agent-protocol"
 import type { AgentDatabase } from "../../../storage/database/AgentDatabase"
 import {
+  probeAutomationStorageCapabilities,
   probeArtifactsStorageCapabilities,
   probeThreadsStorageCapabilities,
 } from "../../../storage/database/storage-capabilities"
@@ -17,10 +18,12 @@ import {
 export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<ProtocolCapability> {
   const { creationSurface } = probeThreadsStorageCapabilities(db.sqlite)
   const { itemArtifactsTable } = probeArtifactsStorageCapabilities(db.sqlite)
+  const { automations, automationRuns } = probeAutomationStorageCapabilities(db.sqlite)
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
       (capability !== "thread.creation-surface.v1" || creationSurface)
-      && (capability !== "artifacts.read.v1" || itemArtifactsTable),
+      && (capability !== "artifacts.read.v1" || itemArtifactsTable)
+      && (capability !== "automation.manage.v1" || (automations && automationRuns)),
   )
 }
 
