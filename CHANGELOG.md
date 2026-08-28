@@ -9,6 +9,8 @@
 
 ### Added
 
+- [agent] 增加兼容 Codex manifest 的内置插件发现、启停与插件 Skill 接入，并明确用户插件缓存随 CodePilotX 数据目录迁移。
+- [desktop/renderer] 接入真实的内置任务规划插件，并将 Browser 等尚未接入能力的 Featured 插件统一显示为暂不可安装。
 - [desktop] 支持独立启动并发现开发 Agent，多个完整桌面窗口可复用同一 Agent，并可将当前聊天在新窗口中打开。
 - [desktop/renderer] 为 Composer 文件变更汇总增加会话级 Diff 文件预览，支持查看逐文件增删统计并点击定位到 Review。
 - [desktop/renderer] 增加侧边栏会话标记为未读及已读切换功能，并持久化同步会话行、Bell 与活动时间线状态。
@@ -142,6 +144,8 @@
 
 ### Fixed
 
+- [desktop/renderer] 将任务规划插件的 Lucide 占位图标替换为正式规划任务图片，并统一应用于已安装架、目录和详情入口。
+- [desktop/renderer] 修复插件管理 capability 未参与桌面初始化握手，导致真实任务规划插件被误报为 Agent 不支持的问题。
 - [desktop/renderer] 恢复 Codex 式侧边栏项目、会话与导航行视觉，并修复产品模式切换器误用通用 Select 后产生的边框和悬停样式回归。
 - [desktop/renderer] 完成交互语义与视觉所有权全量收口，统一剩余选择、披露、实体行和图标动作，并增加静态契约防止动作按钮与复合表面再次串扰。
 - [desktop/renderer] 隔离卡片、附件和复合交互表面与动作按钮样式，修复悬停、尺寸和状态视觉串扰。
