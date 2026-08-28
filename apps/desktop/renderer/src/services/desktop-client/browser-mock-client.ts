@@ -35,6 +35,7 @@ import {
   type EventEnvelope,
   type JsonValue,
   type ProtocolCapability,
+  type PluginSummary,
   type RpcParams,
   type RpcResult,
 } from '@codepilotx/agent-protocol'
@@ -99,7 +100,7 @@ import {
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
 
-import type { DesktopClientEnvironment } from './types.js'
+import type { DesktopClientEnvironment, DesktopPluginApi } from './types.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
@@ -161,7 +162,7 @@ export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
   & DesktopLocalContextApi & DesktopSpeechApi
-  & DesktopModelProviderRefreshApi {
+  & DesktopModelProviderRefreshApi & DesktopPluginApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
@@ -185,6 +186,22 @@ export function createBrowserMockDesktopClient(
   let activeSessionId: string | null = null
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
+  let mockPluginGeneration = 1
+  let mockTaskPlanningPlugin: PluginSummary = {
+    id: 'task-planning',
+    name: '任务规划',
+    version: '1.0.0',
+    description: '澄清目标、拆解工作并生成可执行的任务规划。',
+    developerName: 'CodePilotX',
+    category: 'Productivity',
+    source: 'bundled',
+    installationPolicy: 'INSTALLED_BY_DEFAULT',
+    installed: true,
+    enabled: true,
+    status: 'ready',
+    capabilities: ['task-planning'],
+    skills: ['task-planning'],
+  }
 
   const provider = {
     ...mockModelProvider(settings.providerID),
@@ -560,8 +577,20 @@ export function createBrowserMockDesktopClient(
       browserState = { ...browserState, allowedSites: [], sitePermissions: [] }
       return browserState
     },
-    listBuiltinPlugins: async () => [],
-    setBuiltinPluginEnabled: async (pluginId, enabled) => ({ id: pluginId, enabled }),
+    listPlugins: async () => ({
+      plugins: [mockTaskPlanningPlugin],
+      generation: mockPluginGeneration,
+      updatedAt: Date.now(),
+    }),
+    setPluginEnabled: async (pluginId, enabled) => {
+      if (pluginId !== mockTaskPlanningPlugin.id) {
+        throw new Error('PLUGIN_NOT_FOUND')
+      }
+      mockPluginGeneration += 1
+      mockTaskPlanningPlugin = { ...mockTaskPlanningPlugin, enabled }
+      return mockTaskPlanningPlugin
+    },
+    onPluginsUpdated: () => () => {},
     listSkillsCatalog: async options => ({
       skills: [],
       page: options?.page ?? 0,

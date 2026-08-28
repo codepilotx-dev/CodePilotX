@@ -4,6 +4,8 @@ import {
   FileSpreadsheet,
   GitBranch,
   Presentation,
+  ListChecks,
+  Package,
   Sparkles,
 } from 'lucide-react'
 import {
@@ -18,6 +20,7 @@ import githubDarkLogo from '../../assets/plugin-icons/github-dark.png'
 import githubLogo from '../../assets/plugin-icons/github.svg'
 import presentationsLogo from '../../assets/plugin-icons/presentations.png'
 import spreadsheetsLogo from '../../assets/plugin-icons/spreadsheets.png'
+import taskPlanningLogo from '../../assets/plugin-icons/task-planning.png'
 
 type Props = {
   name: PluginIconName
@@ -38,6 +41,7 @@ const KNOWN_PLUGIN_LOGOS: Partial<Record<PluginIconName, KnownPluginLogo>> = {
   github: { source: githubLogo, darkSource: githubDarkLogo },
   presentations: { source: presentationsLogo },
   spreadsheets: { source: spreadsheetsLogo },
+  'task-planning': { source: taskPlanningLogo },
 }
 
 export function PluginIcon({
@@ -72,6 +76,10 @@ export function PluginIcon({
   } as const
 
   switch (name) {
+    case 'task-planning':
+      return <ListChecks {...props} />
+    case 'plugin':
+      return <Package {...props} />
     case 'browser':
     case 'chrome':
       return <Eye {...props} />

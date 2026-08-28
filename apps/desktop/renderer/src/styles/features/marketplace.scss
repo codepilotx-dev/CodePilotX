@@ -102,6 +102,13 @@
   overflow: hidden;
 }
 
+.plugins-included-overview__empty {
+  display: inline-flex;
+  align-items: center;
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-sm);
+}
+
 .plugins-included-overview__item {
   display: inline-flex;
   width: 44px;

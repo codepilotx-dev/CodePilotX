@@ -59,7 +59,7 @@ export function PluginCatalogCard({
           <span className="plugin-catalog-card__copy">
             <strong>{item.name}</strong>
             <span className="plugin-catalog-card__description">{item.description}</span>
-            {item.category === 'manageable' ? (
+            {item.category === 'manageable' || item.actionKind === 'install' ? (
               <span className="plugin-catalog-card__meta">{pluginStatusLabel(item)}</span>
             ) : null}
             {error ? (
@@ -71,7 +71,7 @@ export function PluginCatalogCard({
         </button>
 
         <div className="plugin-catalog-card__actions">
-          {action?.kind === 'toggle-builtin' ? (
+          {action.kind === 'toggle-plugin' ? (
             <ToggleSwitch
               ref={toggleRef}
               ariaLabel={`启用 ${item.name}`}
@@ -82,7 +82,7 @@ export function PluginCatalogCard({
                 if (trigger) onPrimaryAction(item, trigger, checked)
               }}
             />
-          ) : action ? (
+          ) : (
             <Button
               aria-describedby={errorId}
               className="plugin-catalog-card__external-action"
@@ -93,13 +93,15 @@ export function PluginCatalogCard({
               size="toolbar"
             >
               {action.label}
-              <ExternalLink
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
+              {action.kind === 'open-external' ? (
+                <ExternalLink
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+              ) : null}
             </Button>
-          ) : null}
+          )}
         </div>
       </article>
     </li>

@@ -18,6 +18,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/types.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
+import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
 import { CatalogDetailsView } from './CatalogDetailsView.js'
 import { PluginCatalogCard } from './PluginCatalogCard.js'
 import { PluginIcon } from './PluginIcon.js'
@@ -33,15 +34,15 @@ import {
   PLUGIN_CATALOG_DESCRIPTORS,
   filterPluginCatalog,
   groupPluginCatalogBySource,
-  mergeBuiltinPluginState,
+  mergePluginCatalog,
   pluginPrimaryAction,
-  selectIncludedPluginOverview,
+  selectInstalledPluginOverview,
   type PluginCatalogItem,
   type PluginCategoryFilter,
   type PluginStatusFilter,
 } from './pluginCatalog.js'
 import { groupSkillsForDisplay } from './skillCatalog.js'
-import { useBuiltinPluginCatalog } from './useBuiltinPluginCatalog.js'
+import { usePluginCatalog } from './usePluginCatalog.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
@@ -52,7 +53,7 @@ const TAB_OPTIONS: ReadonlyArray<{ value: CatalogTab; label: string }> = [
 
 const CATEGORY_OPTIONS: ReadonlyArray<{ value: PluginCategoryFilter; label: string }> = [
   { value: 'all', label: '全部' },
-  { value: 'included', label: '内置' },
+  { value: 'included', label: 'Featured' },
   { value: 'manageable', label: '可管理' },
   { value: 'external', label: '外部' },
 ]
@@ -71,6 +72,7 @@ const SKILL_OWNER_OPTIONS: ReadonlyArray<{ value: DesktopSkillOwnerFilter; label
 ]
 
 export function PluginsView(): React.ReactNode {
+  const { workspacePath } = useDesktopLayoutOutletContext()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useMemo(() => parseCatalogLocation(searchParams), [searchParams])
@@ -94,12 +96,12 @@ export function PluginsView(): React.ReactNode {
   const scrollRegionRef = useRef<HTMLElement | null>(null)
   const lastTargetRef = useRef<CatalogDetailsTarget | null>(null)
   const {
-    plugins: builtinPlugins,
+    plugins,
     error: pluginLoadError,
     loading: pluginsLoading,
-    refresh: refreshBuiltinPlugins,
-    setEnabled: setBuiltinPluginEnabled,
-  } = useBuiltinPluginCatalog()
+    refresh: refreshPlugins,
+    setEnabled: setPluginEnabled,
+  } = usePluginCatalog(workspacePath)
 
   useEffect(() => {
     if (!location.invalid) return
@@ -131,15 +133,15 @@ export function PluginsView(): React.ReactNode {
   }, [skillOwner, skillQuery, skillsReloadKey, tab])
 
   const pluginItems = useMemo(
-    () => mergeBuiltinPluginState(PLUGIN_CATALOG_DESCRIPTORS, builtinPlugins, pluginLoadError),
-    [builtinPlugins, pluginLoadError],
+    () => mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, pluginLoadError),
+    [plugins, pluginLoadError],
   )
   const visiblePlugins = useMemo(
     () => filterPluginCatalog(pluginItems, pluginQuery, pluginCategory, pluginStatus),
     [pluginCategory, pluginItems, pluginQuery, pluginStatus],
   )
-  const includedPluginOverview = useMemo(
-    () => selectIncludedPluginOverview(pluginItems),
+  const installedPluginOverview = useMemo(
+    () => selectInstalledPluginOverview(pluginItems),
     [pluginItems],
   )
   const pluginGroups = useMemo(() => groupPluginCatalogBySource(visiblePlugins), [visiblePlugins])
@@ -210,10 +212,11 @@ export function PluginsView(): React.ReactNode {
       }
       return
     }
-    if (!item.builtinPluginId || (item.status !== 'enabled' && item.status !== 'disabled')) return
+    if (action.kind !== 'toggle-plugin') return
+    if (!item.installed || (item.status !== 'enabled' && item.status !== 'disabled')) return
     setBusyPluginIds(current => new Set(current).add(item.id))
     try {
-      const result = await setBuiltinPluginEnabled(item.builtinPluginId, checked ?? !action.checked)
+      const result = await setPluginEnabled(item.id, checked ?? !action.checked)
       setAnnouncement(`${item.name}已${result.enabled ? '启用' : '禁用'}。`)
       window.requestAnimationFrame(() => trigger.isConnected && trigger.focus())
     } catch (error) {
@@ -279,7 +282,7 @@ export function PluginsView(): React.ReactNode {
             aria-busy={activeLoading}
             color="ghostSecondary"
             disabled={activeLoading}
-            onClick={() => tab === 'plugins' ? refreshBuiltinPlugins() : setSkillsReloadKey(value => value + 1)}
+            onClick={() => tab === 'plugins' ? refreshPlugins() : setSkillsReloadKey(value => value + 1)}
             size="toolbar"
             title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
           >
@@ -348,7 +351,7 @@ export function PluginsView(): React.ReactNode {
                 setPluginStatus('all')
               }}
               groups={pluginGroups}
-              included={includedPluginOverview}
+              installed={installedPluginOverview}
               loadError={pluginLoadError}
               loading={pluginsLoading}
               manage={() => navigate('/settings/plugins')}
@@ -359,7 +362,7 @@ export function PluginsView(): React.ReactNode {
               pluginCategory={pluginCategory}
               pluginStatus={pluginStatus}
               query={pluginQuery}
-              refresh={refreshBuiltinPlugins}
+              refresh={refreshPlugins}
               setPluginCategory={setPluginCategory}
               setPluginStatus={setPluginStatus}
               filterMenuOpen={filterMenuOpen}
@@ -424,7 +427,7 @@ type PluginDirectoryProps = {
   clearFilters: () => void
   filterMenuOpen: boolean
   groups: ReturnType<typeof groupPluginCatalogBySource>
-  included: PluginCatalogItem[]
+  installed: PluginCatalogItem[]
   loadError: string | null
   loading: boolean
   manage: () => void
@@ -447,13 +450,16 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
       <section aria-labelledby="included-plugins-title" className="plugins-included-overview">
         <header className="plugins-section-heading">
           <h2 id="included-plugins-title">已安装</h2>
-          <span className="plugins-sr-status">共 {props.included.length} 个插件</span>
+          <span className="plugins-sr-status">共 {props.installed.length} 个插件</span>
           <IconButton color="ghostSecondary" onClick={props.manage} size="toolbar" title="管理插件设置">
             <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </header>
         <ul className="plugins-included-overview__list">
-          {props.included.map(item => (
+          {props.installed.length === 0 ? (
+            <li className="plugins-included-overview__empty">暂无已启用插件</li>
+          ) : null}
+          {props.installed.map(item => (
             <li key={item.id}>
               <button
                 aria-label={`查看 ${item.name} 详情`}

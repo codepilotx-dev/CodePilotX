@@ -357,6 +357,18 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+export type DesktopPluginApi = {
+  listPlugins(
+    workspacePath?: string | null,
+    forceReload?: boolean,
+  ): Promise<RpcResult<'plugin/list'>>
+  setPluginEnabled(
+    pluginId: string,
+    enabled: boolean,
+  ): Promise<RpcResult<'plugin/setEnabled'>['plugin']>
+  onPluginsUpdated(callback: (generation: number) => void): () => void
+}
+
 export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
 
 export type DesktopSessionGroupStep = {
@@ -488,6 +500,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
+  DesktopPluginApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &

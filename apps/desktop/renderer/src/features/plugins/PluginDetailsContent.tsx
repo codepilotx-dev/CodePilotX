@@ -39,6 +39,36 @@ export function PluginDetailsMetadata({
         <dt>状态</dt>
         <dd>{pluginStatusLabel(item)}</dd>
       </div>
+      {item.version ? (
+        <div className="plugin-details-metadata__row">
+          <dt>版本</dt>
+          <dd>{item.version}</dd>
+        </div>
+      ) : null}
+      {item.developerName ? (
+        <div className="plugin-details-metadata__row">
+          <dt>开发者</dt>
+          <dd>{item.developerName}</dd>
+        </div>
+      ) : null}
+      {item.capabilities?.length ? (
+        <div className="plugin-details-metadata__row">
+          <dt>能力</dt>
+          <dd>{item.capabilities.join('、')}</dd>
+        </div>
+      ) : null}
+      {item.skills?.length ? (
+        <div className="plugin-details-metadata__row">
+          <dt>技能</dt>
+          <dd>{item.skills.join('、')}</dd>
+        </div>
+      ) : null}
+      {item.unavailableReason ? (
+        <div className="plugin-details-metadata__row">
+          <dt>说明</dt>
+          <dd>{item.unavailableReason}</dd>
+        </div>
+      ) : null}
     </dl>
   )
 }
@@ -51,7 +81,7 @@ export function PluginDetailsPrimaryAction({
   const action = pluginPrimaryAction(item)
   const toggleRef = useRef<HTMLButtonElement>(null)
 
-  if (action?.kind === 'toggle-builtin') {
+  if (action.kind === 'toggle-plugin') {
     return (
       <span className="plugin-details-primary-toggle">
         <span>{action.checked ? '已启用' : '已禁用'}</span>
@@ -69,8 +99,6 @@ export function PluginDetailsPrimaryAction({
     )
   }
 
-  if (!action) return null
-
   return (
     <Button
       color="secondary"
@@ -79,11 +107,13 @@ export function PluginDetailsPrimaryAction({
       onClick={event => onPrimaryAction(item, event.currentTarget)}
     >
       {action.label}
-      <ExternalLink
-        aria-hidden="true"
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
+      {action.kind === 'open-external' ? (
+        <ExternalLink
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ) : null}
     </Button>
   )
 }

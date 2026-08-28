@@ -1479,11 +1479,6 @@ export type DesktopModelSelection = {
   localRouterMode?: LocalRouterMode
 }
 
-export type DesktopBuiltinPlugin = {
-  id: string
-  enabled: boolean
-}
-
 export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
 
 export type DesktopSkillCatalogOptions = {
@@ -1755,11 +1750,6 @@ export type DesktopApi = {
   closeBrowser(): Promise<DesktopBrowserState>
   setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
   clearBrowserAllowedSites(): Promise<DesktopBrowserState>
-  listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
-  setBuiltinPluginEnabled(
-    pluginId: string,
-    enabled: boolean,
-  ): Promise<DesktopBuiltinPlugin>
   listSkillsCatalog(
     options?: DesktopSkillCatalogOptions,
   ): Promise<DesktopSkillCatalogResult>

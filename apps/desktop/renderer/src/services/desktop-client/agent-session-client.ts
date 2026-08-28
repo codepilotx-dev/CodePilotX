@@ -136,6 +136,7 @@ export const RENDERER_CAPABILITIES = [
   'provider.auth.pi.v1',
   'tooling.management.v1',
   'skills.manage.v1',
+  'plugins.manage.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
@@ -173,6 +174,7 @@ import type {
   DesktopClientEnvironment,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
+  DesktopPluginApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
 } from './types.js'
@@ -186,7 +188,7 @@ export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
     & DesktopLocalContextApi & DesktopSpeechApi
-    & DesktopModelProviderRefreshApi,
+    & DesktopModelProviderRefreshApi & DesktopPluginApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -351,7 +353,8 @@ export function createAgentSessionDesktopClient(
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
       if (agentCapabilities.has(capability)) return
     }
-    unsupportedAgentOperation(`${name} v${version}`)
+    const versionLabel = name.endsWith(`.v${version}`) ? name : `${name} v${version}`
+    unsupportedAgentOperation(versionLabel)
   }
 
   function withUnsupportedAgentFallback<T>(
@@ -1504,6 +1507,25 @@ export function createAgentSessionDesktopClient(
     return agentToolingApiPromise
   }
 
+  type AgentPluginApi = ReturnType<
+    (typeof import('./agent-plugin-api.js'))['createAgentPluginApi']
+  >
+  let agentPluginApiPromise: Promise<AgentPluginApi> | null = null
+  const loadAgentPluginApi = (): Promise<AgentPluginApi> => {
+    agentPluginApiPromise ??= import('./agent-plugin-api.js').then(module =>
+      module.createAgentPluginApi({
+        mockClient,
+        requireAgentCapability,
+        rpc: {
+          call: rpc.call,
+          subscribeEnvelope: subscribeGlobalEventEnvelopes,
+        },
+        withAgentOrMock,
+      }),
+    )
+    return agentPluginApiPromise
+  }
+
   type AgentProviderCredentialApi = ReturnType<
     (typeof import('./agent-provider-credential-api.js'))['createAgentProviderCredentialApi']
   >
@@ -1569,6 +1591,7 @@ export function createAgentSessionDesktopClient(
       ...AGENT_LIVE_EVENT_FILTERS.provider,
       ...AGENT_LIVE_EVENT_FILTERS.modelHealth,
       ...AGENT_LIVE_EVENT_FILTERS.skills,
+      ...AGENT_LIVE_EVENT_FILTERS.plugins,
       ...AGENT_LIVE_EVENT_FILTERS.tooling,
       ...AGENT_LIVE_EVENT_FILTERS.mcp,
       'speech/statusChanged',
@@ -1852,6 +1875,24 @@ export function createAgentSessionDesktopClient(
       void loadAgentToolingApi().then(api => {
         if (disposed) return
         dispose = api.onRuntimeSkillsUpdated(callback)
+      })
+      return () => {
+        disposed = true
+        dispose()
+      }
+    },
+    listPlugins: (workspacePath, forceReload) =>
+      loadAgentPluginApi().then(api =>
+        api.listPlugins(workspacePath, forceReload),
+      ),
+    setPluginEnabled: (pluginId, enabled) =>
+      loadAgentPluginApi().then(api => api.setPluginEnabled(pluginId, enabled)),
+    onPluginsUpdated: callback => {
+      let disposed = false
+      let dispose = () => {}
+      void loadAgentPluginApi().then(api => {
+        if (disposed) return
+        dispose = api.onPluginsUpdated(callback)
       })
       return () => {
         disposed = true
@@ -3428,7 +3469,6 @@ export function createAgentSessionDesktopClient(
     'importUserMemory',
     'installSkill',
     'isWindowMaximized',
-    'listBuiltinPlugins',
     'listDebugBuiltinTools',
     'listRuntimePermissionProfiles',
     'listSkillsCatalog',
@@ -3444,7 +3484,6 @@ export function createAgentSessionDesktopClient(
     'pollCopilotLogin',
     'reinstallDesktopToolchain',
     'runDebugToolProbe',
-    'setBuiltinPluginEnabled',
     'startCopilotLogin',
     'toggleWindowMaximized',
   ] as const
@@ -3482,7 +3521,6 @@ export function createAgentSessionDesktopClient(
     getWorkspaceReviewDiff: lazyMock('getWorkspaceReviewDiff'),
     importUserMemory: lazyMock('importUserMemory'),
     installSkill: lazyMock('installSkill'),
-    listBuiltinPlugins: lazyMock('listBuiltinPlugins'),
     listDebugBuiltinTools: lazyMock('listDebugBuiltinTools'),
     listRuntimePermissionProfiles: lazyMock('listRuntimePermissionProfiles'),
     listSkillsCatalog: lazyMock('listSkillsCatalog'),
@@ -3495,7 +3533,6 @@ export function createAgentSessionDesktopClient(
     pollCopilotLogin: lazyMock('pollCopilotLogin'),
     reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
     runDebugToolProbe: lazyMock('runDebugToolProbe'),
-    setBuiltinPluginEnabled: lazyMock('setBuiltinPluginEnabled'),
     startCopilotLogin: lazyMock('startCopilotLogin'),
     toggleWindowMaximized: lazyMock('toggleWindowMaximized'),
   }

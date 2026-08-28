@@ -22,6 +22,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
     'provider/credential/updated',
   ],
   skills: ['skill/updated'],
+  plugins: ['plugins/updated'],
   tooling: ['tooling/updated'],
   mcp: ['mcp/updated'],
   // session-group/changed is durable and arrives outside the live-only filter.
@@ -35,7 +36,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   ],
 } as const satisfies Readonly<
   Record<
-    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'tooling' | 'mcp' | 'sessionGroups' | 'global',
+    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'plugins' | 'tooling' | 'mcp' | 'sessionGroups' | 'global',
     readonly LiveEventType[]
   >
 >
