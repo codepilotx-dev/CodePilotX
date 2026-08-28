@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { PluginCatalogRow } from '../src/features/plugins/PluginCatalogRow.js'
+import { PluginCatalogCard } from '../src/features/plugins/PluginCatalogCard.js'
 import {
   PLUGIN_CATALOG_DESCRIPTORS,
   mergeBuiltinPluginState,
 } from '../src/features/plugins/pluginCatalog.js'
 
-function renderRow(id: 'browser' | 'minimax'): string {
+function renderCard(id: 'browser' | 'minimax'): string {
   const item = mergeBuiltinPluginState(
     PLUGIN_CATALOG_DESCRIPTORS,
     [{ id: 'browser@builtin', enabled: true }],
@@ -15,7 +15,7 @@ function renderRow(id: 'browser' | 'minimax'): string {
   if (!item) throw new Error(`Missing plugin fixture: ${id}`)
 
   return renderToStaticMarkup(
-    <PluginCatalogRow
+    <PluginCatalogCard
       item={item}
       onOpenDetails={() => undefined}
       onPrimaryAction={() => undefined}
@@ -25,18 +25,24 @@ function renderRow(id: 'browser' | 'minimax'): string {
 
 describe('plugin catalog controls', () => {
   test('renders builtin enabled state as a switch instead of an action button', () => {
-    const html = renderRow('browser')
+    const html = renderCard('browser')
 
+    expect(html).toContain('data-catalog-item-id="plugin:browser"')
+    expect(html).toContain('<img')
     expect(html).toContain('role="switch"')
     expect(html).toContain('aria-checked="true"')
+    expect(html.match(/<button/g)).toHaveLength(2)
     expect(html).not.toContain('aria-pressed')
   })
 
   test('keeps external installation guidance as a text action button', () => {
-    const html = renderRow('minimax')
+    const html = renderCard('minimax')
 
     expect(html).toContain('class="ui-button')
     expect(html).toContain('查看安装说明')
+    expect(html).toContain('<svg')
+    expect(html).not.toContain('<img')
+    expect(html.match(/<button/g)).toHaveLength(2)
     expect(html).not.toContain('role="switch"')
   })
 })
