@@ -357,6 +357,25 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+type WithoutOperationId<T> = T extends { operationId: unknown }
+  ? Omit<T, 'operationId'>
+  : T
+
+export type DesktopAutomationApi = {
+  listAutomations(input: RpcParams<'automation/list'>): Promise<RpcResult<'automation/list'>>
+  readAutomation(input: RpcParams<'automation/read'>): Promise<RpcResult<'automation/read'>>
+  createAutomation(input: WithoutOperationId<RpcParams<'automation/create'>>): Promise<RpcResult<'automation/create'>>
+  updateAutomation(input: Pick<RpcParams<'automation/update'>, 'automationId' | 'expectedRevision'> & {
+    patch: Omit<RpcParams<'automation/update'>, 'automationId' | 'expectedRevision'>
+  }): Promise<RpcResult<'automation/update'>>
+  deleteAutomation(input: RpcParams<'automation/delete'>): Promise<RpcResult<'automation/delete'>>
+  runAutomation(input: WithoutOperationId<RpcParams<'automation/run'>>): Promise<RpcResult<'automation/run'>>
+  listAutomationRuns(input: RpcParams<'automation/run/list'>): Promise<RpcResult<'automation/run/list'>>
+  markAutomationRunRead(input: RpcParams<'automation/run/mark-read'>): Promise<RpcResult<'automation/run/mark-read'>>
+  markAllAutomationRunsRead(input: RpcParams<'automation/run/mark-all-read'>): Promise<RpcResult<'automation/run/mark-all-read'>>
+  previewAutomationSchedule(input: RpcParams<'automation/schedule/preview'>): Promise<RpcResult<'automation/schedule/preview'>['preview']>
+}
+
 export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
 
 export type DesktopSessionGroupStep = {
@@ -488,6 +507,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
+  DesktopAutomationApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &

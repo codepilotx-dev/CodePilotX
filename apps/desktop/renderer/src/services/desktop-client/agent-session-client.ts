@@ -144,6 +144,7 @@ export const RENDERER_CAPABILITIES = [
   'release-notes.read.v1',
   'thread.side-chat.v1',
   'speech.transcription.v1',
+  'automation.manage.v1',
   'session-group.v1' as ProtocolCapability,
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
@@ -1562,6 +1563,21 @@ export function createAgentSessionDesktopClient(
     return agentSessionGroupApiPromise
   }
 
+  type AgentAutomationApi = ReturnType<
+    (typeof import('./agent-automation-api.js'))['createAgentAutomationApi']
+  >
+  let agentAutomationApiPromise: Promise<AgentAutomationApi> | null = null
+  const loadAgentAutomationApi = (): Promise<AgentAutomationApi> => {
+    agentAutomationApiPromise ??= import('./agent-automation-api.js').then(module =>
+      module.createAgentAutomationApi({
+        requireAgentCapability,
+        rpc,
+        withRequiredAgent,
+      }),
+    )
+    return agentAutomationApiPromise
+  }
+
   let unsubscribeSessionCatalog: (() => void) | null = null
   const sharedGlobalLiveEventTypes = [
     ...new Set<LiveEventType>([
@@ -1886,6 +1902,26 @@ export function createAgentSessionDesktopClient(
       loadAgentToolingApi().then(api => api.installPet(url)),
     removePet: id =>
       loadAgentToolingApi().then(api => api.removePet(id)),
+    listAutomations: input =>
+      loadAgentAutomationApi().then(api => api.listAutomations(input)),
+    readAutomation: input =>
+      loadAgentAutomationApi().then(api => api.readAutomation(input)),
+    createAutomation: input =>
+      loadAgentAutomationApi().then(api => api.createAutomation(input)),
+    updateAutomation: input =>
+      loadAgentAutomationApi().then(api => api.updateAutomation(input)),
+    deleteAutomation: input =>
+      loadAgentAutomationApi().then(api => api.deleteAutomation(input)),
+    runAutomation: input =>
+      loadAgentAutomationApi().then(api => api.runAutomation(input)),
+    listAutomationRuns: input =>
+      loadAgentAutomationApi().then(api => api.listAutomationRuns(input)),
+    markAutomationRunRead: input =>
+      loadAgentAutomationApi().then(api => api.markAutomationRunRead(input)),
+    markAllAutomationRunsRead: input =>
+      loadAgentAutomationApi().then(api => api.markAllAutomationRunsRead(input)),
+    previewAutomationSchedule: input =>
+      loadAgentAutomationApi().then(api => api.previewAutomationSchedule(input)),
     listSessionGroups: () =>
       loadAgentSessionGroupApi().then(api => api.listSessionGroups()),
     readSessionGroup: groupId =>

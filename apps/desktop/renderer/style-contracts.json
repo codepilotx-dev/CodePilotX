@@ -228,7 +228,20 @@
         "reason": "Focused composer actions use local ordering inside the isolated composer control group."
       }
     ],
-    "literalSpacingExceptions": []
+    "literalSpacingExceptions": [
+      {
+        "file": "src/styles/features/automation.scss",
+        "property": "padding",
+        "value": "5px",
+        "reason": "Codex-matched automation suggestion rows require a fixed 5px outer inset around their existing tokenized button padding."
+      },
+      {
+        "file": "src/styles/features/automation.scss",
+        "property": "gap",
+        "value": "5px",
+        "reason": "Codex-matched automation suggestion rows require a fixed 5px gap between adjacent list items."
+      }
+    ]
   },
   "interactionContract": {
     "interactiveRowAllowedFiles": [

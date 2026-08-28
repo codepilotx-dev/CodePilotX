@@ -123,6 +123,7 @@ import {
 } from './fixtureRuntime.js'
 import type {
   DesktopAttachmentApi,
+  DesktopAutomationApi,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
   DesktopRuntimeCapabilityApi,
@@ -160,7 +161,7 @@ function mcpUnavailable(): never {
 export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
-  & DesktopLocalContextApi & DesktopSpeechApi
+  & DesktopLocalContextApi & DesktopSpeechApi & DesktopAutomationApi
   & DesktopModelProviderRefreshApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
@@ -352,6 +353,22 @@ export function createBrowserMockDesktopClient(
     },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
+    listAutomations: async () => ({ automations: [] }),
+    listAutomationRuns: async () => ({ runs: [] }),
+    readAutomation: async () => { throw new Error('浏览器模拟环境中不存在该自动化。') },
+    createAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    updateAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    deleteAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    runAutomation: async () => { throw new Error('浏览器模拟环境不执行自动化。') },
+    markAutomationRunRead: async () => { throw new Error('浏览器模拟环境中不存在该运行。') },
+    markAllAutomationRunsRead: async () => ({ updatedCount: 0 }),
+    previewAutomationSchedule: async input => ({
+      canonicalRrule: input.schedule.mode === 'custom'
+        ? input.schedule.rrule
+        : `FREQ=${input.schedule.mode.toUpperCase()}`,
+      summary: '浏览器自动化预览',
+      nextRunAt: [],
+    }),
     getAuthStatus: async () => mockAuthStatus(),
     getRuntimeStatus: async () => mockRuntimeStatus(),
     diagnoseDesktopToolchain: async () => {

@@ -33,6 +33,8 @@ export class TaskNotificationDispatcher {
   #sentIds = new Set<string>()
   #sentOrder: string[] = []
   #baselineReady = false
+  #automationThreadsByRun = new Map<string, string>()
+  #automationThreadCounts = new Map<string, number>()
 
   constructor(send: TaskNotificationSender) {
     this.#send = send
@@ -48,6 +50,23 @@ export class TaskNotificationDispatcher {
 
   isBaselineReady(): boolean {
     return this.#baselineReady
+  }
+
+  trackAutomationRun(runId: string, threadId: string): void {
+    const previous = this.#automationThreadsByRun.get(runId)
+    if (previous === threadId) return
+    if (previous) this.releaseAutomationRun(runId)
+    this.#automationThreadsByRun.set(runId, threadId)
+    this.#automationThreadCounts.set(threadId, (this.#automationThreadCounts.get(threadId) ?? 0) + 1)
+  }
+
+  releaseAutomationRun(runId: string): void {
+    const threadId = this.#automationThreadsByRun.get(runId)
+    if (!threadId) return
+    this.#automationThreadsByRun.delete(runId)
+    const count = (this.#automationThreadCounts.get(threadId) ?? 1) - 1
+    if (count > 0) this.#automationThreadCounts.set(threadId, count)
+    else this.#automationThreadCounts.delete(threadId)
   }
 
   // 基线批次只登记状态不发送；之后的批次才产生通知。
@@ -83,6 +102,7 @@ export class TaskNotificationDispatcher {
   }
 
   #emit(candidate: TaskNotificationCandidate): boolean {
+    if ((candidate.kind === 'completed' || candidate.kind === 'failed') && this.#automationThreadCounts.has(candidate.threadId)) return false
     const settings = this.#settings
     if (!settings) return false
     let visibility: DesktopNotificationVisibility | null = null
