@@ -39,6 +39,7 @@ export const Capabilities = [
   "pets.management.v1",
   "release-notes.read.v1",
   "skills.manage.v1",
+  "plugins.manage.v1",
   "mcp.manage.v1",
   "mcp.oauth.v1",
   "task-suggestions.v1",

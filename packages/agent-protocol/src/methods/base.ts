@@ -5,6 +5,7 @@ import { GitRpcMethods } from "./git"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
 import { PetRpcMethods } from "./pet"
+import { PluginRpcMethods } from "./plugins"
 import { ReleaseNotesRpcMethods } from "./release-notes"
 import { ReviewRpcMethods } from "./review"
 import { SkillRpcMethods } from "./skills"
@@ -25,6 +26,7 @@ export const BaseRpcMethods = {
   ...GithubRpcMethods,
   ...McpRpcMethods,
   ...PetRpcMethods,
+  ...PluginRpcMethods,
   ...ReleaseNotesRpcMethods,
   ...ReviewRpcMethods,
   ...SkillRpcMethods,
