@@ -6,26 +6,30 @@ import type {
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
 
-export const MODEL_CENTER_VIEWS = ['providers', 'health'] as const
-export type ModelCenterView = (typeof MODEL_CENTER_VIEWS)[number]
-
-export type ModelCenterCapabilityGate = {
-  supportsModelHealth: boolean
-}
-
 export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models'] as const
 export type ModelCenterProviderSection = (typeof MODEL_CENTER_PROVIDER_SECTIONS)[number]
 
 export type ModelCenterRouteState = {
-  view: ModelCenterView
   providerId: string | null
   section: ModelCenterProviderSection
 }
 
 export type ModelCenterRoutePatch = {
-  view?: ModelCenterView | 'keys' | null
   providerId?: string | null
   section?: ModelCenterProviderSection | 'router' | null
+}
+
+export function legacyModelCenterSettingsTarget(search: string): {
+  pathname: '/settings/providers'
+  search: string
+} {
+  const params = new URLSearchParams(search)
+  params.delete('view')
+  const nextSearch = params.toString()
+  return {
+    pathname: '/settings/providers',
+    search: nextSearch ? `?${nextSearch}` : '',
+  }
 }
 
 export type ApiKeyFilters = {
@@ -75,24 +79,15 @@ const isProviderSection = (value: string | null): value is ModelCenterProviderSe
 export function parseModelCenterSearchParams(
   params: URLSearchParams,
   allowedProviderIds: readonly string[],
-  _fallbackProviderId?: string | null,
-  capabilities: ModelCenterCapabilityGate = { supportsModelHealth: true },
 ): ModelCenterRouteState {
   const allowed = new Set(allowedProviderIds)
   const requestedProvider = params.get('provider')
-  const requestedView = params.get('view')
-
-  let resolvedView: ModelCenterView = 'providers'
-  if (requestedView === 'health' && capabilities.supportsModelHealth) {
-    resolvedView = 'health'
-  }
 
   const requestedSection = params.get('section')
   const resolvedSection: ModelCenterProviderSection =
     requestedSection === 'models' ? 'models' : 'connection'
 
   return {
-    view: resolvedView,
     providerId: requestedProvider && allowed.has(requestedProvider) ? requestedProvider : null,
     section: resolvedSection,
   }
@@ -153,11 +148,6 @@ export function updateModelCenterSearchParams(
   patch: ModelCenterRoutePatch,
 ): URLSearchParams {
   const next = new URLSearchParams(current)
-  if (patch.view === 'keys') {
-    updateParam(next, 'view', 'providers')
-  } else {
-    updateParam(next, 'view', patch.view)
-  }
   updateParam(next, 'provider', patch.providerId)
   if (patch.section === 'router') {
     updateParam(next, 'section', 'connection')

@@ -120,7 +120,6 @@ describe('Codex 侧栏导航', () => {
       { view: 'sessionGroups', label: '会话组', path: '/session-groups' },
       { view: 'automations', label: '自动化', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
-      { view: 'models', label: '供应商', path: '/models' },
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
     expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
@@ -269,22 +268,6 @@ describe('Codex 侧栏导航', () => {
     }
   })
 
-  test('供应商入口满足模型目录或任一 Pi Provider 能力即可显示', () => {
-    for (const capability of [
-      'model.catalog.paged.v1',
-      'provider.config.pi.v1',
-      'provider.auth.pi.v1',
-    ] as const) {
-      expect(
-        sidebarNavItems(
-          false,
-          undefined,
-          readySidebarCapabilities(capability),
-        ).some(item => item.view === 'models'),
-      ).toBeTrue()
-    }
-  })
-
   test('能力过滤不改变项目规则且固定区域仍只有新建对话', () => {
     const withoutProjects = sidebarNavItems(
       false,
@@ -317,8 +300,16 @@ describe('Codex 侧栏导航', () => {
     )
 
     expect(integrations?.items.map(item => item.routeId)).toEqual([
+      'providers',
       'plugins',
       'browser',
+    ])
+    const providers = SETTINGS_ITEMS.find(item => item.routeId === 'providers')
+    expect(providers?.rows.map(row => row.title)).toEqual([
+      '供应商目录',
+      '账户连接',
+      '模型目录',
+      '自定义 Provider',
     ])
     expect(SETTINGS_ITEMS.some(item => item.routeId === 'mcp')).toBeFalse()
   })

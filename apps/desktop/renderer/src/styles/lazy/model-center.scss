@@ -2,5 +2,4 @@
 
 @layer features {
   @include meta.load-css('../features/model-center');
-  @include meta.load-css('../features/model-health');
 }

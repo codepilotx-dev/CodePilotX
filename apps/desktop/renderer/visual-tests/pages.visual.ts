@@ -37,7 +37,7 @@ const FORMAL_ROUTES = [
     route: '/?visualCase=rich#/threads/visual-rich',
     ready: '.workflow-page',
   },
-  { id: 'models', route: '/?visualCase=empty#/models', ready: '.model-center-shell' },
+  { id: 'providers', route: '/?visualCase=empty#/settings/providers', ready: '.model-center-shell' },
   { id: 'plugins', route: '/?visualCase=empty#/plugins', ready: '.plugins-view' },
   {
     id: 'automations',
@@ -181,7 +181,7 @@ for (const mode of VISUAL_MODES) {
 visualTest('provider catalog preserves logo slot and three-column spacing', async ({ page }) => {
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await prepareVisualTheme(page, 'dark')
-  await page.goto('/?visualCase=rich&visualProviderCatalog=logos#/models')
+  await page.goto('/?visualCase=rich&visualProviderCatalog=logos#/settings/providers')
   await waitForVisualPage(page, 'dark', page.locator('.model-center-shell'))
 
   const cards = page.locator('.provider-card')

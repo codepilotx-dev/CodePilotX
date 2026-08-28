@@ -322,28 +322,13 @@ test.describe('animation contracts', () => {
       composerFill.style.setProperty('--usage-ratio', '0.6')
       document.body.appendChild(composerTrack)
 
-      const modelTrack = document.createElement('div')
-      modelTrack.className = 'model-health-progress-track'
-      modelTrack.innerHTML = '<div class="model-health-progress-fill"></div>'
-      modelTrack.style.cssText = 'width: 320px;'
-      const modelFill = modelTrack.querySelector<HTMLElement>(
-        '.model-health-progress-fill',
-      )!
-      modelFill.style.setProperty('--model-health-progress', '0.4')
-      document.body.appendChild(modelTrack)
-
       const composerStyle = getComputedStyle(composerFill)
-      const modelStyle = getComputedStyle(modelFill)
       skeleton.remove()
       composerTrack.remove()
-      modelTrack.remove()
       return {
         composerOrigin: composerStyle.transformOrigin,
         composerTransform: composerStyle.transform,
         composerTransition: composerStyle.transitionProperty,
-        modelOrigin: modelStyle.transformOrigin,
-        modelTransform: modelStyle.transform,
-        modelTransition: modelStyle.transitionProperty,
         skeletonAnimation: skeletonAfter.animationName,
         skeletonDuration: skeletonBefore.getPropertyValue('--motion-loading'),
         skeletonSweep: skeletonAfter.animationName === 'ui-skeleton-sweep',
@@ -355,9 +340,6 @@ test.describe('animation contracts', () => {
     expect(styles.composerTransform).toBe('matrix(0.6, 0, 0, 1, 0, 0)')
     expect(styles.composerOrigin.startsWith('0%')).toBe(true)
     expect(styles.composerTransition).toBe('transform')
-    expect(styles.modelTransform).toBe('matrix(0.4, 0, 0, 1, 0, 0)')
-    expect(styles.modelOrigin.startsWith('0%')).toBe(true)
-    expect(styles.modelTransition).toBe('transform')
   })
 
   test('reduced motion renders a flat skeleton without shimmer', async ({ page }) => {

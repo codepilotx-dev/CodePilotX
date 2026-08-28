@@ -1542,7 +1542,7 @@ for (const styleFile of styleFiles) {
 /*
  * Animation implementation contracts: continuous animations must stay on the
  * compositor/transform path. Guards the skeleton shimmer, the two progress
- * bars, and the scroll edge-fade frames against regressing to per-frame
+ * bar, and the scroll edge-fade frames against regressing to per-frame
  * repaints (background-position sweeps), layout-thrash transitions (width),
  * persistent will-change promotion, scroll timelines or dynamic mask
  * keyframes.
@@ -1551,7 +1551,6 @@ const animationContractFiles = {
   canonicalConversation: 'src/styles/features/_canonical-conversation.scss',
   composerStatus: 'src/styles/features/_composer-status.scss',
   layoutSidebar: 'src/styles/features/layout-sidebar.scss',
-  modelHealth: 'src/styles/features/_model-health.scss',
   sessionWorkflow: 'src/styles/features/_session-workflow.scss',
   skeleton: 'src/styles/components/skeleton.scss',
 } as const
@@ -1570,7 +1569,6 @@ if (/background-position/.test(skeletonSource)) {
 
 for (const [name, selector] of [
   ['composerStatus', '.composer-status-bar-fill'],
-  ['modelHealth', '.model-health-progress-fill'],
 ] as const) {
   const source = await readAnimationContractFile(name)
   const block = selectorBlock(source, selector)

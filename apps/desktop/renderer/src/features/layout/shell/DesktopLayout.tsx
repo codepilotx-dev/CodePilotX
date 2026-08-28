@@ -241,7 +241,6 @@ function routeAccessibilityLabel(pathname: string): string {
   if (pathname === '/new') return '新对话'
   if (pathname.startsWith('/threads/')) return '会话'
   if (pathname.startsWith('/projects')) return '项目'
-  if (pathname === '/models') return '模型'
   if (pathname === '/plugins') return '插件与技能'
   if (pathname === '/pull-requests') return '拉取请求'
   if (pathname === '/automations') return '自动化'

@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   Boxes,
-  BrainCircuit,
   ChevronDown,
   Clock3,
   FolderKanban,
@@ -89,20 +88,6 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
     availability: {
       kind: 'any-capability',
       capabilities: ['skills.manage.v1', 'mcp.manage.v1'],
-    },
-  },
-  {
-    view: "models",
-    label: "供应商",
-    icon: <BrainCircuit size={APP_ICON_SIZE} />,
-    path: "/models",
-    availability: {
-      kind: 'any-capability',
-      capabilities: [
-        'model.catalog.paged.v1',
-        'provider.config.pi.v1',
-        'provider.auth.pi.v1',
-      ],
     },
   },
 ];

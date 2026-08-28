@@ -20,7 +20,6 @@ import { useDesktopSettings } from "../settings/useDesktopSettings.js";
 import { fullErrorMessage } from "../../utils/errors.js";
 import {
   Cable,
-  CircleStop,
   Pencil,
   Plus,
   RefreshCw,
@@ -28,7 +27,6 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/Button.js";
 import { ConfirmationDialog } from "../../components/ui/ConfirmationDialog.js";
-import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
 import { SkeletonBlock, SkeletonRegion } from "../../components/ui/Skeleton.js";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -45,8 +43,6 @@ import {
   type ProviderCatalogFilter,
 } from "./modelCenterState.js";
 import { WorkspaceHeaderItem } from "../layout/workspace-header/index.js";
-import { ModelHealthWorkspace } from "./health/ModelHealthWorkspace.js";
-import { useModelHealthController } from "./health/useModelHealthController.js";
 import { ProviderConnectionDialog } from "./provider-management/ProviderConnectionDialog.js";
 import { ProviderEditorDialog } from "./provider-management/ProviderEditorDialog.js";
 import { ProviderConnectionSection } from "./provider-management/ProviderConnectionSection.js";
@@ -134,7 +130,6 @@ export function ModelCenterWorkbench({
     providerState,
     apiKeys,
     snapshot,
-    supportsModelHealth,
     setProviderState,
     refreshAllProviderData,
   } = controller;
@@ -160,20 +155,11 @@ export function ModelCenterWorkbench({
       parseModelCenterSearchParams(
         searchParams,
         providers.map((provider) => provider.providerID),
-        providerID,
-        { supportsModelHealth: supportsModelHealth ?? false },
       ),
-    [providerID, providers, searchParams, supportsModelHealth],
+    [providers, searchParams],
   );
 
-  const workspaceView = routeState.view;
-  const health = useModelHealthController(workspaceView === "health");
   const providerSection = routeState.section;
-
-  const healthRunActive =
-    health.state.run !== null &&
-    (health.state.run.status === "running" ||
-      health.state.run.status === "cancelling");
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.providerID === providerID),
@@ -293,21 +279,8 @@ export function ModelCenterWorkbench({
     }
   }, [providerID, providers, routeState.providerId]);
 
-  useEffect(() => {
-    if (
-      supportsModelHealth === false &&
-      searchParams.get("view") === "health"
-    ) {
-      updateLocation(
-        { view: "providers", provider: null, section: null },
-        true,
-      );
-    }
-  }, [searchParams, supportsModelHealth]);
-
   function updateLocation(
     patch: {
-      view?: "providers" | "health";
       provider?: string | null;
       section?: "connection" | "models" | null;
     },
@@ -316,7 +289,6 @@ export function ModelCenterWorkbench({
     setSearchParams(
       (current) => {
         return updateModelCenterSearchParams(current, {
-          view: patch.view,
           providerId: patch.provider,
           section: patch.section,
         });
@@ -625,8 +597,7 @@ export function ModelCenterWorkbench({
     }
   }
 
-  const showingProviderDetail =
-    workspaceView === "providers" && routeState.providerId !== null;
+  const showingProviderDetail = routeState.providerId !== null;
 
   const showInitialSkeleton =
     initialLoadState === "loading" && providers.length === 0;
@@ -663,31 +634,12 @@ export function ModelCenterWorkbench({
 
   return (
     <div className="model-center-shell">
-      <WorkspaceHeaderItem align="start" id="models.tabs" order={0} slot="left">
-        <SegmentedControl<"providers" | "health">
-          ariaLabel="供应商与模型中心工作区"
-          className="model-center-workspace-tabs"
-          onChange={(view) =>
-            updateLocation({ view, provider: null, section: null })
-          }
-          overflowMode="fit"
-          options={[
-            {
-              value: "providers",
-              label: (
-                <>
-                  供应商 <span>{providers.length}</span>
-                </>
-              ),
-            },
-            ...(supportsModelHealth === true
-              ? [{ value: "health" as const, label: "全量体检" }]
-              : []),
-          ]}
-          semantics="tabs"
-          value={workspaceView}
-        />
-      </WorkspaceHeaderItem>
+      <div className="settings-page-header">
+        <h2 className="settings-page-title">供应商</h2>
+        <p className="settings-page-desc">
+          管理模型服务、账户连接、凭据与可用模型。
+        </p>
+      </div>
 
       <WorkspaceHeaderItem
         align="end"
@@ -696,33 +648,7 @@ export function ModelCenterWorkbench({
         slot="right"
       >
         <div className="model-center-header-actions">
-          {!showInitialSkeleton &&
-          workspaceView === "health" &&
-          supportsModelHealth === true ? (
-            <Button
-              color="primary"
-              disabled={health.busy}
-              onClick={() => {
-                if (healthRunActive) void health.cancelRun();
-                else void health.requestStart();
-              }}
-            >
-              {healthRunActive ? (
-                <CircleStop aria-hidden />
-              ) : (
-                <RefreshCw aria-hidden />
-              )}
-              <span className="model-center-header-action-label">
-                {healthRunActive
-                  ? "停止体检"
-                  : health.state.run
-                    ? "重新体检全部"
-                    : "测试全部模型"}
-              </span>
-            </Button>
-          ) : null}
-
-          {!showInitialSkeleton && workspaceView === "providers" ? (
+          {!showInitialSkeleton ? (
             <Button
               color="primary"
               disabled={refreshingProviderData}
@@ -735,7 +661,6 @@ export function ModelCenterWorkbench({
           ) : null}
 
           {!showInitialSkeleton &&
-          workspaceView === "providers" &&
           !showingProviderDetail ? (
             <Button
               color="primary"
@@ -820,8 +745,6 @@ export function ModelCenterWorkbench({
           view={showingProviderDetail ? "detail" : "catalog"}
           section={providerSection}
         />
-      ) : workspaceView === "health" && supportsModelHealth === true ? (
-        <ModelHealthWorkspace controller={health} />
       ) : showingProviderDetail && selectedProvider ? (
         <ProviderDetail
           activeTab={providerSection}

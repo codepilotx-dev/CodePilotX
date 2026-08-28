@@ -140,7 +140,7 @@ export function ProviderUsagePanel({
         <div className="usage-empty-state" role="status">
           <h3>还没有已配置的厂商</h3>
           <p>请先从供应商目录完成连接，这里只展示已配置账户的用量与成本。</p>
-          <Link className="usage-text-link" to="/models?view=providers">前往供应商</Link>
+          <Link className="usage-text-link" to="/settings/providers">前往供应商</Link>
         </div>
       ) : null}
 
@@ -258,7 +258,7 @@ function ProviderUsageCard({
             <h3>
               <Link
                 title="前往账户连接"
-                to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}
+                to={`/settings/providers?provider=${encodeURIComponent(providerId)}`}
               >
                 {descriptor.displayName}
               </Link>
@@ -274,7 +274,7 @@ function ProviderUsageCard({
           <p>
             <Link
               className="usage-text-link"
-              to={`/models?view=providers&provider=${encodeURIComponent(providerId)}`}
+              to={`/settings/providers?provider=${encodeURIComponent(providerId)}`}
             >
               {providerName}
             </Link>
@@ -313,7 +313,7 @@ function ProviderUsageCard({
           <span>{source.error.retryable ? '可以稍后重试。' : errorCategoryLabel(source.error.category)}</span>
           <Link
             className="usage-text-link"
-            to={`/models?view=keys&provider=${encodeURIComponent(providerId)}`}
+            to={`/settings/providers?provider=${encodeURIComponent(providerId)}`}
           >
             修复账户连接
           </Link>

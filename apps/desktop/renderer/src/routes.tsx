@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { createHashRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
 import { FullScreenWhaleLoading } from './components/ui/FullScreenWhaleLoading.js'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
@@ -12,10 +12,10 @@ import { ConversationPage } from './features/session/conversation/ConversationPa
 import { PluginsView } from './features/plugins/PluginsView.js'
 import { ProjectsView } from './features/projects/ProjectsView.js'
 import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
-import { ModelCenterView } from './features/models/ModelCenterView.js'
 import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
 import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
+import { legacyModelCenterSettingsTarget } from './features/models/modelCenterState.js'
 
 const PetOverlayPage = lazy(() =>
   import('./features/pet/PetOverlayPage.js').then(module => ({
@@ -41,6 +41,16 @@ function SessionGroupsRoute(): ReactNode {
     >
       <SessionGroupsView />
     </Suspense>
+  )
+}
+
+function LegacyModelsRedirect(): ReactNode {
+  const location = useLocation()
+  return (
+    <Navigate
+      replace
+      to={legacyModelCenterSettingsTarget(location.search)}
+    />
   )
 }
 
@@ -86,7 +96,7 @@ const router = createHashRouter([
           { path: 'projects/:projectId', element: <ProjectsView /> },
           { path: 'session-groups', element: <SessionGroupsRoute /> },
           { path: 'session-groups/:groupId', element: <SessionGroupsRoute /> },
-          { path: 'models', element: <ModelCenterView /> },
+          { path: 'models', element: <LegacyModelsRedirect /> },
           { path: 'plugins', element: <PluginsView /> },
           { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
           { path: 'automations', element: <AutomationView /> },

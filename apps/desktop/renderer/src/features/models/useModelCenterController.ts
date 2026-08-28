@@ -31,8 +31,6 @@ export type ModelCenterController = {
   providerState: DesktopModelProviderState | null
   apiKeys: DesktopApiKeySummary[]
   snapshot: ProviderManagementSnapshot
-  /** null while capabilities are still loading. */
-  supportsModelHealth: boolean | null
   setProviderState: Dispatch<SetStateAction<DesktopModelProviderState | null>>
   setApiKeys: Dispatch<SetStateAction<DesktopApiKeySummary[]>>
   refreshProviderContext: () => Promise<{
@@ -52,26 +50,9 @@ export function useModelCenterController({
   const [apiKeys, setApiKeys] = useState<DesktopApiKeySummary[]>([
     ...snapshot.apiKeys,
   ])
-  const [supportsModelHealth, setSupportsModelHealth] = useState<boolean | null>(null)
   const initialStateHandler = useRef(onInitialProviderState)
   const errorHandler = useRef(onError)
   const initialStateApplied = useRef(false)
-
-  useEffect(() => {
-    let cancelled = false
-    void desktopClient.getRuntimeCapabilities()
-      .then(capabilities => {
-        if (!cancelled) {
-          setSupportsModelHealth(capabilities.includes('model.health.v1'))
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSupportsModelHealth(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     initialStateHandler.current = onInitialProviderState
@@ -127,7 +108,6 @@ export function useModelCenterController({
     providerState,
     apiKeys,
     snapshot,
-    supportsModelHealth,
     setProviderState,
     setApiKeys,
     refreshProviderContext,

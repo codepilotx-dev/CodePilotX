@@ -18,6 +18,7 @@ import { UsageBillingSettings } from './UsageBillingSettings.js'
 import { WorkspaceDependenciesSettings } from './WorkspaceDependenciesSettings.js'
 import { LocalEnvironmentSettings } from './local-environment/LocalEnvironmentSettings.js'
 import { WorktreeSettings } from '../worktree/WorktreeSettings.js'
+import { ProviderSettings } from '../models/ModelCenterView.js'
 
 type Props = {
   activeTab: string
@@ -39,6 +40,9 @@ export function SettingsPage({
     : 'general'
   let content: React.ReactNode
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
+  else if (resolvedTab === 'providers') {
+    content = <ProviderSettings onError={onError} onNotice={onNotice ?? (() => {})} />
+  }
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} />
   else if (resolvedTab === 'config') content = <ConfigSettings />
   else if (resolvedTab === 'plugins') {

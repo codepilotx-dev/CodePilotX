@@ -171,7 +171,7 @@ for (const mode of VISUAL_MODES) {
         name: '打开宠物商店',
       },
       {
-        route: '/?visualCase=empty#/models',
+        route: '/?visualCase=empty#/settings/providers',
         name: '新增自定义 Provider',
       },
     ] as const

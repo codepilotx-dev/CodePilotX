@@ -3,6 +3,7 @@ import type { DesktopApiKeySummary } from '../shared/types.js'
 import {
   filterApiKeys,
   getApiKeyDeleteConfirmation,
+  legacyModelCenterSettingsTarget,
   parseModelCenterSearchParams,
   projectProviderDirectory,
   updateModelCenterSearchParams,
@@ -36,71 +37,62 @@ const keys: DesktopApiKeySummary[] = [
 ]
 
 describe('model center URL state', () => {
-  test('parses valid workspace, provider and section', () => {
+  test('redirects legacy routes to settings while dropping only the obsolete view', () => {
+    expect(legacyModelCenterSettingsTarget(
+      '?view=health&provider=anthropic&section=models&debug=1',
+    )).toEqual({
+      pathname: '/settings/providers',
+      search: '?provider=anthropic&section=models&debug=1',
+    })
+    expect(legacyModelCenterSettingsTarget('?view=keys')).toEqual({
+      pathname: '/settings/providers',
+      search: '',
+    })
+  })
+
+  test('parses valid provider and section', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=providers&provider=anthropic&section=models'),
       ['openai', 'anthropic'],
-      'openai',
     )
 
-    expect(state).toEqual({ view: 'providers', providerId: 'anthropic', section: 'models' })
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
   })
 
-  test('gracefully maps legacy keys view to providers workspace', () => {
+  test('ignores legacy view while preserving provider details', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=keys&provider=anthropic&section=models'),
       ['openai', 'anthropic'],
-      'openai',
     )
 
-    expect(state).toEqual({ view: 'providers', providerId: 'anthropic', section: 'models' })
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
   })
 
   test('falls back for invalid parameters and provider', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=other&provider=missing&section=usage'),
       ['openai', 'anthropic'],
-      'anthropic',
     )
 
-    expect(state).toEqual({ view: 'providers', providerId: null, section: 'connection' })
+    expect(state).toEqual({ providerId: null, section: 'connection' })
   })
 
   test('keeps the provider catalog open when provider is missing', () => {
-    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai'], 'openai'))
-      .toEqual({ view: 'providers', providerId: null, section: 'connection' })
-    expect(parseModelCenterSearchParams(new URLSearchParams(), [], 'missing').providerId)
+    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai']))
+      .toEqual({ providerId: null, section: 'connection' })
+    expect(parseModelCenterSearchParams(new URLSearchParams(), []).providerId)
       .toBeNull()
   })
 
-  test('parses the health view when the agent supports model.health.v1', () => {
-    expect(parseModelCenterSearchParams(
-      new URLSearchParams('view=health'),
-      ['openai', 'anthropic'],
-      'openai',
-      { supportsModelHealth: true },
-    )).toEqual({ view: 'health', providerId: null, section: 'connection' })
-  })
-
-  test('falls back to providers for a health URL when the capability is missing', () => {
-    expect(parseModelCenterSearchParams(
-      new URLSearchParams('view=health'),
-      ['openai'],
-      'openai',
-      { supportsModelHealth: false },
-    )).toEqual({ view: 'providers', providerId: null, section: 'connection' })
-  })
-
   test('updates model-center params without mutating unrelated params', () => {
-    const current = new URLSearchParams('debug=1&view=providers&section=connection')
+    const current = new URLSearchParams('debug=1&section=connection')
     const next = updateModelCenterSearchParams(current, {
-      view: 'health',
       providerId: 'openai',
       section: null,
     })
 
-    expect(next.toString()).toBe('debug=1&view=health&provider=openai')
-    expect(current.toString()).toBe('debug=1&view=providers&section=connection')
+    expect(next.toString()).toBe('debug=1&provider=openai')
+    expect(current.toString()).toBe('debug=1&section=connection')
   })
 })
 
