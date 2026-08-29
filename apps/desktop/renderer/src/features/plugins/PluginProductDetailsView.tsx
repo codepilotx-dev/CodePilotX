@@ -8,6 +8,7 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import promptHeroPurple from '../../assets/plugin-backgrounds/prompt-hero-purple.png'
 import { PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
 import { PluginIcon } from './PluginIcon.js'
 import { PLUGIN_CATEGORY_LABELS, pluginPrimaryAction, type PluginCatalogItem } from './pluginCatalog.js'
@@ -105,6 +106,13 @@ export function PluginProductDetailsView({
 
       {prompts.length ? (
         <div aria-label="示例提示词" className="catalog-plugin-prompts">
+          <img
+            alt=""
+            aria-hidden="true"
+            className="catalog-plugin-prompts__background"
+            draggable={false}
+            src={promptHeroPurple}
+          />
           {prompts.map(prompt => (
             <button
               className="catalog-plugin-prompts__item"
@@ -113,7 +121,15 @@ export function PluginProductDetailsView({
               onClick={() => onTryPrompt(prompt)}
               type="button"
             >
-              <span><strong>{item.name}</strong> {prompt}</span>
+              <span className="catalog-plugin-prompts__label">
+                <PluginIcon
+                  className="catalog-plugin-prompts__plugin-icon"
+                  logoDarkSource={item.logoDarkSource}
+                  logoSource={item.logoSource}
+                  name={item.iconName}
+                />
+                <span><strong>{item.name}</strong> {prompt}</span>
+              </span>
               <ArrowRight aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </button>
           ))}

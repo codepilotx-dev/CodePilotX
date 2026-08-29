@@ -38,7 +38,10 @@ describe('Codex-style plugin product details', () => {
     const html = renderTaskDetails(details)
     expect(html).toContain('立即试用')
     expect(html).toContain('aria-label="示例提示词"')
+    expect(html.match(/catalog-plugin-prompts__background/g)).toHaveLength(1)
+    expect(html).toMatch(/<img alt="" aria-hidden="true" class="catalog-plugin-prompts__background"/)
     expect(html.match(/catalog-plugin-prompts__item/g)).toHaveLength(3)
+    expect(html.match(/catalog-plugin-prompts__plugin-icon/g)).toHaveLength(3)
     expect(html).toContain('Planning')
     expect(html).toContain('真实的技能说明。')
     expect(html).toContain('aria-label="启用插件及其技能"')
@@ -48,6 +51,7 @@ describe('Codex-style plugin product details', () => {
   test('falls back to the summary without rendering an empty prompt banner', () => {
     const html = renderTaskDetails(null)
     expect(html).not.toContain('catalog-plugin-prompts')
+    expect(html).not.toContain('catalog-plugin-prompts__background')
     expect(html).not.toContain('立即试用')
     expect(html).toContain('拆解和规划复杂工作')
     expect(html).toContain('aria-label="启用插件及其技能"')

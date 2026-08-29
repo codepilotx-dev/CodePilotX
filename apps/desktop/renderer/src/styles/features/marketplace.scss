@@ -508,30 +508,79 @@
 }
 
 .catalog-plugin-prompts {
+  position: relative;
   display: grid;
+  overflow: hidden;
+  aspect-ratio: 14 / 5;
+  place-content: center;
+  justify-items: center;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-6);
   border: 1px solid var(--cpx-sys-color-accent-subtle-border);
   border-radius: var(--cpx-sys-radius-container);
-  background: var(--cpx-sys-color-accent-subtle-bg);
+  background: var(--cpx-sys-color-surface-recessed);
+  isolation: isolate;
+}
+
+.catalog-plugin-prompts::after {
+  position: absolute;
+  z-index: 1;
+  background: var(--cpx-sys-color-surface-canvas);
+  content: '';
+  inset: 0;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.catalog-plugin-prompts__background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.72;
+  pointer-events: none;
+  transform: scaleX(-1);
+  user-select: none;
 }
 
 .catalog-plugin-prompts__item {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cpx-sys-space-3);
-  width: 100%;
+  width: fit-content;
+  max-width: min(100%, 68ch);
   min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-4));
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
-  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border: 1px solid var(--cpx-sys-glass-border);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--cpx-sys-color-surface-panel);
+  background: var(--cpx-sys-glass-bg);
+  backdrop-filter: var(--cpx-sys-glass-filter);
   color: var(--cpx-sys-color-fg-primary);
   font: inherit;
   line-height: var(--cpx-sys-line-height-normal);
   text-align: left;
   cursor: pointer;
+}
+
+.catalog-plugin-prompts__label {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--cpx-sys-space-1);
+}
+
+.catalog-plugin-prompts__plugin-icon {
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
+  flex: 0 0 var(--cpx-sys-space-4);
+  overflow: hidden;
+  border-radius: var(--cpx-sys-radius-sm);
 }
 
 .catalog-plugin-prompts__item strong {
@@ -540,7 +589,7 @@
 }
 
 .catalog-plugin-prompts__item:hover:not(:disabled) {
-  background: var(--cpx-sys-color-hover);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .catalog-plugin-prompts__item:focus-visible {
@@ -774,6 +823,11 @@
 }
 
 @media (forced-colors: active) {
+  .catalog-plugin-prompts::after,
+  .catalog-plugin-prompts__background {
+    display: none;
+  }
+
   .plugins-included-overview__item,
   .plugin-catalog-card,
   .skill-catalog-card,
