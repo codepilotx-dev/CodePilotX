@@ -36,6 +36,8 @@
 
 ### Changed
 
+- [agent/desktop/renderer] 将插件详情重构为 Codex 风格的宽幅产品页，展示清单长描述、示例提示词、技能与信息，并支持从真实提示词立即试用。
+- [desktop] 将侧边栏项目、置顶项和组内任务排序改为同组 Reorder，拖动时实时让位并在松手后保存新顺序。
 - [desktop/renderer] 将 MiniMax CLI 插件的临时线框图标替换为正式图片资源。
 - [desktop] 将自动化建议区分隔线移至章节顶部并移除标题内边距。
 - [desktop/renderer] 为自动化建议列表增加 5px 项间距，使相邻建议卡片保持清晰分隔。
