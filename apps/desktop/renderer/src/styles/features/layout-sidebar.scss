@@ -883,16 +883,6 @@
 
 .sidebar-session-row {
   padding-left: var(--sidebar-padding-x);
-
-  &.is-dragging {
-    opacity: 0.48;
-    cursor: grabbing;
-  }
-
-  &.is-drag-over {
-    outline: 1px solid var(--cpx-sys-color-border-focus);
-    outline-offset: -1px;
-  }
 }
 
 /* 普通模式会话统一右缩进；时间线行不在此容器内，继续使用 8px 基线。 */
@@ -901,22 +891,23 @@
   padding-left: var(--cpx-sys-layout-sidebar-session-indent);
 }
 
-.sidebar-project-sortable {
-  &.is-dragging {
-    opacity: 0.48;
-    cursor: grabbing;
-  }
+.sidebar-reorder-group,
+.sidebar-reorder-item {
+  min-width: 0;
+}
 
-  &.is-drag-over {
-    outline: 1px solid var(--cpx-sys-color-border-focus);
-    outline-offset: -1px;
+.sidebar-reorder-item {
+  position: relative;
+  box-shadow: none;
+  cursor: grab;
+  transition: box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+
+  &[data-dragging='true'] {
+    box-shadow: var(--cpx-sys-shadow-floating);
   }
 }
 
-.desktop-sidebar:has(
-  .sidebar-session-row.is-dragging,
-  .sidebar-project-sortable.is-dragging
-) {
+.desktop-sidebar:has(.sidebar-reorder-item[data-dragging='true']) {
   &,
   * {
     cursor: grabbing;

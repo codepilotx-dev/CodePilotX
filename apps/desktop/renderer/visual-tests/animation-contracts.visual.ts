@@ -73,7 +73,7 @@ test.describe('animation contracts', () => {
       expect(restoredTreeBox?.width).toBeCloseTo(288, 0)
     })
 
-    test(`sidebar section and extra session list collapse keep final layout (${motion})`, async ({
+    test(`sidebar section and extra session items collapse keep final layout (${motion})`, async ({
       page,
     }) => {
       await openVisualFixture(page, 'scroll-edge', motion)
@@ -86,17 +86,14 @@ test.describe('animation contracts', () => {
         .locator('.sidebar-section')
         .filter({ has: recentToggle })
 
-      // 会话扩展：展开/折叠额外列表。
+      // 会话扩展：展开/折叠额外排序项。
       const showMore = page.getByRole('button', { name: '展开显示' })
       await expect(showMore).toBeVisible()
       await showMore.click()
-      const extraList = page.locator('.sidebar-session-list-extra')
-      await expect(extraList).toBeVisible()
-      await expect(
-        extraList.locator('.sidebar-session-row').first(),
-      ).toBeVisible()
+      const extraItems = page.locator('[data-sidebar-session-extra="true"]')
+      await expect(extraItems.first()).toBeVisible()
       await page.getByRole('button', { name: '折叠显示' }).click()
-      await expect(extraList).toHaveCount(0)
+      await expect(extraItems).toHaveCount(0)
 
       // section 折叠：内容卸载、ARIA 同步、键盘可恢复。
       await recentToggle.click()

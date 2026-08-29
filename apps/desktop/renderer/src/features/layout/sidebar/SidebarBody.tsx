@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Ellipsis, Plus, SquarePen } from "lucide-react";
-import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import { AnimatePresence, motion, Reorder, useIsPresent } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import type {
   DesktopSidebarOrganization,
@@ -31,6 +31,7 @@ import {
 } from "../../motion/motionTransitions.js";
 import { SidebarEmptyRow } from "./SidebarRow.js";
 import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
+import { SidebarReorderItem } from './SidebarReorderItem.js'
 import {
   getSidebarSessionDisplayGroups,
   SidebarSessionGroup,
@@ -173,17 +174,8 @@ export function SidebarBody({
   const [visiblePinnedLimit, setVisiblePinnedLimit] = useState(
     PINNED_INITIAL_LIMIT,
   );
-  const [draggingProject, setDraggingProject] = useState<{
-    key: string;
-    scopeKey: string;
-  } | null>(null);
-  const [dragOverProjectKey, setDragOverProjectKey] = useState<string | null>(
-    null,
-  );
+  const [draggingProjectKey, setDraggingProjectKey] = useState<string | null>(null)
   const [draggingPinnedItemKey, setDraggingPinnedItemKey] = useState<
-    string | null
-  >(null);
-  const [dragOverPinnedItemKey, setDragOverPinnedItemKey] = useState<
     string | null
   >(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null)
@@ -203,14 +195,6 @@ export function SidebarBody({
       ),
     [unavailableWorkspacePaths],
   );
-  const {
-    baseSessions: baseProjects,
-    canCollapse: canCollapseProjects,
-    canShowMore: canShowMoreProjects,
-    extraSessions: extraProjects,
-    hasOverflow: hasProjectOverflow,
-  } = getSidebarSessionDisplayGroups(projectWorkspaces, visibleProjectLimit);
-  const displayedProjects = [...baseProjects, ...extraProjects];
   const pinnedItems = useMemo(
     () =>
       buildSidebarPinnedItems({
@@ -220,6 +204,48 @@ export function SidebarBody({
       }),
     [manualOrderByScope, pinnedSessions, pinnedWorkspaces],
   );
+  const canonicalProjectOrder = useMemo(
+    () => projectWorkspaces.map(sidebarProjectKey),
+    [projectWorkspaces],
+  )
+  const [projectOrder, setProjectOrder] = useState(canonicalProjectOrder)
+  const projectOrderRef = useRef(projectOrder)
+  const orderedProjects = useMemo(
+    () => orderItemsByKeys(projectWorkspaces, projectOrder, sidebarProjectKey),
+    [projectOrder, projectWorkspaces],
+  )
+  const {
+    baseSessions: baseProjects,
+    canCollapse: canCollapseProjects,
+    canShowMore: canShowMoreProjects,
+    extraSessions: extraProjects,
+    hasOverflow: hasProjectOverflow,
+  } = getSidebarSessionDisplayGroups(orderedProjects, visibleProjectLimit);
+  const displayedProjects = [...baseProjects, ...extraProjects];
+  const canonicalPinnedSessionOrder = useMemo(
+    () => pinnedItems.filter(item => item.kind === 'session').map(item => item.key),
+    [pinnedItems],
+  )
+  const canonicalPinnedProjectOrder = useMemo(
+    () => pinnedItems.filter(item => item.kind === 'project').map(item => item.key),
+    [pinnedItems],
+  )
+  const [pinnedSessionOrder, setPinnedSessionOrder] = useState(
+    canonicalPinnedSessionOrder,
+  )
+  const [pinnedProjectOrder, setPinnedProjectOrder] = useState(
+    canonicalPinnedProjectOrder,
+  )
+  const pinnedSessionOrderRef = useRef(pinnedSessionOrder)
+  const pinnedProjectOrderRef = useRef(pinnedProjectOrder)
+  const orderedPinnedItems = useMemo(() => {
+    const sessions = pinnedItems.filter(item => item.kind === 'session')
+    const projects = pinnedItems.filter(item => item.kind === 'project')
+    return [
+      ...orderItemsByKeys(sessions, pinnedSessionOrder, item => item.key),
+      ...orderItemsByKeys(projects, pinnedProjectOrder, item => item.key),
+    ]
+  }, [pinnedItems, pinnedProjectOrder, pinnedSessionOrder])
   const {
     baseSessions: basePinnedItems,
     canCollapse: canCollapsePinnedItems,
@@ -227,11 +253,53 @@ export function SidebarBody({
     extraSessions: extraPinnedItems,
     hasOverflow: hasPinnedItemOverflow,
   } = getSidebarSessionDisplayGroups(
-    pinnedItems,
+    orderedPinnedItems,
     visiblePinnedLimit,
     PINNED_INITIAL_LIMIT,
   );
   const displayedPinnedItems = [...basePinnedItems, ...extraPinnedItems];
+  const displayedPinnedSessions = displayedPinnedItems.filter(
+    item => item.kind === 'session',
+  )
+  const displayedPinnedProjects = displayedPinnedItems.filter(
+    item => item.kind === 'project',
+  )
+  const pinnedSessionValues = orderedPinnedItems
+    .filter(item => item.kind === 'session')
+    .map(item => item.key)
+  const pinnedProjectValues = orderedPinnedItems
+    .filter(item => item.kind === 'project')
+    .map(item => item.key)
+
+  useEffect(() => {
+    if (draggingProjectKey) return
+    projectOrderRef.current = canonicalProjectOrder
+    setProjectOrder(current =>
+      sameStringOrder(current, canonicalProjectOrder)
+        ? current
+        : canonicalProjectOrder,
+    )
+  }, [canonicalProjectOrder, draggingProjectKey])
+
+  useEffect(() => {
+    if (draggingPinnedItemKey) return
+    pinnedSessionOrderRef.current = canonicalPinnedSessionOrder
+    pinnedProjectOrderRef.current = canonicalPinnedProjectOrder
+    setPinnedSessionOrder(current =>
+      sameStringOrder(current, canonicalPinnedSessionOrder)
+        ? current
+        : canonicalPinnedSessionOrder,
+    )
+    setPinnedProjectOrder(current =>
+      sameStringOrder(current, canonicalPinnedProjectOrder)
+        ? current
+        : canonicalPinnedProjectOrder,
+    )
+  }, [
+    canonicalPinnedProjectOrder,
+    canonicalPinnedSessionOrder,
+    draggingPinnedItemKey,
+  ])
 
   useEffect(() => {
     if (!activeSessionId) return
@@ -298,6 +366,7 @@ export function SidebarBody({
     if (!moved) return;
     order.splice(targetIndex, 0, moved);
     onManualOrderChange(scopeKey, order);
+    onProjectSortChange('manual')
   }
 
   function renderProjectGroup(project: DesktopWorkspace): React.ReactNode {
@@ -336,59 +405,24 @@ export function SidebarBody({
     );
   }
 
-  function renderProject(
-    project: DesktopWorkspace,
-    projects: readonly DesktopWorkspace[],
-    scopeKey: string,
-  ): React.ReactNode {
+  function renderProject(project: DesktopWorkspace): React.ReactNode {
     const key = sidebarProjectKey(project);
     return (
-      <div
-        className={cx(
-          "sidebar-project-sortable",
-          draggingProject?.key === key && "is-dragging",
-          dragOverProjectKey === key && "is-drag-over",
-        )}
-        draggable
+      <SidebarReorderItem
+        className="sidebar-project-sortable"
+        dragHandleSelector=".sidebar-project-header"
         key={key}
-        onDragEnd={() => {
-          setDraggingProject(null);
-          setDragOverProjectKey(null);
+        reducedMotion={reducedMotion}
+        value={key}
+        onReorderDragEnd={() => {
+          const finalOrder = projectOrderRef.current
+          setDraggingProjectKey(null)
+          onManualOrderChange('projects', finalOrder)
+          onProjectSortChange('manual')
         }}
-        onDragLeave={(event) => {
-          if (
-            event.relatedTarget instanceof Node &&
-            event.currentTarget.contains(event.relatedTarget)
-          ) {
-            return;
-          }
-          setDragOverProjectKey((current) =>
-            current === key ? null : current,
-          );
-        }}
-        onDragOver={(event) => {
-          if (
-            draggingProject?.scopeKey !== scopeKey ||
-            draggingProject.key === key
-          ) {
-            return;
-          }
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-          setDragOverProjectKey(key);
-        }}
-        onDragStart={(event) => {
-          if (event.target !== event.currentTarget) return;
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", key);
-          setDraggingProject({ key, scopeKey });
-        }}
-        onDrop={(event) => {
-          if (draggingProject?.scopeKey !== scopeKey) return;
-          event.preventDefault();
-          moveProject(projects, scopeKey, draggingProject.key, key);
-          setDraggingProject(null);
-          setDragOverProjectKey(null);
+        onReorderDragStart={() => {
+          projectOrderRef.current = orderedProjects.map(sidebarProjectKey)
+          setDraggingProjectKey(key)
         }}
         onKeyDownCapture={(event) => {
           if (
@@ -399,33 +433,27 @@ export function SidebarBody({
           ) {
             return;
           }
-          const order = projects.map(sidebarProjectKey);
+          const order = orderedProjects.map(sidebarProjectKey);
           const index = order.indexOf(key);
           const targetIndex = event.key === "ArrowUp" ? index - 1 : index + 1;
           const target = order[targetIndex];
           if (index < 0 || !target) return;
           event.preventDefault();
-          moveProject(projects, scopeKey, key, target);
+          moveProject(orderedProjects, 'projects', key, target);
         }}
       >
         {renderProjectGroup(project)}
-      </div>
+      </SidebarReorderItem>
     );
   }
 
   function movePinnedItem(sourceKey: string, targetKey: string): void {
     const order = reorderSidebarPinnedItemKeys(
-      pinnedItems,
+      orderedPinnedItems,
       sourceKey,
       targetKey,
     );
     if (order) onManualOrderChange("pinned-items", order);
-  }
-
-  function pinnedItemKind(
-    key: string,
-  ): SidebarPinnedItem["kind"] | null {
-    return pinnedItems.find(item => item.key === key)?.kind ?? null;
   }
 
   function renderPinnedItem(item: SidebarPinnedItem): React.ReactNode {
@@ -434,57 +462,25 @@ export function SidebarBody({
         ? ".sidebar-session-button"
         : ".sidebar-project-button";
     return (
-      <div
-        className={cx(
-          "sidebar-project-sortable",
-          draggingPinnedItemKey === item.key && "is-dragging",
-          dragOverPinnedItemKey === item.key && "is-drag-over",
-        )}
+      <SidebarReorderItem
+        className="sidebar-project-sortable"
         data-sidebar-pinned-item-key={item.key}
-        draggable
+        dragHandleSelector={
+          item.kind === 'project' ? '.sidebar-project-header' : undefined
+        }
         key={item.key}
-        onDragEnd={() => {
-          setDraggingPinnedItemKey(null);
-          setDragOverPinnedItemKey(null);
+        reducedMotion={reducedMotion}
+        value={item.key}
+        onReorderDragEnd={() => {
+          const finalOrder = [
+            ...pinnedSessionOrderRef.current,
+            ...pinnedProjectOrderRef.current,
+          ]
+          setDraggingPinnedItemKey(null)
+          onManualOrderChange('pinned-items', finalOrder)
         }}
-        onDragLeave={(event) => {
-          if (
-            event.relatedTarget instanceof Node &&
-            event.currentTarget.contains(event.relatedTarget)
-          ) {
-            return;
-          }
-          setDragOverPinnedItemKey((current) =>
-            current === item.key ? null : current,
-          );
-        }}
-        onDragOver={(event) => {
-          if (!draggingPinnedItemKey || draggingPinnedItemKey === item.key) {
-            return;
-          }
-          // 置顶区固定为“会话 → 文件夹”，跨类型拖拽不接受 drop
-          if (pinnedItemKind(draggingPinnedItemKey) !== item.kind) {
-            return;
-          }
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-          setDragOverPinnedItemKey(item.key);
-        }}
-        onDragStart={(event) => {
-          if (event.target !== event.currentTarget) return;
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData(
-            "application/x-codepilotx-sidebar-pinned-item",
-            item.key,
-          );
+        onReorderDragStart={() => {
           setDraggingPinnedItemKey(item.key);
-        }}
-        onDrop={(event) => {
-          if (!draggingPinnedItemKey) return;
-          event.preventDefault();
-          movePinnedItem(draggingPinnedItemKey, item.key);
-          setDraggingPinnedItemKey(null);
-          setDragOverPinnedItemKey(null);
         }}
         onKeyDownCapture={(event) => {
           if (
@@ -495,11 +491,11 @@ export function SidebarBody({
           ) {
             return;
           }
-          const index = pinnedItems.findIndex(
+          const index = orderedPinnedItems.findIndex(
             (entry) => entry.key === item.key,
           );
           const targetIndex = event.key === "ArrowUp" ? index - 1 : index + 1;
-          const target = pinnedItems[targetIndex];
+          const target = orderedPinnedItems[targetIndex];
           // 到达会话/文件夹分界时停止，不跨组移动
           if (index < 0 || !target || target.kind !== item.kind) return;
           event.preventDefault();
@@ -526,7 +522,7 @@ export function SidebarBody({
             onUnpinSession={onUnpinSession}
           />
         )}
-      </div>
+      </SidebarReorderItem>
     );
   }
 
@@ -576,7 +572,36 @@ export function SidebarBody({
               title="置顶"
               onToggle={onToggleSidebarSection}
             >
-              {displayedPinnedItems.map(renderPinnedItem)}
+              {displayedPinnedSessions.length > 0 ? (
+                <Reorder.Group
+                  as="div"
+                  axis="y"
+                  className="sidebar-reorder-group"
+                  values={pinnedSessionValues}
+                  onReorder={nextOrder => {
+                    if (sameStringOrder(pinnedSessionOrderRef.current, nextOrder)) return
+                    pinnedSessionOrderRef.current = nextOrder
+                    setPinnedSessionOrder(nextOrder)
+                  }}
+                >
+                  {displayedPinnedSessions.map(renderPinnedItem)}
+                </Reorder.Group>
+              ) : null}
+              {displayedPinnedProjects.length > 0 ? (
+                <Reorder.Group
+                  as="div"
+                  axis="y"
+                  className="sidebar-reorder-group"
+                  values={pinnedProjectValues}
+                  onReorder={nextOrder => {
+                    if (sameStringOrder(pinnedProjectOrderRef.current, nextOrder)) return
+                    pinnedProjectOrderRef.current = nextOrder
+                    setPinnedProjectOrder(nextOrder)
+                  }}
+                >
+                  {displayedPinnedProjects.map(renderPinnedItem)}
+                </Reorder.Group>
+              ) : null}
               {hasPinnedItemOverflow ? (
                 <SidebarShowMoreActions
                   canCollapse={canCollapsePinnedItems}
@@ -634,9 +659,19 @@ export function SidebarBody({
               ) : null}
               {projectWorkspaces.length > 0 ? (
                 <>
-                  {displayedProjects.map((project) =>
-                    renderProject(project, projectWorkspaces, "projects"),
-                  )}
+                  <Reorder.Group
+                    as="div"
+                    axis="y"
+                    className="sidebar-reorder-group"
+                    values={orderedProjects.map(sidebarProjectKey)}
+                    onReorder={nextOrder => {
+                      if (sameStringOrder(projectOrderRef.current, nextOrder)) return
+                      projectOrderRef.current = nextOrder
+                      setProjectOrder(nextOrder)
+                    }}
+                  >
+                    {displayedProjects.map(renderProject)}
+                  </Reorder.Group>
                   {hasProjectOverflow ? (
                     <SidebarShowMoreActions
                       canCollapse={canCollapseProjects}
@@ -1224,6 +1259,24 @@ function SidebarShowMoreActions({
 function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.matches("input, textarea, select") || target.isContentEditable;
+}
+
+function orderItemsByKeys<T>(
+  items: readonly T[],
+  order: readonly string[],
+  keyOf: (item: T) => string,
+): T[] {
+  const byKey = new Map(items.map(item => [keyOf(item), item]))
+  const ordered = order.flatMap(key => {
+    const item = byKey.get(key)
+    return item ? [item] : []
+  })
+  const knownKeys = new Set(ordered.map(keyOf))
+  return [...ordered, ...items.filter(item => !knownKeys.has(keyOf(item)))]
+}
+
+function sameStringOrder(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
 function SidebarSection({

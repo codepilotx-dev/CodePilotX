@@ -2677,6 +2677,90 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   await page.keyboard.press('Escape')
 })
 
+test('sidebar session reorder displaces live and persists after remount', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
+  await gotoWorkbenchFixture(
+    page,
+    '/?visualCase=scroll-edge#/threads/visual-scroll-edge',
+  )
+  await closeTransientErrorToast(page)
+
+  const projectSection = page.locator(
+    '.sidebar-section:has([data-sidebar-section-id="projects"])',
+  )
+  const project = projectSection.locator('.sidebar-project-sortable').filter({
+    has: page.getByRole('button', { name: /CodePilotX-Ts/ }),
+  })
+  const projectToggle = project.getByRole('button', { name: /CodePilotX-Ts/ })
+  const rows = projectSection.locator('.sidebar-session-row')
+  if (await rows.count() === 0) {
+    await projectToggle.click()
+  }
+  await expect(rows).toHaveCount(5)
+  const before = await rows.evaluateAll(items =>
+    items.map(item => (item as HTMLElement).dataset.sidebarSessionId),
+  )
+  const sourceId = before[1]
+  const targetId = before[2]
+  expect(sourceId).toBeTruthy()
+  expect(targetId).toBeTruthy()
+
+  const source = projectSection.locator(`[data-sidebar-session-id="${sourceId}"]`)
+  const target = projectSection.locator(`[data-sidebar-session-id="${targetId}"]`)
+  const sourceBox = await source.boundingBox()
+  const targetBox = await target.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+
+  await page.mouse.move(
+    sourceBox!.x + sourceBox!.width / 2,
+    sourceBox!.y + sourceBox!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    targetBox!.x + targetBox!.width / 2,
+    targetBox!.y + targetBox!.height,
+    { steps: 8 },
+  )
+  await expect(source).toHaveAttribute('data-dragging', 'true')
+  await expect(source).not.toHaveCSS('box-shadow', 'none')
+  await expect.poll(async () =>
+    rows.evaluateAll(items =>
+      items.map(item => (item as HTMLElement).dataset.sidebarSessionId),
+    )
+  ).not.toEqual(before)
+  const reordered = await rows.evaluateAll(items =>
+    items.map(item => (item as HTMLElement).dataset.sidebarSessionId),
+  )
+  await page.mouse.up()
+  await expect(source).toHaveCSS('box-shadow', 'none')
+
+  await expect.poll(async () =>
+    rows.evaluateAll(items =>
+      items.map(item => (item as HTMLElement).dataset.sidebarSessionId),
+    )
+  ).toEqual(reordered)
+  await expect(page).toHaveURL(/#\/threads\/visual-scroll-edge$/)
+
+  await projectToggle.click()
+  await expect(rows).toHaveCount(0)
+  await projectToggle.click()
+  await expect(rows).toHaveCount(5)
+  await expect.poll(async () =>
+    rows.evaluateAll(items =>
+      items.map(item => (item as HTMLElement).dataset.sidebarSessionId),
+    )
+  ).toEqual(reordered)
+
+  await source.hover()
+  await source.getByRole('button', { name: '归档' }).click()
+  await expect(source).not.toHaveAttribute('data-dragging')
+  await expect(source.getByRole('button', { name: '确认' })).toBeVisible()
+})
+
 test('sidebar footer reserves space outside the task scroll viewport', async ({
   page,
 }) => {

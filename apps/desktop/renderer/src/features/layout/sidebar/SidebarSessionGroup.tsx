@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { Archive, Copy, Eye, EyeOff, Folder, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, Reorder } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
 import {
@@ -23,9 +23,10 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { Spinner } from "../../../components/ui/Spinner.js";
 import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { motionTransition, layoutTween, standardTween } from '../../motion/motionTransitions.js'
+import { motionTransition, layoutTween } from '../../motion/motionTransitions.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
+import { SidebarReorderItem } from './SidebarReorderItem.js'
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import { cx } from "../../../utils/cx.js";
 import {
@@ -105,7 +106,6 @@ function SidebarSessionGroupComponent({
   const [renameValue, setRenameValue] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null)
-  const [dragOverSessionId, setDragOverSessionId] = useState<string | null>(null)
   const reducedMotion = usePrefersReducedMotion()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
@@ -132,9 +132,38 @@ function SidebarSessionGroupComponent({
       unreadSessionIds,
     ],
   )
+  const [reorderSessionIds, setReorderSessionIds] = useState<string[]>(() =>
+    sortedSessions.map(session => session.id),
+  )
+  const reorderSessionIdsRef = useRef(reorderSessionIds)
+  const orderedSessions = useMemo(() => {
+    const byId = new Map(sortedSessions.map(session => [session.id, session]))
+    const ordered = reorderSessionIds.flatMap(id => {
+      const session = byId.get(id)
+      return session ? [session] : []
+    })
+    const knownIds = new Set(ordered.map(session => session.id))
+    return [
+      ...ordered,
+      ...sortedSessions.filter(session => !knownIds.has(session.id)),
+    ]
+  }, [reorderSessionIds, sortedSessions])
   const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } =
-    getSidebarSessionDisplayGroups(sortedSessions, visibleLimit);
+    getSidebarSessionDisplayGroups(orderedSessions, visibleLimit);
+  const extraSessionIds = useMemo(
+    () => new Set(extraSessions.map(session => session.id)),
+    [extraSessions],
+  )
   const previousGroupKeyRef = useRef(groupKey)
+
+  useEffect(() => {
+    if (draggedSessionId) return
+    const canonicalOrder = sortedSessions.map(session => session.id)
+    reorderSessionIdsRef.current = canonicalOrder
+    setReorderSessionIds(current =>
+      sameStringOrder(current, canonicalOrder) ? current : canonicalOrder,
+    )
+  }, [draggedSessionId, sortedSessions])
 
   useEffect(() => {
     const groupChanged = previousGroupKeyRef.current !== groupKey
@@ -142,7 +171,7 @@ function SidebarSessionGroupComponent({
     if (pagination === 'all') {
       return
     }
-    const activeIndex = sortedSessions.findIndex(
+    const activeIndex = orderedSessions.findIndex(
       session => session.id === activeSessionId,
     )
     if (groupChanged) {
@@ -156,7 +185,7 @@ function SidebarSessionGroupComponent({
       // 用户单独点击“折叠显示”只改变 visibleLimit，不会重新触发本 effect。
       setVisibleLimit(current => Math.max(current, activeIndex + 1))
     }
-  }, [activeSessionId, groupKey, pagination, sortedSessions])
+  }, [activeSessionId, groupKey, orderedSessions, pagination])
 
   function persistManualOrder(order: string[]): void {
     if (!onManualOrderChange) return
@@ -169,7 +198,7 @@ function SidebarSessionGroupComponent({
     offset: -1 | 1,
   ): void {
     if (!onManualOrderChange) return
-    const order = sortedSessions.map(session => session.id)
+    const order = orderedSessions.map(session => session.id)
     const currentIndex = order.indexOf(sessionId)
     const nextIndex = currentIndex + offset
     if (
@@ -184,54 +213,6 @@ function SidebarSessionGroupComponent({
     order.splice(nextIndex, 0, moved)
     setVisibleLimit(current => Math.max(current, nextIndex + 1))
     persistManualOrder(order)
-  }
-
-  function handleDragStart(
-    event: React.DragEvent<HTMLElement>,
-    sessionId: string,
-  ): void {
-    const target = event.target as Element
-    if (
-      target.closest(
-        '.sidebar-session-actions, .sidebar-session-confirm-archive-button',
-      )
-    ) {
-      event.preventDefault()
-      return
-    }
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('application/x-codepilotx-session-id', sessionId)
-    event.dataTransfer.setData('text/plain', sessionId)
-    setDraggedSessionId(sessionId)
-  }
-
-  function handleDrop(
-    event: React.DragEvent<HTMLElement>,
-    targetSessionId: string,
-  ): void {
-    if (!onManualOrderChange) {
-      setDragOverSessionId(null)
-      return
-    }
-    const sourceSessionId =
-      draggedSessionId ||
-      event.dataTransfer.getData('application/x-codepilotx-session-id')
-    if (!sourceSessionId || sourceSessionId === targetSessionId) {
-      setDragOverSessionId(null)
-      return
-    }
-    event.preventDefault()
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const placeAfter = event.clientY >= bounds.top + bounds.height / 2
-    const order = reorderSessionIds(
-      sortedSessions,
-      sourceSessionId,
-      targetSessionId,
-      placeAfter,
-    )
-    if (order) persistManualOrder(order)
-    setDraggedSessionId(null)
-    setDragOverSessionId(null)
   }
 
   function getSessionContextMenuActions(
@@ -359,45 +340,32 @@ function SidebarSessionGroupComponent({
         </span>
       </button>
     )
+    const rowContent = (
+      <Suspense fallback={sessionButton}>
+        {regeneratingTitle ? (
+          sessionButton
+        ) : (
+          <SidebarSessionHoverCard
+            fallbackTitle={sessionFallbackTitles[session.id]}
+            now={now}
+            regeneratingTitle={regeneratingTitle}
+            session={session}
+            onRename={title => onRenameSession(session.id, title)}
+          >
+            {sessionButton}
+          </SidebarSessionHoverCard>
+        )}
+      </Suspense>
+    )
     const row = (
       <SidebarRow
         active={session.id === activeSessionId}
-        as="li"
-        className={cx(
-          'sidebar-session-row',
-          draggedSessionId === session.id && 'is-dragging',
-          dragOverSessionId === session.id && 'is-drag-over',
-        )}
+        asChild
+        className="sidebar-session-row"
         data-sidebar-session-id={session.id}
-        draggable
         indent="session"
-        key={session.id}
         layout="grid"
         leadingMode="none"
-        onDragEnd={() => {
-          setDraggedSessionId(null)
-          setDragOverSessionId(null)
-        }}
-        onDragLeave={event => {
-          if (
-            event.relatedTarget instanceof Node &&
-            event.currentTarget.contains(event.relatedTarget)
-          ) {
-            return
-          }
-          setDragOverSessionId(current =>
-            current === session.id ? null : current,
-          )
-        }}
-        onDragOver={event => {
-          if (!onManualOrderChange) return
-          if (!draggedSessionId || draggedSessionId === session.id) return
-          event.preventDefault()
-          event.dataTransfer.dropEffect = 'move'
-          setDragOverSessionId(session.id)
-        }}
-        onDragStart={event => handleDragStart(event, session.id)}
-        onDrop={event => handleDrop(event, session.id)}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) =>
@@ -474,21 +442,28 @@ function SidebarSessionGroupComponent({
           </div>
         }
       >
-        <Suspense fallback={sessionButton}>
-          {regeneratingTitle ? (
-            sessionButton
-          ) : (
-            <SidebarSessionHoverCard
-              fallbackTitle={sessionFallbackTitles[session.id]}
-              now={now}
-              regeneratingTitle={regeneratingTitle}
-              session={session}
-              onRename={title => onRenameSession(session.id, title)}
-            >
-              {sessionButton}
-            </SidebarSessionHoverCard>
-          )}
-        </Suspense>
+        {onManualOrderChange ? (
+          <SidebarReorderItem
+            as="li"
+            data-sidebar-session-extra={extraSessionIds.has(session.id) || undefined}
+            presenceMotion={extraSessionIds.has(session.id)}
+            reducedMotion={reducedMotion}
+            value={session.id}
+            onReorderDragEnd={() => {
+              const finalOrder = reorderSessionIdsRef.current
+              setDraggedSessionId(null)
+              persistManualOrder(finalOrder)
+            }}
+            onReorderDragStart={() => {
+              reorderSessionIdsRef.current = orderedSessions.map(item => item.id)
+              setDraggedSessionId(session.id)
+            }}
+          >
+            {rowContent}
+          </SidebarReorderItem>
+        ) : (
+          <li>{rowContent}</li>
+        )}
       </SidebarRow>
     );
     return (
@@ -502,27 +477,36 @@ function SidebarSessionGroupComponent({
     );
   }
 
+  const visibleSessions = pagination === 'all'
+    ? orderedSessions
+    : [...baseSessions, ...extraSessions]
+  const reorderValues = orderedSessions.map(session => session.id)
+  const sessionListClassName =
+    'sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0'
+  const sessionRows = visibleSessions.map(renderSessionRow)
+
   return (
     <>
-      <ul className="sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0">
-        {(pagination === 'all' ? sortedSessions : baseSessions).map(renderSessionRow)}
-      </ul>
+      {onManualOrderChange ? (
+        <Reorder.Group
+          axis="y"
+          className={sessionListClassName}
+          values={reorderValues}
+          onReorder={nextOrder => {
+            if (sameStringOrder(reorderSessionIdsRef.current, nextOrder)) return
+            reorderSessionIdsRef.current = nextOrder
+            setReorderSessionIds(nextOrder)
+          }}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {sessionRows}
+          </AnimatePresence>
+        </Reorder.Group>
+      ) : (
+        <ul className={sessionListClassName}>{sessionRows}</ul>
+      )}
       {pagination !== 'all' ? (
       <>
-      <AnimatePresence initial={false} mode="popLayout">
-        {extraSessions.length > 0 ? (
-          <motion.ul
-            animate={{ opacity: 1, y: 0 }}
-            className="sidebar-session-list sidebar-session-list-extra tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:overflow-hidden tw:p-0"
-            exit={{ opacity: 0, y: -4 }}
-            initial={{ opacity: 0, y: -4 }}
-            key={`${groupKey}-extra-sessions`}
-            transition={motionTransition(reducedMotion, standardTween)}
-          >
-            {extraSessions.map(renderSessionRow)}
-          </motion.ul>
-        ) : null}
-      </AnimatePresence>
       {hasOverflow ? (
         <motion.div
           className="sidebar-show-more-actions"
@@ -777,18 +761,6 @@ function SidebarSessionWorkspaceMeta({
   )
 }
 
-function reorderSessionIds(
-  sessions: readonly SessionListItem[],
-  sourceSessionId: string,
-  targetSessionId: string,
-  placeAfter: boolean,
-): string[] | null {
-  const order = sessions.map(session => session.id)
-  const sourceIndex = order.indexOf(sourceSessionId)
-  if (sourceIndex < 0 || !order.includes(targetSessionId)) return null
-  const [source] = order.splice(sourceIndex, 1)
-  if (!source) return null
-  const targetIndex = order.indexOf(targetSessionId)
-  order.splice(targetIndex + (placeAfter ? 1 : 0), 0, source)
-  return order
+function sameStringOrder(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index])
 }
