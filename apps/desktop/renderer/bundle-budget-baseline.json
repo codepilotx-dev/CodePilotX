@@ -1,10 +1,9 @@
 {
-  "schemaVersion": 1,
-  "acceptedAt": "2026-08-24",
-  "acceptedReason": "任务看板路由级懒加载，并建立 Renderer CSS 弹性预算初始基线",
+  "schemaVersion": 2,
+  "acceptedAt": "2026-08-29",
+  "acceptedReason": "全部主窗口一级页面随启动加载",
   "metrics": {
-    "entryCssRawBytes": 760442,
-    "newInteractiveCssRawBytes": 760442,
-    "sessionGroupsInitialIncrementalCssRawBytes": 43038
+    "entryCssRawBytes": 764044,
+    "newInteractiveCssRawBytes": 764044
   }
 }

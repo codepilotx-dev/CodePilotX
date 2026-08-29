@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将会话组并入 Renderer 静态入口，使全部主窗口一级页面和所有设置页面随桌面启动加载，消除首次导航时的异步分块等待。
 - [desktop/renderer] 在插件示例提示词中展示对应的真实插件图标，使提示词胶囊与 Codex 的身份标识结构一致。
 - [desktop/renderer] 固定插件懒加载样式的级联层顺序，避免 reset 层覆盖示例提示词的毛玻璃按钮背景。
 - [desktop/renderer] 为插件示例提示词增加 Codex 风格的半透明毛玻璃胶囊，使提示内容与图片背景形成清晰层次。

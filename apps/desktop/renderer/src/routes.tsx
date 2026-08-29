@@ -1,6 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
-import { FullScreenWhaleLoading } from './components/ui/FullScreenWhaleLoading.js'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
@@ -15,6 +14,7 @@ import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPl
 import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
 import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
+import { SessionGroupsView } from './features/session-groups/SessionGroupsView.js'
 import { legacyModelCenterSettingsTarget } from './features/models/modelCenterState.js'
 
 const PetOverlayPage = lazy(() =>
@@ -22,27 +22,6 @@ const PetOverlayPage = lazy(() =>
     default: module.PetOverlayPage,
   })),
 )
-
-const SessionGroupsView = lazy(() =>
-  import('./features/session-groups/SessionGroupsView.js').then(module => ({
-    default: module.SessionGroupsView,
-  })),
-)
-
-function SessionGroupsRoute(): ReactNode {
-  return (
-    <Suspense
-      fallback={(
-        <FullScreenWhaleLoading
-          label="正在加载会话组…"
-          variant="contained"
-        />
-      )}
-    >
-      <SessionGroupsView />
-    </Suspense>
-  )
-}
 
 function LegacyModelsRedirect(): ReactNode {
   const location = useLocation()
@@ -94,8 +73,8 @@ const router = createHashRouter([
           { path: 'threads/:threadId', element: <ConversationPage /> },
           { path: 'projects', element: <ProjectsView /> },
           { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'session-groups', element: <SessionGroupsRoute /> },
-          { path: 'session-groups/:groupId', element: <SessionGroupsRoute /> },
+          { path: 'session-groups', element: <SessionGroupsView /> },
+          { path: 'session-groups/:groupId', element: <SessionGroupsView /> },
           { path: 'models', element: <LegacyModelsRedirect /> },
           { path: 'plugins', element: <PluginsView /> },
           { path: 'pull-requests', element: <PullRequestsPlaceholder /> },

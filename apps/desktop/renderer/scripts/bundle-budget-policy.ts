@@ -6,7 +6,6 @@ export const BUNDLE_BUDGET_FAILURE_FLOOR_BYTES = 32 * 1024
 export const BUNDLE_BUDGET_METRIC_NAMES = [
   'entryCssRawBytes',
   'newInteractiveCssRawBytes',
-  'sessionGroupsInitialIncrementalCssRawBytes',
 ] as const
 
 export type BundleBudgetMetricName = (typeof BUNDLE_BUDGET_METRIC_NAMES)[number]
@@ -22,7 +21,7 @@ export type BundleBudgetEvaluation = {
 }
 
 export type BundleBudgetBaseline = {
-  schemaVersion: 1
+  schemaVersion: 2
   acceptedAt: string
   acceptedReason: string
   metrics: Record<BundleBudgetMetricName, number>
@@ -58,8 +57,8 @@ export function evaluateBundleBudget(
 }
 
 export function parseBundleBudgetBaseline(value: unknown): BundleBudgetBaseline {
-  if (!isRecord(value) || value.schemaVersion !== 1) {
-    throw new Error('Renderer bundle budget baseline schemaVersion 必须为 1')
+  if (!isRecord(value) || value.schemaVersion !== 2) {
+    throw new Error('Renderer bundle budget baseline schemaVersion 必须为 2')
   }
   if (!isNonEmptyString(value.acceptedAt)) {
     throw new Error('Renderer bundle budget baseline acceptedAt 不能为空')
@@ -87,7 +86,7 @@ export function parseBundleBudgetBaseline(value: unknown): BundleBudgetBaseline 
   ) as Record<BundleBudgetMetricName, number>
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     acceptedAt: value.acceptedAt,
     acceptedReason: value.acceptedReason,
     metrics,

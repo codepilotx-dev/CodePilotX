@@ -36,23 +36,21 @@ describe('Renderer bundle budget policy', () => {
 
   test('rejects missing or invalid baseline metrics', () => {
     expect(() => parseBundleBudgetBaseline({
-      schemaVersion: 1,
+      schemaVersion: 2,
       acceptedAt: '2026-08-24',
       acceptedReason: 'initial baseline',
       metrics: {
         entryCssRawBytes: 1,
-        newInteractiveCssRawBytes: 1,
       },
-    })).toThrow('sessionGroupsInitialIncrementalCssRawBytes')
+    })).toThrow('newInteractiveCssRawBytes')
 
     expect(() => parseBundleBudgetBaseline({
-      schemaVersion: 1,
+      schemaVersion: 2,
       acceptedAt: '2026-08-24',
       acceptedReason: 'initial baseline',
       metrics: {
         entryCssRawBytes: -1,
         newInteractiveCssRawBytes: 1,
-        sessionGroupsInitialIncrementalCssRawBytes: 1,
       },
     })).toThrow('entryCssRawBytes')
   })

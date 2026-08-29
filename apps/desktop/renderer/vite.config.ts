@@ -14,16 +14,16 @@ import {
 
 // Two-layer real gates for the /new route. The entry gate bounds the static
 // shell graph (Vite entry plus `chunk.imports`). The entry now intentionally
-// includes the common top-level pages, every settings tab and the ordinary
+// includes every main-window top-level page, every settings tab and the ordinary
 // workbench UI, so the budget guards against accidental regressions instead of
 // forcing those surfaces back into dynamic chunks; heavyweight leaves (terminal,
-// session groups, file editor, mermaid/shiki/katex rendering) remain behind
-// dynamic isolation. Each surface gate bounds the interactive first screen
-// graph reachable from explicit module manifests. Raw JS is the primary metric
-// because the desktop server returns Bun.file without Content-Encoding; gzip
-// stays as a regression aid. JS keeps fixed post-optimization ceilings. CSS uses
-// an explicitly accepted baseline with warning and failure growth bands, split
-// between the static entry, /new interactive union and owned lazy routes.
+// file editor, mermaid/shiki/katex rendering) and the standalone pet overlay
+// remain behind dynamic isolation. Each surface gate bounds the interactive first
+// screen graph reachable from explicit module manifests. Raw JS is the primary
+// metric because the desktop server returns Bun.file without Content-Encoding;
+// gzip stays as a regression aid. JS keeps fixed post-optimization ceilings. CSS
+// uses an explicitly accepted baseline with warning and failure growth bands for
+// the static entry and /new interactive union.
 const ENTRY_RAW_BUDGET_KIB = 2625
 const ENTRY_GZIP_BUDGET_KIB = 760
 const SURFACE_RAW_BUDGET_KIB = 2840
@@ -184,10 +184,6 @@ const NEW_SURFACE_MODULES: Record<string, readonly string[]> = {
   ],
 }
 
-const ROUTE_BUDGET_MODULES = {
-  'session-groups': ['features/session-groups/SessionGroupsView.tsx'],
-} as const
-
 type BundleChunk = {
   fileName: string
   isEntry: boolean
@@ -285,13 +281,6 @@ function measureCssAssets(
   return total
 }
 
-function difference(
-  left: Iterable<string>,
-  right: ReadonlySet<string>,
-): Set<string> {
-  return new Set([...left].filter(value => !right.has(value)))
-}
-
 function formatKib(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`
 }
@@ -358,57 +347,12 @@ function routeBundleBudget(): Plugin {
         for (const fileName of graph) surfaceGraphs.add(fileName)
       }
 
-      const routeGraphs = new Map<string, Set<string>>()
-      for (const [route, modules] of Object.entries(ROUTE_BUDGET_MODULES)) {
-        const absolutePaths = modules.map(module =>
-          normalizeSlashes(resolve(RENDERER_SRC_ROOT, module)),
-        )
-        const found = findChunksContainingModules(chunks, absolutePaths)
-        const missingModules = absolutePaths.filter(
-          path => ![...found.values()].some(hits => hits.has(path)),
-        )
-        if (missingModules.length > 0) {
-          this.error(
-            `Route "${route}" manifest modules missing from the build: ${missingModules.join(', ')}`,
-          )
-        }
-        const rootChunks = [...found.keys()]
-        const entryRoots = rootChunks.filter(fileName => entryGraph.has(fileName))
-        if (entryRoots.length > 0) {
-          this.error(
-            `Route "${route}" must remain outside the static entry graph: ${entryRoots.join(', ')}`,
-          )
-        }
-        routeGraphs.set(route, collectStaticGraph(chunks, rootChunks))
-      }
-
-      const sessionGroupsGraph = routeGraphs.get('session-groups')
-      if (!sessionGroupsGraph) {
-        this.error('Route "session-groups" budget graph is missing')
-      }
       const entryCssFiles = collectCssFiles(chunks, entryGraph)
       const interactiveCssFiles = collectCssFiles(chunks, surfaceGraphs)
-      const sessionGroupsCssFiles = collectCssFiles(chunks, sessionGroupsGraph)
-      const sessionGroupsIncrementalCssFiles = difference(
-        sessionGroupsCssFiles,
-        entryCssFiles,
-      )
-      const sessionGroupsInitialCssFiles = new Set([
-        ...entryCssFiles,
-        ...sessionGroupsCssFiles,
-      ])
       const cssMetrics: Record<BundleBudgetMetricName, number> = {
         entryCssRawBytes: measureCssAssets(bundle, entryCssFiles),
         newInteractiveCssRawBytes: measureCssAssets(bundle, interactiveCssFiles),
-        sessionGroupsInitialIncrementalCssRawBytes: measureCssAssets(
-          bundle,
-          sessionGroupsIncrementalCssFiles,
-        ),
       }
-      const sessionGroupsInitialCssRawBytes = measureCssAssets(
-        bundle,
-        sessionGroupsInitialCssFiles,
-      )
       const largestAsyncCss = Object.entries(bundle)
         .filter(([fileName, asset]) => (
           fileName.endsWith('.css')
@@ -450,7 +394,6 @@ function routeBundleBudget(): Plugin {
       const cssBudgetLabels: Record<BundleBudgetMetricName, string> = {
         entryCssRawBytes: 'CSS entry',
         newInteractiveCssRawBytes: 'CSS /new interactive union',
-        sessionGroupsInitialIncrementalCssRawBytes: 'CSS session groups initial incremental',
       }
       const cssBudgetFailures: string[] = []
       for (const name of BUNDLE_BUDGET_METRIC_NAMES) {
@@ -470,9 +413,6 @@ function routeBundleBudget(): Plugin {
           )
         }
       }
-      this.info(
-        `CSS session groups initial total: ${formatKib(sessionGroupsInitialCssRawBytes)} raw`,
-      )
       if (largestAsyncCss) {
         this.info(
           `Largest async CSS chunk: ${largestAsyncCss.fileName} (${formatKib(largestAsyncCss.rawBytes)} raw)`,
