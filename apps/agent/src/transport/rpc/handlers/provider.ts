@@ -64,6 +64,7 @@ const stringArray = (value: unknown, name: string): string[] => {
 
 const emitCredentialUpdated = async (runtime: RpcRouter, providerID: string) => {
   await runtime.emit("provider/credential/updated", { providerId: providerID })
+  await runtime.dependencies.minimaxCli.credentialChanged(providerID)
 }
 
 const assertCredentialProviderAvailable = async (

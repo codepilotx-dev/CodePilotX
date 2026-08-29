@@ -75,6 +75,8 @@ import { SkillManagementService } from "./prompt/SkillManagementService";
 import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
 import { PluginSettingsRepository } from "./storage/repositories/plugin-settings-repository";
 import { PluginManagementService } from "./plugin/PluginManagementService";
+import { MiniMaxCliSettingsRepository } from "./storage/repositories/minimax-cli-settings-repository";
+import { MiniMaxCliIntegrationService } from "./integration/minimax-cli/MiniMaxCliIntegrationService";
 import { McpSettingsRepository } from "./storage/repositories/mcp-settings-repository";
 import { McpConfigService } from "./mcp/McpConfigService";
 import { McpConnectionManager } from "./mcp/McpConnectionManager";
@@ -311,6 +313,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         userHome: homedir(),
       },
     );
+    let minimaxCli: MiniMaxCliIntegrationService;
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
       {
@@ -319,7 +322,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         builtinSkillsRoot: config.builtinSkillsRoot,
       },
       configService,
-      () => plugins.enabledSkillRoots(),
+      async () => [
+        ...await plugins.enabledSkillRoots(),
+        ...await minimaxCli?.enabledSkillRoots() ?? [],
+      ],
     );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
@@ -366,6 +372,33 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     );
     yield* providerCredentialStore.initialize();
+    minimaxCli = new MiniMaxCliIntegrationService(
+      new MiniMaxCliSettingsRepository(db),
+      providerCredentialStore,
+      {
+        userHome: homedir(),
+        integrationRoot: join(config.builtinIntegrationsRoot, "minimax-cli"),
+      },
+    );
+    const unsubscribeMiniMaxCli = minimaxCli.subscribe((status) => {
+      void publishAgentEvent(
+        db,
+        hub,
+        null,
+        null,
+        "minimaxCli/updated",
+        { status },
+      ).catch(() =>
+        logger.warn("minimax-cli.status.publish.failed", {
+          error: "MINIMAX_CLI_STATUS_PUBLISH_FAILED",
+        }),
+      );
+    });
+    void minimaxCli.status().catch(() =>
+      logger.warn("minimax-cli.status.warmup.failed", {
+        error: "MINIMAX_CLI_STATUS_WARMUP_FAILED",
+      }),
+    );
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => config.githubOAuthClientId,
       getBrokerURL: () => config.githubAuthBrokerURL,
@@ -611,6 +644,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         tooling.resolve(id, resolveOptions),
       resolveToolingEnvironment: (required, resolveOptions) =>
         tooling.resolveEnvironment(required, resolveOptions),
+      resolveMiniMaxCliPathEntries: () => minimaxCli.shellPathEntries(),
       resolveShellSecurityLevel: () =>
         normalizeShellSecurityLevel(
           configService.snapshot().shell_security_level,
@@ -943,6 +977,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       releaseNotes,
       skills,
       plugins,
+      minimaxCli,
       mcp,
       suggestions,
       usage,
@@ -978,6 +1013,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeAutomationEvents();
       unsubscribeExecutionLogs();
       unsubscribeTooling();
+      unsubscribeMiniMaxCli();
       unsubscribeConfig();
       await sideChats.discardAll(true);
       await orchestrator.dispose();

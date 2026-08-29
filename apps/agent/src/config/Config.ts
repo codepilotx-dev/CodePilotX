@@ -27,6 +27,7 @@ export interface AgentConfig {
   legacyAppearanceSettingsPath: string | null
   builtinSkillsRoot: string
   builtinPluginsRoot: string
+  builtinIntegrationsRoot: string
   storage: AgentStorageLayout
 }
 
@@ -111,6 +112,18 @@ export const resolveBuiltinPluginsDirectory = (
   return resolve(import.meta.dir, "../../resources/plugins")
 }
 
+export const resolveBuiltinIntegrationsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_INTEGRATIONS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "integrations")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/integrations")
+}
+
 export const resolveAgentStorageLayout = (
   environment: NodeJS.ProcessEnv = process.env,
   userHome = homedir(),
@@ -182,6 +195,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
         : null,
     builtinSkillsRoot: resolveBuiltinSkillsDirectory(),
     builtinPluginsRoot: resolveBuiltinPluginsDirectory(),
+    builtinIntegrationsRoot: resolveBuiltinIntegrationsDirectory(),
     storage,
   }
 })

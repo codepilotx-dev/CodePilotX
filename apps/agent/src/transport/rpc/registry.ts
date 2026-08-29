@@ -9,6 +9,7 @@ import { localContextHandlers } from "./handlers/local-context"
 import { mcpHandlers } from "./handlers/mcp"
 import { petHandlers } from "./handlers/pet"
 import { pluginHandlers } from "./handlers/plugins"
+import { miniMaxCliHandlers } from "./handlers/minimax-cli"
 import { releaseNotesHandlers } from "./handlers/release-notes"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
@@ -47,6 +48,7 @@ const groups: readonly RpcHandlerGroup[] = [
   gitHandlers,
   mcpHandlers,
   pluginHandlers,
+  miniMaxCliHandlers,
   skillHandlers,
   githubHandlers,
   threadHandlers,
