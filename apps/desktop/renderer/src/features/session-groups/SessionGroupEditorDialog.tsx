@@ -12,6 +12,7 @@ type SessionGroupEditorDialogProps = {
   name: string
   description: string
   saving: boolean
+  error?: string | null
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onCancel: () => void
@@ -24,6 +25,7 @@ export function SessionGroupEditorDialog({
   name,
   description,
   saving,
+  error,
   onNameChange,
   onDescriptionChange,
   onCancel,
@@ -91,6 +93,12 @@ export function SessionGroupEditorDialog({
                 value={description}
               />
             </label>
+
+            {error ? (
+              <p className="tw:m-0 tw:text-sm tw:text-app-danger" role="alert">
+                {error}
+              </p>
+            ) : null}
 
             <div className="permission-modal-actions confirmation-dialog-actions tw:mt-1 tw:flex tw:items-center tw:justify-between tw:gap-3">
               <Dialog.Close asChild disabled={saving}>

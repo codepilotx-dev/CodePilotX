@@ -160,6 +160,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复 Composer 会话组菜单无法新建会话组的问题，并将会话数与项目数移至组名下方显示。
 - [desktop/renderer] 统一带勾菜单与下拉项的静止、悬停、按压及输入方式反馈，统一权限 Select 富文本项间距，并修正可搜索 Popover 上下与列表内边距不一致的问题。
 - [desktop/renderer] 将任务规划插件的 Lucide 占位图标替换为正式规划任务图片，并统一应用于已安装架、目录和详情入口。
 - [desktop/renderer] 修复插件管理 capability 未参与桌面初始化握手，导致真实任务规划插件被误报为 Agent 不支持的问题。

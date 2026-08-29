@@ -77,10 +77,16 @@ export function SessionGroupSwitcherPopover({
           <span className="popover-item-leading"><span className="popover-item-icon">
             {option.group ? <MessagesSquare size={APP_ICON_SIZE} /> : <Unlink size={APP_ICON_SIZE} />}
           </span></span>
-          <span className="popover-item-label session-group-option-label">
-            <span>{option.group?.name ?? '不使用会话组'}</span>
-            {option.group ? <small>{option.group.memberCount} 个会话 · {option.group.projectLabels.length} 个项目</small> : null}
-          </span>
+          {option.group ? (
+            <span className="popover-item-label popover-item-label--rich">
+              <span className="popover-item-title">{option.group.name}</span>
+              <span className="popover-item-description">
+                {option.group.memberCount} 个会话 · {option.group.projectLabels.length} 个项目
+              </span>
+            </span>
+          ) : (
+            <span className="popover-item-label">不使用会话组</span>
+          )}
           <span className="popover-item-trailing">{selected ? <Check size={APP_ICON_SIZE} /> : null}</span>
         </>
       )}

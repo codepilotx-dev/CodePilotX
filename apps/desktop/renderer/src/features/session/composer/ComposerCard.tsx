@@ -116,6 +116,7 @@ import {
 } from "./composerSlashCommands.js";
 import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
 import { BuiltinSkillIcon } from "../../plugins/builtinSkillPresentation.js";
+import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
 import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
@@ -485,17 +486,41 @@ export function ComposerCard({
     null,
   );
   const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
+  const [sessionGroupEditorOpen, setSessionGroupEditorOpen] = useState(false)
+  const [sessionGroupDraftName, setSessionGroupDraftName] = useState('')
+  const [sessionGroupDraftDescription, setSessionGroupDraftDescription] = useState('')
+  const [sessionGroupSaving, setSessionGroupSaving] = useState(false)
+  const [sessionGroupCreateError, setSessionGroupCreateError] = useState<string | null>(null)
 
-  const createSessionGroup = useCallback(() => {
-    const name = globalThis.prompt('会话组名称')?.trim()
-    if (!name) return
-    void import('../../../services/desktop-client/index.js').then(({ desktopClient }) =>
-      desktopClient.createSessionGroup({ name }),
-    ).then(group => {
+  const openSessionGroupEditor = useCallback(() => {
+    setSessionGroupDraftName('')
+    setSessionGroupDraftDescription('')
+    setSessionGroupCreateError(null)
+    setSessionGroupEditorOpen(true)
+  }, [])
+
+  const createSessionGroup = useCallback(async () => {
+    const name = sessionGroupDraftName.trim()
+    if (!name || sessionGroupSaving) return
+    setSessionGroupSaving(true)
+    setSessionGroupCreateError(null)
+    try {
+      const { desktopClient } = await import('../../../services/desktop-client/index.js')
+      const group = await desktopClient.createSessionGroup({
+        name,
+        description: sessionGroupDraftDescription.trim(),
+      })
       setSelectedSessionGroup(group)
       writePreferredSessionGroupId(group.id)
-    })
-  }, [])
+      setSessionGroupEditorOpen(false)
+    } catch (cause) {
+      setSessionGroupCreateError(
+        cause instanceof Error ? cause.message : '会话组创建失败，请重试。',
+      )
+    } finally {
+      setSessionGroupSaving(false)
+    }
+  }, [sessionGroupDraftDescription, sessionGroupDraftName, sessionGroupSaving])
 
   useEffect(() => {
     const preferredId = readPreferredSessionGroupId()
@@ -1965,7 +1990,7 @@ export function ComposerCard({
             side="top"
             value={selectedSessionGroup?.id ?? null}
             onOpenChange={open => setOpenDropdown(open ? "session-group" : null)}
-            onCreate={createSessionGroup}
+            onCreate={openSessionGroupEditor}
             onChange={group => {
               setSelectedSessionGroup(group)
               writePreferredSessionGroupId(group?.id ?? null)
@@ -2100,6 +2125,21 @@ export function ComposerCard({
         onEdit={onFollowUpEdit ?? (() => {})}
         onRemove={onFollowUpRemove ?? (() => {})}
         onResume={onFollowUpResume ?? (() => {})}
+      />
+      <SessionGroupEditorDialog
+        description={sessionGroupDraftDescription}
+        error={sessionGroupCreateError}
+        mode="create"
+        name={sessionGroupDraftName}
+        open={sessionGroupEditorOpen}
+        saving={sessionGroupSaving}
+        onCancel={() => {
+          setSessionGroupEditorOpen(false)
+          setSessionGroupCreateError(null)
+        }}
+        onDescriptionChange={setSessionGroupDraftDescription}
+        onNameChange={setSessionGroupDraftName}
+        onSubmit={() => void createSessionGroup()}
       />
     </div>
   );
