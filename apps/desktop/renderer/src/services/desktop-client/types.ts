@@ -381,6 +381,10 @@ export type DesktopPluginApi = {
     workspacePath?: string | null,
     forceReload?: boolean,
   ): Promise<RpcResult<'plugin/list'>>
+  getPluginDetails(
+    pluginId: string,
+    workspacePath?: string | null,
+  ): Promise<RpcResult<'plugin/getDetails'>['details'] | null>
   setPluginEnabled(
     pluginId: string,
     enabled: boolean,

@@ -176,6 +176,9 @@ export function createBrowserMockDesktopClient(
   if (visualFixture || performanceFixture) {
     settings = { ...settings, providerID: 'mock', model: 'mock' }
   }
+  if (visualFixture?.item.id === 'visual-scroll-edge') {
+    settings = { ...settings, collapsedSidebarSections: [] }
+  }
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
   }
@@ -204,6 +207,21 @@ export function createBrowserMockDesktopClient(
     status: 'ready',
     capabilities: ['task-planning'],
     skills: ['task-planning'],
+  }
+  const mockTaskPlanningDetails: RpcResult<'plugin/getDetails'>['details'] = {
+    pluginId: 'task-planning',
+    longDescription: '澄清目标与约束，将复杂工作拆分为里程碑和可执行任务，并梳理依赖、风险与验收标准。',
+    displayCapabilities: ['Planning'],
+    defaultPrompts: [
+      '帮我把这个目标拆解成可执行的任务计划。',
+      '梳理这个项目的里程碑、依赖和主要风险。',
+      '为这项工作补充清晰的验收标准。',
+    ],
+    skills: [{
+      id: 'task-planning',
+      name: '任务规划',
+      description: 'Clarify goals and constraints, then turn complex work into an actionable plan with milestones, dependencies, risks, and acceptance criteria.',
+    }],
   }
   let mockMiniMaxCliStatus: RpcResult<'minimaxCli/status'> = {
     installationStatus: 'not-installed',
@@ -611,6 +629,8 @@ export function createBrowserMockDesktopClient(
       generation: mockPluginGeneration,
       updatedAt: Date.now(),
     }),
+    getPluginDetails: async pluginId =>
+      pluginId === mockTaskPlanningPlugin.id ? mockTaskPlanningDetails : null,
     setPluginEnabled: async (pluginId, enabled) => {
       if (pluginId !== mockTaskPlanningPlugin.id) {
         throw new Error('PLUGIN_NOT_FOUND')

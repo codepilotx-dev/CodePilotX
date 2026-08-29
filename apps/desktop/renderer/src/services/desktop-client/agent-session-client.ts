@@ -137,6 +137,7 @@ export const RENDERER_CAPABILITIES = [
   'tooling.management.v1',
   'skills.manage.v1',
   'plugins.manage.v1',
+  'plugins.details.v1',
   'integrations.minimax-cli.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',
@@ -1517,6 +1518,7 @@ export function createAgentSessionDesktopClient(
   const loadAgentPluginApi = (): Promise<AgentPluginApi> => {
     agentPluginApiPromise ??= import('./agent-plugin-api.js').then(module =>
       module.createAgentPluginApi({
+        hasAgentCapability: capability => agentCapabilities.has(capability),
         mockClient,
         requireAgentCapability,
         rpc: {
@@ -1922,6 +1924,10 @@ export function createAgentSessionDesktopClient(
     listPlugins: (workspacePath, forceReload) =>
       loadAgentPluginApi().then(api =>
         api.listPlugins(workspacePath, forceReload),
+      ),
+    getPluginDetails: (pluginId, workspacePath) =>
+      loadAgentPluginApi().then(api =>
+        api.getPluginDetails(pluginId, workspacePath),
       ),
     setPluginEnabled: (pluginId, enabled) =>
       loadAgentPluginApi().then(api => api.setPluginEnabled(pluginId, enabled)),

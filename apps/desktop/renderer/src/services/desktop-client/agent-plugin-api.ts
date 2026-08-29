@@ -5,6 +5,9 @@ import type { DesktopPluginApi } from './types.js'
 
 type Dependencies = {
   mockClient: DesktopPluginApi
+  hasAgentCapability: (
+    name: Extract<ProtocolCapability, 'plugins.details.v1'>,
+  ) => boolean
   requireAgentCapability: (
     name: Extract<ProtocolCapability, 'plugins.manage.v1'>,
   ) => void
@@ -19,6 +22,7 @@ type Dependencies = {
 }
 
 export function createAgentPluginApi({
+  hasAgentCapability,
   mockClient,
   requireAgentCapability,
   rpc,
@@ -35,6 +39,17 @@ export function createAgentPluginApi({
           })
         },
         () => mockClient.listPlugins(workspacePath, forceReload),
+      ),
+    getPluginDetails: (pluginId, workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          if (!hasAgentCapability('plugins.details.v1')) return null
+          return (await rpc.call('plugin/getDetails', {
+            pluginId,
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })).details
+        },
+        () => mockClient.getPluginDetails(pluginId, workspacePath),
       ),
     setPluginEnabled: (pluginId, enabled) =>
       withAgentOrMock(

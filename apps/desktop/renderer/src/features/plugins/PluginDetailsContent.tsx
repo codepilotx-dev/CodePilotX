@@ -17,6 +17,7 @@ import {
 type ActionProps = {
   item: PluginCatalogItem
   busy?: boolean
+  ariaLabel?: string
   onPrimaryAction: (
     item: PluginCatalogItem,
     trigger: HTMLButtonElement,
@@ -112,6 +113,7 @@ function miniMaxAuthLabel(status: NonNullable<PluginCatalogItem['miniMaxCli']>['
 }
 
 export function PluginDetailsPrimaryAction({
+  ariaLabel,
   item,
   busy = false,
   onPrimaryAction,
@@ -125,7 +127,7 @@ export function PluginDetailsPrimaryAction({
         <span>{action.checked ? '已启用' : '已禁用'}</span>
         <ToggleSwitch
           ref={toggleRef}
-          ariaLabel={`启用 ${item.name}`}
+          ariaLabel={ariaLabel ?? `启用 ${item.name}`}
           checked={action.checked}
           disabled={action.disabled || busy}
           onChange={checked => {

@@ -1,21 +1,19 @@
+import type { PluginDetails } from '@codepilotx/agent-protocol'
 import type React from 'react'
 import { ExternalLink, Plus, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import type { DesktopSkillCatalogItem } from '../../../shared/types.js'
-import { PluginDetailsMetadata, PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
-import { PluginIcon } from './PluginIcon.js'
+import { PluginProductDetailsView } from './PluginProductDetailsView.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
-
-const NODE_DOWNLOAD_URL = 'https://nodejs.org/en/download'
 
 type PluginProps = {
   kind: 'plugin'
   item: PluginCatalogItem
+  details: PluginDetails | null
   busy: boolean
   error?: string | null
   onPrimaryAction: (
@@ -23,6 +21,7 @@ type PluginProps = {
     trigger: HTMLButtonElement,
     checked?: boolean,
   ) => void
+  onTryPrompt: (prompt: string) => void
   onUninstall?: () => void
 }
 
@@ -35,8 +34,11 @@ type SkillProps = {
 }
 
 export function CatalogDetailsView(props: PluginProps | SkillProps): React.ReactNode {
+  if (props.kind === 'plugin') {
+    return <PluginProductDetailsView {...props} />
+  }
+
   const { item } = props
-  const isPlugin = props.kind === 'plugin'
 
   return (
     <section className="catalog-details-view">
@@ -44,37 +46,15 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
         <span
           aria-hidden="true"
           className="catalog-details-view__icon"
-          data-plugin-tone={isPlugin ? props.item.tone : undefined}
         >
-          {isPlugin ? (
-            <PluginIcon
-              logoDarkSource={props.item.logoDarkSource}
-              logoSource={props.item.logoSource}
-              name={props.item.iconName}
-            />
-          ) : (
-            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          )}
+          <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </span>
         <div className="catalog-details-view__identity">
           <h1>{item.name}</h1>
-          <p>{isPlugin ? props.item.description : props.item.source}</p>
+          <p>{props.item.source}</p>
         </div>
         <div className="catalog-details-view__primary-action">
-          {isPlugin ? (
-            <>
-              <PluginDetailsPrimaryAction
-                busy={props.busy}
-                item={props.item}
-                onPrimaryAction={props.onPrimaryAction}
-              />
-              {props.item.id === 'minimax' && props.item.installed && props.onUninstall ? (
-                <Button color="secondary" disabled={props.busy} onClick={props.onUninstall}>
-                  卸载
-                </Button>
-              ) : null}
-            </>
-          ) : props.item.installed ? (
+          {props.item.installed ? (
             <span className="catalog-details-view__installed">已添加</span>
           ) : (
             <Button
@@ -92,20 +72,10 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
       <div className="catalog-details-view__body">
         <section aria-labelledby="catalog-details-overview" className="catalog-details-section">
           <h2 id="catalog-details-overview">概览</h2>
-          {isPlugin ? (
-            <PluginDetailsMetadata item={props.item} />
-          ) : (
-            <SkillDetailsMetadata item={props.item} />
-          )}
-          {isPlugin && props.error ? (
-            <p className="catalog-details-view__error" role="status">
-              {props.error}
-            </p>
-          ) : null}
+          <SkillDetailsMetadata item={props.item} />
         </section>
 
-        {!isPlugin ? (
-          <section aria-labelledby="catalog-details-audit" className="catalog-details-section">
+        <section aria-labelledby="catalog-details-audit" className="catalog-details-section">
             <h2 id="catalog-details-audit">安全审计</h2>
             {props.item.audit ? (
               <dl className="plugin-details-metadata">
@@ -131,10 +101,9 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
             ) : (
               <p className="catalog-details-section__empty">该目录条目未提供审计信息。</p>
             )}
-          </section>
-        ) : null}
+        </section>
 
-        {!isPlugin && props.item.url ? (
+        {props.item.url ? (
           <div className="catalog-details-view__secondary-action">
             <Button color="secondary" onClick={() => props.onOpenSource(props.item)}>
               打开来源页面
@@ -143,20 +112,6 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </Button>
-          </div>
-        ) : null}
-        {isPlugin && props.item.id === 'minimax' && props.item.externalURL ? (
-          <div className="catalog-details-view__secondary-action">
-            {props.item.miniMaxCli?.installationStatus === 'missing-prerequisite' ? (
-              <Button color="secondary" onClick={() => void desktopClient.openExternalURL(NODE_DOWNLOAD_URL)}>
-                下载 Node.js
-                <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </Button>
-            ) : null}
-            <Button color="secondary" onClick={() => void desktopClient.openExternalURL(props.item.externalURL!)}>
-              查看官方说明
-              <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           </div>
         ) : null}

@@ -27,6 +27,7 @@ export type PluginCatalogItem = PluginCatalogDescriptor & {
   enabled: boolean
   version?: string
   developerName?: string
+  productCategory?: string
   capabilities?: readonly string[]
   skills?: readonly string[]
   availabilityLabel?: string
@@ -119,6 +120,7 @@ export function mergePluginCatalog(
     enabled: plugin.enabled,
     version: plugin.version,
     developerName: plugin.developerName,
+    productCategory: plugin.category,
     capabilities: plugin.capabilities,
     skills: plugin.skills,
     ...(plugin.unavailableReason ? { unavailableReason: plugin.unavailableReason } : !plugin.installed ? { unavailableReason: '安装能力尚未接入，暂不可安装' } : {}),

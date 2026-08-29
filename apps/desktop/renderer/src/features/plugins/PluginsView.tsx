@@ -1,6 +1,7 @@
 import type React from 'react'
+import type { PluginDetails } from '@codepilotx/agent-protocol'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertOctagon, ArrowLeft, Clock, ListFilter, RefreshCw, Settings, Settings2 } from 'lucide-react'
+import { AlertOctagon, ArrowLeft, ChevronRight, Clock, ListFilter, RefreshCw, Settings, Settings2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -20,6 +21,7 @@ import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
+import { composerDraftStore } from '../session/composer/composerDraftStore.js'
 import { CatalogDetailsView } from './CatalogDetailsView.js'
 import { PluginCatalogCard } from './PluginCatalogCard.js'
 import { PluginIcon } from './PluginIcon.js'
@@ -89,6 +91,8 @@ export function PluginsView(): React.ReactNode {
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
   const [confirmMiniMaxUninstall, setConfirmMiniMaxUninstall] = useState(false)
+  const [pluginDetails, setPluginDetails] = useState<Record<string, PluginDetails | null>>({})
+  const pluginDetailsRequestsRef = useRef(new Set<string>())
   const [skills, setSkills] = useState<DesktopSkillCatalogItem[] | undefined>()
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [skillsError, setSkillsError] = useState<string | null>(null)
@@ -161,6 +165,34 @@ export function PluginsView(): React.ReactNode {
   const selectedSkill = target?.kind === 'skill'
     ? skills?.find(item => item.id === target.id) ?? null
     : null
+  const selectedPluginDetailsKey = selectedPlugin
+    ? `${workspacePath ?? ''}\u0000${selectedPlugin.id}`
+    : null
+
+  useEffect(() => {
+    if (
+      !selectedPlugin
+      || !selectedPluginDetailsKey
+      || Object.hasOwn(pluginDetails, selectedPluginDetailsKey)
+      || pluginDetailsRequestsRef.current.has(selectedPluginDetailsKey)
+    ) return
+    let cancelled = false
+    pluginDetailsRequestsRef.current.add(selectedPluginDetailsKey)
+    desktopClient.getPluginDetails(selectedPlugin.id, workspacePath).then(details => {
+      if (!cancelled) {
+        setPluginDetails(current => ({ ...current, [selectedPluginDetailsKey]: details }))
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setPluginDetails(current => ({ ...current, [selectedPluginDetailsKey]: null }))
+      }
+    }).finally(() => {
+      pluginDetailsRequestsRef.current.delete(selectedPluginDetailsKey)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [pluginDetails, selectedPlugin, selectedPluginDetailsKey, workspacePath])
 
   useEffect(() => {
     if (target) {
@@ -294,10 +326,23 @@ export function PluginsView(): React.ReactNode {
     }
   }
 
+  function tryPluginPrompt(prompt: string): void {
+    composerDraftStore.prefillTextIfEmpty('home', prompt)
+    navigate('/new')
+  }
+
   return (
     <>
       <WorkspaceHeaderItem align="start" id="plugins.navigation" order={0} slot="left">
-        {target ? (
+        {target?.kind === 'plugin' ? (
+          <div className="plugins-detail-breadcrumb">
+            <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
+              插件
+            </Button>
+            <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <span>{selectedPlugin?.name ?? target.id}</span>
+          </div>
+        ) : target ? (
           <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
             <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             返回{tab === 'plugins' ? '插件' : '技能'}
@@ -316,45 +361,49 @@ export function PluginsView(): React.ReactNode {
           />
         )}
       </WorkspaceHeaderItem>
-      <WorkspaceHeaderItem align="end" id="plugins.actions" order={100} slot="right">
-        <div className="plugins-header-actions">
-          <IconButton
-            aria-busy={activeLoading}
-            color="ghostSecondary"
-            disabled={activeLoading}
-            onClick={() => {
-              if (tab === 'plugins') {
-                refreshPlugins()
-                miniMaxCli.refresh()
-              } else {
-                setSkillsReloadKey(value => value + 1)
-              }
-            }}
-            size="toolbar"
-            title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
-          >
-            <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
-            color="ghostSecondary"
-            onClick={() => navigate('/settings/plugins')}
-            size="toolbar"
-            title="管理插件设置"
-          >
-            <Settings2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-        </div>
-      </WorkspaceHeaderItem>
+      {target?.kind === 'plugin' ? null : (
+        <WorkspaceHeaderItem align="end" id="plugins.actions" order={100} slot="right">
+          <div className="plugins-header-actions">
+            <IconButton
+              aria-busy={activeLoading}
+              color="ghostSecondary"
+              disabled={activeLoading}
+              onClick={() => {
+                if (tab === 'plugins') {
+                  refreshPlugins()
+                  miniMaxCli.refresh()
+                } else {
+                  setSkillsReloadKey(value => value + 1)
+                }
+              }}
+              size="toolbar"
+              title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
+            >
+              <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+            <IconButton
+              color="ghostSecondary"
+              onClick={() => navigate('/settings/plugins')}
+              size="toolbar"
+              title="管理插件设置"
+            >
+              <Settings2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+          </div>
+        </WorkspaceHeaderItem>
+      )}
 
       {target ? (
         <main className="plugins-details-page">
           {selectedPlugin ? (
             <CatalogDetailsView
               busy={busyPluginIds.has(selectedPlugin.id)}
+              details={selectedPluginDetailsKey ? pluginDetails[selectedPluginDetailsKey] ?? null : null}
               error={pluginErrors[selectedPlugin.id]}
               item={selectedPlugin}
               kind="plugin"
               onPrimaryAction={(item, trigger, checked) => void runPluginAction(item, trigger, checked)}
+              onTryPrompt={tryPluginPrompt}
               onUninstall={selectedPlugin.id === 'minimax' ? () => setConfirmMiniMaxUninstall(true) : undefined}
             />
           ) : selectedSkill ? (
