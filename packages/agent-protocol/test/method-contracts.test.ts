@@ -1256,6 +1256,52 @@ const fixtures = {
     generation: 2,
     updatedAt: 2,
   }),
+  "minimaxCli/status": methodFixture("minimaxCli/status", {
+    forceReload: true,
+  }, {
+    installationStatus: "installed",
+    installedVersion: "1.0.22",
+    latestVersion: "1.0.22",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "coding-plan-synced",
+    credentialSource: {
+      providerId: "minimax-cn-coding-plan",
+      credentialId: "credential:minimax-cn",
+      label: "当前 Coding Plan Key",
+      maskedValue: "sk-****abcd",
+      region: "cn",
+    },
+    quotaStatus: "available",
+    quotaLabel: "套餐可用",
+    generation: 2,
+    updatedAt: 2,
+  }),
+  "minimaxCli/install": methodFixture("minimaxCli/install", {
+    operationId: "operation:minimax-install",
+  }, {
+    installationStatus: "installed",
+    installedVersion: "1.0.22",
+    latestVersion: "1.0.22",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "not-authenticated",
+    generation: 2,
+    updatedAt: 2,
+  }),
+  "minimaxCli/uninstall": methodFixture("minimaxCli/uninstall", {
+    operationId: "operation:minimax-uninstall",
+  }, {
+    installationStatus: "not-installed",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "not-authenticated",
+    generation: 3,
+    updatedAt: 3,
+  }),
   "mcp/list": methodFixture("mcp/list", {
     workspace: "C:\\workspace",
   }, {
@@ -3215,7 +3261,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(227)
+    expect(methods).toHaveLength(230)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3546,7 +3592,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(221)
+    expect(Object.keys(RpcMethods)).toHaveLength(224)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
@@ -3606,6 +3652,47 @@ describe("RPC method schema contracts", () => {
       ...valid,
       plugins: [{ ...valid.plugins[0], absolutePath: "C:\\sensitive\\plugin" }],
     })).toThrow()
+  })
+
+  test("MiniMax CLI 集成使用独立能力、精确 mutation 和可对账事件", () => {
+    expect(Capabilities).toContain("integrations.minimax-cli.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("integrations.minimax-cli.v1"))
+      .toBe("integrations.minimax-cli.v1")
+    expect(RpcMethods["minimaxCli/status"]).toMatchObject({
+      capability: "integrations.minimax-cli.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    for (const method of ["minimaxCli/install", "minimaxCli/uninstall"] as const) {
+      expect(RpcMethods[method]).toMatchObject({
+        capability: "integrations.minimax-cli.v1",
+        mutation: true,
+        exactParams: true,
+        exactResult: true,
+      })
+      const decode = Schema.decodeUnknownSync(RpcMethods[method].params, { onExcessProperty: "error" })
+      expect(decode(fixtures[method].params)).toEqual(fixtures[method].params)
+      expect(() => decode({ operationId: "operation:minimax", credentialId: "secret" })).toThrow()
+    }
+    const status = Schema.decodeUnknownSync(
+      RpcMethods["minimaxCli/status"].result,
+      { onExcessProperty: "error" },
+    )(fixtures["minimaxCli/status"].result)
+    expect(status.credentialSource).toEqual({
+      providerId: "minimax-cn-coding-plan",
+      credentialId: "credential:minimax-cn",
+      label: "当前 Coding Plan Key",
+      maskedValue: "sk-****abcd",
+      region: "cn",
+    })
+    expect(EventManifest["minimaxCli/updated"]).toMatchObject({
+      version: 1,
+      durability: "live",
+      stream: "global",
+      capability: "integrations.minimax-cli.v1",
+      reconcilesWith: "minimaxCli/status",
+    })
   })
 
   test("requires authorized projectId instead of internal projectKey for project memory", () => {

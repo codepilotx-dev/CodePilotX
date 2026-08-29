@@ -4,6 +4,7 @@ import { ExtendedRpcMethods } from "./extended"
 import { GitRpcMethods } from "./git"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
+import { MiniMaxCliRpcMethods } from "./minimax-cli"
 import { PetRpcMethods } from "./pet"
 import { PluginRpcMethods } from "./plugins"
 import { ReleaseNotesRpcMethods } from "./release-notes"
@@ -25,6 +26,7 @@ export const BaseRpcMethods = {
   ...GitRpcMethods,
   ...GithubRpcMethods,
   ...McpRpcMethods,
+  ...MiniMaxCliRpcMethods,
   ...PetRpcMethods,
   ...PluginRpcMethods,
   ...ReleaseNotesRpcMethods,
