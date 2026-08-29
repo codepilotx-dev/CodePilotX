@@ -160,6 +160,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 统一带勾菜单与下拉项的静止、悬停、按压及输入方式反馈，统一权限 Select 富文本项间距，并修正可搜索 Popover 上下与列表内边距不一致的问题。
 - [desktop/renderer] 将任务规划插件的 Lucide 占位图标替换为正式规划任务图片，并统一应用于已安装架、目录和详情入口。
 - [desktop/renderer] 修复插件管理 capability 未参与桌面初始化握手，导致真实任务规划插件被误报为 Agent 不支持的问题。
 - [desktop/renderer] 恢复 Codex 式侧边栏项目、会话与导航行视觉，并修复产品模式切换器误用通用 Select 后产生的边框和悬停样式回归。

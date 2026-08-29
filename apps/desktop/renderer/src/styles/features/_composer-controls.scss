@@ -178,7 +178,6 @@
 .permission-select-scroll-content {
   min-width: 0;
   display: grid;
-  gap: 0;
 }
 
 .permission-select-item-icon {
@@ -188,7 +187,6 @@
   flex-shrink: 0;
   margin-top: 0;
   color: var(--cpx-sys-color-fg-primary);
-  padding-right: var(--cpx-sys-space-1);
 
   svg {
     width: var(--cpx-sys-space-4);
@@ -203,9 +201,6 @@
   min-width: 0;
   display: grid;
   gap: 0;
-  padding-right: calc(
-    var(--cpx-sys-space-4) + var(--cpx-sys-space-2) + var(--cpx-sys-space-1)
-  );
 }
 
 .permission-select-item-detail {

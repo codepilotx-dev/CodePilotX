@@ -93,7 +93,6 @@ export function ProjectSwitcherPopover({
           ) : null}
         </>
       )}
-      listClassName="popover-section"
       listLabel="最近项目"
       open={open}
       options={options}

@@ -86,11 +86,14 @@ describe('Codex CPX design system token contract', () => {
     expect(tokens).toContain('--cpx-comp-diff-inserted-line-bg')
   })
 
-  test('maps Dropdown states through dedicated semantic slots', async () => {
-    const [tokens, popover, rows] = await Promise.all([
+  test('maps Dropdown states and searchable gutters through shared contracts', async () => {
+    const [tokens, popover, rows, select, projectSwitcher, branchSwitcher] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/components/ui/Select.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/session/composer/ProjectSwitcherPopover.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/session/composer/BranchSelectPopover.tsx', import.meta.url)).text(),
     ])
 
     expect(tokens).toContain('--cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default)')
@@ -98,6 +101,49 @@ describe('Codex CPX design system token contract', () => {
     expect(popover).toContain(".popover-surface[data-theme-component='dropdown-surface']")
     expect(popover).toContain('--cpx-comp-row-hover-bg: var(--cpx-comp-dropdown-item-hover-bg)')
     expect(rows).toContain('--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected)')
+    expect(rows).toContain('.popover-item[aria-selected="true"]')
+    expect(rows).toContain('.settings-dropdown-item:has(.settings-dropdown-item-indicator)')
+    expect(rows).toContain('.permission-select-item:has(.permission-select-item-indicator)')
+    expect(rows).toContain('--cpx-comp-row-bg, transparent')
+    expect(rows).toContain('--cpx-comp-row-hover-bg')
+    expect(rows).toContain('--cpx-comp-row-pressed-bg')
+    expect(rows).toContain(
+      '.settings-dropdown-item[data-state="checked"]:has(.settings-dropdown-item-indicator)',
+    )
+    expect(rows).toContain(
+      '.permission-select-item[data-state="checked"]:has(.permission-select-item-indicator)',
+    )
+    expect(rows).toContain(
+      '):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active))',
+    )
+    expect(select).toContain('data-highlighted={activeIndex === index || undefined}')
+    expect(select).not.toContain('data-state=')
+    expect(popover).toMatch(
+      /\.popover-search-region\s*\{[\s\S]*?padding: var\(--popover-surface-padding\);/,
+    )
+    expect(projectSwitcher).not.toContain('listClassName="popover-section"')
+    expect(branchSwitcher).toContain('listClassName="branch-popover-list-scroll"')
+    expect(branchSwitcher).not.toContain('branch-popover-list-scroll popover-section')
+  })
+
+  test('keeps the permission Select on shared rich-menu geometry', async () => {
+    const [rows, composerControls] = await Promise.all([
+      Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_composer-controls.scss', import.meta.url)).text(),
+    ])
+
+    expect(rows).toMatch(
+      /\.interactive-row--rich,[\s\S]*?\.permission-select-item\s*\{[\s\S]*?--interactive-row-current-min-height:/,
+    )
+    expect(rows).toMatch(
+      /\.permission-select-scroll-content\s*\{[\s\S]*?gap: var\(--cpx-comp-row-gap-y\);/,
+    )
+    expect(composerControls).not.toMatch(
+      /\.permission-select-item-icon\s*\{[^}]*padding-right:/,
+    )
+    expect(composerControls).not.toMatch(
+      /\.permission-select-item-body\s*\{[^}]*padding-right:/,
+    )
   })
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {

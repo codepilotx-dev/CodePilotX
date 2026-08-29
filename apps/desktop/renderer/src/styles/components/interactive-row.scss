@@ -87,12 +87,17 @@
 
 .interactive-row--rich,
 .popover-item.rich,
-.popover-item--rich {
+.popover-item--rich,
+.permission-select-item {
   --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 44px);
   --interactive-row-current-padding-block: var(
     --cpx-comp-row-padding-block-rich,
     6px
   );
+}
+
+.permission-select-scroll-content {
+  gap: var(--cpx-comp-row-gap-y);
 }
 
 .interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),
@@ -188,7 +193,6 @@
 .popover-item.selected,
 .popover-item.active,
 .popover-item[aria-selected="true"],
-.popover-item[data-state="checked"],
 .settings-dropdown-item[aria-selected="true"],
 .settings-dropdown-item[data-state="checked"],
 .permission-select-item[aria-selected="true"],
@@ -197,6 +201,59 @@
 .menubar-item[data-state="checked"] {
   background: var(--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected));
   color: var(--cpx-comp-row-selected-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
+}
+
+:is(
+  .popover-item[data-state="checked"],
+  .popover-item[aria-selected="true"],
+  .popover-item[aria-checked="true"],
+  .popover-item:has(.popover-item-check),
+  .settings-dropdown-item:has(.settings-dropdown-item-indicator),
+  .permission-select-item:has(.permission-select-item-indicator)
+) {
+  background: var(--cpx-comp-row-bg, transparent);
+  color: var(
+    --cpx-comp-row-fg,
+    var(--cpx-sys-color-fg-primary)
+  );
+
+  &:where(
+    :hover,
+    [data-highlighted]
+  ):not(:where(:disabled, [data-disabled])) {
+    background: var(
+      --cpx-comp-row-hover-bg,
+      var(--cpx-sys-color-hover)
+    );
+    color: var(
+      --cpx-comp-row-hover-fg,
+      var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
+    );
+  }
+
+  &:active:not(
+    :where(:disabled, [data-disabled])
+  ) {
+    background: var(
+      --cpx-comp-row-pressed-bg,
+      var(--cpx-sys-color-active)
+    );
+    color: var(
+      --cpx-comp-row-fg,
+      var(--cpx-sys-color-fg-primary)
+    );
+  }
+}
+
+:is(
+  .settings-dropdown-item[data-state="checked"]:has(.settings-dropdown-item-indicator),
+  .permission-select-item[data-state="checked"]:has(.permission-select-item-indicator)
+):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active)) {
+  background: var(--cpx-comp-row-bg, transparent);
+  color: var(
+    --cpx-comp-row-fg,
+    var(--cpx-sys-color-fg-primary)
+  );
 }
 
 .interactive-row:disabled,
