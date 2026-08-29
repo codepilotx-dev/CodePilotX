@@ -85,12 +85,15 @@ describe('AutomationView primary page hierarchy', () => {
     expect(draft.schedule).toEqual(weekly?.schedule)
   })
 
-  test('keeps the original spacious suggestion rhythm', () => {
-    expect(styleSource).toContain(
-      'padding: var(--cpx-sys-space-3) var(--cpx-sys-space-2);',
-    )
+  test('keeps suggestion rhythm without extra button padding', () => {
     expect(styleSource).toContain('gap: var(--cpx-sys-space-3);')
     expect(styleSource).toContain('font: var(--cpx-sys-type-body-sm);')
+    const buttonStyles = styleSource.match(
+      /\.automation-suggestions li button \{[\s\S]*?\n\}/,
+    )?.[0]
+    expect(buttonStyles).not.toContain(
+      'padding: var(--cpx-sys-space-3) var(--cpx-sys-space-2);',
+    )
     const sectionStyles = styleSource.match(
       /\.automation-suggestions \{[\s\S]*?\n\}/,
     )?.[0]
