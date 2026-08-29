@@ -9,6 +9,7 @@
 
 ### Added
 
+- [agent/desktop/renderer] 集成官方 MiniMax CLI 的一键安装、更新与卸载，自动跟随 API Key Hub 当前生效的 MiniMax Coding Plan Key，并将 mmx Skills 动态接入 Agent。
 - [desktop] 新增可恢复的本地自动化调度、任务管理与运行收件箱。
 - [agent] 增加兼容 Codex manifest 的内置插件发现、启停与插件 Skill 接入，并明确用户插件缓存随 CodePilotX 数据目录迁移。
 - [desktop/renderer] 接入真实的内置任务规划插件，并将 Browser 等尚未接入能力的 Featured 插件统一显示为暂不可安装。
@@ -35,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将 MiniMax CLI 插件的临时线框图标替换为正式图片资源。
 - [desktop] 将自动化建议区分隔线移至章节顶部并移除标题内边距。
 - [desktop/renderer] 为自动化建议列表增加 5px 项间距，使相邻建议卡片保持清晰分隔。
 - [desktop/renderer] 为自动化建议列表项增加 5px 内边距，避免内容紧贴悬停区域边缘。
