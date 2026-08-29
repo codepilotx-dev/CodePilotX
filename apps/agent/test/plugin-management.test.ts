@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { PluginListResultSchema } from "@codepilotx/agent-protocol"
+import { PluginGetDetailsResultSchema, PluginListResultSchema } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PluginManagementService } from "../src/plugin/PluginManagementService"
 import { SkillService } from "../src/prompt/SkillService"
@@ -42,6 +42,8 @@ const writePlugin = async (input: {
   root: string
   id: string
   extension?: boolean
+  details?: boolean
+  skillsPath?: string
 }) => {
   const pluginRoot = join(input.root, input.id)
   const skillRoot = join(pluginRoot, "skills", input.id)
@@ -52,12 +54,21 @@ const writePlugin = async (input: {
     version: "1.0.0",
     description: "测试插件",
     author: { name: "CodePilotX" },
-    skills: "./skills/",
+    skills: input.skillsPath ?? "./skills/",
     interface: {
       displayName: "任务规划",
       shortDescription: "拆解和规划复杂工作",
       developerName: "CodePilotX",
       category: "Productivity",
+      ...(input.details === false ? {} : {
+        longDescription: "澄清目标与约束，将复杂工作拆分为里程碑和可执行任务。",
+        capabilities: ["Planning"],
+        defaultPrompt: [
+          "帮我把这个目标拆解成可执行的任务计划。",
+          "梳理这个项目的里程碑、依赖和主要风险。",
+          "为这项工作补充清晰的验收标准。",
+        ],
+      }),
     },
   }), "utf8")
   await writeFile(join(skillRoot, "SKILL.md"), [
@@ -108,6 +119,23 @@ describe("PluginManagementService", () => {
       capabilities: ["task-planning"],
       skills: ["task-planning"],
     }))
+    const details = await service.getDetails({ pluginId: "task-planning" })
+    expect(() => Schema.decodeUnknownSync(PluginGetDetailsResultSchema)(details)).not.toThrow()
+    expect(details.details).toEqual({
+      pluginId: "task-planning",
+      longDescription: "澄清目标与约束，将复杂工作拆分为里程碑和可执行任务。",
+      displayCapabilities: ["Planning"],
+      defaultPrompts: [
+        "帮我把这个目标拆解成可执行的任务计划。",
+        "梳理这个项目的里程碑、依赖和主要风险。",
+        "为这项工作补充清晰的验收标准。",
+      ],
+      skills: [{
+        id: "task-planning",
+        name: "task-planning",
+        description: "测试规划技能",
+      }],
+    })
     expect(result.plugins).toContainEqual(expect.objectContaining({
       id: "invalid-plugin",
       status: "invalid",
@@ -148,6 +176,12 @@ describe("PluginManagementService", () => {
       },
     } as unknown as RpcRouter
 
+    const handlerDetails = await pluginHandlers.handle(runtime, "plugin/getDetails", {
+      pluginId: "task-planning",
+      workspace: userHome,
+    }, {})
+    expect(() => Schema.decodeUnknownSync(PluginGetDetailsResultSchema)(handlerDetails)).not.toThrow()
+
     const disabled = await pluginHandlers.handle(runtime, "plugin/setEnabled", {
       pluginId: "task-planning",
       enabled: false,
@@ -172,6 +206,42 @@ describe("PluginManagementService", () => {
       enabled: true,
       operationId: "operation-1",
     })).toThrow(PluginSettingsConflictError)
+  })
+
+  test("falls back optional details and rejects out-of-root Skill paths without disclosure", async () => {
+    const root = await temporaryRoot()
+    const builtinPluginsRoot = join(root, "plugins")
+    const userHome = join(root, "home")
+    await mkdir(userHome, { recursive: true })
+    await writePlugin({
+      root: builtinPluginsRoot,
+      id: "fallback-planner",
+      extension: true,
+      details: false,
+    })
+    const outsideRoot = join(root, "outside-skills")
+    await mkdir(join(outsideRoot, "unsafe"), { recursive: true })
+    await writeFile(join(outsideRoot, "unsafe", "SKILL.md"), "TOP_SECRET_SKILL_CONTENT", "utf8")
+    await writePlugin({
+      root: builtinPluginsRoot,
+      id: "unsafe-planner",
+      extension: true,
+      skillsPath: "../../../outside-skills",
+    })
+    const service = new PluginManagementService(
+      new PluginSettingsRepository(settingsDatabase()),
+      { builtinPluginsRoot, userHome },
+    )
+
+    expect((await service.getDetails({ pluginId: "fallback-planner" })).details).toMatchObject({
+      longDescription: "拆解和规划复杂工作",
+      displayCapabilities: [],
+      defaultPrompts: [],
+    })
+    const unsafe = (await service.getDetails({ pluginId: "unsafe-planner" })).details
+    expect(unsafe.skills).toEqual([])
+    expect(JSON.stringify(unsafe)).not.toContain("TOP_SECRET_SKILL_CONTENT")
+    expect(JSON.stringify(unsafe)).not.toContain(root)
   })
 
   test("discovers local marketplace sources without marking them installed", async () => {

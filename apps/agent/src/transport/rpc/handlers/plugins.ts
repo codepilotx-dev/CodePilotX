@@ -1,4 +1,5 @@
 import {
+  PluginGetDetailsParamsSchema,
   PluginListParamsSchema,
   PluginSetEnabledParamsSchema,
   type RpcMethod,
@@ -11,11 +12,12 @@ import type { RpcRouterContext } from "../request-context"
 import type { RpcHandlerGroup } from "./types"
 
 const decodeList = Schema.decodeUnknownSync(PluginListParamsSchema)
+const decodeGetDetails = Schema.decodeUnknownSync(PluginGetDetailsParamsSchema)
 const decodeSetEnabled = Schema.decodeUnknownSync(PluginSetEnabledParamsSchema)
 
 export const pluginHandlers = {
   name: "plugins",
-  methods: ["plugin/list", "plugin/setEnabled"],
+  methods: ["plugin/list", "plugin/getDetails", "plugin/setEnabled"],
   async handle(
     runtime: RpcRouter,
     method: RpcMethod,
@@ -28,6 +30,8 @@ export const pluginHandlers = {
       switch (method) {
         case "plugin/list":
           return plugins.list(decodeList(rawParams))
+        case "plugin/getDetails":
+          return plugins.getDetails(decodeGetDetails(rawParams))
         case "plugin/setEnabled": {
           const result = await plugins.setEnabled(decodeSetEnabled(rawParams))
           if (result.changed) {

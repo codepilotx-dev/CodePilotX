@@ -2,10 +2,12 @@ import { readFile, readdir, realpath } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import type {
+  PluginDetails,
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,
 } from "@codepilotx/agent-protocol"
+import { parseSkillDocument } from "../prompt/SkillService"
 import {
   PluginSettingsConflictError,
   PluginSettingsRepository,
@@ -24,6 +26,7 @@ type PluginSkillRoot = {
 
 type DiscoveredPlugin = {
   summary: PluginSummary
+  details: PluginDetails
   skillRoot: PluginSkillRoot | null
 }
 
@@ -65,8 +68,16 @@ const stringValue = (value: unknown) =>
 
 const stringArray = (value: unknown) =>
   Array.isArray(value)
-    ? value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+    ? value.flatMap((entry) => {
+        const text = stringValue(entry)
+        return text ? [text] : []
+      })
     : []
+
+const stringOrStringArray = (value: unknown) => {
+  const single = stringValue(value)
+  return single ? [single] : stringArray(value)
+}
 
 const readJson = async (path: string): Promise<unknown> => {
   const bytes = await readFile(path)
@@ -94,6 +105,13 @@ const invalidPlugin = (
     capabilities: [],
     skills: [],
     unavailableReason,
+  },
+  details: {
+    pluginId: id,
+    longDescription: "",
+    displayCapabilities: [],
+    defaultPrompts: [],
+    skills: [],
   },
   skillRoot: null,
 })
@@ -171,6 +189,16 @@ export class PluginManagementService {
       }
       throw cause
     }
+  }
+
+  async getDetails(input: { pluginId: string; workspace?: string | undefined }) {
+    const plugins = await this.discover(input.workspace)
+    const plugin = plugins.find((candidate) => candidate.summary.id === input.pluginId)
+    if (!plugin) {
+      throw new PluginManagementError("PLUGIN_NOT_FOUND", "插件不存在", 404)
+    }
+    this.knownPlugins.set(plugin.summary.id, plugin)
+    return { details: plugin.details }
   }
 
   async enabledSkillRoots(): Promise<PluginSkillRoot[]> {
@@ -292,6 +320,7 @@ export class PluginManagementService {
       const interfaceMetadata = record(manifest.interface)
       const displayName = stringValue(interfaceMetadata?.displayName)
       const shortDescription = stringValue(interfaceMetadata?.shortDescription)
+      const longDescription = stringValue(interfaceMetadata?.longDescription)
       const developerName = stringValue(interfaceMetadata?.developerName) ?? authorName
       const category = stringValue(interfaceMetadata?.category)
       if (
@@ -357,6 +386,13 @@ export class PluginManagementService {
             ? { unavailableReason: "此插件当前不可用" }
             : {}),
         },
+        details: {
+          pluginId: id,
+          longDescription: longDescription ?? shortDescription ?? description,
+          displayCapabilities: stringArray(interfaceMetadata?.capabilities),
+          defaultPrompts: stringOrStringArray(interfaceMetadata?.defaultPrompt),
+          skills: skills.details,
+        },
         skillRoot: skills.root
           ? { pluginId: id, pluginRoot: input.pluginRoot, skillsRoot: skills.root }
           : null,
@@ -368,20 +404,35 @@ export class PluginManagementService {
 
   private async resolveSkills(pluginRoot: string, configuredPath: string | null) {
     const candidate = resolve(pluginRoot, configuredPath ?? "skills")
-    if (!contained(pluginRoot, candidate)) return { root: null, names: [] as string[] }
+    if (!contained(pluginRoot, candidate)) return { root: null, names: [] as string[], details: [] }
     const skillsRoot = await realpath(candidate).catch(() => null)
     if (!skillsRoot || !contained(pluginRoot, skillsRoot)) {
-      return { root: null, names: [] as string[] }
+      return { root: null, names: [] as string[], details: [] }
     }
     const entries = await readdir(skillsRoot, { withFileTypes: true }).catch(() => [])
     const names: string[] = []
+    const details: Array<PluginDetails["skills"][number]> = []
     for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
       if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
       if (!pluginIdPattern.test(entry.name)) continue
       const document = await realpath(join(skillsRoot, entry.name, "SKILL.md")).catch(() => null)
-      if (document && contained(skillsRoot, document)) names.push(entry.name)
+      if (!document || !contained(skillsRoot, document)) continue
+      try {
+        const bytes = await readFile(document)
+        if (bytes.byteLength > MAX_JSON_BYTES) continue
+        const { metadata } = parseSkillDocument(decoder.decode(bytes))
+        const name = stringValue(metadata.name) ?? entry.name
+        names.push(entry.name)
+        details.push({
+          id: entry.name,
+          name,
+          description: stringValue(metadata.description) ?? "",
+        })
+      } catch {
+        continue
+      }
     }
-    return { root: skillsRoot, names }
+    return { root: skillsRoot, names, details }
   }
 }
 
