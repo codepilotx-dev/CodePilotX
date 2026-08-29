@@ -1233,6 +1233,22 @@ const fixtures = {
     generation: 1,
     updatedAt: 1,
   }),
+  "plugin/getDetails": methodFixture("plugin/getDetails", {
+    pluginId: "task-planning",
+    workspace: "C:\\workspace",
+  }, {
+    details: {
+      pluginId: "task-planning",
+      longDescription: "澄清目标与约束，将复杂工作拆分为里程碑和可执行任务。",
+      displayCapabilities: ["Planning"],
+      defaultPrompts: ["帮我把这个目标拆解成可执行的任务计划。"],
+      skills: [{
+        id: "task-planning",
+        name: "task-planning",
+        description: "Clarify goals and constraints.",
+      }],
+    },
+  }),
   "plugin/setEnabled": methodFixture("plugin/setEnabled", {
     pluginId: "task-planning",
     enabled: false,
@@ -3261,7 +3277,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(230)
+    expect(methods).toHaveLength(231)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3592,14 +3608,16 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(224)
+    expect(Object.keys(RpcMethods)).toHaveLength(225)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
 
   test("插件管理使用精确契约并由独立能力保护", () => {
     expect(Capabilities).toContain("plugins.manage.v1")
+    expect(Capabilities).toContain("plugins.details.v1")
     expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("plugins.manage.v1")).toBe("plugins.manage.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("plugins.details.v1")).toBe("plugins.details.v1")
     expect(RpcMethods["plugin/list"]).toMatchObject({
       capability: "plugins.manage.v1",
       mutation: false,
@@ -3620,6 +3638,7 @@ describe("RPC method schema contracts", () => {
       "PATH_DENIED",
       "INTERNAL_ERROR",
     ])
+    expect(RpcMethods["plugin/getDetails"].errors).toEqual(RpcMethods["plugin/setEnabled"].errors)
 
     const decodeListParams = Schema.decodeUnknownSync(
       RpcMethods["plugin/list"].params,
@@ -3627,6 +3646,23 @@ describe("RPC method schema contracts", () => {
     )
     expect(decodeListParams({})).toEqual({})
     expect(decodeListParams(fixtures["plugin/list"].params)).toEqual(fixtures["plugin/list"].params)
+
+    const decodeDetailsParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/getDetails"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeDetailsParams(fixtures["plugin/getDetails"].params)).toEqual(fixtures["plugin/getDetails"].params)
+    expect(() => decodeDetailsParams({ pluginId: "task-planning", absolutePath: "C:\\sensitive" })).toThrow()
+
+    const decodeDetails = Schema.decodeUnknownSync(
+      RpcMethods["plugin/getDetails"].result,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeDetails(fixtures["plugin/getDetails"].result)).toEqual(fixtures["plugin/getDetails"].result)
+    expect(() => decodeDetails({
+      ...fixtures["plugin/getDetails"].result,
+      details: { ...fixtures["plugin/getDetails"].result.details, manifestPath: "C:\\sensitive" },
+    })).toThrow()
 
     const decodeSetEnabledParams = Schema.decodeUnknownSync(
       RpcMethods["plugin/setEnabled"].params,
@@ -3652,6 +3688,10 @@ describe("RPC method schema contracts", () => {
       ...valid,
       plugins: [{ ...valid.plugins[0], absolutePath: "C:\\sensitive\\plugin" }],
     })).toThrow()
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], longDescription: "not part of the summary" }],
+    })).toThrow()
   })
 
   test("MiniMax CLI 集成使用独立能力、精确 mutation 和可对账事件", () => {
@@ -3660,6 +3700,12 @@ describe("RPC method schema contracts", () => {
       .toBe("integrations.minimax-cli.v1")
     expect(RpcMethods["minimaxCli/status"]).toMatchObject({
       capability: "integrations.minimax-cli.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/getDetails"]).toMatchObject({
+      capability: "plugins.details.v1",
       mutation: false,
       exactParams: true,
       exactResult: true,

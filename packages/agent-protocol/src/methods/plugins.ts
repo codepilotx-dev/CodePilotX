@@ -43,6 +43,20 @@ export const PluginSummarySchema = Schema.Struct({
   unavailableReason: Schema.optional(NonEmptyStringSchema),
 })
 
+export const PluginDetailSkillSchema = Schema.Struct({
+  id: NonEmptyStringSchema,
+  name: NonEmptyStringSchema,
+  description: Schema.String,
+})
+
+export const PluginDetailsSchema = Schema.Struct({
+  pluginId: NonEmptyStringSchema,
+  longDescription: Schema.String,
+  displayCapabilities: Schema.Array(NonEmptyStringSchema),
+  defaultPrompts: Schema.Array(NonEmptyStringSchema),
+  skills: Schema.Array(PluginDetailSkillSchema),
+})
+
 export const PluginListParamsSchema = Schema.Struct({
   workspace: Schema.optional(NonEmptyStringSchema),
   forceReload: Schema.optional(Schema.Boolean),
@@ -52,6 +66,15 @@ export const PluginListResultSchema = Schema.Struct({
   plugins: Schema.Array(PluginSummarySchema),
   generation: SequenceSchema,
   updatedAt: TimestampSchema,
+})
+
+export const PluginGetDetailsParamsSchema = Schema.Struct({
+  pluginId: NonEmptyStringSchema,
+  workspace: Schema.optional(NonEmptyStringSchema),
+})
+
+export const PluginGetDetailsResultSchema = Schema.Struct({
+  details: PluginDetailsSchema,
 })
 
 export const PluginSetEnabledParamsSchema = Schema.Struct({
@@ -85,6 +108,15 @@ export const PluginRpcMethods = {
     exactParams: true,
     exactResult: true,
   }),
+  "plugin/getDetails": defineMethod({
+    params: PluginGetDetailsParamsSchema,
+    result: PluginGetDetailsResultSchema,
+    errors: PluginErrors,
+    capability: "plugins.details.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
   "plugin/setEnabled": defineMethod({
     params: PluginSetEnabledParamsSchema,
     result: PluginSetEnabledResultSchema,
@@ -100,3 +132,5 @@ export type PluginSource = typeof PluginSourceSchema.Type
 export type PluginInstallationPolicy = typeof PluginInstallationPolicySchema.Type
 export type PluginStatus = typeof PluginStatusSchema.Type
 export type PluginSummary = typeof PluginSummarySchema.Type
+export type PluginDetailSkill = typeof PluginDetailSkillSchema.Type
+export type PluginDetails = typeof PluginDetailsSchema.Type
