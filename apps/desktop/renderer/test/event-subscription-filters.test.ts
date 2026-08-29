@@ -22,6 +22,8 @@ describe('desktop live event subscription filters', () => {
       'provider/credential/updated',
     ],
     skills: ['skill/updated'],
+    plugins: ['plugins/updated'],
+    minimaxCli: ['minimaxCli/updated'],
     tooling: ['tooling/updated'],
     mcp: ['mcp/updated'],
     sessionGroups: [],

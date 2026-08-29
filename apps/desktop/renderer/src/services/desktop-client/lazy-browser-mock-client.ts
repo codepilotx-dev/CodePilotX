@@ -19,6 +19,7 @@ const SUBSCRIPTION_METHODS = new Set([
   'onUpdateStatusChange',
   'onRuntimeSkillsUpdated',
   'onPluginsUpdated',
+  'onMiniMaxCliUpdated',
   'onSpeechStatusUpdated',
   'onToolingUpdated',
 ])

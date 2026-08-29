@@ -388,6 +388,15 @@ export type DesktopPluginApi = {
   onPluginsUpdated(callback: (generation: number) => void): () => void
 }
 
+export type DesktopMiniMaxCliApi = {
+  getMiniMaxCliStatus(forceReload?: boolean): Promise<RpcResult<'minimaxCli/status'>>
+  installMiniMaxCli(): Promise<RpcResult<'minimaxCli/install'>>
+  uninstallMiniMaxCli(): Promise<RpcResult<'minimaxCli/uninstall'>>
+  onMiniMaxCliUpdated(
+    callback: (status: RpcResult<'minimaxCli/status'>) => void,
+  ): () => void
+}
+
 export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
 
 export type DesktopSessionGroupStep = {
@@ -521,6 +530,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopRuntimeCapabilityApi &
   DesktopAutomationApi &
   DesktopPluginApi &
+  DesktopMiniMaxCliApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &

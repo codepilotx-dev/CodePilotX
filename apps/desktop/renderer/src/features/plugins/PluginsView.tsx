@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertOctagon, ArrowLeft, Clock, ListFilter, RefreshCw, Settings, Settings2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import {
   PopoverLabel,
@@ -43,6 +44,7 @@ import {
 } from './pluginCatalog.js'
 import { groupSkillsForDisplay } from './skillCatalog.js'
 import { usePluginCatalog } from './usePluginCatalog.js'
+import { useMiniMaxCli } from './useMiniMaxCli.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
@@ -86,6 +88,7 @@ export function PluginsView(): React.ReactNode {
   const [announcement, setAnnouncement] = useState('')
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
+  const [confirmMiniMaxUninstall, setConfirmMiniMaxUninstall] = useState(false)
   const [skills, setSkills] = useState<DesktopSkillCatalogItem[] | undefined>()
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [skillsError, setSkillsError] = useState<string | null>(null)
@@ -102,6 +105,7 @@ export function PluginsView(): React.ReactNode {
     refresh: refreshPlugins,
     setEnabled: setPluginEnabled,
   } = usePluginCatalog(workspacePath)
+  const miniMaxCli = useMiniMaxCli()
 
   useEffect(() => {
     if (!location.invalid) return
@@ -133,8 +137,13 @@ export function PluginsView(): React.ReactNode {
   }, [skillOwner, skillQuery, skillsReloadKey, tab])
 
   const pluginItems = useMemo(
-    () => mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, pluginLoadError),
-    [plugins, pluginLoadError],
+    () => mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, pluginLoadError, {
+      status: miniMaxCli.status,
+      loading: miniMaxCli.loading,
+      unsupported: miniMaxCli.unsupported,
+      error: miniMaxCli.error,
+    }),
+    [miniMaxCli.error, miniMaxCli.loading, miniMaxCli.status, miniMaxCli.unsupported, plugins, pluginLoadError],
   )
   const visiblePlugins = useMemo(
     () => filterPluginCatalog(pluginItems, pluginQuery, pluginCategory, pluginStatus),
@@ -212,6 +221,25 @@ export function PluginsView(): React.ReactNode {
       }
       return
     }
+    if (action.kind === 'install-minimax' || action.kind === 'update-minimax') {
+      setBusyPluginIds(current => new Set(current).add(item.id))
+      try {
+        const result = await miniMaxCli.install()
+        setAnnouncement(`MiniMax CLI ${action.kind === 'update-minimax' ? '更新' : '安装'}完成，当前版本 ${result.installedVersion ?? '可用'}。`)
+        window.requestAnimationFrame(() => trigger.isConnected && trigger.focus())
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'MiniMax CLI 安装失败。'
+        setPluginErrors(current => ({ ...current, [item.id]: message }))
+        setAnnouncement(message)
+      } finally {
+        setBusyPluginIds(current => {
+          const next = new Set(current)
+          next.delete(item.id)
+          return next
+        })
+      }
+      return
+    }
     if (action.kind !== 'toggle-plugin') return
     if (!item.installed || (item.status !== 'enabled' && item.status !== 'disabled')) return
     setBusyPluginIds(current => new Set(current).add(item.id))
@@ -252,7 +280,19 @@ export function PluginsView(): React.ReactNode {
     }
   }
 
-  const activeLoading = tab === 'plugins' ? pluginsLoading : skillsLoading
+  const activeLoading = tab === 'plugins' ? pluginsLoading || miniMaxCli.loading : skillsLoading
+
+  async function uninstallMiniMaxCli(): Promise<void> {
+    try {
+      await miniMaxCli.uninstall()
+      setAnnouncement('MiniMax CLI 已卸载，保存的登录信息也已删除。')
+      setConfirmMiniMaxUninstall(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'MiniMax CLI 卸载失败。'
+      setPluginErrors(current => ({ ...current, minimax: message }))
+      setAnnouncement(message)
+    }
+  }
 
   return (
     <>
@@ -282,7 +322,14 @@ export function PluginsView(): React.ReactNode {
             aria-busy={activeLoading}
             color="ghostSecondary"
             disabled={activeLoading}
-            onClick={() => tab === 'plugins' ? refreshPlugins() : setSkillsReloadKey(value => value + 1)}
+            onClick={() => {
+              if (tab === 'plugins') {
+                refreshPlugins()
+                miniMaxCli.refresh()
+              } else {
+                setSkillsReloadKey(value => value + 1)
+              }
+            }}
             size="toolbar"
             title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
           >
@@ -308,6 +355,7 @@ export function PluginsView(): React.ReactNode {
               item={selectedPlugin}
               kind="plugin"
               onPrimaryAction={(item, trigger, checked) => void runPluginAction(item, trigger, checked)}
+              onUninstall={selectedPlugin.id === 'minimax' ? () => setConfirmMiniMaxUninstall(true) : undefined}
             />
           ) : selectedSkill ? (
             <CatalogDetailsView
@@ -385,6 +433,16 @@ export function PluginsView(): React.ReactNode {
           )}
         </PrimaryPageLayout>
       )}
+      <ConfirmationDialog
+        actionDisabled={miniMaxCli.busy}
+        actionLabel="卸载并删除登录信息"
+        description="将卸载系统中的 MiniMax CLI，并删除它保存的 API Key 或 OAuth 登录信息。"
+        onAction={() => void uninstallMiniMaxCli()}
+        onCancel={() => setConfirmMiniMaxUninstall(false)}
+        open={confirmMiniMaxUninstall}
+        title="卸载 MiniMax CLI？"
+        tone="danger"
+      />
     </>
   )
 }

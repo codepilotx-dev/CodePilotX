@@ -69,8 +69,46 @@ export function PluginDetailsMetadata({
           <dd>{item.unavailableReason}</dd>
         </div>
       ) : null}
+      {item.miniMaxCli?.latestVersion ? (
+        <div className="plugin-details-metadata__row">
+          <dt>最新版本</dt>
+          <dd>{item.miniMaxCli.latestVersion}</dd>
+        </div>
+      ) : null}
+      {item.miniMaxCli ? (
+        <div className="plugin-details-metadata__row">
+          <dt>认证</dt>
+          <dd>{miniMaxAuthLabel(item.miniMaxCli.authStatus)}</dd>
+        </div>
+      ) : null}
+      {item.miniMaxCli?.credentialSource ? (
+        <div className="plugin-details-metadata__row">
+          <dt>当前 Key</dt>
+          <dd>{item.miniMaxCli.credentialSource.label} · {item.miniMaxCli.credentialSource.maskedValue}</dd>
+        </div>
+      ) : null}
+      {item.miniMaxCli?.credentialSource ? (
+        <div className="plugin-details-metadata__row">
+          <dt>区域</dt>
+          <dd>{item.miniMaxCli.credentialSource.region === 'cn' ? '中国' : 'Global'}</dd>
+        </div>
+      ) : null}
+      {item.miniMaxCli?.quotaLabel ? (
+        <div className="plugin-details-metadata__row">
+          <dt>套餐</dt>
+          <dd>{item.miniMaxCli.quotaLabel}</dd>
+        </div>
+      ) : null}
     </dl>
   )
+}
+
+function miniMaxAuthLabel(status: NonNullable<PluginCatalogItem['miniMaxCli']>['authStatus']): string {
+  if (status === 'coding-plan-synced') return '正在使用 API Key Hub 当前 Coding Plan Key'
+  if (status === 'oauth') return '已通过 MiniMax 登录'
+  if (status === 'api-key') return '已配置 MiniMax API Key'
+  if (status === 'not-authenticated') return '尚未登录，实际使用时再登录'
+  return '暂时无法确认'
 }
 
 export function PluginDetailsPrimaryAction({

@@ -127,6 +127,7 @@ import type {
   DesktopClientEnvironment,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
+  DesktopMiniMaxCliApi,
   DesktopPluginApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
@@ -164,7 +165,7 @@ export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
   & DesktopLocalContextApi & DesktopSpeechApi & DesktopAutomationApi
-  & DesktopModelProviderRefreshApi & DesktopPluginApi {
+  & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
@@ -203,6 +204,16 @@ export function createBrowserMockDesktopClient(
     status: 'ready',
     capabilities: ['task-planning'],
     skills: ['task-planning'],
+  }
+  let mockMiniMaxCliStatus: RpcResult<'minimaxCli/status'> = {
+    installationStatus: 'not-installed',
+    latestVersion: '1.0.22',
+    updateAvailable: false,
+    nodeVersion: 'v22.22.1',
+    npmVersion: '10.9.4',
+    authStatus: 'not-authenticated',
+    generation: 1,
+    updatedAt: Date.now(),
   }
 
   const provider = {
@@ -609,6 +620,31 @@ export function createBrowserMockDesktopClient(
       return mockTaskPlanningPlugin
     },
     onPluginsUpdated: () => () => {},
+    getMiniMaxCliStatus: async () => mockMiniMaxCliStatus,
+    installMiniMaxCli: async () => {
+      mockMiniMaxCliStatus = {
+        ...mockMiniMaxCliStatus,
+        installationStatus: 'installed',
+        installedVersion: mockMiniMaxCliStatus.latestVersion ?? '1.0.22',
+        updateAvailable: false,
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    uninstallMiniMaxCli: async () => {
+      const { installedVersion: _installedVersion, ...remaining } = mockMiniMaxCliStatus
+      mockMiniMaxCliStatus = {
+        ...remaining,
+        installationStatus: 'not-installed',
+        updateAvailable: false,
+        authStatus: 'not-authenticated',
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    onMiniMaxCliUpdated: () => () => {},
     listSkillsCatalog: async options => ({
       skills: [],
       page: options?.page ?? 0,

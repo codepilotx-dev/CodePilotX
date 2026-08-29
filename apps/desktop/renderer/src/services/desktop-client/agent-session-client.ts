@@ -137,6 +137,7 @@ export const RENDERER_CAPABILITIES = [
   'tooling.management.v1',
   'skills.manage.v1',
   'plugins.manage.v1',
+  'integrations.minimax-cli.v1',
   'mcp.manage.v1',
   'mcp.oauth.v1',
   'config.manage.v1',
@@ -175,6 +176,7 @@ import type {
   DesktopClientEnvironment,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
+  DesktopMiniMaxCliApi,
   DesktopPluginApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
@@ -189,7 +191,7 @@ export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
     & DesktopLocalContextApi & DesktopSpeechApi
-    & DesktopModelProviderRefreshApi & DesktopPluginApi,
+    & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1527,6 +1529,25 @@ export function createAgentSessionDesktopClient(
     return agentPluginApiPromise
   }
 
+  type AgentMiniMaxCliApi = ReturnType<
+    (typeof import('./agent-minimax-cli-api.js'))['createAgentMiniMaxCliApi']
+  >
+  let agentMiniMaxCliApiPromise: Promise<AgentMiniMaxCliApi> | null = null
+  const loadAgentMiniMaxCliApi = (): Promise<AgentMiniMaxCliApi> => {
+    agentMiniMaxCliApiPromise ??= import('./agent-minimax-cli-api.js').then(module =>
+      module.createAgentMiniMaxCliApi({
+        mockClient,
+        requireAgentCapability,
+        rpc: {
+          call: rpc.call,
+          subscribeEnvelope: subscribeGlobalEventEnvelopes,
+        },
+        withAgentOrMock,
+      }),
+    )
+    return agentMiniMaxCliApiPromise
+  }
+
   type AgentProviderCredentialApi = ReturnType<
     (typeof import('./agent-provider-credential-api.js'))['createAgentProviderCredentialApi']
   >
@@ -1608,6 +1629,7 @@ export function createAgentSessionDesktopClient(
       ...AGENT_LIVE_EVENT_FILTERS.modelHealth,
       ...AGENT_LIVE_EVENT_FILTERS.skills,
       ...AGENT_LIVE_EVENT_FILTERS.plugins,
+      ...AGENT_LIVE_EVENT_FILTERS.minimaxCli,
       ...AGENT_LIVE_EVENT_FILTERS.tooling,
       ...AGENT_LIVE_EVENT_FILTERS.mcp,
       'speech/statusChanged',
@@ -1909,6 +1931,24 @@ export function createAgentSessionDesktopClient(
       void loadAgentPluginApi().then(api => {
         if (disposed) return
         dispose = api.onPluginsUpdated(callback)
+      })
+      return () => {
+        disposed = true
+        dispose()
+      }
+    },
+    getMiniMaxCliStatus: forceReload =>
+      loadAgentMiniMaxCliApi().then(api => api.getMiniMaxCliStatus(forceReload)),
+    installMiniMaxCli: () =>
+      loadAgentMiniMaxCliApi().then(api => api.installMiniMaxCli()),
+    uninstallMiniMaxCli: () =>
+      loadAgentMiniMaxCliApi().then(api => api.uninstallMiniMaxCli()),
+    onMiniMaxCliUpdated: callback => {
+      let disposed = false
+      let dispose = () => {}
+      void loadAgentMiniMaxCliApi().then(api => {
+        if (disposed) return
+        dispose = api.onMiniMaxCliUpdated(callback)
       })
       return () => {
         disposed = true

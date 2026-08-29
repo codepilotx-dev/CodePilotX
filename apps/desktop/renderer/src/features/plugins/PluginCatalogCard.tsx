@@ -59,7 +59,7 @@ export function PluginCatalogCard({
           <span className="plugin-catalog-card__copy">
             <strong>{item.name}</strong>
             <span className="plugin-catalog-card__description">{item.description}</span>
-            {item.category === 'manageable' || item.actionKind === 'install' ? (
+            {item.category === 'manageable' || item.actionKind === 'install' || item.id === 'minimax' ? (
               <span className="plugin-catalog-card__meta">{pluginStatusLabel(item)}</span>
             ) : null}
             {error ? (

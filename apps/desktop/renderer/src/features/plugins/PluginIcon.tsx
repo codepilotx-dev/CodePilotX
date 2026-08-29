@@ -18,6 +18,7 @@ import chromeLogo from '../../assets/plugin-icons/chrome.png'
 import computerUseLogo from '../../assets/plugin-icons/computer-use.png'
 import githubDarkLogo from '../../assets/plugin-icons/github-dark.png'
 import githubLogo from '../../assets/plugin-icons/github.svg'
+import minimaxLogo from '../../assets/plugin-icons/minimax.png'
 import presentationsLogo from '../../assets/plugin-icons/presentations.png'
 import spreadsheetsLogo from '../../assets/plugin-icons/spreadsheets.png'
 import taskPlanningLogo from '../../assets/plugin-icons/task-planning.png'
@@ -39,6 +40,7 @@ const KNOWN_PLUGIN_LOGOS: Partial<Record<PluginIconName, KnownPluginLogo>> = {
   chrome: { source: chromeLogo },
   'computer-use': { source: computerUseLogo },
   github: { source: githubLogo, darkSource: githubDarkLogo },
+  minimax: { source: minimaxLogo },
   presentations: { source: presentationsLogo },
   spreadsheets: { source: spreadsheetsLogo },
   'task-planning': { source: taskPlanningLogo },

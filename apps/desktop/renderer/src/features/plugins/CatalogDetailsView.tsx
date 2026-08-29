@@ -1,6 +1,7 @@
 import type React from 'react'
 import { ExternalLink, Plus, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -9,6 +10,8 @@ import type { DesktopSkillCatalogItem } from '../../../shared/types.js'
 import { PluginDetailsMetadata, PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
 import { PluginIcon } from './PluginIcon.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
+
+const NODE_DOWNLOAD_URL = 'https://nodejs.org/en/download'
 
 type PluginProps = {
   kind: 'plugin'
@@ -20,6 +23,7 @@ type PluginProps = {
     trigger: HTMLButtonElement,
     checked?: boolean,
   ) => void
+  onUninstall?: () => void
 }
 
 type SkillProps = {
@@ -58,11 +62,18 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
         </div>
         <div className="catalog-details-view__primary-action">
           {isPlugin ? (
-            <PluginDetailsPrimaryAction
-              busy={props.busy}
-              item={props.item}
-              onPrimaryAction={props.onPrimaryAction}
-            />
+            <>
+              <PluginDetailsPrimaryAction
+                busy={props.busy}
+                item={props.item}
+                onPrimaryAction={props.onPrimaryAction}
+              />
+              {props.item.id === 'minimax' && props.item.installed && props.onUninstall ? (
+                <Button color="secondary" disabled={props.busy} onClick={props.onUninstall}>
+                  卸载
+                </Button>
+              ) : null}
+            </>
           ) : props.item.installed ? (
             <span className="catalog-details-view__installed">已添加</span>
           ) : (
@@ -132,6 +143,20 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
+            </Button>
+          </div>
+        ) : null}
+        {isPlugin && props.item.id === 'minimax' && props.item.externalURL ? (
+          <div className="catalog-details-view__secondary-action">
+            {props.item.miniMaxCli?.installationStatus === 'missing-prerequisite' ? (
+              <Button color="secondary" onClick={() => void desktopClient.openExternalURL(NODE_DOWNLOAD_URL)}>
+                下载 Node.js
+                <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </Button>
+            ) : null}
+            <Button color="secondary" onClick={() => void desktopClient.openExternalURL(props.item.externalURL!)}>
+              查看官方说明
+              <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Button>
           </div>
         ) : null}

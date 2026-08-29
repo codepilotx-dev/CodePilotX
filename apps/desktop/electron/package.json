@@ -65,6 +65,10 @@
         "to": "agent/plugins"
       },
       {
+        "from": "../../agent/resources/integrations",
+        "to": "agent/integrations"
+      },
+      {
         "from": "../../../dist/renderer",
         "to": "renderer"
       },

@@ -46,6 +46,7 @@ export type {
   DesktopRuntimeCapabilityApi,
   DesktopAutomationApi,
   DesktopPluginApi,
+  DesktopMiniMaxCliApi,
   DesktopSessionGroupApi,
   DesktopSessionGroup,
   DesktopSessionGroupDetail,

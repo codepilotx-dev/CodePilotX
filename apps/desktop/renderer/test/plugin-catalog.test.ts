@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type { PluginSummary } from '@codepilotx/agent-protocol'
+import type { MiniMaxCliStatus, PluginSummary } from '@codepilotx/agent-protocol'
 import {
   PLUGIN_CATALOG_DESCRIPTORS,
   filterPluginCatalog,
@@ -32,6 +32,25 @@ function taskPlanning(enabled: boolean): PluginSummary {
 
 function catalog(plugins: PluginSummary[] | undefined = [taskPlanning(true)], error: unknown = null) {
   return mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, error)
+}
+
+const miniMaxInstalled: MiniMaxCliStatus = {
+  installationStatus: 'installed',
+  installedVersion: '1.2.3',
+  latestVersion: '1.2.3',
+  updateAvailable: false,
+  nodeVersion: 'v22.0.0',
+  npmVersion: '10.0.0',
+  authStatus: 'coding-plan-synced',
+  credentialSource: {
+    providerId: 'minimax-cn-coding-plan',
+    credentialId: 'credential:cn',
+    label: 'MiniMax CN Coding Plan',
+    maskedValue: 'sk-****plan',
+    region: 'cn',
+  },
+  generation: 2,
+  updatedAt: 2,
 }
 
 describe('plugin catalog state', () => {
@@ -73,10 +92,22 @@ describe('plugin catalog filtering and actions', () => {
     expect(filterPluginCatalog(items, '', 'included', 'disabled')).toEqual([])
   })
 
-  test('exposes MiniMax only as an external documentation action', () => {
+  test('keeps the official link fallback when the connected Agent lacks MiniMax CLI support', () => {
     const minimax = items.find(item => item.id === 'minimax')!
     expect(pluginPrimaryAction(minimax)).toEqual({ kind: 'open-external', label: '查看安装说明', disabled: false })
     expect(pluginStatusLabel(minimax)).toBe('外部工具')
+  })
+
+  test('maps MiniMax CLI installation, update, and Coding Plan authentication state', () => {
+    const installed = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, { status: miniMaxInstalled })
+      .find(item => item.id === 'minimax')!
+    expect(pluginPrimaryAction(installed)).toEqual({ kind: 'install-minimax', label: '已安装', disabled: true })
+    expect(pluginStatusLabel(installed)).toBe('已安装 · 已连接 Coding Plan')
+
+    const update = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, {
+      status: { ...miniMaxInstalled, latestVersion: '1.3.0', updateAvailable: true },
+    }).find(item => item.id === 'minimax')!
+    expect(pluginPrimaryAction(update)).toEqual({ kind: 'update-minimax', label: '更新', disabled: false })
   })
 })
 

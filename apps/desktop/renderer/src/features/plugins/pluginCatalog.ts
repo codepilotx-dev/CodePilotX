@@ -1,8 +1,8 @@
-import type { PluginSummary } from '@codepilotx/agent-protocol'
+import type { MiniMaxCliStatus, PluginSummary } from '@codepilotx/agent-protocol'
 
 export type PluginCategory = 'included' | 'manageable' | 'external'
-export type PluginRuntimeStatus = 'loading' | 'enabled' | 'disabled' | 'unavailable' | 'error'
-export type PluginActionKind = 'install' | 'toggle-plugin' | 'open-external'
+export type PluginRuntimeStatus = 'loading' | 'enabled' | 'disabled' | 'installed' | 'not-installed' | 'unavailable' | 'error'
+export type PluginActionKind = 'install' | 'toggle-plugin' | 'open-external' | 'install-minimax' | 'update-minimax'
 export type PluginIconName =
   | 'plugin' | 'task-planning' | 'browser' | 'computer-use' | 'chrome'
   | 'spreadsheets' | 'presentations' | 'github' | 'minimax'
@@ -31,6 +31,7 @@ export type PluginCatalogItem = PluginCatalogDescriptor & {
   skills?: readonly string[]
   availabilityLabel?: string
   unavailableReason?: string
+  miniMaxCli?: MiniMaxCliStatus
 }
 
 export type PluginCatalogGroup = { category: PluginCategory; label: string; items: PluginCatalogItem[] }
@@ -38,9 +39,9 @@ export type PluginCategoryFilter = 'all' | PluginCategory
 export type PluginStatusFilter = 'all' | 'enabled' | 'disabled' | 'unavailable'
 export type PluginPrimaryAction =
   | { kind: 'toggle-plugin'; label: string; disabled: boolean; checked: boolean }
-  | { kind: 'install' | 'open-external'; label: string; disabled: boolean }
+  | { kind: 'install' | 'open-external' | 'install-minimax' | 'update-minimax'; label: string; disabled: boolean }
 
-export const MINIMAX_CLI_DOCS_URL = 'https://platform.minimax.io/docs/token-plan/minimax-cli'
+export const MINIMAX_CLI_DOCS_URL = 'https://github.com/MiniMax-AI/cli'
 export const PLUGIN_CATEGORY_ORDER = ['included', 'manageable', 'external'] as const satisfies readonly PluginCategory[]
 export const PLUGIN_CATEGORY_LABELS: Record<PluginCategory, string> = {
   manageable: '可管理', included: 'Featured', external: '外部工具',
@@ -54,7 +55,7 @@ export const PLUGIN_CATALOG_DESCRIPTORS = [
   { ...FEATURED_UNAVAILABLE, id: 'spreadsheets', name: 'Spreadsheets', description: '创建和编辑电子表格文件', iconName: 'spreadsheets', tone: 'sheet' },
   { ...FEATURED_UNAVAILABLE, id: 'presentations', name: 'Presentations', description: '创建和编辑演示文稿', iconName: 'presentations', tone: 'slides' },
   { ...FEATURED_UNAVAILABLE, id: 'github', name: 'GitHub', description: '处理 PR、Issue、CI 和发布流程', iconName: 'github', tone: 'github' },
-  { id: 'minimax', externalURL: MINIMAX_CLI_DOCS_URL, name: 'MiniMax', description: '查看官方 MiniMax CLI 的安装与使用说明', category: 'external', actionKind: 'open-external', iconName: 'minimax', tone: 'creative' },
+  { id: 'minimax', externalURL: MINIMAX_CLI_DOCS_URL, name: 'MiniMax CLI', description: '安装官方 CLI，通过 MiniMax 生成文本、图片、视频和音频', category: 'external', actionKind: 'open-external', iconName: 'minimax', tone: 'creative' },
 ] as const satisfies readonly PluginCatalogDescriptor[]
 
 function runtimeIconName(id: string): PluginIconName {
@@ -65,17 +66,44 @@ export function mergePluginCatalog(
   descriptors: readonly PluginCatalogDescriptor[],
   plugins: readonly PluginSummary[] | undefined,
   loadError: unknown = null,
+  miniMax?: { status?: MiniMaxCliStatus; loading?: boolean; unsupported?: boolean; error?: string | null },
 ): PluginCatalogItem[] {
-  const staticItems: PluginCatalogItem[] = descriptors.map(descriptor => ({
-    ...descriptor,
-    installed: false,
-    enabled: false,
-    status: 'unavailable',
-    ...(descriptor.actionKind === 'install' ? {
-      availabilityLabel: '即将推出',
-      unavailableReason: '能力接入中，暂不可安装',
-    } : {}),
-  }))
+  const staticItems: PluginCatalogItem[] = descriptors.map(descriptor => {
+    if (descriptor.id === 'minimax' && miniMax && !miniMax.unsupported) {
+      const status = miniMax.status
+      const installed = status?.installationStatus === 'installed'
+        || status?.installationStatus === 'updating'
+        || status?.installationStatus === 'uninstalling'
+      const missingPrerequisite = status?.installationStatus === 'missing-prerequisite'
+      return {
+        ...descriptor,
+        actionKind: status?.updateAvailable ? 'update-minimax' : 'install-minimax',
+        installed,
+        enabled: false,
+        status: miniMax.loading
+          ? 'loading'
+          : miniMax.error || status?.installationStatus === 'error'
+            ? 'error'
+            : missingPrerequisite
+              ? 'unavailable'
+              : installed ? 'installed' : 'not-installed',
+        ...(status?.installedVersion ? { version: status.installedVersion } : {}),
+        ...(missingPrerequisite ? { unavailableReason: status.prerequisiteReason ?? '需要 Node.js 18 或更高版本' } : {}),
+        ...(miniMax.error ? { unavailableReason: miniMax.error } : {}),
+        ...(status ? { miniMaxCli: status } : {}),
+      }
+    }
+    return {
+      ...descriptor,
+      installed: false,
+      enabled: false,
+      status: 'unavailable',
+      ...(descriptor.actionKind === 'install' ? {
+        availabilityLabel: '即将推出',
+        unavailableReason: '能力接入中，暂不可安装',
+      } : {}),
+    }
+  })
   if (plugins === undefined || loadError !== null && loadError !== undefined) return staticItems
 
   const runtimeItems = plugins.map<PluginCatalogItem>(plugin => ({
@@ -123,6 +151,11 @@ export function selectInstalledPluginOverview(items: readonly PluginCatalogItem[
 
 export function pluginPrimaryAction(item: PluginCatalogItem): PluginPrimaryAction {
   if (item.actionKind === 'open-external') return { kind: 'open-external', label: '查看安装说明', disabled: !item.externalURL }
+  if (item.actionKind === 'install-minimax') {
+    if (item.status === 'installed') return { kind: 'install-minimax', label: '已安装', disabled: true }
+    return { kind: 'install-minimax', label: '安装', disabled: item.status === 'loading' || item.status === 'unavailable' }
+  }
+  if (item.actionKind === 'update-minimax') return { kind: 'update-minimax', label: '更新', disabled: item.status === 'loading' || item.status === 'unavailable' }
   if (item.actionKind === 'install') return { kind: 'install', label: '安装', disabled: true }
   if (item.status === 'enabled') return { kind: 'toggle-plugin', label: '禁用', disabled: false, checked: true }
   if (item.status === 'disabled') return { kind: 'toggle-plugin', label: '启用', disabled: false, checked: false }
@@ -130,6 +163,20 @@ export function pluginPrimaryAction(item: PluginCatalogItem): PluginPrimaryActio
 }
 
 export function pluginStatusLabel(item: PluginCatalogItem): string {
+  if (item.id === 'minimax') {
+    if (item.actionKind === 'open-external') return '外部工具'
+    if (item.status === 'loading') return '正在检查'
+    if (item.status === 'installed') {
+      if (item.miniMaxCli?.authStatus === 'coding-plan-synced') return '已安装 · 已连接 Coding Plan'
+      if (item.miniMaxCli?.authStatus === 'api-key' || item.miniMaxCli?.authStatus === 'oauth') {
+        return '已安装 · 已登录'
+      }
+      return '已安装 · 尚未登录'
+    }
+    if (item.status === 'not-installed') return '未安装'
+    if (item.status === 'error') return '状态读取失败'
+    return item.unavailableReason ?? '当前不可用'
+  }
   if (item.category === 'external') return '外部工具'
   if (item.actionKind === 'install') return item.availabilityLabel ?? '当前不可用'
   if (item.status === 'loading') return '正在检查'
