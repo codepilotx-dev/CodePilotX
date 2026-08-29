@@ -36,6 +36,10 @@
 
 ### Changed
 
+- [desktop/renderer] 在插件示例提示词中展示对应的真实插件图标，使提示词胶囊与 Codex 的身份标识结构一致。
+- [desktop/renderer] 固定插件懒加载样式的级联层顺序，避免 reset 层覆盖示例提示词的毛玻璃按钮背景。
+- [desktop/renderer] 为插件示例提示词增加 Codex 风格的半透明毛玻璃胶囊，使提示内容与图片背景形成清晰层次。
+- [desktop/renderer] 将插件示例提示词横幅改为 Codex 风格的紫色图片背景，并以居中的提示词胶囊保持明暗主题下的可读性。
 - [agent/desktop/renderer] 将插件详情重构为 Codex 风格的宽幅产品页，展示清单长描述、示例提示词、技能与信息，并支持从真实提示词立即试用。
 - [desktop] 将侧边栏项目、置顶项和组内任务排序改为同组 Reorder，拖动时实时让位并在松手后保存新顺序。
 - [desktop/renderer] 将 MiniMax CLI 插件的临时线框图标替换为正式图片资源。
