@@ -36,6 +36,28 @@ export const fastTween = stateTween
 export const standardTween = enterTween
 export const emphasisTween = layoutTween
 
+export type FloatingSurfaceSide = 'top' | 'right' | 'bottom' | 'left'
+
+export function floatingSurfaceMotion(side: FloatingSurfaceSide): {
+  initial: { opacity: number; x: number; y: number }
+  animate: { opacity: number; x: number; y: number }
+  exit: { opacity: number; x: number; y: number }
+} {
+  const offset = side === 'top'
+    ? { x: 0, y: 4 }
+    : side === 'bottom'
+      ? { x: 0, y: -4 }
+      : side === 'left'
+        ? { x: 4, y: 0 }
+        : { x: -4, y: 0 }
+
+  return {
+    initial: { opacity: 0, ...offset },
+    animate: { opacity: 1, x: 0, y: 0 },
+    exit: { opacity: 0, ...offset },
+  }
+}
+
 export function motionTransition(
   reducedMotion: boolean,
   transition: Transition = enterTween,

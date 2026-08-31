@@ -21,40 +21,48 @@ test.describe('animation contracts', () => {
       await rightPanel.getByRole('button', { name: '文件 Ctrl+P' }).click()
       await rightPanel.getByText('README.md', { exact: true }).click()
       const preview = rightPanel.locator('.right-dock-file-preview')
-      const showTree = preview.getByRole('button', {
-        name: '显示文件树',
-      })
-      await expect(showTree).toBeVisible()
-      await expect(showTree).toHaveAttribute('aria-pressed', 'false')
+      await expect(preview).toBeVisible()
+      const treeToggle = preview.locator(
+        '.file-breadcrumb-toolbar__action[aria-pressed]',
+      )
+      await expect(treeToggle).toBeVisible()
+      if (await treeToggle.getAttribute('aria-pressed') === 'true') {
+        await treeToggle.click()
+      }
+      await expect(treeToggle).toHaveAttribute('aria-pressed', 'false')
 
       // 显示：一次提交最终 flex 宽度，编辑器与文件树并排。
-      await showTree.click()
+      await treeToggle.click()
       const presence = rightPanel.locator(
         '.right-dock-editor-file-tree-presence',
       )
       await expect(presence).toHaveAttribute('data-presence', 'present')
       const tree = rightPanel.locator('.right-dock-editor-file-tree')
       const editor = rightPanel.locator('.right-dock-file-selection-target')
+      const treeResizeHandle = rightPanel.getByRole('separator', {
+        name: '调整文件树宽度',
+      })
       await expect
         .poll(async () => {
           const editorBox = await editor.boundingBox()
+          const resizeHandleBox = await treeResizeHandle.boundingBox()
           const treeBox = await tree.boundingBox()
-          return editorBox && treeBox
-            ? Math.abs(editorBox.x + editorBox.width - treeBox.x)
+          return editorBox && resizeHandleBox && treeBox
+            ? Math.max(
+                Math.abs(editorBox.x + editorBox.width - resizeHandleBox.x),
+                Math.abs(resizeHandleBox.x + resizeHandleBox.width - treeBox.x),
+              )
             : -1
         })
         .toBeLessThanOrEqual(1)
       const treeBox = await tree.boundingBox()
       expect(treeBox?.width).toBeCloseTo(288, 0)
-      const hideTree = preview.getByRole('button', {
-        name: '隐藏文件树',
-      })
-      await expect(hideTree).toHaveAttribute('aria-pressed', 'true')
+      await expect(treeToggle).toHaveAttribute('aria-pressed', 'true')
 
       // 隐藏：退出后 DOM 卸载、编辑器回到整宽、焦点回到 toggle。
-      await hideTree.click()
+      await treeToggle.click()
       await expect(preview.locator('.right-dock-editor-file-tree-presence')).toHaveCount(0)
-      await expect(showTree).toBeFocused()
+      await expect(treeToggle).toBeFocused()
       const layout = preview.locator('.right-dock-file-editor-layout')
       await expect
         .poll(async () => {
@@ -67,7 +75,7 @@ test.describe('animation contracts', () => {
         .toBeLessThanOrEqual(1)
 
       // 重新显示：宽度与并排布局恢复。
-      await showTree.click()
+      await treeToggle.click()
       await expect(presence).toHaveAttribute('data-presence', 'present')
       const restoredTreeBox = await tree.boundingBox()
       expect(restoredTreeBox?.width).toBeCloseTo(288, 0)
@@ -85,6 +93,13 @@ test.describe('animation contracts', () => {
       const recentSection = page
         .locator('.sidebar-section')
         .filter({ has: recentToggle })
+      const recentDisclosure = recentSection.locator(
+        ':scope > .sidebar-section-disclosure',
+      )
+      const recentTransition = await readDisclosureTransition(recentDisclosure)
+      expect(recentTransition.opacity).toBe('1')
+      expect(recentTransition.property).toBe('grid-template-rows')
+      expect(recentTransition.duration).toBe(motion === 'off' ? '0.24s' : '0s')
 
       // 会话扩展：展开/折叠额外排序项。
       const showMore = page.getByRole('button', { name: '展开显示' })
@@ -95,12 +110,12 @@ test.describe('animation contracts', () => {
       await page.getByRole('button', { name: '折叠显示' }).click()
       await expect(extraItems).toHaveCount(0)
 
-      // section 折叠：内容卸载、ARIA 同步、键盘可恢复。
+      // section 折叠：内容保留但不可交互，ARIA 同步、键盘可恢复。
       await recentToggle.click()
       await expect(recentToggle).toHaveAttribute('aria-expanded', 'false')
       await expect(
-        recentSection.locator('.sidebar-section-content'),
-      ).toHaveCount(0)
+        recentDisclosure,
+      ).toHaveAttribute('aria-hidden', 'true')
       await recentToggle.focus()
       await page.keyboard.press('Enter')
       await expect(recentToggle).toHaveAttribute('aria-expanded', 'true')
@@ -121,19 +136,19 @@ test.describe('animation contracts', () => {
         await turnActivitySummary.click()
       }
       const processSummary = page.locator(
-        '.canonical-process-group__summary',
+        '.cpx-agent-activity__header',
       )
       await expect(processSummary).toBeVisible()
 
       // 展开 process group：items 可滚动，顶部/底部渐隐状态正确。
       await processSummary.click()
       await expect(processSummary).toHaveAttribute('aria-expanded', 'true')
-      const edgeFrame = page.locator('.canonical-process-edge-fade')
+      const edgeFrame = page.locator('.cpx-agent-activity__edge-fade')
       await expect(edgeFrame).toHaveAttribute('data-scrollable', 'true')
       await expect(edgeFrame).toHaveAttribute('data-at-start', 'true')
       await expect(edgeFrame).toHaveAttribute('data-at-end', 'false')
 
-      const items = page.locator('.canonical-process-group__items')
+      const items = page.locator('.cpx-agent-activity__list')
       await scrollNested(items, 0.5)
       await expect(edgeFrame).toHaveAttribute('data-at-start', 'false')
       await expect(edgeFrame).toHaveAttribute('data-at-end', 'false')
@@ -142,12 +157,14 @@ test.describe('animation contracts', () => {
       await expect(edgeFrame).toHaveAttribute('data-at-end', 'true')
 
       // 内容尺寸增长会由 content ResizeObserver 主动重测，无需用户滚动。
-      const firstCard = items.locator('.canonical-process-card').first()
+      const firstCard = items.locator('.cpx-agent-activity__item').first()
+      const firstCardToggle = firstCard.locator(
+        '.cpx-agent-activity__item-header',
+      )
       const collapsedHeight = await items.evaluate(element => element.scrollHeight)
-      await firstCard.evaluate((element: HTMLDetailsElement) => {
-        element.open = true
-      })
-      await expect(firstCard).toHaveJSProperty('open', true)
+      await firstCardToggle.locator('.cpx-agent-activity__chevron').click()
+      await expect(firstCard).toHaveAttribute('data-expanded', 'true')
+      await expect(firstCardToggle).toHaveAttribute('aria-expanded', 'true')
       await expect
         .poll(() => items.evaluate(element => element.scrollHeight))
         .toBeGreaterThan(collapsedHeight)
@@ -178,28 +195,116 @@ test.describe('animation contracts', () => {
         0,
       )
 
-      await firstCard.evaluate((element: HTMLDetailsElement) => {
-        element.open = false
-      })
+      await firstCardToggle.locator('.cpx-agent-activity__chevron').click()
+      await expect(firstCard).toHaveAttribute('data-expanded', 'false')
       await scrollNested(items, 0)
       await expect(edgeFrame).toHaveAttribute('data-at-start', 'true')
 
-      // 折叠 process group：内容卸载，ARIA 同步。
-      await processSummary.click()
-      await expect(processSummary).toHaveAttribute('aria-expanded', 'false')
-      await expect(page.locator('.canonical-process-edge-fade')).toHaveCount(0)
+      // 24ms 内快速反向只复用一个内容实例，不跳到终点或留下空白。
+      if (motion === 'off') {
+        await processSummary.click()
+        await page.waitForTimeout(24)
+        await processSummary.click()
+        await expect(processSummary).toHaveAttribute('aria-expanded', 'true')
+        await expect(
+          processSummary.locator('..').locator(':scope > .ui-disclosure-content'),
+        ).toHaveCount(1)
+        await expect(edgeFrame).toBeVisible()
+      }
 
-      // turn activity 折叠：内容卸载，结果区仍在布局流中。
+      // 折叠 process group：普通动效必须经过严格的中间高度，标题保持固定。
+      const processRoot = processSummary.locator('..')
+      const processDisclosure = processRoot.locator(':scope > .ui-disclosure-content')
+      await expect(processDisclosure).toBeVisible()
+      const processTransition = await readDisclosureTransition(processDisclosure)
+      expect(processTransition.opacity).toBe('1')
+      expect(processTransition.property).toBe('grid-template-rows')
+      expect(processTransition.duration).toBe(motion === 'off' ? '0.24s' : '0s')
+      const processSamples = motion === 'off'
+        ? await sampleDisclosureCollapse(processSummary)
+        : (await processSummary.click(), null)
+      await expect(processSummary).toHaveAttribute('aria-expanded', 'false')
+      if (processSamples) {
+        expect(processSamples.startHeight).toBeGreaterThan(0)
+        const distinctHeights = processSamples.samples
+          .map(sample => Math.round(sample.height * 2) / 2)
+          .filter((height, index, heights) => index === 0 || height !== heights[index - 1])
+        expect(distinctHeights.length).toBeGreaterThanOrEqual(6)
+        expect(distinctHeights.every((height, index) => (
+          index === 0 || height < distinctHeights[index - 1]!
+        ))).toBe(true)
+        expect(processSamples.samples.some(sample => (
+          sample.elapsed >= 30
+          && sample.elapsed <= 180
+          && sample.height > 0
+          && sample.height < processSamples.startHeight
+        ))).toBe(true)
+        expect(processSamples.samples.every(sample => sample.opacity === '1')).toBe(true)
+        expect(Math.max(...processSamples.samples.map(sample => sample.frameGap))).toBeLessThanOrEqual(50)
+        expect(processSamples.samples.every(sample => (
+          Math.abs(sample.trackedY - processSamples.startTrackedY) <= 1
+        ))).toBe(true)
+      }
+      await expect(processDisclosure).toHaveAttribute('aria-hidden', 'true')
+      await expect(processDisclosure).toHaveAttribute('inert', '')
+      await expect(processDisclosure.locator('.cpx-agent-activity__edge-fade')).toHaveCount(1)
+      await expect.poll(() => disclosureHeight(processDisclosure)).toBeLessThanOrEqual(0.5)
+
+      // turn activity 折叠：回答区连续、单调上移，不出现空白中间帧。
       const activitySummary = page.locator(
         '.canonical-turn-activity__summary',
       )
       await expect(activitySummary).toBeVisible()
-      await activitySummary.click()
+      const activityRoot = activitySummary.locator('..')
+      const activityDisclosure = activityRoot.locator(':scope > .ui-disclosure-content')
+      await expect(activityDisclosure).toBeVisible()
+      const activitySamples = motion === 'off'
+        ? await sampleDisclosureCollapse(activitySummary, '.canonical-turn__result')
+        : (await activitySummary.click(), null)
       await expect(activitySummary).toHaveAttribute('aria-expanded', 'false')
+      if (activitySamples) {
+        expect(activitySamples.startHeight).toBeGreaterThan(0)
+        const distinctHeights = activitySamples.samples
+          .map(sample => Math.round(sample.height * 2) / 2)
+          .filter((height, index, heights) => index === 0 || height !== heights[index - 1])
+        expect(distinctHeights.length).toBeGreaterThanOrEqual(6)
+        expect(distinctHeights.every((height, index) => (
+          index === 0 || height < distinctHeights[index - 1]!
+        ))).toBe(true)
+        expect(activitySamples.samples.some(sample => (
+          sample.elapsed >= 30
+          && sample.elapsed <= 180
+          && sample.height > 0
+          && sample.height < activitySamples.startHeight
+        ))).toBe(true)
+        expect(activitySamples.samples.every(sample => sample.opacity === '1')).toBe(true)
+        expect(Math.max(...activitySamples.samples.map(sample => sample.frameGap))).toBeLessThanOrEqual(50)
+        expect(activitySamples.samples.every((sample, index, samples) => (
+          index === 0 || sample.trackedY <= samples[index - 1]!.trackedY + 0.5
+        ))).toBe(true)
+        expect(activitySamples.samples.at(-1)!.trackedY).toBeLessThan(
+          activitySamples.startTrackedY,
+        )
+      }
       await expect(
         page.locator('.canonical-turn-activity__content'),
-      ).toHaveCount(0)
+      ).toHaveCount(1)
+      await expect(activityDisclosure).toHaveAttribute('aria-hidden', 'true')
+      await expect(activityDisclosure).toHaveAttribute('inert', '')
+      await expect.poll(() => disclosureHeight(activityDisclosure)).toBeLessThanOrEqual(0.5)
       await expect(page.locator('.canonical-turn__result')).toBeVisible()
+
+      if (motion === 'off') {
+        await activitySummary.click()
+        await expect(activitySummary).toHaveAttribute('aria-expanded', 'true')
+        await page.waitForTimeout(260)
+        const bottomSamples = await sampleBottomFollowCollapse(activitySummary)
+        expect(bottomSamples.length).toBeGreaterThanOrEqual(6)
+        expect(Math.max(...bottomSamples.map(sample => sample.distance))).toBeLessThanOrEqual(2)
+        expect(bottomSamples.every((sample, index, samples) => (
+          index === 0 || sample.scrollTop <= samples[index - 1]!.scrollTop + 0.5
+        ))).toBe(true)
+      }
     })
 
     test(`execution plan steps edge fades follow scroll (${motion})`, async ({
@@ -284,7 +389,12 @@ test.describe('animation contracts', () => {
       expect(samples.length).toBeGreaterThan(0)
       expect(Math.min(...samples.map(sample => sample.width))).toBeGreaterThanOrEqual(480)
       expect(Math.max(...samples.map(sample => sample.width))).toBeLessThanOrEqual(760)
-      expect(samples.every(sample => sample.transform === 'none')).toBe(true)
+      if (motion === 'on') {
+        expect(samples.every(sample => sample.transform === 'none')).toBe(true)
+      } else {
+        expect(samples.some(sample => sample.transform !== 'none')).toBe(true)
+        expect(samples.at(-1)?.transform).toBe('none')
+      }
       expect(samples.every(sample => sample.animationName === 'none')).toBe(true)
 
       const capsuleAfter = await capsule.boundingBox()
@@ -369,7 +479,12 @@ async function openVisualFixture(
 ): Promise<void> {
   await page.setViewportSize({ width: 1366, height: 768 })
   await prepareVisualTheme(page, 'light', { reduceMotion: motion })
-  await page.goto(`/?visualCase=${visualCase}#/threads/visual-${visualCase}`)
+  const visualPort = process.env.CODEPILOTX_VISUAL_PORT?.trim() || '47173'
+  const fixtureURL = `http://127.0.0.1:${visualPort}/?visualCase=${visualCase}#/threads/visual-${visualCase}`
+  await page.evaluate((url) => {
+    window.location.assign(url)
+  }, fixtureURL)
+  await page.waitForURL(fixtureURL, { waitUntil: 'load' })
   await waitForVisualPage(page, 'light')
   await closeTransientErrorToast(page)
 }
@@ -399,4 +514,126 @@ async function pageSettle(page: Page): Promise<void> {
         }
       }),
   )
+}
+
+async function sampleDisclosureCollapse(
+  toggle: import('@playwright/test').Locator,
+  trackedSelector?: string,
+): Promise<{
+  startHeight: number
+  startTrackedY: number
+  samples: Array<{
+    elapsed: number
+    frameGap: number
+    height: number
+    opacity: string
+    trackedY: number
+  }>
+}> {
+  return toggle.evaluate(async (node, selector) => {
+    if (!(node instanceof HTMLElement)) {
+      throw new Error('disclosure toggle 不是 HTML 元素')
+    }
+    const root = node.parentElement
+    const disclosure = root?.querySelector<HTMLElement>(
+      ':scope > .ui-disclosure-content',
+    )
+    const tracked = selector
+      ? node.closest('.canonical-turn')?.querySelector<HTMLElement>(selector)
+      : node
+    if (!disclosure || !(tracked instanceof HTMLElement)) {
+      throw new Error('缺少 disclosure 或布局跟踪元素')
+    }
+
+    const startHeight = disclosure.getBoundingClientRect().height
+    const startTrackedY = tracked.getBoundingClientRect().y
+    node.click()
+    const startedAt = performance.now()
+    const samples = await new Promise<Array<{
+      elapsed: number
+      frameGap: number
+      height: number
+      opacity: string
+      trackedY: number
+    }>>(resolve => {
+      const values: Array<{
+        elapsed: number
+        frameGap: number
+        height: number
+        opacity: string
+        trackedY: number
+      }> = []
+      let previousSampleAt = startedAt
+      const sample = (now: number): void => {
+        values.push({
+          elapsed: now - startedAt,
+          frameGap: now - previousSampleAt,
+          height: disclosure.getBoundingClientRect().height,
+          opacity: getComputedStyle(disclosure).opacity,
+          trackedY: tracked.getBoundingClientRect().y,
+        })
+        previousSampleAt = now
+        if (now - startedAt >= 280) resolve(values)
+        else requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+    return { startHeight, startTrackedY, samples }
+  }, trackedSelector)
+}
+
+async function readDisclosureTransition(
+  disclosure: import('@playwright/test').Locator,
+): Promise<{ duration: string; opacity: string; property: string }> {
+  return disclosure.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {
+      duration: style.transitionDuration,
+      opacity: style.opacity,
+      property: style.transitionProperty,
+    }
+  })
+}
+
+async function disclosureHeight(
+  disclosure: import('@playwright/test').Locator,
+): Promise<number> {
+  return disclosure.evaluate(element => element.getBoundingClientRect().height)
+}
+
+async function sampleBottomFollowCollapse(
+  toggle: import('@playwright/test').Locator,
+): Promise<Array<{ distance: number; scrollTop: number }>> {
+  return toggle.evaluate(async (node) => {
+    if (!(node instanceof HTMLElement)) {
+      throw new Error('disclosure toggle 不是 HTML 元素')
+    }
+    const viewport = node.closest('.thread-scroll-layout')
+    if (!(viewport instanceof HTMLElement)) {
+      throw new Error('缺少时间线滚动容器')
+    }
+    viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
+
+    node.click()
+    const startedAt = performance.now()
+    return await new Promise<Array<{ distance: number; scrollTop: number }>>(resolve => {
+      const values: Array<{ distance: number; scrollTop: number }> = []
+      const sample = (now: number): void => {
+        values.push({
+          distance: Math.max(
+            0,
+            viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop,
+          ),
+          scrollTop: viewport.scrollTop,
+        })
+        if (now - startedAt >= 280) resolve(values)
+        else requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+  })
 }

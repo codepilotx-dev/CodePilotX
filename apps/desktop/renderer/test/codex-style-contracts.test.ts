@@ -303,6 +303,9 @@ describe('Codex CPX design system token contract', () => {
       /\.rm-thick-slider-range\s*\{[\s\S]*?transform-origin: left center;/,
     )
     expect(modelMenu).toMatch(
+      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: var\(--cpx-sys-radius-full\);/,
+    )
+    expect(modelMenu).toMatch(
       /\.rm-thick-slider-thumb-rail\s*\{[\s\S]*?left: 0;/,
     )
     expect(modelMenu).toMatch(

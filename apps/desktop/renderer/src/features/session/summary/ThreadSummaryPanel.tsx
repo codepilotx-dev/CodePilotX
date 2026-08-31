@@ -23,6 +23,7 @@ import { previewThreadSummarySources } from "./threadSummaryViewModel.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { useDialogFocusRestore } from "../../../components/ui/useDialogFocusRestore.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 
 type ThreadSummaryActions = {
   onBranchSelect: (branch: string) => Promise<void>;
@@ -361,7 +362,7 @@ function ThreadSummarySourcesPanel({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop thread-summary-sources-overlay" />
         <Dialog.Content
-          className="ui-dialog-surface thread-summary-sources-panel"
+          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header>
@@ -416,6 +417,8 @@ function ThreadSummarySection({
   title: string;
 }): React.ReactNode {
   const headingId = React.useId();
+  const generatedRowsId = React.useId();
+  const contentId = rowsId ?? generatedRowsId;
   const [expanded, setExpanded] = React.useState(true);
   return (
     <section
@@ -429,6 +432,7 @@ function ThreadSummarySection({
       <header>
         <h2>
           <button
+            aria-controls={contentId}
             aria-expanded={expanded}
             className="thread-summary-section__toggle"
             type="button"
@@ -447,16 +451,14 @@ function ThreadSummarySection({
           ) : null}
         </span>
       </header>
-      <div
-        aria-hidden={!expanded}
+      <DisclosureContent
         className="thread-summary-section__content"
-        data-expanded={expanded}
-        inert={!expanded}
+        contentClassName="thread-summary-section__rows"
+        expanded={expanded}
+        id={contentId}
       >
-        <div className="thread-summary-section__rows" id={rowsId}>
-          {children}
-        </div>
-      </div>
+        {children}
+      </DisclosureContent>
     </section>
   );
 }

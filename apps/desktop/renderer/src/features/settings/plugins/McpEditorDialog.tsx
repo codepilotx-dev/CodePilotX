@@ -14,6 +14,7 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
+import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -478,8 +479,12 @@ export function McpEditorDialog({
                 {advanced ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
                 高级选项
               </button>
-              {advanced ? (
-                <div id="mcp-advanced-options" className="tw:grid tw:gap-4">
+              <DisclosureContent
+                contentClassName="tw:grid tw:gap-4"
+                expanded={advanced}
+                id="mcp-advanced-options"
+                mountPolicy="always"
+              >
                   <FormCard>
                     <FormRow label="配置范围">
                       <SettingsDropdown
@@ -638,8 +643,7 @@ export function McpEditorDialog({
                       }}
                     />
                   </Field>
-                </div>
-              ) : null}
+              </DisclosureContent>
             </div>
 
             <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">

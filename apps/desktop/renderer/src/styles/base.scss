@@ -23,9 +23,7 @@ body {
   overflow: hidden;
   background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
-  font-family: var(--cpx-sys-font-family-sans);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-regular);
+  font: var(--cpx-sys-type-body);
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -231,10 +229,11 @@ p {
   --cpx-sys-motion-state: 0ms;
   --cpx-sys-motion-enter: 0ms;
   --cpx-sys-motion-panel: 0ms;
+  --cpx-sys-motion-disclosure: 0ms;
   --cpx-sys-motion-loading: 0ms;
 }
 
-:root[data-reduce-motion="on"] *,
+:root[data-reduce-motion="on"] *:not(.ui-disclosure-content),
 :root[data-reduce-motion="on"] *::before,
 :root[data-reduce-motion="on"] *::after {
   animation-duration: 1ms !important;

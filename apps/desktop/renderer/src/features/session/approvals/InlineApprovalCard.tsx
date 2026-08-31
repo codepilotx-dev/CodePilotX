@@ -17,6 +17,7 @@ import {
   getSchemaMode,
   parseMcpElicitationSchema,
 } from '../mcpElicitation/mcpElicitationUtils.js'
+import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 
 type ApprovalChoice = 'allow' | `remember:${DesktopPermissionRememberOptionId}`
 
@@ -103,6 +104,7 @@ export function InlineApprovalCard({
     React.useState<ApprovalChoice>('allow')
   const [feedback, setFeedback] = React.useState('')
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
+  const commandPreviewId = React.useId()
   const isPermissionGrant =
     request.requestKind === 'permission-grant' || Boolean(request.permissionGrant)
   const scopeOptions = permissionGrantScopeOptions(request)
@@ -119,6 +121,10 @@ export function InlineApprovalCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
+  const commandPreviewTransition = useHeightTransition([
+    isCommandExpanded,
+    command.full,
+  ])
   const approvalTitle = inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
   const reviewSummary = inlineApprovalReviewSummary(request)
@@ -290,15 +296,19 @@ export function InlineApprovalCard({
 
       <div className="inline-approval-summary">
         <div
+          id={commandPreviewId}
+          ref={commandPreviewTransition.ref}
           className={
             isCommandExpanded
               ? 'inline-approval-command-preview expanded'
               : 'inline-approval-command-preview'
           }
+          style={commandPreviewTransition.style}
         >
           <div className="inline-approval-command-preview-header">
             <span>{previewLabel}</span>
             <button
+              aria-controls={commandPreviewId}
               type="button"
               aria-expanded={isCommandExpanded}
               onClick={() => setIsCommandExpanded(value => !value)}

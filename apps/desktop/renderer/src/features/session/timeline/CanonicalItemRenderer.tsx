@@ -17,12 +17,9 @@ import {
   NotepadText,
   Pencil,
   RotateCcw,
-  Search,
   Send,
   Shield,
-  SquareTerminal,
   UserRoundPlus,
-  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item, LocalContextReference, ToolResultBlock } from "@codepilotx/shared/thread";
@@ -40,6 +37,7 @@ import {
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 import { desktopClipboard } from "../../../services/desktop-client/index.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
@@ -56,6 +54,21 @@ import {
   AttachmentImageTile,
 } from "../attachments/AttachmentRowPrimitives.js";
 import { useToolArtifactImageSource } from "./useToolArtifactImageSource.js";
+import {
+  buildToolSemanticSummary,
+  ToolActivityLabel,
+  toolSemanticIcon,
+  type ToolActivityIconKind,
+  type ToolSemanticKind,
+  type ToolSemanticSummary,
+} from "./ToolActivityPresentation.js";
+
+export {
+  buildToolSemanticSummary,
+  formatToolDuration,
+  toolSemanticIcon,
+} from "./ToolActivityPresentation.js";
+export type { ToolSemanticKind } from "./ToolActivityPresentation.js";
 
 const LazyExpandableFileMutationRow = React.lazy(async () => {
   const module = await import("./ExpandableFileMutationRow.js");
@@ -87,6 +100,7 @@ type ToolItem = ItemOf<"tool">;
 export type FileChangeDisplay = {
   additions: number | null;
   deletions: number | null;
+  operation?: "write" | "create" | "update" | "delete";
   patch?: string | null;
   path: string;
 };
@@ -125,7 +139,9 @@ export type ToolItemDisplay = {
   executionContent: string;
   expandedLabel: string;
   failed: boolean;
+  iconKind: ToolActivityIconKind;
   resultText: string | null;
+  semanticSummary: ToolSemanticSummary | null;
   showShellPrompt: boolean;
   statusLabel: string;
   semanticKind: ToolSemanticKind;
@@ -416,9 +432,9 @@ export function CanonicalItemRenderer({
     case "text":
       return <TextItemView item={item} showAssistantActions={showAssistantActions} />;
     case "reasoning":
-      return <ReasoningItemView item={item} />;
+      return <ReasoningItemView disclosure={disclosure} item={item} />;
     case "activity":
-      return <ActivityItemView item={item} />;
+      return <ActivityItemView disclosure={disclosure} item={item} />;
     case "tool":
       return (
         <ToolItemView
@@ -515,11 +531,36 @@ function TextItemView({
   );
 }
 
-function ReasoningItemView({ item }: { item: ItemOf<"reasoning"> }): React.ReactNode {
+function ReasoningItemView({ disclosure, item }: {
+  disclosure?: CanonicalItemDisclosure;
+  item: ItemOf<"reasoning">;
+}): React.ReactNode {
   const streaming = item.status === "streaming";
+  const [localExpanded, setLocalExpanded] = React.useState(streaming);
+  const expanded = disclosure?.expanded ?? localExpanded;
+  const contentId = React.useId();
+
+  React.useEffect(() => {
+    if (!disclosure) setLocalExpanded(streaming);
+  }, [disclosure, streaming]);
+
+  const setExpanded = (next: boolean): void => {
+    if (disclosure) disclosure.onExpandedChange(disclosure.id, next);
+    else setLocalExpanded(next);
+  };
+
   return (
-    <details className="canonical-process-card canonical-reasoning" open={streaming}>
-      <summary>
+    <div
+      className="canonical-process-card canonical-reasoning"
+      data-expanded={expanded ? "true" : "false"}
+    >
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="canonical-process-card__summary"
+        onClick={() => setExpanded(!expanded)}
+        type="button"
+      >
         {streaming ? (
           <LoaderCircle className="canonical-spin" aria-hidden="true" />
         ) : (
@@ -527,42 +568,83 @@ function ReasoningItemView({ item }: { item: ItemOf<"reasoning"> }): React.React
         )}
         <span>{streaming ? "正在思考" : "思考过程"}</span>
         <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
-      </summary>
-      <div className="canonical-process-card__body tw:bg-app-chrome">
+      </button>
+      <DisclosureContent
+        contentClassName="canonical-process-card__body tw:bg-app-chrome"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
         <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${item.text}`}>
           <MarkdownMessage text={item.text || "正在整理思路…"} streaming={streaming} />
         </ConversationMarkdownErrorBoundary>
-      </div>
-    </details>
+      </DisclosureContent>
+    </div>
   );
 }
 
-function ActivityItemView({ item }: { item: ItemOf<"activity"> }): React.ReactNode {
+function ActivityItemView({ disclosure, item }: {
+  disclosure?: CanonicalItemDisclosure;
+  item: ItemOf<"activity">;
+}): React.ReactNode {
   const active = item.status === "running";
+  const canExpand = Boolean(item.detail || item.commands?.length);
+  const [localExpanded, setLocalExpanded] = React.useState(active && canExpand);
+  const requestedExpanded = disclosure?.expanded ?? localExpanded;
+  const expanded = canExpand && requestedExpanded;
+  const contentId = React.useId();
+
+  React.useEffect(() => {
+    if (!disclosure) setLocalExpanded(active && canExpand);
+  }, [active, canExpand, disclosure]);
+
+  const setExpanded = (next: boolean): void => {
+    if (disclosure) disclosure.onExpandedChange(disclosure.id, next);
+    else setLocalExpanded(next);
+  };
+
   return (
-    <details className="canonical-process-card canonical-activity" open={active}>
-      <summary>
+    <div
+      className="cpx-agent-activity__item"
+      data-expandable={canExpand ? "true" : "false"}
+      data-expanded={expanded ? "true" : "false"}
+    >
+      <button
+        aria-controls={canExpand ? contentId : undefined}
+        aria-expanded={canExpand ? expanded : undefined}
+        className="cpx-agent-activity__item-header"
+        disabled={!canExpand}
+        onClick={() => setExpanded(!expanded)}
+        type="button"
+      >
         {active ? (
-          <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          <LoaderCircle className="cpx-agent-activity__icon canonical-spin" aria-hidden="true" />
         ) : item.status === "error" ? (
-          <CircleAlert aria-hidden="true" />
+          <CircleAlert className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : (
-          <Check aria-hidden="true" />
+          <Check className="cpx-agent-activity__icon" aria-hidden="true" />
         )}
-        <span>{item.title}</span>
-        <ChevronDown className="canonical-process-card__chevron" aria-hidden="true" />
-      </summary>
-      {item.detail || item.commands?.length ? (
-        <div className="canonical-process-card__body tw:bg-app-chrome">
+        <span className="cpx-agent-activity__label">{item.title}</span>
+        <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
+      </button>
+      <DisclosureContent
+        contentClassName="cpx-agent-activity__details"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
+        {canExpand ? (
+          <>
           {item.detail ? <p>{item.detail}</p> : null}
           {item.commands?.map((command, index) => (
             <pre key={`${item.id}:command:${index}`}>
               <code>{command.command}{command.output ? `\n${command.output}` : ""}</code>
             </pre>
           ))}
-        </div>
-      ) : null}
-    </details>
+          </>
+        ) : null}
+      </DisclosureContent>
+    </div>
   );
 }
 
@@ -577,11 +659,18 @@ export function ToolItemView({
   presentation?: CanonicalItemRendererProps["presentation"];
   threadId?: string;
 }): React.ReactNode {
-  const view = buildToolItemDisplay(item);
+  const [nowMs, setNowMs] = React.useState(Date.now);
+  React.useEffect(() => {
+    if (item.activity?.type !== "command" || !isActiveToolState(item.state)) return;
+    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [item.activity?.type, item.state]);
+  const view = buildToolItemDisplay(item, nowMs);
   const [localExpanded, setLocalExpanded] = React.useState(false);
   const requestedExpanded = disclosure?.expanded ?? localExpanded;
   const expanded = view.canExpand && requestedExpanded;
-  const SummaryIcon = toolSemanticIcon(view.semanticKind);
+  const SummaryIcon = toolSemanticIcon(view.iconKind);
+  const contentId = React.useId();
 
   React.useEffect(() => {
     if (view.canExpand || !requestedExpanded) return;
@@ -593,47 +682,56 @@ export function ToolItemView({
   }, [disclosure, requestedExpanded, view.canExpand]);
 
   return (
-    <details
-      className="canonical-process-card canonical-tool"
+    <div
+      className="cpx-agent-activity__item"
       data-expandable={view.canExpand ? "true" : "false"}
+      data-expanded={expanded ? "true" : "false"}
       data-presentation={presentation}
       data-state={item.state}
-      onToggle={(event) => {
-        if (!view.canExpand) {
-          if (event.currentTarget.open) event.currentTarget.open = false;
-          return;
-        }
-        if (disclosure) {
-          disclosure.onExpandedChange(disclosure.id, event.currentTarget.open);
-        } else {
-          setLocalExpanded(event.currentTarget.open);
-        }
-      }}
-      open={expanded}
     >
-      <summary
+      <button
+        aria-controls={view.canExpand ? contentId : undefined}
         aria-disabled={!view.canExpand}
-        onClick={(event) => {
-          if (!view.canExpand) event.preventDefault();
+        aria-expanded={view.canExpand ? expanded : undefined}
+        className="cpx-agent-activity__item-header"
+        onClick={() => {
+          if (!view.canExpand) return;
+          if (disclosure) {
+            disclosure.onExpandedChange(disclosure.id, !expanded);
+          } else {
+            setLocalExpanded(!expanded);
+          }
         }}
         title={view.collapsedLabel}
+        type="button"
       >
         {view.active ? (
-          <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          <LoaderCircle className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
+        ) : item.state === "interrupted" ? (
+          <CircleStop className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : view.failed ? (
-          <CircleAlert aria-hidden="true" />
+          <CircleAlert className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : (
-          <SummaryIcon aria-hidden="true" />
+          <SummaryIcon className="cpx-agent-activity__icon" aria-hidden="true" />
         )}
-        <span className="canonical-tool__summary-label">
-          {expanded ? view.expandedLabel : view.collapsedLabel}
-        </span>
-        <ChevronRight className="canonical-process-card__chevron" aria-hidden="true" />
-      </summary>
-      {expanded ? (
+        {view.semanticSummary ? (
+          <ToolActivityLabel summary={view.semanticSummary} />
+        ) : (
+          <span className="cpx-agent-activity__label">
+            {expanded ? view.expandedLabel : view.collapsedLabel}
+          </span>
+        )}
+        <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
+      </button>
+      <DisclosureContent
+        contentClassName="cpx-agent-activity__details"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
         <ToolExecutionCard item={item} presentation={presentation} threadId={threadId} view={view} />
-      ) : null}
-    </details>
+      </DisclosureContent>
+    </div>
   );
 }
 
@@ -930,7 +1028,9 @@ export function PatchSummaryView({
   );
   const [actionError, setActionError] = React.useState<string | null>(null);
   const hiddenFileCount = Math.max(0, patch.files.length - 3);
-  const visibleFiles = patchFilesForDisplay(patch.files, filesExpanded);
+  const visibleFiles = patchFilesForDisplay(patch.files, false);
+  const hiddenFiles = patch.files.slice(visibleFiles.length);
+  const filesDisclosureId = React.useId();
   const patchAction: PatchAction =
     patch.applyState === "undone" ? "reapply" : "undo";
   const canApplyPatch = patch.reversible === true && Boolean(onApplyPatch);
@@ -1000,25 +1100,21 @@ export function PatchSummaryView({
       </header>
       <div className="canonical-patch-card__files">
         {visibleFiles.map((file) => (
-          <button
-            className="canonical-patch-card__file"
-            key={file.path}
-            onClick={() => onOpenReview?.(file.path)}
-            title={file.path}
-            type="button"
-          >
-            <span>{file.path}</span>
-            {file.additions !== null ? (
-              <small className="canonical-diff-add">+{file.additions}</small>
-            ) : null}
-            {file.deletions !== null ? (
-              <small className="canonical-diff-remove">-{file.deletions}</small>
-            ) : null}
-          </button>
+          <PatchFileButton file={file} key={file.path} onOpenReview={onOpenReview} />
         ))}
+        <DisclosureContent
+          expanded={filesExpanded}
+          id={filesDisclosureId}
+          mountPolicy="always"
+        >
+          {hiddenFiles.map((file) => (
+            <PatchFileButton file={file} key={file.path} onOpenReview={onOpenReview} />
+          ))}
+        </DisclosureContent>
       </div>
       {hiddenFileCount > 0 ? (
         <button
+          aria-controls={filesDisclosureId}
           aria-expanded={filesExpanded}
           className="canonical-patch-card__disclosure"
           type="button"
@@ -1063,7 +1159,7 @@ export function FileMutationItemView({
   const failed = item.state === "error" || item.state === "interrupted";
 
   return (
-    <div className="canonical-file-mutation" data-state={item.state}>
+    <div className="cpx-agent-activity__file-changes" data-state={item.state}>
       {mutation.files.map((file, fileIndex) => {
         const disclosureId = `file-mutation:${item.id}:${fileIndex}`;
         const canExpand =
@@ -1074,18 +1170,18 @@ export function FileMutationItemView({
         if (!canExpand || !readThreadPatchDiff || !threadId) {
           return (
             <div
-              className="canonical-file-mutation__row"
+              className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static"
               key={`${item.id}:${file.path}`}
             >
               {active ? (
-                <LoaderCircle className="canonical-spin" aria-hidden="true" />
+                <LoaderCircle className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
               ) : failed ? (
-                <CircleAlert aria-hidden="true" />
+                <CircleAlert className="cpx-agent-activity__icon" aria-hidden="true" />
               ) : (
-                <Pencil aria-hidden="true" />
+                <Pencil className="cpx-agent-activity__icon" aria-hidden="true" />
               )}
-              <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
-              <span className="canonical-file-mutation__stats">
+              <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
+              <span className="cpx-agent-activity__review-indicator">
                 {file.additions !== null ? (
                   <small className="canonical-diff-add">+{file.additions}</small>
                 ) : null}
@@ -1105,10 +1201,10 @@ export function FileMutationItemView({
         return (
           <React.Suspense
             fallback={(
-              <div className="canonical-file-mutation__row">
-                <Pencil aria-hidden="true" />
-                <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
-                <span className="canonical-file-mutation__stats">
+              <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
+                <Pencil className="cpx-agent-activity__icon" aria-hidden="true" />
+                <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
+                <span className="cpx-agent-activity__review-indicator">
                   {file.additions !== null ? <small className="canonical-diff-add">+{file.additions}</small> : null}
                   {file.deletions !== null ? <small className="canonical-diff-remove">-{file.deletions}</small> : null}
                 </span>
@@ -1214,17 +1310,7 @@ function nonBlank(value: string | null): string | null {
   return value && value.trim() ? value : null;
 }
 
-export function formatToolDuration(durationMs: number): string {
-  const seconds = Math.max(1, Math.ceil(Math.max(0, durationMs) / 1_000));
-  if (seconds < 60) return `${seconds} 秒`;
-  const minutes = Math.floor(seconds / 60);
-  const remainSec = seconds % 60;
-  return remainSec === 0
-    ? `${minutes} 分钟`
-    : `${minutes} 分 ${remainSec} 秒`;
-}
-
-export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
+export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDisplay {
   const command = nonBlank(item.command);
   const lifecycle = buildLifecycleToolDisplay(item);
   if (lifecycle) {
@@ -1235,7 +1321,9 @@ export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
       executionContent: lifecycle.label,
       expandedLabel: lifecycle.label,
       failed: lifecycle.failed,
+      iconKind: "tool",
       resultText: null,
+      semanticSummary: null,
       showShellPrompt: false,
       statusLabel: toolStateLabel(item.state),
       semanticKind: "tool",
@@ -1257,7 +1345,7 @@ export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
     : appendToolError(nonBlank(item.output), nonBlank(item.error));
   const active = isActiveToolState(item.state);
   const terminal = !active;
-  const semanticSummary = buildToolSemanticSummary(item);
+  const semanticSummary = buildToolSemanticSummary(item, { nowMs });
 
   return {
     active,
@@ -1266,40 +1354,15 @@ export function buildToolItemDisplay(item: ToolItem): ToolItemDisplay {
     executionContent,
     expandedLabel: semanticSummary.expandedLabel,
     failed: item.state === "error" || item.state === "interrupted",
+    iconKind: semanticSummary.iconKind,
     resultText,
+    semanticSummary,
     showShellPrompt: command !== null,
     statusLabel: toolStateLabel(item.state),
     semanticKind: semanticSummary.kind,
     toolLabel: semanticSummary.toolLabel,
   };
 }
-
-export type ToolSemanticKind =
-  | "file-change"
-  | "exploration"
-  | "command"
-  | "web-search"
-  | "integration"
-  | "tool";
-
-export type ToolSemanticSummary = {
-  collapsedLabel: string;
-  expandedLabel: string;
-  kind: ToolSemanticKind;
-  toolLabel: string;
-};
-
-type SemanticAction = {
-  completed: string;
-  error: string;
-  expandedCompleted: string;
-  expandedRunning: string;
-  interrupted: string;
-  kind: ToolSemanticKind;
-  running: string;
-  target: string | null;
-  toolLabel: string;
-};
 
 function isActiveToolState(state: ToolItem["state"]): boolean {
   return (
@@ -1335,220 +1398,6 @@ function safeDisplayPath(value: string | null): string | null {
     return parts.at(-1) ?? null;
   }
   return normalized || null;
-}
-
-function oneLine(value: string | null): string | null {
-  return value?.replace(/\s+/g, " ").trim() || null;
-}
-
-function semanticLabel(
-  item: ToolItem,
-  action: SemanticAction,
-): ToolSemanticSummary {
-  const target = oneLine(action.target);
-  const suffix = target ? ` ${target}` : "";
-  const collapsedLabel = item.state === "completed"
-    ? `${action.completed}${suffix}`
-    : item.state === "error"
-      ? `${action.error}${suffix}`
-      : item.state === "interrupted"
-        ? `${action.interrupted}${suffix}`
-        : `${action.running}${suffix}`;
-  return {
-    collapsedLabel,
-    expandedLabel: isActiveToolState(item.state)
-      ? action.expandedRunning
-      : item.state === "completed"
-        ? action.expandedCompleted
-        : item.state === "error"
-          ? action.error
-          : action.interrupted,
-    kind: action.kind,
-    toolLabel: action.toolLabel,
-  };
-}
-
-export function toolSemanticIcon(kind: ToolSemanticKind): LucideIcon {
-  switch (kind) {
-    case "file-change":
-      return Pencil;
-    case "exploration":
-      return Search;
-    case "command":
-      return SquareTerminal;
-    case "web-search":
-      return Globe2;
-    case "integration":
-    case "tool":
-      return Wrench;
-  }
-}
-
-export function buildToolSemanticSummary(item: ToolItem): ToolSemanticSummary {
-  const input = inputRecord(item.input);
-  const command = oneLine(nonBlank(item.command));
-  if (command) {
-    const prefix = item.state === "completed"
-      ? "已运行"
-      : item.state === "error"
-        ? "命令失败"
-        : item.state === "interrupted"
-          ? "命令已中断"
-          : "正在运行";
-    return {
-      collapsedLabel: `${prefix} ${command}`,
-      expandedLabel: item.state === "completed"
-        ? "已运行命令"
-        : item.state === "error"
-          ? "命令失败"
-          : item.state === "interrupted"
-            ? "命令已中断"
-            : "正在运行命令",
-      kind: "command",
-      toolLabel: "Shell",
-    };
-  }
-  if (isFileMutationTool(item)) {
-    return semanticLabel(item, {
-      completed: "已编辑文件",
-      error: "编辑文件失败",
-      expandedCompleted: "已编辑文件",
-      expandedRunning: "正在编辑文件",
-      interrupted: "已中断编辑文件",
-      kind: "file-change",
-      running: "正在编辑文件",
-      target: null,
-      toolLabel: "文件编辑",
-    });
-  }
-  const normalizedTool = item.tool.trim().toLowerCase();
-  if (normalizedTool.startsWith("web__") || normalizedTool === "web.run") {
-    return semanticLabel(item, {
-      completed: "已搜索网页",
-      error: "搜索网页失败",
-      expandedCompleted: "已搜索网页",
-      expandedRunning: "正在搜索网页",
-      interrupted: "已中断搜索网页",
-      kind: "web-search",
-      running: "正在搜索网页",
-      target: null,
-      toolLabel: "网页搜索",
-    });
-  }
-  if (normalizedTool.startsWith("mcp__")) {
-    return semanticLabel(item, {
-      completed: "已使用集成",
-      error: "集成调用失败",
-      expandedCompleted: "已使用集成",
-      expandedRunning: "正在使用集成",
-      interrupted: "已中断使用集成",
-      kind: "integration",
-      running: "正在使用集成",
-      target: null,
-      toolLabel: "集成",
-    });
-  }
-  if (isToolSearchName(item.tool)) {
-    return semanticLabel(item, {
-      completed: "已搜索工具",
-      error: "搜索工具失败",
-      expandedCompleted: "已搜索工具",
-      expandedRunning: "正在搜索工具",
-      interrupted: "已中断搜索工具",
-      kind: "tool",
-      running: "正在搜索工具",
-      target: null,
-      toolLabel: "工具搜索",
-    });
-  }
-
-  switch (toolLeafName(item.tool)) {
-    case "read":
-      return semanticLabel(item, {
-        completed: "已读取",
-        error: "读取失败",
-        expandedCompleted: "已读取文件",
-        expandedRunning: "正在读取文件",
-        interrupted: "已中断读取",
-        kind: "exploration",
-        running: "正在读取",
-        target: safeDisplayPath(inputText(input, "file_path", "filePath", "path")),
-        toolLabel: "文件读取",
-      });
-    case "grep":
-      return semanticLabel(item, {
-        completed: "已搜索",
-        error: "搜索失败",
-        expandedCompleted: "已搜索内容",
-        expandedRunning: "正在搜索内容",
-        interrupted: "已中断搜索",
-        kind: "exploration",
-        running: "正在搜索",
-        target: inputText(input, "pattern", "query"),
-        toolLabel: "内容搜索",
-      });
-    case "glob":
-      return semanticLabel(item, {
-        completed: "已查找",
-        error: "查找失败",
-        expandedCompleted: "已查找文件",
-        expandedRunning: "正在查找文件",
-        interrupted: "已中断查找",
-        kind: "exploration",
-        running: "正在查找",
-        target: inputText(input, "pattern", "glob"),
-        toolLabel: "文件查找",
-      });
-    case "toolsearch":
-    case "tool_search":
-      return semanticLabel(item, {
-        completed: "已搜索工具",
-        error: "搜索工具失败",
-        expandedCompleted: "已搜索工具",
-        expandedRunning: "正在搜索工具",
-        interrupted: "已中断搜索工具",
-        kind: "tool",
-        running: "正在搜索工具",
-        target: null,
-        toolLabel: "工具搜索",
-      });
-    case "update_plan":
-      return semanticLabel(item, {
-        completed: "已更新计划",
-        error: "更新计划失败",
-        expandedCompleted: "已更新计划",
-        expandedRunning: "正在更新计划",
-        interrupted: "已中断更新计划",
-        kind: "tool",
-        running: "正在更新计划",
-        target: null,
-        toolLabel: "更新计划",
-      });
-    case "skill_read":
-      return semanticLabel(item, {
-        completed: "已读取技能",
-        error: "读取技能失败",
-        expandedCompleted: "已读取技能",
-        expandedRunning: "正在读取技能",
-        interrupted: "已中断读取技能",
-        kind: "tool",
-        running: "正在读取技能",
-        target: inputText(input, "name"),
-        toolLabel: "技能读取",
-      });
-    default:
-      return semanticLabel(item, {
-        completed: "操作已完成",
-        error: "操作失败",
-        expandedCompleted: "操作已完成",
-        expandedRunning: "正在执行操作",
-        interrupted: "操作已中断",
-        kind: "tool",
-        running: "正在执行操作",
-        target: null,
-        toolLabel: "操作",
-      });
-  }
 }
 
 type LifecycleAction = {
@@ -1903,6 +1752,12 @@ function fileCandidates(value: unknown): FileChangeDisplay[] {
       ? [{
           additions: nonNegativeInteger(record.additions),
           deletions: nonNegativeInteger(record.deletions),
+          ...(record.operation === "write"
+            || record.operation === "create"
+            || record.operation === "update"
+            || record.operation === "delete"
+            ? { operation: record.operation }
+            : {}),
           path,
         }]
       : [];
@@ -1919,6 +1774,9 @@ function mergeFileCandidates(
     files.set(file.path, {
       additions: file.additions ?? current?.additions ?? null,
       deletions: file.deletions ?? current?.deletions ?? null,
+      ...(file.operation ?? current?.operation
+        ? { operation: file.operation ?? current?.operation }
+        : {}),
       path: file.path,
     });
   }
@@ -1931,9 +1789,20 @@ export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null 
   const output = parsedOutputRecord(item.output);
   const outputSummary = inputRecord(output.summary);
   const inputSummary = inputRecord(input.summary);
+  const activityFiles: FileChangeDisplay[] = item.activity?.type === "file_change"
+    ? item.activity.changes.map((change) => ({
+        additions: nonNegativeInteger(change.additions),
+        deletions: nonNegativeInteger(change.deletions),
+        operation: change.operation,
+        path: change.path,
+      }))
+    : [];
   let files = mergeFileCandidates(
-    fileCandidates(output.files),
-    fileCandidates(input.affectedPaths ?? input.files),
+    activityFiles,
+    mergeFileCandidates(
+      fileCandidates(output.files),
+      fileCandidates(input.affectedPaths ?? input.files),
+    ),
   );
   if (files.length === 0) {
     const path = safeDisplayPath(
@@ -1965,6 +1834,7 @@ export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null 
     files = [{
       additions: files[0].additions ?? totalAdditions,
       deletions: files[0].deletions ?? totalDeletions,
+      ...(files[0].operation ? { operation: files[0].operation } : {}),
       path: files[0].path,
     }];
   }
@@ -1977,11 +1847,45 @@ export function fileMutationDisplay(item: ToolItem): FileMutationDisplay | null 
   };
 }
 
-export function fileMutationLabel(state: ToolItem["state"], path: string): string {
-  if (state === "completed") return `已编辑 ${path}`;
-  if (state === "error") return `编辑失败 ${path}`;
-  if (state === "interrupted") return `已中断编辑 ${path}`;
-  return `正在编辑 ${path}`;
+export function fileMutationLabel(
+  state: ToolItem["state"],
+  path: string,
+  operation: FileChangeDisplay["operation"] = "update",
+): string {
+  const action = operation === "create"
+    ? "创建"
+    : operation === "delete"
+      ? "删除"
+      : "编辑";
+  if (state === "completed") return `已${action} ${path}`;
+  if (state === "error") return `${action}失败 ${path}`;
+  if (state === "interrupted") return `已停止${action} ${path}`;
+  return `正在${action} ${path}`;
+}
+
+function PatchFileButton({
+  file,
+  onOpenReview,
+}: {
+  file: FileChangeDisplay;
+  onOpenReview?: CanonicalItemRendererProps["onOpenPatchReview"];
+}): React.ReactNode {
+  return (
+    <button
+      className="canonical-patch-card__file"
+      onClick={() => onOpenReview?.(file.path)}
+      title={file.path}
+      type="button"
+    >
+      <span>{file.path}</span>
+      {file.additions !== null ? (
+        <small className="canonical-diff-add">+{file.additions}</small>
+      ) : null}
+      {file.deletions !== null ? (
+        <small className="canonical-diff-remove">-{file.deletions}</small>
+      ) : null}
+    </button>
+  );
 }
 
 export function syntheticPatchDisplay(items: readonly Item[]): PatchDisplay | null {

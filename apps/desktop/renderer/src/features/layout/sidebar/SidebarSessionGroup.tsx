@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { Archive, Copy, Eye, EyeOff, Folder, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
-import { AnimatePresence, motion, Reorder } from "motion/react";
+import { Reorder } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
 import {
@@ -23,7 +23,7 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { Spinner } from "../../../components/ui/Spinner.js";
 import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { motionTransition, layoutTween } from '../../motion/motionTransitions.js'
+import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
 import { SidebarReorderItem } from './SidebarReorderItem.js'
@@ -484,9 +484,20 @@ function SidebarSessionGroupComponent({
   const sessionListClassName =
     'sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0'
   const sessionRows = visibleSessions.map(renderSessionRow)
+  const visibleSessionKey = visibleSessions.map(session => session.id).join('\u0000')
+  const heightTransition = useHeightTransition([
+    visibleSessionKey,
+    hasOverflow,
+    canShowMore,
+    canCollapse,
+  ])
 
   return (
-    <>
+    <div
+      className="sidebar-session-group"
+      ref={heightTransition.ref}
+      style={heightTransition.style}
+    >
       {onManualOrderChange ? (
         <Reorder.Group
           axis="y"
@@ -498,9 +509,7 @@ function SidebarSessionGroupComponent({
             setReorderSessionIds(nextOrder)
           }}
         >
-          <AnimatePresence initial={false} mode="popLayout">
-            {sessionRows}
-          </AnimatePresence>
+          {sessionRows}
         </Reorder.Group>
       ) : (
         <ul className={sessionListClassName}>{sessionRows}</ul>
@@ -508,11 +517,7 @@ function SidebarSessionGroupComponent({
       {pagination !== 'all' ? (
       <>
       {hasOverflow ? (
-        <motion.div
-          className="sidebar-show-more-actions"
-          layout="position"
-          transition={motionTransition(reducedMotion, layoutTween)}
-        >
+        <div className="sidebar-show-more-actions">
           <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
             {canShowMore ? (
               <Button
@@ -542,7 +547,7 @@ function SidebarSessionGroupComponent({
               </Button>
             ) : null}
           </div>
-        </motion.div>
+        </div>
       ) : null}
       </>
       ) : null}
@@ -575,7 +580,7 @@ function SidebarSessionGroupComponent({
           />
         </Suspense>
       ) : null}
-    </>
+    </div>
   );
 }
 

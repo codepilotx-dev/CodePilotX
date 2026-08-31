@@ -155,6 +155,7 @@ export function FileBreadcrumbToolbar({
         {readonly ? <small>只读</small> : null}
         <IconButton
           ref={treeToggleRef}
+          aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"
           color="ghostSecondary"
           disabled={!treeAvailable}

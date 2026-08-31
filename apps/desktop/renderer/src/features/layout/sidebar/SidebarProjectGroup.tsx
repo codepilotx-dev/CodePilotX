@@ -1,5 +1,5 @@
 import type React from 'react'
-import { lazy, memo, Suspense, useEffect, useState } from 'react'
+import { lazy, memo, Suspense, useEffect, useId, useState } from 'react'
 import {
   Archive,
   FolderOpen,
@@ -18,6 +18,7 @@ import type {
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
@@ -123,6 +124,7 @@ function SidebarProjectGroupComponent({
   useEffect(() => setManagedProject(project), [project])
 
   const projectKey = sidebarProjectKey(managedProject)
+  const projectSessionsId = useId()
   const projectSessions = bucket.displaySessions
   const countedProjectSessions = bucket.allSessions
   const unreadCount = bucket.unreadCount
@@ -205,6 +207,7 @@ function SidebarProjectGroupComponent({
 
   const projectButton = (
     <button
+      aria-controls={projectSessionsId}
       aria-expanded={isExpanded}
       aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown ArrowRight"
       aria-label={`${managedProject.name}，${isExpanded ? '折叠项目任务' : '展开项目任务'}`}
@@ -226,7 +229,7 @@ function SidebarProjectGroupComponent({
         'sidebar-project',
         'u-flex',
         'u-flex-col',
-        'tw:flex tw:flex-col tw:gap-0.5',
+        'tw:flex tw:flex-col',
       )}
       onMouseLeave={() => setHovered(false)}
     >
@@ -351,8 +354,14 @@ function SidebarProjectGroupComponent({
         }
       />
 
-      {projectSessions.length > 0 && isExpanded ? (
-        <SidebarSessionGroup
+      <DisclosureContent
+        className="sidebar-project-sessions-disclosure"
+        contentClassName="sidebar-project-sessions-disclosure__content"
+        expanded={projectSessions.length > 0 && isExpanded}
+        id={projectSessionsId}
+        mountPolicy="always"
+      >
+        {projectSessions.length > 0 ? <SidebarSessionGroup
           activeSessionId={activeSessionId}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
           titleLoadingIds={titleLoadingIds}
@@ -370,8 +379,8 @@ function SidebarProjectGroupComponent({
           onRenameSession={onRenameSession}
           onSortChange={onSortChange}
           onUnpinSession={onUnpinSession}
-        />
-      ) : null}
+        /> : null}
+      </DisclosureContent>
 
       {confirmationDialogMounted ? (
         <Suspense fallback={null}>

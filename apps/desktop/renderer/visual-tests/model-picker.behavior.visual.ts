@@ -144,10 +144,26 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
   const efficientLabel = picker.getByText('更高效', { exact: true })
   const smartLabel = picker.getByText('更智能', { exact: true })
   const sliderTrack = picker.locator('.rm-thick-slider-track')
+  const sliderRangeClip = picker.locator('.rm-thick-slider-range-clip')
   const sliderThumb = picker.locator('.rm-thick-slider-thumb')
   const sliderBounds = await slider.boundingBox()
   expect(sliderBounds).not.toBeNull()
   expect((await sliderTrack.boundingBox())?.height).toBe(24)
+  expect(await sliderRangeClip.evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    const style = getComputedStyle(element)
+    return {
+      height: bounds.height,
+      borderRadius: style.borderRadius,
+      overflow: style.overflow,
+      transform: style.transform,
+    }
+  })).toEqual({
+    height: 22,
+    borderRadius: '9999px',
+    overflow: 'hidden',
+    transform: 'none',
+  })
   expect((await sliderThumb.boundingBox())?.height).toBe(28)
   expect((await picker.locator('.rm-thinking-level-control').boundingBox())?.height).toBe(32)
   const trackBackground = await sliderTrack.evaluate(element =>

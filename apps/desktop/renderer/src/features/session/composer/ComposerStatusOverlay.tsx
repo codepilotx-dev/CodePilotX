@@ -103,7 +103,6 @@ export function ComposerStatusOverlay({
     }
   }, [open, selectedProviderID])
 
-  if (!open) return null
   const quotas = criticalQuotaWindows(usageSource, 3)
 
   return (

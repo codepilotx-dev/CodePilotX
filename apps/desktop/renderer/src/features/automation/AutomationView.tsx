@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlarmClock, CalendarClock, CheckCircle2, ChevronDown, FileSearch, LoaderCircle, MoreHorizontal, Pause, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
 import type { Automation, AutomationRun } from '@codepilotx/shared/automation'
@@ -15,6 +16,13 @@ import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import {
+  enterTween,
+  exitTween,
+  floatingSurfaceMotion,
+  motionTransition,
+} from '../motion/motionTransitions.js'
 import { AutomationDetailPanel } from './AutomationDetailPanel.js'
 import {
   AUTOMATION_TEMPLATES,
@@ -136,7 +144,6 @@ export function AutomationView(): React.ReactNode {
       setConfirm({ kind: 'discard' })
       return
     }
-    controller.cancelDraft()
     setParams(current => {
       const next = new URLSearchParams(current)
       next.delete('automationMode')
@@ -254,15 +261,19 @@ export function AutomationView(): React.ReactNode {
                 </>
               )}
             </main>
-            {(creating || controller.selected) && controller.draft ? (
-              <AutomationDetailPanel
-                creating={creating}
-                controller={controller}
-                onClose={() => closeDetail()}
-                onCreated={id => setParams({ automationId: id })}
-                onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
-              />
-            ) : null}
+            <AnimatePresence initial={false} onExitComplete={controller.cancelDraft}>
+              {(creating || controller.selected) && controller.draft ? (
+                <AutomationDetailPresence key="automation-detail">
+                  <AutomationDetailPanel
+                    creating={creating}
+                    controller={controller}
+                    onClose={() => closeDetail()}
+                    onCreated={id => setParams({ automationId: id })}
+                    onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
+                  />
+                </AutomationDetailPresence>
+              ) : null}
+            </AnimatePresence>
           </div>
         )}
       </PrimaryPageLayout>
@@ -295,6 +306,28 @@ export function AutomationView(): React.ReactNode {
         }}
       />
     </>
+  )
+}
+
+function AutomationDetailPresence({ children }: { children: React.ReactNode }): React.ReactNode {
+  const isPresent = useIsPresent()
+  const reducedMotion = usePrefersReducedMotion()
+  // The detail panel is attached to the right edge, so it enters from outside that edge.
+  const surfaceMotion = floatingSurfaceMotion('left')
+
+  return (
+    <motion.div
+      className="automation-detail-presence"
+      initial={surfaceMotion.initial}
+      animate={surfaceMotion.animate}
+      exit={surfaceMotion.exit}
+      transition={motionTransition(reducedMotion, isPresent ? enterTween : exitTween)}
+      aria-hidden={!isPresent || undefined}
+      inert={!isPresent || undefined}
+      style={{ pointerEvents: isPresent ? undefined : 'none' }}
+    >
+      {children}
+    </motion.div>
   )
 }
 

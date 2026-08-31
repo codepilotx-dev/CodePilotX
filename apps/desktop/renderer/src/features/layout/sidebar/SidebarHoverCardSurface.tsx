@@ -5,9 +5,10 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { cx } from '../../../utils/cx.js'
 import {
-  fastTween,
+  enterTween,
+  exitTween,
+  floatingSurfaceMotion,
   motionTransition,
-  standardTween,
 } from '../../motion/motionTransitions.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 
@@ -43,6 +44,7 @@ export function SidebarHoverCardSurface({
   const contentRef = useRef<HTMLDivElement | null>(null)
   const isPresent = useIsPresent()
   const reducedMotion = usePrefersReducedMotion()
+  const surfaceMotion = floatingSurfaceMotion('right')
   const sidebarEdgeRef = useMemo<{ current: VirtualAnchor }>(
     () => ({
       current: {
@@ -153,26 +155,18 @@ export function SidebarHoverCardSurface({
         >
           <motion.div
             aria-hidden={!isPresent ? true : undefined}
-            animate={{
-              opacity: 1,
-              transform: 'scale(1) translateX(0px)',
-            }}
+            animate={surfaceMotion.animate}
             className={cx('sidebar-hover-card-surface', className)}
             exit={{
-              opacity: 0,
-              transform: 'scale(0.98) translateX(-4px)',
-              transition: motionTransition(reducedMotion, fastTween),
+              ...surfaceMotion.exit,
+              transition: motionTransition(reducedMotion, exitTween),
             }}
-            initial={{
-              opacity: 0,
-              transform: 'scale(0.98) translateX(-4px)',
-            }}
+            initial={surfaceMotion.initial}
             inert={!isPresent ? true : undefined}
             style={{
               pointerEvents: isPresent ? undefined : 'none',
-              transformOrigin: 'left center',
             }}
-            transition={motionTransition(reducedMotion, standardTween)}
+            transition={motionTransition(reducedMotion, enterTween)}
           >
             {children}
           </motion.div>

@@ -207,7 +207,6 @@ function SearchableSelect<T extends string>({
   function changeOpen(nextOpen: boolean): void {
     setOpen(nextOpen)
     onOpenChange?.(nextOpen)
-    if (!nextOpen) updateSearch('')
   }
 
   React.useEffect(() => {
@@ -307,6 +306,7 @@ function SearchableSelect<T extends string>({
           collisionPadding={6}
           data-theme-component="dropdown-surface"
           data-variant={variant}
+          onCloseAutoFocus={() => updateSearch('')}
           sideOffset={4}
           style={buildPopoverSizingStyle({
             width: width ?? 'auto',

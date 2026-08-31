@@ -122,9 +122,9 @@
   --cpx-sys-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
   --cpx-sys-font-size-ui: 14px;
-  --cpx-sys-font-size-code: 12px;
-  --cpx-sys-font-size-xs: 11px;
-  --cpx-sys-font-size-sm: 12px;
+  --cpx-sys-font-size-code: 13px;
+  --cpx-sys-font-size-xs: 12px;
+  --cpx-sys-font-size-sm: 13px;
   --cpx-sys-font-size-md: 14px;
   --cpx-sys-font-size-lg: 16px;
   --cpx-sys-font-size-xl: 18px;
@@ -133,26 +133,37 @@
   --cpx-sys-font-size-4xl: 28px;
 
   --cpx-sys-line-height-none: 1;
-  --cpx-sys-line-height-tight: calc(var(--cpx-sys-font-size-sm) + 5px);
-  --cpx-sys-line-height-normal: calc(var(--cpx-sys-font-size-md) + 6px);
-  --cpx-sys-line-height-relaxed: calc(var(--cpx-sys-font-size-lg) + 6px);
+  --cpx-sys-line-height-caption: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --cpx-sys-line-height-label: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --cpx-sys-line-height-body-sm: calc(var(--cpx-sys-font-size-sm) + 5px);
+  --cpx-sys-line-height-body: calc(var(--cpx-sys-font-size-md) + 6px);
+  --cpx-sys-line-height-body-lg: calc(var(--cpx-sys-font-size-lg) + 8px);
+  --cpx-sys-line-height-heading-sm: calc(var(--cpx-sys-font-size-lg) + 6px);
+  --cpx-sys-line-height-heading-md: calc(var(--cpx-sys-font-size-xl) + 6px);
+  --cpx-sys-line-height-heading-lg: calc(var(--cpx-sys-font-size-2xl) + 8px);
+  --cpx-sys-line-height-heading-xl: calc(var(--cpx-sys-font-size-3xl) + 6px);
+  --cpx-sys-line-height-display: calc(var(--cpx-sys-font-size-4xl) + 6px);
+  --cpx-sys-line-height-tight: var(--cpx-sys-line-height-caption);
+  --cpx-sys-line-height-normal: var(--cpx-sys-line-height-body);
+  --cpx-sys-line-height-relaxed: var(--cpx-sys-line-height-body-lg);
   --cpx-sys-line-height-reading: calc(var(--cpx-sys-font-size-md) + 10px);
-  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-sm) * 1.55);
+  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) * 1.55);
 
   --cpx-sys-font-weight-regular: 400;
+  --cpx-sys-font-weight-body: 445;
   --cpx-sys-font-weight-medium: 500;
   --cpx-sys-font-weight-bold: 600;
 
   // System Typography Roles (CSS font shorthand, derived from system inputs)
-  --cpx-sys-type-caption: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-label: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-body-sm: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-normal) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-body: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-ui) / var(--cpx-sys-line-height-normal) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-body-lg: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-relaxed) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-tight) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-space-8) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-caption: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-caption) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-label: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-label) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body-sm: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body-lg: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-body-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-code: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono);
 
   // System Spacing (4px Grid)
@@ -200,11 +211,13 @@
   --cpx-sys-motion-state: 100ms;
   --cpx-sys-motion-enter: 120ms;
   --cpx-sys-motion-panel: 120ms;
+  --cpx-sys-motion-disclosure: 240ms;
   --cpx-sys-motion-loading: 900ms;
 
   // Legacy alias
   --cpx-sys-motion-micro: var(--cpx-sys-motion-feedback);
   --cpx-sys-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --cpx-sys-ease-disclosure: ease;
   --cpx-sys-ease-out: ease-out;
   --cpx-sys-ease-in: ease-in;
   --cpx-sys-ease-linear: linear;

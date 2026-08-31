@@ -305,6 +305,7 @@ function WorkspaceReviewSidebarImpl({
   );
   const fileTreePanelWidth = reviewTabState.fileTreeWidth;
   const {
+    liveSize: liveFileTreePanelWidth,
     liveSizePixels: liveFileTreePanelWidthPixels,
     previewSize: previewFileTreePanelWidth,
   } = useLiveResizeValue(fileTreePanelWidth);
@@ -2789,6 +2790,7 @@ function WorkspaceReviewSidebarImpl({
 
         <ReviewFileTreePanelPresence
           focusReturnRef={fileTreeToggleRef}
+          liveWidth={liveFileTreePanelWidth}
           liveWidthPixels={liveFileTreePanelWidthPixels}
           resizeHandle={
             <ReviewFileTreeResizeController

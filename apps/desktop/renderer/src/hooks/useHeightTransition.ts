@@ -2,9 +2,6 @@ import React from 'react'
 
 import { getEffectiveReducedMotion } from './usePrefersReducedMotion.js'
 
-const HEIGHT_TRANSITION_MS = 200
-const HEIGHT_TRANSITION_FALLBACK_MS = HEIGHT_TRANSITION_MS + 80
-
 export function useHeightTransition(
   dependencies: React.DependencyList,
 ): {
@@ -65,7 +62,7 @@ export function useHeightTransition(
       setHeight(targetHeight)
       timer = window.setTimeout(
         finishTransition,
-        HEIGHT_TRANSITION_FALLBACK_MS,
+        maximumTransitionTime(el) + 50,
       )
     })
 
@@ -85,6 +82,28 @@ export function useHeightTransition(
       overflow: transitioning ? 'hidden' : undefined,
     },
   }
+}
+
+function maximumTransitionTime(element: HTMLElement): number {
+  const style = window.getComputedStyle(element)
+  const durations = style.transitionDuration.split(',').map(parseCssTime)
+  const delays = style.transitionDelay.split(',').map(parseCssTime)
+  const count = Math.max(durations.length, delays.length)
+  let maximum = 0
+
+  for (let index = 0; index < count; index += 1) {
+    const duration = durations[index % durations.length] ?? 0
+    const delay = delays[index % delays.length] ?? 0
+    maximum = Math.max(maximum, duration + delay)
+  }
+
+  return maximum
+}
+
+function parseCssTime(value: string): number {
+  const parsed = Number.parseFloat(value)
+  if (!Number.isFinite(parsed)) return 0
+  return value.trim().endsWith('ms') ? parsed : parsed * 1_000
 }
 
 function outerContentHeight(el: HTMLElement): number {

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, Ellipsis, Plus, SquarePen } from "lucide-react";
 import { AnimatePresence, motion, Reorder, useIsPresent } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -22,10 +22,10 @@ import {
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import {
   fastTween,
-  layoutTween,
   motionTransition,
   standardTween,
 } from "../../motion/motionTransitions.js";
@@ -563,7 +563,7 @@ export function SidebarBody({
           />
         ) : (
         <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
-          <AnimatePresence initial={false} mode="popLayout">
+          <AnimatePresence initial={false}>
           {pinnedItems.length > 0 ? (
             <SidebarSectionPresence key="pinned" reducedMotion={reducedMotion}>
             <SidebarSection
@@ -622,7 +622,7 @@ export function SidebarBody({
           ) : null}
           </AnimatePresence>
 
-          <AnimatePresence initial={false} mode="popLayout">
+          <AnimatePresence initial={false}>
           {organization === "projects" ? (
             <SidebarSectionPresence key="projects" reducedMotion={reducedMotion}>
             <SidebarSection
@@ -1294,19 +1294,16 @@ function SidebarSection({
   title: string;
   onToggle: (section: SidebarSectionId) => void;
 }): React.ReactNode {
-  const reducedMotion = usePrefersReducedMotion();
+  const contentId = useId();
 
   return (
-    <motion.section
-      className="sidebar-section tw:grid tw:gap-1"
-      layout="position"
-      transition={motionTransition(reducedMotion, layoutTween)}
-    >
+    <section className="sidebar-section tw:grid">
       <div
         className="sidebar-section-header tw:rounded-lg tw:px-2 tw:py-1.25 tw:text-base"
       >
         <h2 className="sidebar-section-title">
           <button
+            aria-controls={contentId}
             aria-expanded={!collapsed}
             className="sidebar-section-toggle"
             data-sidebar-section-id={sectionId}
@@ -1319,15 +1316,12 @@ function SidebarSection({
               {title}
             </span>
             <span className="sidebar-section-main">
-              <motion.span
+              <span
                 aria-hidden="true"
-                animate={{ rotate: collapsed ? -90 : 0 }}
                 className="sidebar-section-chevron"
-                initial={false}
-                transition={motionTransition(reducedMotion, standardTween)}
               >
                 <ChevronDown size={APP_ICON_SIZE} />
-              </motion.span>
+              </span>
             </span>
           </button>
         </h2>
@@ -1335,17 +1329,16 @@ function SidebarSection({
           {action}
         </div>
       </div>
-      <AnimatePresence initial={false} mode="popLayout">
-        {!collapsed ? (
-          <SidebarSectionContent
-            key={`sidebar-section-content-${sectionId}`}
-            reducedMotion={reducedMotion}
-          >
-            {children}
-          </SidebarSectionContent>
-        ) : null}
-      </AnimatePresence>
-    </motion.section>
+      <DisclosureContent
+        className="sidebar-section-disclosure"
+        contentClassName="sidebar-section-content tw:grid tw:gap-1"
+        expanded={!collapsed}
+        id={contentId}
+        mountPolicy="always"
+      >
+        {children}
+      </DisclosureContent>
+    </section>
   );
 }
 
@@ -1363,51 +1356,20 @@ function SidebarSectionPresence({
   return (
     <motion.div
       ref={ref}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
       aria-hidden={!isPresent ? true : undefined}
       data-presence={isPresent ? "present" : "exiting"}
       exit={{
+        height: 0,
         opacity: 0,
         transition: motionTransition(reducedMotion, fastTween),
-        y: -8,
       }}
       inert={!isPresent ? true : undefined}
-      initial={{ opacity: 0, y: -8 }}
-      layout="position"
+      initial={{ height: 0, opacity: 0 }}
       style={{
+        overflow: "hidden",
         pointerEvents: isPresent ? undefined : "none",
       }}
-      transition={motionTransition(reducedMotion, standardTween)}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function SidebarSectionContent({
-  children,
-  reducedMotion,
-  ref,
-}: {
-  children: React.ReactNode;
-  reducedMotion: boolean;
-  ref?: React.Ref<HTMLDivElement | null>;
-}): React.ReactNode {
-  const isPresent = useIsPresent();
-
-  return (
-    <motion.div
-      ref={ref}
-      aria-hidden={!isPresent ? true : undefined}
-      animate={{ opacity: 1, y: 0 }}
-      className="sidebar-section-content tw:grid tw:gap-1"
-      exit={{
-        opacity: 0,
-        transition: motionTransition(reducedMotion, fastTween),
-        y: -4,
-      }}
-      inert={!isPresent ? true : undefined}
-      initial={{ opacity: 0, y: -4 }}
       transition={motionTransition(reducedMotion, standardTween)}
     >
       {children}

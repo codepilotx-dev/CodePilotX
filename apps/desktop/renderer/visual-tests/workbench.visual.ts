@@ -259,6 +259,24 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     }
 
     const markdown = page.locator('.canonical-text-item--result > .md-body').first()
+    const routeCode = markdown.locator('code').filter({ hasText: '/new' })
+    const sourceReference = markdown.getByRole('button', {
+      name: '打开文件 ../../components/ui/Tooltip.js',
+    })
+    await expect(routeCode).toHaveText('/new')
+    await expect(sourceReference).toBeVisible()
+    await expect(sourceReference.locator('.md-file-reference__icon')).toBeVisible()
+    const fileReferenceCenterDelta = await sourceReference.evaluate(element => {
+      const icon = element.querySelector<HTMLElement>('.md-file-reference__icon')
+      const label = element.querySelector<HTMLElement>('.md-file-reference__label')
+      if (!icon || !label) return Number.POSITIVE_INFINITY
+      const iconBox = icon.getBoundingClientRect()
+      const labelBox = label.getBoundingClientRect()
+      return Math.abs(
+        iconBox.top + iconBox.height / 2 - (labelBox.top + labelBox.height / 2),
+      )
+    })
+    expect(fileReferenceCenterDelta).toBeLessThanOrEqual(1)
     const userTurnLocator = page.locator('.canonical-turn__user').first()
     const userBubbleLocator = userTurnLocator.locator('[data-user-message-bubble]')
     const imageAttachmentRow = userTurnLocator.getByRole('group', {
@@ -366,7 +384,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         '.canonical-turn__process',
       )
       const processSummary = processSection?.querySelector<HTMLElement>(
-        '.canonical-process-group__summary',
+        '.cpx-agent-activity__header',
       )
       const resultSection = canonicalTurn?.querySelector<HTMLElement>(
         '.canonical-turn__result',
@@ -620,7 +638,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.quotePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.inlineCodeBorderWidth).toBe('0px')
     expect(metrics.inlineCodeBorderRadius).toBe('4px')
-    expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(0.9, 2)
+    expect(metrics.inlineCodeFontSizeRatio).toBeCloseTo(13 / 14, 2)
     expect(metrics.leadDescriptionChildCount).toBe(2)
     expect(metrics.leadDescriptionDirectBreakCount).toBe(0)
     expect(metrics.leadTitleDisplay).toBe('block')
@@ -636,7 +654,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
     expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
-    expect(metrics.codePreFontSize).toBe('12px')
+    expect(metrics.codePreFontSize).toBe('13px')
     expect(metrics.codePreOverflowX).toBe('auto')
     expect(metrics.codePreScrollWidth).toBeGreaterThan(
       metrics.codePreClientWidth,
@@ -648,7 +666,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableFontSize).toBe('14px')
     expect(metrics.tableFontSizeRatio).toBeCloseTo(1, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
-    expect(metrics.tableHeadingFontWeight).toBe('600')
+    expect(metrics.tableHeadingFontWeight).toBe('500')
     expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(20 / 14, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(8)
     expect(metrics.tableHeadingPaddingRight).toBe(24)
@@ -2305,16 +2323,16 @@ for (const mode of MODES) {
 
     const process = page.locator('.canonical-turn__process').first()
     const activityGroup = process.locator(
-      '.canonical-process-group[data-expandable="true"]',
+      '.cpx-agent-activity[data-expandable="true"]',
     ).first()
     const activitySummary = activityGroup.locator(
-      ':scope > .canonical-process-group__summary',
+      ':scope > .cpx-agent-activity__header',
     )
     const activityChevron = activitySummary.locator(
-      '.canonical-process-group__chevron',
+      '.cpx-agent-activity__chevron',
     )
     await expect(activityGroup).toBeVisible()
-    await expect(activityGroup.locator('.canonical-process-group__content')).toHaveCount(0)
+    await expect(activityGroup.locator('.cpx-agent-activity__content')).toHaveCount(0)
     await expect(activityChevron).toHaveCSS('opacity', '0')
     await activitySummary.hover()
     await expect(activityChevron).toHaveCSS('opacity', '1')
@@ -2322,12 +2340,21 @@ for (const mode of MODES) {
     await expect(activityChevron).toHaveCSS('opacity', '1')
     await activitySummary.click()
     await expect(activityGroup).toHaveAttribute('data-expanded', 'true')
-    await expect(activityGroup.locator('.canonical-process-group__content')).toBeVisible()
+    await expect(activityGroup.locator('.cpx-agent-activity__content')).toBeVisible()
     await expect(activityChevron).toHaveCSS('opacity', '1')
 
-    const command = activityGroup.locator('.canonical-tool').first()
+    const command = activityGroup.locator('.cpx-agent-activity__item').first()
+    const itemHeader = command.locator(':scope > .cpx-agent-activity__item-header')
+    const itemChevron = itemHeader.locator('.cpx-agent-activity__chevron')
+    const fileLink = itemHeader.locator('.cpx-agent-activity__file-link')
     await expect(command).toHaveAttribute('data-presentation', 'grouped')
-    await command.locator(':scope > summary').click()
+    await expect(fileLink).toBeVisible()
+    await expect(fileLink).toHaveCSS('text-decoration-style', 'dotted')
+    await fileLink.focus()
+    await expect(fileLink).toBeFocused()
+    await expect(itemChevron).toHaveCSS('opacity', '1')
+    await itemChevron.click()
+    await expect(itemChevron).toHaveCSS('opacity', '1')
     const commandShell = command.locator(
       '.canonical-command-shell--embedded',
     )
@@ -2355,13 +2382,13 @@ for (const mode of MODES) {
         '.canonical-turn__result',
       )
       const group = process?.querySelector<HTMLElement>(
-        '.canonical-process-group[data-expandable="true"]',
+        '.cpx-agent-activity[data-expandable="true"]',
       )
       const summary = group?.querySelector<HTMLElement>(
-        ':scope > .canonical-process-group__summary',
+        ':scope > .cpx-agent-activity__header',
       )
       const items = group?.querySelector<HTMLElement>(
-        '.canonical-process-group__items',
+        '.cpx-agent-activity__list',
       )
       const shell = group?.querySelector<HTMLElement>(
         '.canonical-command-shell--embedded',
@@ -3280,7 +3307,7 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
     composerRowStyles.every(
       (row) =>
         row.borderRadius === '9999px' &&
-        row.fontSize === '14px' &&
+        row.fontSize === '13px' &&
         row.height === 28 &&
         row.lineHeight === '18px' &&
         row.paddingInline === '6px',
@@ -4866,20 +4893,35 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
         const metrics = {
           fontSize: Number.parseFloat(style.fontSize),
           lineHeight: Number.parseFloat(style.lineHeight),
+          fontWeight: style.fontWeight,
           clipped: node.scrollHeight > node.clientHeight + 1,
         }
         node.remove()
         return metrics
       }
       return {
+        page: probe('settings-page-title'),
+        section: probe('settings-section-title'),
         title: probe('settings-row-title'),
         description: probe('settings-row-desc'),
+        meta: probe('settings-row-status'),
+        navigation: probe('settings-nav-item'),
+        selectedNavigation: probe('settings-nav-item active'),
       }
     })
-    for (const part of [settingsRows.title, settingsRows.description]) {
+    for (const part of Object.values(settingsRows)) {
       expect(part.lineHeight).toBeGreaterThanOrEqual(part.fontSize)
       expect(part.clipped).toBe(false)
     }
+    const delta = uiFontSize - 14
+    expect(settingsRows.page).toMatchObject({ fontSize: 24 + delta, fontWeight: '500' })
+    expect(settingsRows.section).toMatchObject({ fontSize: 16 + delta, fontWeight: '500' })
+    expect(settingsRows.title).toMatchObject({ fontSize: 14 + delta, fontWeight: '445' })
+    expect(settingsRows.description).toMatchObject({ fontSize: 13 + delta, fontWeight: '445' })
+    expect(settingsRows.meta).toMatchObject({ fontSize: 12 + delta, fontWeight: '445' })
+    expect(settingsRows.selectedNavigation.fontWeight).toBe(
+      settingsRows.navigation.fontWeight,
+    )
 
     // Turn navigation preview keeps a three-line clamp whose line boxes
     // scale with the UI font.
@@ -4930,7 +4972,7 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
 test('code line boxes never overlap at the supported code font sizes', async ({
   page,
 }) => {
-  for (const codeFontSize of [8, 24] as const) {
+  for (const codeFontSize of [8, 13, 24] as const) {
     await page.setViewportSize({ width: 1440, height: 920 })
     await prepareVisualTheme(page, 'dark', { codeFontSize })
     await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
@@ -5002,7 +5044,19 @@ test('user message collapse threshold recomputes when the UI font changes at run
 
   // Grow 11 → 16 at runtime: the collapsed clamp follows the new line boxes.
   await page.evaluate(() => {
-    document.documentElement.style.setProperty('--font-size-ui', '16px')
+    document.documentElement.style.setProperty('--cpx-sys-font-size-ui', '16px')
+    for (const [name, size] of Object.entries({
+      xs: 14,
+      sm: 15,
+      md: 16,
+      lg: 18,
+      xl: 20,
+      '2xl': 22,
+      '3xl': 26,
+      '4xl': 30,
+    })) {
+      document.documentElement.style.setProperty(`--cpx-sys-font-size-${name}`, `${size}px`)
+    }
   })
   await expect
     .poll(async () => (await readClamp(bubble))?.clientHeight)
@@ -5019,7 +5073,19 @@ test('user message collapse threshold recomputes when the UI font changes at run
   // heights instead of relying on the mount-time value.
   const heightAt16 = clamp!.clientHeight
   await page.evaluate(() => {
-    document.documentElement.style.setProperty('--font-size-ui', '11px')
+    document.documentElement.style.setProperty('--cpx-sys-font-size-ui', '11px')
+    for (const [name, size] of Object.entries({
+      xs: 9,
+      sm: 10,
+      md: 11,
+      lg: 13,
+      xl: 15,
+      '2xl': 17,
+      '3xl': 21,
+      '4xl': 25,
+    })) {
+      document.documentElement.style.setProperty(`--cpx-sys-font-size-${name}`, `${size}px`)
+    }
   })
   await expect
     .poll(async () => (await readClamp(bubble))?.clientHeight)

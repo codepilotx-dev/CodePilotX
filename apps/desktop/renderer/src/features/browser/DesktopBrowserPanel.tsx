@@ -53,6 +53,8 @@ export function DesktopBrowserPanel({
   const [annotationTarget, setAnnotationTarget] = useState('')
   const [annotationBody, setAnnotationBody] = useState('')
   const lastBoundsRef = useRef<BrowserBounds | null>(null)
+  const boundsPausedRef = useRef(false)
+  const syncBrowserBoundsRef = useRef<() => Promise<void>>(async () => undefined)
 
   useEffect(() => {
     if (state.url) {
@@ -66,9 +68,14 @@ export function DesktopBrowserPanel({
   )
 
   useEffect(() => {
-    if (!desktopBrowserClient.available || !state.open) return
+    if (
+      !desktopBrowserClient.available
+      || !state.open
+      || annotationOpen
+      || boundsPausedRef.current
+    ) return
     void desktopBrowserClient
-      .setBrowserVisible(!annotationOpen)
+      .setBrowserVisible(true)
       .then(onStateChange)
       .catch(() => undefined)
   }, [annotationOpen, onStateChange, state.open])
@@ -85,42 +92,46 @@ export function DesktopBrowserPanel({
     if (!viewport || !state.open) return
 
     let animationFrame = 0
-    const setBounds = (bounds: BrowserBounds): void => {
+    const setBounds = async (bounds: BrowserBounds): Promise<void> => {
       const previous = lastBoundsRef.current
       if (previous && sameBrowserBounds(previous, bounds)) {
         return
       }
 
       lastBoundsRef.current = bounds
-      void desktopBrowserClient
-        .setBrowserBounds(bounds)
-        .then(onStateChange)
-        .catch(() => undefined)
+      try {
+        const next = await desktopBrowserClient.setBrowserBounds(bounds)
+        onStateChange(next)
+      } catch {
+        // Bounds synchronization is retried by the next resize or visibility change.
+      }
     }
 
-    const syncBounds = (): void => {
+    const syncBounds = async (): Promise<void> => {
       if (!state.url) {
-        setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        await setBounds({ x: 0, y: 0, width: 0, height: 0 })
         return
       }
       const rect = viewport.getBoundingClientRect()
-      setBounds({
+      await setBounds({
         x: rect.left,
         y: rect.top,
         width: rect.width,
         height: rect.height,
       })
     }
+    syncBrowserBoundsRef.current = syncBounds
 
     const scheduleSyncBounds = (): void => {
+      if (boundsPausedRef.current) return
       if (animationFrame) return
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = 0
-        syncBounds()
+        void syncBounds()
       })
     }
 
-    syncBounds()
+    if (!boundsPausedRef.current) void syncBounds()
     const resizeObserver = new ResizeObserver(scheduleSyncBounds)
     resizeObserver.observe(viewport)
     window.addEventListener('resize', scheduleSyncBounds)
@@ -128,7 +139,8 @@ export function DesktopBrowserPanel({
       if (animationFrame) {
         window.cancelAnimationFrame(animationFrame)
       }
-      setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      syncBrowserBoundsRef.current = async () => undefined
+      void setBounds({ x: 0, y: 0, width: 0, height: 0 })
       resizeObserver.disconnect()
       window.removeEventListener('resize', scheduleSyncBounds)
     }
@@ -170,6 +182,7 @@ export function DesktopBrowserPanel({
   }
 
   function closeAnnotation(): void {
+    boundsPausedRef.current = true
     annotationPanelRef.current?.setAttribute('aria-hidden', 'true')
     annotationPanelRef.current?.setAttribute('inert', '')
     annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
@@ -181,6 +194,27 @@ export function DesktopBrowserPanel({
       annotationToggleRef.current?.focus({ preventScroll: true })
     }
     setAnnotationOpen(false)
+  }
+
+  function openAnnotation(): void {
+    boundsPausedRef.current = true
+    void desktopBrowserClient
+      .setBrowserVisible(false)
+      .then(next => {
+        onStateChange(next)
+        setAnnotationOpen(true)
+      })
+      .catch(() => setAnnotationOpen(true))
+  }
+
+  function finishAnnotationExit(): void {
+    void syncBrowserBoundsRef.current()
+      .then(() => desktopBrowserClient.setBrowserVisible(true))
+      .then(onStateChange)
+      .catch(() => undefined)
+      .finally(() => {
+        boundsPausedRef.current = false
+      })
   }
 
   function handleSendPageToComposer(): void {
@@ -279,7 +313,7 @@ export function DesktopBrowserPanel({
             title={annotationOpen ? '收起批注' : '添加批注'}
             onClick={() => {
               if (annotationOpen) closeAnnotation()
-              else setAnnotationOpen(true)
+              else openAnnotation()
             }}
           >
             <MessageSquarePlus
@@ -311,7 +345,7 @@ export function DesktopBrowserPanel({
         ) : null}
       </div>
 
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} onExitComplete={finishAnnotationExit}>
         {annotationOpen ? (
           <motion.div
             ref={annotationPanelRef}

@@ -24,6 +24,7 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
+import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -669,6 +670,8 @@ function ModelEditor({
   model: EditableModel
   onChange: (model: EditableModel) => void
 }): React.ReactNode {
+  const [advanced, setAdvanced] = useState(false)
+  const advancedId = useId()
   const number = (key: keyof EditableModel, value: string) =>
     onChange({ ...model, [key]: Math.max(0, Number(value) || 0) })
 
@@ -758,9 +761,26 @@ function ModelEditor({
         </div>
       </div>
 
-      <details className="provider-editor-model-advanced-details">
-        <summary>高级配置与 Token 计费</summary>
-        <div className="provider-editor-model-advanced-content">
+      <div
+        className="provider-editor-model-advanced-details"
+        data-expanded={advanced ? 'true' : 'false'}
+      >
+        <button
+          aria-controls={advancedId}
+          aria-expanded={advanced}
+          className="provider-editor-model-advanced-summary"
+          onClick={() => setAdvanced(current => !current)}
+          type="button"
+        >
+          <ChevronRight aria-hidden="true" />
+          高级配置与 Token 计费
+        </button>
+        <DisclosureContent
+          contentClassName="provider-editor-model-advanced-content"
+          expanded={advanced}
+          id={advancedId}
+          mountPolicy="always"
+        >
           <div className="provider-editor-grid">
             <label className="provider-editor-field">
               <span>输入成本 ($ / 1M tokens)</span>
@@ -834,8 +854,8 @@ function ModelEditor({
               onChange={event => onChange({ ...model, compat: event.target.value })}
             />
           </label>
-        </div>
-      </details>
+        </DisclosureContent>
+      </div>
     </div>
   )
 }

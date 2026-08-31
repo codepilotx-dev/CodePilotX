@@ -23,6 +23,7 @@ import {
   createThreadPatchDiffLoader,
   ExpandableFileMutationRow,
 } from "../src/features/session/timeline/ExpandableFileMutationRow.js";
+import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
 
@@ -39,6 +40,7 @@ function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
     state: "completed",
     input: null,
     command: "bun test",
+    activity: { type: "command", kind: "test" },
     output: "pass",
     error: null,
     startedAt: 1_000,
@@ -66,7 +68,19 @@ describe("canonical tool item display", () => {
   test("formats command durations independently from semantic summaries", () => {
     expect(formatToolDuration(250)).toBe("1 秒");
     expect(formatToolDuration(84_000)).toBe("1 分 24 秒");
-    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("已运行命令");
+    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("已在 1 秒内执行 bun test");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: undefined,
+    })).collapsedLabel).toBe("已在 1 秒内执行 bun test");
+    expect(buildToolSemanticSummary(toolItem({
+      durationMs: null,
+      finishedAt: null,
+    })).collapsedLabel).toBe("已执行 bun test");
+    expect(buildToolSemanticSummary(toolItem({
+      durationMs: null,
+      finishedAt: null,
+      state: "running",
+    }), { nowMs: 2_500 }).collapsedLabel).toBe("正在执行 bun test · 2 秒");
   });
 
   test("only allows an active command to expand after output arrives", () => {
@@ -83,63 +97,70 @@ describe("canonical tool item display", () => {
       output: "partial output",
     }))).toMatchObject({
       canExpand: true,
-      collapsedLabel: "正在运行 bun test",
-      expandedLabel: "正在运行命令",
+      collapsedLabel: "正在执行 bun test",
+      expandedLabel: "正在执行 bun test",
       resultText: "partial output",
     });
   });
 
-  test("uses semantic state labels for structured tools without exposing tool names", () => {
+  test("uses shared descriptors for activity labels and icons", () => {
     const scenarios = [
-      ["Read", { file_path: "src/ConversationPage.tsx" }, "正在读取 src/ConversationPage.tsx", "已读取 src/ConversationPage.tsx"],
-      ["workspace.Grep", { pattern: "canRegenerate" }, "正在搜索 canRegenerate", "已搜索 canRegenerate"],
-      ["Glob", { pattern: "**/*.tsx" }, "正在查找 **/*.tsx", "已查找 **/*.tsx"],
-      ["ToolSearch", {}, "正在搜索工具", "已搜索工具"],
-      ["update_plan", {}, "正在更新计划", "已更新计划"],
-      ["skill_read", { name: "reverse-engineer-ui-feature" }, "正在读取技能 reverse-engineer-ui-feature", "已读取技能 reverse-engineer-ui-feature"],
+      [{ type: "read", subject: "file", target: { displayLabel: "src/ConversationPage.tsx", workspacePath: "src/ConversationPage.tsx" } }, "正在读取 src/ConversationPage.tsx", "已读取 src/ConversationPage.tsx", "read"],
+      [{ type: "search", query: "canRegenerate" }, "正在搜索“canRegenerate”", "已搜索“canRegenerate”", "search"],
+      [{ type: "list_files" }, "正在列出文件", "已列出文件", "list-files"],
+      [{ type: "tool", mode: "search" }, "正在搜索工具", "已搜索工具", "tool"],
+      [{ type: "tool", mode: "load", name: "browser.open" }, "正在加载工具 browser.open", "已加载工具 browser.open", "skill"],
+      [{ type: "read", subject: "skill", target: { displayLabel: "reverse-engineer-ui-feature" } }, "正在读取 reverse-engineer-ui-feature 技能", "已读取 reverse-engineer-ui-feature 技能", "skill"],
+      [{ type: "web_search" }, "正在搜索网页", "已搜索网页", "web-search"],
+      [{ type: "integration", source: "github" }, "正在使用 github", "已使用 github", "integration"],
+      [{ type: "command", kind: "skill_script", skillName: "review", scriptName: "check.py" }, "正在执行 review 技能中的脚本 check.py", "已在 1 秒内执行 review 技能中的脚本 check.py", "command"],
+      [{ type: "command", kind: "current_time" }, "正在检查当前日期和时间", "已检查当前日期和时间 · 1 秒", "current-time"],
     ] as const;
 
-    for (const [tool, input, runningLabel, completedLabel] of scenarios) {
+    for (const [activity, runningLabel, completedLabel, iconKind] of scenarios) {
       const running = buildToolSemanticSummary(toolItem({
         command: null,
-        input,
+        activity,
         state: "running",
-        tool,
       }));
       const completed = buildToolSemanticSummary(toolItem({
         command: null,
-        input,
-        tool,
+        activity,
       }));
       expect(running.collapsedLabel).toBe(runningLabel);
       expect(completed.collapsedLabel).toBe(completedLabel);
+      expect(completed.iconKind).toBe(iconKind);
     }
 
     expect(buildToolSemanticSummary(toolItem({
+      activity: undefined,
       command: null,
       input: { secret: "do-not-render" },
       state: "error",
       tool: "internal.private_tool",
     }))).toMatchObject({
-      collapsedLabel: "操作失败",
-      toolLabel: "操作",
+      collapsedLabel: "工具调用失败 internal.private_tool",
+      toolLabel: "工具",
     });
 
     expect(buildToolSemanticSummary(toolItem()).kind).toBe("command");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "read", subject: "file", target: { displayLabel: "src/a.ts" } },
       command: null,
-      input: { file_path: "src/a.ts" },
       tool: "Read",
     })).kind).toBe("exploration");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "web_search" },
       command: null,
       tool: "web__run",
     })).kind).toBe("web-search");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "integration", source: "drive" },
       command: null,
       tool: "mcp__drive__search",
     })).kind).toBe("integration");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "tool", mode: "call" },
       command: null,
       tool: "internal.private_tool",
     })).kind).toBe("tool");
@@ -148,16 +169,17 @@ describe("canonical tool item display", () => {
   test("uses state-specific failure and interruption labels", () => {
     expect(buildToolSemanticSummary(toolItem({
       state: "error",
-    })).collapsedLabel).toBe("命令失败 bun test");
+    })).collapsedLabel).toBe("执行失败 bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
       state: "interrupted",
-    })).collapsedLabel).toBe("命令已中断 bun test");
+    })).collapsedLabel).toBe("已停止执行 bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "read", subject: "file", target: { displayLabel: "ConversationPage.tsx" } },
       command: null,
       input: { file_path: "C:\\private\\ConversationPage.tsx" },
       state: "interrupted",
       tool: "Read",
-    })).collapsedLabel).toBe("已中断读取 ConversationPage.tsx");
+    })).collapsedLabel).toBe("已停止读取 ConversationPage.tsx");
     expect(buildToolItemDisplay(toolItem({
       command: null,
       input: { file_path: "C:\\private\\ConversationPage.tsx" },
@@ -401,6 +423,44 @@ describe("canonical tool item display", () => {
     expect(withoutResult).toContain("无输出");
   });
 
+  test("renders workspace targets as isolated file links", () => {
+    const linked = renderToStaticMarkup(
+      <TooltipProvider>
+        <ConversationItemContext.Provider value={{
+          canCopyFileReferenceContents: () => false,
+          onCopyFileReferenceContents: () => undefined,
+          onOpenFileReference: () => undefined,
+          onSubmitEditedUserMessage: async () => undefined,
+          sessionStatus: "idle",
+          workspacePath: "C:\\workspace",
+        }}>
+          <ToolItemView item={toolItem({
+            activity: {
+              type: "read",
+              subject: "file",
+              target: { displayLabel: "src/a.ts", workspacePath: "src/a.ts" },
+            },
+            command: null,
+            tool: "Read",
+          })} />
+        </ConversationItemContext.Provider>
+      </TooltipProvider>,
+    );
+    const displayOnly = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView item={toolItem({
+          activity: { type: "read", subject: "file", target: { displayLabel: "external.ts" } },
+          command: null,
+          tool: "Read",
+        })} />
+      </TooltipProvider>,
+    );
+
+    expect(linked).toContain('class="cpx-agent-activity__file-link"');
+    expect(linked).toContain('aria-label="打开文件 src/a.ts"');
+    expect(displayOnly).not.toContain("cpx-agent-activity__file-link");
+  });
+
   test("renders grouped commands as embedded shells without losing details", () => {
     const item = toolItem({ output: "pass" });
     const embedded = renderToStaticMarkup(
@@ -474,11 +534,14 @@ describe("canonical tool item display", () => {
       </TooltipProvider>,
     );
 
-    expect(collapsed).toContain("已运行 bun test");
-    expect(collapsed).not.toContain('aria-label="执行内容"');
+    expect(collapsed).toContain("已在 1 秒内执行 bun test");
+    expect(collapsed).toContain('aria-label="执行内容"');
+    expect(collapsed).toContain('data-mount-policy="always"');
+    expect(collapsed).toContain('aria-hidden="true"');
+    expect(collapsed).toContain("inert");
     expect(collapsed).toContain("lucide-chevron-right");
     expect(collapsed).not.toContain("lucide-chevron-down");
-    expect(expanded).toContain("已运行命令");
+    expect(expanded).toContain("已在 1 秒内执行 bun test");
     expect(expanded).toContain('aria-label="执行内容"');
     expect(expanded).toContain("lucide-chevron-right");
     expect(expanded).not.toContain("lucide-chevron-down");
@@ -510,7 +573,7 @@ describe("canonical tool item display", () => {
 
     const markup = renderToStaticMarkup(<FileMutationItemView item={item} />);
     expect(markup).toContain("已编辑 src/a.ts");
-    expect(markup).toContain("已编辑 src/b.ts");
+    expect(markup).toContain("已创建 src/b.ts");
     expect(markup).toContain("+2");
     expect(markup).not.toContain("+0</small><small");
   });
@@ -557,9 +620,9 @@ describe("canonical tool item display", () => {
     );
 
     expect(expandableMarkup).toContain('data-expandable="true"');
-    expect(expandableMarkup).toContain("lucide-chevron-down");
+    expect(expandableMarkup).toContain("lucide-chevron-right");
     expect(expandableMarkup).toContain("正在加载差异");
-    expect(legacyMarkup).toContain('class="canonical-file-mutation__row"');
+    expect(legacyMarkup).toContain("cpx-agent-activity__item-header--static");
     expect(legacyMarkup).not.toContain("<details");
     expect(legacyMarkup).not.toContain("<summary");
     expect(legacyMarkup).not.toContain("lucide-chevron");

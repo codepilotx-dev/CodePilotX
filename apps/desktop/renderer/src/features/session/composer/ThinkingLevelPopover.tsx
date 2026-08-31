@@ -120,6 +120,7 @@ function ThickPillSlider({
   const totalSteps = options.length
   const stepCount = Math.max(0, totalSteps - 1)
   const activeIndex = Math.min(stepCount, previewIndex ?? currentIndex)
+  const isDisabledLevel = activeIndex === 0 && options[0]?.value === 'disabled'
   const initialPosition = normalizeSliderIndex(currentIndex, stepCount)
   const position = useMotionValue(initialPosition)
   const trackTravel = useMotionValue(0)
@@ -389,15 +390,17 @@ function ThickPillSlider({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <motion.div
-          className={cx(
-            'rm-thick-slider-range',
-            activeIndex === 0 && options[0]?.value === 'disabled' && 'is-disabled-level',
-          )}
-          style={{
-            scaleX: rangeScaleX,
-          }}
-        />
+        <div className="rm-thick-slider-range-clip">
+          <motion.div
+            className={cx(
+              'rm-thick-slider-range',
+              isDisabledLevel && 'is-disabled-level',
+            )}
+            style={{
+              scaleX: rangeScaleX,
+            }}
+          />
+        </div>
 
         {options.map((option, index) => {
           const dotRatio = stepCount > 0 ? index / stepCount : 0

@@ -1,7 +1,10 @@
 import type React from "react";
 import {
   AnimatePresence,
+  animate,
   motion,
+  useMotionValue,
+  useMotionValueEvent,
   usePresence,
   type MotionValue,
 } from "motion/react";
@@ -24,6 +27,7 @@ type Props = {
   children: React.ReactNode;
   focusReturnRef: React.RefObject<HTMLButtonElement | null>;
   liveWidthPixels: MotionValue<string>;
+  liveWidth: MotionValue<number>;
   resizeHandle: React.ReactNode;
   visible: boolean;
   width: number;
@@ -33,6 +37,7 @@ export function ReviewFileTreePanelPresence({
   children,
   focusReturnRef,
   liveWidthPixels,
+  liveWidth,
   resizeHandle,
   visible,
   width,
@@ -46,6 +51,7 @@ export function ReviewFileTreePanelPresence({
           key="review-file-tree"
           focusReturnRef={focusReturnRef}
           liveWidthPixels={liveWidthPixels}
+          liveWidth={liveWidth}
           resizeHandle={resizeHandle}
           skipEnterAnimation={initiallyVisibleRef.current}
           width={width}
@@ -61,6 +67,7 @@ function ReviewFileTreePanelPresenceItem({
   children,
   focusReturnRef,
   liveWidthPixels,
+  liveWidth,
   resizeHandle,
   skipEnterAnimation,
   width,
@@ -71,8 +78,34 @@ function ReviewFileTreePanelPresenceItem({
   const [isPresent, safeToRemove] = usePresence();
   const shellRef = useRef<HTMLElement | null>(null);
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation);
-  const visibleState = { opacity: 1, width, x: 0 };
-  const hiddenState = { opacity: 0, width: 0, x: 8 };
+  const visibleState = { opacity: 1, x: 0 };
+  const hiddenState = { opacity: 0, x: 8 };
+  const allocatedWidth = useMotionValue(skipEnterAnimation ? width : 0);
+  const allocationAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
+  const isPresentRef = useRef(isPresent);
+  isPresentRef.current = isPresent;
+
+  useMotionValueEvent(liveWidth, "change", nextWidth => {
+    if (!isPresentRef.current) return;
+    allocationAnimationRef.current?.stop();
+    allocationAnimationRef.current = null;
+    allocatedWidth.set(nextWidth);
+  });
+
+  useEffect(() => {
+    const animation = animate(
+      allocatedWidth,
+      isPresent ? liveWidth.get() : 0,
+      motionTransition(reducedMotion, isPresent ? layoutTween : exitTween),
+    );
+    allocationAnimationRef.current = animation;
+    return () => {
+      animation.stop();
+      if (allocationAnimationRef.current === animation) {
+        allocationAnimationRef.current = null;
+      }
+    };
+  }, [allocatedWidth, isPresent, liveWidth, reducedMotion, width]);
 
   useLayoutEffect(() => {
     if (isPresent) return;
@@ -131,19 +164,24 @@ function ReviewFileTreePanelPresenceItem({
           if (isPresent) setEntryComplete(true);
         }}
         style={{
-          flexBasis: liveWidthPixels,
+          flexBasis: allocatedWidth,
           minWidth:
             isPresent && entryComplete
               ? REVIEW_FILE_TREE_PANEL_MIN_WIDTH
               : 0,
-          width: liveWidthPixels,
+          width: allocatedWidth,
         }}
         transition={motionTransition(
           reducedMotion,
           entryComplete ? instantTween : layoutTween,
         )}
       >
-        {children}
+        <motion.div
+          className="review-file-tree-panel-surface"
+          style={{ width: liveWidthPixels }}
+        >
+          {children}
+        </motion.div>
       </motion.section>
     </>
   );

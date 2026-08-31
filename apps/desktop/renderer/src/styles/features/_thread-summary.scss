@@ -98,7 +98,7 @@
     padding: 0 var(--cpx-sys-space-3) var(--cpx-sys-space-1) var(--cpx-sys-space-4);
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-md);
+    font: var(--cpx-sys-type-body);
     font-weight: var(--cpx-sys-font-weight-medium);
 
     h2 {
@@ -152,7 +152,7 @@
     flex: 0 0 auto;
     opacity: 0;
     transition:
-      transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out),
+      transform var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure),
       opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   }
 
@@ -183,29 +183,13 @@
 .thread-summary-section__content {
   position: relative;
   z-index: 0;
-  display: grid;
-  grid-template-rows: 1fr;
-  margin-top: var(--cpx-sys-space-1);
-  overflow: hidden;
-  opacity: 1;
-  transition:
-    grid-template-rows var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out),
-    margin-top var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out),
-    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
-
-  &[data-expanded="false"] {
-    grid-template-rows: 0fr;
-    margin-top: 0;
-    opacity: 0;
-    pointer-events: none;
-  }
 }
 
 .thread-summary-section__rows {
   min-height: 0;
   display: grid;
   gap: 0;
-  padding: 0 var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4) 0;
   overflow: hidden;
 }
 
@@ -215,8 +199,7 @@
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) max-content;
   margin: 0 calc(-1 * var(--cpx-sys-space-2));
-  font-family: inherit;
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-body);
   text-align: left;
   text-decoration: none;
 
@@ -236,7 +219,7 @@
 
   > small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
     white-space: nowrap;
   }
 
@@ -261,8 +244,7 @@
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   background: transparent;
-  font-family: inherit;
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-body);
   text-align: left;
 
   > svg {
@@ -318,8 +300,7 @@
   justify-content: flex-end;
   gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-regular);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 }
 
@@ -349,8 +330,7 @@
   border-radius: var(--cpx-sys-radius-container);
   color: var(--cpx-sys-color-fg-primary);
   cursor: default;
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
   user-select: none;
 }
 
@@ -429,12 +409,13 @@
 
     h2 {
       margin: 0;
-      font-size: var(--cpx-sys-font-size-md);
+      font: var(--cpx-sys-type-body);
+      font-weight: var(--cpx-sys-font-weight-medium);
     }
 
     span {
       color: var(--cpx-sys-color-fg-tertiary);
-      font-size: var(--cpx-sys-font-size-xs);
+      font: var(--cpx-sys-type-caption);
     }
 
     button {
@@ -455,7 +436,7 @@
   > p {
     margin: 0;
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 }
 
@@ -492,7 +473,7 @@
 .thread-summary-diff {
   display: inline-flex;
   gap: var(--cpx-sys-space-1);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   font-variant-numeric: tabular-nums;
 
   strong {
@@ -517,7 +498,7 @@
 
   span {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 
   button {
@@ -537,38 +518,6 @@
       outline: 1px solid var(--cpx-sys-color-accent);
       outline-offset: 2px;
     }
-  }
-}
-
-@keyframes thread-summary-enter {
-  from {
-    opacity: 0;
-    transform: translateX(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.ui-dialog-surface.thread-summary-sources-panel[data-state="open"] {
-  animation: thread-summary-enter var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
-}
-
-.ui-dialog-surface.thread-summary-sources-panel[data-state="closed"] {
-  animation: thread-summary-exit var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in);
-}
-
-@keyframes thread-summary-exit {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(6px);
   }
 }
 

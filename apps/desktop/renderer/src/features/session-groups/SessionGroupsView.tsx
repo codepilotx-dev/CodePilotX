@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import {
   AlertCircle,
   ArrowLeft,
@@ -29,6 +29,8 @@ import { IconButton } from '../../components/ui/IconButton.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { Spinner } from '../../components/ui/Spinner.js'
+import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
+import { useHeightTransition } from '../../hooks/useHeightTransition.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
@@ -503,6 +505,11 @@ function SessionGroupStepCard({
   const [diff, setDiff] = useState<RpcResult<'session-group/step/diff'> | null>(null)
   const [diffOpen, setDiffOpen] = useState(false)
   const [diffLoading, setDiffLoading] = useState(false)
+  const diffId = useId()
+  const diffResize = useHeightTransition([
+    diffLoading,
+    diff?.files.length ?? 0,
+  ])
 
   async function toggleDiff(): Promise<void> {
     const next = !diffOpen
@@ -676,6 +683,7 @@ function SessionGroupStepCard({
         {step.changedFiles.length ? (
           <div className="session-group-step__diff-area">
             <button
+              aria-controls={diffId}
               aria-expanded={diffOpen}
               className="session-group-diff-toggle"
               type="button"
@@ -685,8 +693,17 @@ function SessionGroupStepCard({
               <span>{step.changedFiles.length} 个变更文件</span>
               {diffOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
-            {diffOpen ? (
-              <div className="session-group-step__diff">
+            <DisclosureContent
+              contentClassName="session-group-step__diff"
+              expanded={diffOpen}
+              id={diffId}
+              mountPolicy="until-exit"
+            >
+              <div
+                className="session-group-step__diff-resize"
+                ref={diffResize.ref}
+                style={diffResize.style}
+              >
                 {diffLoading ? (
                   <div className="session-group-diff-loading">正在加载 Diff…</div>
                 ) : diff ? (
@@ -706,7 +723,7 @@ function SessionGroupStepCard({
                   ))
                 ) : null}
               </div>
-            ) : null}
+            </DisclosureContent>
           </div>
         ) : null}
       </div>

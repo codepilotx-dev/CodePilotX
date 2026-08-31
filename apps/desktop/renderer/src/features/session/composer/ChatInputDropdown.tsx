@@ -1,9 +1,17 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../../components/ui/popoverSizing.js'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import {
+  enterTween,
+  exitTween,
+  floatingSurfaceMotion,
+  motionTransition,
+} from '../../motion/motionTransitions.js'
 
 type Props = {
   open: boolean
@@ -105,8 +113,6 @@ export function ChatInputDropdown({
     }
   }, [open, onClose])
 
-  if (!open) return null
-
   const style: React.CSSProperties = buildPopoverSizingStyle({ width, maxWidth })
   if (maxHeight !== null) {
     style.maxHeight = `${maxHeight}px`
@@ -115,18 +121,62 @@ export function ChatInputDropdown({
   }
 
   return (
-    <div
-      ref={ref}
-      data-theme-component="dropdown-surface"
+    <AnimatePresence initial={false}>
+      {open ? (
+        <ChatInputDropdownSurface
+          key="chat-input-dropdown"
+          maxHeightStyle={style}
+          ref={ref}
+          side={side}
+        >
+          {children}
+        </ChatInputDropdownSurface>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
+function ChatInputDropdownSurface({
+  children,
+  maxHeightStyle,
+  ref,
+  side,
+}: {
+  children: React.ReactNode
+  maxHeightStyle: React.CSSProperties
+  ref: React.Ref<HTMLDivElement>
+  side: 'top' | 'bottom'
+}): React.ReactNode {
+  const isPresent = useIsPresent()
+  const reducedMotion = usePrefersReducedMotion()
+  const surfaceMotion = floatingSurfaceMotion(side)
+
+  return (
+    <motion.div
+      animate={surfaceMotion.animate}
+      aria-hidden={!isPresent ? true : undefined}
       className={[
         'popover-surface',
         'chat-input__dropdown',
         side === 'bottom' ? 'chat-input__dropdown--bottom' : '',
       ].join(' ')}
-      onClick={e => e.stopPropagation()}
-      style={style}
+      data-presence={isPresent ? 'present' : 'exiting'}
+      data-theme-component="dropdown-surface"
+      exit={{
+        ...surfaceMotion.exit,
+        transition: motionTransition(reducedMotion, exitTween),
+      }}
+      inert={!isPresent ? true : undefined}
+      initial={surfaceMotion.initial}
+      onClick={event => event.stopPropagation()}
+      ref={ref}
+      style={{
+        ...maxHeightStyle,
+        pointerEvents: isPresent ? undefined : 'none',
+      }}
+      transition={motionTransition(reducedMotion, enterTween)}
     >
       <div className="chat-input__dropdown-content">{children}</div>
-    </div>
+    </motion.div>
   )
 }

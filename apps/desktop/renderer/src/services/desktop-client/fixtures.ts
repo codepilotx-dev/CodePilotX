@@ -425,7 +425,12 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
             type: 'tool_call',
             content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
             createdAt,
-            metadata: { toolName: 'Bash', toolUseId: toolId },
+            metadata: {
+              toolName: 'Bash',
+              toolUseId: toolId,
+              command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+              activity: { type: 'command', kind: 'test' },
+            },
           },
           {
             id: `${toolId}-output`,
@@ -548,6 +553,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     '正文段落使用舒展的行高与稳定的块间距，让较长回复保持清晰。',
     '',
     '第二段包含 **强调文字**、`theme token` 和连续内容，用于核对中英文混排。',
+    '路由 `/new` 保持代码样式，源码 `../../components/ui/Tooltip.js` 保持文件引用。',
     '',
     '普通软换行继续保留 breaks: true，',
     '第二行不会获得标题与说明的分组间距。',
@@ -705,7 +711,25 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           type: 'tool_call',
           content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
           createdAt: timestamp(300 + toolIndex * 40),
-          metadata: { toolName: 'Bash', toolUseId: toolId },
+          metadata: toolIndex === 0
+            ? {
+                toolName: 'Read',
+                toolUseId: toolId,
+                activity: {
+                  type: 'read',
+                  subject: 'file',
+                  target: {
+                    displayLabel: 'src/ConversationPage.tsx',
+                    workspacePath: 'src/ConversationPage.tsx',
+                  },
+                },
+              }
+            : {
+                toolName: 'Bash',
+                toolUseId: toolId,
+                command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+                activity: { type: 'command', kind: 'test' },
+              },
         },
         {
           id: `${toolId}-output`,
@@ -778,9 +802,27 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         id: `${sessionId}-tool`,
         sessionId,
         type: 'tool_call',
-        content: 'Bash: bun run typecheck',
+        content: visualCase === 'rich' ? 'Read: src/ConversationPage.tsx' : 'Bash: bun run typecheck',
         createdAt: timestamp(3_000),
-        metadata: { toolName: 'Bash', toolUseId: 'visual-tool-1' },
+        metadata: visualCase === 'rich'
+          ? {
+              toolName: 'Read',
+              toolUseId: 'visual-tool-1',
+              activity: {
+                type: 'read',
+                subject: 'file',
+                target: {
+                  displayLabel: 'src/ConversationPage.tsx',
+                  workspacePath: 'src/ConversationPage.tsx',
+                },
+              },
+            }
+          : {
+              toolName: 'Bash',
+              toolUseId: 'visual-tool-1',
+              command: 'bun run typecheck',
+              activity: { type: 'command', kind: 'test' },
+            },
       },
       {
         id: `${sessionId}-tool-output`,
@@ -798,7 +840,12 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
               type: 'tool_call' as const,
               content: 'Bash: bun run build:renderer',
               createdAt: timestamp(4_100),
-              metadata: { toolName: 'Bash', toolUseId: 'visual-tool-2' },
+              metadata: {
+                toolName: 'Bash',
+                toolUseId: 'visual-tool-2',
+                command: 'bun run build:renderer',
+                activity: { type: 'command', kind: 'generic' },
+              },
             },
             {
               id: `${sessionId}-tool-output-2`,

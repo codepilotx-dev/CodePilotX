@@ -32,6 +32,7 @@
     user-select: none;
     touch-action: none;
     outline: none;
+
     transition: box-shadow var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
     &:focus-visible {
@@ -64,6 +65,15 @@
     &.is-disabled-level {
       opacity: 0;
     }
+  }
+
+  .rm-thick-slider-range-clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: var(--cpx-sys-radius-full);
+    z-index: 1;
+    pointer-events: none;
   }
 
   .rm-thick-slider-dot {

@@ -35,37 +35,43 @@ function toolItem(
 }
 
 describe("summarizeTurnProcessItems", () => {
-  test("combines semantic categories in first-seen order and removes duplicates", () => {
+  test("combines semantic categories in fixed order and removes duplicates", () => {
     const result = summarizeTurnProcessItems([
+      toolItem({ state: "completed" }, "command-1"),
+      toolItem({ activity: { type: "web_search" }, command: null, state: "completed", tool: "web__run" }, "web-1"),
+      toolItem({ activity: { type: "read", subject: "file", target: { displayLabel: "src/a.ts" } }, command: null, state: "completed", tool: "Read" }, "read-1"),
       toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/a.ts", operation: "update" }] },
         command: null,
-        input: { file_path: "src/a.ts" },
         mutationDiffPaths: ["src/a.ts", "src/b.ts"],
         state: "completed",
         tool: "Edit",
       }, "edit-1"),
-      toolItem({ command: null, input: { file_path: "src/a.ts" }, state: "completed", tool: "Read" }, "read-1"),
-      toolItem({ command: null, input: { pattern: "needle" }, state: "completed", tool: "Grep" }, "grep-1"),
-      toolItem({ state: "completed" }, "command-1"),
-      toolItem({ command: null, state: "completed", tool: "web__run" }, "web-1"),
-      toolItem({ command: null, state: "completed", tool: "mcp__drive__search" }, "mcp-1"),
-      toolItem({ command: null, state: "completed", tool: "custom_tool" }, "other-1"),
+      toolItem({ activity: { type: "tool", mode: "call" }, command: null, state: "completed", tool: "custom_tool" }, "other-1"),
+      toolItem({ activity: { type: "tool", mode: "call", name: "custom.named" }, command: null, state: "completed", tool: "custom_named" }, "named-1"),
+      toolItem({ activity: { type: "integration", source: "drive" }, command: null, state: "completed", tool: "mcp__drive__search" }, "mcp-1"),
+      toolItem({ activity: { type: "read", subject: "skill", target: { displayLabel: "review" } }, command: null, state: "completed", tool: "skill_read" }, "skill-1"),
     ], "completed");
 
     expect(result).toMatchObject({
       active: false,
       failed: false,
-      kind: "file-change",
-      label: "编辑了文件、已读取文件、运行了命令、已搜索网页、使用了集成、调用了工具",
+      kind: "integration",
+      label: "使用了 drive、加载了工具、调用了工具、编辑了文件、读取了文件、运行了命令、搜索了网页、调用了工具",
     });
   });
 
-  test("uses the singular file label and a safe fallback", () => {
+  test("uses the file label and a safe fallback", () => {
     expect(summarizeTurnProcessItems([
-      toolItem({ command: null, input: { file_path: "src/a.ts" }, state: "completed", tool: "Write" }),
+      toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/a.ts", operation: "write" }] },
+        command: null,
+        state: "completed",
+        tool: "Write",
+      }),
     ], "completed")).toMatchObject({
       kind: "file-change",
-      label: "编辑了一个文件",
+      label: "编辑了文件",
     });
 
     const text = {
@@ -83,8 +89,8 @@ describe("summarizeTurnProcessItems", () => {
     const result = summarizeTurnProcessItems([
       toolItem({ state: "running" }, "command-1"),
       toolItem({
+        activity: { type: "read", subject: "file", target: { displayLabel: "src/foo.ts" } },
         command: null,
-        input: { file_path: "src/foo.ts" },
         state: "running",
         tool: "Read",
       }, "read-1"),
@@ -97,6 +103,25 @@ describe("summarizeTurnProcessItems", () => {
       label: "正在读取 src/foo.ts",
     });
     expect(result.summaryKey).toContain("read-1");
+
+    const streamingReasoning = {
+      id: "reasoning-streaming",
+      type: "reasoning",
+      text: "继续分析",
+      status: "streaming",
+    } as unknown as Item;
+    expect(summarizeTurnProcessItems([
+      toolItem({
+        activity: { type: "search", query: "needle" },
+        command: null,
+        state: "running",
+        tool: "Grep",
+      }, "grep-running"),
+      streamingReasoning,
+    ], "running")).toMatchObject({
+      kind: "exploration",
+      label: "正在搜索“needle”",
+    });
 
     const completedReasoning = {
       id: "reasoning-1",
@@ -114,15 +139,30 @@ describe("summarizeTurnProcessItems", () => {
     });
   });
 
-  test("keeps child failures in detail rows instead of promoting them to a group failure", () => {
+  test("promotes child failures to the group state", () => {
     expect(summarizeTurnProcessItems([
       toolItem({ error: "failed", state: "error" }),
       toolItem({ state: "completed" }, "command-2"),
     ], "completed")).toMatchObject({
       active: false,
-      failed: false,
+      failed: true,
       kind: "command",
       label: "运行了命令",
+    });
+  });
+
+  test("summarizes interrupted creates separately", () => {
+    expect(summarizeTurnProcessItems([
+      toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/new.ts", operation: "create" }] },
+        command: null,
+        state: "interrupted",
+        tool: "Write",
+      }),
+    ], "completed")).toMatchObject({
+      failed: true,
+      kind: "file-change",
+      label: "停止创建了文件",
     });
   });
 });

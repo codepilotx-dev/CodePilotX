@@ -12,6 +12,7 @@ import {
   enterTween,
   exitTween,
   fastTween,
+  floatingSurfaceMotion,
   instantTween,
   motionTransition,
   standardTween,
@@ -283,21 +284,22 @@ function ComposerChangedFilesPreviewPresence({
   reducedMotion: boolean;
 }): React.ReactNode {
   const isPresent = useIsPresent();
+  const surfaceMotion = floatingSurfaceMotion("top");
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
+      animate={surfaceMotion.animate}
       aria-hidden={!isPresent ? true : undefined}
       aria-label="修改文件"
       className="composer-change-summary__files-preview"
       data-presence={isPresent ? "present" : "exiting"}
       exit={{
-        opacity: 0,
+        ...surfaceMotion.exit,
         transition: motionTransition(reducedMotion, exitTween),
       }}
       id={id}
       inert={!isPresent ? true : undefined}
-      initial={reducedMotion ? false : { opacity: 0 }}
+      initial={reducedMotion ? false : surfaceMotion.initial}
       role="region"
       style={{ pointerEvents: isPresent ? undefined : "none" }}
       transition={motionTransition(reducedMotion, enterTween)}
@@ -367,21 +369,22 @@ function ComposerPlanPreviewPresence({
   reducedMotion: boolean;
 }): React.ReactNode {
   const isPresent = useIsPresent();
+  const surfaceMotion = floatingSurfaceMotion("top");
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
+      animate={surfaceMotion.animate}
       aria-hidden={!isPresent ? true : undefined}
       aria-label="执行计划"
       className="composer-change-summary__plan-preview"
       data-presence={isPresent ? "present" : "exiting"}
       exit={{
-        opacity: 0,
+        ...surfaceMotion.exit,
         transition: motionTransition(reducedMotion, exitTween),
       }}
       id={id}
       inert={!isPresent ? true : undefined}
-      initial={reducedMotion ? false : { opacity: 0 }}
+      initial={reducedMotion ? false : surfaceMotion.initial}
       role="region"
       style={{ pointerEvents: isPresent ? undefined : "none" }}
       transition={motionTransition(reducedMotion, enterTween)}

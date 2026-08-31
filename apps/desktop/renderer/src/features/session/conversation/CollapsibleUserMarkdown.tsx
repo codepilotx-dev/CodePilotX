@@ -6,6 +6,7 @@ import {
   type MarkdownMessageProps,
 } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "./ConversationTurnErrorBoundary.js";
+import { useHeightTransition } from "../../../hooks/useHeightTransition.js";
 
 const DEFAULT_COLLAPSED_LINE_COUNT = 20;
 const FALLBACK_FONT_SIZE_PX = 13;
@@ -98,6 +99,12 @@ export function CollapsibleUserMarkdown({
   const collapsed = collapseState === "collapsed";
   const showsEllipsis = collapsed && collapsedLineCount > 2;
   const visibleLineCount = collapsedLineCount - (showsEllipsis ? 1 : 0);
+  const heightTransition = useHeightTransition([
+    collapsed,
+    text,
+    showsEllipsis,
+    visibleLineCount,
+  ]);
 
   React.useEffect(() => {
     if (!collapsed) return;
@@ -108,7 +115,11 @@ export function CollapsibleUserMarkdown({
 
   return (
     <div className="user-message-markdown">
-      <div className="user-message-markdown__body">
+      <div
+        className="user-message-markdown__body"
+        ref={heightTransition.ref}
+        style={heightTransition.style}
+      >
         <div
           className={
             collapsed

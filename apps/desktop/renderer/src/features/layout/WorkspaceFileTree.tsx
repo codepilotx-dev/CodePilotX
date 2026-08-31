@@ -49,13 +49,7 @@ export type WorkspaceFileTreeProps = {
   ) => void
 }
 
-type FileTreeRow =
-  | { kind: 'entry'; file: DesktopFileEntry }
-  | {
-      kind: 'loading' | 'error'
-      directoryPath: string
-      depth: number
-    }
+type FileTreeRow = { kind: 'entry'; file: DesktopFileEntry }
 
 const FILE_TREE_ROW_HEIGHT = 28
 
@@ -161,7 +155,7 @@ function WorkspaceFileTreeContent({
     (
       directoryPath: string,
       parentDepth: number,
-      options: { replaceRoot?: boolean } = {},
+      options: { expandOnSuccess?: boolean; replaceRoot?: boolean } = {},
     ): Promise<void> => {
       const workspacePath = workspace?.path
       if (!workspacePath) return Promise.reject(new Error('未打开工作区。'))
@@ -195,6 +189,9 @@ function WorkspaceFileTreeContent({
               )
           replaceEntries(next)
           loadedDirectoriesRef.current.add(key)
+          if (options.expandOnSuccess) {
+            setExpandedDirectories(current => addSetValue(current, key))
+          }
         })
         .catch(error => {
           if (generationRef.current === generation) {
@@ -236,6 +233,7 @@ function WorkspaceFileTreeContent({
     if (!activePath || !workspace) return
     let cancelled = false
     const revealActivePath = async (): Promise<void> => {
+      const pathsToExpand: string[] = []
       const ancestors = ancestorDirectoryPaths(activePath).filter(path =>
         isWithinRoot(path, rootPath),
       )
@@ -250,9 +248,7 @@ function WorkspaceFileTreeContent({
             normalizePath(entry.path) === normalizePath(directoryPath),
         )
         if (!directory) return
-        setExpandedDirectories(current =>
-          addSetValue(current, normalizePath(directory.path)),
-        )
+        pathsToExpand.push(normalizePath(directory.path))
         await loadDirectory(directory.path, directory.depth)
       }
       if (cancelled) return
@@ -263,11 +259,15 @@ function WorkspaceFileTreeContent({
           normalizePath(entry.path) === normalizePath(activePath),
       )
       if (targetEntry) {
-        setExpandedDirectories(current =>
-          addSetValue(current, normalizePath(targetEntry.path)),
-        )
+        pathsToExpand.push(normalizePath(targetEntry.path))
         await loadDirectory(targetEntry.path, targetEntry.depth)
       }
+      if (cancelled || pathsToExpand.length === 0) return
+      setExpandedDirectories(current => {
+        const next = new Set(current)
+        for (const path of pathsToExpand) next.add(path)
+        return next
+      })
     }
     void revealActivePath().catch(() => undefined)
     return () => {
@@ -281,16 +281,8 @@ function WorkspaceFileTreeContent({
         entries,
         query,
         expandedDirectories,
-        loadingDirectories,
-        directoryErrors,
       ),
-    [
-      directoryErrors,
-      entries,
-      expandedDirectories,
-      loadingDirectories,
-      query,
-    ],
+    [entries, expandedDirectories, query],
   )
 
   useEffect(() => {
@@ -341,15 +333,22 @@ function WorkspaceFileTreeContent({
     const key = normalizePath(file.path)
     if (loadingDirectories.has(key)) return
     if (directoryErrors.has(key)) {
-      void loadDirectory(file.path, file.depth).catch(() => undefined)
+      void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(
+        () => undefined,
+      )
       return
     }
     if (expandedDirectories.has(key)) {
       setExpandedDirectories(current => removeSetValue(current, key))
       return
     }
-    setExpandedDirectories(current => addSetValue(current, key))
-    void loadDirectory(file.path, file.depth).catch(() => undefined)
+    if (loadedDirectoriesRef.current.has(key)) {
+      setExpandedDirectories(current => addSetValue(current, key))
+      return
+    }
+    void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(
+      () => undefined,
+    )
   }
 
   function focusVisibleEntry(
@@ -375,41 +374,6 @@ function WorkspaceFileTreeContent({
   }
 
   const renderRow = (row: FileTreeRow): React.ReactElement => {
-    if (row.kind !== 'entry') {
-      const loading = row.kind === 'loading'
-      return (
-        <button
-          aria-disabled={loading}
-          aria-level={row.depth + 1}
-          className={cx('right-dock-tree-row', 'is-status', row.kind)}
-          disabled={loading}
-          role="treeitem"
-          style={{ paddingLeft: `${4 + row.depth * 14}px` }}
-          type="button"
-          onClick={() => {
-            const directory = entriesRef.current.find(
-              entry =>
-                entry.type === 'directory' &&
-                normalizePath(entry.path) ===
-                  normalizePath(row.directoryPath),
-            )
-            if (directory) toggleDirectory(directory)
-          }}
-        >
-          {loading ? (
-            <LoaderCircle
-              aria-hidden="true"
-              className="is-spinning"
-              size={APP_ICON_SIZE}
-            />
-          ) : (
-            <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
-          )}
-          <span>{loading ? '正在加载…' : '加载失败，点击重试'}</span>
-        </button>
-      )
-    }
-
     const file = row.file
     const key = normalizePath(file.path)
     const sendablePath = getSendableFilePath({
@@ -507,7 +471,19 @@ function WorkspaceFileTreeContent({
           }
         }}
       >
-        {file.type === 'directory' ? (
+        {file.type === 'directory' && loadingDirectories.has(key) ? (
+          <LoaderCircle
+            aria-hidden="true"
+            className="right-dock-tree-chevron is-spinning"
+            size={14}
+          />
+        ) : file.type === 'directory' && directoryErrors.has(key) ? (
+          <RotateCcw
+            aria-hidden="true"
+            className="right-dock-tree-chevron"
+            size={14}
+          />
+        ) : file.type === 'directory' ? (
           <ChevronRight
             aria-hidden="true"
             className={cx(
@@ -657,8 +633,6 @@ function buildVisibleRows(
   entries: DesktopFileEntry[],
   query: string,
   expandedDirectories: Set<string>,
-  loadingDirectories: Set<string>,
-  directoryErrors: Set<string>,
 ): FileTreeRow[] {
   const normalizedQuery = query.trim().toLowerCase()
   if (normalizedQuery) {
@@ -684,19 +658,6 @@ function buildVisibleRows(
       hiddenDirectories.push(file.path)
       continue
     }
-    if (loadingDirectories.has(key)) {
-      rows.push({
-        kind: 'loading',
-        directoryPath: file.path,
-        depth: file.depth + 1,
-      })
-    } else if (directoryErrors.has(key)) {
-      rows.push({
-        kind: 'error',
-        directoryPath: file.path,
-        depth: file.depth + 1,
-      })
-    }
   }
   return rows
 }
@@ -721,9 +682,7 @@ function isWithinRoot(path: string, rootPath: string | null): boolean {
 }
 
 function fileTreeRowKey(row: FileTreeRow): string {
-  return row.kind === 'entry'
-    ? `entry:${normalizePath(row.file.path)}`
-    : `${row.kind}:${normalizePath(row.directoryPath)}`
+  return `entry:${normalizePath(row.file.path)}`
 }
 
 function addSetValue(current: Set<string>, value: string): Set<string> {

@@ -123,8 +123,9 @@ export function mockThreadHistoryPage(
       : Date.parse(event.createdAt ?? '') || createdAt
 
     if (event.type === 'tool_call') {
-      const toolUseId = (event as any).metadata?.toolUseId ?? event.id
-      const toolName = (event as any).metadata?.toolName ?? 'Bash'
+      const metadata = (event as any).metadata ?? {}
+      const toolUseId = metadata.toolUseId ?? event.id
+      const toolName = metadata.toolName ?? 'Bash'
       const toolItem: Record<string, unknown> = {
         id: toolUseId,
         messageID: toolUseId,
@@ -136,7 +137,8 @@ export function mockThreadHistoryPage(
         title: event.content,
         state: 'running',
         input: null,
-        command: null,
+        command: typeof metadata.command === 'string' ? metadata.command : null,
+        ...(metadata.activity ? { activity: metadata.activity } : {}),
         output: null,
         error: null,
         startedAt: eventCreatedAt,

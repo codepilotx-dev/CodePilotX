@@ -9,6 +9,7 @@ import {
   CanonicalConversationTurn,
   CanonicalProcessGroup,
   resolveTurnElapsedSeconds,
+  shouldHideActiveExplorationItem,
 } from "../src/features/session/timeline/CanonicalThreadView.js";
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
@@ -77,7 +78,7 @@ describe("canonical thread switch", () => {
         active
         failed={false}
         kind="command"
-        label="正在运行 bun test"
+        label="正在执行 bun test"
         summaryKey="active:command"
       >
         <span data-testid="active-tool-card">tool output</span>
@@ -128,15 +129,18 @@ describe("canonical thread switch", () => {
       />,
     );
 
-    expect(completed).not.toContain("expensive-tool-card");
+    expect(completed).toContain("expensive-tool-card");
+    expect(completed).toContain('data-mount-policy="always"');
+    expect(completed).toContain('aria-hidden="true"');
+    expect(completed).toContain("inert");
     expect(completed).not.toContain("lucide-check");
     expect(completed).toContain("lucide-square-terminal");
     expect(completed).toContain("lucide-chevron-right");
     expect(completed).not.toContain("lucide-chevron-down");
-    expect(active).not.toContain("active-tool-card");
+    expect(active).toContain("active-tool-card");
     expect(active).toContain("lucide-loader-circle");
     expect(active).toContain("lucide-chevron-right");
-    expect(failed).not.toContain("failed-tool-card");
+    expect(failed).toContain("failed-tool-card");
     expect(failed).toContain("lucide-circle-alert");
     expect(persisted).toContain("persisted-tool-card");
     expect(persisted).toContain("lucide-chevron-right");
@@ -224,7 +228,7 @@ describe("canonical thread switch", () => {
     });
   });
 
-  test("uses commentary as a hard boundary and reasoning only as summary input", () => {
+  test("uses commentary as a hard boundary and keeps reasoning only with exploration", () => {
     const tool = (
       id: string,
       state: "completed" | "error" = "completed",
@@ -277,6 +281,28 @@ describe("canonical thread switch", () => {
       },
     ]);
     expect(JSON.stringify(model)).not.toContain("reasoning-1");
+
+    const exploration = {
+      ...tool("read-1"),
+      activity: {
+        type: "read" as const,
+        subject: "file" as const,
+        target: { displayLabel: "src/a.ts", workspacePath: "src/a.ts" },
+      },
+      command: null,
+      tool: "Read",
+    };
+    expect(shouldHideActiveExplorationItem({ ...exploration, state: "running" })).toBe(true);
+    expect(shouldHideActiveExplorationItem(exploration)).toBe(false);
+    expect(buildProcessActivityModel(
+      [exploration, reasoning, tool("command-after-read")],
+      { activitySliceClosed: true, turnActive: false },
+    )).toMatchObject({
+      units: [{
+        kind: "group",
+        items: [{ id: "read-1" }, { id: "reasoning-1" }, { id: "command-after-read" }],
+      }],
+    });
 
     expect(buildProcessActivityModel(
       [reasoning],
@@ -432,7 +458,9 @@ describe("canonical thread switch", () => {
       </CanonicalTestProviders>,
     );
 
-    expect(markup).not.toContain("折叠后不可见的处理说明");
+    expect(markup).toContain("折叠后不可见的处理说明");
+    expect(markup).toContain('data-mount-policy="always"');
+    expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain("请选择发布方式");
     expect(markup).toContain("等待你的回答");
     expect(markup).toContain("折叠外的最终回复");
@@ -668,7 +696,7 @@ describe("canonical thread switch", () => {
     const workStatusIndex = markup.indexOf("已处理 5m 59s");
     const processTextIndex = markup.indexOf("中间处理说明标记");
     const lifecycleIndex = markup.indexOf("已更新计划");
-    const commandsIndex = markup.indexOf("已运行 bun test");
+    const commandsIndex = markup.indexOf("已在 1 秒内执行 bun test");
     const answerIndex = markup.indexOf("最终回复标记");
     const patchIndex = markup.indexOf("已编辑 1 个文件");
     const postAssistantIndex = markup.indexOf("上下文已自动压缩标记");
@@ -682,18 +710,26 @@ describe("canonical thread switch", () => {
     expect(postAssistantIndex).toBeGreaterThan(patchIndex);
     expect(markup).not.toContain("运行了 1 条命令");
     expect(markup).not.toContain("canonical-process-group--commands");
-    expect(markup).toContain("canonical-tool");
+    expect(markup).toContain("cpx-agent-activity__item");
     expect(markup).toContain('data-presentation="grouped"');
     expect(multiCommandMarkup).toContain("运行了命令");
     expect(multiCommandMarkup).not.toContain("canonical-process-group--commands");
-    expect(multiCommandMarkup).not.toContain("canonical-command-shell");
+    expect(multiCommandMarkup).toContain("canonical-command-shell");
     expect(activeWithAnswerMarkup).toContain("运行了命令");
     expect(activeWithAnswerMarkup).not.toContain("正在思考");
     expect(activeWithAnswerMarkup).not.toContain("lucide-loader-circle");
     expect(activeWithAnswerMarkup).toContain('data-expandable="true"');
-    const processSection = nestedBoundaryMarkup.match(
-      /<section class="canonical-turn__process"[\s\S]*?<\/section>/,
-    )?.[0] ?? "";
+    const processSectionStart = nestedBoundaryMarkup.indexOf(
+      '<section class="canonical-turn__process"',
+    );
+    const processSectionEnd = nestedBoundaryMarkup.indexOf(
+      '<section class="canonical-turn__result"',
+      processSectionStart,
+    );
+    const processSection = nestedBoundaryMarkup.slice(
+      processSectionStart,
+      processSectionEnd,
+    );
     expect(processSection).toContain("中间处理说明标记");
     expect(processSection).toContain("运行了命令");
     expect(processSection).toContain("继续处理说明标记");
@@ -707,17 +743,15 @@ describe("canonical thread switch", () => {
     expect(processSection.indexOf("继续处理说明标记")).toBeLessThan(
       processSection.indexOf("已更新计划"),
     );
-    expect(processSection).not.toMatch(
-      /canonical-process-group__items[\s\S]*中间处理说明标记/,
-    );
-    expect(processSection).not.toMatch(
-      /canonical-process-group__items[\s\S]*已更新计划/,
-    );
+    expect(processSection.match(/中间处理说明标记/g)).toHaveLength(1);
+    expect(processSection.match(/已更新计划/g)).toHaveLength(1);
     expect(markup).toContain('class="canonical-turn-activity"');
     expect(markup).toContain('aria-expanded="true"');
     expect(collapsedMarkup).toContain('aria-expanded="false"');
-    expect(collapsedMarkup).not.toContain("中间处理说明标记");
-    expect(collapsedMarkup).not.toContain("bun test");
+    expect(collapsedMarkup).toContain("中间处理说明标记");
+    expect(collapsedMarkup).toContain("bun test");
+    expect(collapsedMarkup).toContain('aria-hidden="true"');
+    expect(collapsedMarkup).toContain("inert");
     expect(collapsedMarkup).toContain("最终回复标记");
     expect(collapsedMarkup).toContain("已编辑 1 个文件");
     expect(activeMarkup).toContain("中间处理说明标记");

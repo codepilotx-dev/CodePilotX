@@ -1,7 +1,6 @@
 import React from 'react'
 import { FileIcon, FolderIcon } from '@codepilotx/material-icon-theme'
 import {
-  ChevronDown,
   ChevronRight,
   Copy,
   MessageSquare,
@@ -63,11 +62,11 @@ export function ReviewFileTreeRow({
       type="button"
       onClick={() => onToggleDir(node.dirPath)}
     >
-      {collapsed ? (
-        <ChevronRight size={APP_ICON_SIZE} />
-      ) : (
-        <ChevronDown size={APP_ICON_SIZE} />
-      )}
+      <ChevronRight
+        aria-hidden="true"
+        className={collapsed ? undefined : 'is-expanded'}
+        size={APP_ICON_SIZE}
+      />
       <FolderIcon
         aria-hidden="true"
         expanded={!collapsed}

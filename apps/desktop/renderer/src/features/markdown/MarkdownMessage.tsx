@@ -932,7 +932,8 @@ function renderCodeSpan(
   context: RenderContext,
   key: string,
 ): React.ReactNode {
-  if (!isLikelyFileReference(text)) return <code key={key}>{text}</code>
+  if (isWindowsWorkspaceRouteCodeSpan(text, context.cwd)
+    || !isLikelyFileReference(text)) return <code key={key}>{text}</code>
   const target = classifyMarkdownTarget(text)
   if (target.kind !== 'file') return <code key={key}>{text}</code>
   return (
@@ -946,6 +947,20 @@ function renderCodeSpan(
       {text}
     </FileReferenceButton>
   )
+}
+
+function isWindowsWorkspaceRouteCodeSpan(
+  text: string,
+  cwd: string | null,
+): boolean {
+  if (!cwd || !/^(?:[a-zA-Z]:[\\/]|\\\\)/u.test(cwd)) return false
+  const value = text.trim()
+  if (!/^\/(?!\/)/u.test(value)) return false
+  if (/(?:#L\d+(?:C\d+)?(?:-L?\d+(?:C\d+)?)?|:\d+(?::\d+)?)$/iu.test(value)) {
+    return false
+  }
+  const pathname = value.split(/[?#]/u, 1)[0] ?? value
+  return !/\.[a-zA-Z\d]{1,12}$/u.test(pathname)
 }
 
 function renderMediaGrid(

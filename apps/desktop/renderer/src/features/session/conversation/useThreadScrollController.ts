@@ -300,6 +300,16 @@ function readMetrics(
   }
 }
 
+function isDisclosureGridTransition(
+  event: TransitionEvent,
+): event is TransitionEvent & { target: HTMLElement } {
+  return (
+    event.propertyName === 'grid-template-rows'
+    && event.target instanceof HTMLElement
+    && event.target.classList.contains('ui-disclosure-content')
+  )
+}
+
 function readThreadResizeAnchor(
   viewport: HTMLElement | null,
 ): ThreadResizeAnchor | null {
@@ -371,6 +381,9 @@ export function useThreadScrollController({
     blockSize: number
     inlineSize: number
   } | null>(null)
+  const activeDisclosureTransitionDepthRef = React.useRef(0)
+  const disclosureSettleFrameRef = React.useRef<number | null>(null)
+  const disclosureFixedScrollOffsetRef = React.useRef<number | null>(null)
   const contentReflowActiveUntilRef = React.useRef(0)
   const programmaticScrollUntilRef = React.useRef(0)
   const explicitReturnInProgressRef = React.useRef(false)
@@ -472,6 +485,44 @@ export function useThreadScrollController({
     viewport.scrollTop = targetOffset
   }, [listRef, scrollRef])
 
+  const syncDisclosureTransitionScroll = React.useCallback(
+    (metrics: ScrollMetrics, settled: boolean): void => {
+      const viewport = scrollRef.current
+      const fixedScrollOffset = disclosureFixedScrollOffsetRef.current
+      const shouldFollow = fixedScrollOffset === null && (
+        modeRef.current === 'prework_follow'
+        || modeRef.current === 'user_follow'
+        || (activeRef.current && atBottomRef.current)
+      )
+      const targetOffset = shouldFollow
+        ? scrollOffsetForThreadBottomDistance(metrics, 0)
+        : clampThreadScrollOffset(metrics, fixedScrollOffset ?? metrics.scrollOffset)
+
+      if (viewport && Math.abs(targetOffset - metrics.scrollOffset) > 0.5) {
+        programmaticScrollUntilRef.current = Date.now() + 140
+        previousOffsetRef.current = targetOffset
+        viewport.scrollTop = targetOffset
+      }
+
+      previousScrollSizeRef.current = metrics.scrollSize
+      previousDistanceFromBottomRef.current = shouldFollow
+        ? 0
+        : distanceFromThreadBottom({ ...metrics, scrollOffset: targetOffset })
+
+      if (!settled) return
+      if (shouldFollow) setHasNewContent(false)
+      const currentSessionKey = sessionKeyRef.current
+      if (currentSessionKey) {
+        savedThreadScrollStates.set(currentSessionKey, {
+          distanceFromBottom: previousDistanceFromBottomRef.current,
+          mode: modeRef.current,
+          scrollOffset: targetOffset,
+        })
+      }
+    },
+    [scrollRef],
+  )
+
   React.useLayoutEffect(() => {
     if (layoutResizeActive) {
       const metrics = readMetrics(listRef.current, scrollRef.current)
@@ -570,6 +621,11 @@ export function useThreadScrollController({
         pendingContentSizeRef.current = null
         const metrics = readMetrics(listRef.current, scrollRef.current)
         if (!observedSize || !metrics) return
+
+        if (activeDisclosureTransitionDepthRef.current > 0) {
+          syncDisclosureTransitionScroll(metrics, false)
+          return
+        }
 
         const now = performance.now()
         const previousInlineSize = previousContentInlineSizeRef.current
@@ -674,7 +730,13 @@ export function useThreadScrollController({
         }
       })
     },
-    [listRef, restoreResizeAnchor, scrollRef, scrollToEnd],
+    [
+      listRef,
+      restoreResizeAnchor,
+      scrollRef,
+      scrollToEnd,
+      syncDisclosureTransitionScroll,
+    ],
   )
 
   const returnToBottom = React.useCallback((): void => {
@@ -819,16 +881,74 @@ export function useThreadScrollController({
     const observer = new ResizeObserver(([entry]) => {
       if (entry) handleContentResize(entry)
     })
-    observer.observe(content)
-    return () => {
-      observer.disconnect()
+    const handleDisclosureTransitionRun = (event: TransitionEvent): void => {
+      if (!isDisclosureGridTransition(event)) return
+      if (activeDisclosureTransitionDepthRef.current === 0) {
+        const transitionMetrics = readMetrics(listRef.current, scrollRef.current)
+        const shouldFollow = transitionMetrics !== null && (
+          modeRef.current === 'prework_follow'
+          || modeRef.current === 'user_follow'
+          || (activeRef.current && atBottomRef.current)
+        )
+        disclosureFixedScrollOffsetRef.current = shouldFollow
+          ? null
+          : transitionMetrics?.scrollOffset ?? null
+      }
+      activeDisclosureTransitionDepthRef.current += 1
+    }
+    const handleDisclosureTransitionComplete = (event: TransitionEvent): void => {
+      if (!isDisclosureGridTransition(event)) return
+      activeDisclosureTransitionDepthRef.current = Math.max(
+        0,
+        activeDisclosureTransitionDepthRef.current - 1,
+      )
+      if (activeDisclosureTransitionDepthRef.current > 0) return
+      if (disclosureSettleFrameRef.current !== null) {
+        cancelAnimationFrame(disclosureSettleFrameRef.current)
+      }
       if (contentResizeFrameRef.current !== null) {
         cancelAnimationFrame(contentResizeFrameRef.current)
         contentResizeFrameRef.current = null
       }
       pendingContentSizeRef.current = null
+      disclosureSettleFrameRef.current = requestAnimationFrame(() => {
+        disclosureSettleFrameRef.current = null
+        if (activeDisclosureTransitionDepthRef.current > 0) return
+        const transitionMetrics = readMetrics(listRef.current, scrollRef.current)
+        if (transitionMetrics) {
+          syncDisclosureTransitionScroll(transitionMetrics, true)
+        }
+        disclosureFixedScrollOffsetRef.current = null
+      })
     }
-  }, [handleContentResize, listRef, scrollRef, sessionKey])
+    observer.observe(content)
+    content.addEventListener('transitionrun', handleDisclosureTransitionRun)
+    content.addEventListener('transitionend', handleDisclosureTransitionComplete)
+    content.addEventListener('transitioncancel', handleDisclosureTransitionComplete)
+    return () => {
+      observer.disconnect()
+      content.removeEventListener('transitionrun', handleDisclosureTransitionRun)
+      content.removeEventListener('transitionend', handleDisclosureTransitionComplete)
+      content.removeEventListener('transitioncancel', handleDisclosureTransitionComplete)
+      if (contentResizeFrameRef.current !== null) {
+        cancelAnimationFrame(contentResizeFrameRef.current)
+        contentResizeFrameRef.current = null
+      }
+      if (disclosureSettleFrameRef.current !== null) {
+        cancelAnimationFrame(disclosureSettleFrameRef.current)
+        disclosureSettleFrameRef.current = null
+      }
+      activeDisclosureTransitionDepthRef.current = 0
+      disclosureFixedScrollOffsetRef.current = null
+      pendingContentSizeRef.current = null
+    }
+  }, [
+    handleContentResize,
+    listRef,
+    scrollRef,
+    sessionKey,
+    syncDisclosureTransitionScroll,
+  ])
 
   React.useEffect(() => {
     const viewport = scrollRef.current
