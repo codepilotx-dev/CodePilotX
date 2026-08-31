@@ -14,10 +14,15 @@ import {
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+import { createKeyedDisclosureStore } from "../src/components/ui/keyedDisclosureStore.js";
 import {
   isCurrentCanonicalThreadRequest,
   selectVisibleCanonicalState,
 } from "../src/features/session/timeline/useCanonicalThreadConversation.js";
+
+function disclosureStore(...expandedKeys: string[]) {
+  return createKeyedDisclosureStore({ initialExpandedKeys: expandedKeys });
+}
 
 function CanonicalTestProviders({
   children,
@@ -422,10 +427,7 @@ describe("canonical thread switch", () => {
     const markup = renderToStaticMarkup(
       <CanonicalTestProviders>
         <CanonicalConversationTurn
-          disclosureState={{
-            expandedIds: new Set(),
-            onExpandedChange: () => undefined,
-          }}
+          disclosureState={disclosureStore()}
           entry={{
             id: "turn-blocked",
             turn: {
@@ -580,10 +582,7 @@ describe("canonical thread switch", () => {
     const markup = renderToStaticMarkup(
       <CanonicalTestProviders>
           <CanonicalConversationTurn
-            disclosureState={{
-              expandedIds: new Set(["turn-activity:turn-1"]),
-              onExpandedChange: () => undefined,
-            }}
+            disclosureState={disclosureStore("turn-activity:turn-1")}
             entry={entry}
             onOpenPlanInRightDock={() => undefined}
             onOpenSubagent={() => undefined}
@@ -594,10 +593,7 @@ describe("canonical thread switch", () => {
     const collapsedMarkup = renderToStaticMarkup(
       <CanonicalTestProviders>
           <CanonicalConversationTurn
-            disclosureState={{
-              expandedIds: new Set(),
-              onExpandedChange: () => undefined,
-            }}
+            disclosureState={disclosureStore()}
             entry={entry}
             onOpenPlanInRightDock={() => undefined}
             onOpenSubagent={() => undefined}
@@ -608,10 +604,7 @@ describe("canonical thread switch", () => {
     const activeMarkup = renderToStaticMarkup(
       <CanonicalTestProviders>
           <CanonicalConversationTurn
-            disclosureState={{
-              expandedIds: new Set(),
-              onExpandedChange: () => undefined,
-            }}
+            disclosureState={disclosureStore()}
             entry={{
               ...entry,
               assistantResultItems: [],
@@ -636,10 +629,7 @@ describe("canonical thread switch", () => {
     const multiCommandMarkup = renderToStaticMarkup(
       <CanonicalTestProviders>
         <CanonicalConversationTurn
-          disclosureState={{
-            expandedIds: new Set(["turn-activity:turn-1"]),
-            onExpandedChange: () => undefined,
-          }}
+          disclosureState={disclosureStore("turn-activity:turn-1")}
           entry={{
             ...entry,
             items: [tool, secondTool, answer],
@@ -655,10 +645,7 @@ describe("canonical thread switch", () => {
     const nestedBoundaryMarkup = renderToStaticMarkup(
       <CanonicalTestProviders>
         <CanonicalConversationTurn
-          disclosureState={{
-            expandedIds: new Set(["turn-activity:turn-1"]),
-            onExpandedChange: () => undefined,
-          }}
+          disclosureState={disclosureStore("turn-activity:turn-1")}
           entry={{
             ...entry,
             items: [processText, tool, secondTool, processTextAfterCommands, planTool, answer],
@@ -674,10 +661,7 @@ describe("canonical thread switch", () => {
     const activeWithAnswerMarkup = renderToStaticMarkup(
       <CanonicalTestProviders>
         <CanonicalConversationTurn
-          disclosureState={{
-            expandedIds: new Set(["turn-activity:turn-1"]),
-            onExpandedChange: () => undefined,
-          }}
+          disclosureState={disclosureStore("turn-activity:turn-1")}
           entry={{
             ...entry,
             items: [tool, secondTool, answer],

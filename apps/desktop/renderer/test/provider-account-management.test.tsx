@@ -63,12 +63,14 @@ describe('model center account management', () => {
       /<div\s+className="provider-editor-model-card-header"\s*>/,
     )
     expect(source).toMatch(
-      /<button\s+aria-controls=\{modelDetailsId\}\s+aria-expanded=\{isExpanded\}\s+className="provider-editor-model-card-summary"/,
+      /<button\s+aria-controls=\{contentId\}\s+aria-expanded=\{expanded\}\s+className="provider-editor-model-card-summary"/,
     )
     expect(source).toMatch(
       /<\/button>\s+<div className="provider-editor-model-card-controls">/,
     )
     expect(source).not.toContain('onClick={event => event.stopPropagation()}')
+    expect(source).toContain('mountPolicy="always"')
+    expect(source).toContain('const [expanded, setExpanded] = useState(defaultExpanded)')
   })
 })
 

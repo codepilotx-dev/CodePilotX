@@ -2704,6 +2704,104 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   await page.keyboard.press('Escape')
 })
 
+test('pinned session icon and overflowing title motion match the sidebar contract', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await gotoWorkbenchFixture(
+    page,
+    '/?visualCase=scroll-edge#/threads/visual-scroll-edge',
+  )
+  await closeTransientErrorToast(page)
+
+  const sourceRow = page.locator(
+    '[data-sidebar-session-id="visual-scroll-edge"]',
+  ).first()
+  await expect(sourceRow).toBeVisible()
+  await sourceRow.hover()
+  await sourceRow.getByRole('button', { name: '置顶' }).click()
+
+  const pinnedItem = page.locator(
+    '[data-sidebar-pinned-item-key="session:visual-scroll-edge"]',
+  )
+  const pinnedRow = pinnedItem.locator('.sidebar-session-row')
+  const ordinaryRow = page
+    .locator('[data-sidebar-session-id="visual-scroll-edge-02"]')
+    .first()
+  await expect(pinnedItem).toBeVisible()
+  await expect(
+    pinnedItem.locator('.sidebar-row-leading .lucide-message-circle'),
+  ).toBeVisible()
+  await expect(pinnedRow).not.toHaveClass(/sidebar-row--session/)
+  await expect(pinnedRow).toHaveCSS('padding-left', '8px')
+  await expect(ordinaryRow).toHaveClass(/sidebar-row--session/)
+  await expect(ordinaryRow).toHaveCSS('padding-left', '32px')
+  await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
+
+  await page.addStyleTag({
+    content: `
+      [data-sidebar-pinned-item-key="session:visual-scroll-edge"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+    `,
+  })
+  await page.mouse.move(1000, 400)
+  const title = pinnedItem.locator('.sidebar-session-title')
+  const track = title.locator('.sidebar-session-title-track')
+  await expect(title).toHaveAttribute('data-overflowing', 'true')
+  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
+
+  const resting = await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {
+      clientWidth: element.clientWidth,
+      maskImage: style.maskImage || style.webkitMaskImage,
+      scrollWidth: element.scrollWidth,
+      transform: getComputedStyle(
+        element.querySelector('.sidebar-session-title-track')!,
+      ).transform,
+    }
+  })
+  expect(resting.scrollWidth).toBeGreaterThan(resting.clientWidth)
+  expect(resting.maskImage).toContain('linear-gradient')
+  expect(resting.transform).toBe('none')
+
+  await pinnedItem.hover()
+  await expect(title).toHaveAttribute('data-scrolling', 'true')
+  const scrolling = await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    const trackStyle = getComputedStyle(
+      element.querySelector('.sidebar-session-title-track')!,
+    )
+    return {
+      distance: Number.parseFloat(
+        style.getPropertyValue('--sidebar-title-scroll-distance'),
+      ),
+      duration: Number.parseFloat(
+        style.getPropertyValue('--sidebar-title-scroll-duration'),
+      ),
+      timingFunction: trackStyle.transitionTimingFunction,
+    }
+  })
+  expect(scrolling.distance).toBe(resting.scrollWidth - resting.clientWidth)
+  expect(scrolling.duration).toBeCloseTo(
+    Math.max(4, scrolling.distance / 20),
+    2,
+  )
+  expect(scrolling.timingFunction).toBe('linear')
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
+  await expect(track).toHaveCSS('transform', 'none')
+  const reducedMotionMask = await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })
+  expect(reducedMotionMask).toContain('linear-gradient')
+})
+
 test('sidebar session reorder displaces live and persists after remount', async ({
   page,
 }) => {

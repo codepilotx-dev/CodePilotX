@@ -24,8 +24,13 @@ import {
   ExpandableFileMutationRow,
 } from "../src/features/session/timeline/ExpandableFileMutationRow.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
+import { createKeyedDisclosureStore } from "../src/components/ui/keyedDisclosureStore.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
+
+function disclosureStore(...expandedKeys: string[]) {
+  return createKeyedDisclosureStore({ initialExpandedKeys: expandedKeys });
+}
 
 function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
   return {
@@ -591,8 +596,7 @@ describe("canonical tool item display", () => {
         diffMarkerStyle="color"
         disclosure={{
           id: "file-mutation:tool-1:0",
-          expanded: true,
-          onExpandedChange: () => undefined,
+          store: disclosureStore("file-mutation:tool-1:0"),
         }}
         file={{ additions: 1, deletions: 0, path: "src/a.ts" }}
         item={completed}
@@ -607,10 +611,7 @@ describe("canonical tool item display", () => {
     );
     const runningMarkup = renderToStaticMarkup(
       <FileMutationItemView
-        disclosureState={{
-          expandedIds: new Set(["file-mutation:tool-1:0"]),
-          onExpandedChange: () => undefined,
-        }}
+        disclosureStore={disclosureStore("file-mutation:tool-1:0")}
         item={{ ...completed, state: "running" }}
         readThreadPatchDiff={async () => {
           throw new Error("not called during server render");
