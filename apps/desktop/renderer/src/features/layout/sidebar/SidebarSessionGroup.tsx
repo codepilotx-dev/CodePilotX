@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Archive, Copy, Eye, EyeOff, Folder, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Copy, Eye, EyeOff, Folder, MessageCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
 import { Reorder } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
@@ -48,8 +48,8 @@ const InputDialog = lazy(async () => {
 })
 
 const GROUP_LIMIT = 5;
-const TITLE_SCROLL_MIN_SECONDS = 2;
-const TITLE_SCROLL_PIXELS_PER_SECOND = 40;
+const TITLE_SCROLL_MIN_SECONDS = 4;
+const TITLE_SCROLL_PIXELS_PER_SECOND = 20;
 
 type Props = {
   activeSessionId: string | null;
@@ -59,6 +59,7 @@ type Props = {
   titleLoadingIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
+  showConversationIcon?: boolean;
   /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
   sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
@@ -82,6 +83,7 @@ function SidebarSessionGroupComponent({
   titleLoadingIds,
   sessionFallbackTitles,
   sessions,
+  showConversationIcon = false,
   sort = 'priority',
   manualOrderByScope = {},
   presentation = 'compact',
@@ -363,9 +365,14 @@ function SidebarSessionGroupComponent({
         asChild
         className="sidebar-session-row"
         data-sidebar-session-id={session.id}
-        indent="session"
+        indent={showConversationIcon ? "none" : "session"}
         layout="grid"
-        leadingMode="none"
+        leading={
+          showConversationIcon ? (
+            <MessageCircle aria-hidden="true" size={APP_ICON_SIZE} />
+          ) : undefined
+        }
+        leadingMode={showConversationIcon ? "icon" : "none"}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) =>
@@ -617,10 +624,6 @@ function SidebarSessionTitle({
   const [overflowDistance, setOverflowDistance] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    if (!active) {
-      setOverflowDistance(null);
-      return;
-    }
     const viewport = viewportRef.current;
     const track = trackRef.current;
     if (!viewport || !track) return;
@@ -643,9 +646,9 @@ function SidebarSessionTitle({
     observer.observe(viewport);
     observer.observe(track);
     return () => observer.disconnect();
-  }, [active, children]);
+  }, [children]);
 
-  const scrolling = overflowDistance !== null && !reducedMotion;
+  const scrolling = active && overflowDistance !== null && !reducedMotion;
   const style =
     overflowDistance === null
       ? undefined

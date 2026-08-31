@@ -623,7 +623,7 @@
 .sidebar-session-row:hover .sidebar-session-title-track[data-scrolling] {
   transform: translateX(calc(-1 * var(--sidebar-title-scroll-distance)));
   transition:
-    transform var(--sidebar-title-scroll-duration) var(--cpx-sys-ease-standard)
+    transform var(--sidebar-title-scroll-duration) var(--cpx-sys-ease-linear)
     var(--cpx-sys-motion-micro);
 }
 
