@@ -28,8 +28,7 @@
     --cpx-comp-row-fg,
     var(--cpx-sys-color-fg-primary)
   );
-  font-size: var(--interactive-row-current-font-size);
-  line-height: var(--interactive-row-current-line-height, var(--cpx-sys-line-height-tight));
+  font: var(--cpx-sys-type-body);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -58,8 +57,6 @@
   --interactive-row-current-padding-inline: var(
     --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row--menu,
@@ -81,8 +78,6 @@
   --interactive-row-current-padding-inline: var(
     --cpx-comp-row-padding-inline
   );
-  --interactive-row-current-font-size: var(--cpx-sys-font-size-md);
-  --interactive-row-current-line-height: var(--cpx-sys-line-height-tight);
 }
 
 .interactive-row--rich,

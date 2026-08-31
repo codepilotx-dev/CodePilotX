@@ -62,11 +62,7 @@
   border: 0;
   background: transparent;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-family: inherit;
-  font-size: var(--cpx-sys-font-size-md);
-  font-style: inherit;
-  font-weight: inherit;
-  line-height: inherit;
+  font: var(--cpx-sys-type-body-sm);
   white-space: nowrap;
   -webkit-app-region: no-drag;
   border-radius: var(--cpx-sys-radius-md);
@@ -103,6 +99,8 @@
 .menubar-item-trailing {
   justify-self: end;
   min-width: 0;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .menubar-item[data-disabled] .menubar-shortcut {

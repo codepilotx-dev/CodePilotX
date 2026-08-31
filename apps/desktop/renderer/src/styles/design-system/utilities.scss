@@ -60,6 +60,15 @@ $static-utilities: (
   'type-caption': (
     font: var(--cpx-sys-type-caption),
   ),
+  'type-label': (
+    font: var(--cpx-sys-type-label),
+  ),
+  'type-body-sm': (
+    font: var(--cpx-sys-type-body-sm),
+  ),
+  'type-body-lg': (
+    font: var(--cpx-sys-type-body-lg),
+  ),
   'type-title-sm': (
     font: var(--cpx-sys-type-heading-sm),
   ),
@@ -69,9 +78,12 @@ $static-utilities: (
   'type-title-lg': (
     font: var(--cpx-sys-type-heading-lg),
   ),
+  'type-title-xl': (
+    font: var(--cpx-sys-type-heading-xl),
+  ),
   'font-sans': (font-family: var(--cpx-sys-font-family-sans)),
   'font-mono': (font-family: var(--cpx-sys-font-family-mono)),
-  'font-body': (font-weight: var(--cpx-sys-font-weight-regular)),
+  'font-body': (font-weight: var(--cpx-sys-font-weight-body)),
   'font-label': (font-weight: var(--cpx-sys-font-weight-medium)),
   'font-heading': (font-weight: var(--cpx-sys-font-weight-medium)),
   'font-emphasis': (font-weight: var(--cpx-sys-font-weight-bold)),

@@ -68,7 +68,7 @@ export function ConfirmationDialog({
             >
               <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
                 <AlertDialog.Title asChild>
-                  <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+                  <h2 className="tw:min-w-0 tw:flex-1">
                     {title}
                   </h2>
                 </AlertDialog.Title>
@@ -87,12 +87,12 @@ export function ConfirmationDialog({
                 </AlertDialog.Cancel>
               </header>
               <AlertDialog.Description asChild>
-                <p className="confirmation-dialog-description tw:m-0 tw:text-sm tw:text-app-text-soft">
+                <p className="confirmation-dialog-description tw:m-0">
                   {description ?? '请确认是否继续。'}
                 </p>
               </AlertDialog.Description>
               {suppression ? (
-                <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:text-sm tw:text-app-text-soft">
+                <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2">
                   <input
                     checked={suppression.checked}
                     type="checkbox"
@@ -175,7 +175,7 @@ export function InputDialog({
               >
                 <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
                   <Dialog.Title asChild>
-                    <h2 className="tw:min-w-0 tw:flex-1 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+                    <h2 className="tw:min-w-0 tw:flex-1">
                       {title}
                     </h2>
                   </Dialog.Title>
@@ -190,7 +190,7 @@ export function InputDialog({
                   </Dialog.Close>
                 </header>
                 <Dialog.Description asChild>
-                  <p className="confirmation-dialog-description tw:m-0 tw:text-sm tw:text-app-text-soft">
+                  <p className="confirmation-dialog-description tw:m-0">
                     {description}
                   </p>
                 </Dialog.Description>

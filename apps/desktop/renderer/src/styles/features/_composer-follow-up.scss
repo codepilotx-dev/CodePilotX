@@ -21,8 +21,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-2);
-  font-size: var(--cpx-sys-font-size-sm);
   color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-1);
 }
 
@@ -38,7 +38,7 @@
 .session-follow-up-paused {
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   background: var(--cpx-sys-color-surface-canvas);
   border-radius: var(--cpx-sys-radius-md);
 }
@@ -76,7 +76,7 @@
   max-width: min(40rem, 100%);
   min-width: 0;
   overflow: hidden;
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
   font-weight: var(--cpx-sys-font-weight-medium);
   color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;

@@ -977,41 +977,32 @@ export const markdownRichThemeSpec = {
     backgroundColor: 'var(--cpx-sys-color-surface-canvas)',
   },
   '&.cm-markdown-rich .cm-content': {
-    fontFamily: 'var(--cpx-sys-font-family-sans)',
-    fontSize: 'var(--cpx-sys-font-size-md)',
+    font: 'var(--cpx-sys-type-body)',
     padding: '24px',
-  },
-  '&.cm-markdown-rich .cm-line': {
-    lineHeight: 'var(--cpx-sys-line-height-normal)',
   },
   '&.cm-markdown-rich .cm-md-rich-heading': {
     color: 'var(--cpx-sys-color-fg-primary)',
-    fontFamily: 'var(--cpx-sys-font-family-sans)',
-    fontWeight: '500',
     letterSpacing: '-0.015em',
   },
   '&.cm-markdown-rich .cm-md-rich-h1': {
-    fontSize: 'var(--cpx-sys-font-size-3xl)',
-    lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+    font: 'var(--cpx-sys-type-heading-xl)',
   },
   '&.cm-markdown-rich .cm-md-rich-h2': {
-    fontSize: 'var(--cpx-sys-font-size-2xl)',
-    lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+    font: 'var(--cpx-sys-type-heading-md)',
   },
   '&.cm-markdown-rich .cm-md-rich-h3': {
-    fontSize: 'var(--cpx-sys-font-size-xl)',
-    lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+    font: 'var(--cpx-sys-type-heading-sm)',
   },
   '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6':
     {
-      fontSize: 'var(--cpx-sys-font-size-md)',
-      lineHeight: 'var(--cpx-sys-line-height-normal)',
+      font: 'var(--cpx-sys-type-body)',
+      fontWeight: 'var(--cpx-sys-font-weight-medium)',
     },
   '&.cm-markdown-rich .cm-md-rich-emphasis': {
     fontStyle: 'italic',
   },
   '&.cm-markdown-rich .cm-md-rich-strong': {
-    fontWeight: '600',
+    fontWeight: 'var(--cpx-sys-font-weight-bold)',
   },
   '&.cm-markdown-rich .cm-md-rich-strikethrough': {
     textDecoration: 'line-through',
@@ -1022,8 +1013,7 @@ export const markdownRichThemeSpec = {
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
     backgroundColor:
       'color-mix(in srgb, var(--cm-editor-background, var(--cpx-comp-modal-preformat-bg)) 88%, var(--cpx-sys-color-fg-primary) 12%)',
-    fontFamily: 'var(--cpx-sys-font-family-mono)',
-    fontSize: 'var(--cpx-sys-font-size-code)',
+    font: 'var(--cpx-sys-type-code)',
   },
   '&.cm-markdown-rich .cm-md-rich-link': {
     color: 'var(--cpx-sys-color-accent)',
@@ -1116,9 +1106,7 @@ export const markdownRichThemeSpec = {
     paddingInline: '12px',
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
-    fontFamily: 'var(--cpx-sys-font-family-mono)',
-    fontSize: 'var(--cpx-sys-font-size-code)',
-    lineHeight: 'var(--cpx-sys-line-height-code)',
+    font: 'var(--cpx-sys-type-code)',
   },
   '&.cm-markdown-rich .cm-line:not(.cm-md-rich-code-block) + .cm-line.cm-md-rich-code-block, &.cm-markdown-rich .cm-line.cm-md-rich-code-block:first-child':
     {
@@ -1157,7 +1145,7 @@ export const markdownRichThemeSpec = {
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table-header': {
     backgroundColor: 'var(--cpx-comp-surface-fog)',
-    fontWeight: '650',
+    fontWeight: 'var(--cpx-sys-font-weight-medium)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table-row': {
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
@@ -1175,8 +1163,7 @@ export const markdownRichThemeSpec = {
     borderCollapse: 'collapse',
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     color: 'var(--cpx-sys-color-fg-primary)',
-    fontFamily: 'var(--cpx-sys-font-family-sans)',
-    fontSize: 'var(--cpx-sys-font-size-md)',
+    font: 'var(--cpx-sys-type-body)',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget th, &.cm-markdown-rich .cm-md-rich-table-widget td':
     {
@@ -1187,7 +1174,7 @@ export const markdownRichThemeSpec = {
     },
   '&.cm-markdown-rich .cm-md-rich-table-widget th': {
     backgroundColor: 'var(--cpx-sys-color-surface-raised)',
-    fontWeight: '650',
+    fontWeight: 'var(--cpx-sys-font-weight-medium)',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget td': {
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',

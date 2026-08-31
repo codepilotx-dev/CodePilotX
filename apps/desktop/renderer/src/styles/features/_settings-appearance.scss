@@ -99,8 +99,7 @@
   display: block;
   max-width: 100%;
   overflow: hidden;
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-regular);
+  font: var(--cpx-sys-type-body);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;

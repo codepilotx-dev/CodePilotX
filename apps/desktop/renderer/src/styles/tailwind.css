@@ -7,15 +7,21 @@
   --spacing: 0.25rem;
 
   --text-xs: var(--cpx-sys-font-size-xs);
-  --text-xs--line-height: var(--cpx-sys-line-height-tight);
+  --text-xs--line-height: var(--cpx-sys-line-height-caption);
   --text-sm: var(--cpx-sys-font-size-sm);
-  --text-sm--line-height: var(--cpx-sys-line-height-tight);
-  --text-base: var(--cpx-sys-font-size-ui);
-  --text-base--line-height: var(--cpx-sys-line-height-normal);
+  --text-sm--line-height: var(--cpx-sys-line-height-body-sm);
+  --text-base: var(--cpx-sys-font-size-md);
+  --text-base--line-height: var(--cpx-sys-line-height-body);
   --text-lg: var(--cpx-sys-font-size-lg);
-  --text-lg--line-height: var(--cpx-sys-line-height-relaxed);
-  --text-xl: var(--cpx-sys-font-size-2xl);
-  --text-xl--line-height: calc(var(--cpx-sys-font-size-2xl) + 6px);
+  --text-lg--line-height: var(--cpx-sys-line-height-body-lg);
+  --text-xl: var(--cpx-sys-font-size-xl);
+  --text-xl--line-height: var(--cpx-sys-line-height-heading-md);
+  --text-2xl: var(--cpx-sys-font-size-2xl);
+  --text-2xl--line-height: var(--cpx-sys-line-height-heading-lg);
+  --text-3xl: var(--cpx-sys-font-size-3xl);
+  --text-3xl--line-height: var(--cpx-sys-line-height-heading-xl);
+  --text-4xl: var(--cpx-sys-font-size-4xl);
+  --text-4xl--line-height: var(--cpx-sys-line-height-display);
   --text-code: var(--cpx-sys-font-size-code);
   --text-code--line-height: var(--cpx-sys-line-height-code);
 

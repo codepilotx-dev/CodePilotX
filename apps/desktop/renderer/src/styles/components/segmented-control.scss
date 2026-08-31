@@ -16,9 +16,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-regular);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
   cursor: pointer;
   transition:
     background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),

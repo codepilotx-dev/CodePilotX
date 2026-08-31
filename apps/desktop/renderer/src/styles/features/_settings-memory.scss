@@ -142,16 +142,12 @@
   }
 
   &-name {
-    font-size: var(--cpx-sys-font-size-md);
+    font: var(--cpx-sys-type-body);
     font-weight: var(--cpx-sys-font-weight-medium);
     color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  &.active &-name {
-    font-weight: var(--cpx-sys-font-weight-medium);
   }
 
   &-meta {
@@ -167,9 +163,8 @@
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border-radius: var(--cpx-sys-radius-full);
     background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    line-height: var(--cpx-sys-line-height-tight);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font: var(--cpx-sys-type-caption);
     flex-shrink: 0;
   }
 
@@ -179,7 +174,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 }
 
@@ -209,9 +204,7 @@
   background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-  font-family: var(--cpx-sys-font-family-mono);
-  font-size: var(--cpx-sys-font-size-code);
-  line-height: var(--cpx-sys-line-height-code);
+  font: var(--cpx-sys-type-code);
   outline: none;
   margin: 0;
 

@@ -100,6 +100,8 @@
 
 .desktop-workspace-header-item {
   max-width: 100%;
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
   pointer-events: auto;
 }
 

@@ -63,6 +63,7 @@ describe('non-color design token contracts', () => {
       'heading-sm',
       'heading-md',
       'heading-lg',
+      'heading-xl',
       'code',
     ].map((role) => `--cpx-sys-type-${role}`)
 
@@ -71,6 +72,121 @@ describe('non-color design token contracts', () => {
       missing,
       `tokens.scss must define every type role as a --cpx-sys-type-* token; missing: ${missing.join(', ') || 'none'}`,
     ).toEqual([])
+  })
+
+  test('tokens.scss locks the Codex typography sizes, weights, and role-specific line heights', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    const expected: Record<string, string> = {
+      '--cpx-sys-font-size-code': '13px',
+      '--cpx-sys-font-size-xs': '12px',
+      '--cpx-sys-font-size-sm': '13px',
+      '--cpx-sys-font-size-md': '14px',
+      '--cpx-sys-font-size-lg': '16px',
+      '--cpx-sys-font-size-xl': '18px',
+      '--cpx-sys-font-size-2xl': '20px',
+      '--cpx-sys-font-size-3xl': '24px',
+      '--cpx-sys-font-size-4xl': '28px',
+      '--cpx-sys-font-weight-regular': '400',
+      '--cpx-sys-font-weight-body': '445',
+      '--cpx-sys-font-weight-medium': '500',
+      '--cpx-sys-font-weight-bold': '600',
+      '--cpx-sys-line-height-caption': 'calc(var(--cpx-sys-font-size-xs) + 4px)',
+      '--cpx-sys-line-height-label': 'calc(var(--cpx-sys-font-size-xs) + 4px)',
+      '--cpx-sys-line-height-body-sm': 'calc(var(--cpx-sys-font-size-sm) + 5px)',
+      '--cpx-sys-line-height-body': 'calc(var(--cpx-sys-font-size-md) + 6px)',
+      '--cpx-sys-line-height-body-lg': 'calc(var(--cpx-sys-font-size-lg) + 8px)',
+      '--cpx-sys-line-height-heading-sm': 'calc(var(--cpx-sys-font-size-lg) + 6px)',
+      '--cpx-sys-line-height-heading-md': 'calc(var(--cpx-sys-font-size-xl) + 6px)',
+      '--cpx-sys-line-height-heading-lg': 'calc(var(--cpx-sys-font-size-2xl) + 8px)',
+      '--cpx-sys-line-height-heading-xl': 'calc(var(--cpx-sys-font-size-3xl) + 6px)',
+      '--cpx-sys-line-height-code': 'calc(var(--cpx-sys-font-size-code) * 1.55)',
+    }
+    const mismatched = Object.entries(expected).filter(
+      ([name, value]) => tokens.get(name) !== value,
+    )
+
+    expect(
+      mismatched,
+      `Codex typography contract mismatch: ${mismatched.map(([name, value]) => `${name}=${tokens.get(name) ?? '(missing)'} (expected ${value})`).join(', ') || 'none'}`,
+    ).toEqual([])
+
+    const roles: Record<string, string> = {
+      '--cpx-sys-type-caption': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-caption) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-label': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-label) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-body-sm': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-body': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-body-lg': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-body-lg) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-sm': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-md': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-lg': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-xl': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-code': 'var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono)',
+    }
+    expect(
+      Object.entries(roles).filter(([name, value]) => tokens.get(name) !== value),
+    ).toEqual([])
+
+    for (const [size, lineHeight] of [[16, 22], [18, 24], [20, 28], [24, 30]]) {
+      expect(lineHeight).toBeGreaterThanOrEqual(size)
+    }
+  })
+
+  test('DesktopThemeProvider applies one UI-size delta to the complete scale including 4xl', async () => {
+    const provider = await read('../src/features/theme/DesktopThemeProvider.tsx')
+    const scaleBlock = provider.match(/const scale = \{([\s\S]*?)\n  \}/)?.[1]
+    expect(scaleBlock, 'DesktopThemeProvider must declare its UI font scale').toBeDefined()
+
+    const scale = new Map<string, number>()
+    for (const match of scaleBlock!.matchAll(/'?([\w]+)'?\s*:\s*(\d+)/g)) {
+      scale.set(match[1], Number(match[2]))
+    }
+    expect(Object.fromEntries(scale)).toEqual({
+      xs: 12,
+      sm: 13,
+      md: 14,
+      lg: 16,
+      xl: 18,
+      '2xl': 20,
+      '3xl': 24,
+      '4xl': 28,
+    })
+    expect(provider).toContain('const delta = uiFontSize - 14')
+    expect(provider).toContain('`${base + delta}px`')
+    expect(provider).toContain("'--cpx-sys-font-size-4xl'")
+
+    for (const uiFontSize of [11, 14, 16]) {
+      const delta = uiFontSize - 14
+      const derived = [...scale.values()].map(base => base + delta)
+      expect(derived).toEqual([12, 13, 14, 16, 18, 20, 24, 28].map(base => base + delta))
+    }
+  })
+
+  test('base, utilities, and Tailwind consume the shared typography roles', async () => {
+    const [base, utilities, tailwind] = await Promise.all([
+      read('../src/styles/base.scss'),
+      read('../src/styles/design-system/utilities.scss'),
+      read('../src/styles/tailwind.css'),
+    ])
+
+    expect(base).toMatch(/body\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-body\);/)
+    for (const role of ['label', 'body-sm', 'body-lg', 'title-xl']) {
+      expect(utilities).toContain(`'type-${role}'`)
+    }
+    expect(utilities).toContain("'font-body': (font-weight: var(--cpx-sys-font-weight-body))")
+
+    const mappings = {
+      xs: 'xs',
+      sm: 'sm',
+      base: 'md',
+      lg: 'lg',
+      xl: 'xl',
+      '2xl': '2xl',
+      '3xl': '3xl',
+      '4xl': '4xl',
+    }
+    for (const [tailwindName, tokenName] of Object.entries(mappings)) {
+      expect(tailwind).toContain(`--text-${tailwindName}: var(--cpx-sys-font-size-${tokenName});`)
+    }
   })
 
   test('tokens.scss defines the corrected 4px spacing scale 1..8 = 4/8/12/16/20/24/28/32px', async () => {

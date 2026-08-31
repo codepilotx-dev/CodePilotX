@@ -5,7 +5,7 @@ export type TerminalFont = {
   fontSize: number
 }
 
-const DEFAULT_TERMINAL_FONT_SIZE = 12
+const DEFAULT_TERMINAL_FONT_SIZE = 13
 const MIN_TERMINAL_FONT_SIZE = 8
 const MAX_TERMINAL_FONT_SIZE = 24
 

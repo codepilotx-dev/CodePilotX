@@ -102,14 +102,12 @@
 
 .ui-radio-label,
 .ui-checkbox-label {
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
 }
 
 .ui-radio-detail {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .ui-radio-icon {

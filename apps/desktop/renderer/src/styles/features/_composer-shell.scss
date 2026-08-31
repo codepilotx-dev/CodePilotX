@@ -114,6 +114,7 @@
 
   .composer-editor-content {
     min-height: 44px;
+    font: var(--cpx-sys-type-body-lg);
   }
 }
 
@@ -135,10 +136,6 @@
     background: var(--cpx-sys-color-surface-recessed);
   }
 
-  .composer-editor-content {
-    font-size: var(--cpx-sys-font-size-lg);
-    line-height: var(--cpx-sys-line-height-reading);
-  }
 }
 
 /* Working 新建页的工作插件：选中状态与菜单底部说明 */
@@ -149,7 +146,7 @@
 .popover-plugin-note {
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .composer-top {
@@ -162,8 +159,7 @@
 .composer-submit-error {
   margin: 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-warning);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-caption);
 }
 
 .composer-dictation-status {
@@ -172,8 +168,7 @@
   gap: var(--cpx-sys-space-2);
   margin: 0 var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-caption);
 
   &.is-error {
     color: var(--cpx-sys-color-warning);
@@ -321,8 +316,7 @@
   flex-direction: column;
   gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-warning);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-caption);
 }
 
 .attachment-file-pill {
@@ -383,7 +377,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--cpx-sys-space-1);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-body);
 }
 
 .attachment-file-pill__name,
@@ -394,15 +388,13 @@
 }
 
 .attachment-file-pill__name {
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-regular);
+  font: inherit;
 }
 
 .attachment-file-pill__detail {
   min-width: 0;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-regular);
+  font: var(--cpx-sys-type-caption);
 
   &::before {
     content: '· ';
@@ -451,8 +443,7 @@
     border: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-normal);
+    font: var(--cpx-sys-type-body);
     overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
@@ -471,7 +462,7 @@
     &.is-empty::before {
       content: attr(data-placeholder);
       position: absolute;
-      color: var(--cpx-sys-color-fg-secondary);
+      color: var(--cpx-sys-color-fg-tertiary);
       pointer-events: none;
     }
   }

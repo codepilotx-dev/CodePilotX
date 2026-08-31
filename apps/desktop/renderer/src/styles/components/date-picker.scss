@@ -71,9 +71,7 @@
 
 .ui-date-picker-month {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-bold);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .ui-date-picker-nav,
@@ -129,8 +127,7 @@
   height: var(--cpx-sys-space-6);
   place-items: center;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-label);
 }
 
 .ui-date-picker-day {
@@ -140,7 +137,7 @@
   place-items: center;
   padding: 0;
   border-radius: var(--cpx-sys-radius-control);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .ui-date-picker-day[data-outside] {
@@ -163,8 +160,7 @@
   position: absolute;
   right: var(--cpx-sys-space-1);
   bottom: 0;
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-caption);
 }
 
 .ui-date-picker-footer {
@@ -179,7 +175,7 @@
   min-height: var(--cpx-sys-space-7);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-control);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .ui-date-picker-footer-action:disabled {

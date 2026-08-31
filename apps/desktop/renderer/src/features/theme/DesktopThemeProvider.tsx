@@ -42,6 +42,7 @@ const SETTINGS_THEME_VARIABLES = [
   '--cpx-sys-font-size-xl',
   '--cpx-sys-font-size-2xl',
   '--cpx-sys-font-size-3xl',
+  '--cpx-sys-font-size-4xl',
   '--cpx-sys-font-family-mono',
   '--cpx-sys-font-family-sans',
 ]
@@ -373,15 +374,23 @@ function applyDesktopTheme(
 
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 16)
   const codeFontSize = clamp(settings.fontSizes.code, 8, 24)
+  const delta = uiFontSize - 14
+  const scale = {
+    xs: 12,
+    sm: 13,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    '2xl': 20,
+    '3xl': 24,
+    '4xl': 28,
+  }
+
   root.style.setProperty('--cpx-sys-font-size-ui', `${uiFontSize}px`)
   root.style.setProperty('--cpx-sys-font-size-code', `${codeFontSize}px`)
-  root.style.setProperty('--cpx-sys-font-size-xs', `${uiFontSize - 3}px`)
-  root.style.setProperty('--cpx-sys-font-size-sm', `${uiFontSize - 2}px`)
-  root.style.setProperty('--cpx-sys-font-size-md', `${uiFontSize}px`)
-  root.style.setProperty('--cpx-sys-font-size-lg', `${uiFontSize + 2}px`)
-  root.style.setProperty('--cpx-sys-font-size-xl', `${uiFontSize + 4}px`)
-  root.style.setProperty('--cpx-sys-font-size-2xl', `${uiFontSize + 6}px`)
-  root.style.setProperty('--cpx-sys-font-size-3xl', `${uiFontSize + 10}px`)
+  for (const [name, base] of Object.entries(scale)) {
+    root.style.setProperty(`--cpx-sys-font-size-${name}`, `${base + delta}px`)
+  }
 }
 
 function relativeApplicationUrl(url: string): string {

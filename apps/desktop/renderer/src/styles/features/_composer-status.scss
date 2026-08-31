@@ -12,8 +12,8 @@
 }
 
 .composer-status-title {
-  font-weight: var(--cpx-sys-font-weight-medium, 600);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .composer-status-close {
@@ -41,8 +41,8 @@
 }
 
 .composer-status-label {
-  font-size: var(--cpx-sys-font-size-xs);
   color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-label);
 
   svg {
     width: var(--cpx-sys-space-4);
@@ -52,9 +52,8 @@
 }
 
 .composer-status-value {
-  font-size: var(--cpx-sys-font-size-xs);
-  font-family: var(--font-mono, monospace);
   color: var(--cpx-sys-color-fg-primary);
+  font: var(--cpx-sys-type-code);
   word-break: break-all;
 }
 
@@ -80,7 +79,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .composer-status-bar-percent {
@@ -99,7 +98,7 @@
 .composer-status-empty {
   padding: var(--cpx-sys-space-2) 0;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .composer-status-empty-error {

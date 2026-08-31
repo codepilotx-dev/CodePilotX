@@ -6,31 +6,28 @@ import { markdownRichThemeSpec } from '../src/features/editor/markdownRichExtens
 describe('editor line-height contracts', () => {
   test('CodeMirror keeps the shared code density ratio with explicit pixels', () => {
     expect(codeEditorLineHeight(8)).toBe(12)
-    expect(codeEditorLineHeight(12)).toBe(19)
+    expect(codeEditorLineHeight(13)).toBe(20)
     expect(codeEditorLineHeight(14)).toBe(22)
     expect(codeEditorLineHeight(24)).toBe(37)
   })
 
   test('rich Markdown uses the semantic type tokens for body and headings', () => {
     expect(
-      markdownRichThemeSpec['&.cm-markdown-rich .cm-line'].lineHeight,
-    ).toBe('var(--cpx-sys-line-height-normal)')
+      markdownRichThemeSpec['&.cm-markdown-rich .cm-content'].font,
+    ).toBe('var(--cpx-sys-type-body)')
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h1']).toEqual(
       {
-        fontSize: 'var(--cpx-sys-font-size-3xl)',
-        lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+        font: 'var(--cpx-sys-type-heading-xl)',
       },
     )
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h2']).toEqual(
       {
-        fontSize: 'var(--cpx-sys-font-size-2xl)',
-        lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+        font: 'var(--cpx-sys-type-heading-md)',
       },
     )
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h3']).toEqual(
       {
-        fontSize: 'var(--cpx-sys-font-size-xl)',
-        lineHeight: 'var(--cpx-sys-line-height-relaxed)',
+        font: 'var(--cpx-sys-type-heading-sm)',
       },
     )
     expect(
@@ -38,16 +35,15 @@ describe('editor line-height contracts', () => {
         '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6'
       ],
     ).toEqual({
-      fontSize: 'var(--cpx-sys-font-size-md)',
-      lineHeight: 'var(--cpx-sys-line-height-normal)',
+      font: 'var(--cpx-sys-type-body)',
+      fontWeight: 'var(--cpx-sys-font-weight-medium)',
     })
   })
 
   test('rich Markdown code blocks keep the shared code line token', () => {
     const codeBlock =
       markdownRichThemeSpec['&.cm-markdown-rich .cm-line.cm-md-rich-code-block']
-    expect(codeBlock.fontSize).toBe('var(--cpx-sys-font-size-code)')
-    expect(codeBlock.lineHeight).toBe('var(--cpx-sys-line-height-code)')
+    expect(codeBlock.font).toBe('var(--cpx-sys-type-code)')
     expect(
       markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-code-block-widget'],
     ).toEqual({

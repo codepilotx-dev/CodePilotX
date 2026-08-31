@@ -32,7 +32,24 @@ Renderer 只使用三层变量：
 
 排版角色为 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / heading-xl / code`，通过 `--cpx-sys-type-*` 使用。`heading-xl` 仅用于一级页面的主标题。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
-界面字号与代码字号设置仍是主题输入：运行时只更新 `--cpx-sys-font-size-ui`、`--cpx-sys-font-size-code` 及其派生刻度；语义角色自动随之变化。
+| 角色 | 默认字号 / 行高 / 字重 | 内容职责 | 默认前景色 |
+| --- | --- | --- | --- |
+| `caption` | `12 / 16 / 445` | 时间、路径、计数、快捷键和辅助状态 | `fg-tertiary` |
+| `label` | `12 / 16 / 500` | 分组名、字段标签和短状态标签 | 按上下文选择 secondary 或 tertiary |
+| `body-sm` | `13 / 18 / 445` | 说明、次要正文和紧凑导航 | `fg-secondary` |
+| `body` | `14 / 20 / 445` | 全局正文、列表、菜单和聊天 | `fg-primary` |
+| `body-lg` | `16 / 24 / 445` | 首页 Composer 和局部引导正文 | `fg-primary` |
+| `heading-sm` | `16 / 22 / 500` | 设置章节和卡片主要标题 | `fg-primary` |
+| `heading-md` | `18 / 24 / 500` | 中级页面标题和 Markdown H2 | `fg-primary` |
+| `heading-lg` | `20 / 28 / 500` | 强页面分区标题 | `fg-primary` |
+| `heading-xl` | `24 / 30 / 500` | 一级页面、首页 Hero 和 Markdown H1 | `fg-primary` |
+| `code` | `用户代码字号 / 1.55 / 400` | 代码、命令、Diff 和终端 | 按语法或上下文选择 |
+
+普通 sans-serif 内容使用 `--cpx-sys-font-weight-body: 445`，标题和关键标签使用 `500`，正文内真正的强调使用 `600`；`400` 只保留给代码等真实常规字重。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。
+
+界面字号与代码字号设置仍是两个独立主题输入。UI 默认字号是 `14px`，运行时先计算 `delta = uiFontSize - 14`，再将同一差值应用到 `12 / 13 / 14 / 16 / 18 / 20 / 24 / 28px` 完整刻度，因此所有语义角色在 UI 字号 `11–16px` 范围内保持相对层级。代码字号在 `8–24px` 范围独立更新 `--cpx-sys-font-size-code`，不参与 UI delta；新设置默认使用 `13px`，已有用户设置原样保留。
+
+颜色与排版角色互相独立：正文和关键值使用 `--cpx-sys-color-fg-primary`，说明使用 `fg-secondary`，时间、路径和其他辅助元信息使用 `fg-tertiary`，`fg-disabled` 只用于真实禁用态。业务成功、警告和错误继续使用对应 tone，不以异常字号或额外粗体代替状态语义。
 
 ### 间距
 
@@ -92,6 +109,21 @@ Composer 必须将首页工具条结构、实际输入布局和圆角角色分�
   border-radius: var(--cpx-sys-radius-control);
   transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
   z-index: var(--cpx-sys-z-sticky);
+}
+
+.feature-title {
+  color: var(--cpx-sys-color-fg-primary);
+  font: var(--cpx-sys-type-heading-sm);
+}
+
+.feature-description {
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
+}
+
+.feature-meta {
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .responsive-empty-state {

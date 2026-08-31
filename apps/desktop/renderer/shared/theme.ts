@@ -75,7 +75,7 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
   reduceMotion: 'system',
   fontSmoothingEnabled: true,
   fontSizes: {
-    code: 12,
+    code: 13,
     ui: 14,
   },
 }

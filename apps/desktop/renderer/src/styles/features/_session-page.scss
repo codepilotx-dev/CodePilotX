@@ -84,7 +84,7 @@
   align-items: center;
   gap: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-3xl);
+  font: var(--cpx-sys-type-heading-xl);
   text-align: center;
   animation: quick-chat-hero-enter var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard) both;
 
@@ -120,8 +120,7 @@
     max-width: 100%;
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: inherit;
-    font-weight: var(--cpx-sys-font-weight-regular);
+    font: inherit;
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     letter-spacing: 0;
     text-wrap: balance;
@@ -220,13 +219,11 @@
 .quick-chat-hero p,
 .empty-canvas-card p,
 .placeholder-card p {
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
 }
 
 .message-card p {
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-body);
 }
 
 .quick-chat-hero p {
@@ -365,9 +362,8 @@
 }
 
 .new-session-suggestion-label {
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .new-session-suggestions.is-follow-up {
@@ -389,8 +385,8 @@
   justify-content: space-between;
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-label);
 
   > span,
   button {
@@ -432,7 +428,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
   text-align: left;
   animation: new-session-suggestion-row-enter var(--cpx-sys-motion-enter)
     var(--cpx-sys-ease-standard) both;
@@ -608,7 +604,7 @@
   gap: var(--cpx-sys-space-2);
   min-width: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body-sm);
   font-weight: var(--cpx-sys-font-weight-medium);
 
   .chat-session-title__icon {
@@ -779,8 +775,7 @@
     background: var(--cpx-sys-color-surface-canvas);
     box-shadow: var(--cpx-sys-shadow-resting);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-body-sm);
   }
 
   &__plan,
@@ -1048,8 +1043,7 @@
     border-radius: var(--cpx-sys-radius-compact);
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-body);
     text-align: start;
 
     &:hover {
@@ -1076,7 +1070,8 @@
     flex: 0 0 auto;
     align-items: center;
     gap: var(--cpx-sys-space-2);
-    font-size: var(--cpx-sys-font-size-sm);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font: var(--cpx-sys-type-caption);
     font-variant-numeric: tabular-nums;
     margin-inline-start: auto;
   }

@@ -55,9 +55,7 @@
   border: 0;
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
-  font: inherit;
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
   outline: 0;
 
   &::placeholder {
@@ -82,10 +80,8 @@
 
   [cmdk-group-heading] {
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--cpx-sys-line-height-tight);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font: var(--cpx-sys-type-label);
   }
 }
 
@@ -100,8 +96,7 @@
   padding: var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
   cursor: default;
   outline: 0;
   user-select: none;
@@ -153,13 +148,13 @@
 
 .command-menu-item-description {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .command-menu-workspace {
   max-width: 9rem;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .command-menu-shortcut {
@@ -172,11 +167,8 @@
     var(--cpx-sys-color-surface-control) 72%,
     transparent
   );
-  color: var(--cpx-sys-color-fg-secondary);
-  font-family: var(--cpx-sys-font-family-sans);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-regular);
-  line-height: var(--cpx-sys-line-height-tight);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .command-menu-recommendation {
@@ -191,7 +183,7 @@
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-3);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   text-align: center;
 }
 

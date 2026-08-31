@@ -61,19 +61,20 @@ describe('fixed Codex UI themes', () => {
       `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`,
     )
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 445;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 600;')
     expect(normalizedStylesheet).toContain(
-      '--cpx-sys-line-height-normal: calc(var(--cpx-sys-font-size-md) + 6px);',
+      '--cpx-sys-line-height-body: calc(var(--cpx-sys-font-size-md) + 6px);',
     )
     expect(normalizedStylesheet).toContain(
-      '--cpx-sys-line-height-tight: calc(var(--cpx-sys-font-size-sm) + 5px);',
+      '--cpx-sys-line-height-caption: calc(var(--cpx-sys-font-size-xs) + 4px);',
     )
     expect(normalizedStylesheet).toContain(
-      '--cpx-sys-line-height-relaxed: calc(var(--cpx-sys-font-size-lg) + 6px);',
+      '--cpx-sys-line-height-body-lg: calc(var(--cpx-sys-font-size-lg) + 8px);',
     )
     expect(normalizedStylesheet).toContain(
-      '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-sm) * 1.55);',
+      '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) * 1.55);',
     )
 
     const tailwind = await Bun.file(
@@ -81,10 +82,10 @@ describe('fixed Codex UI themes', () => {
     ).text()
     const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
     expect(normalizedTailwind).toContain(
-      '--text-base--line-height: var(--cpx-sys-line-height-normal);',
+      '--text-base--line-height: var(--cpx-sys-line-height-body);',
     )
     expect(normalizedTailwind).toContain(
-      '--text-sm--line-height: var(--cpx-sys-line-height-tight);',
+      '--text-sm--line-height: var(--cpx-sys-line-height-body-sm);',
     )
     expect(normalizedTailwind).toContain(
       '--text-code: var(--cpx-sys-font-size-code);',
@@ -447,10 +448,20 @@ describe('fixed Codex UI themes', () => {
       },
       reduceMotion: 'system',
       pointerCursorEnabled: false,
-      fontSizes: { ui: 14, code: 12 },
+      fontSizes: { ui: 14, code: 13 },
     })
     expect(migrated.chromeThemes.light).not.toHaveProperty('opaqueWindows')
     expect(migrated.chromeThemes.dark).not.toHaveProperty('opaqueWindows')
+  })
+
+  test('uses code size 13 for new settings without migrating a saved size 12', () => {
+    expect(DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.code).toBe(13)
+    expect(
+      normalizeDesktopThemeSettings({
+        ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        fontSizes: { ui: 14, code: 12 },
+      }).fontSizes,
+    ).toEqual({ ui: 14, code: 12 })
   })
 
   test('keeps separate light and dark selections and rejects mismatches', () => {

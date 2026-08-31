@@ -13,8 +13,9 @@
   border-radius: var(--button-radius);
   background: transparent;
   box-shadow: none;
+  font-family: var(--cpx-sys-font-family-sans);
   font-size: var(--button-font-size);
-  font-weight: inherit;
+  font-weight: var(--cpx-sys-font-weight-body);
   line-height: var(--button-line-height);
   white-space: nowrap;
   user-select: none;

@@ -254,9 +254,8 @@
     display: block;
     color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-normal);
-    font-weight: var(--cpx-sys-font-weight-regular);
+    font: var(--cpx-sys-type-body);
+    font-weight: var(--cpx-sys-font-weight-medium);
     font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -266,9 +265,8 @@
     display: block;
     margin-top: var(--cpx-sys-space-1);
     overflow: hidden;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    line-height: var(--cpx-sys-line-height-tight);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font: var(--cpx-sys-type-caption);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

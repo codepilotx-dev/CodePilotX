@@ -1,9 +1,6 @@
 /* Plugins and Skills catalog. Visual values use CodePilotX semantic tokens. */
 
 .plugins-primary-page {
-  --plugins-card-title-size: 13px;
-  --plugins-card-title-leading: 18px;
-
   container-name: plugins-page;
   container-type: inline-size;
 }
@@ -48,14 +45,12 @@
 .catalog-details-section h2 {
   margin: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .plugins-section-heading span {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .plugins-sr-status {
@@ -81,8 +76,7 @@
 }
 
 .plugins-included-overview .plugins-section-heading h2 {
-  font-size: var(--cpx-sys-font-size-lg);
-  line-height: var(--cpx-sys-space-6);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .plugins-included-overview__list,
@@ -106,7 +100,7 @@
   display: inline-flex;
   align-items: center;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .plugins-included-overview__item {
@@ -247,9 +241,8 @@
 .skill-catalog-card__copy strong {
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--plugins-card-title-size);
+  font: var(--cpx-sys-type-body);
   font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--plugins-card-title-leading);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -259,8 +252,7 @@
 .skill-catalog-card__meta {
   min-width: 0;
   overflow: hidden;
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -275,8 +267,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--cpx-sys-color-danger);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .plugin-catalog-card__actions,
@@ -302,7 +293,7 @@
 .plugin-details-primary-toggle {
   gap: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 }
 
@@ -314,9 +305,7 @@
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-full);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-none);
+  font: var(--cpx-sys-type-label);
   text-transform: uppercase;
 }
 
@@ -376,8 +365,7 @@
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .plugins-empty {
@@ -394,8 +382,7 @@
   gap: var(--cpx-sys-space-1);
   margin: 0;
   padding-left: var(--cpx-sys-space-5);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
   text-align: left;
 }
 
@@ -453,17 +440,14 @@
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xl);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-relaxed);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .catalog-details-view__identity p,
 .catalog-details-section__empty {
   margin: 0;
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .catalog-details-view__body {
@@ -488,7 +472,7 @@
   align-items: center;
   gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-caption);
 }
 
 .plugins-detail-breadcrumb > span {
@@ -503,8 +487,7 @@
 }
 
 .catalog-plugin-details .catalog-details-view__identity h1 {
-  font-size: var(--cpx-sys-font-size-2xl);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-heading-xl);
 }
 
 .catalog-plugin-prompts {
@@ -606,8 +589,7 @@
   max-width: 68ch;
   margin: 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-reading);
+  font: var(--cpx-sys-type-body);
 }
 
 .catalog-details-section__heading {
@@ -623,8 +605,7 @@
 .catalog-details-section__heading h2 {
   margin: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-lg);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .catalog-plugin-skills {
@@ -658,14 +639,13 @@
 
 .catalog-plugin-skill__copy h3 {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
   font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .catalog-plugin-skill__copy p {
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-normal);
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .catalog-plugin-details .plugin-details-metadata__row {
@@ -674,7 +654,7 @@
 
 .catalog-details-view__installed {
   color: var(--cpx-sys-color-success-fg);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-caption);
 }
 
 .catalog-details-view__error,
@@ -685,7 +665,7 @@
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-danger-subtle-bg);
   color: var(--cpx-sys-color-danger-fg);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .plugin-details-metadata {
@@ -711,12 +691,12 @@
 
 .plugin-details-metadata__row dt {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .plugin-details-metadata__row dd {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 /* Settings keeps the existing modal details treatment. */
@@ -761,13 +741,12 @@
 
 .plugin-details-dialog__title {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xl);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .plugin-details-dialog__description {
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .plugin-details-dialog__scroll-area {

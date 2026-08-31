@@ -60,15 +60,14 @@
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-2xl);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-sm);
   }
 
   span {
     color: var(--cpx-sys-color-fg-secondary);
     max-width: 100%;
     overflow-wrap: anywhere;
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 
   svg {
@@ -87,7 +86,7 @@
   justify-items: center;
   padding: var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   text-align: center;
 }
 
@@ -117,7 +116,7 @@
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
     border-top: 1px solid var(--cpx-sys-color-border-subtle);
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
   }
 }
 
@@ -142,7 +141,7 @@
   align-items: center;
 
   overflow: hidden;
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 }
 
@@ -155,8 +154,7 @@
 .file-breadcrumb-toolbar__root {
   padding-inline: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
 }
 
 .file-breadcrumb-toolbar__segment {
@@ -215,7 +213,7 @@
   overflow: hidden;
   color: inherit;
   cursor: default;
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -236,8 +234,7 @@
   strong {
     min-width: 0;
     overflow: hidden;
-    font-size: var(--cpx-sys-font-size-xs);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-label);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -251,7 +248,7 @@
 
   small {
     color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
   }
 }
 
@@ -362,13 +359,12 @@
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-lg);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-sm);
   }
 
   span {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 }
 
@@ -532,7 +528,7 @@
   border-radius: var(--cpx-sys-radius-md);
   color: var(--cpx-sys-color-fg-tertiary);
   flex: 0 0 auto;
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
 
   input {
     min-width: 0;
@@ -542,7 +538,7 @@
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
     font-family: inherit;
-    font-size: var(--cpx-sys-font-size-md);
+    font-size: inherit;
     font-style: inherit;
     font-weight: inherit;
     line-height: inherit;
@@ -572,8 +568,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
   text-align: left;
   cursor: pointer;
   user-select: none;
@@ -625,7 +620,7 @@
 .right-dock-tree-empty {
   padding: var(--cpx-sys-space-5) var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .right-dock-side-chat {
@@ -684,13 +679,12 @@
   > strong {
     margin-top: var(--cpx-sys-space-4);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-sm);
   }
 
   > span:not(.right-dock-side-chat__empty-icon) {
     margin-top: var(--cpx-sys-space-2);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
   }
 
   > button {
@@ -802,8 +796,7 @@
   background: var(--cpx-sys-color-workbench-panel-bg);
   padding: 0 var(--cpx-sys-space-3);
   color: var(--color-app-text);
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
 
   span {
     min-width: 0;
@@ -818,7 +811,7 @@
     background: var(--color-app-panel);
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     color: var(--color-app-accent);
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
     font-style: normal;
   }
 }

@@ -49,8 +49,7 @@
     color: var(--cpx-sys-color-fg-primary);
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);
     text-align: center;
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-tight);
+    font: var(--cpx-sys-type-body);
 
     &:focus {
       background: var(--cpx-sys-color-surface-raised);
@@ -66,7 +65,7 @@
   top: 50%;
   transform: translate(100%, -50%);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 }
 
@@ -93,8 +92,7 @@
   color: var(--cpx-sys-color-fg-secondary);
   padding: var(--cpx-sys-space-1)
     var(--cpx-sys-space-2);
-  font-size: var(--cpx-sys-font-size-md);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body);
   transition:
     background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
     color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
@@ -122,9 +120,8 @@
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 
   span {
     overflow: hidden;
@@ -168,13 +165,12 @@
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-xl);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-sm);
   }
 
   span {
-    color: var(--cpx-sys-color-fg-tertiary);
-    font-size: var(--cpx-sys-font-size-sm);
+    color: var(--cpx-sys-color-fg-secondary);
+    font: var(--cpx-sys-type-body-sm);
   }
 
   svg {

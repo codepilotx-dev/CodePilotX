@@ -35,8 +35,7 @@
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   overflow: hidden;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-none);
+  font: var(--cpx-sys-type-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--cpx-sys-color-surface-raised);
@@ -92,13 +91,12 @@
 }
 
 .conflict-merge-editor-header strong {
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
 }
 
 .conflict-merge-editor-header span {
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .conflict-merge-editor-actions {
@@ -110,8 +108,8 @@
 .conflict-merge-editor-labels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
   background: var(--cpx-sys-color-surface-panel);
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
 }
