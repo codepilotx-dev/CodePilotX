@@ -256,6 +256,35 @@ describe("v4 会话事件投影契约", () => {
     })
   })
 
+  test("旧 ToolItem 历史缺少 activity 时使用统一分类器兼容投影", async () => {
+    const { db, projection } = await fixture()
+    const thread = db.createThread()
+    const turn = seedTurn(db, thread.id)
+    const timestamp = Date.now()
+    const item = projection.item({
+      id: "legacy-read",
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      type: "tool",
+      status: "completed",
+      data: {
+        callID: "legacy-read",
+        tool: "Read",
+        input: { file_path: "src/legacy.ts" },
+      },
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    expect(item).toMatchObject({
+      type: "tool",
+      activity: {
+        type: "read",
+        subject: "file",
+        target: { displayLabel: "legacy.ts" },
+      },
+    })
+  })
+
   test("subagent/created 把内部 task/run 投影成 projection.task + projection.currentRun", async () => {
     const { db, projection } = await fixture()
     const thread = db.createThread()

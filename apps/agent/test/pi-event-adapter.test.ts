@@ -47,13 +47,13 @@ describe("PiEventAdapter", () => {
       operation: "write",
       file_path: "src/source.ts",
       contentBytes: Buffer.byteLength("const secret = 'private'", "utf8"),
-      affectedPaths: [{ path: "src/source.ts" }],
+      affectedPaths: [{ path: "src/source.ts", operation: "write" }],
     })
     expect(edit).toEqual({
       operation: "edit",
       path: "src/source.ts",
       editCount: 1,
-      affectedPaths: [{ path: "src/source.ts" }],
+      affectedPaths: [{ path: "src/source.ts", operation: "update" }],
     })
     expect(JSON.stringify(write)).not.toContain("private")
     expect(JSON.stringify(edit)).not.toContain("secret-old")
@@ -599,6 +599,13 @@ describe("PiEventAdapter", () => {
         { path: "src/added.ts", operation: "create", additions: 2, deletions: 0 },
       ],
     })
+    expect(items.get("call-1")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [
+        { path: "source.ts", operation: "update", additions: 3, deletions: 1 },
+        { path: "added.ts", operation: "create", additions: 2, deletions: 0 },
+      ],
+    })
     expect(items.get("patch:turn")).toMatchObject({
       type: "patch",
       status: "completed",
@@ -617,7 +624,14 @@ describe("PiEventAdapter", () => {
       agentID: "agent",
       type: "tool",
       status: "running",
-      data: { tool: "Edit", input: { path: "src/source.ts" } },
+      data: {
+        tool: "Edit",
+        input: { path: "src/source.ts" },
+        activity: {
+          type: "file_change",
+          changes: [{ path: "src/source.ts", operation: "update" }],
+        },
+      },
       createdAt: 100,
       updatedAt: 100,
     })
@@ -631,6 +645,10 @@ describe("PiEventAdapter", () => {
         isError: true,
       },
     ).map((event) => event.method)).toEqual(["tool/error"])
+    expect(items.get("call-2")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [{ path: "source.ts", operation: "update", additions: 100, deletions: 100 }],
+    })
     expect(items.get("patch:turn")?.data).toMatchObject({
       totalAdditions: 5,
       totalDeletions: 1,
@@ -641,7 +659,14 @@ describe("PiEventAdapter", () => {
       agentID: "agent",
       type: "tool",
       status: "interrupted",
-      data: { tool: "Write", input: { file_path: "src/other.ts" } },
+      data: {
+        tool: "Write",
+        input: { file_path: "src/other.ts" },
+        activity: {
+          type: "file_change",
+          changes: [{ path: "src/other.ts", operation: "create" }],
+        },
+      },
       createdAt: 100,
       updatedAt: 100,
     })
@@ -655,6 +680,10 @@ describe("PiEventAdapter", () => {
         isError: false,
       },
     )).toEqual([])
+    expect(items.get("call-3")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [{ path: "src/other.ts", operation: "create" }],
+    })
     expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input)).toEqual([])
     expect(transactionCount).toBe(2)
   })

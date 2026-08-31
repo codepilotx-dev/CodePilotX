@@ -171,6 +171,68 @@ export const ActivityItemSchema = Schema.Struct({
 })
 export type ActivityItem = typeof ActivityItemSchema.Type
 
+export const ToolActivityTargetSchema = Schema.Struct({
+  displayLabel: Schema.String,
+  workspacePath: Schema.optional(Schema.String),
+})
+export type ToolActivityTarget = typeof ToolActivityTargetSchema.Type
+
+export const ToolActivityFileChangeSchema = Schema.Struct({
+  path: Schema.String,
+  operation: Schema.Literals(["write", "create", "update", "delete"]),
+  additions: Schema.optional(Schema.Number),
+  deletions: Schema.optional(Schema.Number),
+})
+export type ToolActivityFileChange = typeof ToolActivityFileChangeSchema.Type
+
+/** Presentation-neutral semantic activity projected for tool timelines. */
+export const ToolActivityDescriptorSchema = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("read"),
+    subject: Schema.Literals(["file", "skill"]),
+    target: Schema.optional(ToolActivityTargetSchema),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("search"),
+    query: Schema.optional(Schema.String),
+    path: Schema.optional(ToolActivityTargetSchema),
+    filesOnly: Schema.optional(Schema.Boolean),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("list_files"),
+    path: Schema.optional(ToolActivityTargetSchema),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("file_change"),
+    changes: Schema.Array(ToolActivityFileChangeSchema),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("command"),
+    kind: Schema.Literals([
+      "generic",
+      "format",
+      "test",
+      "lint",
+      "noop",
+      "current_time",
+      "skill_script",
+    ]),
+    skillName: Schema.optional(Schema.String),
+    scriptName: Schema.optional(Schema.String),
+  }),
+  Schema.Struct({ type: Schema.Literal("web_search") }),
+  Schema.Struct({
+    type: Schema.Literal("integration"),
+    source: Schema.optional(Schema.String),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("tool"),
+    mode: Schema.Literals(["search", "load", "call"]),
+    name: Schema.optional(Schema.String),
+  }),
+])
+export type ToolActivityDescriptor = typeof ToolActivityDescriptorSchema.Type
+
 export const ToolItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
@@ -188,6 +250,7 @@ export const ToolItemSchema = Schema.Struct({
   startedAt: Schema.NullOr(Schema.Number),
   finishedAt: Schema.NullOr(Schema.Number),
   durationMs: Schema.NullOr(Schema.Number),
+  activity: Schema.optional(ToolActivityDescriptorSchema),
   mutationDiffPaths: Schema.optional(Schema.Array(Schema.String)),
   resultBlocks: Schema.optional(Schema.Array(ToolResultBlockSchema)),
   ordinal: Schema.optional(Schema.Number),

@@ -19,6 +19,7 @@ import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
+import type { ToolCatalogEntry } from "../tool/ToolRegistry";
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
 import { AgentError, type Item, type SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
@@ -42,6 +43,8 @@ import {
 } from "../runtime-composition/composer";
 import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from "../runtime-composition/types";
 import { SkillService } from "../prompt/SkillService";
+import type { WorkspaceService } from "../workspace/WorkspaceService";
+import { classifyToolActivity, storedToolActivity } from "../tool/ToolActivityClassifier";
 
 export type {
   DelegationController,
@@ -86,6 +89,11 @@ const mutationToolKind = (tool: string) => {
   return name === "apply_patch" || name === "write" || name === "edit"
     ? name
     : null;
+};
+
+const integrationSourceFor = (catalog: readonly ToolCatalogEntry[], tool: string) => {
+  const origin = catalog.find((entry) => entry.sdkName === tool)?.origin;
+  return origin?.kind === "mcp" ? origin.serverName : undefined;
 };
 
 export const piToolMutationFiles = (
@@ -151,7 +159,7 @@ export const piToolTimelineInput = (
       ...(typeof record.content === "string"
         ? { contentBytes: Buffer.byteLength(record.content, "utf8") }
         : {}),
-      affectedPaths: [{ path }],
+      affectedPaths: [{ path, operation: "write" }],
     };
   }
   if (kind === "edit") {
@@ -162,7 +170,7 @@ export const piToolTimelineInput = (
       operation: "edit",
       path,
       ...(Array.isArray(record.edits) ? { editCount: record.edits.length } : {}),
-      affectedPaths: [{ path }],
+      affectedPaths: [{ path, operation: "update" }],
     };
   }
   if (kind !== "apply_patch") return record;
@@ -232,6 +240,13 @@ const resumedToolResultText = (value: unknown, tool: string) => {
 export const piToolItemPayload = (item: Item) => {
   const data = item.data;
   const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted";
+  const tool = typeof data.tool === "string" ? data.tool : "tool";
+  const command = typeof data.command === "string" ? data.command : null;
+  const activity = storedToolActivity(data.activity) ?? classifyToolActivity({
+    tool,
+    input: data.input,
+    command,
+  });
   return {
     id: item.id,
     messageID: item.turnID,
@@ -239,20 +254,21 @@ export const piToolItemPayload = (item: Item) => {
     agentId: item.agentID,
     type: "tool" as const,
     callID: typeof data.callID === "string" ? data.callID : item.id,
-    tool: typeof data.tool === "string" ? data.tool : "tool",
-    title: typeof data.title === "string" ? data.title : `运行了 ${typeof data.tool === "string" ? data.tool : "tool"}`,
+    tool,
+    title: typeof data.title === "string" ? data.title : `运行了 ${tool}`,
     state: item.status === "pending" ? "pending" as const
       : item.status === "running" ? "running" as const
       : item.status === "error" ? "error" as const
       : item.status === "interrupted" ? "interrupted" as const
       : "completed" as const,
     input: data.input ?? null,
-    command: typeof data.command === "string" ? data.command : null,
+    command,
     output: typeof data.output === "string" ? data.output : null,
     error: typeof data.error === "string" ? data.error : null,
     startedAt: typeof data.startedAt === "number" ? data.startedAt : item.createdAt,
     finishedAt: typeof data.finishedAt === "number" ? data.finishedAt : terminal ? item.updatedAt : null,
     durationMs: typeof data.durationMs === "number" ? data.durationMs : terminal ? item.updatedAt - item.createdAt : null,
+    activity,
     ...(item.ordinal === undefined ? {} : { ordinal: item.ordinal }),
     createdAt: item.createdAt,
   };
@@ -343,7 +359,7 @@ export class AgentRuntimeService implements AgentRuntime {
     isError: boolean;
     resultBlocks?: ToolResultBlock[];
     artifactRecords?: StoredArtifactBlob[];
-  }) {
+  }, workspace?: WorkspaceService, integrationSource?: string) {
     let item = finishedPiToolItem({
       current: this.options.db.getItem(input.toolCallID),
       turnID: context.turnID,
@@ -393,6 +409,24 @@ export class AgentRuntimeService implements AgentRuntime {
         },
       };
     }
+    const timelineInput = item.data.input && typeof item.data.input === "object"
+      && !Array.isArray(item.data.input)
+      ? item.data.input as Record<string, unknown>
+      : {};
+    item = {
+      ...item,
+      data: {
+        ...item.data,
+        activity: classifyToolActivity({
+          tool: input.tool,
+          input: timelineInput,
+          command: commandFromInput(timelineInput),
+          details: input.details,
+          ...(workspace ? { workspace } : {}),
+          ...(integrationSource ? { integrationSource } : {}),
+        }),
+      },
+    };
     const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
     this.options.db.transaction(() => {
       this.options.db.upsertItem(context.threadID, item);
@@ -502,7 +536,7 @@ export class AgentRuntimeService implements AgentRuntime {
     isError: boolean;
     resultBlocks?: ToolResultBlock[];
     artifactInputs?: ArtifactBlobInput[];
-  }) {
+  }, workspace?: WorkspaceService, integrationSource?: string) {
     const artifactRecords = await this.persistFinishedToolArtifacts(input.artifactInputs ?? []);
     const events = this.persistFinishedTool(context, {
       toolCallID: input.toolCallID,
@@ -512,7 +546,7 @@ export class AgentRuntimeService implements AgentRuntime {
       isError: input.isError,
       ...(input.resultBlocks?.length ? { resultBlocks: input.resultBlocks } : {}),
       ...(artifactRecords.length ? { artifactRecords } : {}),
-    });
+    }, workspace, integrationSource);
     for (const event of events) await this.publish(event);
   }
 
@@ -521,6 +555,8 @@ export class AgentRuntimeService implements AgentRuntime {
     session: Session,
     runtimeModel: PiModel<Api>,
     sessionID: string,
+    workspace?: WorkspaceService,
+    toolCatalog: readonly ToolCatalogEntry[] = [],
     onUsage?: AgentRuntimeRequest["onUsage"],
   ): PiRuntimeEventSink {
     const pendingFor = (context: PiRuntimeEventContext) => {
@@ -680,6 +716,8 @@ export class AgentRuntimeService implements AgentRuntime {
       toolStarted: async (context, input) => {
         const timestamp = Date.now();
         const timelineInput = piToolTimelineInput(input.tool, input.input);
+        const command = commandFromInput(timelineInput);
+        const integrationSource = integrationSourceFor(toolCatalog, input.tool);
         const item: Item = {
           id: input.toolCallID,
           turnID: context.turnID,
@@ -692,7 +730,14 @@ export class AgentRuntimeService implements AgentRuntime {
             title: input.tool,
             state: "running",
             input: timelineInput,
-            command: commandFromInput(timelineInput),
+            command,
+            activity: classifyToolActivity({
+              tool: input.tool,
+              input: timelineInput,
+              command,
+              ...(workspace ? { workspace } : {}),
+              ...(integrationSource ? { integrationSource } : {}),
+            }),
             output: null,
             error: null,
             startedAt: timestamp,
@@ -729,7 +774,12 @@ export class AgentRuntimeService implements AgentRuntime {
         );
       },
       toolFinished: async (context, input) => {
-        await this.finishTool(context, { ...input, output: input.result });
+        await this.finishTool(
+          context,
+          { ...input, output: input.result },
+          workspace,
+          integrationSourceFor(toolCatalog, input.tool),
+        );
       },
       queueConsumed: async (context, input) => {
         if (input.delivery !== "steer") return;
@@ -854,6 +904,7 @@ export class AgentRuntimeService implements AgentRuntime {
       ...request,
       permissionConfig: effectivePermissionConfig,
     });
+    const activityToolCatalog = (request.toolCatalog ?? this.options.toolExecutor.catalog()).all();
     const composeBundle = () => new PromptComposer().compose({
       threadID: request.threadID,
       mode: request.taskMode,
@@ -1095,7 +1146,7 @@ export class AgentRuntimeService implements AgentRuntime {
             output: resolutionText,
             details: resolutionDetails,
             isError,
-          });
+          }, request.workspace, integrationSourceFor(activityToolCatalog, toolCall.name));
         });
         for (const event of completedEvents) await this.publish(event);
       }
@@ -1141,7 +1192,15 @@ export class AgentRuntimeService implements AgentRuntime {
           session,
         }),
       } as never,
-      eventSink: this.eventSink(storage, session, model, request.sessionID, request.onUsage),
+      eventSink: this.eventSink(
+        storage,
+        session,
+        model,
+        request.sessionID,
+        request.workspace,
+        activityToolCatalog,
+        request.onUsage,
+      ),
       beforeToolCall: async (_runtimeRequest, input) => {
         if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool))
           return undefined;

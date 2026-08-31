@@ -20,6 +20,7 @@ import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domai
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { probeThreadsStorageCapabilities } from "../storage/database/storage-capabilities"
 import { SubagentRepository } from "../subagent/SubagentRepository"
+import { classifyToolActivity, storedToolActivity } from "../tool/ToolActivityClassifier"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const localContextStatus = (path: string): LocalContextReference["status"] => {
@@ -798,7 +799,13 @@ export class ThreadProjection {
         ? this.db.repositories.turnPatches.diffPathsForToolCall(execution.threadID, callID)
         : []
       const resultBlocks = toolResultBlocks(item.data.resultBlocks)
-      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...(resultBlocks ? { resultBlocks } : {}), ...order, createdAt: item.createdAt }
+      const command = asText(item.data.command)
+      const activity = storedToolActivity(item.data.activity) ?? classifyToolActivity({
+        tool: toolName,
+        input,
+        command,
+      })
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command, output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, activity, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...(resultBlocks ? { resultBlocks } : {}), ...order, createdAt: item.createdAt }
     }
     if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
     if (item.type === "execution-plan") {
