@@ -27,6 +27,12 @@ export type DevAgentRuntimeV1 = Omit<DevAgentRuntimeV2, "schemaVersion"> & {
   rendererDevUrl: "http://127.0.0.1:7788"
 }
 
+export type DevAgentLaunchConnection = {
+  port: number | undefined
+  authToken: string
+  reused: boolean
+}
+
 type VerifiableRuntime = Pick<DevAgentRuntimeV2, "origin" | "authToken" | "instanceToken">
 type DevAgentLockV1 = { schemaVersion: 1; ownerPid: number; instanceToken: string }
 
@@ -81,6 +87,35 @@ export function parseLegacyDevAgentRuntime(text: string): DevAgentRuntimeV1 {
   return record as DevAgentRuntimeV1
 }
 
+export function resolveDevAgentLaunchConnection(
+  previous: DevAgentRuntimeV2 | undefined,
+  configuredPort: number | undefined,
+  createAuthToken: () => string,
+): DevAgentLaunchConnection {
+  const previousPort = previous
+    ? Number(new URL(previous.origin).port)
+    : undefined
+  if (configuredPort !== undefined && configuredPort !== previousPort) {
+    return {
+      port: configuredPort,
+      authToken: createAuthToken(),
+      reused: false,
+    }
+  }
+  if (previous) {
+    return {
+      port: previousPort,
+      authToken: previous.authToken,
+      reused: true,
+    }
+  }
+  return {
+    port: configuredPort,
+    authToken: createAuthToken(),
+    reused: false,
+  }
+}
+
 async function readRegularFile(path: string) {
   const stat = await lstat(path)
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("invalid runtime file")
@@ -130,6 +165,14 @@ async function readLock() {
   }
 }
 
+async function readReusableDevAgentRuntime() {
+  try {
+    return await readDevAgentRuntime()
+  } catch {
+    return undefined
+  }
+}
+
 async function inspectExistingRuntime() {
   try {
     const runtime = await readDevAgentRuntime()
@@ -150,7 +193,9 @@ async function inspectExistingRuntime() {
   }
 }
 
-export async function acquireDevAgentLock(instanceToken: string) {
+export async function acquireDevAgentLock(
+  instanceToken: string,
+): Promise<DevAgentRuntimeV2 | undefined> {
   await mkdir(runtimeDir, { recursive: true, mode: 0o700 })
   await inspectExistingRuntime()
   const lock: DevAgentLockV1 = { schemaVersion: 1, ownerPid: process.pid, instanceToken }
@@ -158,7 +203,7 @@ export async function acquireDevAgentLock(instanceToken: string) {
     try {
       const handle = await open(lockFile, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
       try { await handle.writeFile(JSON.stringify(lock), "utf8") } finally { await handle.close() }
-      return
+      return await readReusableDevAgentRuntime()
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
       for (let wait = 0; wait < 20; wait += 1) {
@@ -167,12 +212,6 @@ export async function acquireDevAgentLock(instanceToken: string) {
       }
       const existing = await readLock()
       if (!existing || isProcessAlive(existing.ownerPid)) throw new Error("AGENT_LOCKED")
-      try {
-        const runtime = await readDevAgentRuntime()
-        if (runtime.ownerPid === existing.ownerPid && runtime.instanceToken === existing.instanceToken) {
-          await rm(runtimeFile, { force: true })
-        }
-      } catch { /* no matching stale descriptor to remove */ }
       await rm(lockFile, { force: true })
     }
   }
@@ -192,10 +231,8 @@ export async function publishDevAgentRuntime(runtime: DevAgentRuntimeV2) {
 }
 
 export async function cleanupDevAgentRuntime(instanceToken: string) {
-  try {
-    const runtime = await readDevAgentRuntime()
-    if (runtime.instanceToken === instanceToken) await rm(runtimeFile, { force: true })
-  } catch { /* absent or replaced descriptor is not ours to clean */ }
+  // 保留最后一次连接描述供仍在运行的 Desktop 重连；在线状态始终由
+  // verifyDevAgent 判定，lock 只表示当前启动器的进程所有权。
   const lock = await readLock()
   if (lock?.instanceToken === instanceToken && lock.ownerPid === process.pid) await rm(lockFile, { force: true })
 }

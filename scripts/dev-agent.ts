@@ -1,35 +1,20 @@
-import { createServer } from "node:net"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
-  acquireDevAgentLock, agentDataDir, cleanupDevAgentRuntime, localNoProxy,
-  publishDevAgentRuntime, terminateProcessTree,
+  acquireDevAgentLock, agentDataDir, allocateLoopbackPort,
+  cleanupDevAgentRuntime, localNoProxy, publishDevAgentRuntime,
+  resolveDevAgentLaunchConnection, terminateProcessTree,
 } from "./dev-runtime"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
-const authToken = crypto.randomUUID()
 const instanceToken = crypto.randomUUID()
 
 function configuredAgentPort() {
   const value = process.env.CODEPILOTX_DEV_AGENT_PORT?.trim()
-  if (!value) return null
+  if (!value) return undefined
   const port = Number(value)
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("invalid configured port")
   return port
-}
-
-async function allocateLoopbackPort() {
-  const configured = configuredAgentPort()
-  if (configured) return configured
-  return await new Promise<number>((resolve, reject) => {
-    const server = createServer()
-    server.once("error", reject)
-    server.listen({ host: "127.0.0.1", port: 0 }, () => {
-      const address = server.address()
-      if (!address || typeof address === "string") return server.close(() => reject(new Error("port allocation failed")))
-      server.close((error) => error ? reject(error) : resolve(address.port))
-    })
-  })
 }
 
 function forwardStream(stream: ReadableStream<Uint8Array> | number | null, errorOutput: boolean, onLine?: (line: string) => void) {
@@ -54,8 +39,25 @@ function forwardStream(stream: ReadableStream<Uint8Array> | number | null, error
 }
 
 async function run() {
-  await acquireDevAgentLock(instanceToken)
-  const port = await allocateLoopbackPort()
+  const previousRuntime = await acquireDevAgentLock(instanceToken)
+  const configuredPort = configuredAgentPort()
+  const connection = resolveDevAgentLaunchConnection(
+    previousRuntime,
+    configuredPort,
+    () => crypto.randomUUID(),
+  )
+  let port: number
+  try {
+    port = await allocateLoopbackPort(connection.port)
+  } catch {
+    throw new Error(connection.reused
+      ? "AGENT_RECONNECT_PORT_UNAVAILABLE"
+      : "AGENT_PORT_UNAVAILABLE")
+  }
+  if (previousRuntime && configuredPort !== undefined && !connection.reused) {
+    console.warn("开发 Agent 端口配置已变更；正在运行的 Desktop 需要重启。")
+  }
+  const authToken = connection.authToken
   const origin = `http://127.0.0.1:${port}`
   const noProxy = localNoProxy(process.env.NO_PROXY ?? process.env.no_proxy)
   const agentLogDir = join(agentDataDir, "logs")
@@ -131,6 +133,16 @@ try {
 } catch (error) {
   await cleanupDevAgentRuntime(instanceToken)
   const code = error instanceof Error ? error.message : ""
-  console.error(code === "AGENT_ALREADY_RUNNING" ? "开发 Agent 已在运行。" : code === "LEGACY_AGENT_RUNNING" ? "检测到旧版开发 Agent。请停止后重新运行：bun run dev:agent" : code === "AGENT_LOCKED" ? "另一个开发 Agent 正在启动或仍持有启动锁。" : "开发 Agent 启动失败。")
+  console.error(code === "AGENT_ALREADY_RUNNING"
+    ? "开发 Agent 已在运行。"
+    : code === "LEGACY_AGENT_RUNNING"
+      ? "检测到旧版开发 Agent。请停止后重新运行：bun run dev:agent"
+      : code === "AGENT_LOCKED"
+        ? "另一个开发 Agent 正在启动或仍持有启动锁。"
+        : code === "AGENT_RECONNECT_PORT_UNAVAILABLE"
+          ? "上次的开发 Agent 端口仍被占用。请释放该端口后重试，并保持 Desktop 运行。"
+          : code === "AGENT_PORT_UNAVAILABLE"
+            ? "开发 Agent 端口不可用。"
+            : "开发 Agent 启动失败。")
   process.exit(1)
 }

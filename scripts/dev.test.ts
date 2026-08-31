@@ -4,7 +4,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   allocateLoopbackPort, configuredRendererPort, createWorktreeInstance,
-  parseDevAgentRuntime, parseLegacyDevAgentRuntime, verifyDevAgent,
+  parseDevAgentRuntime, parseLegacyDevAgentRuntime,
+  resolveDevAgentLaunchConnection, verifyDevAgent,
 } from "./dev-runtime"
 
 const validRuntime = {
@@ -54,6 +55,137 @@ describe("开发 Agent runtime 描述", () => {
     { ...validRuntime, unexpected: "secret" },
   ])("拒绝不受支持或扩展的 v2 描述 %#", (runtime) => {
     expect(() => parseDevAgentRuntime(JSON.stringify(runtime))).toThrow("invalid runtime descriptor")
+  })
+
+  test("首次启动生成新认证令牌并保留动态端口", () => {
+    let tokenCount = 0
+    expect(resolveDevAgentLaunchConnection(
+      undefined,
+      undefined,
+      () => `new-auth-token-${++tokenCount}`,
+    )).toEqual({ port: undefined, authToken: "new-auth-token-1", reused: false })
+  })
+
+  test("普通重启复用历史端口和认证令牌", () => {
+    let tokenCount = 0
+    expect(resolveDevAgentLaunchConnection(
+      validRuntime,
+      undefined,
+      () => `new-auth-token-${++tokenCount}`,
+    )).toEqual({ port: 43121, authToken: validRuntime.authToken, reused: true })
+    expect(tokenCount).toBe(0)
+  })
+
+  test("显式沿用历史端口时继续复用认证令牌", () => {
+    let tokenCount = 0
+    expect(resolveDevAgentLaunchConnection(
+      validRuntime,
+      43121,
+      () => `new-auth-token-${++tokenCount}`,
+    )).toEqual({ port: 43121, authToken: validRuntime.authToken, reused: true })
+    expect(tokenCount).toBe(0)
+  })
+
+  test("显式修改端口时轮换连接身份", () => {
+    expect(resolveDevAgentLaunchConnection(
+      validRuntime,
+      43122,
+      () => "replacement-auth-token",
+    )).toEqual({ port: 43122, authToken: "replacement-auth-token", reused: false })
+  })
+
+  test("重启发布新实例后 cleanup 仅释放 lock 并保留连接描述", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "codepilotx-runtime-reconnect-"))
+    const script = `
+      const runtime = await import("./scripts/dev-runtime.ts")
+      const previous = ${JSON.stringify(validRuntime)}
+      await (await import("node:fs/promises")).mkdir(runtime.runtimeDir, { recursive: true })
+      await Bun.write(runtime.runtimeFile, JSON.stringify(previous))
+      const reused = await runtime.acquireDevAgentLock("next-instance-token-123456789")
+      const next = {
+        ...previous,
+        ownerPid: process.pid,
+        agentPid: process.pid + 1,
+        authToken: reused?.authToken ?? "missing-reused-token",
+        instanceToken: "next-instance-token-123456789",
+      }
+      await runtime.publishDevAgentRuntime(next)
+      await runtime.cleanupDevAgentRuntime(next.instanceToken)
+      console.log(JSON.stringify({
+        reused,
+        published: JSON.parse(await Bun.file(runtime.runtimeFile).text()),
+        lockExists: await Bun.file(runtime.lockFile).exists(),
+      }))
+    `
+    try {
+      const child = Bun.spawn([process.execPath, "-e", script], {
+        cwd: new URL("..", import.meta.url).pathname.slice(1),
+        env: { ...process.env, CODEPILOTX_DATA_DIR: dataDir },
+        stdout: "pipe",
+        stderr: "pipe",
+      })
+      const [code, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ])
+      expect(stderr).toBe("")
+      expect(code).toBe(0)
+      const result = JSON.parse(stdout) as {
+        reused: typeof validRuntime | null
+        published: typeof validRuntime
+        lockExists: boolean
+      }
+      expect(result.reused).toEqual(validRuntime)
+      expect(result.published).toEqual({
+        ...validRuntime,
+        ownerPid: expect.any(Number),
+        agentPid: expect.any(Number),
+        instanceToken: "next-instance-token-123456789",
+      })
+      expect(result.published.ownerPid).not.toBe(validRuntime.ownerPid)
+      expect(result.published.agentPid).not.toBe(validRuntime.agentPid)
+      expect(result.lockExists).toBe(false)
+    } finally {
+      await rm(dataDir, { recursive: true, force: true })
+    }
+  })
+
+  test("历史端口被占用时安全失败并保留原连接描述", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "codepilotx-runtime-port-busy-"))
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: () => Response.json({ ok: true, instanceToken: "foreign-instance-token" }),
+    })
+    const descriptor = {
+      ...validRuntime,
+      origin: `http://127.0.0.1:${server.port}`,
+    }
+    try {
+      const runtimeDirectory = join(dataDir, "runtime")
+      const descriptorPath = join(runtimeDirectory, "dev-agent-v2.json")
+      await mkdir(runtimeDirectory, { recursive: true })
+      await writeFile(descriptorPath, JSON.stringify(descriptor), "utf8")
+      const child = Bun.spawn([process.execPath, "run", "scripts/dev-agent.ts"], {
+        cwd: new URL("..", import.meta.url).pathname.slice(1),
+        env: { ...process.env, CODEPILOTX_DATA_DIR: dataDir },
+        stdout: "pipe",
+        stderr: "pipe",
+      })
+      const [code, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+      ])
+      expect(code).toBe(1)
+      expect(stdout).toBe("")
+      expect(stderr.trim()).toBe("上次的开发 Agent 端口仍被占用。请释放该端口后重试，并保持 Desktop 运行。")
+      expect(await readFile(descriptorPath, "utf8")).toBe(JSON.stringify(descriptor))
+    } finally {
+      await server.stop(true)
+      await rm(dataDir, { recursive: true, force: true })
+    }
   })
 })
 

@@ -4,6 +4,8 @@
 
 开发态先在独立终端运行 `bun run dev:agent`，再在一个或多个 Git worktree 中运行 `bun run dev:desktop`。每个 worktree 自动分配独立 Vite 端口、Electron `userData` 与桌面日志目录，并通过开发代理连接同一个 Agent；关闭任一 Desktop 不会停止独立 Agent。同一 worktree 仍由 Electron single-instance 语义收敛为一个主进程。
 
+普通重启开发 Agent 时会复用上一次的回环端口和本地认证令牌，并为新进程生成新的实例标识。保持 `dev:desktop` 运行即可由现有重连页自动恢复；显式修改 `CODEPILOTX_DEV_AGENT_PORT` 会建立新的连接身份，需要重启 Desktop。
+
 ## 环境变量
 
 - `CODEPILOTX_AGENT_URL`：复用已由开发编排器启动的 Agent，例如 `http://127.0.0.1:43120`。设置后 Electron 不会重复启动或停止 sidecar。
