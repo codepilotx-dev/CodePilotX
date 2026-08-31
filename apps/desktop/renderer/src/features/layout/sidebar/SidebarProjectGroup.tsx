@@ -19,6 +19,10 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from '../../../components/ui/keyedDisclosureStore.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
@@ -41,6 +45,7 @@ import {
 } from './sidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
+import { sidebarProjectDisclosureKey } from './sidebarDisclosureStore.js'
 
 const ProjectEditDialog = lazy(async () => {
   const module = await import('../../projects/ProjectEditDialog.js')
@@ -55,7 +60,7 @@ const ConfirmationDialog = lazy(async () => {
 type Props = {
   activeSessionId: string | null
   bucket: SidebarProjectSessionBucket
-  collapsedProjectPaths: Set<string>
+  disclosureStore: KeyedDisclosureStore
   isUnavailable: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
@@ -72,7 +77,6 @@ type Props = {
   onSelectSession: (session: SessionListItem) => void
   onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
-  onToggleProjectCollapsed: (projectKey: string) => void
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onSortChange?: (sort: 'manual') => void
   onPinSession: (session: SessionListItem) => void
@@ -84,7 +88,7 @@ type Props = {
 function SidebarProjectGroupComponent({
   activeSessionId,
   bucket,
-  collapsedProjectPaths,
+  disclosureStore,
   isUnavailable,
   now,
   pendingPermissionSessionIds,
@@ -101,7 +105,6 @@ function SidebarProjectGroupComponent({
   onSelectSession,
   onToggleSessionUnread,
   onRenameSession,
-  onToggleProjectCollapsed,
   onManualOrderChange,
   onSortChange,
   onPinSession,
@@ -124,17 +127,13 @@ function SidebarProjectGroupComponent({
   useEffect(() => setManagedProject(project), [project])
 
   const projectKey = sidebarProjectKey(managedProject)
+  const disclosureKey = sidebarProjectDisclosureKey(managedProject)
+  const isExpanded = useDisclosureExpanded(disclosureStore, disclosureKey)
   const projectSessionsId = useId()
   const projectSessions = bucket.displaySessions
   const countedProjectSessions = bucket.allSessions
   const unreadCount = bucket.unreadCount
   const openCount = bucket.openCount
-  const isExpanded =
-    !collapsedProjectPaths.has(projectKey) &&
-    !collapsedProjectPaths.has(managedProject.path)
-  const collapseKey = collapsedProjectPaths.has(managedProject.path)
-    ? managedProject.path
-    : projectKey
   const isCurrent =
     workspace?.projectId && managedProject.projectId
       ? workspace.projectId === managedProject.projectId
@@ -215,7 +214,7 @@ function SidebarProjectGroupComponent({
       data-current={isCurrent || undefined}
       data-sidebar-project-key={projectKey}
       type="button"
-      onClick={() => onToggleProjectCollapsed(collapseKey)}
+      onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
       <span>
         {managedProject.name}

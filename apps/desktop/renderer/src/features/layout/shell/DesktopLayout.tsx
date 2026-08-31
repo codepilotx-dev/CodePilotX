@@ -87,7 +87,6 @@ import type {
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
-  SidebarSectionId,
 } from '../../../../shared/types.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -301,8 +300,6 @@ export function DesktopLayout(): React.ReactNode {
 	    setDrawerTab,
 	    setSelectedModelPreset,
 	    setReviewView,
-	    collapsedSidebarSections,
-	    setCollapsedSidebarSections,
 	    sidebarSessionPins,
 	    setSidebarSessionPins,
 	    setSidebarTimelineEnabled,
@@ -2351,20 +2348,6 @@ export function DesktopLayout(): React.ReactNode {
     [setProjectPinnedAt],
   )
 
-  const handleToggleSidebarSection = useCallback(
-    (section: SidebarSectionId): void => {
-      setCollapsedSidebarSections(current => {
-        const next = current.includes(section)
-          ? current.filter(s => s !== section)
-          : [...current, section]
-        syncExternalSettingsPatch({ collapsedSidebarSections: next })
-        return next
-      })
-    },
-    [setCollapsedSidebarSections, syncExternalSettingsPatch],
-  )
-
-
   useEffect(() => {
     let mounted = true
     void desktopClient
@@ -2433,8 +2416,6 @@ export function DesktopLayout(): React.ReactNode {
       onPinWorkspace={handlePinWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
-      collapsedSidebarSections={collapsedSidebarSections}
-      onToggleSidebarSection={handleToggleSidebarSection}
       onSelectSession={handleSelectSession}
       onArchiveSessions={handleArchiveSessions}
       onRenameSession={async (targetSessionId, title) =>

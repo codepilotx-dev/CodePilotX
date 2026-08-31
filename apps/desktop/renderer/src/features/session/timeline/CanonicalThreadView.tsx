@@ -12,6 +12,10 @@ import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type { VirtualizerHandle } from "virtua";
 import { FullScreenWhaleLoading } from "../../../components/ui/FullScreenWhaleLoading.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from "../../../components/ui/keyedDisclosureStore.js";
 
 import {
   CanonicalItemRenderer,
@@ -44,8 +48,7 @@ import {
   type TurnWorkSummary,
 } from "./summarizeProcessItems.js";
 import {
-  loadTimelineDisclosureState,
-  setTimelineDisclosureExpanded,
+  getTimelineDisclosureStore,
 } from "./timelineDisclosureState.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
@@ -454,38 +457,45 @@ export function resolveTurnElapsedSeconds(
   ));
 }
 
-export function useTimelineDisclosureState(threadId: string): {
-  expandedIds: ReadonlySet<string>;
-  onExpandedChange: (id: string, expanded: boolean) => void;
-} {
-  const [state, setState] = React.useState<{
-    threadId: string;
-    expandedIds: Set<string>;
-  }>(() => ({
-    threadId,
-    expandedIds: loadTimelineDisclosureState(threadId),
-  }));
-  const expandedIds = state.threadId === threadId
-    ? state.expandedIds
-    : loadTimelineDisclosureState(threadId);
+const CanonicalTurnActivityController = React.memo(
+  function CanonicalTurnActivityController({
+    active,
+    canCollapse,
+    children,
+    disclosureId,
+    hasWork,
+    store,
+    turn,
+  }: {
+    active: boolean;
+    canCollapse: boolean;
+    children?: React.ReactNode;
+    disclosureId: string;
+    hasWork: boolean;
+    store: KeyedDisclosureStore;
+    turn: RenderTurnEntry["turn"];
+  }): React.ReactNode {
+    const storedExpanded = useDisclosureExpanded(store, disclosureId);
+    const elapsedSeconds = useTurnElapsedSeconds(turn, active);
+    const summary = hasWork
+      ? summarizeTurnWork(turn.status, elapsedSeconds)
+      : null;
 
-  React.useEffect(() => {
-    if (state.threadId === threadId) return;
-    setState({ threadId, expandedIds });
-  }, [expandedIds, state.threadId, threadId]);
+    return (
+      <CanonicalTurnActivity
+        canCollapse={canCollapse}
+        expanded={!canCollapse || storedExpanded}
+        onExpandedChange={(expanded) => store.setExpanded(disclosureId, expanded)}
+        summary={summary}
+      >
+        {children}
+      </CanonicalTurnActivity>
+    );
+  },
+);
 
-  const onExpandedChange = React.useCallback(
-    (id: string, expanded: boolean): void => {
-      const next = setTimelineDisclosureExpanded(threadId, id, expanded);
-      setState({ threadId, expandedIds: next });
-    },
-    [threadId],
-  );
-
-  return React.useMemo(
-    () => ({ expandedIds, onExpandedChange }),
-    [expandedIds, onExpandedChange],
-  );
+export function useTimelineDisclosureState(threadId: string): KeyedDisclosureStore {
+  return React.useMemo(() => getTimelineDisclosureStore(threadId), [threadId]);
 }
 
 function CanonicalThreadViewComponent({
@@ -633,10 +643,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   readThreadPatchDiff,
   threadId,
 }: {
-  disclosureState: {
-    expandedIds: ReadonlySet<string>;
-    onExpandedChange: (id: string, expanded: boolean) => void;
-  };
+  disclosureState: KeyedDisclosureStore;
   entry: RenderTurnEntry;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
@@ -692,10 +699,7 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff,
   threadId,
 }: {
-  disclosureState: {
-    expandedIds: ReadonlySet<string>;
-    onExpandedChange: (id: string, expanded: boolean) => void;
-  };
+  disclosureState: KeyedDisclosureStore;
   entry: RenderTurnEntry;
   diffMarkerStyle?: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
@@ -706,11 +710,7 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff?: ReadThreadPatchDiff;
   threadId?: string;
 }): React.ReactNode {
-  const disclosure = (id: string) => ({
-    id,
-    expanded: disclosureState.expandedIds.has(id),
-    onExpandedChange: disclosureState.onExpandedChange,
-  });
+  const disclosure = (id: string) => ({ id, store: disclosureState });
   const renderItem = (
     item: RenderTurnEntry["items"][number],
     options: {
@@ -744,7 +744,7 @@ function CanonicalConversationTurnComponent({
       return (
         <FileMutationItemView
           diffMarkerStyle={diffMarkerStyle}
-          disclosureState={disclosureState}
+          disclosureStore={disclosureState}
           item={item}
           key={item.id}
           readThreadPatchDiff={readThreadPatchDiff}
@@ -770,16 +770,8 @@ function CanonicalConversationTurnComponent({
   });
   const hasVisibleActivityContent = processActivity.units.length > 0
     || processActivity.showThinkingFallback;
-  const elapsedSeconds = useTurnElapsedSeconds(entry.turn, active);
-  const turnWorkSummary = entry.turn.startedAt != null
-    || entry.processItems.length > 0
-    || hasAssistantResult
-    ? summarizeTurnWork(entry.turn.status, elapsedSeconds)
-    : null;
   const turnActivityDisclosureId = `turn-activity:${entry.turn.id}`;
   const canCollapseTurnActivity = activitySliceClosed && hasVisibleActivityContent;
-  const turnActivityExpanded = !canCollapseTurnActivity
-    || disclosureState.expandedIds.has(turnActivityDisclosureId);
   const syntheticPatch = !active && entry.patchItems.length === 0
     ? syntheticPatchDisplay(entry.processItems)
     : null;
@@ -838,16 +830,16 @@ function CanonicalConversationTurnComponent({
           ))}
         </section>
       ) : null}
-      <CanonicalTurnActivity
+      <CanonicalTurnActivityController
+        active={active}
         canCollapse={canCollapseTurnActivity}
-        expanded={turnActivityExpanded}
-        onExpandedChange={(expanded) => {
-          disclosureState.onExpandedChange(turnActivityDisclosureId, expanded);
-        }}
-        summary={turnWorkSummary}
+        disclosureId={turnActivityDisclosureId}
+        hasWork={entry.turn.startedAt != null || entry.processItems.length > 0 || hasAssistantResult}
+        store={disclosureState}
+        turn={entry.turn}
       >
         {activityContent}
-      </CanonicalTurnActivity>
+      </CanonicalTurnActivityController>
       {entry.blockers.length ? (
         <section
           className="canonical-turn__blockers"

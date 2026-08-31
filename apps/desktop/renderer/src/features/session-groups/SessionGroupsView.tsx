@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   ArrowLeft,
@@ -505,6 +505,7 @@ function SessionGroupStepCard({
   const [diff, setDiff] = useState<RpcResult<'session-group/step/diff'> | null>(null)
   const [diffOpen, setDiffOpen] = useState(false)
   const [diffLoading, setDiffLoading] = useState(false)
+  const diffRequestRef = useRef<Promise<RpcResult<'session-group/step/diff'>> | null>(null)
   const diffId = useId()
   const diffResize = useHeightTransition([
     diffLoading,
@@ -514,13 +515,18 @@ function SessionGroupStepCard({
   async function toggleDiff(): Promise<void> {
     const next = !diffOpen
     setDiffOpen(next)
-    if (next && !diff) {
+    if (next && !diff && !diffRequestRef.current) {
       setDiffLoading(true)
+      const request = desktopClient.readSessionGroupStepDiff({ groupId, stepId: step.id })
+      diffRequestRef.current = request
       try {
-        const diffResult = await desktopClient.readSessionGroupStepDiff({ groupId, stepId: step.id })
+        const diffResult = await request
         setDiff(diffResult)
       } finally {
-        setDiffLoading(false)
+        if (diffRequestRef.current === request) {
+          diffRequestRef.current = null
+          setDiffLoading(false)
+        }
       }
     }
   }
@@ -697,7 +703,7 @@ function SessionGroupStepCard({
               contentClassName="session-group-step__diff"
               expanded={diffOpen}
               id={diffId}
-              mountPolicy="until-exit"
+              mountPolicy="always"
             >
               <div
                 className="session-group-step__diff-resize"

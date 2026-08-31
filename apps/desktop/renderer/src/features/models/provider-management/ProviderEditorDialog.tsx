@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useId, useMemo, useState } from 'react'
+import { memo, useEffect, useId, useMemo, useState } from 'react'
 import type {
   DesktopCustomProviderDefinition,
   DesktopModelProviderSummary,
@@ -47,6 +47,7 @@ const API_OPTIONS = [
 type Api = DesktopProviderModelDefinition['api']
 
 type EditableModel = {
+  editorKey: string
   id: string
   name: string
   api: Api
@@ -95,7 +96,6 @@ export function ProviderEditorDialog({
   const [env, setEnv] = useState('')
   const [headers, setHeaders] = useState('')
   const [models, setModels] = useState<EditableModel[]>([emptyModel()])
-  const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set([0]))
   const [candidates, setCandidates] = useState<DesktopProviderModelDefinition[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -111,6 +111,7 @@ export function ProviderEditorDialog({
       ?? provider?.defaultModels.map(modelId => {
         const metadata = provider.modelMetadata?.[modelId]
         return {
+          editorKey: createEditorKey(),
           id: modelId,
           name: metadata?.name ?? modelId,
           api: metadata?.providerApi ?? provider.providerApis?.[0] ?? 'openai-completions',
@@ -139,7 +140,6 @@ export function ProviderEditorDialog({
     setEnv(customConfig?.env.join(', ') ?? provider?.envVars?.join(', ') ?? '')
     setHeaders(headersToText(customConfig?.headers ?? {}))
     setModels(nextModels.length > 0 ? nextModels : [emptyModel()])
-    setExpandedModels(new Set([0]))
     setCandidates([])
     setSelectedCandidates(new Set())
     setError(null)
@@ -162,17 +162,7 @@ export function ProviderEditorDialog({
         imageInput: item.imageInput,
       })),
     )
-    setExpandedModels(new Set([0]))
     setError(null)
-  }
-
-  function toggleExpandModel(index: number): void {
-    setExpandedModels(current => {
-      const next = new Set(current)
-      if (next.has(index)) next.delete(index)
-      else next.add(index)
-      return next
-    })
   }
 
   const definition = useMemo(() => {
@@ -453,7 +443,6 @@ export function ProviderEditorDialog({
                       color="secondary"
                       onClick={() => {
                         setModels(current => [...current, emptyModel()])
-                        setExpandedModels(current => new Set([...current, models.length]))
                       }}
                     >
                       <Plus aria-hidden size={APP_ICON_SIZE} />
@@ -499,89 +488,20 @@ export function ProviderEditorDialog({
                 ) : null}
 
                 <div className="provider-editor-models-list">
-                  {models.map((model, index) => {
-                    const isExpanded = expandedModels.has(index)
-                    const modelDetailsId = `${titleId}-model-${index}-details`
-                    return (
-                      <div
-                        className="provider-editor-model-card"
-                        data-expanded={isExpanded}
-                        key={`${index}-${model.id}`}
-                      >
-                        <div
-                          className="provider-editor-model-card-header"
-                        >
-                          <button
-                            aria-controls={modelDetailsId}
-                            aria-expanded={isExpanded}
-                            className="provider-editor-model-card-summary"
-                            type="button"
-                            onClick={() => toggleExpandModel(index)}
-                          >
-                            <span className="provider-editor-model-card-chevron">
-                              {isExpanded ? (
-                                <ChevronDown aria-hidden size={APP_ICON_SIZE} />
-                              ) : (
-                                <ChevronRight aria-hidden size={APP_ICON_SIZE} />
-                              )}
-                            </span>
-                            <code>{model.id || '(未命名模型)'}</code>
-                            {model.name && model.name !== model.id ? (
-                              <span className="provider-editor-model-card-name">({model.name})</span>
-                            ) : null}
-                            <span className="provider-editor-model-card-badge">{model.api}</span>
-                            {model.reasoning ? (
-                              <span className="provider-editor-model-card-tag provider-editor-model-tag--reasoning">
-                                <Brain aria-hidden size={12} />
-                                Reasoning
-                              </span>
-                            ) : null}
-                            {model.imageInput ? (
-                              <span className="provider-editor-model-card-tag provider-editor-model-tag--vision">
-                                <Eye aria-hidden size={12} />
-                                Vision
-                              </span>
-                            ) : null}
-                          </button>
-
-                          <div className="provider-editor-model-card-controls">
-                            <ToggleSwitch
-                              ariaLabel="启用模型"
-                              checked={model.enabled}
-                              onChange={enabledVal => setModels(current => current.map((item, itemIndex) => (
-                                itemIndex === index ? { ...item, enabled: enabledVal } : item
-                              )))}
-                            />
-                            {models.length > 1 ? (
-                              <IconButton
-                                color="danger"
-                                size="toolbar"
-                                title="移除模型"
-                                onClick={() => setModels(current => current.filter((_, itemIndex) => itemIndex !== index))}
-                              >
-                                <Trash2 aria-hidden size={APP_ICON_SIZE} />
-                              </IconButton>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div
-                          className="provider-editor-model-card-body"
-                          hidden={!isExpanded}
-                          id={modelDetailsId}
-                        >
-                          {isExpanded ? (
-                            <ModelEditor
-                              model={model}
-                              onChange={next => setModels(current => current.map((item, itemIndex) => (
-                                itemIndex === index ? next : item
-                              )))}
-                            />
-                          ) : null}
-                        </div>
-                      </div>
-                    )
-                  })}
+                  {models.map((model, index) => (
+                    <ProviderModelCard
+                      canRemove={models.length > 1}
+                      defaultExpanded={index === 0}
+                      key={model.editorKey}
+                      model={model}
+                      onChange={next => setModels(current => current.map(item => (
+                        item.editorKey === model.editorKey ? next : item
+                      )))}
+                      onRemove={() => setModels(current => current.filter(
+                        item => item.editorKey !== model.editorKey,
+                      ))}
+                    />
+                  ))}
                 </div>
               </div>
             ) : null}
@@ -662,6 +582,76 @@ export function ProviderEditorDialog({
     </Dialog.Root>
   )
 }
+
+const ProviderModelCard = memo(function ProviderModelCard({
+  canRemove,
+  defaultExpanded,
+  model,
+  onChange,
+  onRemove,
+}: {
+  canRemove: boolean
+  defaultExpanded: boolean
+  model: EditableModel
+  onChange: (model: EditableModel) => void
+  onRemove: () => void
+}): React.ReactNode {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const contentId = useId()
+
+  return (
+    <div className="provider-editor-model-card" data-expanded={expanded}>
+      <div className="provider-editor-model-card-header">
+        <button
+          aria-controls={contentId}
+          aria-expanded={expanded}
+          className="provider-editor-model-card-summary"
+          type="button"
+          onClick={() => setExpanded(current => !current)}
+        >
+          <span className="provider-editor-model-card-chevron">
+            {expanded ? <ChevronDown aria-hidden size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden size={APP_ICON_SIZE} />}
+          </span>
+          <code>{model.id || '(未命名模型)'}</code>
+          {model.name && model.name !== model.id ? (
+            <span className="provider-editor-model-card-name">({model.name})</span>
+          ) : null}
+          <span className="provider-editor-model-card-badge">{model.api}</span>
+          {model.reasoning ? (
+            <span className="provider-editor-model-card-tag provider-editor-model-tag--reasoning">
+              <Brain aria-hidden size={12} /> Reasoning
+            </span>
+          ) : null}
+          {model.imageInput ? (
+            <span className="provider-editor-model-card-tag provider-editor-model-tag--vision">
+              <Eye aria-hidden size={12} /> Vision
+            </span>
+          ) : null}
+        </button>
+        <div className="provider-editor-model-card-controls">
+          <ToggleSwitch
+            ariaLabel="启用模型"
+            checked={model.enabled}
+            onChange={enabled => onChange({ ...model, enabled })}
+          />
+          {canRemove ? (
+            <IconButton color="danger" size="toolbar" title="移除模型" onClick={onRemove}>
+              <Trash2 aria-hidden size={APP_ICON_SIZE} />
+            </IconButton>
+          ) : null}
+        </div>
+      </div>
+      <DisclosureContent
+        contentClassName="provider-editor-model-card-body"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
+        <ModelEditor model={model} onChange={onChange} />
+      </DisclosureContent>
+    </div>
+  )
+})
 
 function ModelEditor({
   model,
@@ -862,6 +852,7 @@ function ModelEditor({
 
 function emptyModel(): EditableModel {
   return {
+    editorKey: createEditorKey(),
     id: '',
     name: '',
     api: 'openai-completions',
@@ -882,6 +873,7 @@ function emptyModel(): EditableModel {
 
 function editableModel(model: DesktopProviderModelDefinition): EditableModel {
   return {
+    editorKey: createEditorKey(),
     id: String(model.id),
     name: model.name ?? String(model.id),
     api: model.api,
@@ -900,6 +892,13 @@ function editableModel(model: DesktopProviderModelDefinition): EditableModel {
       : '',
     compat: model.compat ? JSON.stringify(model.compat, null, 2) : '',
   }
+}
+
+let nextEditorKey = 0
+
+function createEditorKey(): string {
+  nextEditorKey += 1
+  return `provider-model-${nextEditorKey}`
 }
 
 function parseHeaders(value: string): Record<string, string> | Error {

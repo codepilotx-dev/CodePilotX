@@ -4,6 +4,7 @@ import type { Item } from "@codepilotx/shared/thread";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import { useDisclosureExpanded } from "../../../components/ui/keyedDisclosureStore.js";
 
 import type {
   CanonicalItemDisclosure,
@@ -78,6 +79,7 @@ export function ExpandableFileMutationRow({
   readThreadPatchDiff: ReadThreadPatchDiff;
   threadId: string;
 }): React.ReactNode {
+  const expanded = useDisclosureExpanded(disclosure.store, disclosure.id);
   const [attempt, setAttempt] = React.useState(0);
   const [loadState, setLoadState] = React.useState<DiffLoadState>({
     status: "loading",
@@ -90,25 +92,25 @@ export function ExpandableFileMutationRow({
   const contentId = React.useId();
 
   React.useEffect(() => {
-    if (!disclosure.expanded) return;
+    if (!expanded) return;
     return loader.request(
       requestKey,
       { threadId, toolCallId: item.callID, path: file.path },
       setLoadState,
     );
-  }, [attempt, disclosure.expanded, file.path, item.callID, loader, requestKey, threadId]);
+  }, [attempt, expanded, file.path, item.callID, loader, requestKey, threadId]);
 
   return (
     <div
       className="cpx-agent-activity__item"
       data-expandable="true"
-      data-expanded={disclosure.expanded ? "true" : "false"}
+      data-expanded={expanded ? "true" : "false"}
     >
       <button
         aria-controls={contentId}
-        aria-expanded={disclosure.expanded}
+        aria-expanded={expanded}
         className="cpx-agent-activity__item-header"
-        onClick={() => disclosure.onExpandedChange(disclosure.id, !disclosure.expanded)}
+        onClick={() => disclosure.store.setExpanded(disclosure.id, !expanded)}
         type="button"
       >
         <Pencil className="cpx-agent-activity__icon" aria-hidden="true" />
@@ -125,7 +127,7 @@ export function ExpandableFileMutationRow({
       </button>
       <DisclosureContent
         contentClassName="cpx-agent-activity__details cpx-agent-activity__details--diff"
-        expanded={disclosure.expanded}
+        expanded={expanded}
         id={contentId}
         mountPolicy="always"
       >

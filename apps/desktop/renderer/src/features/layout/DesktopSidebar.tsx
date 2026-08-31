@@ -5,7 +5,6 @@ import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
   DesktopWorkspace,
-  SidebarSectionId,
 } from "../../../shared/types.js";
 import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
@@ -37,6 +36,10 @@ import {
   type SidebarScrollModeKey,
 } from './sidebar/useSidebarScrollController.js'
 import { useSidebarProjectCatalog } from './sidebar/useSidebarProjectCatalog.js'
+import {
+  createSidebarDisclosureStore,
+  sidebarSectionDisclosureKey,
+} from './sidebar/sidebarDisclosureStore.js'
 
 const ConfirmationDialog = lazy(async () => {
   const module = await import('../../components/ui/ConfirmationDialog.js')
@@ -69,8 +72,6 @@ type Props = {
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onReport: (message: string) => void
-  collapsedSidebarSections: SidebarSectionId[];
-  onToggleSidebarSection: (section: SidebarSectionId) => void;
 };
 
 export function DesktopSidebar({
@@ -96,8 +97,6 @@ export function DesktopSidebar({
   onRenameSession,
   onUnpinWorkspace,
   onReport,
-  collapsedSidebarSections,
-  onToggleSidebarSection,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
@@ -109,8 +108,8 @@ export function DesktopSidebar({
     new Map(),
   )
   const {
+    collapsedSidebarSections,
     collapsedSidebarProjectPaths,
-    setCollapsedSidebarProjectPaths,
     setSidebarManualOrder,
     setSidebarOrganization,
     setSidebarProjectSort,
@@ -128,10 +127,19 @@ export function DesktopSidebar({
     setSidebarActivityShowChat,
     sidebarActivityShowPinned,
     setSidebarActivityShowPinned,
+    syncExternalSettingsPatch,
   } = useDesktopSettings()
-  const collapsedProjectPaths = useMemo(
-    () => new Set(collapsedSidebarProjectPaths),
-    [collapsedSidebarProjectPaths],
+  const persistSidebarDisclosuresRef = useRef(syncExternalSettingsPatch)
+  persistSidebarDisclosuresRef.current = syncExternalSettingsPatch
+  const sidebarDisclosureExternalSignatureRef = useRef(
+    sidebarDisclosureSignature(collapsedSidebarSections, collapsedSidebarProjectPaths),
+  )
+  const sidebarDisclosureState = useMemo(
+    () => createSidebarDisclosureStore(
+      { collapsedSidebarSections, collapsedSidebarProjectPaths },
+      snapshot => persistSidebarDisclosuresRef.current(snapshot),
+    ),
+    [],
   )
   const { projectCatalogState, removeCatalogProject } =
     useSidebarProjectCatalog({ onReport })
@@ -170,6 +178,27 @@ export function DesktopSidebar({
     () => mergeCatalogProjects(projectCatalogState.projects, recentWorkspaces),
     [projectCatalogState.projects, recentWorkspaces],
   )
+
+  useEffect(() => {
+    sidebarDisclosureState.registerProjects(mergedProjects)
+  }, [mergedProjects, sidebarDisclosureState])
+
+  useEffect(() => {
+    const signature = sidebarDisclosureSignature(
+      collapsedSidebarSections,
+      collapsedSidebarProjectPaths,
+    )
+    if (sidebarDisclosureExternalSignatureRef.current === signature) return
+    sidebarDisclosureExternalSignatureRef.current = signature
+    sidebarDisclosureState.replace({
+      collapsedSidebarSections,
+      collapsedSidebarProjectPaths,
+    })
+  }, [
+    collapsedSidebarProjectPaths,
+    collapsedSidebarSections,
+    sidebarDisclosureState,
+  ])
 
   const viewModel = useMemo(
     () =>
@@ -276,18 +305,6 @@ export function DesktopSidebar({
     return location.pathname === `/${view}`;
   }
 
-  const toggleProjectCollapsed = useCallback((projectPath: string): void => {
-    setCollapsedSidebarProjectPaths((current) => {
-      const next = new Set(current)
-      if (next.has(projectPath)) {
-        next.delete(projectPath)
-      } else {
-        next.add(projectPath)
-      }
-      return [...next]
-    });
-  }, [setCollapsedSidebarProjectPaths]);
-
   const previousActiveSessionIdRef = useRef<string | null | undefined>(undefined)
   const pendingContainerRevealIdRef = useRef<string | null>(activeSessionId)
   useEffect(() => {
@@ -334,29 +351,21 @@ export function DesktopSidebar({
     pendingContainerRevealIdRef.current = null
 
     if (pinnedSession || pinnedProject) {
-      if (collapsedSidebarSections.includes('pinned')) {
-        onToggleSidebarSection('pinned')
-      }
+      sidebarDisclosureState.store.setExpanded(sidebarSectionDisclosureKey('pinned'), true)
       if (pinnedProject) {
-        expandSidebarProject(pinnedProject, setCollapsedSidebarProjectPaths)
+        sidebarDisclosureState.setProjectExpanded(pinnedProject, true)
       }
       return
     }
     if (project) {
-      if (collapsedSidebarSections.includes('projects')) {
-        onToggleSidebarSection('projects')
-      }
-      expandSidebarProject(project, setCollapsedSidebarProjectPaths)
+      sidebarDisclosureState.store.setExpanded(sidebarSectionDisclosureKey('projects'), true)
+      sidebarDisclosureState.setProjectExpanded(project, true)
       return
     }
-    if (recent && collapsedSidebarSections.includes('recent')) {
-      onToggleSidebarSection('recent')
-    }
+    if (recent) sidebarDisclosureState.store.setExpanded(sidebarSectionDisclosureKey('recent'), true)
   }, [
     activeSessionId,
-    collapsedSidebarSections,
-    onToggleSidebarSection,
-    setCollapsedSidebarProjectPaths,
+    sidebarDisclosureState,
     sidebarOrganization,
     timeline,
     viewModel,
@@ -473,7 +482,7 @@ export function DesktopSidebar({
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         titleLoadingIds={titleLoadingIds}
-        collapsedProjectPaths={collapsedProjectPaths}
+        disclosureStore={sidebarDisclosureState.store}
         organization={sidebarOrganization}
         timeline={timeline}
         showTimelinePinned={sidebarActivityShowPinned}
@@ -499,8 +508,6 @@ export function DesktopSidebar({
         onCreateSession={onCreateSession}
         onPinSession={pinSession}
         onPinWorkspace={onPinWorkspace}
-        collapsedSidebarSections={collapsedSidebarSections}
-        onToggleSidebarSection={onToggleSidebarSection}
         onRemoveWorkspace={target => {
           removeCatalogProject(target)
           removePinnedManualOrder([sidebarPinnedProjectKey(target)])
@@ -509,7 +516,6 @@ export function DesktopSidebar({
         onSelectSession={onSelectSession}
         onToggleSessionUnread={toggleSessionUnread}
         onRenameSession={onRenameSession}
-        onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}
         onUnpinWorkspace={target => {
           removePinnedManualOrder([sidebarPinnedProjectKey(target)])
@@ -548,19 +554,6 @@ export function DesktopSidebar({
   );
 }
 
-function expandSidebarProject(
-  project: DesktopWorkspace,
-  setCollapsedPaths: React.Dispatch<React.SetStateAction<string[]>>,
-): void {
-  const projectId = sidebarProjectKey(project)
-  setCollapsedPaths(current => {
-    if (!current.includes(projectId) && !current.includes(project.path)) {
-      return current
-    }
-    return current.filter(path => path !== projectId && path !== project.path)
-  })
-}
-
 function mergeCatalogProjects(
   catalogProjects: readonly DesktopWorkspace[],
   recentWorkspaces: readonly DesktopWorkspace[],
@@ -584,4 +577,11 @@ function projectKey(project: DesktopWorkspace): string {
   return project.projectId
     ? `id:${project.projectId}`
     : `path:${project.path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()}`
+}
+
+function sidebarDisclosureSignature(
+  sections: readonly string[],
+  projects: readonly string[],
+): string {
+  return `${sections.join('\u0000')}\u0001${projects.join('\u0000')}`
 }

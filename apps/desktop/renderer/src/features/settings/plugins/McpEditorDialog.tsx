@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2, X } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useId, useRef, useState } from 'react'
 import type {
   DesktopEditableMcpScope,
   DesktopMcpServerConfig,
@@ -137,7 +137,7 @@ export function McpEditorDialog({
   const visitedTransportTypes = useRef<Set<TransportType>>(new Set())
   const stdioDiagnosticContext = useRef(false)
   const [form, setForm] = useState<FormState>(() => formForServer(null))
-  const [advanced, setAdvanced] = useState(false)
+  const advancedRef = useRef(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export function McpEditorDialog({
       server?.transport.type ?? 'stdio',
     ])
     stdioDiagnosticContext.current = server?.diagnosticContext ?? false
-    setAdvanced(false)
+    advancedRef.current = false
     setValidationError(null)
   }, [open, server])
 
@@ -225,7 +225,7 @@ export function McpEditorDialog({
 
   async function save(): Promise<void> {
     let candidate = form
-    if (advanced) {
+    if (advancedRef.current) {
       try {
         candidate = formFromEditorConfig(
           parseMcpServerJson(form.configText),
@@ -469,21 +469,11 @@ export function McpEditorDialog({
                 </FormCard>
               )}
 
-              <button
-                aria-controls="mcp-advanced-options"
-                aria-expanded={advanced}
-                className="mcp-editor-advanced-disclosure"
-                type="button"
-                onClick={() => setAdvanced(current => !current)}
-              >
-                {advanced ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
-                高级选项
-              </button>
-              <DisclosureContent
-                contentClassName="tw:grid tw:gap-4"
-                expanded={advanced}
-                id="mcp-advanced-options"
-                mountPolicy="always"
+              <McpAdvancedDisclosure
+                open={open}
+                onExpandedChange={expanded => {
+                  advancedRef.current = expanded
+                }}
               >
                   <FormCard>
                     <FormRow label="配置范围">
@@ -643,7 +633,7 @@ export function McpEditorDialog({
                       }}
                     />
                   </Field>
-              </DisclosureContent>
+              </McpAdvancedDisclosure>
             </div>
 
             <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
@@ -667,6 +657,56 @@ export function McpEditorDialog({
     </Dialog.Root>
   )
 }
+
+const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
+  children,
+  open,
+  onExpandedChange,
+}: {
+  children: React.ReactNode
+  open: boolean
+  onExpandedChange: (expanded: boolean) => void
+}): React.ReactNode {
+  const [expanded, setExpanded] = useState(false)
+  const contentId = useId()
+
+  useEffect(() => {
+    if (open) return
+    setExpanded(false)
+    onExpandedChange(false)
+  }, [onExpandedChange, open])
+
+  const toggle = (): void => {
+    setExpanded(current => {
+      const next = !current
+      onExpandedChange(next)
+      return next
+    })
+  }
+
+  return (
+    <>
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="mcp-editor-advanced-disclosure"
+        type="button"
+        onClick={toggle}
+      >
+        {expanded ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
+        高级选项
+      </button>
+      <DisclosureContent
+        contentClassName="tw:grid tw:gap-4"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
+        {children}
+      </DisclosureContent>
+    </>
+  )
+})
 
 function Field({
   label,

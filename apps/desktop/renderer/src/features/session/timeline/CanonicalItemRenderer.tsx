@@ -38,6 +38,10 @@ import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { desktopClipboard } from "../../../services/desktop-client/index.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
@@ -162,6 +166,11 @@ export type LifecycleToolDisplay = {
 };
 
 export type CanonicalItemDisclosure = {
+  id: string;
+  store: KeyedDisclosureStore;
+};
+
+type ResolvedCanonicalItemDisclosure = {
   id: string;
   expanded: boolean;
   onExpandedChange: (id: string, expanded: boolean) => void;
@@ -418,6 +427,34 @@ export function CanonicalUserInput({
 
 export function CanonicalItemRenderer({
   disclosure,
+  ...props
+}: CanonicalItemRendererProps): React.ReactNode {
+  if (disclosure) {
+    return <SubscribedCanonicalItemRenderer {...props} disclosure={disclosure} />;
+  }
+  return <CanonicalItemRendererContent {...props} />;
+}
+
+function SubscribedCanonicalItemRenderer({
+  disclosure,
+  ...props
+}: Omit<CanonicalItemRendererProps, "disclosure"> & {
+  disclosure: CanonicalItemDisclosure;
+}): React.ReactNode {
+  const expanded = useDisclosureExpanded(disclosure.store, disclosure.id);
+  const resolvedDisclosure = React.useMemo<ResolvedCanonicalItemDisclosure>(
+    () => ({
+      id: disclosure.id,
+      expanded,
+      onExpandedChange: (id, nextExpanded) => disclosure.store.setExpanded(id, nextExpanded),
+    }),
+    [disclosure.id, disclosure.store, expanded],
+  );
+  return <CanonicalItemRendererContent {...props} disclosure={resolvedDisclosure} />;
+}
+
+function CanonicalItemRendererContent({
+  disclosure,
   item,
   onApplyPatch,
   onOpenPatchReview,
@@ -427,7 +464,9 @@ export function CanonicalItemRenderer({
   showAssistantActions = false,
   presentation = "standalone",
   threadId,
-}: CanonicalItemRendererProps): React.ReactNode {
+}: Omit<CanonicalItemRendererProps, "disclosure"> & {
+  disclosure?: ResolvedCanonicalItemDisclosure;
+}): React.ReactNode {
   switch (item.type) {
     case "text":
       return <TextItemView item={item} showAssistantActions={showAssistantActions} />;
@@ -532,7 +571,7 @@ function TextItemView({
 }
 
 function ReasoningItemView({ disclosure, item }: {
-  disclosure?: CanonicalItemDisclosure;
+  disclosure?: ResolvedCanonicalItemDisclosure;
   item: ItemOf<"reasoning">;
 }): React.ReactNode {
   const streaming = item.status === "streaming";
@@ -584,7 +623,7 @@ function ReasoningItemView({ disclosure, item }: {
 }
 
 function ActivityItemView({ disclosure, item }: {
-  disclosure?: CanonicalItemDisclosure;
+  disclosure?: ResolvedCanonicalItemDisclosure;
   item: ItemOf<"activity">;
 }): React.ReactNode {
   const active = item.status === "running";
@@ -654,7 +693,7 @@ export function ToolItemView({
   presentation = "standalone",
   threadId,
 }: {
-  disclosure?: CanonicalItemDisclosure;
+  disclosure?: ResolvedCanonicalItemDisclosure;
   item: ToolItem;
   presentation?: CanonicalItemRendererProps["presentation"];
   threadId?: string;
@@ -1139,16 +1178,13 @@ export function PatchSummaryView({
 
 export function FileMutationItemView({
   diffMarkerStyle = "color",
-  disclosureState,
+  disclosureStore,
   item,
   readThreadPatchDiff,
   threadId,
 }: {
   diffMarkerStyle?: DesktopDiffMarkerStyle;
-  disclosureState?: {
-    expandedIds: ReadonlySet<string>;
-    onExpandedChange: (id: string, expanded: boolean) => void;
-  };
+  disclosureStore?: KeyedDisclosureStore;
   item: ToolItem;
   readThreadPatchDiff?: ReadThreadPatchDiff;
   threadId?: string;
@@ -1164,6 +1200,7 @@ export function FileMutationItemView({
         const disclosureId = `file-mutation:${item.id}:${fileIndex}`;
         const canExpand =
           item.state === "completed" &&
+          Boolean(disclosureStore) &&
           Boolean(threadId) &&
           Boolean(readThreadPatchDiff) &&
           item.mutationDiffPaths?.some((path) => sameMutationPath(path, file.path)) === true;
@@ -1192,12 +1229,7 @@ export function FileMutationItemView({
             </div>
           );
         }
-        const disclosure = {
-          id: disclosureId,
-          expanded: Boolean(disclosureState?.expandedIds.has(disclosureId)),
-          onExpandedChange:
-            disclosureState?.onExpandedChange ?? (() => undefined),
-        };
+        if (!disclosureStore) return null;
         return (
           <React.Suspense
             fallback={(
@@ -1214,7 +1246,7 @@ export function FileMutationItemView({
           >
             <LazyExpandableFileMutationRow
               diffMarkerStyle={diffMarkerStyle}
-              disclosure={disclosure}
+              disclosure={{ id: disclosureId, store: disclosureStore }}
               file={file}
               item={item}
               readThreadPatchDiff={readThreadPatchDiff}

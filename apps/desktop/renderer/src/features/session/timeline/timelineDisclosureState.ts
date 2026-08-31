@@ -1,3 +1,8 @@
+import {
+  createKeyedDisclosureStore,
+  type KeyedDisclosureStore,
+} from '../../../components/ui/keyedDisclosureStore.js'
+
 const STORAGE_PREFIX = 'conversation.timeline-disclosures.v1.'
 const MAX_EXPANDED_IDS = 1_000
 
@@ -6,16 +11,39 @@ type TimelineDisclosureSnapshotV1 = {
   expandedIds: string[]
 }
 
-export function loadTimelineDisclosureState(threadId: string): Set<string> {
-  try {
-    const raw = window.localStorage.getItem(storageKey(threadId))
-    if (!raw) return new Set()
+const storesByStorage = new WeakMap<Storage, Map<string, KeyedDisclosureStore>>()
 
-    const snapshot = parseSnapshot(JSON.parse(raw))
-    return snapshot ? new Set(snapshot.expandedIds) : new Set()
-  } catch {
-    return new Set()
+export function getTimelineDisclosureStore(threadId: string): KeyedDisclosureStore {
+  const storage = window.localStorage
+  let stores = storesByStorage.get(storage)
+  if (!stores) {
+    stores = new Map()
+    storesByStorage.set(storage, stores)
   }
+  const existing = stores.get(threadId)
+  if (existing) return existing
+
+  const store = createKeyedDisclosureStore({
+    initialExpandedKeys: readTimelineDisclosureState(storage, threadId),
+    maxExpandedKeys: MAX_EXPANDED_IDS,
+    persist: (expandedIds) => {
+      const snapshot: TimelineDisclosureSnapshotV1 = {
+        schemaVersion: 1,
+        expandedIds: [...expandedIds],
+      }
+      try {
+        storage.setItem(storageKey(threadId), JSON.stringify(snapshot))
+      } catch {
+        /* Storage can be disabled or full; the in-memory state remains authoritative. */
+      }
+    },
+  })
+  stores.set(threadId, store)
+  return store
+}
+
+export function loadTimelineDisclosureState(threadId: string): Set<string> {
+  return new Set(getTimelineDisclosureStore(threadId).getExpandedKeys())
 }
 
 export function setTimelineDisclosureExpanded(
@@ -23,28 +51,24 @@ export function setTimelineDisclosureExpanded(
   disclosureId: string,
   expanded: boolean,
 ): Set<string> {
-  const expandedIds = [...loadTimelineDisclosureState(threadId)]
-  const existingIndex = expandedIds.indexOf(disclosureId)
-  if (existingIndex >= 0) expandedIds.splice(existingIndex, 1)
-
-  if (expanded) expandedIds.push(disclosureId)
-  const recentExpandedIds = expandedIds.slice(-MAX_EXPANDED_IDS)
-  const nextState = new Set(recentExpandedIds)
-
-  const snapshot: TimelineDisclosureSnapshotV1 = {
-    schemaVersion: 1,
-    expandedIds: recentExpandedIds,
+  const store = getTimelineDisclosureStore(threadId)
+  if (expanded && store.getSnapshot(disclosureId)) {
+    // Preserve the v1 helper's recency semantics without affecting the UI toggle path.
+    store.setExpanded(disclosureId, false)
   }
+  store.setExpanded(disclosureId, expanded)
+  return new Set(store.getExpandedKeys())
+}
+
+function readTimelineDisclosureState(storage: Storage, threadId: string): Set<string> {
   try {
-    window.localStorage.setItem(
-      storageKey(threadId),
-      JSON.stringify(snapshot),
-    )
+    const raw = storage.getItem(storageKey(threadId))
+    if (!raw) return new Set()
+    const snapshot = parseSnapshot(JSON.parse(raw))
+    return snapshot ? new Set(snapshot.expandedIds) : new Set()
   } catch {
-    /* localStorage full or disabled; keep the returned in-memory state. */
+    return new Set()
   }
-
-  return nextState
 }
 
 function parseSnapshot(value: unknown): TimelineDisclosureSnapshotV1 | null {
@@ -54,9 +78,7 @@ function parseSnapshot(value: unknown): TimelineDisclosureSnapshotV1 | null {
     value.expandedIds.some(
       (entry) => typeof entry !== 'string' || entry.length === 0,
     )
-  ) {
-    return null
-  }
+  ) return null
 
   const expandedIds = [...new Set(value.expandedIds)]
   return {

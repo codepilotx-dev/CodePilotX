@@ -23,6 +23,10 @@ import {
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import {
   fastTween,
@@ -54,13 +58,14 @@ import {
   type SidebarScrollModeKey,
   useSidebarScrollController,
 } from './useSidebarScrollController.js'
+import { sidebarSectionDisclosureKey } from './sidebarDisclosureStore.js'
 
 const PINNED_INITIAL_LIMIT = 20;
 const PINNED_LIMIT_STEP = 20;
 
 type Props = {
   activeSessionId: string | null;
-  collapsedProjectPaths: Set<string>;
+  disclosureStore: KeyedDisclosureStore;
   organization: DesktopSidebarOrganization;
   timeline?: SidebarTimelineModel | null;
   showTimelinePinned: boolean;
@@ -98,11 +103,8 @@ type Props = {
   onSelectSession: (session: SessionListItem) => void;
   onToggleSessionUnread: (session: SessionListItem) => void;
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
-  onToggleProjectCollapsed: (projectKey: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
-  collapsedSidebarSections: SidebarSectionId[];
-  onToggleSidebarSection: (section: SidebarSectionId) => void;
   onReport: (message: string) => void;
   onManualOrderChange: (scopeKey: string, order: string[]) => void;
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void;
@@ -117,7 +119,7 @@ type Props = {
 
 export function SidebarBody({
   activeSessionId,
-  collapsedProjectPaths,
+  disclosureStore,
   organization,
   timeline,
   showTimelinePinned,
@@ -153,11 +155,8 @@ export function SidebarBody({
   onSelectSession,
   onToggleSessionUnread,
   onRenameSession,
-  onToggleProjectCollapsed,
   onUnpinSession,
   onUnpinWorkspace,
-  collapsedSidebarSections,
-  onToggleSidebarSection,
   onReport,
   onManualOrderChange,
   onOrganizationChange,
@@ -377,7 +376,7 @@ export function SidebarBody({
           projectSessionBuckets.get(sidebarProjectKey(project)) ??
           EMPTY_PROJECT_SESSION_BUCKET
         }
-        collapsedProjectPaths={collapsedProjectPaths}
+        disclosureStore={disclosureStore}
         isUnavailable={isUnavailable(project)}
         manualOrderByScope={manualOrderByScope}
         now={now}
@@ -398,7 +397,6 @@ export function SidebarBody({
         onToggleSessionUnread={onToggleSessionUnread}
         onRenameSession={onRenameSession}
         onSortChange={onProjectSortChange}
-        onToggleProjectCollapsed={onToggleProjectCollapsed}
         onUnpinSession={onUnpinSession}
         onUnpinWorkspace={onUnpinWorkspace}
       />
@@ -514,6 +512,7 @@ export function SidebarBody({
             titleLoadingIds={titleLoadingIds}
             sessionFallbackTitles={sessionFallbackTitles}
             sessions={[item.session]}
+            showConversationIcon
             onArchiveSessions={onArchiveSessions}
             onPinSession={onPinSession}
             onSelectSession={onSelectSession}
@@ -567,10 +566,9 @@ export function SidebarBody({
           {pinnedItems.length > 0 ? (
             <SidebarSectionPresence key="pinned" reducedMotion={reducedMotion}>
             <SidebarSection
-              collapsed={collapsedSidebarSections.includes("pinned")}
+              disclosureStore={disclosureStore}
               sectionId="pinned"
               title="置顶"
-              onToggle={onToggleSidebarSection}
             >
               {displayedPinnedSessions.length > 0 ? (
                 <Reorder.Group
@@ -644,10 +642,9 @@ export function SidebarBody({
                   </IconButton>
                 </SidebarSectionActions>
               }
-              collapsed={collapsedSidebarSections.includes("projects")}
+              disclosureStore={disclosureStore}
               sectionId="projects"
               title="项目"
-              onToggle={onToggleSidebarSection}
             >
               {projectCatalogState.status === 'loading' ? (
                 <SidebarEmptyRow role="status">正在加载项目…</SidebarEmptyRow>
@@ -712,10 +709,9 @@ export function SidebarBody({
                 </IconButton>
               </SidebarSectionActions>
             }
-            collapsed={collapsedSidebarSections.includes("recent")}
+            disclosureStore={disclosureStore}
             sectionId="recent"
             title="最近"
-            onToggle={onToggleSidebarSection}
           >
             {recentSessions.length === 0 ? (
               <SidebarEmptyRow>
@@ -1282,19 +1278,19 @@ function sameStringOrder(left: readonly string[], right: readonly string[]): boo
 function SidebarSection({
   action,
   children,
-  collapsed,
+  disclosureStore,
   sectionId,
   title,
-  onToggle,
 }: {
   action?: React.ReactNode;
   children: React.ReactNode;
-  collapsed: boolean;
+  disclosureStore: KeyedDisclosureStore;
   sectionId: SidebarSectionId;
   title: string;
-  onToggle: (section: SidebarSectionId) => void;
 }): React.ReactNode {
   const contentId = useId();
+  const disclosureKey = sidebarSectionDisclosureKey(sectionId);
+  const expanded = useDisclosureExpanded(disclosureStore, disclosureKey);
 
   return (
     <section className="sidebar-section tw:grid">
@@ -1304,11 +1300,11 @@ function SidebarSection({
         <h2 className="sidebar-section-title">
           <button
             aria-controls={contentId}
-            aria-expanded={!collapsed}
+            aria-expanded={expanded}
             className="sidebar-section-toggle"
             data-sidebar-section-id={sectionId}
             type="button"
-            onClick={() => onToggle(sectionId)}
+            onClick={() => disclosureStore.setExpanded(disclosureKey, !expanded)}
           >
             <span
               className={cx("sidebar-section-label", "u-min-w-0", "u-truncate")}
@@ -1332,7 +1328,7 @@ function SidebarSection({
       <DisclosureContent
         className="sidebar-section-disclosure"
         contentClassName="sidebar-section-content tw:grid tw:gap-1"
-        expanded={!collapsed}
+        expanded={expanded}
         id={contentId}
         mountPolicy="always"
       >
