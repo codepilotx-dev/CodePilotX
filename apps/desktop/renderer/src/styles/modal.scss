@@ -98,25 +98,6 @@
   color: var(--cpx-sys-color-fg-secondary);
 }
 
-.permission-modal-actions {
-  button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--cpx-comp-button-gap);
-    padding: var(--cpx-comp-button-padding-block)
-      var(--cpx-comp-button-padding-inline);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-control);
-    line-height: var(--cpx-sys-line-height-tight);
-
-    &:hover {
-      background: var(--cpx-sys-color-hover);
-    }
-  }
-}
-
 /* --- Global Error Toast --- */
 .global-error-toast {
   position: fixed;
