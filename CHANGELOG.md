@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 阶段四将会话轮次、用户消息与 Agent 活动详情收敛为 Oreo 式紧凑不透明层级，为用户和助手 Markdown 接入随界面字号联动的阅读行高及紧凑块间距，并移除不再使用的旧文件变更样式。
 - [desktop/renderer] 阶段三将 Coding、Working 与 Chat 新建页的 Prompt 输入面改为 Oreo 式不透明平面表面，并将常驻建议卡和工具条收敛到容器圆角语义。
 - [desktop/renderer] 阶段二按 Oreo Agentic UI 收敛菜单栏与侧栏密度、平面滚动标题和账号头像入口，同时保持 Windows 标题栏、导航与工作区布局契约。
 - [desktop/renderer] 阶段一将默认明暗主题、首屏回退与基础组件样式收敛到 Oreo Agentic UI 的中性视觉基线，并保留已有用户主题和桌面交互契约。
