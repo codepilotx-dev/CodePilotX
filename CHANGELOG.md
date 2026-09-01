@@ -36,6 +36,11 @@
 
 ### Changed
 
+- [desktop/renderer] 统一 Browser、Terminal 与文件预览面板的工具栏和内容 inset，为浏览器加载错误补充可恢复说明，并收敛窄面板操作布局。
+- [desktop/renderer] 收敛 Review 工具栏、文件树、文件标题与 Diff 内容列线，确保窄面板和文件树折叠状态保持稳定对齐。
+- [desktop/renderer] 将拉取请求空态接入一级页面框架，统一首次模型设置与路由状态页布局，并将自绘设置标题栏对齐到 Windows 36px 契约。
+- [desktop/renderer] 统一插件、技能目录和宠物商店的一级页面外沿、筛选状态与窄屏布局，宠物商店改为复用共享页面框架。
+- [desktop/renderer] 统一自动化与会话组的一级页面外沿、列表列线、详情区域及窄屏响应式布局。
 - [desktop/renderer] 将供应商、插件、技能、MCP 及相关编辑弹窗统一到设置页的内容基线、连续卡片行与任务导向表单布局。
 - [desktop/renderer] 参考 Oreo Side Bar 规范统一设置导航、页面标题、章节、卡片、行内容与控件列的横向基线，使所有设置页保持严格对齐。
 - [desktop/renderer] 阶段六将设置卡片与模型管理页收敛到 Oreo 式紧凑平面层级，复用共享页面边距并移除重复和失效样式。
