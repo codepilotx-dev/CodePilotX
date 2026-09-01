@@ -5,14 +5,16 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
+import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 
 export function PullRequestsPlaceholder(): React.ReactNode {
   return (
-    <main className="pull-requests-placeholder">
-      <header className="pull-requests-placeholder__header">
-        <h1>拉取请求</h1>
-      </header>
-
+    <PrimaryPageLayout
+      bodyClassName="pull-requests-placeholder__body"
+      className="pull-requests-placeholder"
+      description="集中查看和处理当前工作区的拉取请求。"
+      title="拉取请求"
+    >
       <section
         aria-labelledby="pull-requests-empty-title"
         className="pull-requests-placeholder__empty"
@@ -29,6 +31,6 @@ export function PullRequestsPlaceholder(): React.ReactNode {
           新建对话
         </Link>
       </section>
-    </main>
+    </PrimaryPageLayout>
   )
 }

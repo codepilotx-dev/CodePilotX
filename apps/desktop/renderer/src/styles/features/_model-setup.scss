@@ -8,14 +8,14 @@
 
 .model-setup-page {
   display: grid;
-  grid-template-rows: 46px minmax(0, 1fr);
+  grid-template-rows: 36px minmax(0, 1fr);
   overflow: hidden;
 }
 
 .model-setup-titlebar {
   display: flex;
   min-width: 0;
-  height: 46px;
+  height: 36px;
   align-items: center;
   justify-content: space-between;
   border-bottom: 0.5px solid var(--cpx-sys-color-border-subtle);
@@ -346,5 +346,50 @@
 @media (max-width: 1040px) {
   .model-setup-main {
     padding-inline: var(--cpx-sys-space-6);
+  }
+}
+
+@media (max-width: 760px) {
+  .model-setup-main {
+    place-items: start center;
+    padding: var(--cpx-sys-space-7) var(--cpx-sys-space-5);
+  }
+
+  .model-setup-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cpx-sys-space-4);
+  }
+
+  .model-setup-progress {
+    grid-template-rows: 28px;
+    grid-template-columns: 28px 18px 28px;
+    align-items: center;
+    justify-content: start;
+    padding-top: 0;
+  }
+
+  .model-setup-progress i {
+    width: 18px;
+    height: 0.5px;
+  }
+
+  .model-setup-content,
+  .model-setup-feedback {
+    padding-inline-start: 0;
+  }
+
+  .model-setup-connection-heading,
+  .model-setup-model-toolbar,
+  .model-setup-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .model-setup-key-form .model-center-key-dialog-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .model-setup-actions--finish {
+    align-items: flex-end;
   }
 }
