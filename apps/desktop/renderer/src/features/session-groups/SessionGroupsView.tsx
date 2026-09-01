@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   ArrowLeft,
@@ -495,7 +495,7 @@ export function SessionGroupsView(): React.ReactNode {
   )
 }
 
-function SessionGroupStepCard({
+const SessionGroupStepCard = memo(function SessionGroupStepCard({
   groupId,
   step,
 }: {
@@ -511,6 +511,17 @@ function SessionGroupStepCard({
     diffLoading,
     diff?.files.length ?? 0,
   ])
+  const diffFiles = useMemo(() => diff?.files.map(file => ({
+    diff: {
+      path: file.path,
+      operation: file.operation === 'rename' ? 'update' as const : file.operation,
+      patch: file.patch,
+      hunks: file.hunks,
+      renderable: file.renderable,
+      tooLargeReason: file.tooLargeReason,
+    },
+    key: `${file.workspaceLabel}:${file.path}`,
+  })) ?? [], [diff])
 
   async function toggleDiff(): Promise<void> {
     const next = !diffOpen
@@ -713,18 +724,11 @@ function SessionGroupStepCard({
                 {diffLoading ? (
                   <div className="session-group-diff-loading">正在加载 Diff…</div>
                 ) : diff ? (
-                  diff.files.map(file => (
+                  diffFiles.map(file => (
                     <FileMutationDiffBody
-                      diff={{
-                        path: file.path,
-                        operation: file.operation === 'rename' ? 'update' : file.operation,
-                        patch: file.patch,
-                        hunks: file.hunks,
-                        renderable: file.renderable,
-                        tooLargeReason: file.tooLargeReason,
-                      }}
+                      diff={file.diff}
                       diffMarkerStyle="color"
-                      key={`${file.workspaceLabel}:${file.path}`}
+                      key={file.key}
                     />
                   ))
                 ) : null}
@@ -735,4 +739,4 @@ function SessionGroupStepCard({
       </div>
     </article>
   )
-}
+})

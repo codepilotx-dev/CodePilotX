@@ -704,7 +704,7 @@ export function ToolItemView({
     const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
     return () => window.clearInterval(interval);
   }, [item.activity?.type, item.state]);
-  const view = buildToolItemDisplay(item, nowMs);
+  const view = React.useMemo(() => buildToolItemDisplay(item, nowMs), [item, nowMs]);
   const [localExpanded, setLocalExpanded] = React.useState(false);
   const requestedExpanded = disclosure?.expanded ?? localExpanded;
   const expanded = view.canExpand && requestedExpanded;
@@ -774,7 +774,7 @@ export function ToolItemView({
   );
 }
 
-export function ToolExecutionCard({
+export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   item,
   presentation = "standalone",
   threadId,
@@ -836,7 +836,7 @@ export function ToolExecutionCard({
       </footer>
     </article>
   );
-}
+});
 
 /**
  * 分组呈现时把 command shell 输出包进滚动边界 frame：内层负责滚动，

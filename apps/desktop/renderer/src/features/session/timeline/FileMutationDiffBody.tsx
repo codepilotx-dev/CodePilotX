@@ -14,7 +14,7 @@ const LazyFileMutationDiffContent = React.lazy(async () => {
   return { default: module.FileMutationDiffContent };
 });
 
-export function FileMutationDiffBody({
+export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
   diff,
   diffMarkerStyle,
 }: {
@@ -29,7 +29,7 @@ export function FileMutationDiffBody({
       />
     </React.Suspense>
   );
-}
+});
 
 export function FileMutationDiffLoading(): React.ReactNode {
   return (

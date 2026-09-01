@@ -36,6 +36,17 @@ describe('keyed disclosure store', () => {
     expect(persistCalls).toBe(0)
   })
 
+  test('notifies aggregate subscribers once per update', () => {
+    const store = createKeyedDisclosureStore({ initialExpandedKeys: ['a'] })
+    let calls = 0
+    store.subscribeAll(() => { calls += 1 })
+
+    store.replace(['b', 'c'])
+
+    expect(calls).toBe(1)
+    expect(store.getVersion()).toBe(1)
+  })
+
   test('coalesces a rapid toggle burst and flushes the final snapshot', async () => {
     const snapshots: string[][] = []
     const store = createKeyedDisclosureStore({

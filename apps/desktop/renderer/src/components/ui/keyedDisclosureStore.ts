@@ -3,7 +3,9 @@ import * as React from "react";
 export type KeyedDisclosureStore = {
   getSnapshot: (key: string) => boolean;
   getExpandedKeys: () => readonly string[];
+  getVersion: () => number;
   subscribe: (key: string, listener: () => void) => () => void;
+  subscribeAll: (listener: () => void) => () => void;
   setExpanded: (key: string, expanded: boolean) => void;
   replace: (expandedKeys: Iterable<string>) => void;
   flush: () => void;
@@ -59,6 +61,8 @@ export function createKeyedDisclosureStore({
 }: KeyedDisclosureStoreOptions): KeyedDisclosureStore {
   let expandedKeys = new Set(initialExpandedKeys);
   const listeners = new Map<string, Set<() => void>>();
+  const allListeners = new Set<() => void>();
+  let version = 0;
   let persistTimer: number | null = null;
   let persistPending = false;
   let destroyed = false;
@@ -85,13 +89,19 @@ export function createKeyedDisclosureStore({
     persistTimer = globalThis.setTimeout(flush, persistDelayMs);
   };
 
-  const notify = (key: string): void => {
+  const notifyKey = (key: string): void => {
     for (const listener of listeners.get(key) ?? []) listener();
+  };
+
+  const notifyAll = (): void => {
+    version++;
+    for (const listener of allListeners) listener();
   };
 
   const store: KeyedDisclosureStore = {
     getSnapshot: (key) => expandedKeys.has(key),
     getExpandedKeys: normalizedExpandedKeys,
+    getVersion: () => version,
     subscribe: (key, listener) => {
       const keyListeners = listeners.get(key) ?? new Set<() => void>();
       keyListeners.add(listener);
@@ -101,6 +111,10 @@ export function createKeyedDisclosureStore({
         if (keyListeners.size === 0) listeners.delete(key);
       };
     },
+    subscribeAll: (listener) => {
+      allListeners.add(listener);
+      return () => allListeners.delete(listener);
+    },
     setExpanded: (key, expanded) => {
       if (destroyed || expandedKeys.has(key) === expanded) return;
       if (expanded) expandedKeys.add(key);
@@ -108,7 +122,8 @@ export function createKeyedDisclosureStore({
       if (maxExpandedKeys != null && expandedKeys.size > maxExpandedKeys) {
         expandedKeys = new Set(normalizedExpandedKeys());
       }
-      notify(key);
+      notifyKey(key);
+      notifyAll();
       schedulePersist();
     },
     replace: (nextExpandedKeys) => {
@@ -123,7 +138,8 @@ export function createKeyedDisclosureStore({
       }
       if (changedKeys.size === 0) return;
       expandedKeys = next;
-      for (const key of changedKeys) notify(key);
+      for (const key of changedKeys) notifyKey(key);
+      notifyAll();
     },
     flush,
     destroy: () => {
@@ -131,6 +147,7 @@ export function createKeyedDisclosureStore({
       flush();
       destroyed = true;
       listeners.clear();
+      allListeners.clear();
       lifecycleStores.delete(store);
       releaseLifecycleListeners();
     },

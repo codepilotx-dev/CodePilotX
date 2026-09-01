@@ -11,7 +11,18 @@ type TimelineDisclosureSnapshotV1 = {
   expandedIds: string[]
 }
 
-const storesByStorage = new WeakMap<Storage, Map<string, KeyedDisclosureStore>>()
+type TimelineDisclosureStoreEntry = {
+  cleanupTimer: ReturnType<typeof setTimeout> | null
+  consumers: number
+  store: KeyedDisclosureStore
+}
+
+const storesByStorage = new WeakMap<Storage, Map<string, TimelineDisclosureStoreEntry>>()
+const entriesByStore = new WeakMap<KeyedDisclosureStore, {
+  storage: Storage
+  threadId: string
+  entry: TimelineDisclosureStoreEntry
+}>()
 
 export function getTimelineDisclosureStore(threadId: string): KeyedDisclosureStore {
   const storage = window.localStorage
@@ -21,7 +32,7 @@ export function getTimelineDisclosureStore(threadId: string): KeyedDisclosureSto
     storesByStorage.set(storage, stores)
   }
   const existing = stores.get(threadId)
-  if (existing) return existing
+  if (existing) return existing.store
 
   const store = createKeyedDisclosureStore({
     initialExpandedKeys: readTimelineDisclosureState(storage, threadId),
@@ -38,8 +49,44 @@ export function getTimelineDisclosureStore(threadId: string): KeyedDisclosureSto
       }
     },
   })
-  stores.set(threadId, store)
+  const entry: TimelineDisclosureStoreEntry = {
+    cleanupTimer: null,
+    consumers: 0,
+    store,
+  }
+  stores.set(threadId, entry)
+  entriesByStore.set(store, { storage, threadId, entry })
   return store
+}
+
+export function retainTimelineDisclosureStore(threadId: string): KeyedDisclosureStore {
+  const store = getTimelineDisclosureStore(threadId)
+  const record = entriesByStore.get(store)
+  if (!record) return store
+  if (record.entry.cleanupTimer != null) {
+    clearTimeout(record.entry.cleanupTimer)
+    record.entry.cleanupTimer = null
+  }
+  record.entry.consumers += 1
+  return store
+}
+
+export function releaseTimelineDisclosureStore(store: KeyedDisclosureStore): void {
+  const record = entriesByStore.get(store)
+  if (!record || record.entry.consumers === 0) return
+  record.entry.consumers -= 1
+  if (record.entry.consumers > 0 || record.entry.cleanupTimer != null) return
+
+  record.entry.cleanupTimer = setTimeout(() => {
+    record.entry.cleanupTimer = null
+    if (record.entry.consumers > 0) return
+    const stores = storesByStorage.get(record.storage)
+    if (stores?.get(record.threadId) !== record.entry) return
+    record.entry.store.flush()
+    record.entry.store.destroy()
+    stores.delete(record.threadId)
+    entriesByStore.delete(record.entry.store)
+  }, 0)
 }
 
 export function loadTimelineDisclosureState(threadId: string): Set<string> {

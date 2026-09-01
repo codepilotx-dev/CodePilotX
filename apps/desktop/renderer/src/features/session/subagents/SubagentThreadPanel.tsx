@@ -24,6 +24,7 @@ import {
   selectRenderTurnEntries,
   selectVisibleTurnEntries,
 } from '@codepilotx/session-view'
+import type { VirtualizerHandle } from 'virtua'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -38,6 +39,7 @@ import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
 } from '../timeline/CanonicalThreadView.js'
+import { SessionTimelineView } from '../timeline/SessionTimelineView.js'
 import { normalizePatchActionError } from '../timeline/patchActionError.js'
 import { subagentStatusLabel } from './subagentStatusLabel.js'
 
@@ -93,6 +95,7 @@ export function SubagentThreadPanel({
   onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const listRef = React.useRef<VirtualizerHandle | null>(null)
   const disclosureState = useTimelineDisclosureState(task.childThreadId)
   const canonicalState = React.useMemo(
     () => createCanonicalThreadState(pageFromThreadSnapshot(snapshot)),
@@ -126,20 +129,56 @@ export function SubagentThreadPanel({
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
-
-  React.useEffect(() => {
-    const element = scrollRef.current
-    if (!element) return
-    const key = `codepilotx.subagent.scroll.${task.childThreadId}`
-    const stored = Number(window.sessionStorage.getItem(key) ?? 0)
-    if (Number.isFinite(stored)) element.scrollTop = stored
-    const persist = () => window.sessionStorage.setItem(key, String(element.scrollTop))
-    element.addEventListener('scroll', persist, { passive: true })
-    return () => {
-      persist()
-      element.removeEventListener('scroll', persist)
+  const scrollStorageKey = `codepilotx.subagent.scroll.${task.childThreadId}`
+  const initialScrollOffset = React.useMemo(() => {
+    try {
+      const stored = Number(window.sessionStorage.getItem(scrollStorageKey) ?? 0)
+      return Number.isFinite(stored) ? stored : 0
+    } catch {
+      return 0
     }
-  }, [task.childThreadId])
+  }, [scrollStorageKey])
+  const persistScroll = React.useCallback((scrollTop: number): void => {
+    try {
+      window.sessionStorage.setItem(scrollStorageKey, String(scrollTop))
+    } catch {
+      // Session storage can be unavailable; scrolling remains functional.
+    }
+  }, [scrollStorageKey])
+  const renderTurn = React.useCallback((turn: (typeof canonicalTurns)[number]) => (
+    <div
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
+      data-component="conversation-turn"
+      key={turn.id}
+    >
+      <CanonicalConversationTurn
+        disclosureState={disclosureState}
+        entry={turn}
+        onApplyPatch={async (itemId, action, expectedVersion) => {
+          try {
+            await desktopClient.applyThreadPatch({
+              threadId: task.childThreadId,
+              itemId,
+              action,
+              expectedVersion,
+            })
+            await callbacks.onPatchApplied?.()
+          } catch (error) {
+            throw normalizePatchActionError(error, action)
+          }
+        }}
+        onOpenPatchReview={callbacks.onOpenPatchReview}
+        onOpenPlanInRightDock={() => undefined}
+        onOpenSubagent={(taskId) => {
+          const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
+          if (item) callbacks.onOpenSubagent?.(item)
+        }}
+        rightDockPlanEventId={null}
+        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+        threadId={task.childThreadId}
+      />
+    </div>
+  ), [callbacks, disclosureState, snapshot.items, task.childThreadId])
 
   return (
     <section
@@ -221,35 +260,21 @@ export function SubagentThreadPanel({
 
           {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
-              {canonicalTurns.map((turn) => (
-                 <CanonicalConversationTurn
-                   disclosureState={disclosureState}
-                   entry={turn}
-                  key={turn.id}
-                  onApplyPatch={async (itemId, action, expectedVersion) => {
-                    try {
-                      await desktopClient.applyThreadPatch({
-                        threadId: task.childThreadId,
-                        itemId,
-                        action,
-                        expectedVersion,
-                      })
-                      await callbacks.onPatchApplied?.()
-                    } catch (error) {
-                      throw normalizePatchActionError(error, action)
-                    }
-                  }}
-                  onOpenPatchReview={callbacks.onOpenPatchReview}
-                  onOpenPlanInRightDock={() => undefined}
-                  onOpenSubagent={(taskId) => {
-                    const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
-                    if (item) callbacks.onOpenSubagent?.(item)
-                  }}
-                  rightDockPlanEventId={null}
-                  readThreadPatchDiff={desktopClient.readThreadPatchDiff}
-                  threadId={task.childThreadId}
-                />
-              ))}
+              {typeof document === 'undefined'
+                ? canonicalTurns.map(renderTurn)
+                : (
+                  <SessionTimelineView
+                    count={canonicalTurns.length}
+                    initialScrollOffset={initialScrollOffset}
+                    items={canonicalTurns}
+                    listRef={listRef}
+                    onScroll={persistScroll}
+                    renderItem={renderTurn}
+                    scrollRef={scrollRef}
+                    scrollToBottom={isActiveRun(run)}
+                    sessionKey={task.childThreadId}
+                  />
+                )}
             </div>
           ) : (
             <div className="subagent-thread-panel__empty" role="status">

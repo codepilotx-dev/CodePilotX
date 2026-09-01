@@ -49,6 +49,8 @@ import {
 } from "./summarizeProcessItems.js";
 import {
   getTimelineDisclosureStore,
+  releaseTimelineDisclosureStore,
+  retainTimelineDisclosureStore,
 } from "./timelineDisclosureState.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
@@ -495,7 +497,12 @@ const CanonicalTurnActivityController = React.memo(
 );
 
 export function useTimelineDisclosureState(threadId: string): KeyedDisclosureStore {
-  return React.useMemo(() => getTimelineDisclosureStore(threadId), [threadId]);
+  const store = React.useMemo(() => getTimelineDisclosureStore(threadId), [threadId]);
+  React.useEffect(() => {
+    const retainedStore = retainTimelineDisclosureStore(threadId);
+    return () => releaseTimelineDisclosureStore(retainedStore);
+  }, [store, threadId]);
+  return store;
 }
 
 function CanonicalThreadViewComponent({
