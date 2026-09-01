@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 阶段三将 Coding、Working 与 Chat 新建页的 Prompt 输入面改为 Oreo 式不透明平面表面，并将常驻建议卡和工具条收敛到容器圆角语义。
 - [desktop/renderer] 阶段二按 Oreo Agentic UI 收敛菜单栏与侧栏密度、平面滚动标题和账号头像入口，同时保持 Windows 标题栏、导航与工作区布局契约。
 - [desktop/renderer] 阶段一将默认明暗主题、首屏回退与基础组件样式收敛到 Oreo Agentic UI 的中性视觉基线，并保留已有用户主题和桌面交互契约。
 - [desktop/renderer] 为独立置顶会话补充会话图标，并将侧栏长标题改为静态渐隐与更舒缓的悬停滚动。
