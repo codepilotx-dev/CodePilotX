@@ -711,10 +711,6 @@
   max-height: min(42rem, calc(100vh - var(--cpx-sys-space-8)));
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-sys-color-surface-raised);
-  box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
 }
 

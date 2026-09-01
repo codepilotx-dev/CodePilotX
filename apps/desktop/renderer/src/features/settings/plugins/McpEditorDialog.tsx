@@ -312,7 +312,7 @@ export function McpEditorDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:p-0 tw:text-app-text"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -323,8 +323,8 @@ export function McpEditorDialog({
               closeRef.current?.focus()
             }}
           >
-            <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
-              <span className="tw:min-w-0 tw:flex-1">
+            <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
+              <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
                 <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
                   {server ? `MCP：${server.name}` : '新增 MCP server'}
                 </Dialog.Title>
@@ -346,7 +346,7 @@ export function McpEditorDialog({
               </Dialog.Close>
             </header>
 
-            <div className="tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:px-5 tw:py-4">
+            <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
               {runtimeError || needsAuth ? (
                 <div className="tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text-soft">
                   {runtimeError ?? '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
@@ -469,6 +469,82 @@ export function McpEditorDialog({
                 </FormCard>
               )}
 
+              <FormCard>
+                <FormRow label="配置范围">
+                  <SettingsDropdown
+                    value={form.scope}
+                    width={260}
+                    disabled={Boolean(server)}
+                    options={SCOPE_OPTIONS.map(option => ({
+                      ...option,
+                      disabled: option.value === 'local' && !workspaceAvailable,
+                    }))}
+                    onChange={value => update(current => ({
+                      ...current,
+                      scope: value as DesktopEditableMcpScope,
+                    }))}
+                    ariaLabel="MCP scope"
+                  />
+                </FormRow>
+                <FormRow label="启用">
+                  <ToggleSwitch
+                    ariaLabel="MCP server"
+                    checked={form.enabled}
+                    onChange={enabled => update(current => ({ ...current, enabled }))}
+                  />
+                </FormRow>
+                <FormRow label="必需 Server">
+                  <span className="tw:flex tw:items-center tw:gap-2">
+                    <ToggleSwitch
+                      ariaLabel="必需 Server"
+                      checked={form.required}
+                      onChange={required => update(current => ({ ...current, required }))}
+                    />
+                    <span className="tw:text-xs tw:text-app-text-soft">
+                      开启后，连接失败会阻止任务开始。
+                    </span>
+                  </span>
+                </FormRow>
+                {form.type === 'http' ? (
+                  <>
+                    <FormRow label="OAuth">
+                      <span className="tw:flex tw:items-center tw:gap-2">
+                        <ToggleSwitch
+                          ariaLabel="OAuth"
+                          checked={form.httpAuth === 'oauth'}
+                          onChange={enabled => update(current => ({
+                            ...current,
+                            httpAuth: enabled ? 'oauth' : 'none',
+                          }))}
+                        />
+                        <span className="tw:text-sm tw:text-app-text-soft">
+                          {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
+                        </span>
+                      </span>
+                    </FormRow>
+                    {form.httpAuth === 'oauth' ? (
+                      <>
+                        <ValueListField
+                          addLabel="添加 Scope"
+                          label="OAuth Scopes"
+                          placeholder="scope"
+                          rows={form.scopes}
+                          onChange={scopes => update(current => ({ ...current, scopes }))}
+                        />
+                        <FormRow label="OAuth Resource">
+                          <Input
+                            aria-label="OAuth Resource"
+                            value={form.oauthResource}
+                            placeholder="https://mcp.example.com"
+                            onChange={event => update(current => ({ ...current, oauthResource: event.target.value }))}
+                          />
+                        </FormRow>
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </FormCard>
+
               <McpAdvancedDisclosure
                 open={open}
                 onExpandedChange={expanded => {
@@ -476,79 +552,6 @@ export function McpEditorDialog({
                 }}
               >
                   <FormCard>
-                    <FormRow label="配置范围">
-                      <SettingsDropdown
-                        value={form.scope}
-                        width={260}
-                        disabled={Boolean(server)}
-                        options={SCOPE_OPTIONS.map(option => ({
-                          ...option,
-                          disabled: option.value === 'local' && !workspaceAvailable,
-                        }))}
-                        onChange={value => update(current => ({
-                          ...current,
-                          scope: value as DesktopEditableMcpScope,
-                        }))}
-                        ariaLabel="MCP scope"
-                      />
-                    </FormRow>
-                    <FormRow label="启用">
-                      <ToggleSwitch
-                        ariaLabel="MCP server"
-                        checked={form.enabled}
-                        onChange={enabled => update(current => ({ ...current, enabled }))}
-                      />
-                    </FormRow>
-                    <FormRow label="必需 Server">
-                      <span className="tw:flex tw:items-center tw:gap-2">
-                        <ToggleSwitch
-                          ariaLabel="必需 Server"
-                          checked={form.required}
-                          onChange={required => update(current => ({ ...current, required }))}
-                        />
-                        <span className="tw:text-xs tw:text-app-text-soft">
-                          开启后，连接失败会阻止任务开始。
-                        </span>
-                      </span>
-                    </FormRow>
-                    {form.type === 'http' ? (
-                      <>
-                        <FormRow label="OAuth">
-                          <span className="tw:flex tw:items-center tw:gap-2">
-                            <ToggleSwitch
-                              ariaLabel="OAuth"
-                              checked={form.httpAuth === 'oauth'}
-                              onChange={enabled => update(current => ({
-                                ...current,
-                                httpAuth: enabled ? 'oauth' : 'none',
-                              }))}
-                            />
-                            <span className="tw:text-sm tw:text-app-text-soft">
-                              {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
-                            </span>
-                          </span>
-                        </FormRow>
-                        {form.httpAuth === 'oauth' ? (
-                          <>
-                            <ValueListField
-                              addLabel="添加 Scope"
-                              label="OAuth Scopes"
-                              placeholder="scope"
-                              rows={form.scopes}
-                              onChange={scopes => update(current => ({ ...current, scopes }))}
-                            />
-                            <FormRow label="OAuth Resource">
-                              <Input
-                                aria-label="OAuth Resource"
-                                value={form.oauthResource}
-                                placeholder="https://mcp.example.com"
-                                onChange={event => update(current => ({ ...current, oauthResource: event.target.value }))}
-                              />
-                            </FormRow>
-                          </>
-                        ) : null}
-                      </>
-                    ) : null}
                     <ValueListField
                       addLabel="添加启用工具"
                       label="仅启用这些工具"
@@ -636,7 +639,7 @@ export function McpEditorDialog({
               </McpAdvancedDisclosure>
             </div>
 
-            <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
+            <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
               <span>
                 {server?.removable ? (
                   <Button color="danger" disabled={busy} onClick={() => onRemove(server)}>
@@ -725,7 +728,7 @@ function Field({
 
 function FormCard({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <section className="tw:grid tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel">
+    <section className="settings-management-dialog-card tw:grid tw:overflow-hidden">
       {children}
     </section>
   )
@@ -739,9 +742,9 @@ function FormRow({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="tw:grid tw:gap-2 tw:border-b tw:border-app-border tw:px-4 tw:py-3 last:tw:border-b-0">
-      <span className="tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)]">{label}</span>
-      {children}
+    <div className="settings-management-dialog-row">
+      <span className="settings-management-dialog-row-label">{label}</span>
+      <div className="settings-management-dialog-row-control">{children}</div>
     </div>
   )
 }

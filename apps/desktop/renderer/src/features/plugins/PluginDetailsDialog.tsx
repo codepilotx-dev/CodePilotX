@@ -51,7 +51,8 @@ export function PluginDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop plugin-details-dialog__backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered plugin-details-dialog"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog plugin-details-dialog"
+            data-dialog-size="detail"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -62,7 +63,7 @@ export function PluginDetailsDialog({
               closeButtonRef.current?.focus()
             }}
           >
-            <header className="plugin-details-dialog__header">
+            <header className="settings-management-dialog-header plugin-details-dialog__header">
               <span
                 aria-hidden="true"
                 className="plugin-details-dialog__plugin-icon"
@@ -74,7 +75,7 @@ export function PluginDetailsDialog({
                   name={item.iconName}
                 />
               </span>
-              <div className="plugin-details-dialog__heading">
+              <div className="settings-management-dialog-heading plugin-details-dialog__heading">
                 <Dialog.Title className="plugin-details-dialog__title">
                   {item.name}
                 </Dialog.Title>
@@ -93,7 +94,7 @@ export function PluginDetailsDialog({
               </Dialog.Close>
             </header>
 
-            <ScrollArea className="plugin-details-dialog__scroll-area">
+            <ScrollArea className="settings-management-dialog-body plugin-details-dialog__scroll-area">
               <PluginDetailsMetadata item={item} />
 
               {error ? (
@@ -103,7 +104,7 @@ export function PluginDetailsDialog({
               ) : null}
             </ScrollArea>
 
-            <footer className="plugin-details-dialog__actions">
+            <footer className="settings-management-dialog-footer plugin-details-dialog__actions">
               <Dialog.Close asChild>
                 <Button color="secondary">关闭</Button>
               </Dialog.Close>

@@ -23,20 +23,20 @@ export function ExtensionManagementRow({
     <>
       <span
         aria-hidden="true"
-        className="tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
+        className="settings-management-row-icon"
       >
         {icon}
       </span>
-      <span className="tw:min-w-0">
-        <strong className="tw:block tw:truncate tw:text-base tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+      <span className="settings-management-row-copy">
+        <strong className="settings-management-row-title">
           {title}
         </strong>
-        <span className="tw:mt-0.5 tw:block tw:truncate tw:text-sm tw:text-app-text-soft">
+        <span className="settings-management-row-description">
           {description}
         </span>
       </span>
       {metadata ? (
-        <span className="tw:max-w-80 tw:shrink-0 tw:text-right tw:text-sm tw:text-app-text-soft tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-2 tw:max-[640px]:text-left">
+        <span className="settings-management-row-meta">
           {metadata}
         </span>
       ) : null}
@@ -45,27 +45,24 @@ export function ExtensionManagementRow({
 
   return (
     <article
-      className={[
-        'extensions-settings-row',
-        'tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:text-app-text',
-        dimmed ? 'tw:opacity-60' : '',
-      ].filter(Boolean).join(' ')}
+      className="extensions-settings-row settings-management-row"
+      data-dimmed={dimmed || undefined}
     >
       {onActivate ? (
         <button
-          className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-3 tw:py-2.5 tw:text-left tw:text-inherit tw:transition-colors tw:duration-[var(--cpx-sys-motion-micro)] tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]"
+          className="settings-management-row-main"
           onClick={event => onActivate(event.currentTarget)}
           type="button"
         >
           {rowContent}
         </button>
       ) : (
-        <div className="tw:grid tw:min-h-20 tw:min-w-0 tw:grid-cols-[3rem_minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-lg tw:px-3 tw:py-2.5 tw:max-[640px]:grid-cols-[3rem_minmax(0,1fr)]">
+        <div className="settings-management-row-main">
           {rowContent}
         </div>
       )}
       {actions ? (
-        <span className="tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:pr-3">
+        <span className="settings-management-row-actions">
           {actions}
         </span>
       ) : null}

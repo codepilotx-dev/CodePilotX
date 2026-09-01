@@ -102,11 +102,12 @@ export function ProviderConnectionDialog({
         <Dialog.Content
           aria-describedby={descriptionId}
           aria-labelledby={titleId}
-          className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog model-center-connection-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog model-center-connection-dialog"
+          data-dialog-size="detail"
           onCloseAutoFocus={focusRestore.onCloseAutoFocus}
         >
-          <header className="model-center-key-dialog-header">
-            <div className="model-center-key-dialog-heading">
+          <header className="settings-management-dialog-header model-center-key-dialog-header">
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading">
               {selected ? (
                 <IconButton
                   color="ghostSecondary"
@@ -140,10 +141,10 @@ export function ProviderConnectionDialog({
           </header>
 
           {!selected ? (
-            <div className="model-center-connection-choices">
+            <div className="settings-management-dialog-card model-center-connection-choices">
               {choices.map(choice => (
                 <button
-                  className="model-center-connection-choice"
+                  className="settings-management-dialog-row model-center-connection-choice"
                   key={choice.id}
                   type="button"
                   onClick={() => setSelectedId(choice.id)}

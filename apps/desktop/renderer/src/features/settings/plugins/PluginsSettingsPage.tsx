@@ -631,17 +631,17 @@ export function PluginsSettingsPage({
 
   return (
     <SettingsContentArea className="plugins-settings-page">
-      <div className="tw:mx-auto tw:flex tw:w-full tw:max-w-[60rem] tw:flex-col tw:px-8 tw:py-16 tw:max-[1023px]:px-5 tw:max-[1023px]:py-10">
-        <header className="tw:mb-8">
-          <h2 className="tw:m-0 tw:text-2xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+      <div className="settings-content-inner plugins-settings-content">
+        <header className="settings-page-header">
+          <h2 className="settings-page-title">
             插件
           </h2>
-          <p className="tw:mt-1 tw:mb-0 tw:text-base tw:text-app-text-soft">
+          <p className="settings-page-desc">
             管理插件、技能和 MCP
           </p>
         </header>
 
-        <div className="tw:mb-7 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-5 tw:max-[1023px]:flex-col tw:max-[1023px]:items-stretch">
+        <div className="settings-management-toolbar plugins-settings-toolbar">
           <SegmentedControl
             ariaLabel="管理扩展"
             value={tab}
@@ -651,7 +651,7 @@ export function PluginsSettingsPage({
             getTabId={value => `plugins-settings-tab-${value}`}
             getPanelId={value => `plugins-settings-panel-${value}`}
           />
-          <div className="tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:max-[1023px]:w-full">
+          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder(tab)}
@@ -708,7 +708,7 @@ export function PluginsSettingsPage({
 
         <section
           aria-labelledby={`plugins-settings-tab-${tab}`}
-          className="tw:min-w-0"
+          className="settings-management-list plugins-settings-list"
           id={`plugins-settings-panel-${tab}`}
           role="tabpanel"
         >
@@ -920,11 +920,11 @@ export function PluginsSettingsPage({
 
 function LoadingRows(): React.ReactNode {
   return (
-    <div aria-label="正在加载" className="tw:grid tw:gap-1" role="status">
+    <div aria-label="正在加载" className="settings-management-loading" role="status">
       {[0, 1, 2, 3].map(index => (
         <div
           aria-hidden="true"
-          className="tw:h-20 tw:animate-pulse tw:rounded-md tw:bg-app-panel tw:motion-reduce:animate-none"
+          className="settings-management-loading-row tw:animate-pulse tw:motion-reduce:animate-none"
           key={index}
         />
       ))}
@@ -934,7 +934,7 @@ function LoadingRows(): React.ReactNode {
 
 function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
-    <div className="tw:grid tw:min-h-48 tw:place-items-center tw:rounded-md tw:border tw:border-dashed tw:border-app-border tw:px-6 tw:text-center tw:text-sm tw:text-app-text-soft">
+    <div className="settings-management-empty">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
         <Package
           aria-hidden="true"

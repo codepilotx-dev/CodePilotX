@@ -295,11 +295,11 @@ export function ProviderEditorDialog({
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           aria-labelledby={titleId}
-          className="ui-dialog-surface ui-dialog-surface--centered provider-editor-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog provider-editor-dialog"
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <header className="provider-editor-header">
-            <div className="provider-editor-heading">
+          <header className="settings-management-dialog-header provider-editor-header">
+            <div className="settings-management-dialog-heading provider-editor-heading">
               <div className="provider-editor-icon">
                 <Server
                   aria-hidden
@@ -333,7 +333,7 @@ export function ProviderEditorDialog({
             />
           </div>
 
-          <div className="provider-editor-body">
+          <div className="settings-management-dialog-body provider-editor-body">
             {activeTab === 'basic' ? (
               <div className="provider-editor-tab-panel">
                 {!editing ? (
@@ -362,8 +362,8 @@ export function ProviderEditorDialog({
                   </section>
                 ) : null}
 
-                <div className="provider-editor-grid">
-                  <label className="provider-editor-field provider-editor-field--mono">
+                <div className="settings-management-dialog-card provider-editor-basic-card">
+                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
                     <span>
                       Provider ID
                       {editing ? <small>（不可修改）</small> : null}
@@ -375,7 +375,7 @@ export function ProviderEditorDialog({
                       onChange={event => setId(event.target.value)}
                     />
                   </label>
-                  <label className="provider-editor-field">
+                  <label className="settings-management-dialog-row provider-editor-field">
                     <span>显示名称</span>
                     <Input
                       placeholder="如：Ollama 本地服务"
@@ -383,20 +383,16 @@ export function ProviderEditorDialog({
                       onChange={event => setName(event.target.value)}
                     />
                   </label>
-                </div>
-
-                <label className="provider-editor-field provider-editor-field--mono">
-                  <span>Base URL</span>
-                  <Input
-                    placeholder="https://example.com/v1"
-                    value={baseUrl}
-                    onChange={event => setBaseUrl(event.target.value)}
-                  />
-                  <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
-                </label>
-
-                <div className="provider-editor-grid">
-                  <label className="provider-editor-field">
+                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                    <span>Base URL</span>
+                    <Input
+                      placeholder="https://example.com/v1"
+                      value={baseUrl}
+                      onChange={event => setBaseUrl(event.target.value)}
+                    />
+                    <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
+                  </label>
+                  <label className="settings-management-dialog-row provider-editor-field">
                     <span>认证方式</span>
                     <SettingsDropdown
                       ariaLabel="认证方式"
@@ -409,7 +405,7 @@ export function ProviderEditorDialog({
                       onChange={value => setAuth(value as 'api-key' | 'none')}
                     />
                   </label>
-                  <label className="provider-editor-field provider-editor-field--mono">
+                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
                     <span>凭据环境变量（逗号分隔）</span>
                     <Input
                       placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
@@ -508,28 +504,29 @@ export function ProviderEditorDialog({
 
             {activeTab === 'advanced' ? (
               <div className="provider-editor-tab-panel">
-                <div className="provider-editor-switch-card">
-                  <div className="provider-editor-switch-info">
-                    <strong>启用此 Provider</strong>
-                    <span>在模型选择菜单与 Agent 会话中允许调用此 Provider</span>
+                <div className="settings-management-dialog-card">
+                  <div className="settings-management-dialog-row provider-editor-switch-card">
+                    <div className="provider-editor-switch-info">
+                      <strong>启用此 Provider</strong>
+                      <span>在模型选择菜单与 Agent 会话中允许调用此 Provider</span>
+                    </div>
+                    <ToggleSwitch
+                      ariaLabel="启用 Provider"
+                      checked={enabled}
+                      onChange={setEnabled}
+                    />
                   </div>
-                  <ToggleSwitch
-                    ariaLabel="启用 Provider"
-                    checked={enabled}
-                    onChange={setEnabled}
-                  />
-                </div>
-
-                <div className="provider-editor-switch-card">
-                  <div className="provider-editor-switch-info">
-                    <strong>允许非 loopback 明文 HTTP</strong>
-                    <span>允许连接局域网或远程非 localhost 的 http:// 端点</span>
+                  <div className="settings-management-dialog-row provider-editor-switch-card">
+                    <div className="provider-editor-switch-info">
+                      <strong>允许非 loopback 明文 HTTP</strong>
+                      <span>允许连接局域网或远程非 localhost 的 http:// 端点</span>
+                    </div>
+                    <ToggleSwitch
+                      ariaLabel="允许非 loopback HTTP"
+                      checked={allowInsecureHttp}
+                      onChange={setAllowInsecureHttp}
+                    />
                   </div>
-                  <ToggleSwitch
-                    ariaLabel="允许非 loopback HTTP"
-                    checked={allowInsecureHttp}
-                    onChange={setAllowInsecureHttp}
-                  />
                 </div>
 
                 {isRemoteHttp && !allowInsecureHttp ? (
@@ -542,7 +539,7 @@ export function ProviderEditorDialog({
                   </div>
                 ) : null}
 
-                <label className="provider-editor-field">
+                <label className="settings-management-dialog-card settings-management-dialog-row provider-editor-field">
                   <span>
                     全局非敏感 Headers
                     <small>每行 name: value</small>
@@ -560,7 +557,7 @@ export function ProviderEditorDialog({
             ) : null}
           </div>
 
-          <footer className="provider-editor-footer">
+          <footer className="settings-management-dialog-footer provider-editor-footer">
             <div className="provider-editor-footer-status">
               {error ? (
                 <p className="provider-editor-error-text" role="status" title={error}>

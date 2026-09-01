@@ -83,7 +83,8 @@ export function SkillDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:p-0 tw:text-app-text"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text"
+            data-dialog-size="detail"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -94,7 +95,7 @@ export function SkillDetailsDialog({
               closeRef.current?.focus()
             }}
           >
-            <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
+            <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
               <span
                 aria-hidden="true"
                 className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
@@ -112,7 +113,7 @@ export function SkillDetailsDialog({
                   />
                 )}
               </span>
-              <span className="tw:min-w-0 tw:flex-1">
+              <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
                 <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
                   {skill.name}
                 </Dialog.Title>
@@ -131,7 +132,7 @@ export function SkillDetailsDialog({
               </Dialog.Close>
             </header>
 
-            <div className="tw:min-h-0 tw:flex-1 tw:overflow-auto tw:px-5 tw:py-4">
+            <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-auto">
               <dl className="tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2 tw:text-sm">
                 <dt className="tw:text-app-text-soft">来源</dt>
                 <dd className="tw:m-0">{skillScopeLabel(skill.scope)}</dd>
@@ -156,7 +157,7 @@ export function SkillDetailsDialog({
               )}
             </div>
 
-            <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
+            <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
               {!builtin ? (
                 <Button color="secondary" onClick={() => onOpenSkill(skill)}>
                   <FolderOpen

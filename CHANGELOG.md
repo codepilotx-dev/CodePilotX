@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 将供应商、插件、技能、MCP 及相关编辑弹窗统一到设置页的内容基线、连续卡片行与任务导向表单布局。
 - [desktop/renderer] 参考 Oreo Side Bar 规范统一设置导航、页面标题、章节、卡片、行内容与控件列的横向基线，使所有设置页保持严格对齐。
 - [desktop/renderer] 阶段六将设置卡片与模型管理页收敛到 Oreo 式紧凑平面层级，复用共享页面边距并移除重复和失效样式。
 - [desktop/renderer] 阶段五将菜单、Tooltip 与对话框收敛为 Oreo 式不透明浮层，统一 Dialog 表面所有权并移除重复和失效样式。

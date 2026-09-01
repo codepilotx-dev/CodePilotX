@@ -58,7 +58,7 @@ export function ProviderCatalog({
 }: ProviderCatalogProps): React.ReactNode {
   return (
     <section className="model-center-catalog" aria-label="供应商目录">
-      <div className="model-center-catalog-toolbar">
+      <div className="model-center-catalog-toolbar settings-management-toolbar">
         <SearchInput
           aria-label="搜索 Provider"
           className="model-center-catalog-search"
@@ -95,23 +95,23 @@ export function ProviderCatalog({
           <span>尝试调整搜索关键词或筛选条件。</span>
         </div>
       ) : (
-        <div className="model-center-catalog-list">
+        <div className="model-center-catalog-list settings-management-list">
           {providers.map((provider) => {
             const hasKeys = (provider.keyCount ?? 0) > 0;
             return (
               <article
-                className="provider-card"
+                className="provider-card settings-management-row"
                 data-current={provider.current || undefined}
                 data-unavailable={provider.connectionDisabled || undefined}
                 key={provider.id}
               >
                 <button
                   aria-current={provider.current ? "page" : undefined}
-                  className="provider-card-main"
+                  className="provider-card-main settings-management-row-main"
                   type="button"
                   onClick={() => onSelect(provider.id)}
                 >
-                  <span className="provider-card-logo">
+                  <span className="provider-card-logo settings-management-row-icon">
                     {provider.logoURL ? (
                       <RemoteImage
                         alt=""
@@ -132,14 +132,14 @@ export function ProviderCatalog({
                       />
                     )}
                   </span>
-                  <span className="provider-card-copy">
+                  <span className="provider-card-copy settings-management-row-copy">
                     <span className="provider-card-heading">
-                      <strong title={provider.name}>{provider.name}</strong>
+                      <strong className="settings-management-row-title" title={provider.name}>{provider.name}</strong>
                       {provider.current ? (
                         <span className="provider-card-current">当前</span>
                       ) : null}
                     </span>
-                    <span className="provider-card-meta">
+                    <span className="provider-card-meta settings-management-row-description">
                       <span>{provider.modelCount} 个模型</span>
                       {hasKeys ? (
                         <span className="provider-card-badge" data-tone="info">
@@ -177,25 +177,27 @@ export function ProviderCatalog({
                     </span>
                   ) : null}
                 </button>
-                <Button
-                  color="secondary"
-                  className="provider-card-connection-action"
-                  disabled={provider.connectionDisabled}
-                  onClick={() =>
-                    provider.canAddConnection
-                      ? onAddConnection(provider.id)
-                      : onManageConnection(provider.id)
-                  }
-                >
-                  <Link2
-                    aria-hidden
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                  {provider.connectionDisabled
-                    ? "不可用"
-                    : provider.canAddConnection ? "连接" : "查看"}
-                </Button>
+                <span className="settings-management-row-actions">
+                  <Button
+                    color="secondary"
+                    className="provider-card-connection-action"
+                    disabled={provider.connectionDisabled}
+                    onClick={() =>
+                      provider.canAddConnection
+                        ? onAddConnection(provider.id)
+                        : onManageConnection(provider.id)
+                    }
+                  >
+                    <Link2
+                      aria-hidden
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                    {provider.connectionDisabled
+                      ? "不可用"
+                      : provider.canAddConnection ? "连接" : "查看"}
+                  </Button>
+                </span>
               </article>
             );
           })}
