@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 重新建立全组件 Typography 内容层级，区分展示、结构、控件、连续阅读、元信息与代码文本，优先使用 Windows Segoe UI Variable 系统字体，并保留界面与代码字号设置。
 - [desktop/renderer] 统一 Browser、Terminal 与文件预览面板的工具栏和内容 inset，为浏览器加载错误补充可恢复说明，并收敛窄面板操作布局。
 - [desktop/renderer] 收敛 Review 工具栏、文件树、文件标题与 Diff 内容列线，确保窄面板和文件树折叠状态保持稳定对齐。
 - [desktop/renderer] 将拉取请求空态接入一级页面框架，统一首次模型设置与路由状态页布局，并将自绘设置标题栏对齐到 Windows 36px 契约。

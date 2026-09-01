@@ -169,8 +169,7 @@
 
   strong {
     overflow: hidden;
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -178,7 +177,7 @@
   span {
     overflow: hidden;
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
+    font: var(--cpx-sys-type-body-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -186,7 +185,7 @@
 
 .environment-project-meta {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   white-space: nowrap;
 }
 
@@ -203,7 +202,7 @@
 
   > span {
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
+    font: var(--cpx-sys-type-control);
   }
 
   input,
@@ -313,7 +312,7 @@
 
 .environment-source-status {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 
   &:not([data-status="available"]) {
@@ -367,8 +366,12 @@
   margin: 0;
   padding: var(--cpx-sys-space-6) var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   text-align: center;
+}
+
+.local-environment-code {
+  font: var(--cpx-sys-type-code);
 }
 
 @media (max-width: 720px) {

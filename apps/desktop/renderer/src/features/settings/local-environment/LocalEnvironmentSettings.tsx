@@ -96,7 +96,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:p-3">
           <div>
             <strong>Setup</strong>
-            <p className="tw:m-0 tw:text-xs tw:text-app-text-soft">
+            <p className="u-type-caption tw:m-0 tw:text-app-text-soft">
               创建托管工作树时在新工作树目录下运行。
             </p>
           </div>
@@ -106,7 +106,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <CommandRows label="Cleanup" value={cleanup} onChange={setCleanup} />
         <div className="tw:grid tw:gap-2 tw:p-3">
           <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-            <div><strong>Actions</strong><p className="tw:text-xs tw:text-app-text-soft">每个 Action 可提供默认命令和三平台覆盖。</p></div>
+            <div><strong>Actions</strong><p className="u-type-caption tw:text-app-text-soft">每个 Action 可提供默认命令和三平台覆盖。</p></div>
             <Button color="primary" disabled={saving} onClick={() => setActions(current => [...current, { ...EMPTY_ENVIRONMENT_ACTION }])}>添加 Action</Button>
           </div>
           {actions.map((action, index) => (
@@ -114,7 +114,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
               <div className="tw:grid tw:grid-cols-2 tw:gap-2">
                 {(['name', 'icon', 'command', 'windows', 'macos', 'linux'] as const).map(field => (
                   <label className={field === 'command' ? 'tw:col-span-2 tw:grid tw:gap-1' : 'tw:grid tw:gap-1'} key={field}>
-                    <span className="tw:text-xs tw:text-app-text-soft">{actionFieldLabel[field]}</span>
+                    <span className="u-type-caption tw:text-app-text-soft">{actionFieldLabel[field]}</span>
                     <input
                       className="confirmation-dialog-input"
                       value={action[field]}
@@ -154,8 +154,8 @@ function SetupVariablesPopover(): React.ReactNode {
       width={320}
     >
       <div>
-        <strong className="tw:text-sm">设置脚本环境变量</strong>
-        <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-app-text-soft">
+        <strong className="u-type-control">设置脚本环境变量</strong>
+        <p className="u-type-caption tw:m-0 tw:mt-1 tw:text-app-text-soft">
           创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
         </p>
       </div>
@@ -175,8 +175,8 @@ function EnvironmentVariable({
 }): React.ReactNode {
   return (
     <div className="tw:grid tw:gap-1">
-      <span className="tw:text-xs tw:text-app-text-soft">{description}</span>
-      <code className="tw:rounded-xs tw:bg-app-canvas tw:px-2 tw:py-1 tw:font-mono tw:text-xs">
+      <span className="u-type-caption tw:text-app-text-soft">{description}</span>
+      <code className="local-environment-code tw:rounded-xs tw:bg-app-canvas tw:px-2 tw:py-1">
         {name}
       </code>
     </div>
@@ -189,7 +189,7 @@ function CommandRows({ label, value, onChange }: { label: string; value: Platfor
       <SettingsRow
         key={`${label}-${field}`}
         title={`${label} ${field}`}
-        control={<textarea className="confirmation-dialog-input tw:min-h-20 tw:min-w-96 tw:font-mono" value={value[field] ?? ''} onChange={event => onChange({ ...value, [field]: event.target.value })} />}
+        control={<textarea className="confirmation-dialog-input local-environment-code tw:min-h-20 tw:min-w-96" value={value[field] ?? ''} onChange={event => onChange({ ...value, [field]: event.target.value })} />}
       />
     ))}
   </>

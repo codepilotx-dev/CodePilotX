@@ -334,7 +334,7 @@ export function SidebarHeader({
               className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:rounded-xl tw:border tw:border-border tw:p-3.5 tw:outline-none"
             >
               <div className="tw:flex tw:flex-col tw:gap-2.5">
-                <p className="tw:text-xs tw:text-foreground">
+                <p className="u-type-caption tw:text-foreground">
                   新的活动视图——集中查看进行中、待处理和未读会话。
                 </p>
                 <div className="tw:flex tw:justify-end">

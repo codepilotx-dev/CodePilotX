@@ -601,36 +601,36 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     })
 
     expect(metrics.bodyFontSize).toBe('14px')
-    expect(metrics.bodyFontWeight).toBe('445')
-    expect(metrics.bodyLineHeight).toBe('20px')
-    expect(metrics.bodyLineHeightRatio).toBeCloseTo(20 / 14, 2)
-    expect(metrics.paragraphMarginRatio).toBeCloseTo(10 / 14, 2)
+    expect(metrics.bodyFontWeight).toBe('400')
+    expect(metrics.bodyLineHeight).toBe('24px')
+    expect(metrics.bodyLineHeightRatio).toBeCloseTo(24 / 14, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(14 / 14, 2)
     expect(metrics.h1FontSize).toBe('24px')
     expect(metrics.h1LineHeight).toBe('30px')
-    expect(metrics.h1FontWeight).toBe('500')
+    expect(metrics.h1FontWeight).toBe('600')
     expect(metrics.h1FontSizeRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.h1BorderBottomWidth).toBe('0px')
     expect(metrics.h1PaddingBottom).toBe(0)
-    expect(metrics.h2FontSize).toBe('18px')
-    expect(metrics.h2LineHeight).toBe('24px')
-    expect(metrics.h2FontWeight).toBe('500')
-    expect(metrics.h2FontSizeRatio).toBeCloseTo(18 / 14, 2)
-    expect(metrics.h2MarginTopRatio).toBeCloseTo(20 / 16, 2)
-    expect(metrics.h2MarginBottomRatio).toBeCloseTo(8 / 16, 2)
+    expect(metrics.h2FontSize).toBe('20px')
+    expect(metrics.h2LineHeight).toBe('28px')
+    expect(metrics.h2FontWeight).toBe('600')
+    expect(metrics.h2FontSizeRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.h2MarginTopRatio).toBeCloseTo(26 / 16, 2)
+    expect(metrics.h2MarginBottomRatio).toBeCloseTo(10 / 16, 2)
     expect(metrics.h3FontSize).toBe('16px')
     expect(metrics.h3LineHeight).toBe('22px')
-    expect(metrics.h3FontWeight).toBe('500')
+    expect(metrics.h3FontWeight).toBe('600')
     expect(metrics.h3FontSizeRatio).toBeCloseTo(16 / 14, 2)
     expect(metrics.strongFontWeight).toBe('600')
     expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
     expect(metrics.listItemMarginTop).toBe(0)
     expect(metrics.listItemMarginBottom).toBe(0)
-    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
-    expect(metrics.listNestedItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(10 / 14, 2)
+    expect(metrics.listNestedItemSiblingMarginTopRatio).toBeCloseTo(10 / 14, 2)
     expect(metrics.listDirectParagraphMarginTop).toBe(0)
     expect(metrics.listDirectParagraphMarginBottom).toBe(0)
-    expect(metrics.listSecondParagraphMarginTopRatio).toBeCloseTo(11 / 14, 2)
-    expect(metrics.listNestedMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listSecondParagraphMarginTopRatio).toBeCloseTo(12 / 14, 2)
+    expect(metrics.listNestedMarginTopRatio).toBeCloseTo(10 / 14, 2)
     expect(metrics.listNestedMarginBottom).toBe(0)
     expect(metrics.quoteBorderWidth).toBe('2px')
     expect(metrics.quoteBorderRadius).toBe('12px')
@@ -650,7 +650,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.codeBlockMarginTop).toBe(14)
     expect(metrics.codeBlockMarginBottom).toBe(18)
     expect(metrics.codeBlockBorderRadius).toBe('12px')
-    expect(metrics.codePreLineHeightRatio).toBeCloseTo(1.55, 2)
+    expect(metrics.codePreLineHeightRatio).toBeCloseTo(20 / 13, 2)
     expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
     expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
@@ -667,7 +667,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableFontSizeRatio).toBeCloseTo(1, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
     expect(metrics.tableHeadingFontWeight).toBe('500')
-    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(8)
     expect(metrics.tableHeadingPaddingRight).toBe(24)
     expect(metrics.tableHeadingPaddingBottom).toBe(8)
@@ -676,7 +676,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableHeadingVerticalAlign).toBe('top')
     expect(metrics.tableLastHeadingPaddingRight).toBe(40)
     expect(metrics.tableLayout).toBe('auto')
-    expect(metrics.tableLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.tableLineHeightRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.tablePaddingTop).toBe(10)
     expect(metrics.tablePaddingRight).toBe(24)
     expect(metrics.tablePaddingBottom).toBe(10)
@@ -3458,7 +3458,7 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   ).toBeVisible()
 
   await expect(page.locator('body')).toHaveCSS('font-size', '14px')
-  await expect(page.locator('body')).toHaveCSS('font-weight', '445')
+  await expect(page.locator('body')).toHaveCSS('font-weight', '400')
   await expect(page.locator('body')).toHaveCSS('line-height', '20px')
 
   const sidebarTypography = await page.evaluate(() => {
@@ -3487,15 +3487,15 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   })
   expect(sidebarTypography).toEqual({
     ordinary: {
-      fontSize: '14px',
-      fontWeight: '445',
-      lineHeight: '20px',
+      fontSize: '13px',
+      fontWeight: '500',
+      lineHeight: '18px',
     },
     projectFontWeight: '500',
     selected: {
-      fontSize: '14px',
-      fontWeight: '445',
-      lineHeight: '20px',
+      fontSize: '13px',
+      fontWeight: '500',
+      lineHeight: '18px',
     },
   })
 
@@ -3533,12 +3533,12 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   })
   expect(menuTypography).toEqual({
     hintFontSize: '12px',
-    hintFontWeight: '445',
+    hintFontWeight: '400',
     hintLineHeight: '16px',
-    itemFontSize: '14px',
-    itemFontWeight: '445',
+    itemFontSize: '13px',
+    itemFontWeight: '500',
     itemHeight: 32,
-    itemLineHeight: '20px',
+    itemLineHeight: '18px',
   })
 
   const fontIndependentTypography = await modelItem.evaluate((item) => {
@@ -5000,9 +5000,9 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
       return {
         page: probe('settings-page-title'),
         section: probe('settings-section-title'),
-        title: probe('settings-row-title'),
-        description: probe('settings-row-desc'),
-        meta: probe('settings-row-status'),
+        title: probe('settings-management-row-title'),
+        description: probe('settings-management-row-description'),
+        meta: probe('settings-management-row-meta'),
         navigation: probe('settings-nav-item'),
         selectedNavigation: probe('settings-nav-item active'),
       }
@@ -5012,11 +5012,11 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
       expect(part.clipped).toBe(false)
     }
     const delta = uiFontSize - 14
-    expect(settingsRows.page).toMatchObject({ fontSize: 24 + delta, fontWeight: '500' })
-    expect(settingsRows.section).toMatchObject({ fontSize: 16 + delta, fontWeight: '500' })
-    expect(settingsRows.title).toMatchObject({ fontSize: 14 + delta, fontWeight: '445' })
-    expect(settingsRows.description).toMatchObject({ fontSize: 13 + delta, fontWeight: '445' })
-    expect(settingsRows.meta).toMatchObject({ fontSize: 12 + delta, fontWeight: '445' })
+    expect(settingsRows.page).toMatchObject({ fontSize: 24 + delta, fontWeight: '600' })
+    expect(settingsRows.section).toMatchObject({ fontSize: 16 + delta, fontWeight: '600' })
+    expect(settingsRows.title).toMatchObject({ fontSize: 14 + delta, fontWeight: '500' })
+    expect(settingsRows.description).toMatchObject({ fontSize: 13 + delta, fontWeight: '400' })
+    expect(settingsRows.meta).toMatchObject({ fontSize: 12 + delta, fontWeight: '400' })
     expect(settingsRows.selectedNavigation.fontWeight).toBe(
       settingsRows.navigation.fontWeight,
     )

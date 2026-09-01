@@ -105,7 +105,7 @@ export function SetupRecoveryState({
       data-startup-surface-ready="true"
     >
       <div className="tw:max-w-md">
-        <h1 className="tw:m-0 tw:text-xl tw:font-medium tw:text-app-text">本地 Agent 暂时不可用</h1>
+        <h1 className="u-type-title-md tw:m-0 tw:text-app-text">本地 Agent 暂时不可用</h1>
         <p className="tw:mt-2 tw:mb-0 tw:text-app-text-soft">{message || '无法读取供应商配置。请确认 Agent 已启动，然后重试。'}</p>
       </div>
       <Button color="secondary" onClick={onRetry}>重试</Button>

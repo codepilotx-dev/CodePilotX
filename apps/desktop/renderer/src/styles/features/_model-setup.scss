@@ -30,8 +30,7 @@
 .model-setup-brand {
   padding-inline-start: var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-control);
   letter-spacing: 0.01em;
 }
 
@@ -60,10 +59,8 @@
 .model-setup-state h1 {
   margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-3xl);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-heading-xl);
   letter-spacing: -0.025em;
-  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .model-setup-heading p,
@@ -76,8 +73,7 @@
 
 .model-setup-heading .model-setup-eyebrow {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

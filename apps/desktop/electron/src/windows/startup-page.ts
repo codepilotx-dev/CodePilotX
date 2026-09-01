@@ -119,7 +119,7 @@ export function renderStartupPage({
         overflow: hidden;
         background: var(--startup-background);
         color: var(--startup-foreground);
-        font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+        font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", sans-serif;
       }
 
       button {

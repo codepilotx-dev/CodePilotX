@@ -734,6 +734,10 @@
   padding: var(--cpx-sys-layout-card-gap);
 }
 
+.right-dock-skill-content {
+  font: var(--cpx-sys-type-code);
+}
+
 .right-dock-search,
 .workspace-file-tree--standalone .right-dock-search {
   border-color: var(--cpx-sys-color-border-subtle);

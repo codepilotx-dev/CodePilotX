@@ -32,12 +32,11 @@ const themeExtensionCache = new Map<string, Promise<Extension>>()
 
 /**
  * Code editor line box in pixels. The explicit pixel value lets CodeMirror
- * compute cursor, scrolling and syntax-line geometry; the 1.55 ratio matches
- * the shared `--cpx-sys-line-height-code` typography token so editor and rendered
- * Markdown keep the same density.
+ * compute cursor, scrolling and syntax-line geometry; the seven-pixel leading
+ * matches the shared `--cpx-sys-line-height-code` token.
  */
 export function codeEditorLineHeight(fontSize: number): number {
-  return Math.round(fontSize * 1.55)
+  return fontSize + 7
 }
 
 export function loadCodeMirrorTheme(

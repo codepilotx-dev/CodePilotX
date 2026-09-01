@@ -330,8 +330,7 @@
 
 .github-login-panel h3 {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .github-login-panel p {
@@ -414,8 +413,7 @@
     min-width: 0;
     overflow: hidden;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

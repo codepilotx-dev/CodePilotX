@@ -1295,7 +1295,7 @@ function SidebarSection({
   return (
     <section className="sidebar-section tw:grid">
       <div
-        className="sidebar-section-header tw:rounded-lg tw:px-2 tw:py-1.25 tw:text-base"
+        className="sidebar-section-header tw:rounded-lg tw:px-2 tw:py-1.25"
       >
         <h2 className="sidebar-section-title">
           <button

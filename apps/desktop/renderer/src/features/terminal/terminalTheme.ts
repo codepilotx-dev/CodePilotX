@@ -3,6 +3,7 @@ import type { ITheme } from '@xterm/xterm'
 export type TerminalFont = {
   fontFamily: string
   fontSize: number
+  lineHeight: number
 }
 
 const DEFAULT_TERMINAL_FONT_SIZE = 13
@@ -41,9 +42,11 @@ export function readTerminalTheme(element: Element): ITheme {
 
 export function readTerminalFont(element: Element): TerminalFont {
   const styles = getComputedStyle(element)
+  const fontSize = parseTerminalFontSize(cssColor(styles, '--cpx-sys-font-size-code'))
   return {
     fontFamily: cssColor(styles, '--cpx-sys-font-family-mono'),
-    fontSize: parseTerminalFontSize(cssColor(styles, '--cpx-sys-font-size-code')),
+    fontSize,
+    lineHeight: (fontSize + 7) / fontSize,
   }
 }
 

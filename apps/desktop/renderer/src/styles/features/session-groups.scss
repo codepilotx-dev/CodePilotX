@@ -86,8 +86,7 @@
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
   }
 
   small {
@@ -303,8 +302,7 @@
   gap: var(--cpx-sys-space-2);
 
   strong {
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
   }
 }
@@ -365,8 +363,7 @@
 }
 
 .session-group-member-card__title {
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -475,8 +472,7 @@
 }
 
 .session-group-step__title {
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-primary);
 }
 

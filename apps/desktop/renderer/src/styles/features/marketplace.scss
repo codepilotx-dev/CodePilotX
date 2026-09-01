@@ -136,6 +136,10 @@
   gap: var(--cpx-sys-space-3);
 }
 
+.plugin-details-code {
+  font: var(--cpx-sys-type-code);
+}
+
 .plugins-catalog-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -240,8 +244,7 @@
 .skill-catalog-card__copy strong {
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -640,8 +643,7 @@
 
 .catalog-plugin-skill__copy h3 {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .catalog-plugin-skill__copy p {

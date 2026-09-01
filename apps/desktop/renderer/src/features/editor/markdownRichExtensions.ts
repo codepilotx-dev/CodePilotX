@@ -977,7 +977,7 @@ export const markdownRichThemeSpec = {
     backgroundColor: 'var(--cpx-sys-color-surface-canvas)',
   },
   '&.cm-markdown-rich .cm-content': {
-    font: 'var(--cpx-sys-type-body)',
+    font: 'var(--cpx-sys-type-reading)',
     padding: '24px',
   },
   '&.cm-markdown-rich .cm-md-rich-heading': {
@@ -988,15 +988,14 @@ export const markdownRichThemeSpec = {
     font: 'var(--cpx-sys-type-heading-xl)',
   },
   '&.cm-markdown-rich .cm-md-rich-h2': {
-    font: 'var(--cpx-sys-type-heading-md)',
+    font: 'var(--cpx-sys-type-heading-lg)',
   },
   '&.cm-markdown-rich .cm-md-rich-h3': {
     font: 'var(--cpx-sys-type-heading-sm)',
   },
   '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6':
     {
-      font: 'var(--cpx-sys-type-body)',
-      fontWeight: 'var(--cpx-sys-font-weight-medium)',
+      font: 'var(--cpx-sys-type-row-title)',
     },
   '&.cm-markdown-rich .cm-md-rich-emphasis': {
     fontStyle: 'italic',

@@ -61,7 +61,7 @@ describe('fixed Codex UI themes', () => {
       `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`,
     )
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
-    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 445;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 400;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 600;')
     expect(normalizedStylesheet).toContain(
@@ -74,7 +74,7 @@ describe('fixed Codex UI themes', () => {
       '--cpx-sys-line-height-body-lg: calc(var(--cpx-sys-font-size-lg) + 8px);',
     )
     expect(normalizedStylesheet).toContain(
-      '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) * 1.55);',
+      '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) + 7px);',
     )
 
     const tailwind = await Bun.file(

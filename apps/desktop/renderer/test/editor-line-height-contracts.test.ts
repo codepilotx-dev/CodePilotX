@@ -4,17 +4,17 @@ import { codeEditorLineHeight } from '../src/features/editor/codeMirrorTheme.js'
 import { markdownRichThemeSpec } from '../src/features/editor/markdownRichExtensions.js'
 
 describe('editor line-height contracts', () => {
-  test('CodeMirror keeps the shared code density ratio with explicit pixels', () => {
-    expect(codeEditorLineHeight(8)).toBe(12)
+  test('CodeMirror keeps the shared code leading with explicit pixels', () => {
+    expect(codeEditorLineHeight(8)).toBe(15)
     expect(codeEditorLineHeight(13)).toBe(20)
-    expect(codeEditorLineHeight(14)).toBe(22)
-    expect(codeEditorLineHeight(24)).toBe(37)
+    expect(codeEditorLineHeight(14)).toBe(21)
+    expect(codeEditorLineHeight(24)).toBe(31)
   })
 
   test('rich Markdown uses the semantic type tokens for body and headings', () => {
     expect(
       markdownRichThemeSpec['&.cm-markdown-rich .cm-content'].font,
-    ).toBe('var(--cpx-sys-type-body)')
+    ).toBe('var(--cpx-sys-type-reading)')
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h1']).toEqual(
       {
         font: 'var(--cpx-sys-type-heading-xl)',
@@ -22,7 +22,7 @@ describe('editor line-height contracts', () => {
     )
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h2']).toEqual(
       {
-        font: 'var(--cpx-sys-type-heading-md)',
+        font: 'var(--cpx-sys-type-heading-lg)',
       },
     )
     expect(markdownRichThemeSpec['&.cm-markdown-rich .cm-md-rich-h3']).toEqual(
@@ -34,10 +34,7 @@ describe('editor line-height contracts', () => {
       markdownRichThemeSpec[
         '&.cm-markdown-rich .cm-md-rich-h4, &.cm-markdown-rich .cm-md-rich-h5, &.cm-markdown-rich .cm-md-rich-h6'
       ],
-    ).toEqual({
-      font: 'var(--cpx-sys-type-body)',
-      fontWeight: 'var(--cpx-sys-font-weight-medium)',
-    })
+    ).toEqual({ font: 'var(--cpx-sys-type-row-title)' })
   })
 
   test('rich Markdown code blocks keep the shared code line token', () => {

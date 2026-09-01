@@ -56,7 +56,7 @@ export function ConversationForkDialog({
             >
               <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">
                     在新聊天中继续
                   </h2>
                 </Dialog.Title>
@@ -83,7 +83,7 @@ export function ConversationForkDialog({
                     title="使用此工作树"
                     onClick={() => onSelectDestination({ kind: 'same-worktree' })}
                   />
-                  <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
+                  <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
                     两个聊天共享同一工作目录，后续文件修改互相可见。
                   </p>
                   <DestinationButton
@@ -93,11 +93,11 @@ export function ConversationForkDialog({
                     onClick={() => onSelectDestination({ kind: 'new-worktree' })}
                   />
                   {!canUseNewWorktree ? (
-                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
+                    <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
                       当前任务不在 Git 工作区中，无法创建托管工作树。
                     </p>
                   ) : sourceRunning ? (
-                    <p className="tw:m-0 tw:px-3 tw:text-xs tw:text-app-text-soft">
+                    <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
                       当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
                     </p>
                   ) : null}
@@ -150,10 +150,10 @@ function DestinationButton({
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
       <span className="tw:grid tw:min-w-0 tw:gap-1">
-        <strong className="tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+        <strong className="u-type-control tw:text-app-text">
           {title}
         </strong>
-        <span className="tw:text-xs tw:font-normal tw:text-app-text-soft">
+        <span className="u-type-caption tw:text-app-text-soft">
           {description}
         </span>
       </span>
@@ -169,7 +169,7 @@ function ForkProgress({
   const operation = progress?.operation
   return (
     <div className="tw:grid tw:min-h-28 tw:gap-3" aria-live="polite">
-      <div className="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:text-app-text">
+      <div className="tw:flex tw:items-center tw:gap-2 u-type-body-sm tw:text-app-text">
         {operation?.status === 'running' ? (
           <LoaderCircle
             aria-hidden="true"
@@ -193,12 +193,12 @@ function ForkProgress({
         </pre>
       ) : null}
       {operation?.warnings.length ? (
-        <ul className="tw:m-0 tw:grid tw:gap-1 tw:pl-5 tw:text-xs tw:text-app-text-soft">
+        <ul className="tw:m-0 tw:grid tw:gap-1 tw:pl-5 u-type-caption tw:text-app-text-soft">
           {operation.warnings.map(warning => <li key={warning}>{warning}</li>)}
         </ul>
       ) : null}
       {operation?.status === 'failed' ? (
-        <p className="tw:m-0 tw:text-sm tw:text-app-text-soft" role="alert">
+        <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft" role="alert">
           {operation.errorCode ?? '分叉操作失败。'}
         </p>
       ) : null}

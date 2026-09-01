@@ -140,7 +140,7 @@
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .automation-row-title strong,
@@ -445,7 +445,7 @@
 
 .automation-field-label {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-label);
+  font: var(--cpx-sys-type-control);
 }
 
 .automation-field-error {

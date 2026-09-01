@@ -110,7 +110,7 @@
 
   .composer-editor-content {
     min-height: 44px;
-    font: var(--cpx-sys-type-body-lg);
+    font: var(--cpx-sys-type-reading);
   }
 }
 
@@ -373,7 +373,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--cpx-sys-space-1);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .attachment-file-pill__name,
@@ -439,7 +439,7 @@
     border: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
+    font: var(--cpx-sys-type-reading);
     overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;

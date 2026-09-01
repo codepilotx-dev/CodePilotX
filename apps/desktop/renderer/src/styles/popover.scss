@@ -85,7 +85,7 @@
   border-radius: var(--cpx-comp-dropdown-menu-radius);
   corner-shape: var(--cpx-sys-corner-shape);
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   outline: none;
   user-select: none;
   -webkit-user-select: none;
@@ -287,7 +287,7 @@
   backdrop-filter: none;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   outline: none;
   user-select: none;
   -webkit-user-select: none;
@@ -493,7 +493,7 @@
 
 .context-plugin-item {
   gap: var(--cpx-comp-row-gap);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
 }
 
 .context-plugin-icon {
@@ -637,7 +637,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: var(--cpx-sys-font-weight-body);
+  font: var(--cpx-sys-type-control);
   white-space: nowrap;
 }
 
@@ -651,7 +651,7 @@
 
 .popover-item-title {
   color: currentColor;
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

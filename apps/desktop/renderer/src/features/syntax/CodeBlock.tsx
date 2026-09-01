@@ -129,7 +129,7 @@ export function CodeBlock({
         className,
       )}
     >
-      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
+      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 u-type-caption tw:text-app-text-soft">
         {isEditingLang ? (
           <input
             autoFocus

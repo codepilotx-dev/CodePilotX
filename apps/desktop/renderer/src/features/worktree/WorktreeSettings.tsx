@@ -114,7 +114,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
           {worktrees.length ? worktrees.map(worktree => (
             <article className="settings-card tw:grid tw:gap-2 tw:p-3" key={worktree.id}>
               <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <div><strong>{worktree.branchName ?? 'Detached worktree'}</strong><div className="tw:text-xs tw:text-app-text-soft">{worktree.status} · setup {worktree.setupStatus}</div></div>
+                <div><strong>{worktree.branchName ?? 'Detached worktree'}</strong><div className="u-type-caption tw:text-app-text-soft">{worktree.status} · setup {worktree.setupStatus}</div></div>
                 <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
                   {worktree.status === 'ready-with-setup-error' ? <>
                     <Button color="secondary" disabled={busy} onClick={() => void mutate(operationId => client.retryWorktreeSetup(worktree.id, operationId))}>重试 Setup</Button>
@@ -124,7 +124,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                   {worktree.status === 'cleaned'
                     ? <Button color="secondary" disabled={busy} onClick={() => void mutate(operationId => client.restoreWorktree(worktree.id, operationId))}>恢复</Button>
                     : worktree.status === 'restore-conflict'
-                      ? <span className="tw:text-xs tw:text-app-danger">恢复冲突，已保留工作树和快照，请手动处理</span>
+                      ? <span className="u-type-caption tw:text-app-danger">恢复冲突，已保留工作树和快照，请手动处理</span>
                       : <Button color="danger" disabled={busy} onClick={() => void mutate(operationId => client.deleteWorktree(worktree.id, operationId))}>删除</Button>}
                 </div>
               </div>
@@ -134,11 +134,11 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
       </SettingsSection>
       {operation ? <SettingsSection title="操作进度" description={`${operation.kind} · ${operation.step} · ${operation.status}`}>
         {operation.warnings.length ? (
-          <ul className="tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-xs tw:text-app-text-soft" role="status">
+          <ul className="u-type-caption tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft" role="status">
             {operation.warnings.map(warning => <li key={warning}>{warning}</li>)}
           </ul>
         ) : null}
-        <pre className="tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:p-3 tw:text-xs">{output || '等待输出…'}</pre>
+        <pre className="u-type-code tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">{output || '等待输出…'}</pre>
       </SettingsSection> : null}
     </SettingsContentArea>
   )

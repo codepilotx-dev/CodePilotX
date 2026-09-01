@@ -23,7 +23,7 @@
 .settings-back-btn {
   margin-bottom: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
 }
 
 .settings-nav-search {
@@ -57,7 +57,7 @@
 
 .settings-nav-item {
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   white-space: nowrap;
 
   &.active,
@@ -116,7 +116,7 @@
 .settings-search-result-title {
   min-width: 0;
   overflow: hidden;
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-row-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -351,8 +351,7 @@ button.settings-management-row-main {
   margin: 0;
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -361,7 +360,14 @@ button.settings-management-row-main {
 .settings-management-row-meta {
   min-width: 0;
   color: var(--cpx-sys-color-fg-secondary);
+}
+
+.settings-management-row-description {
   font: var(--cpx-sys-type-body-sm);
+}
+
+.settings-management-row-meta {
+  font: var(--cpx-sys-type-caption);
 }
 
 .settings-management-row-description {
@@ -505,8 +511,7 @@ button.settings-management-row-main {
 
 .settings-management-dialog-row-label {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-control);
 }
 
 .settings-management-dialog-row-control {
@@ -561,7 +566,7 @@ button.settings-management-row-main {
   &-title {
     margin: 0;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
+    font: var(--cpx-sys-type-row-title);
   }
 
   &-desc {

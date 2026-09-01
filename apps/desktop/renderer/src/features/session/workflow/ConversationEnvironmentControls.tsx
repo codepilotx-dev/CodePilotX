@@ -359,11 +359,11 @@ export function ConversationEnvironmentControls({
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 tw:text-xl tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">
                     移交当前任务
                   </h2>
                 </Dialog.Title>
-                <Dialog.Description className="tw:m-0 tw:text-sm tw:text-app-text-soft">
+                <Dialog.Description className="tw:m-0 u-type-body-sm tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>
@@ -381,15 +381,15 @@ export function ConversationEnvironmentControls({
             {handoff && busy ? (
               <div className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center" role="status">
                 <span className="ui-button-spinner tw:mx-auto" aria-hidden="true" />
-                <strong className="tw:text-sm tw:text-app-text">{stepLabel[handoff.step]}</strong>
-                <span className="tw:text-xs tw:text-app-text-soft">
+                <strong className="u-type-control tw:text-app-text">{stepLabel[handoff.step]}</strong>
+                <span className="u-type-caption tw:text-app-text-soft">
                   {completedHandoffStepCount(handoff)}/{HANDOFF_PROGRESS_STEPS.length}
                 </span>
               </div>
             ) : (
               <div className="tw:grid tw:gap-2">
                 {!gitAvailable ? (
-                  <p className="tw:m-0 tw:text-sm tw:text-app-text-soft">
+                  <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft">
                     仅 Git 项目可用。
                   </p>
                 ) : null}

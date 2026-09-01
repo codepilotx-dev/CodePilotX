@@ -1303,7 +1303,7 @@ export function ComposerCard({
     >
       {fileDragActive ? (
         <div
-          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:text-sm tw:font-medium"
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised u-type-control"
           role="status"
         >
           松开以添加文件

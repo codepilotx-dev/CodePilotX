@@ -344,7 +344,7 @@
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   cursor: pointer;
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   color: var(--cpx-sys-color-fg-tertiary);
   transition:
     background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
@@ -432,7 +432,7 @@
   column-gap: var(--cpx-sys-space-2);
   background: transparent;
   border: 0;
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
 
   &.is-keyboard-active {
     background: var(--cpx-sys-color-hover);
@@ -463,7 +463,7 @@
 
 .chat-input__dropdown-label {
   min-width: 0;
-  font-weight: var(--cpx-sys-font-weight-body);
+  font-weight: inherit;
 }
 
 .chat-input__dropdown-trailing {

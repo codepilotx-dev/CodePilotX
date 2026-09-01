@@ -55,15 +55,20 @@ describe('non-color design token contracts', () => {
   test('tokens.scss defines the semantic type role tokens', async () => {
     const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
     const roles = [
+      'display',
       'caption',
       'label',
       'body-sm',
       'body',
       'body-lg',
+      'reading',
+      'row-title',
+      'control',
       'heading-sm',
       'heading-md',
       'heading-lg',
       'heading-xl',
+      'metric',
       'code',
     ].map((role) => `--cpx-sys-type-${role}`)
 
@@ -76,6 +81,9 @@ describe('non-color design token contracts', () => {
 
   test('tokens.scss locks the Codex typography sizes, weights, and role-specific line heights', async () => {
     const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    expect(tokens.get('--cpx-sys-font-family-sans')).toBe(
+      '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    )
     const expected: Record<string, string> = {
       '--cpx-sys-font-size-code': '13px',
       '--cpx-sys-font-size-xs': '12px',
@@ -87,7 +95,7 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-font-size-3xl': '24px',
       '--cpx-sys-font-size-4xl': '28px',
       '--cpx-sys-font-weight-regular': '400',
-      '--cpx-sys-font-weight-body': '445',
+      '--cpx-sys-font-weight-body': '400',
       '--cpx-sys-font-weight-medium': '500',
       '--cpx-sys-font-weight-bold': '600',
       '--cpx-sys-line-height-caption': 'calc(var(--cpx-sys-font-size-xs) + 4px)',
@@ -99,7 +107,9 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-line-height-heading-md': 'calc(var(--cpx-sys-font-size-xl) + 6px)',
       '--cpx-sys-line-height-heading-lg': 'calc(var(--cpx-sys-font-size-2xl) + 8px)',
       '--cpx-sys-line-height-heading-xl': 'calc(var(--cpx-sys-font-size-3xl) + 6px)',
-      '--cpx-sys-line-height-code': 'calc(var(--cpx-sys-font-size-code) * 1.55)',
+      '--cpx-sys-line-height-display': 'calc(var(--cpx-sys-font-size-4xl) + 6px)',
+      '--cpx-sys-line-height-reading': 'calc(var(--cpx-sys-font-size-md) + 10px)',
+      '--cpx-sys-line-height-code': 'calc(var(--cpx-sys-font-size-code) + 7px)',
     }
     const mismatched = Object.entries(expected).filter(
       ([name, value]) => tokens.get(name) !== value,
@@ -111,15 +121,20 @@ describe('non-color design token contracts', () => {
     ).toEqual([])
 
     const roles: Record<string, string> = {
+      '--cpx-sys-type-display': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-4xl) / var(--cpx-sys-line-height-display) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-caption': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-caption) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-label': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-label) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-body-sm': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-body': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-body-lg': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-body-lg) var(--cpx-sys-font-family-sans)',
-      '--cpx-sys-type-heading-sm': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans)',
-      '--cpx-sys-type-heading-md': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans)',
-      '--cpx-sys-type-heading-lg': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans)',
-      '--cpx-sys-type-heading-xl': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-reading': 'var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-reading) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-row-title': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-control': 'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-sm': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-md': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-lg': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-heading-xl': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans)',
+      '--cpx-sys-type-metric': 'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-code': 'var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono)',
     }
     expect(
@@ -169,7 +184,7 @@ describe('non-color design token contracts', () => {
     ])
 
     expect(base).toMatch(/body\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-body\);/)
-    for (const role of ['label', 'body-sm', 'body-lg', 'title-xl']) {
+    for (const role of ['display', 'label', 'body-sm', 'body-lg', 'reading', 'row-title', 'control', 'metric', 'code', 'title-xl']) {
       expect(utilities).toContain(`'type-${role}'`)
     }
     expect(utilities).toContain("'font-body': (font-weight: var(--cpx-sys-font-weight-body))")
@@ -187,6 +202,27 @@ describe('non-color design token contracts', () => {
     for (const [tailwindName, tokenName] of Object.entries(mappings)) {
       expect(tailwind).toContain(`--text-${tailwindName}: var(--cpx-sys-font-size-${tokenName});`)
     }
+  })
+
+  test('representative components keep page, section, row, reading, control, metric, and meta responsibilities distinct', async () => {
+    const [settings, session, markdown, button, billing, conversation] = await Promise.all([
+      read('../src/styles/features/_settings-core.scss'),
+      read('../src/styles/features/_session-page.scss'),
+      read('../src/styles/markdown.scss'),
+      read('../src/styles/components/button.scss'),
+      read('../src/styles/features/_settings-billing.scss'),
+      read('../src/styles/features/_canonical-conversation.scss'),
+    ])
+
+    expect(settings).toMatch(/\.settings-page-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-xl\);/s)
+    expect(settings).toMatch(/\.settings-section-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-sm\);/s)
+    expect(settings).toMatch(/\.settings-management-row-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-row-title\);/s)
+    expect(session).toMatch(/\.quick-chat-hero\s*\{[^}]*font:\s*var\(--cpx-sys-type-display\);/s)
+    expect(markdown).toMatch(/\.md-body\s*\{[^}]*font:\s*var\(--cpx-sys-type-reading\);/s)
+    expect(markdown).toMatch(/h2\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-lg\);/s)
+    expect(button).toMatch(/\.ui-button\s*\{[^}]*font:\s*var\(--cpx-sys-type-control\);/s)
+    expect(billing).toMatch(/\.usage-metric-card strong\s*\{[^}]*font:\s*var\(--cpx-sys-type-metric\);[^}]*font-variant-numeric:\s*tabular-nums;/s)
+    expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-caption\);/)
   })
 
   test('tokens.scss defines the corrected 4px spacing scale 1..8 = 4/8/12/16/20/24/28/32px', async () => {
@@ -293,6 +329,7 @@ describe('non-color design token contracts', () => {
       'feature TSX must not use literal',
       'inline style',
       'Tailwind arbitrary',
+      'semantic typography role',
       'component geometry',
       'literal typography',
       'literal radius',
@@ -319,6 +356,7 @@ describe('non-color design token contracts', () => {
         componentGeometryExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
         inlineStyleExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
         tailwindArbitraryExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
+        tailwindTypographyExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
         literalTypographyExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
         literalRadiusExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
         literalMotionExceptions: Array<{ file: string; value?: string; localProperty?: string; reason: string }>
@@ -338,6 +376,7 @@ describe('non-color design token contracts', () => {
       componentGeometryExceptions: manifest.featureTokenContract.componentGeometryExceptions,
       inlineStyleExceptions: manifest.featureTokenContract.inlineStyleExceptions,
       tailwindArbitraryExceptions: manifest.featureTokenContract.tailwindArbitraryExceptions,
+      tailwindTypographyExceptions: manifest.featureTokenContract.tailwindTypographyExceptions,
       literalTypographyExceptions: manifest.featureTokenContract.literalTypographyExceptions,
       literalRadiusExceptions: manifest.featureTokenContract.literalRadiusExceptions,
       literalMotionExceptions: manifest.featureTokenContract.literalMotionExceptions,

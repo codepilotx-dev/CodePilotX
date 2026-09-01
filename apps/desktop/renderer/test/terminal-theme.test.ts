@@ -31,6 +31,7 @@ describe('terminal theme', () => {
       expect(readTerminalFont({} as Element)).toEqual({
         fontFamily: 'JetBrains Mono',
         fontSize: 15,
+        lineHeight: 22 / 15,
       })
     } finally {
       if (originalGetComputedStyle) {

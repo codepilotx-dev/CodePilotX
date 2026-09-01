@@ -65,14 +65,12 @@
 
   .popover-section-title {
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3) var(--cpx-sys-space-2);
-    font-size: var(--cpx-sys-font-size-xs);
-    line-height: var(--cpx-sys-line-height-tight);
+    font: var(--cpx-sys-type-label);
   }
 
   .popover-empty {
     padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-    font-size: var(--cpx-sys-font-size-sm);
-    line-height: var(--cpx-sys-line-height-tight);
+    font: var(--cpx-sys-type-body-sm);
   }
 }
 
@@ -128,12 +126,11 @@
 
   small {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-weight: var(--cpx-sys-font-weight-regular);
+    font: var(--cpx-sys-type-caption);
   }
 }
 
 .assistant-thinking {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body-sm);
 }
