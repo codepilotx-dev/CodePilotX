@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 阶段五将菜单、Tooltip 与对话框收敛为 Oreo 式不透明浮层，统一 Dialog 表面所有权并移除重复和失效样式。
 - [desktop/renderer] 阶段四将会话轮次、用户消息与 Agent 活动详情收敛为 Oreo 式紧凑不透明层级，为用户和助手 Markdown 接入随界面字号联动的阅读行高及紧凑块间距，并移除不再使用的旧文件变更样式。
 - [desktop/renderer] 阶段三将 Coding、Working 与 Chat 新建页的 Prompt 输入面改为 Oreo 式不透明平面表面，并将常驻建议卡和工具条收敛到容器圆角语义。
 - [desktop/renderer] 阶段二按 Oreo Agentic UI 收敛菜单栏与侧栏密度、平面滚动标题和账号头像入口，同时保持 Windows 标题栏、导航与工作区布局契约。

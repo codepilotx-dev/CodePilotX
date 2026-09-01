@@ -7,7 +7,7 @@
   --cpx-comp-dropdown-trigger-open-bg: var(--cpx-sys-color-selected);
   --cpx-comp-dropdown-trigger-disabled-fg: var(--cpx-sys-color-fg-disabled);
   --cpx-comp-dropdown-menu-bg: var(--cpx-sys-color-surface-raised);
-  --cpx-comp-dropdown-menu-backdrop-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-comp-dropdown-menu-backdrop-filter: none;
   --cpx-comp-dropdown-menu-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default);
   --cpx-comp-dropdown-item-hover-bg: var(--cpx-sys-color-hover);
@@ -67,7 +67,7 @@
 
   // 5. Tooltip, ScrollArea & MetaChip Component
   --cpx-comp-tooltip-bg: var(--cpx-sys-color-surface-raised);
-  --cpx-comp-tooltip-backdrop-filter: blur(var(--cpx-sys-blur-sm));
+  --cpx-comp-tooltip-backdrop-filter: none;
   --cpx-comp-tooltip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating);

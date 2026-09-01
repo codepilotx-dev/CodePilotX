@@ -37,15 +37,7 @@
   translate: -50% -50%;
 }
 
-.permission-modal,
-.github-repository-modal,
-.git-workflow-modal,
-.ui-dialog-surface,
-.command-menu-dialog,
-.project-edit-dialog,
-.model-center-key-dialog,
-.plugin-details-dialog,
-.whats-new-dialog {
+.ui-dialog-surface {
   background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
   border: var(--cpx-comp-modal-border, var(--cpx-comp-surface-edge));
   box-shadow: var(--cpx-comp-modal-shadow, var(--cpx-sys-shadow-floating));
@@ -459,29 +451,4 @@
 
 .confirmation-dialog-input {
   font: inherit;
-}
-
-.confirmation-dialog-action {
-  &.primary {
-    background: var(--cpx-comp-button-bg);
-    color: var(--cpx-comp-button-fg);
-
-    &:hover {
-      background: var(--cpx-comp-button-bg);
-    }
-  }
-
-  &.danger {
-    background: color-mix(in srgb, var(--cpx-sys-color-danger) 18%, var(--cpx-sys-color-surface-canvas));
-    color: var(--cpx-sys-color-danger);
-
-    &:hover {
-      background: color-mix(in srgb, var(--cpx-sys-color-danger) 24%, var(--cpx-sys-color-surface-canvas));
-    }
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
 }

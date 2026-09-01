@@ -101,16 +101,7 @@
   .rm-model-menu,
   .thread-summary-popover,
   .tooltip-content,
-  .permission-modal,
-  .github-repository-modal,
-  .git-workflow-modal,
-  .command-menu-dialog,
-  .project-edit-dialog,
-  .model-center-key-dialog,
-  .plugin-details-dialog,
-  .whats-new-dialog,
-  .sidebar-hover-card-surface,
-  .thread-summary-sources-panel
+  .sidebar-hover-card-surface
 ) {
   border: var(--cpx-comp-surface-edge);
   background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
@@ -128,16 +119,7 @@
     .rm-model-menu,
     .thread-summary-popover,
     .tooltip-content,
-    .permission-modal,
-    .github-repository-modal,
-    .git-workflow-modal,
-    .command-menu-dialog,
-    .project-edit-dialog,
-    .model-center-key-dialog,
-    .plugin-details-dialog,
-    .whats-new-dialog,
-    .sidebar-hover-card-surface,
-    .thread-summary-sources-panel
+    .sidebar-hover-card-surface
   ) {
     backdrop-filter: none;
     background: var(--cpx-comp-surface-floating);
