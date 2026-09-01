@@ -124,7 +124,7 @@
 }
 
 .settings-section + .settings-section {
-  margin-top: calc(var(--cpx-sys-space-1) * 10);
+  margin-top: var(--cpx-sys-space-8);
 }
 
 .settings-section-header {
@@ -166,16 +166,12 @@
   min-width: 0;
 }
 
-.settings-card,
-.settings-section-content[data-surface="card"] {
+.settings-card {
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-sys-color-surface-recessed);
+  border-radius: var(--cpx-sys-radius-container);
+  background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
-  transition:
-    background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
-    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
 .settings-section-footer {
@@ -265,15 +261,11 @@
   }
 }
 
-.settings-card > .settings-row,
-.settings-section-content[data-surface="card"] > .settings-row {
+.settings-card > .settings-row {
   padding-inline: var(--cpx-sys-space-4);
 }
 
-.settings-card > .settings-row + .settings-row::before,
-.settings-section-content[data-surface="card"]
-  > .settings-row
-  + .settings-row::before {
+.settings-card > .settings-row + .settings-row::before {
   right: 16px;
   left: 16px;
   background: var(--cpx-sys-color-border-subtle);
@@ -284,21 +276,7 @@
   border-top: 1px solid var(--cpx-sys-color-border-default);
 }
 
-.settings-auto-save-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-sys-color-hover);
-  color: var(--cpx-sys-color-fg-tertiary);
-  font: var(--cpx-sys-type-caption);
-  white-space: nowrap;
-}
-
 :root[data-reduce-motion="on"] {
-  .settings-card,
-  .settings-row,
   .settings-radio-card,
   .settings-switch-thumb,
   .appearance-mode-card,

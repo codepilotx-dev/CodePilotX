@@ -16,8 +16,11 @@
   width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   min-width: 0;
   margin: 0 auto;
-  padding: var(--cpx-sys-layout-page-padding-block) var(--cpx-sys-layout-page-padding-inline)
-    var(--cpx-sys-layout-page-padding-bottom);
+  padding: var(--cpx-sys-space-5);
+}
+
+.model-center-shell > .settings-page-header {
+  margin-bottom: var(--cpx-sys-space-3);
 }
 
 .model-center-heading {

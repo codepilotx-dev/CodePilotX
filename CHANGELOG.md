@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 阶段六将设置卡片与模型管理页收敛到 Oreo 式紧凑平面层级，复用共享页面边距并移除重复和失效样式。
 - [desktop/renderer] 阶段五将菜单、Tooltip 与对话框收敛为 Oreo 式不透明浮层，统一 Dialog 表面所有权并移除重复和失效样式。
 - [desktop/renderer] 阶段四将会话轮次、用户消息与 Agent 活动详情收敛为 Oreo 式紧凑不透明层级，为用户和助手 Markdown 接入随界面字号联动的阅读行高及紧凑块间距，并移除不再使用的旧文件变更样式。
 - [desktop/renderer] 阶段三将 Coding、Working 与 Chat 新建页的 Prompt 输入面改为 Oreo 式不透明平面表面，并将常驻建议卡和工具条收敛到容器圆角语义。
@@ -169,6 +170,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复侧栏账号仅在打开弹层后才恢复 GitHub 登录状态的问题，使桌面启动时自动显示账号头像，并为未登录状态提供设置与登录入口。
 - [desktop] 修复展开状态向时间线、侧栏和表单父级广播导致的高频重渲染，连续展开收缩不再阻塞界面。
 - [desktop/renderer] 修复文件修改摘要卡片在较窄会话区域将审核操作换到第二行的问题，使操作按钮始终保持在标题行右侧。
 - [desktop/renderer] 修复 Composer 思考强度滑块进度层在横向缩放时压扁起始圆角的问题，保留顺滑拖动的同时恢复完整胶囊端帽。
@@ -663,4 +665,3 @@
 - [renderer] React + Vite 渲染器、会话视图与工作台布局
 - [packages] 共享领域契约、provider 插件系统、AI 模型目录与故障转移
 - [ci] PR 与 tag 触发 CI，支持静默安装验证与 smoke 测试
-- [desktop/renderer] 修复侧栏账号仅在打开弹层后才恢复 GitHub 登录状态的问题，使桌面启动时自动显示账号头像，并为未登录状态提供设置与登录入口。
