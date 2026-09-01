@@ -54,6 +54,10 @@ import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import {
+  useDisclosureExpanded,
+  type KeyedDisclosureStore,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "../workspace/CommitPopover.js";
 import { PullRequestPopover } from "../workspace/PullRequestPopover.js";
@@ -262,7 +266,7 @@ export function flattenDiffRows(
 
 export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   attachedComments,
-  collapsedDiffPaths,
+  disclosureStore,
   diffMarkerStyle,
   draft,
   fileLoadStates,
@@ -272,7 +276,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   summaryLoadState,
   scope,
   selectedPath,
-  toggleCollapseDiff,
+  onDiffExpandedChange,
   viewportRef,
   view,
   showWordDiff,
@@ -282,7 +286,6 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onFileSectionMount,
   onRetryFile,
   onResolveComment,
@@ -290,7 +293,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onScroll,
 }: {
   attachedComments: Map<string, DesktopReviewComment[]>;
-  collapsedDiffPaths: Set<string>;
+  disclosureStore: KeyedDisclosureStore;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   fileLoadStates: ReadonlyMap<string, ReviewFileLoadState>;
@@ -300,7 +303,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   summaryLoadState: ReviewLoadState;
   scope: DesktopReviewScope;
   selectedPath: string | null;
-  toggleCollapseDiff: (path: string) => void;
+  onDiffExpandedChange: (path: string, expanded: boolean) => void;
   viewportRef: React.RefObject<HTMLDivElement | null>;
   view: DesktopReviewView;
   showWordDiff: boolean;
@@ -315,12 +318,11 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onFileSectionMount: (path: string, element: HTMLElement | null) => void;
   onRetryFile: (path: string) => void;
   onScroll: (scrollTop: number) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const filePaths = React.useMemo(
     () => files.map((file) => file.path),
@@ -429,7 +431,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
             <ReviewDiffFilePreview
               active={file.path === selectedPath}
               attachedComments={attachedComments}
-              collapsedDiffPaths={collapsedDiffPaths}
+              disclosureStore={disclosureStore}
               diffMarkerStyle={diffMarkerStyle}
               draft={draft}
               file={file}
@@ -449,7 +451,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
               }
               scope={scope}
               sectionRef={setFileSectionElement(file.path)}
-              toggleCollapseDiff={toggleCollapseDiff}
+              onDiffExpandedChange={onDiffExpandedChange}
               onRetryFile={onRetryFile}
               view={view}
               showWordDiff={showWordDiff}
@@ -459,7 +461,6 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -470,7 +471,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   );
 }, (previous, next) =>
   previous.attachedComments === next.attachedComments &&
-  previous.collapsedDiffPaths === next.collapsedDiffPaths &&
+  previous.disclosureStore === next.disclosureStore &&
   previous.diffMarkerStyle === next.diffMarkerStyle &&
   previous.draft === next.draft &&
   previous.fileLoadStates === next.fileLoadStates &&
@@ -495,10 +496,10 @@ export function shouldVirtualizeReviewFile(
   );
 }
 
-export function ReviewDiffFilePreview({
+export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   active,
   attachedComments,
-  collapsedDiffPaths,
+  disclosureStore,
   diffMarkerStyle,
   draft,
   file,
@@ -511,7 +512,7 @@ export function ReviewDiffFilePreview({
   scope,
   sectionRef,
   onRetryFile,
-  toggleCollapseDiff,
+  onDiffExpandedChange,
   view,
   showWordDiff,
   wrapLines,
@@ -520,13 +521,12 @@ export function ReviewDiffFilePreview({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
   active: boolean;
   attachedComments: Map<string, DesktopReviewComment[]>;
-  collapsedDiffPaths: Set<string>;
+  disclosureStore: KeyedDisclosureStore;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
@@ -539,7 +539,7 @@ export function ReviewDiffFilePreview({
   scope: DesktopReviewScope;
   sectionRef: (element: HTMLElement | null) => void;
   onRetryFile: (path: string) => void;
-  toggleCollapseDiff: (path: string) => void;
+  onDiffExpandedChange: (path: string, expanded: boolean) => void;
   view: DesktopReviewView;
   showWordDiff: boolean;
   wrapLines: boolean;
@@ -553,12 +553,12 @@ export function ReviewDiffFilePreview({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const hasContent = file.hunks.some((hunk) => hunk.lines.length > 0);
-  const isCollapsed = collapsedDiffPaths.has(file.path);
+  const isExpanded = useDisclosureExpanded(disclosureStore, file.path);
+  const isCollapsed = !isExpanded;
   const displayPath = splitReviewDisplayPath(file.path);
   const diffBodyId = React.useId();
 
@@ -618,7 +618,6 @@ export function ReviewDiffFilePreview({
           onCancelDraft={onCancelDraft}
           onCreateDraft={onCreateDraft}
           onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
           onResolveComment={onResolveComment}
           onSaveDraft={onSaveDraft}
         />
@@ -668,7 +667,6 @@ export function ReviewDiffFilePreview({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -688,7 +686,6 @@ export function ReviewDiffFilePreview({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -721,7 +718,7 @@ export function ReviewDiffFilePreview({
           aria-expanded={!isCollapsed}
           className="review-file-summary"
           type="button"
-          onClick={() => toggleCollapseDiff(file.path)}
+          onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
         >
           <FileIcon
             associationMode="extension-only"
@@ -759,7 +756,7 @@ export function ReviewDiffFilePreview({
               data-expanded={isCollapsed ? "false" : "true"}
               size="iconMd"
               title={isCollapsed ? "展开文件差异" : "折叠文件差异"}
-              onClick={() => toggleCollapseDiff(file.path)}
+              onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
             >
               <ChevronRight size={REVIEW_FILE_ACTION_ICON_SIZE} />
             </IconButton>
@@ -843,7 +840,7 @@ export function ReviewDiffFilePreview({
       </div>
     </section>
   );
-}
+});
 
 /* ── Virtual-scroll row renderers ──────────────────────────── */
 
@@ -862,7 +859,6 @@ export function ReviewVirtualDiffRows({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -885,9 +881,8 @@ export function ReviewVirtualDiffRows({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const syntax = useReviewDiffSyntax(file);
 
@@ -932,7 +927,6 @@ export function ReviewVirtualDiffRows({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -949,7 +943,6 @@ export function ReviewVirtualDiffRows({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -1023,7 +1016,6 @@ export function VirtualDiffInlineRow({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -1037,9 +1029,8 @@ export function VirtualDiffInlineRow({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const side = line.type === "removed" ? "left" : "right";
   const lineNumber = line.type === "removed" ? line.oldLine : line.newLine;
@@ -1068,7 +1059,6 @@ export function VirtualDiffInlineRow({
         readOnly={readOnly}
         onCancelDraft={onCancelDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       >
@@ -1096,7 +1086,6 @@ export function VirtualDiffSplitRow({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -1110,9 +1099,8 @@ export function VirtualDiffSplitRow({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   return (
     <div
@@ -1147,7 +1135,6 @@ export function VirtualDiffSplitRow({
                 cellTone={cell.tone}
                 onCancelDraft={onCancelDraft}
                 onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
                 onResolveComment={onResolveComment}
                 onSaveDraft={onSaveDraft}
               >

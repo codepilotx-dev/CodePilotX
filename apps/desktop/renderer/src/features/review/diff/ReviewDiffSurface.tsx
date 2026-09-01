@@ -101,9 +101,8 @@ export type ReviewDiffBodyProps = {
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 };
 
 export type ReviewDiffReadOnlySplitProps = {
@@ -165,7 +164,6 @@ export function ReviewDiffReadOnlySplit({
       onCancelDraft={NOOP}
       onCreateDraft={NOOP_DRAFT}
       onDeleteComment={NOOP}
-      onDraftBodyChange={NOOP}
       onResolveComment={NOOP}
       onSaveDraft={NOOP}
     />
@@ -205,7 +203,6 @@ export function ReviewDiffReadOnlyInline({
       onCancelDraft={NOOP}
       onCreateDraft={NOOP_DRAFT}
       onDeleteComment={NOOP}
-      onDraftBodyChange={NOOP}
       onResolveComment={NOOP}
       onSaveDraft={NOOP}
     />
@@ -227,7 +224,6 @@ export function ReviewDiffInline({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
   readOnly = false,
@@ -262,7 +258,6 @@ export function ReviewDiffInline({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -286,7 +281,6 @@ export function ReviewDiffSplit({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: ReviewDiffBodyProps & {
@@ -328,7 +322,6 @@ export function ReviewDiffSplit({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -347,7 +340,6 @@ export function ReviewDiffSplit({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -370,7 +362,6 @@ export function ReviewDiffCodePane({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: Omit<
@@ -486,7 +477,6 @@ export function ReviewDiffCodePane({
               readOnly={readOnly}
               onCancelDraft={onCancelDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             >
@@ -554,7 +544,6 @@ export function ReviewDiffLineContent({
   readOnly = false,
   onCancelDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -566,9 +555,8 @@ export function ReviewDiffLineContent({
   readOnly?: boolean;
   onCancelDraft: () => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   return (
     <div
@@ -584,7 +572,6 @@ export function ReviewDiffLineContent({
           anchor={anchor}
           onCancelDraft={onCancelDraft}
           onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
           onResolveComment={onResolveComment}
           onSaveDraft={onSaveDraft}
         />
@@ -911,7 +898,6 @@ export function LineComments({
   draft,
   onCancelDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -920,9 +906,8 @@ export function LineComments({
   draft: CommentDraft | null;
   onCancelDraft: () => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const draftMatches =
     anchor && draft ? commentKey(anchor) === commentKey(draft) : false;
@@ -938,28 +923,48 @@ export function LineComments({
         />
       ))}
       {draftMatches ? (
-        <div className="review-comment draft">
-          <textarea
-            autoFocus
-            placeholder="写下这行的问题或修改建议"
-            value={draft?.body ?? ""}
-            onChange={(event) => onDraftBodyChange(event.target.value)}
-          />
-          <div className="review-comment-actions">
-            <Button size="compact" type="button" onClick={onCancelDraft}>
-              取消
-            </Button>
-            <Button
-              size="compact"
-              disabled={!draft?.body.trim()}
-              type="button"
-              onClick={onSaveDraft}
-            >
-              保存
-            </Button>
-          </div>
-        </div>
+        <CommentDraftEditor
+          initialBody={draft?.body ?? ""}
+          key={draft ? commentKey(draft) : "draft"}
+          onCancel={onCancelDraft}
+          onSave={onSaveDraft}
+        />
       ) : null}
+    </div>
+  );
+}
+
+function CommentDraftEditor({
+  initialBody,
+  onCancel,
+  onSave,
+}: {
+  initialBody: string;
+  onCancel: () => void;
+  onSave: (body: string) => void;
+}): React.ReactNode {
+  const [body, setBody] = React.useState(initialBody);
+  return (
+    <div className="review-comment draft">
+      <textarea
+        autoFocus
+        placeholder="写下这行的问题或修改建议"
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+      />
+      <div className="review-comment-actions">
+        <Button size="compact" type="button" onClick={onCancel}>
+          取消
+        </Button>
+        <Button
+          size="compact"
+          disabled={!body.trim()}
+          type="button"
+          onClick={() => onSave(body)}
+        >
+          保存
+        </Button>
+      </div>
     </div>
   );
 }

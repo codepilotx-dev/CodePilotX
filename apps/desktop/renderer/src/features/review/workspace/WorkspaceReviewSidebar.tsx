@@ -1,7 +1,6 @@
 import React from "react";
 import { FileIcon } from "@codepilotx/material-icon-theme";
 import { motion } from "motion/react";
-import { VList, type VListHandle } from "virtua";
 import {
   Briefcase,
   CheckCircle2,
@@ -62,22 +61,24 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import {
+  createKeyedDisclosureStore,
+  type KeyedDisclosureStore,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { useLiveResizeValue } from "../../layout/useLiveResizeValue.js";
 import {
   buildReviewFileTree,
-  flattenReviewFileTree,
-  type ReviewFileTreeRow as ReviewFileTreeRowModel,
 } from "./buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "./CommitPopover.js";
 import { PullRequestPopover } from "./PullRequestPopover.js";
 import { ReviewFileTreeResizeController } from "./ReviewFileTreeResizeController.js";
-import { ReviewFileTreeRow } from "./ReviewFileTree.js";
+import { ReviewFileTreeController } from "./ReviewFileTreeController.js";
 import { ReviewFileTreePanelPresence } from "./ReviewFileTreePanelPresence.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
-  toggleReviewDiffExpansion,
+  type ReviewDiffExpansion,
   type ReviewTabUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { syntaxTokenStyle } from "../../syntax/CodeBlock.js";
@@ -138,53 +139,52 @@ import {
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH =
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260;
-const REVIEW_FILE_TREE_ROW_HEIGHT = 29;
+function reviewDiffExpansionFromKeys(
+  allPaths: readonly string[],
+  expandedKeys: readonly string[],
+): ReviewDiffExpansion {
+  const expanded = new Set(expandedKeys);
+  const expandedFiles = allPaths.filter((path) => expanded.has(path));
+  if (expandedFiles.length === 0) return { mode: "none" };
+  if (expandedFiles.length === allPaths.length) return { mode: "all" };
+  return { mode: "custom", expandedFiles };
+}
 
-const ReviewFileTreeList = React.memo(function ReviewFileTreeList({
-  collapsedDirs,
-  commentCountsByPath,
-  emptyMessage,
-  listRef,
-  rows,
-  selectedPath,
-  onSelectFile,
-  onToggleDir,
-}: {
-  collapsedDirs: Set<string>;
-  commentCountsByPath: Readonly<Record<string, number>>;
-  emptyMessage: string;
-  listRef: React.RefObject<VListHandle | null>;
-  rows: ReviewFileTreeRowModel[];
-  selectedPath: string | null;
-  onSelectFile: (path: string) => void;
-  onToggleDir: (path: string) => void;
-}): React.ReactNode {
-  if (rows.length === 0) {
-    return <div className="review-empty-state">{emptyMessage}</div>;
-  }
-
-  return (
-    <VList
-      className="review-file-tree-scroll review-file-tree-vlist"
-      data={rows}
-      itemSize={REVIEW_FILE_TREE_ROW_HEIGHT}
-      ref={listRef}
-      role="tree"
-    >
-      {(row) => (
-        <ReviewFileTreeRow
-          collapsedDirs={collapsedDirs}
-          commentCountsByPath={commentCountsByPath}
-          key={row.key}
-          row={row}
-          onSelectFile={onSelectFile}
-          onToggleDir={onToggleDir}
-          selectedPath={selectedPath}
-        />
-      )}
-    </VList>
-  );
-});
+const ReviewDiffExpansionToggle = React.memo(
+  function ReviewDiffExpansionToggle({
+    allPaths,
+    store,
+    onSetAllExpanded,
+  }: {
+    allPaths: readonly string[];
+    store: KeyedDisclosureStore;
+    onSetAllExpanded: (expanded: boolean) => void;
+  }): React.ReactNode {
+    React.useSyncExternalStore(
+      store.subscribeAll,
+      store.getVersion,
+      store.getVersion,
+    );
+    const allCollapsed =
+      allPaths.length > 0 && allPaths.every((path) => !store.getSnapshot(path));
+    return (
+      <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
+        <IconButton
+          color="ghostSecondary"
+          size="toolbar"
+          title={allCollapsed ? "展开全部差异" : "折叠全部差异"}
+          onClick={() => onSetAllExpanded(allCollapsed)}
+        >
+          {allCollapsed ? (
+            <ListChevronsUpDown size={APP_ICON_SIZE} />
+          ) : (
+            <ListChevronsDownUp size={APP_ICON_SIZE} />
+          )}
+        </IconButton>
+      </Tooltip>
+    );
+  },
+);
 
 export type WorkspaceReviewSidebarProps = {
   activeSessionId: string | null;
@@ -320,9 +320,6 @@ function WorkspaceReviewSidebarImpl({
       });
     },
     [onReviewTabStateChange],
-  );
-  const [collapsedDirs, setCollapsedDirs] = React.useState<Set<string>>(
-    () => new Set(),
   );
   const [scopeMenuOpen, setScopeMenuOpen] = React.useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = React.useState(false);
@@ -491,7 +488,6 @@ function WorkspaceReviewSidebarImpl({
   const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>());
   const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null);
-  const reviewFileTreeListRef = React.useRef<VListHandle | null>(null);
   const errorTimerRef = React.useRef<number | null>(null);
   const publishedGithubCommentIdsRef = React.useRef(new Set<string>());
   const mutationRequestTokenRef = React.useRef(0);
@@ -1592,14 +1588,46 @@ function WorkspaceReviewSidebarImpl({
     () => files.map((file) => file.path),
     [files],
   );
-  const collapsedDiffPaths = React.useMemo(() => {
-    return new Set(
-      allFilePaths.filter(
-        (path) =>
-          !isReviewDiffExpanded(reviewTabState.diffExpansion, path),
+  const allFilePathsRef = React.useRef(allFilePaths);
+  allFilePathsRef.current = allFilePaths;
+  const diffExpansionStore = React.useMemo(
+    () =>
+      createKeyedDisclosureStore({
+        initialExpandedKeys: [],
+        persist: (expandedKeys) => {
+          const diffExpansion = reviewDiffExpansionFromKeys(
+            allFilePathsRef.current,
+            expandedKeys,
+          );
+          onReviewTabStateChangeRef.current((current) => ({
+            ...current,
+            diffExpansion,
+          }));
+        },
+      }),
+    [],
+  );
+  const diffExpansionDestroyTimerRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (diffExpansionDestroyTimerRef.current !== null) {
+      window.clearTimeout(diffExpansionDestroyTimerRef.current);
+      diffExpansionDestroyTimerRef.current = null;
+    }
+    return () => {
+      diffExpansionStore.flush();
+      diffExpansionDestroyTimerRef.current = window.setTimeout(
+        () => diffExpansionStore.destroy(),
+        0,
+      );
+    };
+  }, [diffExpansionStore]);
+  React.useLayoutEffect(() => {
+    diffExpansionStore.replace(
+      allFilePaths.filter((path) =>
+        isReviewDiffExpanded(reviewTabState.diffExpansion, path),
       ),
     );
-  }, [allFilePaths, reviewTabState.diffExpansion]);
+  }, [allFilePaths, diffExpansionStore, reviewTabState.diffExpansion]);
   const showProjectEmptyState =
     loadState === "empty" && summary !== null && files.length === 0;
   const visibleFiles = React.useMemo(() => {
@@ -1626,39 +1654,6 @@ function WorkspaceReviewSidebarImpl({
     () => buildReviewFileTree(visibleFiles),
     [visibleFiles],
   );
-  const reviewTreeRows = React.useMemo(
-    () => flattenReviewFileTree(reviewTree, collapsedDirs),
-    [collapsedDirs, reviewTree],
-  );
-
-  React.useEffect(() => {
-    if (!selectedPath) return;
-    const selectedIndex = reviewTreeRows.findIndex(
-      (row) => row.kind === "file" && row.file.path === selectedPath,
-    );
-    if (selectedIndex < 0) return;
-    reviewFileTreeListRef.current?.scrollToIndex(selectedIndex, {
-      align: "nearest",
-    });
-  }, [reviewTreeRows, selectedPath]);
-
-  React.useEffect(() => {
-    if (!selectedPath) return;
-    const segments = selectedPath.split("/").slice(0, -1);
-    if (segments.length === 0) return;
-    setCollapsedDirs((prev) => {
-      let next: Set<string> | null = null;
-      let path = "";
-      for (const segment of segments) {
-        path = path ? `${path}/${segment}` : segment;
-        if (prev.has(path)) {
-          if (!next) next = new Set(prev);
-          next.delete(path);
-        }
-      }
-      return next ?? prev;
-    });
-  }, [selectedPath]);
 
   React.useEffect(() => {
     if (!selectedPath || largeWorkspaceMode) return;
@@ -1694,9 +1689,6 @@ function WorkspaceReviewSidebarImpl({
       ),
     [files],
   );
-  const allCollapsed =
-    files.length > 0 &&
-    files.every((file) => collapsedDiffPaths.has(file.path));
   const { attachedComments, staleComments } = React.useMemo(
     () => attachComments(files, comments),
     [comments, files],
@@ -1709,44 +1701,21 @@ function WorkspaceReviewSidebarImpl({
   const sessionBusy =
     sessionStatus === "running" || sessionStatus === "waiting";
 
-  function toggleDir(dirPath: string): void {
-    setCollapsedDirs((prev) => {
-      const next = new Set(prev);
-      if (next.has(dirPath)) next.delete(dirPath);
-      else next.add(dirPath);
-      return next;
-    });
-  }
+  const setDiffExpanded = React.useCallback(
+    (path: string, expanded: boolean): void => {
+      diffExpansionStore.setExpanded(path, expanded);
+      if (expanded && largeWorkspaceMode) {
+        void loadFileDiff(path, "selected");
+      }
+    },
+    [diffExpansionStore, largeWorkspaceMode, loadFileDiff],
+  );
 
-  function toggleCollapseDiff(path: string): void {
-    const willExpand = collapsedDiffPaths.has(path);
-    onReviewTabStateChange((current) => ({
-      ...current,
-      selectedFile: willExpand ? path : current.selectedFile,
-      diffExpansion: toggleReviewDiffExpansion(
-        current.diffExpansion,
-        allFilePaths,
-        path,
-      ),
-    }));
-    if (willExpand && largeWorkspaceMode) {
-      void loadFileDiff(path, "selected");
+  const setAllDiffsExpanded = React.useCallback((expanded: boolean): void => {
+    for (const path of allFilePathsRef.current) {
+      diffExpansionStore.setExpanded(path, expanded);
     }
-  }
-
-  function collapseAllDiffs(): void {
-    onReviewTabStateChange((current) => ({
-      ...current,
-      diffExpansion: { mode: "none" },
-    }));
-  }
-
-  function expandAllDiffs(): void {
-    onReviewTabStateChange((current) => ({
-      ...current,
-      diffExpansion: { mode: "all" },
-    }));
-  }
+  }, [diffExpansionStore]);
 
   async function applyOperation(
     action: "stage" | "unstage" | "revert",
@@ -1810,13 +1779,13 @@ function WorkspaceReviewSidebarImpl({
     }
   }
 
-  async function saveDraft(): Promise<void> {
+  async function saveDraft(body: string): Promise<void> {
     if (
       !activeSessionId ||
       !workspacePath ||
       !summary ||
       !draft ||
-      !draft.body.trim()
+      !body.trim()
     ) {
       return;
     }
@@ -1837,7 +1806,7 @@ function WorkspaceReviewSidebarImpl({
           filePath: draft.filePath,
           side: draft.side,
           lineNumber: draft.lineNumber,
-          body: draft.body.trim(),
+          body: body.trim(),
         },
         projectId ?? undefined,
       );
@@ -2637,20 +2606,11 @@ function WorkspaceReviewSidebarImpl({
               复制 git apply 命令
             </PopoverItem>
           </PopoverMenu>
-          <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
-            <IconButton
-              color="ghostSecondary"
-              size="toolbar"
-              title={allCollapsed ? "展开全部差异" : "折叠全部差异"}
-              onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
-            >
-              {allCollapsed ? (
-                <ListChevronsUpDown size={APP_ICON_SIZE} />
-              ) : (
-                <ListChevronsDownUp size={APP_ICON_SIZE} />
-              )}
-            </IconButton>
-          </Tooltip>
+          <ReviewDiffExpansionToggle
+            allPaths={allFilePaths}
+            store={diffExpansionStore}
+            onSetAllExpanded={setAllDiffsExpanded}
+          />
           <Tooltip content="搜索文件">
             <IconButton
               color="ghostSecondary"
@@ -2755,7 +2715,7 @@ function WorkspaceReviewSidebarImpl({
         {!showProjectEmptyState && visibleFiles.length > 0 ? (
           <ReviewDiffPreview
             attachedComments={attachedComments}
-            collapsedDiffPaths={collapsedDiffPaths}
+            disclosureStore={diffExpansionStore}
             diffMarkerStyle={diffMarkerStyle}
             draft={draft}
             fileLoadStates={fileLoadStates}
@@ -2765,7 +2725,7 @@ function WorkspaceReviewSidebarImpl({
             summaryLoadState={loadState}
             scope={scope}
             selectedPath={selectedFile?.path ?? null}
-            toggleCollapseDiff={toggleCollapseDiff}
+            onDiffExpandedChange={setDiffExpanded}
             viewportRef={diffScrollViewportRef}
             view={reviewView}
             showWordDiff={textDiff}
@@ -2776,11 +2736,8 @@ function WorkspaceReviewSidebarImpl({
             }
             onCreateDraft={setDraft}
             onDeleteComment={(commentId) => void deleteComment(commentId)}
-            onDraftBodyChange={(body) =>
-              setDraft((current) => (current ? { ...current, body } : current))
-            }
             onResolveComment={(commentId) => void resolveComment(commentId)}
-            onSaveDraft={() => void saveDraft()}
+            onSaveDraft={(body) => void saveDraft(body)}
             onCancelDraft={() => setDraft(null)}
             onFileSectionMount={setDiffFileSectionElement}
             onRetryFile={(path) => void loadFileDiff(path, "selected")}
@@ -2817,8 +2774,7 @@ function WorkspaceReviewSidebarImpl({
                   />
                 </div>
 
-                <ReviewFileTreeList
-                  collapsedDirs={collapsedDirs}
+                <ReviewFileTreeController
                   commentCountsByPath={commentCountsByPath}
                   emptyMessage={
                     loadState === "loading" && !summary
@@ -2835,11 +2791,9 @@ function WorkspaceReviewSidebarImpl({
                                 : "暂无未暂存变更。"
                               : "当前筛选下没有匹配的文件。"
                   }
-                  listRef={reviewFileTreeListRef}
-                  rows={reviewTreeRows}
+                  reviewTree={reviewTree}
                   selectedPath={selectedFile?.path ?? null}
                   onSelectFile={handleSelectFile}
-                  onToggleDir={toggleDir}
                 />
 
                 {staleComments.length > 0 ? (

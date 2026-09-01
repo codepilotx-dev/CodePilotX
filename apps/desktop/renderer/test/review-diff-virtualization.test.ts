@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+import { createKeyedDisclosureStore } from "../src/components/ui/keyedDisclosureStore.js";
 import {
   countReviewDiffLines,
   ReviewDiffFilePreview,
@@ -44,6 +45,9 @@ describe("review diff virtualization", () => {
 
   test("文件摘要 disclosure 与文件操作保持 sibling", () => {
     const file = reviewFile("src/example.ts", 1);
+    const disclosureStore = createKeyedDisclosureStore({
+      initialExpandedKeys: [file.path],
+    });
     const html = renderToStaticMarkup(
       createElement(
         TooltipProvider,
@@ -51,7 +55,7 @@ describe("review diff virtualization", () => {
         createElement(ReviewDiffFilePreview, {
           active: false,
           attachedComments: new Map(),
-          collapsedDiffPaths: new Set(),
+          disclosureStore,
           diffMarkerStyle: "color",
           draft: null,
           file,
@@ -71,11 +75,10 @@ describe("review diff virtualization", () => {
           onCancelDraft: () => {},
           onCreateDraft: () => {},
           onDeleteComment: () => {},
-          onDraftBodyChange: () => {},
+          onDiffExpandedChange: () => {},
           onResolveComment: () => {},
           onRetryFile: () => {},
           onSaveDraft: () => {},
-          toggleCollapseDiff: () => {},
         }),
       ),
     );

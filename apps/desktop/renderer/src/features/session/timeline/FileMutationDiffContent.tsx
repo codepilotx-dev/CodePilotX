@@ -92,7 +92,6 @@ export function FileMutationDiffContent({
           onCancelDraft={NOOP}
           onCreateDraft={NOOP_DRAFT}
           onDeleteComment={NOOP}
-          onDraftBodyChange={NOOP}
           onResolveComment={NOOP}
           onSaveDraft={NOOP}
         />
