@@ -2653,6 +2653,7 @@ function WorkspaceReviewSidebarImpl({
           </Tooltip>
           <Tooltip content="搜索文件">
             <IconButton
+              className="review-sidebar-search-action"
               color="ghostSecondary"
               size="toolbar"
               title="搜索文件"

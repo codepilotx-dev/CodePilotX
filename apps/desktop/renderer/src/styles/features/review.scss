@@ -27,7 +27,8 @@
 }
 
 .review-sidebar-toolbar {
-  min-height: var(--chrome-h);
+  box-sizing: border-box;
+  min-height: calc(var(--chrome-h) + var(--cpx-sys-space-2));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -39,15 +40,10 @@
 }
 
 .review-sidebar-toolbar--branch {
-  min-height: 68px;
-  align-items: flex-start;
-  padding-top: var(--cpx-sys-space-1);
-  padding-bottom: var(--cpx-sys-space-1);
+  align-items: center;
 
   .review-sidebar-title {
-    flex-wrap: wrap;
-    row-gap: var(--cpx-sys-space-1);
-    overflow: visible;
+    flex-wrap: nowrap;
   }
 }
 
@@ -187,7 +183,7 @@
 
 .review-diff-preview {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   max-height: none;
@@ -318,17 +314,18 @@
 
   &.preview-header {
     box-sizing: border-box;
-    height: 32px;
+    height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
     flex: 0 0 auto;
     position: sticky;
     top: 0;
     z-index: var(--cpx-sys-z-local);
-    min-height: 32px;
+    min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
     gap: 0;
-    margin: var(--cpx-sys-space-1) var(--cpx-sys-space-1);
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2) var(--cpx-sys-space-1) var(--cpx-sys-space-3);
+    margin: 0;
+    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);
     border: 0;
-    border-radius: var(--cpx-sys-radius-md);
+    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+    border-radius: 0;
     background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 2%, transparent);
 
     &.active {
@@ -1184,7 +1181,7 @@
 
 .review-branch-range {
   min-width: 0;
-  flex: 1 0 100%;
+  flex: 1 1 180px;
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-1);
@@ -1198,6 +1195,12 @@
     padding: 0 var(--cpx-sys-space-2);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+@container (max-width: 560px) {
+  .review-sidebar-search-action {
+    display: none;
   }
 }
 
@@ -1325,7 +1328,7 @@
 
   .review-file-search-region {
     flex: 0 0 auto;
-    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-2);
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4) var(--cpx-sys-space-2);
     background: var(--cpx-sys-color-surface-panel);
   }
 
