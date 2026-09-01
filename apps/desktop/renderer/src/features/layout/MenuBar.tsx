@@ -19,7 +19,7 @@ import {
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
 import { cx } from '../../utils/cx.js'
-import type { EditCommandCapabilities } from '../../components/ui/EditCommandProvider.js'
+import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
 
 export type FileMenuAction =
   | 'close'
@@ -74,12 +74,10 @@ type Props = {
   onToggleSidebar: () => void
   onSidebarTriggerPointerEnter: () => void
   onSidebarTriggerPointerLeave: () => void
-  editMenuCapabilities: EditCommandCapabilities
   onMinimize: () => void
   onToggleMaximize: () => void
   onClose: () => void
   onFileMenuAction: (action: FileMenuAction) => void
-  onEditMenuAction: (action: EditMenuAction) => void
   onViewMenuAction: (action: ViewMenuAction) => void
   onWindowMenuAction: (action: WindowMenuAction) => void
   onHelpMenuAction: (
@@ -216,16 +214,18 @@ export function MenuBar({
   onToggleSidebar,
   onSidebarTriggerPointerEnter,
   onSidebarTriggerPointerLeave,
-  editMenuCapabilities,
   onMinimize,
   onToggleMaximize,
   onClose,
   onFileMenuAction,
-  onEditMenuAction,
   onViewMenuAction,
   onWindowMenuAction,
   onHelpMenuAction,
 }: Props): React.ReactNode {
+  const {
+    activeCapabilities: editMenuCapabilities,
+    perform: performEditCommand,
+  } = useEditCommands()
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
   const menuTriggerRefs = useRef<Partial<Record<AppMenuValue, HTMLButtonElement | null>>>({})
   const menuBarFocusedRef = useRef(false)
@@ -418,14 +418,14 @@ export function MenuBar({
               <MenuItem
                 disabled={!editMenuCapabilities.undo}
                 shortcut="Ctrl+Z"
-                onSelect={() => onEditMenuAction('undo')}
+                onSelect={() => void performEditCommand('undo')}
               >
                 撤销
               </MenuItem>
               <MenuItem
                 disabled={!editMenuCapabilities.redo}
                 shortcut="Ctrl+Y"
-                onSelect={() => onEditMenuAction('redo')}
+                onSelect={() => void performEditCommand('redo')}
               >
                 重做
               </MenuItem>
@@ -433,28 +433,28 @@ export function MenuBar({
               <MenuItem
                 disabled={!editMenuCapabilities.cut}
                 shortcut="Ctrl+X"
-                onSelect={() => onEditMenuAction('cut')}
+                onSelect={() => void performEditCommand('cut')}
               >
                 剪切
               </MenuItem>
               <MenuItem
                 disabled={!editMenuCapabilities.copy}
                 shortcut="Ctrl+C"
-                onSelect={() => onEditMenuAction('copy')}
+                onSelect={() => void performEditCommand('copy')}
               >
                 复制
               </MenuItem>
               <MenuItem
                 disabled={!editMenuCapabilities.paste}
                 shortcut="Ctrl+V"
-                onSelect={() => onEditMenuAction('paste')}
+                onSelect={() => void performEditCommand('paste')}
               >
                 粘贴
               </MenuItem>
               <MenuItem
                 disabled={!editMenuCapabilities.delete}
                 shortcut="Delete"
-                onSelect={() => onEditMenuAction('delete')}
+                onSelect={() => void performEditCommand('delete')}
               >
                 删除
               </MenuItem>
@@ -462,7 +462,7 @@ export function MenuBar({
               <MenuItem
                 disabled={!editMenuCapabilities.selectAll}
                 shortcut="Ctrl+A"
-                onSelect={() => onEditMenuAction('selectAll')}
+                onSelect={() => void performEditCommand('selectAll')}
               >
                 全选
               </MenuItem>

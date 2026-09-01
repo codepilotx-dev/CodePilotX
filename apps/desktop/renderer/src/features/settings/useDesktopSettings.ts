@@ -215,6 +215,31 @@ export type UseDesktopSettingsResult = {
   flushDesktopSettings: () => Promise<void>
 }
 
+export type UseDesktopRuntimeSettingsResult = Pick<
+  UseDesktopSettingsResult,
+  | 'settingsLoaded'
+  | 'setPermissionMode'
+  | 'setModel'
+  | 'setProviderBaseURL'
+  | 'setProviderID'
+  | 'setThinkingMode'
+  | 'setRecentWorkspaces'
+  | 'setDrawerTab'
+  | 'setSelectedModelPreset'
+  | 'setReviewView'
+  | 'setSidebarSessionPins'
+  | 'setSidebarTimelineEnabled'
+  | 'syncExternalSettingsPatch'
+> & {
+  values: StoredDesktopSettings
+  permissionMode: DesktopPermissionMode
+}
+
+type DesktopSettingsState = {
+  settings: UseDesktopSettingsResult
+  runtime: UseDesktopRuntimeSettingsResult
+}
+
 type DesktopSettingsDraftSetter = <
   Key extends keyof StoredDesktopSettings,
 >(
@@ -312,6 +337,8 @@ export function createDesktopSettingsDraft(
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
   null,
 )
+const DesktopRuntimeSettingsContext =
+  createContext<UseDesktopRuntimeSettingsResult | null>(null)
 
 export function DesktopSettingsProvider({
   children,
@@ -320,11 +347,15 @@ export function DesktopSettingsProvider({
   children: ReactNode
   access?: DesktopSettingsAccess
 }): ReactNode {
-  const settings = useDesktopSettingsState(access)
+  const state = useDesktopSettingsState(access)
   return createElement(
-    DesktopSettingsContext.Provider,
-    { value: settings },
-    children,
+    DesktopRuntimeSettingsContext.Provider,
+    { value: state.runtime },
+    createElement(
+      DesktopSettingsContext.Provider,
+      { value: state.settings },
+      children,
+    ),
   )
 }
 
@@ -333,10 +364,16 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   if (settings) {
     return settings
   }
-  return useDesktopSettingsState()
+  return useDesktopSettingsState().settings
 }
 
-  function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): UseDesktopSettingsResult {
+export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
+  const settings = useContext(DesktopRuntimeSettingsContext)
+  if (settings) return settings
+  return useDesktopSettingsState().runtime
+}
+
+  function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): DesktopSettingsState {
   const initial = readStoredDesktopSettings()
   const [enableParetoCodeRouter, setEnableParetoCodeRouter] = useState<boolean>(
     initial.enableParetoCodeRouter ?? false,
@@ -516,11 +553,18 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
     cloneDesktopSettings(initial),
   )
+  const [committedDraftValues, setCommittedDraftValues] =
+    useState<StoredDesktopSettings>(initial)
   const draftValuesRef = useRef(draftValues)
   draftValuesRef.current = draftValues
-  const permissionMode = permissionModeForConfig(draftValues.permissionConfig)
+  const permissionMode = permissionModeForConfig(
+    committedDraftValues.permissionConfig,
+  )
   const setPermissionMode = useCallback((value: DesktopPermissionMode) => {
-    setDraftValues(current => ({ ...current, permissionConfig: permissionConfigForMode(value) }))
+    setCommittedDraftValues(current => ({
+      ...current,
+      permissionConfig: permissionConfigForMode(value),
+    }))
   }, [])
   const draftDirtyKeysRef = useRef<Set<keyof StoredDesktopSettings>>(new Set())
   const [draftSaving, setDraftSaving] = useState(false)
@@ -623,6 +667,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setBrowserAllowedSites(settings.browserAllowedSites)
         setCollapsedSidebarSections(settings.collapsedSidebarSections)
         setBrowserSitePermissions(settings.browserSitePermissions)
+        setCommittedDraftValues(settings)
         setDraftValues(cloneDesktopSettings(settings))
         draftDirtyKeysRef.current.clear()
         setSettingsLoaded(true)
@@ -643,9 +688,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      permissionConfig: draftValues.permissionConfig,
-      shellSecurityLevel: draftValues.shellSecurityLevel,
-      terminalProfileId: draftValues.terminalProfileId,
+      permissionConfig: committedDraftValues.permissionConfig,
+      shellSecurityLevel: committedDraftValues.shellSecurityLevel,
+      terminalProfileId: committedDraftValues.terminalProfileId,
       model,
       generationModel,
       organizationModel,
@@ -683,7 +728,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         ? {}
         : { firstUseSetupCompleted }),
       'desktop.voice.preferredInputDeviceId':
-        draftValues['desktop.voice.preferredInputDeviceId'],
+        committedDraftValues['desktop.voice.preferredInputDeviceId'],
       personality,
       customInstructions,
       enableMemory,
@@ -713,16 +758,17 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
-      pet: draftValues.pet,
-      notifications: draftValues.notifications,
+      pet: committedDraftValues.pet,
+      notifications: committedDraftValues.notifications,
 	    }),
 	    [
 	      enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      draftValues.shellSecurityLevel,
-      draftValues.terminalProfileId,
+      committedDraftValues.permissionConfig,
+      committedDraftValues.shellSecurityLevel,
+      committedDraftValues.terminalProfileId,
       model,
       generationModel,
       organizationModel,
@@ -757,7 +803,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
       firstUseSetupCompleted,
-      draftValues,
+      committedDraftValues['desktop.voice.preferredInputDeviceId'],
       personality,
       customInstructions,
       enableMemory,
@@ -786,16 +832,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
-      draftValues.pet,
+      committedDraftValues.pet,
+      committedDraftValues.notifications,
 	    ],
   )
   const effectiveSettingsRef = useRef(effectiveSettings)
   effectiveSettingsRef.current = effectiveSettings
 
-  const draftDirty = useMemo(
-    () => !desktopSettingsEqual(draftValues, effectiveSettings),
-    [draftValues, effectiveSettings],
-  )
+  const draftDirty = draftDirtyKeysRef.current.size > 0
 
   useEffect(() => {
     if (!settingsLoaded) return
@@ -829,8 +873,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 
   const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
     (key, value) => {
-      draftDirtyKeysRef.current.add(key)
       const next = updateDesktopSettingsValue(draftValuesRef.current, key, value)
+      if (desktopSettingsValueEqual(next[key], effectiveSettingsRef.current[key])) {
+        draftDirtyKeysRef.current.delete(key)
+      } else {
+        draftDirtyKeysRef.current.add(key)
+      }
       draftValuesRef.current = next
       setDraftValues(next)
     },
@@ -912,7 +960,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
 	        setBrowserAllowedSites(snapshot.browserAllowedSites)
 	        setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
-	        setBrowserSitePermissions(snapshot.browserSitePermissions)
+      setBrowserSitePermissions(snapshot.browserSitePermissions)
+      setCommittedDraftValues(snapshot)
       },
     [],
   )
@@ -1026,7 +1075,34 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     ],
   )
 
-  return {
+  const runtime = useMemo<UseDesktopRuntimeSettingsResult>(
+    () => ({
+      values: effectiveSettings,
+      permissionMode,
+      settingsLoaded,
+      setPermissionMode,
+      setModel,
+      setProviderBaseURL,
+      setProviderID,
+      setThinkingMode,
+      setRecentWorkspaces,
+      setDrawerTab,
+      setSelectedModelPreset,
+      setReviewView,
+      setSidebarSessionPins,
+      setSidebarTimelineEnabled,
+      syncExternalSettingsPatch,
+    }),
+    [
+      effectiveSettings,
+      permissionMode,
+      settingsLoaded,
+      setPermissionMode,
+      syncExternalSettingsPatch,
+    ],
+  )
+
+  const settings: UseDesktopSettingsResult = {
     enableParetoCodeRouter,
     enableFusionRouter,
     enableAutoReviewPermissionMode,
@@ -1156,6 +1232,7 @@ defaultOpenTargetId,
     draft,
     flushDesktopSettings,
   }
+  return { settings, runtime }
 }
 
 function cloneDesktopSettings(
@@ -1209,10 +1286,14 @@ function updateDesktopSettingsValue<Key extends keyof StoredDesktopSettings>(
           currentValue: StoredDesktopSettings[Key],
         ) => StoredDesktopSettings[Key])(currentValue)
       : value
-  return cloneDesktopSettings({
+  return {
     ...current,
-    [key]: nextValue,
-  })
+    [key]: cloneDesktopSettingsValue(nextValue),
+  } as StoredDesktopSettings
+}
+
+function desktopSettingsValueEqual(left: unknown, right: unknown): boolean {
+  return Object.is(left, right) || JSON.stringify(left) === JSON.stringify(right)
 }
 
 export function mergeExternalDesktopSettingsPatch(

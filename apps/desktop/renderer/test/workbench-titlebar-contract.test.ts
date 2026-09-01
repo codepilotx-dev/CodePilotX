@@ -57,6 +57,16 @@ describe('workbench chrome contract', () => {
       expect(menuBar).toContain(`label="${label}"`)
     }
   })
+
+  test('keeps high-frequency edit and settings drafts out of the workbench shell', () => {
+    const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
+    const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
+
+    expect(layout).toContain('useDesktopRuntimeSettings()')
+    expect(layout).not.toContain('useDesktopSettings()')
+    expect(layout).not.toContain('useEditCommands()')
+    expect(menuBar).toContain('useEditCommands()')
+  })
 })
 
 describe('workbench resize commit contract', () => {

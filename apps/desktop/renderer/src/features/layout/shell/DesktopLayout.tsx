@@ -45,12 +45,10 @@ import {
   type ReviewTabUiState,
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
-import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
 import type {
-  EditMenuAction,
   FileMenuAction,
   HelpMenuAction,
   ViewMenuAction,
@@ -63,7 +61,7 @@ import {
   sessionViewFallbackTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { useDesktopRuntimeSettings } from '../../settings/useDesktopSettings.js'
 import { useSystemNotifications } from '../../notifications/useSystemNotifications.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore.js'
@@ -258,55 +256,53 @@ let directoryProbeRequestId = 0
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
   const routeLabel = routeAccessibilityLabel(location.pathname)
-  const settings = useDesktopSettings()
+  const settings = useDesktopRuntimeSettings()
   const {
-    activeCapabilities: editMenuCapabilities,
-    perform: performEditCommand,
-  } = useEditCommands()
-  const {
+    values: {
+      model,
+      codingModel,
+      sessionName,
+      thinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      installCodePilotXDependencies,
+      enableMemory,
+      rustSearchAndDiffKernels,
+      enableParetoCodeRouter,
+      enableFusionRouter,
+      enableAutoReviewPermissionMode,
+      enableFullAccessPermissionMode,
+      recentWorkspaces,
+      selectedModelPreset,
+      providerID,
+      providerBaseURL,
+      showContextUsage,
+      diffMarkerStyle,
+      reviewView,
+      gitBranchPrefix,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      sidebarSessionPins,
+    },
     permissionMode,
-    model,
-    codingModel,
-    sessionName,
-    thinkingMode,
-    systemPrompt,
-    appendSystemPrompt,
-    additionalDirectories,
-    installCodePilotXDependencies,
-    enableMemory,
-    rustSearchAndDiffKernels,
-    enableParetoCodeRouter,
-    enableFusionRouter,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
-    recentWorkspaces,
-    selectedModelPreset,
-    providerID,
-    providerBaseURL,
-    showContextUsage,
-    diffMarkerStyle,
-    reviewView,
-    gitBranchPrefix,
-    allowForcePush,
-    commitMessagePrompt,
-    pullRequestPrompt,
     settingsLoaded,
     setPermissionMode,
     setModel,
     setProviderBaseURL,
     setProviderID,
     setThinkingMode,
-	    setRecentWorkspaces,
-	    setDrawerTab,
-	    setSelectedModelPreset,
-	    setReviewView,
-	    sidebarSessionPins,
-	    setSidebarSessionPins,
-	    setSidebarTimelineEnabled,
-	    syncExternalSettingsPatch,
+    setRecentWorkspaces,
+    setDrawerTab,
+    setSelectedModelPreset,
+    setReviewView,
+    setSidebarSessionPins,
+    setSidebarTimelineEnabled,
+    syncExternalSettingsPatch,
   } = settings
   useSystemNotifications(
-    settingsLoaded ? settings.draft.values.notifications : undefined,
+    settingsLoaded ? settings.values.notifications : undefined,
   )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
@@ -422,8 +418,8 @@ export function DesktopLayout(): React.ReactNode {
     clearWorkspaceUnavailable,
   } = useWorkbenchWorkspaceController({
     initialLastActiveWorkspacePath:
-      settings.draft.values.lastActiveWorkspacePath ?? '',
-    initialRemovedWorkspaces: settings.draft.values.removedWorkspaces ?? [],
+      settings.values.lastActiveWorkspacePath ?? '',
+    initialRemovedWorkspaces: settings.values.removedWorkspaces ?? [],
     settings,
     onError: handleErrorMessage,
   })
@@ -453,7 +449,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const session = useSessionState({
     permissionMode,
-    permissionConfig: settings.draft.values.permissionConfig,
+    permissionConfig: settings.values.permissionConfig,
     planModeActive: homePlanModeActive,
     localRouterMode: homeLocalRouterMode,
     providerID,
@@ -549,7 +545,7 @@ export function DesktopLayout(): React.ReactNode {
     if (!bridge) return
     if (
       settingsLoaded &&
-      settings.draft.values.pet.enabled &&
+      settings.values.pet.enabled &&
       typeof bridge.openPetOverlay === 'function'
     ) {
       void bridge.openPetOverlay()
@@ -560,7 +556,7 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [
     navigate,
-    settings.draft.values.pet.enabled,
+    settings.values.pet.enabled,
     settingsLoaded,
   ])
   useEffect(() => {
@@ -628,11 +624,11 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     if (!settingsLoaded) return
-    setRemovedWorkspaces(settings.draft.values.removedWorkspaces)
-    setLastActiveWorkspacePath(settings.draft.values.lastActiveWorkspacePath)
+    setRemovedWorkspaces(settings.values.removedWorkspaces)
+    setLastActiveWorkspacePath(settings.values.lastActiveWorkspacePath)
   }, [
-    settings.draft.values.lastActiveWorkspacePath,
-    settings.draft.values.removedWorkspaces,
+    settings.values.lastActiveWorkspacePath,
+    settings.values.removedWorkspaces,
     settingsLoaded,
   ])
 
@@ -1670,13 +1666,6 @@ export function DesktopLayout(): React.ReactNode {
     [handleChooseWorkspace, handleNewConversation, navigate],
   )
 
-  const handleEditMenuAction = useCallback(
-    (action: EditMenuAction): void => {
-      void performEditCommand(action)
-    },
-    [performEditCommand],
-  )
-
   const handleViewMenuAction = useCallback(
     (action: ViewMenuAction): void => {
       if (action === 'toggleSidebar') {
@@ -2388,8 +2377,6 @@ export function DesktopLayout(): React.ReactNode {
           .then(next => setIsWindowMaximized(next))
       }}
       onFileMenuAction={handleFileMenuAction}
-      editMenuCapabilities={editMenuCapabilities}
-      onEditMenuAction={handleEditMenuAction}
       onViewMenuAction={handleViewMenuAction}
       onWindowMenuAction={handleWindowMenuAction}
       onHelpMenuAction={handleHelpMenuAction}
