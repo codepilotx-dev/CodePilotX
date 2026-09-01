@@ -219,10 +219,22 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             className="sidebar-settings-link"
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
             layout="flex"
-            leading={<Settings2 aria-hidden="true" size={APP_ICON_SIZE} />}
+            leading={
+              <span className="popover-account-avatar" aria-hidden="true">
+                {githubUser?.avatarUrl ? (
+                  <RemoteImage
+                    alt=""
+                    fallback={<CircleUser size={APP_ICON_SIZE} />}
+                    src={githubUser.avatarUrl}
+                  />
+                ) : (
+                  <CircleUser size={APP_ICON_SIZE} />
+                )}
+              </span>
+            }
           >
             <button className="sidebar-footer-trigger" type="button">
-              设置
+              {accountName}
             </button>
           </SidebarRow>
         }
