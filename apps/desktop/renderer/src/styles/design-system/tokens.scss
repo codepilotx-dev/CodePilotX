@@ -8,12 +8,12 @@
 
 :root {
   // System Colors (Light Default)
-  --cpx-sys-color-surface-canvas: #ffffff;
-  --cpx-sys-color-surface-recessed: #f5f5f5;
-  --cpx-sys-color-surface-panel: #fafafa;
-  --cpx-sys-color-surface-control: #f7f7f7;
-  --cpx-sys-color-surface-raised: #fdfdfd;
-  --cpx-sys-color-surface-editor: #f4f4f4;
+  --cpx-sys-color-surface-canvas: #f9f9f9;
+  --cpx-sys-color-surface-recessed: #f0f0f0;
+  --cpx-sys-color-surface-panel: #f4f4f4;
+  --cpx-sys-color-surface-control: #fafafa;
+  --cpx-sys-color-surface-raised: #fafafa;
+  --cpx-sys-color-surface-editor: #f5f5f5;
   --cpx-sys-color-scrim: rgb(0 0 0 / 26%);
 
   // Workbench region surfaces. Keep regions independently addressable while
@@ -23,26 +23,26 @@
   --cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);
 
-  --cpx-sys-color-fg-primary: #1a1c1f;
-  --cpx-sys-color-fg-secondary: #606163;
-  --cpx-sys-color-fg-tertiary: #8e8f90;
-  --cpx-sys-color-fg-disabled: #b1b2b3;
+  --cpx-sys-color-fg-primary: #111111;
+  --cpx-sys-color-fg-secondary: #585858;
+  --cpx-sys-color-fg-tertiary: #868686;
+  --cpx-sys-color-fg-disabled: #aaaaaa;
   --cpx-sys-color-fg-on-accent: #ffffff;
 
   // Static user-authored message surface. This is not an interaction state.
   --cpx-sys-color-message-user-bg:
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
 
-  --cpx-sys-color-border-subtle: rgba(26, 28, 31, 0.049);
-  --cpx-sys-color-border-default: rgba(26, 28, 31, 0.078);
-  --cpx-sys-color-border-strong: rgba(26, 28, 31, 0.117);
-  --cpx-sys-color-border-focus: #0066ff;
+  --cpx-sys-color-border-subtle: rgba(17, 17, 17, 0.049);
+  --cpx-sys-color-border-default: rgba(17, 17, 17, 0.078);
+  --cpx-sys-color-border-strong: rgba(17, 17, 17, 0.117);
+  --cpx-sys-color-border-focus: #339cff;
 
-  --cpx-sys-color-hover: rgba(26, 28, 31, 0.05);
-  --cpx-sys-color-active: rgba(26, 28, 31, 0.08);
-  --cpx-sys-color-selected: rgba(26, 28, 31, 0.05);
+  --cpx-sys-color-hover: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-active: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-selected: rgba(17, 17, 17, 0.05);
 
-  --cpx-sys-color-accent: #0066ff;
+  --cpx-sys-color-accent: #339cff;
   --cpx-sys-color-accent-subtle-bg: #dbeafe;
   --cpx-sys-color-accent-subtle-border: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
   --cpx-sys-color-accent-fg: #0058dc;

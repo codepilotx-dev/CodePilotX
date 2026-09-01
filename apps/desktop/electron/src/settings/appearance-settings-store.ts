@@ -23,8 +23,8 @@ type AppearanceVariant = DesktopThemeVariant
 const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   light: {
     accent: "#339cff",
-    surface: "#ffffff",
-    ink: "#1a1c1f",
+    surface: "#f9f9f9",
+    ink: "#111111",
     contrast: 45,
     fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
@@ -35,8 +35,8 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
   dark: {
     accent: "#339cff",
-    surface: "#181818",
-    ink: "#ffffff",
+    surface: "#111111",
+    ink: "#f7f7f7",
     contrast: 60,
     fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
@@ -55,7 +55,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV7 = {
   pointerCursorEnabled: false,
   reduceMotion: "system",
   fontSmoothingEnabled: true,
-  fontSizes: { ui: 14, code: 12 },
+  fontSizes: { ui: 14, code: 13 },
 }
 
 type RecordValue = Record<string, unknown>

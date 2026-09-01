@@ -100,21 +100,21 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
-    expect(light['--cpx-sys-color-surface-canvas']).toBe('#ffffff')
+    expect(light['--cpx-sys-color-surface-canvas']).toBe('#f9f9f9')
     expect(light['--cpx-sys-color-surface-recessed']).not.toBe(
       light['--cpx-sys-color-surface-canvas'],
     )
-    expect(light['--cpx-sys-color-fg-primary']).toBe('#1a1c1f')
-    expect(light['--cpx-sys-color-fg-secondary']).toBe('#606163')
-    expect(light['--cpx-sys-color-fg-tertiary']).toBe('#8e8f90')
-    expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
-    expect(light['--cpx-sys-color-border-default']).toBe('rgba(26, 28, 31, 0.078)')
-    expect(light['--cpx-sys-color-border-strong']).toBe('rgba(26, 28, 31, 0.117)')
+    expect(light['--cpx-sys-color-fg-primary']).toBe('#111111')
+    expect(light['--cpx-sys-color-fg-secondary']).toBe('#585858')
+    expect(light['--cpx-sys-color-fg-tertiary']).toBe('#868686')
+    expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(17, 17, 17, 0.049)')
+    expect(light['--cpx-sys-color-border-default']).toBe('rgba(17, 17, 17, 0.078)')
+    expect(light['--cpx-sys-color-border-strong']).toBe('rgba(17, 17, 17, 0.117)')
     expect(light['--cpx-sys-color-hover']).toBe(
-      'rgba(26, 28, 31, 0.05)',
+      'rgba(17, 17, 17, 0.05)',
     )
     expect(light['--cpx-sys-color-selected']).toBe(
-      'rgba(26, 28, 31, 0.05)',
+      'rgba(17, 17, 17, 0.05)',
     )
     expect(light['--cpx-sys-color-diff-added-line']).not.toBe(
       light['--cpx-sys-color-surface-editor'],
@@ -124,30 +124,30 @@ describe('fixed Codex UI themes', () => {
     )
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#181818')
+    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#111111')
     expect(dark['--cpx-sys-color-surface-recessed']).not.toBe(
       dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--cpx-sys-color-fg-primary']).toBe('#ffffff')
+    expect(dark['--cpx-sys-color-fg-primary']).toBe('#f7f7f7')
     expect(dark['--cpx-sys-color-surface-panel']).not.toBe(
       dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--cpx-sys-color-fg-secondary']).toBe('#bcbcbc')
-    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#8b8b8b')
+    expect(dark['--cpx-sys-color-fg-secondary']).toBe('#b4b4b4')
+    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#848484')
     expect(dark['--cpx-sys-color-border-subtle']).toBe(
-      'rgba(255, 255, 255, 0.056)',
+      'rgba(247, 247, 247, 0.056)',
     )
     expect(dark['--cpx-sys-color-border-default']).toBe(
-      'rgba(255, 255, 255, 0.084)',
+      'rgba(247, 247, 247, 0.084)',
     )
     expect(dark['--cpx-sys-color-border-strong']).toBe(
-      'rgba(255, 255, 255, 0.156)',
+      'rgba(247, 247, 247, 0.156)',
     )
     expect(dark['--cpx-sys-color-hover']).toBe(
-      'rgba(255, 255, 255, 0.08)',
+      'rgba(247, 247, 247, 0.08)',
     )
     expect(dark['--cpx-sys-color-selected']).toBe(
-      'rgba(255, 255, 255, 0.05)',
+      'rgba(247, 247, 247, 0.05)',
     )
     expect(dark['--cpx-sys-color-fg-on-accent']).toBe('#ffffff')
   })
@@ -381,10 +381,10 @@ describe('fixed Codex UI themes', () => {
 
   test('keeps the recovered contrast boundary palette deterministic', () => {
     const expected = [
-      [0, 'rgba(26, 28, 31, 0.06)'],
-      [45, 'rgba(26, 28, 31, 0.078)'],
-      [60, 'rgba(26, 28, 31, 0.1)'],
-      [100, 'rgba(26, 28, 31, 0.1)'],
+      [0, 'rgba(17, 17, 17, 0.06)'],
+      [45, 'rgba(17, 17, 17, 0.078)'],
+      [60, 'rgba(17, 17, 17, 0.1)'],
+      [100, 'rgba(17, 17, 17, 0.1)'],
     ] as const
 
     for (const [contrast, border] of expected) {
@@ -409,9 +409,9 @@ describe('fixed Codex UI themes', () => {
 
   test('keeps dark subtle borders near the Codex five-percent baseline', () => {
     const expected = [
-      [0, 'rgba(255, 255, 255, 0.05)'],
-      [60, 'rgba(255, 255, 255, 0.056)'],
-      [100, 'rgba(255, 255, 255, 0.06)'],
+      [0, 'rgba(247, 247, 247, 0.05)'],
+      [60, 'rgba(247, 247, 247, 0.056)'],
+      [100, 'rgba(247, 247, 247, 0.06)'],
     ] as const
 
     for (const [contrast, border] of expected) {

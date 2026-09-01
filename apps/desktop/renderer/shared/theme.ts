@@ -26,26 +26,26 @@ export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
   accent: '#339cff',
   contrast: 45,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#1a1c1f',
+  ink: '#111111',
   semanticColors: {
     diffAdded: '#00a240',
     diffRemoved: '#ba2623',
     skill: '#924ff7',
   },
-  surface: '#ffffff',
+  surface: '#f9f9f9',
 }
 
 export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
   accent: '#339cff',
   contrast: 60,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#ffffff',
+  ink: '#f7f7f7',
   semanticColors: {
     diffAdded: '#40c977',
     diffRemoved: '#fa423e',
     skill: '#ad7bf9',
   },
-  surface: '#181818',
+  surface: '#111111',
 }
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {

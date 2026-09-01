@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 阶段一将默认明暗主题、首屏回退与基础组件样式收敛到 Oreo Agentic UI 的中性视觉基线，并保留已有用户主题和桌面交互契约。
 - [desktop/renderer] 为独立置顶会话补充会话图标，并将侧栏长标题改为静态渐隐与更舒缓的悬停滚动。
 - [desktop/renderer] 将全局界面收敛为 Codex 式 12/13/14 正文刻度、445/500/600 字重与统一前景色层级，改善会话、侧栏、设置和工作台的信息重点。
 - [agent/desktop/renderer] 将工具执行时间线升级为 Codex 风格的语义活动流：由 Agent 统一分类读取、搜索、文件变更、命令、技能、网页和集成活动，Renderer 使用 `cpx-agent-activity*` 展示稳定聚合、状态文案、可打开文件链接及折叠明细，同时兼容旧历史记录。
