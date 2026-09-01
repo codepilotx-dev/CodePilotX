@@ -275,6 +275,25 @@ describe('Codex CPX design system token contract', () => {
     expect(pluginDialogBlock).not.toMatch(/(?:border|border-radius|background|box-shadow):/)
   })
 
+  test('keeps primary routes and workbench panels on their shared alignment axes', async () => {
+    const [automation, pets, pullRequests, setup, review, browser] =
+      await Promise.all([
+        Bun.file(new URL('../src/styles/features/automation.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/pet/PetCatalogPage.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/pull-requests/PullRequestsPlaceholder.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/_model-setup.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/review.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/browser/DesktopBrowserPanel.tsx', import.meta.url)).text(),
+      ])
+
+    expect(automation).not.toMatch(/automation-primary-page[^}]*primary-page-layout__(?:header|body)/)
+    expect(pets).toContain('<PrimaryPageLayout')
+    expect(pullRequests).toContain('<PrimaryPageLayout')
+    expect(setup).toContain('grid-template-rows: 36px minmax(0, 1fr);')
+    expect(review).toContain('padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);')
+    expect(browser).toContain('className="browser-status-row" role="alert"')
+  })
+
   test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
     const [systemTokens, componentTokens, cards, composer, summary, rightDock] =
       await Promise.all([
