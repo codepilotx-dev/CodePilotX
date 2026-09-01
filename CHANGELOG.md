@@ -663,3 +663,4 @@
 - [renderer] React + Vite 渲染器、会话视图与工作台布局
 - [packages] 共享领域契约、provider 插件系统、AI 模型目录与故障转移
 - [ci] PR 与 tag 触发 CI，支持静默安装验证与 smoke 测试
+- [desktop/renderer] 修复侧栏账号仅在打开弹层后才恢复 GitHub 登录状态的问题，使桌面启动时自动显示账号头像，并为未登录状态提供设置与登录入口。

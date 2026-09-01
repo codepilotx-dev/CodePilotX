@@ -20,7 +20,7 @@ import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
-  DesktopGithubUser,
+  DesktopGithubAuthStatus,
   DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../../shared/types.js'
@@ -86,7 +86,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
-  const [githubUser, setGithubUser] = useState<DesktopGithubUser | null>(null);
+  const [githubAuth, setGithubAuth] = useState<DesktopGithubAuthStatus | null>(null);
   const [petToggleBusy, setPetToggleBusy] = useState(false);
   const settingsActive = location.pathname.startsWith("/settings/");
   const usageAvailable = Boolean(configuredProviderID && model);
@@ -147,25 +147,29 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     void refreshUsage();
   }, [menuOpen, refreshUsage]);
 
+  const refreshGithubAuth = useCallback(async (): Promise<void> => {
+    try {
+      setGithubAuth(await desktopClient.getGithubAuthStatus());
+    } catch {
+      setGithubAuth(null);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!menuOpen) return;
+    void refreshGithubAuth();
+  }, [refreshGithubAuth]);
 
-    let cancelled = false;
-    void desktopClient
-      .getGithubAuthStatus()
-      .then(status => {
-        if (!cancelled) {
-          setGithubUser(status.authenticated ? status.user : null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setGithubUser(null);
-      });
+  useEffect(() => {
+    if (menuOpen) void refreshGithubAuth();
+  }, [menuOpen, refreshGithubAuth]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [menuOpen]);
+  const logoutGithub = useCallback(async (): Promise<void> => {
+    try {
+      setGithubAuth(await desktopClient.logoutGithub());
+    } catch (error) {
+      onReport(error instanceof Error ? error.message : String(error));
+    }
+  }, [onReport]);
 
   const togglePet = useCallback(async (): Promise<void> => {
     if (petToggleBusy) return;
@@ -200,7 +204,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     () => buildUsageRows(usage),
     [usage],
   );
+  const githubAuthenticated = githubAuth?.authenticated === true;
+  const githubUser = githubAuthenticated ? githubAuth.user : null;
   const accountName = githubUser?.name || githubUser?.login || "个人资料";
+  const accountTriggerName = githubAuthenticated ? accountName : "设置";
   return (
     <footer
       className="sidebar-footer tw:mt-2 tw:flex tw:w-full tw:shrink-0 tw:items-center tw:gap-1 tw:px-1.5"
@@ -221,7 +228,9 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             layout="flex"
             leading={
               <span className="popover-account-avatar" aria-hidden="true">
-                {githubUser?.avatarUrl ? (
+                {!githubAuthenticated ? (
+                  <Settings2 size={APP_ICON_SIZE} />
+                ) : githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
                     fallback={<CircleUser size={APP_ICON_SIZE} />}
@@ -234,7 +243,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             }
           >
             <button className="sidebar-footer-trigger" type="button">
-              {accountName}
+              {accountTriggerName}
             </button>
           </SidebarRow>
         }
@@ -258,7 +267,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               }
               onClick={() => {
                 setMenuOpen(false);
-                navigate("/settings/profile");
+                navigate(githubAuthenticated ? "/settings/profile" : "/settings/git");
               }}
             >
               {accountName}
@@ -382,15 +391,17 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           >
             设置
           </PopoverItem>
-          <PopoverItem
-            icon={<LogOut size={APP_ICON_SIZE} />}
-            onClick={() => {
-              setMenuOpen(false);
-              void desktopClient.logOut();
-            }}
-          >
-            退出登录
-          </PopoverItem>
+          {githubAuthenticated ? (
+            <PopoverItem
+              icon={<LogOut size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setMenuOpen(false);
+                void logoutGithub();
+              }}
+            >
+              退出登录
+            </PopoverItem>
+          ) : null}
         </div>
       </PopoverMenu>
       <div className="sidebar-footer-status-slot">
