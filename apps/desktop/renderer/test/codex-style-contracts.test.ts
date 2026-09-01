@@ -215,6 +215,39 @@ describe('Codex CPX design system token contract', () => {
     )
   })
 
+  test('keeps settings navigation and responsive rows on one alignment contract', async () => {
+    const [settings, billing, navigation] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/features/_settings-core.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/features/_settings-billing.scss',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/SettingsNav.tsx', import.meta.url),
+      ).text(),
+    ])
+
+    expect(settings).toContain(
+      '--settings-nav-inline-gutter: var(--cpx-sys-space-2);',
+    )
+    expect(settings).toMatch(
+      /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--settings-nav-inline-gutter\);/,
+    )
+    expect(settings).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{[\s\S]*?flex-direction: column;/,
+    )
+    expect(billing).not.toMatch(/^\s*\.settings-row,\s*$/m)
+    expect(billing).not.toMatch(/^\s*\.settings-row-control\s*\{/m)
+    expect(navigation).not.toMatch(
+      /settings-nav-(?:scroll-content|header|menu|group|group-title-row|group-items)[^"\n]*tw:(?:gap|px|py)-/,
+    )
+  })
+
+
   test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
     const [systemTokens, componentTokens, cards, composer, summary, rightDock] =
       await Promise.all([

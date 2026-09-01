@@ -105,9 +105,9 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
     <ScrollArea
       aria-label="设置分类"
       className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5"
+      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col"
     >
-      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-3">
+      <div className="settings-nav-header tw:grid tw:shrink-0">
         <SidebarRow
           asChild
           className="settings-back-btn"
@@ -138,7 +138,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           variant="standard"
         />
       </div>
-      <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4">
+      <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col">
         {normalizedQuery ? (
           <SearchResults
             activeIndex={activeResultIndex}
@@ -149,17 +149,15 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         ) : (
           SETTINGS_GROUPS.map((group) => (
             <section
-              className="settings-nav-group tw:grid tw:gap-1"
+              className="settings-nav-group tw:grid"
               key={group.title}
             >
-              <div className="settings-nav-group-title-row tw:grid tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
-                <h2 className="settings-nav-group-title tw:m-0 tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text-soft">
+              <div className="settings-nav-group-title-row">
+                <h2 className="settings-nav-group-title">
                   {group.title}
                 </h2>
-                <span aria-hidden="true" className="sidebar-row-main" />
-                <span aria-hidden="true" className="sidebar-row-trailing" />
               </div>
-              <div className="settings-nav-group-items tw:grid tw:gap-0.5">
+              <div className="settings-nav-group-items tw:grid">
                 {group.items.map((item) => (
                   <SidebarRow
                     active={activeTab === item.routeId}
@@ -201,8 +199,12 @@ function SearchResults({
 }: SearchResultsProps): React.ReactNode {
   if (results.length === 0) {
     return (
-      <div id="settings-search-results" role="listbox">
-        <p className="tw:m-0 tw:px-3 tw:py-4 tw:text-sm tw:text-app-text-soft">
+      <div
+        className="settings-search-results"
+        id="settings-search-results"
+        role="listbox"
+      >
+        <p className="settings-search-empty">
           未找到匹配的设置
         </p>
       </div>
@@ -211,7 +213,7 @@ function SearchResults({
   return (
     <div
       aria-label="设置搜索结果"
-      className="tw:grid tw:gap-1"
+      className="settings-search-results tw:grid"
       id="settings-search-results"
       role="listbox"
     >
@@ -220,12 +222,7 @@ function SearchResults({
         return (
           <button
             aria-selected={selected}
-            className={[
-              "tw:grid tw:w-full tw:min-w-0 tw:gap-0.5 tw:rounded-lg tw:px-3 tw:py-2 tw:text-left tw:outline-none",
-              selected
-                ? "tw:bg-app-selected tw:text-app-text"
-                : "tw:text-app-text tw:hover:bg-app-hover",
-            ].join(" ")}
+            className="settings-search-result"
             id={`settings-search-result-${index}`}
             key={result.key}
             onClick={() => onActivate(result)}
@@ -234,17 +231,17 @@ function SearchResults({
             tabIndex={-1}
             type="button"
           >
-            <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-1.5">
-              <span className="tw:truncate tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)]">
+            <span className="settings-search-result-heading">
+              <span className="settings-search-result-title">
                 {result.rowTitle ?? result.pageLabel}
               </span>
               {result.rowTitle ? (
-                <span className="tw:shrink-0 tw:text-xs tw:text-app-text-soft">
+                <span className="settings-search-result-page">
                   {result.pageLabel}
                 </span>
               ) : null}
             </span>
-            <span className="tw:line-clamp-2 tw:text-xs tw:text-app-text-soft">
+            <span className="settings-search-result-description">
               {result.description}
             </span>
           </button>

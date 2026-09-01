@@ -802,7 +802,6 @@
 /* --- Responsive --- */
 @media (max-width: 900px) {
   .settings-hero-card,
-  .settings-row,
   .archived-session-row {
     align-items: stretch;
     flex-direction: column;
@@ -811,11 +810,6 @@
   .settings-status-grid {
     grid-template-columns: 1fr;
     min-width: 0;
-  }
-
-  .settings-row-control {
-    justify-content: flex-start;
-    width: 100%;
   }
 
   .settings-inline-actions {

@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 参考 Oreo Side Bar 规范统一设置导航、页面标题、章节、卡片、行内容与控件列的横向基线，使所有设置页保持严格对齐。
 - [desktop/renderer] 阶段六将设置卡片与模型管理页收敛到 Oreo 式紧凑平面层级，复用共享页面边距并移除重复和失效样式。
 - [desktop/renderer] 阶段五将菜单、Tooltip 与对话框收敛为 Oreo 式不透明浮层，统一 Dialog 表面所有权并移除重复和失效样式。
 - [desktop/renderer] 阶段四将会话轮次、用户消息与 Agent 活动详情收敛为 Oreo 式紧凑不透明层级，为用户和助手 Markdown 接入随界面字号联动的阅读行高及紧凑块间距，并移除不再使用的旧文件变更样式。
