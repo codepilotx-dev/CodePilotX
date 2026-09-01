@@ -10,6 +10,7 @@
 }
 
 .right-dock-file-browser {
+  container-type: inline-size;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -33,6 +34,7 @@
 }
 
 .right-dock-file-preview {
+  container-type: inline-size;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -466,6 +468,23 @@
 
 .right-dock-file-preview-scroll-content {
   min-width: 0;
+}
+
+@container (max-width: 440px) {
+  .file-breadcrumb-toolbar {
+    gap: var(--cpx-sys-space-1);
+    padding-inline: var(--cpx-sys-space-1);
+  }
+
+  .file-breadcrumb-toolbar__directory,
+  .file-breadcrumb-toolbar__open span,
+  .file-breadcrumb-toolbar__actions small {
+    display: none;
+  }
+
+  .file-breadcrumb-toolbar__actions {
+    gap: 0;
+  }
 }
 
 .right-dock-file-selection-target {

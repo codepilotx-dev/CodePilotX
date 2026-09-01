@@ -3,6 +3,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cpx-sys-space-2);
+  min-height: 40px;
   min-width: 0;
   flex: 0 0 auto;
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-2);
@@ -114,7 +115,7 @@
 }
 
 .browser-status-row {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-2);
@@ -133,6 +134,10 @@
   strong {
     color: var(--cpx-sys-color-danger);
     font-weight: var(--cpx-sys-font-weight-bold);
+  }
+
+  button {
+    flex: 0 0 auto;
   }
 }
 
@@ -211,6 +216,44 @@
 .browser-annotation-presence {
   flex: 0 0 auto;
   overflow: hidden;
+}
+
+@container (max-width: 440px) {
+  .browser-commandbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--cpx-sys-space-1);
+    padding-inline: var(--cpx-sys-space-1);
+  }
+
+  .browser-navigation,
+  .browser-toolbar-actions {
+    gap: 0;
+  }
+
+  .browser-navigation > :last-child,
+  .browser-toolbar-actions > :not(:first-child) {
+    display: none;
+  }
+
+  .browser-address-form input {
+    padding-inline: var(--cpx-sys-space-2);
+    text-align: left;
+  }
+
+  .browser-address-state,
+  .browser-address-error {
+    display: none;
+  }
+
+  .browser-status-row {
+    align-items: flex-start;
+    padding-inline: var(--cpx-sys-space-2);
+
+    span {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
 }
 
 @media (forced-colors: active) {
