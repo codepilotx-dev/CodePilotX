@@ -92,6 +92,11 @@ export function PetCatalogSection({
     [activePets, category, query, version],
   );
   const hasFilters = Boolean(query.trim() || category || version !== "all");
+  const clearFilters = (): void => {
+    setQuery("");
+    setCategory("");
+    setVersion("all");
+  };
 
   const loadCatalog = async (refresh = false): Promise<void> => {
     setLoading(true);
@@ -327,6 +332,9 @@ export function PetCatalogSection({
                 <SearchX size={28} />
                 <strong>没有匹配的宠物</strong>
                 <span>尝试更换关键词或筛选条件。</span>
+                <Button color="secondary" onClick={clearFilters} type="button">
+                  清除筛选
+                </Button>
               </div>
             ) : null}
             {!loading &&

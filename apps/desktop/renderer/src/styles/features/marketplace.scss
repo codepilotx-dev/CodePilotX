@@ -71,7 +71,7 @@
 
 .plugins-included-overview .plugins-section-heading {
   min-height: var(--cpx-sys-space-8);
-  padding: 0 var(--cpx-sys-space-2) var(--cpx-sys-space-2);
+  padding-bottom: var(--cpx-sys-space-2);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
@@ -92,7 +92,6 @@
   height: 44px;
   flex-wrap: nowrap;
   gap: var(--cpx-sys-space-1);
-  padding-inline: var(--cpx-sys-space-2);
   overflow: hidden;
 }
 
@@ -132,9 +131,9 @@
 }
 
 .plugins-directory-navigation {
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
-  padding-inline: var(--cpx-sys-space-2);
 }
 
 .plugins-catalog-grid {
@@ -401,14 +400,16 @@
   min-width: 0;
   height: 100%;
   overflow: auto;
+  padding: var(--cpx-sys-space-5);
   background: var(--cpx-sys-color-surface-canvas);
+  container-name: plugins-page;
+  container-type: inline-size;
 }
 
 .catalog-details-view {
   display: grid;
-  width: min(var(--cpx-sys-layout-content-max-width), 100%);
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   margin-inline: auto;
-  padding: var(--cpx-sys-space-8) var(--cpx-sys-space-5);
   gap: var(--cpx-sys-space-7);
 }
 
@@ -778,6 +779,15 @@
 }
 
 @container plugins-page (max-width: 479px) {
+  .plugins-directory-navigation,
+  .plugins-callout {
+    align-items: stretch;
+  }
+
+  .plugins-callout {
+    flex-wrap: wrap;
+  }
+
   .plugin-catalog-card,
   .skill-catalog-card,
   .catalog-details-view:not(.catalog-plugin-details) .catalog-details-view__header {
