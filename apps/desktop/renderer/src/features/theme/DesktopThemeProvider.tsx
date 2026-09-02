@@ -124,6 +124,10 @@ export function DesktopThemeProvider({
 
   const draftResolvedVariant =
     draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
+  const reducedMotion =
+    draftSettings.reduceMotion === 'system'
+      ? systemReduceMotion
+      : draftSettings.reduceMotion === 'on'
   const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
   const activeTheme = useMemo(
     () => getDesktopThemeForSelection(draftSettings, draftResolvedVariant),
@@ -153,12 +157,12 @@ export function DesktopThemeProvider({
     applyDesktopTheme(
       draftSettings,
       draftResolvedVariant,
-      systemReduceMotion,
+      reducedMotion,
     )
   }, [
     draftResolvedVariant,
     draftSettings,
-    systemReduceMotion,
+    reducedMotion,
   ])
 
   useEffect(() => {
@@ -314,6 +318,7 @@ export function DesktopThemeProvider({
         draftSettings,
         draftResolvedVariant,
       ),
+      reducedMotion,
       draft,
       setMode,
       saveSettings,
@@ -323,6 +328,7 @@ export function DesktopThemeProvider({
       draft,
       draftResolvedVariant,
       draftSettings,
+      reducedMotion,
       saveSettings,
       setMode,
       settings,
@@ -339,13 +345,9 @@ export function DesktopThemeProvider({
 function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
-  systemReduceMotion: boolean,
+  reduceMotion: boolean,
 ): void {
   const root = document.documentElement
-  const reduceMotion =
-    settings.reduceMotion === 'system'
-      ? systemReduceMotion
-      : settings.reduceMotion === 'on'
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.dataset.windowType = window.codePilotXDesktop ? 'electron' : 'browser-mock'

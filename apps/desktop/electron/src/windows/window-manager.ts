@@ -409,6 +409,23 @@ export class WindowManager {
       this.#normalWindowBounds = window.getBounds()
       this.#scheduleWindowState(false)
     }
+    let manualResizeActive = false
+    window.on("will-resize", () => {
+      if (manualResizeActive || window.webContents.isDestroyed()) return
+      manualResizeActive = true
+      window.webContents.send(
+        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
+        true,
+      )
+    })
+    window.on("resized", () => {
+      if (!manualResizeActive || window.webContents.isDestroyed()) return
+      manualResizeActive = false
+      window.webContents.send(
+        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
+        false,
+      )
+    })
     window.on("resize", rememberNormalBounds)
     window.on("move", rememberNormalBounds)
     window.on("closed", () => {

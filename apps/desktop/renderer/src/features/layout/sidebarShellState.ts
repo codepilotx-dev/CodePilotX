@@ -128,9 +128,15 @@ export function useSidebarShellController({
   sidebarWidth: number
 }): SidebarShellController {
   const appBodyRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(() => window.innerWidth)
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && isSidebarNarrow(window.innerWidth),
+  )
+  const observedNarrowRef = useRef(narrow)
   const [responsiveAutoHidden, setResponsiveAutoHidden] = useState(
-    () => isSidebarNarrow(window.innerWidth) && !desktopCollapsed,
+    () =>
+      typeof window !== 'undefined' &&
+      isSidebarNarrow(window.innerWidth) &&
+      !desktopCollapsed,
   )
   const [previewOpen, setPreviewOpen] = useState(false)
   const [delayedTriggerHover, setDelayedTriggerHover] = useState(false)
@@ -146,8 +152,7 @@ export function useSidebarShellController({
   const rearmBlockedRef = useRef(rearmBlocked)
   const sidebarWidthRef = useRef(sidebarWidth)
   const narrowOverrideOpenRef = useRef(false)
-  const previousNarrowRef = useRef(isSidebarNarrow(window.innerWidth))
-  const narrow = isSidebarNarrow(containerWidth)
+  const previousNarrowRef = useRef(narrow)
   const sidebarHidden = desktopCollapsed || responsiveAutoHidden
   const sidebarHiddenRef = useRef(sidebarHidden)
   const previousSidebarHiddenRef = useRef(sidebarHidden)
@@ -200,9 +205,13 @@ export function useSidebarShellController({
   useEffect(() => {
     const root = appBodyRef.current
     if (!root) return
-    const update = (): void => setContainerWidth(root.getBoundingClientRect().width)
-    update()
-    const observer = new ResizeObserver(update)
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0) return
+      const nextNarrow = isSidebarNarrow(entry.contentRect.width)
+      if (nextNarrow === observedNarrowRef.current) return
+      observedNarrowRef.current = nextNarrow
+      setNarrow(nextNarrow)
+    })
     observer.observe(root)
     return () => observer.disconnect()
   }, [])

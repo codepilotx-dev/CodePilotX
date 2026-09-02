@@ -85,7 +85,6 @@ test.describe('desktop UX performance', () => {
       name: '调整右侧面板宽度',
     })
     const rightShell = page.locator('.desktop-workspace-panel--right')
-    const rightSpacer = page.locator('.desktop-workspace-panel-spacer--right')
     const mainRoute = page.locator('.desktop-main-route')
     await expect(rightHandle).toBeVisible()
 
@@ -93,10 +92,10 @@ test.describe('desktop UX performance', () => {
       await rightHandle.press('Home')
       await settlePage(page)
       await resetWorkbenchWriteCount(page)
-      const before = await readPanelGeometry(rightShell, rightSpacer, mainRoute)
+      const before = await readRightPanelGeometry(rightShell, mainRoute)
       await startInteractionProbe(page)
-      await performPanelDrag(page, rightHandle, -96, 0, 120, false)
-      const during = await readPanelGeometry(rightShell, rightSpacer, mainRoute)
+      await performPanelDrag(page, rightHandle, 96, 0, 120, false)
+      const during = await readRightPanelGeometry(rightShell, mainRoute)
       const writesDuringDrag = await readWorkbenchWriteCount(
         page,
         'codepilotx.desktop.rightDockWidthRatio.v2',
@@ -113,13 +112,14 @@ test.describe('desktop UX performance', () => {
           Math.abs(during.mainSize - before.mainSize) > 48 ? 1 : 0,
         livePanelSizeChanged:
           Math.abs(during.panelSize - before.panelSize) > 48 ? 1 : 0,
-        panelSpacerDelta: Math.abs(during.panelSize - during.spacerSize),
+        panelBoundaryGap: during.panelBoundaryGap,
         writesAfterDrop,
         writesDuringDrag,
       })
     }
 
-    await page.getByRole('button', { name: /打开集成终端/ }).click()
+    await page.getByRole('menuitem', { name: '查看' }).click()
+    await page.getByRole('menuitem', { name: '切换底部面板' }).click()
     const bottomHandle = page.getByRole('separator', {
       name: '调整底部面板高度',
     })
@@ -167,6 +167,99 @@ test.describe('desktop UX performance', () => {
         writesDuringDrag,
       })
     }
+  })
+
+  test('window continuous resize maintains 60fps and settles storage writes', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const target = window as typeof window & {
+        __workbenchLayoutWrites?: number
+      }
+      target.__workbenchLayoutWrites = 0
+      const original = Storage.prototype.setItem
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (key === 'codepilotx.desktop.workbenchLayout.v1') {
+          target.__workbenchLayoutWrites =
+            (target.__workbenchLayoutWrites ?? 0) + 1
+        }
+        return original.call(this, key, value)
+      }
+    })
+    await waitForFixture(page, 500, 30)
+
+    const initialViewport = { width: 1280, height: 800 }
+    await page.setViewportSize(initialViewport)
+    await page.waitForTimeout(600)
+    await settlePage(page)
+    await performWindowResize(page, 1280, 800, -20, -10, 6)
+    await page.waitForTimeout(600)
+    await page.setViewportSize(initialViewport)
+    await page.waitForTimeout(600)
+    await settlePage(page)
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await page.setViewportSize(initialViewport)
+      await page.waitForTimeout(600)
+      await settlePage(page)
+      await page.evaluate(() => {
+        ;(window as typeof window & { __workbenchLayoutWrites?: number })
+          .__workbenchLayoutWrites = 0
+      })
+
+      await startInteractionProbe(page)
+      await performWindowResize(page, 1280, 800, -200, -100, 30)
+      const writesDuringDrag = await page.evaluate(
+        () =>
+          (window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0,
+      )
+      await page.waitForFunction(
+        () =>
+          ((window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0) >= 1,
+        undefined,
+        { timeout: 5_000 },
+      )
+      await settlePage(page)
+      const writesAfterDrop = await page.evaluate(
+        () =>
+          (window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0,
+      )
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'window-resize', sample, {
+        ...interaction,
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightShell = page.locator('.desktop-workspace-panel--right')
+    await expect(rightShell).toBeVisible()
+    await page.setViewportSize({ width: 1400, height: 900 })
+    await settlePage(page)
+
+    const beforeRightBox = await rightShell.boundingBox()
+    if (!beforeRightBox) {
+      throw new Error('Right panel should be visible before resize')
+    }
+
+    await performWindowResize(page, 1400, 900, -100, -50, 30)
+    const duringRightBox = await rightShell.boundingBox()
+    if (!duringRightBox) {
+      throw new Error('Right panel should remain visible during resize')
+    }
+    expect(duringRightBox.width).toBeLessThan(beforeRightBox.width)
+
+    await performWindowResize(page, 1300, 850, -100, -50, 30)
+    await settlePage(page)
+
+    const afterRightBox = await rightShell.boundingBox()
+    if (!afterRightBox) {
+      throw new Error('Right panel should remain visible after resize')
+    }
+    expect(afterRightBox.width).toBeLessThan(duringRightBox.width)
   })
 
   test('long conversation scrolling remains virtualized', async ({ page }) => {
@@ -560,7 +653,43 @@ async function performPanelDrag(
       startY + (deltaY * step) / steps,
     )
   }
+  await page.evaluate(
+    () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+  )
   if (release) await page.mouse.up()
+}
+
+async function readRightPanelGeometry(
+  panel: import('@playwright/test').Locator,
+  main: import('@playwright/test').Locator,
+): Promise<{ mainSize: number; panelSize: number; panelBoundaryGap: number }> {
+  const [panelBox, mainBox] = await Promise.all([
+    panel.boundingBox(),
+    main.boundingBox(),
+  ])
+  if (!panelBox || !mainBox) {
+    throw new Error('Workbench right panel geometry is unavailable')
+  }
+  return {
+    mainSize: mainBox.width,
+    panelSize: panelBox.width,
+    panelBoundaryGap: Math.abs(mainBox.x + mainBox.width - panelBox.x),
+  }
+}
+
+async function performWindowResize(
+  page: import('@playwright/test').Page,
+  startWidth: number,
+  startHeight: number,
+  deltaWidth: number,
+  deltaHeight: number,
+  steps = 60,
+): Promise<void> {
+  for (let step = 1; step <= steps; step += 1) {
+    const currentWidth = Math.round(startWidth + (deltaWidth * step) / steps)
+    const currentHeight = Math.round(startHeight + (deltaHeight * step) / steps)
+    await page.setViewportSize({ width: currentWidth, height: currentHeight })
+  }
 }
 
 async function readPanelGeometry(

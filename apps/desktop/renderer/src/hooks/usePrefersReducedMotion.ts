@@ -1,28 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useDesktopTheme } from '../features/theme/themeContext.js'
 
 export function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(getEffectiveReducedMotion)
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = (): void => {
-      setReduced(getEffectiveReducedMotion())
-    }
-    const observer = new MutationObserver(update)
-    update()
-    media.addEventListener('change', update)
-    observer.observe(document.documentElement, {
-      attributeFilter: ['data-reduce-motion'],
-      attributes: true,
-    })
-    return () => {
-      media.removeEventListener('change', update)
-      observer.disconnect()
-    }
-  }, [])
-
-  return reduced
+  return useDesktopTheme().reducedMotion
 }
 
 export function getEffectiveReducedMotion(): boolean {

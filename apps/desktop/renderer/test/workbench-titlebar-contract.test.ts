@@ -74,23 +74,25 @@ describe('workbench resize commit contract', () => {
     const controller = readRendererFile(
       'src/features/layout/shell/useWorkbenchShellController.ts',
     )
-    const responsiveSyncStart = controller.indexOf(
-      'if (workspaceSize.width <= 0 || workspaceSize.height <= 0) return',
-    )
-    const responsiveSyncEnd = controller.indexOf(
-      "void import('./workbenchLayoutStorage.js')",
-      responsiveSyncStart,
-    )
-    const responsiveSync = controller.slice(
-      responsiveSyncStart,
-      responsiveSyncEnd,
+    const desktopLayout = readRendererFile(
+      'src/features/layout/useDesktopLayout.ts',
     )
 
     expect(controller).not.toContain('startTransition')
     expect(controller).toContain('setRightDockWidthRatio(nextRatio)')
     expect(controller).toContain('setBottomPanelHeightRatio(nextRatio)')
-    expect(responsiveSync).toContain('responsiveRightDockWidth')
-    expect(responsiveSync).toContain('responsiveBottomPanelHeight')
-    expect(responsiveSync).not.toContain('workbenchLayoutState,')
+    expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(')
+    expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(')
+    expect(controller).toContain('settleTimerRef.current = setTimeout(')
+    expect(controller).toContain('onWindowResizeStateChanged?.(resizing =>')
+    expect(controller).toContain('nativeResizeActiveRef.current = true')
+    expect(controller).toContain('settleOnNextFrame(true)')
+    expect(controller).toContain(
+      'if (finishNativeResize) nativeResizeActiveRef.current = false',
+    )
+    expect(controller).toContain('NON_NATIVE_RESIZE_SETTLE_MS = 500')
+    expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(null)')
+    expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(null)')
+    expect(desktopLayout).not.toContain('viewportWidth')
   })
 })

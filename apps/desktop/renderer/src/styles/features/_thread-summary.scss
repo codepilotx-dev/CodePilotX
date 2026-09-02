@@ -4,7 +4,7 @@
 
 .workflow-page__main[data-thread-summary-inline="true"] {
   padding-inline-end: calc(
-    var(--thread-summary-inline-width) + (var(--cpx-sys-space-4) * 2)
+    var(--thread-summary-inline-width) + var(--cpx-sys-space-1) * 1
   );
   transition: padding-inline-end var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
 }

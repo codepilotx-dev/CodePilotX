@@ -188,6 +188,7 @@ const DESKTOP_WINDOW_IPC_CHANNELS = {
   getPageZoom: "window:page-zoom:get",
   changePageZoom: "window:page-zoom:change",
   pageZoomChanged: "window:page-zoom:changed",
+  resizeStateChanged: "window:resize-state-changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-window-ipc").DESKTOP_WINDOW_IPC_CHANNELS
 
 const DESKTOP_WORKSPACE_IPC_CHANNELS = {
@@ -389,6 +390,22 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(
         DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged,
+        handler,
+      )
+  },
+  onWindowResizeStateChanged: (
+    listener: (resizing: boolean) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      resizing: unknown,
+    ): void => {
+      if (typeof resizing === "boolean") listener(resizing)
+    }
+    ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
         handler,
       )
   },

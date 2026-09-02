@@ -469,6 +469,20 @@ describe('non-color design token contracts', () => {
     )
   })
 
+  test('reduced-motion consumers reuse the theme provider instead of installing observers', async () => {
+    const hook = await read('../src/hooks/usePrefersReducedMotion.ts')
+    const provider = await read('../src/features/theme/DesktopThemeProvider.tsx')
+    const context = await read('../src/features/theme/themeContext.ts')
+
+    expect(hook).toContain('return useDesktopTheme().reducedMotion')
+    expect(hook).not.toContain('new MutationObserver')
+    expect(hook).not.toContain("addEventListener('change'")
+    expect(provider).toContain("draftSettings.reduceMotion === 'system'")
+    expect(provider).toContain("draftSettings.reduceMotion === 'on'")
+    expect(provider).toContain('reducedMotion,')
+    expect(context).toContain('reducedMotion: boolean')
+  })
+
   test('canonical conversation narrative content inherits one reading rhythm', async () => {
     const conversation = await read('../src/styles/features/_canonical-conversation.scss')
     const markdown = await read('../src/styles/markdown.scss')

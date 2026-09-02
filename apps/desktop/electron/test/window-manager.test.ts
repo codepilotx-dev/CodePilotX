@@ -48,11 +48,21 @@ describe("desktop multi-window contract", () => {
     expect(DESKTOP_WINDOW_IPC_CHANNELS.getPageZoom).toBe("window:page-zoom:get")
     expect(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom).toBe("window:page-zoom:change")
     expect(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged).toBe("window:page-zoom:changed")
+    expect(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged).toBe(
+      "window:resize-state-changed",
+    )
     expect(preload).toContain(
       "ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom, action)",
     )
     expect(preload).toContain(
       "ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged, handler)",
+    )
+    expect(preload).toContain(
+      "ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, handler)",
+    )
+    expect(preload).toContain('if (typeof resizing === "boolean") listener(resizing)')
+    expect(preload).toContain(
+      "ipcRenderer.removeListener(\n        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged",
     )
   })
 
@@ -69,6 +79,10 @@ describe("desktop multi-window contract", () => {
     expect(source).toContain(
       "#/threads/${encodeURIComponent(input.threadId)}",
     )
+    expect(source.match(/window\.on\("will-resize"/g)).toHaveLength(1)
+    expect(source.match(/window\.on\("resized"/g)).toHaveLength(1)
+    expect(source).toContain('if (manualResizeActive || window.webContents.isDestroyed()) return')
+    expect(source).toContain("DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged")
   })
 
   test("window controls and dialogs resolve the invoking managed window", async () => {

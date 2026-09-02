@@ -9,6 +9,7 @@ export const DESKTOP_WINDOW_IPC_CHANNELS = {
   getPageZoom: "window:page-zoom:get",
   changePageZoom: "window:page-zoom:change",
   pageZoomChanged: "window:page-zoom:changed",
+  resizeStateChanged: "window:resize-state-changed",
 } as const
 
 export type DesktopOpenWindowInput =
@@ -33,6 +34,9 @@ export interface DesktopWindowIpcBridge {
   changePageZoom(action: DesktopPageZoomAction): Promise<DesktopPageZoomState>
   onPageZoomChanged(
     listener: (state: DesktopPageZoomState) => void,
+  ): () => void
+  onWindowResizeStateChanged(
+    listener: (resizing: boolean) => void,
   ): () => void
 }
 
