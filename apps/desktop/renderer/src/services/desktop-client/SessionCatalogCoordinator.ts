@@ -78,7 +78,10 @@ export class SessionCatalogCoordinator {
       }
       const lifecycleUpdate = sessionLifecycleUpdate(event)
       if (lifecycleUpdate) {
-        lifecycleUpdates.set(lifecycleUpdate.threadId, lifecycleUpdate)
+        const previous = lifecycleUpdates.get(lifecycleUpdate.threadId)
+        if (!previous || lifecycleUpdate.sequence > previous.sequence) {
+          lifecycleUpdates.set(lifecycleUpdate.threadId, lifecycleUpdate)
+        }
       }
     }
     for (const update of lifecycleUpdates.values()) {
