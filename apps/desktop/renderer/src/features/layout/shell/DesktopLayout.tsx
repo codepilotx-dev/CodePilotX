@@ -1700,6 +1700,17 @@ export function DesktopLayout(): React.ReactNode {
         navigateForward()
         return
       }
+      if (action === 'zoomIn') {
+        void window.codePilotXDesktop?.changePageZoom('in')
+        return
+      }
+      if (action === 'zoomOut') {
+        void window.codePilotXDesktop?.changePageZoom('out')
+        return
+      }
+      if (action === 'actualSize') {
+        void window.codePilotXDesktop?.changePageZoom('reset')
+      }
     },
     [
       handleOpenBrowser,

@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import {
+  DESKTOP_WINDOW_IPC_CHANNELS,
+  type DesktopOpenWindowInput,
+  type DesktopPageZoomAction,
+  type DesktopPageZoomState,
+} from "@codepilotx/shared/desktop-window-ipc"
+import {
   app,
   BrowserWindow,
   nativeImage,
@@ -9,7 +15,6 @@ import {
   type WebContents,
 } from "electron"
 import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
-import type { DesktopOpenWindowInput } from "@codepilotx/shared/desktop-window-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { rendererConsoleRecord } from "../logging/renderer-console.js"
 import {
@@ -31,6 +36,11 @@ import {
   WindowStateStore,
 } from "./window-state.js"
 import { isDevToolsShortcut } from "./devtools-shortcut.js"
+import {
+  nextPageZoomPercent,
+  pageZoomState,
+  resolvePageZoomShortcut,
+} from "./page-zoom.js"
 import { createWindowsTitleBarOverlay } from "./title-bar-overlay.js"
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
@@ -57,6 +67,7 @@ export class WindowManager {
   #allowedApplicationOrigin: string | undefined
   #navigationGeneration = 0
   #startupPageActive = false
+  #pageZoomPercent: number
   #startupStatus: {
     status: string
     detail: string
@@ -76,6 +87,7 @@ export class WindowManager {
     this.#moduleDirectory = moduleDirectory
     this.#options = options
     this.#normalWindowBounds = options.initialWindowState.bounds
+    this.#pageZoomPercent = options.initialWindowState.zoomPercent
   }
 
   get mainWindow(): BrowserWindow | undefined {
@@ -96,6 +108,23 @@ export class WindowManager {
 
   isApplicationSender(sender: WebContents): boolean {
     return this.windowForSender(sender) !== undefined
+  }
+
+  getPageZoom(): DesktopPageZoomState {
+    return pageZoomState(this.#pageZoomPercent)
+  }
+
+  changePageZoom(action: DesktopPageZoomAction): DesktopPageZoomState {
+    this.#pageZoomPercent = nextPageZoomPercent(this.#pageZoomPercent, action)
+    for (const window of this.#applicationWindows.values()) {
+      if (!window.isDestroyed()) {
+        window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
+      }
+    }
+    this.#scheduleWindowState()
+    const state = this.getPageZoom()
+    this.broadcast(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged, state)
+    return state
   }
 
   windowForSender(sender: WebContents): BrowserWindow | undefined {
@@ -315,12 +344,21 @@ export class WindowManager {
         devTools: true,
       },
     })
+    window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
+    window.webContents.on(
+      "did-start-navigation",
+      (_event, _url, _isInPlace, isMainFrame) => {
+        if (isMainFrame) {
+          window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
+        }
+      },
+    )
     this.#applicationWindows.set(window.id, window)
     if (primary || this.#primaryWindowId === undefined) {
       this.#primaryWindowId = window.id
     }
     this.#focusedWindowId = window.id
-    this.#registerDevToolsShortcut(window)
+    this.#registerWindowShortcuts(window)
     window.webContents.on(
       "render-process-gone",
       (_event: Electron.Event, details: Electron.RenderProcessGoneDetails) => {
@@ -494,11 +532,12 @@ export class WindowManager {
     mainWindow.setBackgroundColor(this.#options.startupTheme.theme.surface)
   }
 
-  #scheduleWindowState(maximized: boolean): void {
+  #scheduleWindowState(maximized = this.mainWindow?.isMaximized() ?? false): void {
     this.#options.windowStateStore.scheduleSave({
       version: 1,
       bounds: this.#normalWindowBounds,
       maximized,
+      zoomPercent: this.#pageZoomPercent,
     })
   }
 
@@ -550,11 +589,18 @@ export class WindowManager {
     }
   }
 
-  #registerDevToolsShortcut(window: BrowserWindow): void {
+  #registerWindowShortcuts(window: BrowserWindow): void {
     window.webContents.on("before-input-event", (event, input) => {
-      if (!isDevToolsShortcut(input)) return
-      event.preventDefault()
-      window.webContents.toggleDevTools()
+      if (isDevToolsShortcut(input)) {
+        event.preventDefault()
+        window.webContents.toggleDevTools()
+        return
+      }
+      const zoomAction = resolvePageZoomShortcut(input)
+      if (zoomAction) {
+        event.preventDefault()
+        this.changePageZoom(zoomAction)
+      }
     })
     window.webContents.on("devtools-opened", () => {
       this.#logger.info("desktop.devtools-opened")

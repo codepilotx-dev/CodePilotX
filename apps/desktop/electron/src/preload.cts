@@ -72,6 +72,8 @@ import type {
 } from "@codepilotx/shared/desktop-microphone-ipc"
 import type {
   DesktopOpenWindowInput,
+  DesktopPageZoomAction,
+  DesktopPageZoomState,
   DesktopWindowIpcBridge,
 } from "@codepilotx/shared/desktop-window-ipc"
 import type { DesktopWorkspaceIpcBridge } from "@codepilotx/shared/desktop-workspace-ipc"
@@ -183,6 +185,9 @@ const DESKTOP_WINDOW_IPC_CHANNELS = {
   toggleMaximize: "window:toggle-maximize",
   close: "window:close",
   isMaximized: "window:is-maximized",
+  getPageZoom: "window:page-zoom:get",
+  changePageZoom: "window:page-zoom:change",
+  pageZoomChanged: "window:page-zoom:changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-window-ipc").DESKTOP_WINDOW_IPC_CHANNELS
 
 const DESKTOP_WORKSPACE_IPC_CHANNELS = {
@@ -367,6 +372,26 @@ const desktop = {
   toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize),
   close: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.close),
   isMaximized: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.isMaximized),
+  getPageZoom: (): Promise<DesktopPageZoomState> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.getPageZoom),
+  changePageZoom: (action: DesktopPageZoomAction): Promise<DesktopPageZoomState> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom, action),
+  onPageZoomChanged: (
+    listener: (state: DesktopPageZoomState) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: unknown,
+    ): void => {
+      if (isDesktopPageZoomState(state)) listener(state)
+    }
+    ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged,
+        handler,
+      )
+  },
   pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory),
   getDataLocation: () =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
@@ -773,6 +798,18 @@ function isDesktopUpdateStatus(
     default:
       return false
   }
+}
+
+function isDesktopPageZoomState(
+  value: unknown,
+): value is DesktopPageZoomState {
+  return isRecord(value)
+    && typeof value.percent === "number"
+    && Number.isFinite(value.percent)
+    && value.percent >= 50
+    && value.percent <= 200
+    && typeof value.canZoomIn === "boolean"
+    && typeof value.canZoomOut === "boolean"
 }
 
 function isDesktopTerminalEvent(value: unknown): value is DesktopTerminalEvent {

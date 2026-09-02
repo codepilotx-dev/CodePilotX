@@ -25,6 +25,7 @@ import {
 } from "@codepilotx/shared/desktop-attachment-ipc"
 import {
   DESKTOP_WINDOW_IPC_CHANNELS,
+  isDesktopPageZoomAction,
   normalizeDesktopOpenWindowInput,
 } from "@codepilotx/shared/desktop-window-ipc"
 import { DESKTOP_WORKSPACE_IPC_CHANNELS } from "@codepilotx/shared/desktop-workspace-ipc"
@@ -160,6 +161,20 @@ export function registerDesktopIpc(
     DESKTOP_WINDOW_IPC_CHANNELS.isMaximized,
     event => {
       return requireMainWindowSender(event, windows).isMaximized()
+    },
+  )
+  ipcMain.handle(DESKTOP_WINDOW_IPC_CHANNELS.getPageZoom, event => {
+    requireMainWindowSender(event, windows)
+    return windows.getPageZoom()
+  })
+  ipcMain.handle(
+    DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom,
+    (event, action: unknown) => {
+      requireMainWindowSender(event, windows)
+      if (!isDesktopPageZoomAction(action)) {
+        throw new Error("页面缩放命令无效")
+      }
+      return windows.changePageZoom(action)
     },
   )
   ipcMain.handle(DESKTOP_UPDATE_IPC_CHANNELS.check, async event => {

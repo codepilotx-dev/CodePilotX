@@ -39,11 +39,20 @@ describe("desktop multi-window contract", () => {
     })).toBeNull()
   })
 
-  test("preload exposes only the typed fixed-channel window operation", async () => {
+  test("preload exposes typed fixed-channel window operations", async () => {
     const preload = await readSource("../src/preload.cts")
     expect(preload).toContain('openWindow: "window:open"')
     expect(preload).toContain(
       "ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.openWindow, input)",
+    )
+    expect(DESKTOP_WINDOW_IPC_CHANNELS.getPageZoom).toBe("window:page-zoom:get")
+    expect(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom).toBe("window:page-zoom:change")
+    expect(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged).toBe("window:page-zoom:changed")
+    expect(preload).toContain(
+      "ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom, action)",
+    )
+    expect(preload).toContain(
+      "ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged, handler)",
     )
   })
 
@@ -72,6 +81,9 @@ describe("desktop multi-window contract", () => {
     expect(handlers).toContain("requireMainWindowSender(event, windows).minimize()")
     expect(handlers).toContain("const target = requireMainWindowSender(event, windows)")
     expect(handlers).toContain("requireMainWindowSender(event, windows).close()")
+    expect(handlers).toContain("requireMainWindowSender(event, windows)")
+    expect(handlers).toContain("isDesktopPageZoomAction(action)")
+    expect(handlers).toContain("windows.changePageZoom(action)")
     expect(handlers).not.toContain("windows.mainWindow")
     expect(source).toContain(
       "return windows.requireApplicationWindow(event.sender)",

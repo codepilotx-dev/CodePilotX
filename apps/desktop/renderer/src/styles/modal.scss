@@ -118,6 +118,40 @@
 }
 
 /* --- Global Error Toast --- */
+.page-zoom-capsule {
+  position: fixed;
+  top: var(--cpx-sys-space-1);
+  right: max(
+    var(--cpx-sys-space-3),
+    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--cpx-sys-space-3))
+  );
+  z-index: var(--cpx-sys-z-toast);
+  display: inline-flex;
+  height: calc(var(--application-menubar-height) - var(--cpx-sys-space-2));
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  padding: 0 var(--cpx-sys-space-1) 0 var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-pill);
+  background: var(--cpx-sys-color-surface-raised);
+  box-shadow: var(--cpx-sys-shadow-floating);
+  color: var(--cpx-sys-color-fg-primary);
+  font: var(--cpx-sys-type-label);
+  -webkit-app-region: no-drag;
+
+  strong {
+    min-width: 4ch;
+    text-align: center;
+    font: inherit;
+  }
+}
+
+.page-zoom-capsule-separator {
+  width: 1px;
+  height: var(--cpx-sys-space-4);
+  background: var(--cpx-sys-color-border-subtle);
+}
+
 .global-error-toast {
   position: fixed;
   top: 20px;

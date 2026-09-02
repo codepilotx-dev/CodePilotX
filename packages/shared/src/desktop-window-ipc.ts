@@ -6,11 +6,22 @@ export const DESKTOP_WINDOW_IPC_CHANNELS = {
   toggleMaximize: "window:toggle-maximize",
   close: "window:close",
   isMaximized: "window:is-maximized",
+  getPageZoom: "window:page-zoom:get",
+  changePageZoom: "window:page-zoom:change",
+  pageZoomChanged: "window:page-zoom:changed",
 } as const
 
 export type DesktopOpenWindowInput =
   | { kind: "home" }
   | { kind: "thread"; threadId: string }
+
+export type DesktopPageZoomAction = "in" | "out" | "reset"
+
+export type DesktopPageZoomState = {
+  percent: number
+  canZoomIn: boolean
+  canZoomOut: boolean
+}
 
 export interface DesktopWindowIpcBridge {
   openWindow(input: DesktopOpenWindowInput): Promise<void>
@@ -18,6 +29,17 @@ export interface DesktopWindowIpcBridge {
   toggleMaximize(): Promise<boolean>
   close(): Promise<void>
   isMaximized(): Promise<boolean>
+  getPageZoom(): Promise<DesktopPageZoomState>
+  changePageZoom(action: DesktopPageZoomAction): Promise<DesktopPageZoomState>
+  onPageZoomChanged(
+    listener: (state: DesktopPageZoomState) => void,
+  ): () => void
+}
+
+export function isDesktopPageZoomAction(
+  value: unknown,
+): value is DesktopPageZoomAction {
+  return value === "in" || value === "out" || value === "reset"
 }
 
 export function normalizeDesktopOpenWindowInput(

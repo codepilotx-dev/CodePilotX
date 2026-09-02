@@ -11,6 +11,7 @@ import {
   isAllowedDesktopBrowserNavigation,
   normalizeDesktopBrowserUrl,
 } from "./browser-url.js"
+import { scaleDesktopBrowserBounds } from "./browser-bounds.js"
 
 type BrowserEntry = {
   tabId: string
@@ -109,7 +110,9 @@ export class DesktopBrowserController {
     bounds: DesktopBrowserBounds,
   ): DesktopBrowserSnapshot {
     const entry = this.#requireEntry(owner, tabId)
-    entry.bounds = normalizeBounds(bounds)
+    entry.bounds = normalizeBounds(
+      scaleDesktopBrowserBounds(bounds, owner.webContents.getZoomFactor()),
+    )
     entry.view.setBounds(entry.bounds)
     this.#applyVisibility(entry)
     return this.#snapshot(entry)

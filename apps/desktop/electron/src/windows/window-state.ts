@@ -7,6 +7,10 @@ import {
   type DesktopWindowBounds,
   type StateLogger as WindowStateLogger,
 } from "./debounced-atomic-json-writer.js"
+import {
+  DEFAULT_PAGE_ZOOM_PERCENT,
+  normalizePageZoomPercent,
+} from "./page-zoom.js"
 
 export const MAIN_WINDOW_MIN_WIDTH = 960
 export const MAIN_WINDOW_MIN_HEIGHT = 640
@@ -21,6 +25,7 @@ export type DesktopWindowStateV1 = {
   version: 1
   bounds: DesktopWindowBounds
   maximized: boolean
+  zoomPercent: number
 }
 
 export type DesktopDisplayWorkArea = DesktopWindowBounds
@@ -78,6 +83,7 @@ export function createDefaultWindowState(
       height,
     },
     maximized: false,
+    zoomPercent: DEFAULT_PAGE_ZOOM_PERCENT,
   }
 }
 
@@ -100,6 +106,7 @@ export function normalizeWindowState(
     return {
       ...createDefaultWindowState(primaryDisplay),
       maximized: value.maximized,
+      zoomPercent: normalizePageZoomPercent(value.zoomPercent),
     }
   }
 
@@ -121,10 +128,16 @@ export function normalizeWindowState(
       height,
     },
     maximized: value.maximized,
+    zoomPercent: normalizePageZoomPercent(value.zoomPercent),
   }
 }
 
-function isWindowState(value: unknown): value is DesktopWindowStateV1 {
+function isWindowState(value: unknown): value is {
+  version: 1
+  bounds: DesktopWindowBounds
+  maximized: boolean
+  zoomPercent?: unknown
+} {
   if (!isRecord(value) || value.version !== WINDOW_STATE_VERSION) return false
   if (typeof value.maximized !== "boolean" || !isRecord(value.bounds)) return false
   const bounds = value.bounds

@@ -660,3 +660,4 @@
 - [renderer] React + Vite 渲染器、会话视图与工作台布局
 - [packages] 共享领域契约、provider 插件系统、AI 模型目录与故障转移
 - [ci] PR 与 tag 触发 CI，支持静默安装验证与 smoke 测试
+- [desktop/renderer] 新增全局页面缩放快捷键与可交互胶囊提示，支持跨窗口同步并记忆缩放比例。

@@ -7,6 +7,7 @@ import { AppContextMenu } from './components/ui/AppContextMenu.js'
 import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useEverOpened } from './hooks/usePresenceRetention.js'
+import { PageZoomCapsule } from './components/PageZoomCapsule.js'
 
 const GlobalErrorModal = lazy(() => import('./components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 
@@ -81,6 +82,7 @@ export function App(): React.ReactNode {
                     />
                   </Suspense>
                 ) : null}
+                <PageZoomCapsule />
                 <RouterProvider router={router} />
               </div>
             }

@@ -312,6 +312,21 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+Shift+N'],
   },
   {
+    title: '放大页面',
+    description: 'Increase the page zoom',
+    keys: ['Ctrl++'],
+  },
+  {
+    title: '缩小页面',
+    description: 'Decrease the page zoom',
+    keys: ['Ctrl+-'],
+  },
+  {
+    title: '恢复实际大小',
+    description: 'Reset the page zoom to 100%',
+    keys: ['Ctrl+0'],
+  },
+  {
     title: 'Open command menu',
     description: 'Open the command menu',
     keys: ['Ctrl+K', 'Ctrl+Shift+P'],
