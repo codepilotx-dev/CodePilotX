@@ -24,8 +24,8 @@ export type DesktopChromeThemeSeed = Pick<
 const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
   light: {
     accent: '#339cff',
-    surface: '#ffffff',
-    ink: '#1a1c1f',
+    surface: '#f9f9f9',
+    ink: '#111111',
     contrast: 45,
     fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
@@ -36,8 +36,8 @@ const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
   },
   dark: {
     accent: '#339cff',
-    surface: '#181818',
-    ink: '#ffffff',
+    surface: '#111111',
+    ink: '#f7f7f7',
     contrast: 60,
     fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {

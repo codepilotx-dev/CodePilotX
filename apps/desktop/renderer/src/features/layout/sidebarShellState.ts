@@ -270,11 +270,7 @@ export function useSidebarShellController({
 
     if (rearmBlockedRef.current && !floatingResizing) {
       updatePreviewOpen(false)
-      if (
-        !triggerHoveredRef.current &&
-        !pointerHits.edge &&
-        !pointerHits.panel
-      ) {
+      if (!triggerHoveredRef.current) {
         updateRearmBlocked(false)
       }
       return

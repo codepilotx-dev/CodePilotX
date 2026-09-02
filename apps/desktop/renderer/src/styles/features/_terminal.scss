@@ -12,11 +12,11 @@
 
 .integrated-terminal__lifecycle {
   display: flex;
-  min-height: 34px;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-2);
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
   background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-danger);
@@ -28,7 +28,7 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-2);
 }
 
 .integrated-terminal__viewport .xterm {

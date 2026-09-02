@@ -21,7 +21,7 @@
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-comp-scrollbar-slider-bg);
   background-clip: padding-box;
-  transition: background-color var(--cpx-sys-motion-micro) ease;
+  transition: background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 }
 
 .scroll-area::-webkit-scrollbar-thumb:hover {

@@ -707,29 +707,11 @@ export function getSidebarSessionDisplayGroups<T>(
   };
 }
 
-export function sessionSnippet(session: SessionListItem): string | null {
-  const raw = session.summary || session.preview || session.firstPrompt || null
-  if (!raw) return null
-  const cleaned = raw
-    .replace(/^#+\s+/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return cleaned || null
-}
-
 function SidebarSessionSubtitle({
   session,
 }: {
   session: SessionListItem
 }): React.ReactNode {
-  const snippet = sessionSnippet(session)
-  if (snippet) {
-    return (
-      <span className="sidebar-session-snippet" title={snippet}>
-        {snippet}
-      </span>
-    )
-  }
   return <SidebarSessionWorkspaceMeta session={session} />
 }
 
@@ -741,7 +723,7 @@ function SidebarSessionWorkspaceMeta({
   if (session.standalone) {
     return (
       <span className="sidebar-session-workspace-meta">
-        <MessageSquare className="sidebar-session-workspace-meta__icon" size={12} />
+        <MessageSquare className="sidebar-session-workspace-meta__icon" size={APP_ICON_SIZE} />
         <span className="sidebar-session-workspace-meta__name">会话</span>
       </span>
     )
@@ -751,7 +733,7 @@ function SidebarSessionWorkspaceMeta({
       <span className="sidebar-session-workspace-meta">
         <ProjectAppearanceGlyph
           className="sidebar-session-workspace-meta__glyph"
-          size={12}
+          size={APP_ICON_SIZE}
         />
         <span className="sidebar-session-workspace-meta__name">
           {session.workspaceName}
@@ -761,7 +743,7 @@ function SidebarSessionWorkspaceMeta({
   }
   return (
     <span className="sidebar-session-workspace-meta">
-      <Folder className="sidebar-session-workspace-meta__icon" size={12} />
+      <Folder className="sidebar-session-workspace-meta__icon" size={APP_ICON_SIZE} />
       <span className="sidebar-session-workspace-meta__name">
         {session.workspaceName}
       </span>

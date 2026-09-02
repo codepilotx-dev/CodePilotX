@@ -45,11 +45,14 @@ $static-utilities: (
   'overflow-x-auto': (overflow-x: auto),
   'overflow-y-auto': (overflow-y: auto),
   // Sys type roles are CSS font shorthand; consume via font: var(...).
+  'type-display': (
+    font: var(--cpx-sys-type-display),
+  ),
   'type-body': (
     font: var(--cpx-sys-type-body),
   ),
   'type-control': (
-    font: var(--cpx-sys-type-body),
+    font: var(--cpx-sys-type-control),
   ),
   'type-secondary': (
     font: var(--cpx-sys-type-body-sm),
@@ -69,6 +72,19 @@ $static-utilities: (
   'type-body-lg': (
     font: var(--cpx-sys-type-body-lg),
   ),
+  'type-reading': (
+    font: var(--cpx-sys-type-reading),
+  ),
+  'type-row-title': (
+    font: var(--cpx-sys-type-row-title),
+  ),
+  'type-metric': (
+    font: var(--cpx-sys-type-metric),
+    font-variant-numeric: tabular-nums,
+  ),
+  'type-code': (
+    font: var(--cpx-sys-type-code),
+  ),
   'type-title-sm': (
     font: var(--cpx-sys-type-heading-sm),
   ),
@@ -85,7 +101,7 @@ $static-utilities: (
   'font-mono': (font-family: var(--cpx-sys-font-family-mono)),
   'font-body': (font-weight: var(--cpx-sys-font-weight-body)),
   'font-label': (font-weight: var(--cpx-sys-font-weight-medium)),
-  'font-heading': (font-weight: var(--cpx-sys-font-weight-medium)),
+  'font-heading': (font-weight: var(--cpx-sys-font-weight-bold)),
   'font-emphasis': (font-weight: var(--cpx-sys-font-weight-bold)),
   'text-left': (text-align: left),
   'text-center': (text-align: center),

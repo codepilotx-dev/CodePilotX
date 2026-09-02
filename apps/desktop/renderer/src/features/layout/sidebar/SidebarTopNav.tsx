@@ -161,7 +161,7 @@ function SidebarNavItems({
             asChild
             className={cx("sidebar-nav-link", active ? "active" : undefined)}
             key={item.view}
-            labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
+            labelClassName={cx('sidebar-item-label', 'u-min-w-0')}
             layout="flex"
             leading={item.icon}
           >
@@ -235,7 +235,7 @@ export function SidebarHeader({
   }
 
   return (
-    <header className="sidebar-header tw:px-1.5">
+    <header className="sidebar-header">
       <PopoverMenu
         align="start"
         className="popover-menu--no-icons sidebar-product-mode-menu"
@@ -249,7 +249,7 @@ export function SidebarHeader({
             className="sidebar-product-mode-trigger"
             type="button"
           >
-            <span>{activeMode.label}</span>
+            <span className="sidebar-product-mode-label">{activeMode.label}</span>
             <ChevronDown aria-hidden="true" size={14} />
           </button>
         }
@@ -334,7 +334,7 @@ export function SidebarHeader({
               className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:rounded-xl tw:border tw:border-border tw:p-3.5 tw:outline-none"
             >
               <div className="tw:flex tw:flex-col tw:gap-2.5">
-                <p className="tw:text-xs tw:text-foreground">
+                <p className="u-type-caption tw:text-foreground">
                   新的活动视图——集中查看进行中、待处理和未读会话。
                 </p>
                 <div className="tw:flex tw:justify-end">
@@ -369,7 +369,7 @@ export function SidebarTopNav({
     }),
   )
   return (
-    <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
+    <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label="主要导航">
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
   );
@@ -399,7 +399,7 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label="新建对话"
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >
       <SidebarNavItems items={fixedItems} isActiveView={isActiveView} />

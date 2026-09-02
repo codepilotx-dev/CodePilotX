@@ -86,8 +86,7 @@
 
   strong {
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
   }
 
   small {
@@ -122,8 +121,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-4))
-    var(--cpx-sys-space-6) var(--cpx-sys-layout-page-padding-bottom);
+  padding: var(--cpx-sys-space-5);
   scrollbar-gutter: stable;
 }
 
@@ -179,7 +177,7 @@
 }
 
 .session-group-detail__inner {
-  max-width: 960px;
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -206,6 +204,7 @@
     margin: var(--cpx-sys-space-1) 0 0;
     font: var(--cpx-sys-type-heading-xl);
     color: var(--cpx-sys-color-fg-primary);
+    overflow-wrap: anywhere;
   }
 
   p {
@@ -303,8 +302,7 @@
   gap: var(--cpx-sys-space-2);
 
   strong {
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
   }
 }
@@ -365,8 +363,7 @@
 }
 
 .session-group-member-card__title {
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -475,8 +472,7 @@
 }
 
 .session-group-step__title {
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -675,6 +671,25 @@
   }
 
   .session-group-detail-page {
-    padding-inline: var(--cpx-sys-space-4);
+    padding: var(--cpx-sys-space-5);
+  }
+
+  .session-group-detail__header,
+  .session-group-member-add {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .session-group-actions {
+    flex-wrap: wrap;
+  }
+
+  .session-group-member-select-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .session-group-step__header {
+    flex-direction: column;
   }
 }

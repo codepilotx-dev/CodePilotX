@@ -1,45 +1,6 @@
-.pet-catalog-page {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--cpx-sys-color-surface-canvas);
-  color: var(--cpx-sys-color-fg-primary);
-}
-
-.pet-catalog-scroll-region {
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
-}
-
-.pet-catalog-content {
-  width: min(1180px, 100%);
-  margin: 0 auto;
-  padding: calc(var(--cpx-sys-space-1) * 9) calc(var(--cpx-sys-space-1) * 10) calc(var(--cpx-sys-space-1) * 16);
-}
-
-.pet-catalog-page-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--cpx-sys-space-6);
-  margin-bottom: var(--cpx-sys-space-7);
-}
-
-.pet-catalog-page-heading h1 {
-  margin: 0;
-  font-size: var(--cpx-sys-font-size-3xl);
-  line-height: var(--cpx-sys-line-height-relaxed);
-}
-
-.pet-catalog-page-heading p {
-  max-width: 680px;
-  margin: var(--cpx-sys-space-2) 0 0;
-  color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+.pet-catalog-primary-page {
+  container-name: pet-catalog-page;
+  container-type: inline-size;
 }
 
 .pet-catalog-browser {
@@ -56,7 +17,7 @@
 
 .pet-catalog-workspace-tabs .segmented-control-item > span {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-filters {
@@ -78,7 +39,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .pet-catalog-wake {
@@ -172,20 +133,19 @@
 .pet-catalog-card-heading > span {
   flex: 0 0 auto;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-author,
 .pet-catalog-description {
   margin: 0;
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .pet-catalog-description {
   display: -webkit-box;
   overflow: hidden;
-  line-height: var(--cpx-sys-line-height-normal);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -201,7 +161,7 @@
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-tags > span[data-license="restricted"],
@@ -282,12 +242,13 @@
   white-space: pre-wrap;
 }
 
-@media (max-width: 900px) {
-  .pet-catalog-content {
-    padding-inline: var(--cpx-sys-space-6);
-  }
-
+@container pet-catalog-page (max-width: 720px) {
   .pet-catalog-filters {
     grid-template-columns: 1fr;
+  }
+
+  .pet-catalog-wake {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

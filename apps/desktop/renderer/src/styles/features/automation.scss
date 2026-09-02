@@ -12,15 +12,6 @@
   min-width: 0;
 }
 
-.automation-primary-page .primary-page-layout__header,
-.automation-primary-page .primary-page-layout__body {
-  width: min(var(--cpx-sys-layout-content-max-width), 100%);
-}
-
-.automation-primary-page--detail .primary-page-layout__body {
-  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
-}
-
 .automation-view {
   min-height: 30rem;
   color: var(--cpx-sys-color-fg-primary);
@@ -66,7 +57,8 @@
 
 .automation-list > li {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cpx-sys-space-8);
   align-items: center;
   border-radius: var(--cpx-sys-radius-container);
   transition:
@@ -94,9 +86,9 @@
 
 .automation-row {
   display: grid;
-  grid-template-columns: var(--cpx-sys-space-5) minmax(0, 1fr) auto;
+  grid-template-columns: var(--cpx-sys-space-5) minmax(0, 1fr) 9rem;
   align-items: center;
-  flex: 1;
+  width: 100%;
   min-width: 0;
   padding: var(--cpx-sys-space-2);
   border: 0;
@@ -148,7 +140,7 @@
   display: flex;
   align-items: center;
   gap: var(--cpx-sys-space-2);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .automation-row-title strong,
@@ -166,8 +158,11 @@
 
 .automation-row-status {
   flex: none;
+  overflow: hidden;
   color: var(--cpx-sys-color-fg-tertiary);
   font: var(--cpx-sys-type-caption);
+  text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -177,10 +172,7 @@
 }
 
 .automation-row-menu {
-  position: absolute;
-  top: 50%;
-  right: var(--cpx-sys-space-2);
-  transform: translateY(-50%);
+  justify-self: center;
   opacity: 0;
 }
 
@@ -387,6 +379,8 @@
 }
 
 .automation-detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   border-left: 1px solid var(--cpx-sys-color-border-default);
@@ -421,7 +415,7 @@
 }
 
 .automation-detail-scroll {
-  height: calc(100% - var(--cpx-sys-space-8) * 2);
+  min-height: 0;
   overflow: auto;
 }
 
@@ -451,7 +445,7 @@
 
 .automation-field-label {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-label);
+  font: var(--cpx-sys-type-control);
 }
 
 .automation-field-error {
@@ -610,7 +604,7 @@
 
 @media (max-width: 48rem) {
   .automation-page-navigation {
-    overflow-x: auto;
+    flex-wrap: wrap;
   }
   .automation-page-navigation > :last-child:not(:first-child) {
     flex: none;
@@ -627,6 +621,12 @@
   }
   .automation-detail {
     border-left: 0;
+  }
+  .automation-row {
+    grid-template-columns: var(--cpx-sys-space-5) minmax(0, 1fr);
+  }
+  .automation-row-status {
+    display: none;
   }
   .automation-form-grid {
     grid-template-columns: minmax(0, 1fr);

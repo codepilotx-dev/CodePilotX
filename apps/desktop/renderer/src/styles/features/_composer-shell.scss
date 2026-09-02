@@ -87,7 +87,7 @@
     margin: var(--composer-surface-seam) var(--cpx-sys-space-3) 0;
     padding: var(--cpx-sys-space-2);
     border: 0;
-    border-radius: 0 0 var(--cpx-sys-radius-floating) var(--cpx-sys-radius-floating);
+    border-radius: 0 0 var(--cpx-sys-radius-container) var(--cpx-sys-radius-container);
     background: var(--cpx-sys-color-surface-recessed);
   }
 }
@@ -104,17 +104,13 @@
 .composer-stack[data-composer-utility-bar-variant="home"][data-surface] {
   .composer-input-surface {
     border: 0;
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-surface-control) 90%,
-      transparent
-    );
-    backdrop-filter: blur(20px);
+    background: var(--cpx-sys-color-surface-control);
+    backdrop-filter: none;
   }
 
   .composer-editor-content {
     min-height: 44px;
-    font: var(--cpx-sys-type-body-lg);
+    font: var(--cpx-sys-type-reading);
   }
 }
 
@@ -377,7 +373,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--cpx-sys-space-1);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .attachment-file-pill__name,
@@ -443,7 +439,7 @@
     border: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
+    font: var(--cpx-sys-type-reading);
     overflow-y: auto;
     overflow-wrap: anywhere;
     white-space: pre-wrap;

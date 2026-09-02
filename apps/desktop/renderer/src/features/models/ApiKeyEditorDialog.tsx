@@ -95,9 +95,9 @@ export function ApiKeyEditorForm({
       className={['model-center-key-dialog-form', className].filter(Boolean).join(' ')}
       onSubmit={event => void handleSubmit(event)}
     >
-      <div className="model-center-key-dialog-fields">
+      <div className="settings-management-dialog-card model-center-key-dialog-fields">
         {!hideProvider ? (
-          <label className="model-center-field">
+          <label className="settings-management-dialog-row model-center-field">
             <span>Provider</span>
             {editing ? (
               <div className="model-center-key-dialog-provider">{providerName ?? currentApiKey?.providerId}</div>
@@ -118,7 +118,7 @@ export function ApiKeyEditorForm({
             )}
           </label>
         ) : null}
-        <label className="model-center-field">
+        <label className="settings-management-dialog-row model-center-field">
           <span>名称</span>
           <Input
             autoFocus={autoFocusLabel}
@@ -128,7 +128,7 @@ export function ApiKeyEditorForm({
             onChange={event => setLabel(event.target.value)}
           />
         </label>
-        <label className="model-center-field">
+        <label className="settings-management-dialog-row model-center-field">
           <span>{editing ? '更换 Key（可选）' : 'API Key'}</span>
           <Input
             autoComplete="off"
@@ -141,7 +141,7 @@ export function ApiKeyEditorForm({
         </label>
       </div>
 
-      <footer className="model-center-key-dialog-actions">
+      <footer className="settings-management-dialog-footer model-center-key-dialog-actions">
         {onCancel ? <Button color="secondary" onClick={onCancel}>取消</Button> : null}
         <Button color="primary" disabled={!canSubmit} loading={busy} type="submit">
           {submitLabel ?? (editing ? '保存更改' : '安全保存')}
@@ -189,11 +189,12 @@ export function ApiKeyEditorDialog({
         <Dialog.Content
             aria-describedby={descriptionId}
             aria-labelledby={titleId}
-            className="ui-dialog-surface ui-dialog-surface--centered model-center-key-dialog"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog"
+            data-dialog-size="credential"
             onCloseAutoFocus={onCloseAutoFocus}
           >
-            <header className="model-center-key-dialog-header">
-              <div className="model-center-key-dialog-heading">
+            <header className="settings-management-dialog-header model-center-key-dialog-header">
+              <div className="settings-management-dialog-heading model-center-key-dialog-heading">
                 <span className="model-center-key-dialog-icon"><KeyRound aria-hidden /></span>
                 <div>
                   <Dialog.Title id={titleId}>{editing ? '编辑 API Key' : '新增 API Key'}</Dialog.Title>

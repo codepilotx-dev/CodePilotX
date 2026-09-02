@@ -31,6 +31,7 @@ type FeatureTokenContract = {
   componentGeometryExceptions: FeatureTokenException[]
   inlineStyleExceptions: FeatureTokenException[]
   tailwindArbitraryExceptions: FeatureTokenException[]
+  tailwindTypographyExceptions: FeatureTokenException[]
   literalTypographyExceptions: FeatureTokenException[]
   literalRadiusExceptions: FeatureTokenException[]
   literalMotionExceptions: FeatureTokenException[]
@@ -43,6 +44,7 @@ type FeatureTokenCategory =
   | 'componentGeometry'
   | 'inlineStyle'
   | 'tailwindArbitrary'
+  | 'tailwindTypography'
   | 'literalTypography'
   | 'literalRadius'
   | 'literalMotion'
@@ -278,6 +280,7 @@ const featureTokenCategoryPairs: ReadonlyArray<
   ['componentGeometry', manifest.featureTokenContract.componentGeometryExceptions],
   ['inlineStyle', manifest.featureTokenContract.inlineStyleExceptions],
   ['tailwindArbitrary', manifest.featureTokenContract.tailwindArbitraryExceptions],
+  ['tailwindTypography', manifest.featureTokenContract.tailwindTypographyExceptions],
   ['literalTypography', manifest.featureTokenContract.literalTypographyExceptions],
   ['literalRadius', manifest.featureTokenContract.literalRadiusExceptions],
   ['literalMotion', manifest.featureTokenContract.literalMotionExceptions],
@@ -1197,6 +1200,28 @@ for (const file of featureTokenScriptFiles) {
     if (!used) {
       errors.push(
         `feature TSX must not use literal Tailwind arbitrary ${fullClass}: ${path}:${lineNumberAt(match.index)}`,
+      )
+    }
+  }
+}
+
+/*
+ * Typography responsibility rule: feature TSX uses semantic u-type-* roles
+ * instead of generic Tailwind size/weight utilities that can override feature
+ * styles independently of the component's content role.
+ */
+const tailwindTypographyPattern =
+  /tw:(?:text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl)|font-(?:normal|medium|semibold|bold)|font-\[[^\]]+\])/g
+for (const file of featureTokenScriptFiles) {
+  const script = featureTokenScriptSources.get(file)
+  if (!script) continue
+  const { source, path, lineNumberAt } = script
+  for (const match of source.matchAll(tailwindTypographyPattern)) {
+    const className = match[0]
+    const used = markFeatureTokenUsed('tailwindTypography', path, 'className', className)
+    if (!used) {
+      errors.push(
+        `feature TSX must use a semantic typography role instead of ${className}: ${path}:${lineNumberAt(match.index)}`,
       )
     }
   }

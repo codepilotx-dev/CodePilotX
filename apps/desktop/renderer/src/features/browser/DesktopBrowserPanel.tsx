@@ -327,6 +327,24 @@ export function DesktopBrowserPanel({
         </div>
       </div>
 
+      {state.error ? (
+        <div className="browser-status-row" role="alert">
+          <span>{state.error}</span>
+          <Button
+            color="secondary"
+            disabled={!state.url && !address.trim()}
+            type="button"
+            onClick={() => void runBrowserAction(
+              state.url
+                ? desktopBrowserClient.reloadBrowser
+                : () => desktopBrowserClient.navigateBrowser(address),
+            )}
+          >
+            重试
+          </Button>
+        </div>
+      ) : null}
+
       <div
         className="browser-viewport"
         ref={viewportRef}

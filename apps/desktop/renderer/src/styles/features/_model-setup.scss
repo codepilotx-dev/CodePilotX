@@ -8,14 +8,14 @@
 
 .model-setup-page {
   display: grid;
-  grid-template-rows: 46px minmax(0, 1fr);
+  grid-template-rows: 36px minmax(0, 1fr);
   overflow: hidden;
 }
 
 .model-setup-titlebar {
   display: flex;
   min-width: 0;
-  height: 46px;
+  height: 36px;
   align-items: center;
   justify-content: space-between;
   border-bottom: 0.5px solid var(--cpx-sys-color-border-subtle);
@@ -30,8 +30,7 @@
 .model-setup-brand {
   padding-inline-start: var(--cpx-sys-space-4);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-control);
   letter-spacing: 0.01em;
 }
 
@@ -60,10 +59,8 @@
 .model-setup-state h1 {
   margin: var(--cpx-sys-space-1) 0 var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-3xl);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-heading-xl);
   letter-spacing: -0.025em;
-  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .model-setup-heading p,
@@ -76,8 +73,7 @@
 
 .model-setup-heading .model-setup-eyebrow {
   color: var(--cpx-sys-color-fg-tertiary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -346,5 +342,50 @@
 @media (max-width: 1040px) {
   .model-setup-main {
     padding-inline: var(--cpx-sys-space-6);
+  }
+}
+
+@media (max-width: 760px) {
+  .model-setup-main {
+    place-items: start center;
+    padding: var(--cpx-sys-space-7) var(--cpx-sys-space-5);
+  }
+
+  .model-setup-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cpx-sys-space-4);
+  }
+
+  .model-setup-progress {
+    grid-template-rows: 28px;
+    grid-template-columns: 28px 18px 28px;
+    align-items: center;
+    justify-content: start;
+    padding-top: 0;
+  }
+
+  .model-setup-progress i {
+    width: 18px;
+    height: 0.5px;
+  }
+
+  .model-setup-content,
+  .model-setup-feedback {
+    padding-inline-start: 0;
+  }
+
+  .model-setup-connection-heading,
+  .model-setup-model-toolbar,
+  .model-setup-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .model-setup-key-form .model-center-key-dialog-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .model-setup-actions--finish {
+    align-items: flex-end;
   }
 }

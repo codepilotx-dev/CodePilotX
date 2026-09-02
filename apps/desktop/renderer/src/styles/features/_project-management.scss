@@ -72,8 +72,7 @@
 
   h2 {
     margin: 0;
-    font-size: var(--cpx-sys-font-size-2xl);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-lg);
   }
 }
 
@@ -150,8 +149,7 @@
 
   h3 {
     margin: 0;
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
   }
 }
 
@@ -195,12 +193,12 @@
   }
 
   strong {
-    font-size: var(--cpx-sys-font-size-md);
+    font: var(--cpx-sys-type-row-title);
   }
 
   span {
     color: var(--color-app-text-soft);
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
   }
 }
 
@@ -251,7 +249,7 @@
 .project-edit-empty {
   margin: 0;
   color: var(--color-app-text-soft);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
 }
 
 .project-appearance-popover {

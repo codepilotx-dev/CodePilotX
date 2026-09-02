@@ -58,7 +58,7 @@ export function ReviewFileTreeRow({
       aria-level={row.depth + 1}
       className="review-file-tree-dir"
       role="treeitem"
-      style={{ paddingLeft: `${12 + row.depth * 14}px` }}
+      style={{ paddingLeft: `${16 + row.depth * 14}px` }}
       type="button"
       onClick={() => onToggleDir(node.dirPath)}
     >
@@ -109,7 +109,7 @@ function ReviewFileRow({
       aria-selected={active}
       className={active ? 'review-file-tree-row active' : 'review-file-tree-row'}
       role="treeitem"
-      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      style={{ paddingLeft: `${16 + depth * 14}px` }}
       title={`${file.path} · ${statusLabel}`}
       type="button"
       onClick={() => onSelect(file.path)}

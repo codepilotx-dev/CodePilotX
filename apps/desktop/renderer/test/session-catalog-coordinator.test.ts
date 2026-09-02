@@ -65,9 +65,9 @@ describe('SessionCatalogCoordinator', () => {
     })
 
     await coordinator.deliverBatch([
+      lifecycleEvent('turn/completed', 'completed', 5),
       lifecycleEvent('turn/started', 'running', 3),
       lifecycleEvent('turn/statusChanged', 'waiting-user-input', 4),
-      lifecycleEvent('turn/completed', 'completed', 5),
     ])
 
     expect(calls).toEqual([

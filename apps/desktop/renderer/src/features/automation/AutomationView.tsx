@@ -175,7 +175,7 @@ export function AutomationView(): React.ReactNode {
       </WorkspaceHeaderItem>
 
       <PrimaryPageLayout
-        className={creating || controller.selected ? 'automation-primary-page automation-primary-page--detail' : 'automation-primary-page'}
+        className="automation-primary-page"
         title="已安排的任务"
         description="让 CodePilotX 在你工作时按计划处理项目任务。"
         bodyClassName="automation-view"
@@ -256,7 +256,19 @@ export function AutomationView(): React.ReactNode {
                     />
                   ) : null}
                   {!showInitialEmpty && !controller.filteredAutomations.length && !visibleSuggestions.length ? (
-                    <div className="automation-filter-empty" role="status">未找到已安排任务</div>
+                    <div className="automation-filter-empty" role="status">
+                      <span>未找到已安排任务</span>
+                      <Button
+                        color="secondary"
+                        size="compact"
+                        onClick={() => {
+                          controller.setQuery('')
+                          controller.setFilter('all')
+                        }}
+                      >
+                        清除搜索和筛选
+                      </Button>
+                    </div>
                   ) : null}
                 </>
               )}

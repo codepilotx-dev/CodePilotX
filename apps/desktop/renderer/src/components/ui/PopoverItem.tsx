@@ -140,7 +140,7 @@ export function PopoverItem({
   onMouseEnter,
   onMouseLeave,
 }: Props): React.ReactNode {
-  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description)
   const item = (
     <DropdownMenu.Item
       className={buildItemClassName({ active, hasRichContent, selected })}
@@ -192,7 +192,7 @@ export function PopoverCheckboxItem({
   onMouseEnter,
   onMouseLeave,
 }: CheckboxProps): React.ReactNode {
-  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description)
   const item = (
     <DropdownMenu.CheckboxItem
       checked={checked}
@@ -250,7 +250,7 @@ export function PopoverRadioItem({
   onMouseEnter,
   onMouseLeave,
 }: RadioItemProps): React.ReactNode {
-  const hasRichContent = Boolean(description) || Boolean(meta) || Boolean(shortcut)
+  const hasRichContent = Boolean(description)
   const item = (
     <DropdownMenu.RadioItem
       className={buildItemClassName({ active, hasRichContent })}

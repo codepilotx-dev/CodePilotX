@@ -176,8 +176,7 @@ p {
 
 .muted-copy {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .r-none {

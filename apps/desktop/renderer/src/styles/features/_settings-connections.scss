@@ -22,8 +22,7 @@
     align-items: center;
     gap: var(--cpx-sys-space-2);
     margin: 0;
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
   }
 
@@ -40,9 +39,7 @@
     gap: var(--cpx-sys-space-1);
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border-radius: var(--cpx-sys-radius-full);
-    font-size: var(--cpx-sys-font-size-xs);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    line-height: var(--cpx-sys-line-height-none);
+    font: var(--cpx-sys-type-label);
     white-space: nowrap;
 
     &.ok {
@@ -82,8 +79,7 @@
   }
 
   &-name {
-    font-size: var(--cpx-sys-font-size-lg);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-heading-sm);
     color: var(--cpx-sys-color-fg-primary);
     letter-spacing: -0.02em;
     overflow: hidden;
@@ -118,13 +114,12 @@
   }
 
   &-meta-label {
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
     color: var(--cpx-sys-color-fg-secondary);
   }
 
   &-meta-value {
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
     display: flex;
     align-items: center;
@@ -149,8 +144,7 @@
 }
 
 .settings-credential-label {
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -191,9 +185,8 @@
 
 .settings-model-toolbar-desc {
   margin: 0;
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   color: var(--cpx-sys-color-fg-secondary);
-  line-height: var(--cpx-sys-line-height-tight);
 }
 
 /* --- Model Card Grid --- */
@@ -216,8 +209,7 @@
 }
 
 .settings-copilot-device-code-label {
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -246,7 +238,7 @@
 
 .settings-copilot-hint {
   margin: 0;
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -258,9 +250,7 @@
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-surface-raised);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-label);
   white-space: nowrap;
 
   &.ok {
@@ -296,7 +286,7 @@
   margin: 0;
   padding: var(--cpx-sys-space-5);
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .settings-inline-actions {

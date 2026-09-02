@@ -168,7 +168,7 @@ export function PetQuickReply({
 
   return (
     <QuickReplyFrame error={error}>
-      <p className="tw:m-0 tw:text-sm tw:text-app-text">
+      <p className="u-type-body-sm tw:m-0 tw:text-app-text">
         {request.description || '是否允许这次操作？'}
       </p>
       <RadioGroup
@@ -187,7 +187,7 @@ export function PetQuickReply({
       </RadioGroup>
       {action === 'deny' ? (
         <textarea
-          className="tw:min-h-16 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+          className="u-type-control tw:min-h-16 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
           disabled={blocked}
           placeholder="可选：说明拒绝原因"
           value={feedback}
@@ -232,10 +232,10 @@ function QuestionReply({
 }): React.ReactNode {
   return (
     <fieldset className="tw:m-0 tw:flex tw:min-w-0 tw:flex-col tw:gap-1.5 tw:border-0 tw:p-0">
-      <legend className="tw:mb-1 tw:text-sm tw:font-semibold tw:text-app-text">
+      <legend className="u-type-control tw:mb-1 tw:text-app-text">
         {question.header ? `${question.header} · ` : ''}
         {question.question}
-        <span className="tw:ml-1 tw:text-xs tw:font-normal tw:text-app-text-soft">
+        <span className="u-type-caption tw:ml-1 tw:text-app-text-soft">
           {index + 1}/{questionCount}
         </span>
       </legend>
@@ -297,7 +297,7 @@ function CustomAnswerInput({ question, state, disabled, onChange }: {
   return (
     <textarea
       aria-label={`${question.question}的自定义回答`}
-      className="tw:min-h-14 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+      className="u-type-control tw:min-h-14 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
       disabled={disabled}
       placeholder="其他回答…"
       value={state.custom}
@@ -328,7 +328,7 @@ function QuickReplyFrame({
       {error ? (
         <p
           aria-live="polite"
-          className="tw:m-0 tw:text-xs tw:text-app-danger"
+          className="u-type-caption tw:m-0 tw:text-app-danger"
           role="alert"
         >
           {error}

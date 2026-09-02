@@ -46,7 +46,7 @@
 .memory-settings-count {
   margin-left: auto;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 }
 
@@ -75,8 +75,7 @@
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border-bottom: 1px solid var(--cpx-sys-color-border-default);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-secondary);
   background: var(--cpx-sys-color-surface-raised);
   flex-shrink: 0;
@@ -95,8 +94,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .memory-settings-editor-actions {
@@ -142,8 +140,7 @@
   }
 
   &-name {
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -237,19 +234,17 @@
 }
 
 .memory-recall-time {
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
   color: var(--cpx-sys-color-fg-primary);
 }
 
 .memory-recall-summary {
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
   color: var(--cpx-sys-color-fg-primary);
-  line-height: var(--cpx-sys-line-height-normal);
 }
 
 .memory-recall-files {
-  font-size: var(--cpx-sys-font-size-xs);
+  font: var(--cpx-sys-type-caption);
   color: var(--cpx-sys-color-fg-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -273,8 +268,7 @@
   padding: var(--cpx-sys-space-4) var(--cpx-sys-space-2);
   text-align: center;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .model-card {
@@ -317,8 +311,7 @@
   }
 
   .model-card-name {
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     color: var(--cpx-sys-color-fg-primary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -326,7 +319,7 @@
   }
 
   .model-card-id {
-    font-size: var(--cpx-sys-font-size-xs);
+    font: var(--cpx-sys-type-caption);
     color: var(--cpx-sys-color-fg-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -342,10 +335,9 @@
     margin-top: var(--cpx-sys-space-1);
 
     > span {
-      font-size: var(--cpx-sys-font-size-xs);
+      font: var(--cpx-sys-type-caption);
       color: var(--cpx-sys-color-fg-secondary);
       white-space: nowrap;
-      line-height: var(--cpx-sys-line-height-tight);
     }
 
     > span + span::before {

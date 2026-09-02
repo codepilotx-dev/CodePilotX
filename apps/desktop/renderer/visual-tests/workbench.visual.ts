@@ -58,6 +58,14 @@ const MARKDOWN_TYPOGRAPHY_CASES = [
   { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
 ] as const
 
+async function maskTransparentStopCount(locator: Locator): Promise<number> {
+  return locator.evaluate(element => {
+    const style = getComputedStyle(element)
+    const mask = style.maskImage || style.webkitMaskImage
+    return mask.match(/rgba\(0, 0, 0, 0\)|transparent/g)?.length ?? 0
+  })
+}
+
 test('canonical thread stays active through StrictMode effect replay', async ({
   page,
 }) => {
@@ -601,36 +609,36 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     })
 
     expect(metrics.bodyFontSize).toBe('14px')
-    expect(metrics.bodyFontWeight).toBe('445')
-    expect(metrics.bodyLineHeight).toBe('20px')
-    expect(metrics.bodyLineHeightRatio).toBeCloseTo(20 / 14, 2)
-    expect(metrics.paragraphMarginRatio).toBeCloseTo(10 / 14, 2)
+    expect(metrics.bodyFontWeight).toBe('400')
+    expect(metrics.bodyLineHeight).toBe('24px')
+    expect(metrics.bodyLineHeightRatio).toBeCloseTo(24 / 14, 2)
+    expect(metrics.paragraphMarginRatio).toBeCloseTo(14 / 14, 2)
     expect(metrics.h1FontSize).toBe('24px')
     expect(metrics.h1LineHeight).toBe('30px')
-    expect(metrics.h1FontWeight).toBe('500')
+    expect(metrics.h1FontWeight).toBe('600')
     expect(metrics.h1FontSizeRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.h1BorderBottomWidth).toBe('0px')
     expect(metrics.h1PaddingBottom).toBe(0)
-    expect(metrics.h2FontSize).toBe('18px')
-    expect(metrics.h2LineHeight).toBe('24px')
-    expect(metrics.h2FontWeight).toBe('500')
-    expect(metrics.h2FontSizeRatio).toBeCloseTo(18 / 14, 2)
-    expect(metrics.h2MarginTopRatio).toBeCloseTo(20 / 16, 2)
-    expect(metrics.h2MarginBottomRatio).toBeCloseTo(8 / 16, 2)
+    expect(metrics.h2FontSize).toBe('20px')
+    expect(metrics.h2LineHeight).toBe('28px')
+    expect(metrics.h2FontWeight).toBe('600')
+    expect(metrics.h2FontSizeRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.h2MarginTopRatio).toBeCloseTo(26 / 16, 2)
+    expect(metrics.h2MarginBottomRatio).toBeCloseTo(10 / 16, 2)
     expect(metrics.h3FontSize).toBe('16px')
     expect(metrics.h3LineHeight).toBe('22px')
-    expect(metrics.h3FontWeight).toBe('500')
+    expect(metrics.h3FontWeight).toBe('600')
     expect(metrics.h3FontSizeRatio).toBeCloseTo(16 / 14, 2)
     expect(metrics.strongFontWeight).toBe('600')
     expect(metrics.listPaddingRatio).toBeCloseTo(1.45, 2)
     expect(metrics.listItemMarginTop).toBe(0)
     expect(metrics.listItemMarginBottom).toBe(0)
-    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
-    expect(metrics.listNestedItemSiblingMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listItemSiblingMarginTopRatio).toBeCloseTo(10 / 14, 2)
+    expect(metrics.listNestedItemSiblingMarginTopRatio).toBeCloseTo(10 / 14, 2)
     expect(metrics.listDirectParagraphMarginTop).toBe(0)
     expect(metrics.listDirectParagraphMarginBottom).toBe(0)
-    expect(metrics.listSecondParagraphMarginTopRatio).toBeCloseTo(11 / 14, 2)
-    expect(metrics.listNestedMarginTopRatio).toBeCloseTo(8 / 14, 2)
+    expect(metrics.listSecondParagraphMarginTopRatio).toBeCloseTo(12 / 14, 2)
+    expect(metrics.listNestedMarginTopRatio).toBeCloseTo(10 / 14, 2)
     expect(metrics.listNestedMarginBottom).toBe(0)
     expect(metrics.quoteBorderWidth).toBe('2px')
     expect(metrics.quoteBorderRadius).toBe('12px')
@@ -650,7 +658,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.codeBlockMarginTop).toBe(14)
     expect(metrics.codeBlockMarginBottom).toBe(18)
     expect(metrics.codeBlockBorderRadius).toBe('12px')
-    expect(metrics.codePreLineHeightRatio).toBeCloseTo(1.55, 2)
+    expect(metrics.codePreLineHeightRatio).toBeCloseTo(20 / 13, 2)
     expect(metrics.codePrePaddingTopRatio).toBeCloseTo(0.9, 2)
     expect(metrics.codePrePaddingInlineRatio).toBeCloseTo(1, 2)
     expect(metrics.codePrePaddingBottomRatio).toBeCloseTo(0.85, 2)
@@ -667,7 +675,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableFontSizeRatio).toBeCloseTo(1, 2)
     expect(metrics.tableBorderRightWidth).toBe('0px')
     expect(metrics.tableHeadingFontWeight).toBe('500')
-    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.tableHeadingLineHeightRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.tableHeadingPaddingTop).toBe(8)
     expect(metrics.tableHeadingPaddingRight).toBe(24)
     expect(metrics.tableHeadingPaddingBottom).toBe(8)
@@ -676,7 +684,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.tableHeadingVerticalAlign).toBe('top')
     expect(metrics.tableLastHeadingPaddingRight).toBe(40)
     expect(metrics.tableLayout).toBe('auto')
-    expect(metrics.tableLineHeightRatio).toBeCloseTo(20 / 14, 2)
+    expect(metrics.tableLineHeightRatio).toBeCloseTo(24 / 14, 2)
     expect(metrics.tablePaddingTop).toBe(10)
     expect(metrics.tablePaddingRight).toBe(24)
     expect(metrics.tablePaddingBottom).toBe(10)
@@ -2643,10 +2651,82 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     return radius
   })
   for (const row of [navRow, projectRow, activeSessionRow]) {
-    await expect(row).toHaveCSS('min-height', '30px')
+    await expect(row).toHaveCSS('min-height', '32px')
     await expect(row).toHaveCSS('border-radius', sidebarRowRadius)
   }
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const sectionHeader = page.locator(
+    '.sidebar-section:has([data-sidebar-section-id="projects"]) .sidebar-section-header',
+  )
+  const footerRow = page.locator('.sidebar-footer .sidebar-settings-link')
+  const [sidebarBox, navBox, navLeadingBox, navMainBox, sectionHeaderBox, projectRowBox, projectTrailingBox, footerBox, footerLeadingBox, footerMainBox] =
+    await Promise.all([
+      sidebar.boundingBox(),
+      navRow.boundingBox(),
+      navRow.locator('.sidebar-row-leading').boundingBox(),
+      navRow.locator('.sidebar-row-main').boundingBox(),
+      sectionHeader.boundingBox(),
+      projectRow.boundingBox(),
+      projectRow.locator('.sidebar-row-trailing').boundingBox(),
+      footerRow.boundingBox(),
+      footerRow.locator('.sidebar-row-leading').boundingBox(),
+      footerRow.locator('.sidebar-row-main').boundingBox(),
+    ])
+  expect(sidebarBox).not.toBeNull()
+  expect(navBox).not.toBeNull()
+  expect(navLeadingBox).not.toBeNull()
+  expect(navMainBox).not.toBeNull()
+  expect(sectionHeaderBox).not.toBeNull()
+  expect(projectRowBox).not.toBeNull()
+  expect(projectTrailingBox).not.toBeNull()
+  expect(footerBox).not.toBeNull()
+  expect(footerLeadingBox).not.toBeNull()
+  expect(footerMainBox).not.toBeNull()
+  if (
+    !sidebarBox || !navBox || !navLeadingBox || !navMainBox ||
+    !sectionHeaderBox || !projectRowBox || !projectTrailingBox || !footerBox ||
+    !footerLeadingBox || !footerMainBox
+  ) return
+  expect(navBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(navBox.width).toBeCloseTo(sidebarBox.width - 16, 0)
+  expect(navLeadingBox.x - sidebarBox.x).toBeCloseTo(16, 0)
+  expect(navLeadingBox.width).toBeCloseTo(16, 0)
+  expect(navMainBox.x - sidebarBox.x).toBeCloseTo(40, 0)
+  expect(sectionHeaderBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(projectTrailingBox.x + projectTrailingBox.width - sidebarBox.x).toBeCloseTo(
+    sidebarBox.width - 16,
+    0,
+  )
+  expect(footerBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(footerLeadingBox.x - sidebarBox.x).toBeCloseTo(16, 0)
+  expect(footerMainBox.x - sidebarBox.x).toBeCloseTo(40, 0)
+  expect(projectRowBox.y - (sectionHeaderBox.y + sectionHeaderBox.height)).toBeLessThanOrEqual(0.5)
+  await expect(navRow).toHaveCSS('font-size', '14px')
+  await expect(sectionHeader.locator('.sidebar-section-title')).toHaveCSS('font-size', '14px')
+  expect(
+    await sidebar.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
+  expect(
+    await sidebar.locator('.ui-button.icon-button').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const bounds = element.getBoundingClientRect()
+        return `${bounds.width}x${bounds.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['24x24'])
   await expect(projectButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  const projectTitle = projectRow.locator('.sidebar-project-title-text')
+  await expect(projectTitle).toHaveCSS('white-space', 'nowrap')
+  await expect(projectTitle).toHaveCSS('text-overflow', 'clip')
+  expect(await projectTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
   await expect(activeSessionRow.locator('.sidebar-session-button')).toHaveCSS(
     'background-color',
     'rgba(0, 0, 0, 0)',
@@ -2702,9 +2782,80 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     expandedBeforeTailAction ?? 'true',
   )
   await page.keyboard.press('Escape')
+
+  const activityToggle = page.getByRole('button', { name: /查看活动|关闭活动视图/ })
+  if (await activityToggle.getAttribute('aria-pressed') !== 'true') {
+    await activityToggle.click()
+  }
+  const activityTimeline = page.locator('.sidebar-timeline')
+  const activityHeader = activityTimeline.locator('.sidebar-focus-section-header').first()
+  const activityTitle = activityHeader.locator('.sidebar-focus-section-title')
+  const activityRow = activityTimeline.locator('[data-sidebar-session-id="visual-rich"]')
+  const activityWorkspaceName = activityRow.locator('.sidebar-session-workspace-meta__name')
+  await expect(activityTimeline).toBeVisible()
+  await expect(activityHeader).toBeVisible()
+  await expect(activityRow).toBeVisible()
+  await expect(activityWorkspaceName).toHaveText('CodePilotX-Ts')
+  await expect(activityRow.locator('.sidebar-session-snippet')).toHaveCount(0)
+  const activitySessionTitle = activityRow.locator('.sidebar-session-title')
+  const activityTitleTrack = activitySessionTitle.locator(
+    '.sidebar-session-title-track',
+  )
+  await page.addStyleTag({
+    content: `
+      .sidebar-timeline [data-sidebar-session-id="visual-rich"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+    `,
+  })
+  await page.mouse.move(1000, 400)
+  await expect(activitySessionTitle).toHaveAttribute('data-overflowing', 'true')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(1)
+  const activityTitleBeforeHover = await activitySessionTitle.boundingBox()
+  await activityRow.hover()
+  await expect(activityRow.locator('.sidebar-session-actions')).toBeVisible()
+  await expect(activitySessionTitle).toHaveAttribute('data-scrolling', 'true')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(2)
+  const activityTitleAfterHover = await activitySessionTitle.boundingBox()
+  expect(activityTitleBeforeHover).not.toBeNull()
+  expect(activityTitleAfterHover).not.toBeNull()
+  expect(activityTitleAfterHover!.x).toBeCloseTo(activityTitleBeforeHover!.x, 0)
+  await expect.poll(async () => activityTitleTrack.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
+  expect(await activitySessionTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  await page.mouse.move(1000, 400)
+  await expect(activitySessionTitle).not.toHaveAttribute('data-scrolling')
+  await expect(activityTitleTrack).toHaveCSS('transform', 'none')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(1)
+  for (const label of [
+    navRow.locator('.sidebar-item-label'),
+    activityTitle,
+    activityWorkspaceName,
+  ]) {
+    await expect(label).toHaveCSS('white-space', 'nowrap')
+    await expect(label).toHaveCSS('text-overflow', 'clip')
+    expect(await label.evaluate(element => {
+      const style = getComputedStyle(element)
+      return style.maskImage || style.webkitMaskImage
+    })).toContain('linear-gradient')
+  }
+  const [activityHeaderBox, activityTitleBox] = await Promise.all([
+    activityHeader.boundingBox(),
+    activityTitle.boundingBox(),
+  ])
+  expect(activityHeaderBox).not.toBeNull()
+  expect(activityTitleBox).not.toBeNull()
+  if (!activityHeaderBox || !activityTitleBox) return
+  expect(activityHeaderBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(activityTitleBox.x - sidebarBox.x).toBeCloseTo(16, 0)
 })
 
-test('pinned session icon and overflowing title motion match the sidebar contract', async ({
+test('pinned session icon and overflowing title motion keep the sidebar fade contract', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 800 })
@@ -2726,7 +2877,7 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
     '[data-sidebar-pinned-item-key="session:visual-scroll-edge"]',
   )
   const pinnedRow = pinnedItem.locator('.sidebar-session-row')
-  const projectRow = page
+  const ordinaryRow = page
     .locator('[data-sidebar-session-id="visual-scroll-edge-02"]')
     .first()
   await expect(pinnedItem).toBeVisible()
@@ -2735,9 +2886,266 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   ).toBeVisible()
   await expect(pinnedRow).not.toHaveClass(/sidebar-row--session/)
   await expect(pinnedRow).toHaveCSS('padding-left', '8px')
-  await expect(projectRow).toHaveClass(/sidebar-row--session/)
-  await expect(projectRow).toHaveCSS('padding-left', '32px')
-  await expect(projectRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  await expect(ordinaryRow).toHaveClass(/sidebar-row--session/)
+  await expect(ordinaryRow).toHaveCSS('padding-left', '32px')
+  await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  const projectRow = page.locator('.sidebar-project-header').first()
+  const showMore = projectRow.locator('xpath=..').locator('.sidebar-show-more-actions')
+  const [projectMainBox, ordinaryMainBox, showMoreMainBox, ordinaryTitleBox, showMoreTextBox] = await Promise.all([
+    projectRow.locator('.sidebar-row-main').boundingBox(),
+    ordinaryRow.locator('.sidebar-row-main').boundingBox(),
+    showMore.locator('.sidebar-row-main').boundingBox(),
+    ordinaryRow.locator('.sidebar-session-title').boundingBox(),
+    showMore.locator('.sidebar-show-more-button span').first().boundingBox(),
+  ])
+  expect(projectMainBox).not.toBeNull()
+  expect(ordinaryMainBox).not.toBeNull()
+  expect(showMoreMainBox).not.toBeNull()
+  expect(ordinaryTitleBox).not.toBeNull()
+  expect(showMoreTextBox).not.toBeNull()
+  expect(ordinaryMainBox!.x - projectMainBox!.x).toBeCloseTo(0, 0)
+  expect(showMoreMainBox!.x - ordinaryMainBox!.x).toBeCloseTo(0, 0)
+  expect(showMoreTextBox!.x - ordinaryTitleBox!.x).toBeCloseTo(0, 0)
+
+  const showMoreButtons = showMore.locator('.sidebar-show-more-button')
+  const showMoreLabels = showMoreButtons.locator('span')
+  await expect(showMoreButtons).toHaveCount(1)
+  const primaryTextColor = await page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--cpx-sys-color-fg-primary)'
+    document.body.append(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  })
+  await showMoreButtons.first().click()
+  await expect(showMoreButtons).toHaveCount(2)
+  for (let index = 0; index < 2; index += 1) {
+    const button = showMoreButtons.nth(index)
+    const label = showMoreLabels.nth(index)
+    await expect(label).toHaveCSS('white-space', 'nowrap')
+    await expect(label).toHaveCSS('text-overflow', 'clip')
+    expect(await label.evaluate(element => {
+      const style = getComputedStyle(element)
+      return style.maskImage || style.webkitMaskImage
+    })).toBe('none')
+    await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await button.hover()
+    await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(button).toHaveCSS('color', primaryTextColor)
+  }
+
+  await page.addStyleTag({
+    content: `
+      [data-sidebar-pinned-item-key="session:visual-scroll-edge"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+      [data-sidebar-session-id="visual-scroll-edge-02"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+    `,
+  })
+  await page.mouse.move(1000, 400)
+  const title = pinnedItem.locator('.sidebar-session-title')
+  const track = title.locator('.sidebar-session-title-track')
+  await expect(title).toHaveAttribute('data-overflowing', 'true')
+  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
+
+  const resting = await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    const box = element.getBoundingClientRect()
+    return {
+      clientWidth: element.clientWidth,
+      left: box.left,
+      maskImage: style.maskImage || style.webkitMaskImage,
+      scrollWidth: element.scrollWidth,
+      transform: getComputedStyle(
+        element.querySelector('.sidebar-session-title-track')!,
+      ).transform,
+    }
+  })
+  expect(resting.scrollWidth).toBeGreaterThan(resting.clientWidth)
+  expect(resting.maskImage).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(1)
+  expect(resting.transform).toBe('none')
+
+  await pinnedItem.hover()
+  await expect(pinnedItem.locator('.sidebar-session-actions')).toBeVisible()
+  await expect(title).toHaveAttribute('data-scrolling', 'true')
+  await expect.poll(async () => track.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
+  const hovered = await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    const box = element.getBoundingClientRect()
+    return {
+      left: box.left,
+      maskImage: style.maskImage || style.webkitMaskImage,
+      distance: Number.parseFloat(
+        style.getPropertyValue('--sidebar-title-scroll-distance'),
+      ),
+      duration: Number.parseFloat(
+        style.getPropertyValue('--sidebar-title-scroll-duration'),
+      ),
+      transform: getComputedStyle(
+        element.querySelector('.sidebar-session-title-track')!,
+      ).transform,
+    }
+  })
+  expect(hovered.left).toBeCloseTo(resting.left, 0)
+  expect(hovered.maskImage).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(2)
+  expect(hovered.distance).toBe(resting.scrollWidth - resting.clientWidth)
+  expect(hovered.duration).toBeCloseTo(
+    Math.max(4, hovered.distance / 20),
+    2,
+  )
+  expect(hovered.transform).not.toBe('none')
+
+  await page.mouse.move(1000, 400)
+  await expect(title).not.toHaveAttribute('data-scrolling')
+  await expect(track).toHaveCSS('transform', 'none')
+  expect(await maskTransparentStopCount(title)).toBe(1)
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await pinnedItem.hover()
+  await expect(title).not.toHaveAttribute('data-scrolling')
+  await expect(track).toHaveCSS('transform', 'none')
+  expect(await title.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(1)
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const ordinaryTitle = ordinaryRow.locator('.sidebar-session-title')
+  const ordinaryTrack = ordinaryTitle.locator('.sidebar-session-title-track')
+  await page.mouse.move(1000, 400)
+  await expect(ordinaryTitle).toHaveAttribute('data-overflowing', 'true')
+  const ordinaryTitleBeforeHover = await ordinaryTitle.boundingBox()
+  await ordinaryRow.hover()
+  await expect(ordinaryRow.locator('.sidebar-session-actions')).toBeVisible()
+  await expect(ordinaryTitle).toHaveAttribute('data-scrolling', 'true')
+  const ordinaryTitleAfterHover = await ordinaryTitle.boundingBox()
+  expect(ordinaryTitleBeforeHover).not.toBeNull()
+  expect(ordinaryTitleAfterHover).not.toBeNull()
+  expect(ordinaryTitleAfterHover!.x).toBeCloseTo(ordinaryTitleBeforeHover!.x, 0)
+  expect(await ordinaryTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(ordinaryTitle)).toBe(2)
+  await expect.poll(async () => ordinaryTrack.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
+  const sessionCard = page.locator('.sidebar-session-hover-card:visible').last()
+  await expect(sessionCard).toBeVisible()
+  const sessionContentId = await sessionCard.getAttribute('id')
+  expect(sessionContentId).not.toBeNull()
+  const sessionAnchor = page.locator(`[aria-controls="${sessionContentId}"]`)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const [sidebarBox, sessionAnchorBox, sessionCardBox] = await Promise.all([
+    sidebar.boundingBox(),
+    sessionAnchor.boundingBox(),
+    sessionCard.boundingBox(),
+  ])
+  expect(sidebarBox).not.toBeNull()
+  expect(sessionAnchorBox).not.toBeNull()
+  expect(sessionCardBox).not.toBeNull()
+  expect(sessionCardBox!.y - sessionAnchorBox!.y).toBeCloseTo(0, 0)
+  expect(sessionCardBox!.x - (sidebarBox!.x + sidebarBox!.width)).toBeCloseTo(4, 0)
+  const sessionTitle = sessionCard.locator('.sidebar-session-hover-card-title')
+  const sessionMeta = sessionCard.locator('.sidebar-session-hover-card-row-content')
+  const sessionContent = sessionCard.locator('.sidebar-session-hover-card-content')
+  const [sessionTitleBox, sessionMetaBox, sessionContentBox] = await Promise.all([
+    sessionTitle.boundingBox(),
+    sessionMeta.boundingBox(),
+    sessionContent.boundingBox(),
+  ])
+  expect(sessionTitleBox).not.toBeNull()
+  expect(sessionMetaBox).not.toBeNull()
+  expect(sessionContentBox).not.toBeNull()
+  expect(sessionTitleBox!.x - sessionContentBox!.x).toBeCloseTo(0, 0)
+  expect(sessionMetaBox!.x - sessionTitleBox!.x).toBeCloseTo(22, 0)
+  await expect(sessionTitle).toHaveCSS('text-align', 'left')
+  await expect(sessionCard.locator('.sidebar-session-hover-card-title-group')).toHaveCSS(
+    'align-items',
+    'flex-start',
+  )
+  const sessionTrailing = sessionCard.locator('.sidebar-session-hover-card-trailing')
+  const sessionDevice = sessionTrailing.locator('.sidebar-session-hover-card-device-icon')
+  const sessionTime = sessionTrailing.locator('.sidebar-session-hover-card-time')
+  await expect(sessionTrailing).toHaveCSS('gap', '4px')
+  const [sessionDeviceBox, sessionTimeBox] = await Promise.all([
+    sessionDevice.boundingBox(),
+    sessionTime.boundingBox(),
+  ])
+  expect(sessionDeviceBox).not.toBeNull()
+  expect(sessionTimeBox).not.toBeNull()
+  expect(sessionTimeBox!.x - (sessionDeviceBox!.x + sessionDeviceBox!.width)).toBeCloseTo(4, 0)
+  expect(
+    sessionTimeBox!.y + sessionTimeBox!.height / 2
+      - (sessionDeviceBox!.y + sessionDeviceBox!.height / 2),
+  ).toBeCloseTo(0, 0)
+  expect(await sessionCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.mouse.move(900, 700)
+  await page.waitForTimeout(300)
+  const projectButton = page.locator('.sidebar-project-button[data-current]').first()
+  await projectButton.hover()
+  const projectCard = page.locator('.sidebar-project-hover-card:visible').last()
+  await expect(projectCard).toBeVisible()
+  const projectContentId = await projectCard.getAttribute('id')
+  expect(projectContentId).not.toBeNull()
+  const projectAnchor = page.locator(`[aria-controls="${projectContentId}"]`)
+  const [projectAnchorBox, projectCardBox] = await Promise.all([
+    projectAnchor.boundingBox(),
+    projectCard.boundingBox(),
+  ])
+  expect(projectAnchorBox).not.toBeNull()
+  expect(projectCardBox).not.toBeNull()
+  expect(projectCardBox!.y - projectAnchorBox!.y).toBeCloseTo(0, 0)
+  expect(projectCardBox!.x - (sidebarBox!.x + sidebarBox!.width)).toBeCloseTo(4, 0)
+  const projectTitle = projectCard.locator('.sidebar-project-hover-card-header strong')
+  const projectStats = projectCard.locator('.sidebar-project-hover-card-stats-content')
+  const projectPath = projectCard.locator('.sidebar-project-hover-card-folder-path').first()
+  const projectEdit = projectCard.locator('.sidebar-project-hover-card-edit span')
+  const [projectTitleBox, projectStatsBox, projectPathBox, projectEditBox] = await Promise.all([
+    projectTitle.boundingBox(),
+    projectStats.boundingBox(),
+    projectPath.boundingBox(),
+    projectEdit.boundingBox(),
+  ])
+  for (const box of [projectTitleBox, projectStatsBox, projectPathBox, projectEditBox]) {
+    expect(box).not.toBeNull()
+    expect(box!.x - projectTitleBox!.x).toBeCloseTo(0, 0)
+  }
+  expect(
+    await projectCard.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
+  await expect(projectCard.locator('.sidebar-project-hover-card-pin')).toHaveCSS('width', '24px')
+  await expect(projectCard.locator('.sidebar-project-hover-card-pin')).toHaveCSS('height', '24px')
+  expect(await projectCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 1440, height: 480 })
+  await projectButton.hover()
+  const collisionAdjustedProjectCard = page.locator(
+    '.sidebar-project-hover-card:visible',
+  ).last()
+  await expect(collisionAdjustedProjectCard).toBeVisible()
+  const collisionAdjustedProjectCardBox = await collisionAdjustedProjectCard.boundingBox()
+  expect(collisionAdjustedProjectCardBox).not.toBeNull()
+  expect(collisionAdjustedProjectCardBox!.y).toBeGreaterThanOrEqual(6)
+  expect(
+    collisionAdjustedProjectCardBox!.y + collisionAdjustedProjectCardBox!.height,
+  ).toBeLessThanOrEqual(474)
 
   const recentSection = page.locator(
     '.sidebar-section:has([data-sidebar-section-id="recent"])',
@@ -2752,68 +3160,6 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   await expect(recentRow).toHaveClass(/sidebar-row--session/)
   await expect(recentRow).toHaveCSS('padding-left', '8px')
   await expect(recentRow.locator('.sidebar-row-leading')).toHaveCount(0)
-
-  await page.addStyleTag({
-    content: `
-      [data-sidebar-pinned-item-key="session:visual-scroll-edge"] .sidebar-session-title {
-        width: 72px;
-        flex: 0 0 72px;
-      }
-    `,
-  })
-  await page.mouse.move(1000, 400)
-  const title = pinnedItem.locator('.sidebar-session-title')
-  const track = title.locator('.sidebar-session-title-track')
-  await expect(title).toHaveAttribute('data-overflowing', 'true')
-  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
-
-  const resting = await title.evaluate(element => {
-    const style = getComputedStyle(element)
-    return {
-      clientWidth: element.clientWidth,
-      maskImage: style.maskImage || style.webkitMaskImage,
-      scrollWidth: element.scrollWidth,
-      transform: getComputedStyle(
-        element.querySelector('.sidebar-session-title-track')!,
-      ).transform,
-    }
-  })
-  expect(resting.scrollWidth).toBeGreaterThan(resting.clientWidth)
-  expect(resting.maskImage).toContain('linear-gradient')
-  expect(resting.transform).toBe('none')
-
-  await pinnedItem.hover()
-  await expect(title).toHaveAttribute('data-scrolling', 'true')
-  const scrolling = await title.evaluate(element => {
-    const style = getComputedStyle(element)
-    const trackStyle = getComputedStyle(
-      element.querySelector('.sidebar-session-title-track')!,
-    )
-    return {
-      distance: Number.parseFloat(
-        style.getPropertyValue('--sidebar-title-scroll-distance'),
-      ),
-      duration: Number.parseFloat(
-        style.getPropertyValue('--sidebar-title-scroll-duration'),
-      ),
-      timingFunction: trackStyle.transitionTimingFunction,
-    }
-  })
-  expect(scrolling.distance).toBe(resting.scrollWidth - resting.clientWidth)
-  expect(scrolling.duration).toBeCloseTo(
-    Math.max(4, scrolling.distance / 20),
-    2,
-  )
-  expect(scrolling.timingFunction).toBe('linear')
-
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
-  await expect(track).toHaveCSS('transform', 'none')
-  const reducedMotionMask = await title.evaluate(element => {
-    const style = getComputedStyle(element)
-    return style.maskImage || style.webkitMaskImage
-  })
-  expect(reducedMotionMask).toContain('linear-gradient')
 })
 
 test('sidebar session reorder displaces live and persists after remount', async ({
@@ -2910,6 +3256,8 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   const sidebar = page.locator('aside.desktop-sidebar')
   const scrollArea = sidebar.locator('.sidebar-scroll-area')
   const footer = sidebar.locator('.sidebar-footer')
+  const footerStatusSlot = footer.locator('.sidebar-footer-status-slot')
+  const footerTrigger = footer.locator('.sidebar-footer-trigger')
 
   const expectFooterOutsideScrollViewport = async () => {
     await expect
@@ -2925,6 +3273,14 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   }
 
   await expectFooterOutsideScrollViewport()
+  await expect(footer).toHaveCSS('height', '37px')
+  await expect(footerStatusSlot).toHaveCSS('min-width', '24px')
+  await expect(footerTrigger).toHaveCSS('white-space', 'nowrap')
+  await expect(footerTrigger).toHaveCSS('text-overflow', 'clip')
+  expect(await footerTrigger.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
   await scrollArea.evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
@@ -2949,6 +3305,24 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   const footerMenu = page.locator('.popover-sidebar-footer')
   await expect(footerMenu).toBeVisible()
   await expect(footerMenu).toHaveAttribute('data-side', 'top')
+  const settingsItem = footerMenu.locator('.popover-item').filter({ hasText: '设置' }).first()
+  const petItem = footerMenu.locator('.popover-item').filter({ hasText: /显示宠物|隐藏宠物/ }).first()
+  await expect(settingsItem).toHaveCSS('min-height', '32px')
+  await expect(petItem).toHaveCSS('min-height', '32px')
+  const [settingsItemBox, petItemBox] = await Promise.all([
+    settingsItem.boundingBox(),
+    petItem.boundingBox(),
+  ])
+  expect(settingsItemBox).not.toBeNull()
+  expect(petItemBox).not.toBeNull()
+  expect(settingsItemBox!.height).toBeCloseTo(petItemBox!.height, 0)
+  const footerMenuLabel = settingsItem.locator('.popover-item-label')
+  await expect(footerMenuLabel).toHaveCSS('white-space', 'nowrap')
+  await expect(footerMenuLabel).toHaveCSS('text-overflow', 'clip')
+  expect(await footerMenuLabel.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
   const footerMenuBox = await footerMenu.boundingBox()
   expect(footerMenuBox).not.toBeNull()
   expect(footerMenuBox!.y + footerMenuBox!.height).toBeLessThanOrEqual(
@@ -3472,7 +3846,7 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   ).toBeVisible()
 
   await expect(page.locator('body')).toHaveCSS('font-size', '14px')
-  await expect(page.locator('body')).toHaveCSS('font-weight', '445')
+  await expect(page.locator('body')).toHaveCSS('font-weight', '400')
   await expect(page.locator('body')).toHaveCSS('line-height', '20px')
 
   const sidebarTypography = await page.evaluate(() => {
@@ -3501,15 +3875,15 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   })
   expect(sidebarTypography).toEqual({
     ordinary: {
-      fontSize: '14px',
-      fontWeight: '445',
-      lineHeight: '20px',
+      fontSize: '13px',
+      fontWeight: '500',
+      lineHeight: '18px',
     },
     projectFontWeight: '500',
     selected: {
-      fontSize: '14px',
-      fontWeight: '445',
-      lineHeight: '20px',
+      fontSize: '13px',
+      fontWeight: '500',
+      lineHeight: '18px',
     },
   })
 
@@ -3547,12 +3921,12 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   })
   expect(menuTypography).toEqual({
     hintFontSize: '12px',
-    hintFontWeight: '445',
+    hintFontWeight: '400',
     hintLineHeight: '16px',
-    itemFontSize: '14px',
-    itemFontWeight: '445',
+    itemFontSize: '13px',
+    itemFontWeight: '500',
     itemHeight: 32,
-    itemLineHeight: '20px',
+    itemLineHeight: '18px',
   })
 
   const fontIndependentTypography = await modelItem.evaluate((item) => {
@@ -3623,22 +3997,40 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 800 })
-  await page.goto('/?visualCase=empty#/settings/appearance')
+  await page.goto('/?visualCase=rich#/settings/appearance')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
   await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
-  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
+  const settingsSearch = page.getByRole('combobox', { name: '搜索设置' })
+  await expect(settingsSearch).toBeVisible()
   const settingsNavigationRow = page.locator('.settings-nav-item:visible').first()
+  const settingsGroupTitle = page.locator('.settings-nav-group-title:visible').first()
   await expect(settingsNavigationRow).toBeVisible()
+  await expect(settingsGroupTitle).toHaveCSS('font-size', '14px')
+  const sharedSidebarRowRadius = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.borderRadius = 'var(--cpx-sys-radius-lg)'
+    document.body.append(probe)
+    const radius = getComputedStyle(probe).borderRadius
+    probe.remove()
+    return radius
+  })
   await expectCompactInteractiveRow(settingsNavigationRow, {
-    borderRadius: '8px',
+    borderRadius: sharedSidebarRowRadius,
     fontSize: '14px',
-    height: 30,
+    height: 32,
     lineHeight: '20px',
     paddingInline: '8px',
   })
-
+  expect(
+    await sidebar.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
   await page.mouse.move(6, 400)
@@ -3731,7 +4123,7 @@ for (const mode of MODES) {
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
   page,
 }) => {
-  await page.goto('/?visualCase=empty#/new')
+  await page.goto('/?visualCase=rich#/new')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
@@ -3742,9 +4134,13 @@ test('sidebar trigger does not reopen the preview until the pointer leaves', asy
   await page.waitForTimeout(150)
   await expect(sidebar).toHaveClass(/is-collapsed/)
 
-  await page.mouse.move(600, 400)
-  await sidebarTrigger.hover()
+  await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
+  await expect(sidebar).toHaveCSS('border-right-width', '1px')
+  await expect(sidebar).not.toHaveCSS('box-shadow', 'none')
+  await expect
+    .poll(() => page.evaluate(() => document.elementFromPoint(80, 60)?.closest('.desktop-sidebar') !== null))
+    .toBe(true)
 })
 
 test('Escape closes the theme picker and restores focus', async ({ page }) => {
@@ -5014,9 +5410,9 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
       return {
         page: probe('settings-page-title'),
         section: probe('settings-section-title'),
-        title: probe('settings-row-title'),
-        description: probe('settings-row-desc'),
-        meta: probe('settings-row-status'),
+        title: probe('settings-management-row-title'),
+        description: probe('settings-management-row-description'),
+        meta: probe('settings-management-row-meta'),
         navigation: probe('settings-nav-item'),
         selectedNavigation: probe('settings-nav-item active'),
       }
@@ -5026,11 +5422,11 @@ test('scalable typography never clips and keeps chrome fixed at every UI font si
       expect(part.clipped).toBe(false)
     }
     const delta = uiFontSize - 14
-    expect(settingsRows.page).toMatchObject({ fontSize: 24 + delta, fontWeight: '500' })
-    expect(settingsRows.section).toMatchObject({ fontSize: 16 + delta, fontWeight: '500' })
-    expect(settingsRows.title).toMatchObject({ fontSize: 14 + delta, fontWeight: '445' })
-    expect(settingsRows.description).toMatchObject({ fontSize: 13 + delta, fontWeight: '445' })
-    expect(settingsRows.meta).toMatchObject({ fontSize: 12 + delta, fontWeight: '445' })
+    expect(settingsRows.page).toMatchObject({ fontSize: 24 + delta, fontWeight: '600' })
+    expect(settingsRows.section).toMatchObject({ fontSize: 16 + delta, fontWeight: '600' })
+    expect(settingsRows.title).toMatchObject({ fontSize: 14 + delta, fontWeight: '500' })
+    expect(settingsRows.description).toMatchObject({ fontSize: 13 + delta, fontWeight: '400' })
+    expect(settingsRows.meta).toMatchObject({ fontSize: 12 + delta, fontWeight: '400' })
     expect(settingsRows.selectedNavigation.fontWeight).toBe(
       settingsRows.navigation.fontWeight,
     )

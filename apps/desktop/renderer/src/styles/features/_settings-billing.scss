@@ -22,8 +22,7 @@
 .usage-visual-card header p {
   margin: var(--cpx-sys-space-1) 0 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .usage-panel {
@@ -40,8 +39,7 @@
 .usage-unavailable-sources h3 {
   margin: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xl);
-  font-weight: var(--cpx-sys-font-weight-bold);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .usage-toolbar-actions {
@@ -78,14 +76,12 @@
 .usage-metric-card span,
 .usage-metric-card small {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-caption);
 }
 
 .usage-metric-card strong {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-2xl);
-  font-weight: var(--cpx-sys-font-weight-bold);
+  font: var(--cpx-sys-type-metric);
   font-variant-numeric: tabular-nums;
 }
 
@@ -411,8 +407,7 @@
 .provider-usage-title h3 {
   margin: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xl);
-  font-weight: var(--cpx-sys-font-weight-bold);
+  font: var(--cpx-sys-type-heading-sm);
 }
 
 .provider-usage-title h3 a {
@@ -461,7 +456,7 @@
 .provider-usage-group > h4 {
   margin: 0;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .provider-balances {
@@ -491,16 +486,14 @@
   min-width: 0;
   overflow: hidden;
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .provider-balance-total {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-xl);
-  font-weight: var(--cpx-sys-font-weight-bold);
+  font: var(--cpx-sys-type-metric);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -567,8 +560,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-sm);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-control);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -778,8 +770,7 @@
   h3 {
     margin: 0 0 var(--cpx-sys-space-1);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    font-weight: var(--cpx-sys-font-weight-medium);
+    font: var(--cpx-sys-type-row-title);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -802,7 +793,6 @@
 /* --- Responsive --- */
 @media (max-width: 900px) {
   .settings-hero-card,
-  .settings-row,
   .archived-session-row {
     align-items: stretch;
     flex-direction: column;
@@ -811,11 +801,6 @@
   .settings-status-grid {
     grid-template-columns: 1fr;
     min-width: 0;
-  }
-
-  .settings-row-control {
-    justify-content: flex-start;
-    width: 100%;
   }
 
   .settings-inline-actions {
@@ -985,9 +970,7 @@
 
 .keyboard-shortcuts-title {
   color: var(--cpx-sys-color-fg-primary);
-  font-size: var(--cpx-sys-font-size-md);
-  font-weight: var(--cpx-sys-font-weight-medium);
-  line-height: var(--cpx-sys-line-height-normal);
+  font: var(--cpx-sys-type-row-title);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -995,8 +978,7 @@
 
 .keyboard-shortcuts-desc {
   color: var(--cpx-sys-color-fg-secondary);
-  font-size: var(--cpx-sys-font-size-sm);
-  line-height: var(--cpx-sys-line-height-tight);
+  font: var(--cpx-sys-type-body-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

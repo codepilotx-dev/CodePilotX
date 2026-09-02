@@ -8,12 +8,12 @@
 
 :root {
   // System Colors (Light Default)
-  --cpx-sys-color-surface-canvas: #ffffff;
-  --cpx-sys-color-surface-recessed: #f5f5f5;
-  --cpx-sys-color-surface-panel: #fafafa;
-  --cpx-sys-color-surface-control: #f7f7f7;
-  --cpx-sys-color-surface-raised: #fdfdfd;
-  --cpx-sys-color-surface-editor: #f4f4f4;
+  --cpx-sys-color-surface-canvas: #f9f9f9;
+  --cpx-sys-color-surface-recessed: #f0f0f0;
+  --cpx-sys-color-surface-panel: #f4f4f4;
+  --cpx-sys-color-surface-control: #fafafa;
+  --cpx-sys-color-surface-raised: #fafafa;
+  --cpx-sys-color-surface-editor: #f5f5f5;
   --cpx-sys-color-scrim: rgb(0 0 0 / 26%);
 
   // Workbench region surfaces. Keep regions independently addressable while
@@ -23,26 +23,26 @@
   --cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);
 
-  --cpx-sys-color-fg-primary: #1a1c1f;
-  --cpx-sys-color-fg-secondary: #606163;
-  --cpx-sys-color-fg-tertiary: #8e8f90;
-  --cpx-sys-color-fg-disabled: #b1b2b3;
+  --cpx-sys-color-fg-primary: #111111;
+  --cpx-sys-color-fg-secondary: #585858;
+  --cpx-sys-color-fg-tertiary: #868686;
+  --cpx-sys-color-fg-disabled: #aaaaaa;
   --cpx-sys-color-fg-on-accent: #ffffff;
 
   // Static user-authored message surface. This is not an interaction state.
   --cpx-sys-color-message-user-bg:
     color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
 
-  --cpx-sys-color-border-subtle: rgba(26, 28, 31, 0.049);
-  --cpx-sys-color-border-default: rgba(26, 28, 31, 0.078);
-  --cpx-sys-color-border-strong: rgba(26, 28, 31, 0.117);
-  --cpx-sys-color-border-focus: #0066ff;
+  --cpx-sys-color-border-subtle: rgba(17, 17, 17, 0.049);
+  --cpx-sys-color-border-default: rgba(17, 17, 17, 0.078);
+  --cpx-sys-color-border-strong: rgba(17, 17, 17, 0.117);
+  --cpx-sys-color-border-focus: #339cff;
 
-  --cpx-sys-color-hover: rgba(26, 28, 31, 0.05);
-  --cpx-sys-color-active: rgba(26, 28, 31, 0.08);
-  --cpx-sys-color-selected: rgba(26, 28, 31, 0.05);
+  --cpx-sys-color-hover: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-active: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-selected: rgba(17, 17, 17, 0.05);
 
-  --cpx-sys-color-accent: #0066ff;
+  --cpx-sys-color-accent: #339cff;
   --cpx-sys-color-accent-subtle-bg: #dbeafe;
   --cpx-sys-color-accent-subtle-border: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
   --cpx-sys-color-accent-fg: #0058dc;
@@ -118,7 +118,7 @@
   --cpx-sys-radius-pill: var(--cpx-sys-radius-full);
 
   // System Typography
-  --cpx-sys-font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cpx-sys-font-family-sans: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --cpx-sys-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
   --cpx-sys-font-size-ui: 14px;
@@ -147,23 +147,28 @@
   --cpx-sys-line-height-normal: var(--cpx-sys-line-height-body);
   --cpx-sys-line-height-relaxed: var(--cpx-sys-line-height-body-lg);
   --cpx-sys-line-height-reading: calc(var(--cpx-sys-font-size-md) + 10px);
-  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) * 1.55);
+  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) + 7px);
 
   --cpx-sys-font-weight-regular: 400;
-  --cpx-sys-font-weight-body: 445;
+  --cpx-sys-font-weight-body: 400;
   --cpx-sys-font-weight-medium: 500;
   --cpx-sys-font-weight-bold: 600;
 
   // System Typography Roles (CSS font shorthand, derived from system inputs)
+  --cpx-sys-type-display: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-4xl) / var(--cpx-sys-line-height-display) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-caption: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-caption) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-label: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-label) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-body-sm: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-body: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-body-lg: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-body-lg) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
-  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-reading: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-reading) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-row-title: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-control: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-metric: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
   --cpx-sys-type-code: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono);
 
   // System Spacing (4px Grid)

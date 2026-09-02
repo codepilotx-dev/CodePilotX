@@ -84,7 +84,7 @@
   align-items: center;
   gap: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-heading-xl);
+  font: var(--cpx-sys-type-display);
   text-align: center;
   animation: quick-chat-hero-enter var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard) both;
 
@@ -219,11 +219,11 @@
 .quick-chat-hero p,
 .empty-canvas-card p,
 .placeholder-card p {
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-reading);
 }
 
 .message-card p {
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-reading);
 }
 
 .quick-chat-hero p {
@@ -307,7 +307,7 @@
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-floating);
+  border-radius: var(--cpx-sys-radius-container);
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
@@ -362,8 +362,7 @@
 }
 
 .new-session-suggestion-label {
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .new-session-suggestions.is-follow-up {
@@ -428,7 +427,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
+  font: var(--cpx-sys-type-control);
   text-align: left;
   animation: new-session-suggestion-row-enter var(--cpx-sys-motion-enter)
     var(--cpx-sys-ease-standard) both;
@@ -1043,7 +1042,7 @@
     border-radius: var(--cpx-sys-radius-compact);
     background: transparent;
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
+    font: var(--cpx-sys-type-body-sm);
     text-align: start;
 
     &:hover {

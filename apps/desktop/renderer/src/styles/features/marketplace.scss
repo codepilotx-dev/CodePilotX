@@ -71,7 +71,7 @@
 
 .plugins-included-overview .plugins-section-heading {
   min-height: var(--cpx-sys-space-8);
-  padding: 0 var(--cpx-sys-space-2) var(--cpx-sys-space-2);
+  padding-bottom: var(--cpx-sys-space-2);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
@@ -92,7 +92,6 @@
   height: 44px;
   flex-wrap: nowrap;
   gap: var(--cpx-sys-space-1);
-  padding-inline: var(--cpx-sys-space-2);
   overflow: hidden;
 }
 
@@ -132,9 +131,13 @@
 }
 
 .plugins-directory-navigation {
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
-  padding-inline: var(--cpx-sys-space-2);
+}
+
+.plugin-details-code {
+  font: var(--cpx-sys-type-code);
 }
 
 .plugins-catalog-grid {
@@ -241,8 +244,7 @@
 .skill-catalog-card__copy strong {
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -401,14 +403,16 @@
   min-width: 0;
   height: 100%;
   overflow: auto;
+  padding: var(--cpx-sys-space-5);
   background: var(--cpx-sys-color-surface-canvas);
+  container-name: plugins-page;
+  container-type: inline-size;
 }
 
 .catalog-details-view {
   display: grid;
-  width: min(var(--cpx-sys-layout-content-max-width), 100%);
+  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
   margin-inline: auto;
-  padding: var(--cpx-sys-space-8) var(--cpx-sys-space-5);
   gap: var(--cpx-sys-space-7);
 }
 
@@ -639,8 +643,7 @@
 
 .catalog-plugin-skill__copy h3 {
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .catalog-plugin-skill__copy p {
@@ -711,10 +714,6 @@
   max-height: min(42rem, calc(100vh - var(--cpx-sys-space-8)));
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-xl);
-  background: var(--cpx-sys-color-surface-raised);
-  box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -782,6 +781,15 @@
 }
 
 @container plugins-page (max-width: 479px) {
+  .plugins-directory-navigation,
+  .plugins-callout {
+    align-items: stretch;
+  }
+
+  .plugins-callout {
+    flex-wrap: wrap;
+  }
+
   .plugin-catalog-card,
   .skill-catalog-card,
   .catalog-details-view:not(.catalog-plugin-details) .catalog-details-view__header {

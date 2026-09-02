@@ -215,6 +215,85 @@ describe('Codex CPX design system token contract', () => {
     )
   })
 
+  test('keeps settings navigation and responsive rows on one alignment contract', async () => {
+    const [settings, billing, navigation] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/features/_settings-core.scss', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL(
+          '../src/styles/features/_settings-billing.scss',
+          import.meta.url,
+        ),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/SettingsNav.tsx', import.meta.url),
+      ).text(),
+    ])
+
+    expect(settings).toContain(
+      '--settings-nav-inline-gutter: var(--cpx-sys-space-2);',
+    )
+    expect(settings).toMatch(
+      /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--settings-nav-inline-gutter\);/,
+    )
+    expect(settings).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{[\s\S]*?flex-direction: column;/,
+    )
+    expect(billing).not.toMatch(/^\s*\.settings-row,\s*$/m)
+    expect(billing).not.toMatch(/^\s*\.settings-row-control\s*\{/m)
+    expect(navigation).not.toMatch(
+      /settings-nav-(?:scroll-content|header|menu|group|group-title-row|group-items)[^"\n]*tw:(?:gap|px|py)-/,
+    )
+  })
+
+  test('keeps provider and extension management on shared settings geometry', async () => {
+    const [settings, modelCenter, providerCatalog, plugins, extensionRow, skillDialog, mcpDialog, marketplace] =
+      await Promise.all([
+        Bun.file(new URL('../src/styles/features/_settings-core.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/model-center.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/models/ProviderCatalog.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/settings/plugins/ExtensionManagementRow.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/settings/plugins/McpEditorDialog.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/marketplace.scss', import.meta.url)).text(),
+      ])
+
+    expect(settings).toContain('.settings-management-list')
+    expect(settings).toContain('.settings-management-dialog-row')
+    expect(providerCatalog).toContain('settings-management-list')
+    expect(extensionRow).toContain('settings-management-row')
+    expect(modelCenter).not.toContain('repeat(auto-fill')
+    expect(plugins).toContain('settings-content-inner plugins-settings-content')
+    expect(plugins).not.toMatch(/tw:(?:max-w-\[60rem\]|px-8|py-16)/)
+    for (const dialog of [skillDialog, mcpDialog]) {
+      expect(dialog).not.toContain('tw:rounded-3xl')
+      expect(dialog).not.toMatch(/Dialog\.Content[\s\S]{0,300}permission-modal(?:\s|")/)
+    }
+    const pluginDialogBlock = marketplace.match(/\.plugin-details-dialog\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    expect(pluginDialogBlock).not.toMatch(/(?:border|border-radius|background|box-shadow):/)
+  })
+
+  test('keeps primary routes and workbench panels on their shared alignment axes', async () => {
+    const [automation, pets, pullRequests, setup, review, browser] =
+      await Promise.all([
+        Bun.file(new URL('../src/styles/features/automation.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/pet/PetCatalogPage.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/pull-requests/PullRequestsPlaceholder.tsx', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/_model-setup.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/review.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/browser/DesktopBrowserPanel.tsx', import.meta.url)).text(),
+      ])
+
+    expect(automation).not.toMatch(/automation-primary-page[^}]*primary-page-layout__(?:header|body)/)
+    expect(pets).toContain('<PrimaryPageLayout')
+    expect(pullRequests).toContain('<PrimaryPageLayout')
+    expect(setup).toContain('grid-template-rows: 36px minmax(0, 1fr);')
+    expect(review).toContain('padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);')
+    expect(browser).toContain('className="browser-status-row" role="alert"')
+  })
+
   test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
     const [systemTokens, componentTokens, cards, composer, summary, rightDock] =
       await Promise.all([

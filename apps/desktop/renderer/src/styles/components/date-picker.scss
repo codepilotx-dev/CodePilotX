@@ -137,7 +137,7 @@
   place-items: center;
   padding: 0;
   border-radius: var(--cpx-sys-radius-control);
-  font: var(--cpx-sys-type-body-sm);
+  font: var(--cpx-sys-type-control);
 }
 
 .ui-date-picker-day[data-outside] {
@@ -175,7 +175,7 @@
   min-height: var(--cpx-sys-space-7);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-control);
-  font: var(--cpx-sys-type-body-sm);
+  font: var(--cpx-sys-type-control);
 }
 
 .ui-date-picker-footer-action:disabled {

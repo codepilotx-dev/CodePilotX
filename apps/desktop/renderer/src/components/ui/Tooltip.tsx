@@ -61,7 +61,7 @@ export function Tooltip({
                   'tw:rounded-xl',
                   'tw:px-2',
                   'tw:py-1',
-                  'tw:text-xs',
+                  'u-type-caption',
                   'tw:text-app-text-soft',
                   className,
                 ]

@@ -81,6 +81,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       cursorBlink: !getEffectiveReducedMotion(),
       fontFamily: initialFont.fontFamily,
       fontSize: initialFont.fontSize,
+      lineHeight: initialFont.lineHeight,
       scrollback: 5_000,
       theme: readTerminalTheme(document.documentElement),
     })
@@ -192,6 +193,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       terminal.options.theme = readTerminalTheme(document.documentElement)
       terminal.options.fontFamily = font.fontFamily
       terminal.options.fontSize = font.fontSize
+      terminal.options.lineHeight = font.lineHeight
       fitAndResize()
     })
     themeObserver.observe(document.documentElement, {

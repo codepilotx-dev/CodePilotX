@@ -179,6 +179,7 @@
     "componentGeometryExceptions": [],
     "inlineStyleExceptions": [],
     "tailwindArbitraryExceptions": [],
+    "tailwindTypographyExceptions": [],
     "literalTypographyExceptions": [],
     "literalRadiusExceptions": [],
     "literalMotionExceptions": [],

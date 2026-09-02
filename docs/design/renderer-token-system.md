@@ -14,6 +14,12 @@ Renderer 只使用三层变量：
 
 禁止新增无命名空间的全局 `--control-*`、`--layout-*`、`--app-icon-*`、`--menu-*`，也禁止按页面或实例命名新的系统 Token。
 
+## Oreo 设计语言适配
+
+Oreo Agentic UI Library 作为 CodePilotX 的视觉参考，不形成平行 Token 或组件体系。其 Foundation 直接映射到现有 `--cpx-sys-*`：Color 使用 surface、foreground、border、tone 与 interaction 语义，Typography 使用现有角色刻度，Shadow 仅用于瞬时浮层和持续覆盖工作区的交互面，Radius、Space 与 Motion 继续使用本规范的公共刻度。
+
+CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品牌和桌面交互契约。首页、空状态与引导页使用宽松节奏；Workbench、侧栏、终端、Review 和设置使用紧凑节奏。Oreo 中的 Button、Shortcuts、Chip、Tag、Avatar、Loading、Prompt、Sidebar、Navbar 与 Pop-up 优先复用现有基础组件；只有真实调用方无法表达时才扩展公共组件。
+
 ## 固定选择流程
 
 新增或修改样式时必须依次回答：
@@ -30,22 +36,27 @@ Renderer 只使用三层变量：
 
 ### 排版
 
-排版角色为 `caption / label / body-sm / body / body-lg / heading-sm / heading-md / heading-lg / heading-xl / code`，通过 `--cpx-sys-type-*` 使用。`heading-xl` 仅用于一级页面的主标题。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
+排版先按内容职责分为展示、结构、交互、阅读和代码五条层级，再通过 `--cpx-sys-type-*` 使用。系统字体优先使用 Windows 自带的 `Segoe UI Variable Text`，并回退到 `Segoe UI` 和平台系统字体；只使用稳定的 `400 / 500 / 600` 字重，不打包额外 UI 字体。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
 | 角色 | 默认字号 / 行高 / 字重 | 内容职责 | 默认前景色 |
 | --- | --- | --- | --- |
-| `caption` | `12 / 16 / 445` | 时间、路径、计数、快捷键和辅助状态 | `fg-tertiary` |
+| `display` | `28 / 34 / 600` | Coding、Working 与 Chat 首页 Hero | `fg-primary` |
+| `caption` | `12 / 16 / 400` | 时间、路径、计数和辅助状态 | `fg-tertiary` |
 | `label` | `12 / 16 / 500` | 分组名、字段标签和短状态标签 | 按上下文选择 secondary 或 tertiary |
-| `body-sm` | `13 / 18 / 445` | 说明、次要正文和紧凑导航 | `fg-secondary` |
-| `body` | `14 / 20 / 445` | 全局正文、列表、菜单和聊天 | `fg-primary` |
-| `body-lg` | `16 / 24 / 445` | 首页 Composer 和局部引导正文 | `fg-primary` |
-| `heading-sm` | `16 / 22 / 500` | 设置章节和卡片主要标题 | `fg-primary` |
-| `heading-md` | `18 / 24 / 500` | 中级页面标题和 Markdown H2 | `fg-primary` |
-| `heading-lg` | `20 / 28 / 500` | 强页面分区标题 | `fg-primary` |
-| `heading-xl` | `24 / 30 / 500` | 一级页面、首页 Hero 和 Markdown H1 | `fg-primary` |
-| `code` | `用户代码字号 / 1.55 / 400` | 代码、命令、Diff 和终端 | 按语法或上下文选择 |
+| `body-sm` | `13 / 18 / 400` | 次级说明、工具活动和侧栏辅助文字 | `fg-secondary` |
+| `control` | `13 / 18 / 500` | Button、Input、Menu、紧凑导航和文件行 | `fg-primary` |
+| `body` | `14 / 20 / 400` | 普通 UI 正文、评论和表单说明 | `fg-primary` |
+| `row-title` | `14 / 20 / 500` | 设置行、卡片行和普通对象名称 | `fg-primary` |
+| `reading` | `14 / 24 / 400` | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary` |
+| `body-lg` | `16 / 24 / 400` | 首页 Prompt 和短引导正文 | `fg-primary` |
+| `heading-sm` | `16 / 22 / 600` | Section、Dialog、Popover 和 Markdown H3 | `fg-primary` |
+| `heading-md` | `18 / 24 / 600` | 重点卡片和详情页局部主标题 | `fg-primary` |
+| `heading-lg` | `20 / 28 / 600` | Markdown H2 和强信息分区 | `fg-primary` |
+| `heading-xl` | `24 / 30 / 600` | 一级页面、Setup 主标题和 Markdown H1 | `fg-primary` |
+| `metric` | `20 / 28 / 600` | 金额、用量和统计值；使用 tabular figures | `fg-primary` |
+| `code` | `13 / 20 / 400`（随用户代码字号保持 `+7px` 行高） | 代码、命令、Diff 和终端 | 按语法或上下文选择 |
 
-普通 sans-serif 内容使用 `--cpx-sys-font-weight-body: 445`，标题和关键标签使用 `500`，正文内真正的强调使用 `600`；`400` 只保留给代码等真实常规字重。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。
+普通正文使用 `400`，控件、标签和行标题使用 `500`，结构标题、指标和真正的强调使用 `600`。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。UI 文本不得借用 `reading` 获取额外行距，工具活动也不得借用 `body` 与最终回答争夺层级。
 
 界面字号与代码字号设置仍是两个独立主题输入。UI 默认字号是 `14px`，运行时先计算 `delta = uiFontSize - 14`，再将同一差值应用到 `12 / 13 / 14 / 16 / 18 / 20 / 24 / 28px` 完整刻度，因此所有语义角色在 UI 字号 `11–16px` 范围内保持相对层级。代码字号在 `8–24px` 范围独立更新 `--cpx-sys-font-size-code`，不参与 UI delta；新设置默认使用 `13px`，已有用户设置原样保留。
 

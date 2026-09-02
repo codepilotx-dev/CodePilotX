@@ -117,10 +117,14 @@ for (const uiFontSize of [11, 16]) {
     await expectBox(bySize('iconSm'), 16)
     await expectBox(bySize('tabStripAction'), 34)
 
-    expect(await metrics(bySize('compact'))).toMatchObject({ fontSize: '11px', lineHeight: '16px' })
-    expect(await metrics(bySize('toolbar'))).toMatchObject({ fontSize: '14px', lineHeight: '18px' })
-    expect(await metrics(bySize('toolbarLabel'))).toMatchObject({ fontSize: '12px', lineHeight: '18px' })
-    expect(await metrics(bySize('composer'))).toMatchObject({ fontSize: '12px', lineHeight: '18px' })
+    const controlTypography = {
+      fontSize: `${uiFontSize - 1}px`,
+      lineHeight: `${uiFontSize + 4}px`,
+    }
+    expect(await metrics(bySize('compact'))).toMatchObject(controlTypography)
+    expect(await metrics(bySize('toolbar'))).toMatchObject(controlTypography)
+    expect(await metrics(bySize('toolbarLabel'))).toMatchObject(controlTypography)
+    expect(await metrics(bySize('composer'))).toMatchObject(controlTypography)
     expect(await metrics(bySize('icon'))).toMatchObject({ iconSize: 18 })
     expect(await metrics(bySize('iconMd'))).toMatchObject({ iconSize: 14 })
     expect(await metrics(bySize('iconSm'))).toMatchObject({ iconSize: 14 })

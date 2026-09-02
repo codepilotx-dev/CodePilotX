@@ -83,7 +83,8 @@ export function SkillDetailsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-3xl tw:p-0 tw:text-app-text"
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text"
+            data-dialog-size="detail"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -94,7 +95,7 @@ export function SkillDetailsDialog({
               closeRef.current?.focus()
             }}
           >
-            <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
+            <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
               <span
                 aria-hidden="true"
                 className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
@@ -112,11 +113,11 @@ export function SkillDetailsDialog({
                   />
                 )}
               </span>
-              <span className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)]">
+              <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
+                <Dialog.Title className="u-type-title-sm tw:m-0">
                   {skill.name}
                 </Dialog.Title>
-                <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">
+                <Dialog.Description className="u-type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                   {skill.description || '未提供技能说明。'}
                 </Dialog.Description>
               </span>
@@ -131,32 +132,32 @@ export function SkillDetailsDialog({
               </Dialog.Close>
             </header>
 
-            <div className="tw:min-h-0 tw:flex-1 tw:overflow-auto tw:px-5 tw:py-4">
-              <dl className="tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2 tw:text-sm">
+            <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-auto">
+              <dl className="u-type-body-sm tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2">
                 <dt className="tw:text-app-text-soft">来源</dt>
                 <dd className="tw:m-0">{skillScopeLabel(skill.scope)}</dd>
                 <dt className="tw:text-app-text-soft">状态</dt>
                 <dd className="tw:m-0">{skill.enabled ? '已启用' : '已禁用'}</dd>
               </dl>
               {loading ? (
-                <p className="tw:m-0 tw:text-sm tw:text-app-text-soft" role="status">
+                <p className="u-type-body-sm tw:m-0 tw:text-app-text-soft" role="status">
                   正在读取 SKILL.md…
                 </p>
               ) : error ? (
                 <div
-                  className="tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
+                  className="u-type-body-sm tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
                   role="alert"
                 >
                   {error}
                 </div>
               ) : (
-                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-code tw:text-app-text">
+                <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text">
                   {content}
                 </pre>
               )}
             </div>
 
-            <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
+            <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
               {!builtin ? (
                 <Button color="secondary" onClick={() => onOpenSkill(skill)}>
                   <FolderOpen

@@ -526,6 +526,7 @@
 }
 
 .right-dock-browser {
+  container-type: inline-size;
   display: flex;
   flex: 1 1 auto;
   min-width: 0;

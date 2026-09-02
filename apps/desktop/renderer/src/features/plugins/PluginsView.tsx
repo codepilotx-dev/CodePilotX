@@ -467,6 +467,10 @@ export function PluginsView(): React.ReactNode {
             />
           ) : (
             <SkillDirectory
+              clearFilters={() => {
+                setSkillQuery('')
+                setSkillOwner('official')
+              }}
               error={skillsError}
               groups={skillGroups}
               installingSkillIds={installingSkillIds}
@@ -648,6 +652,7 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
 }
 
 type SkillDirectoryProps = {
+  clearFilters: () => void
   error: string | null
   groups: ReturnType<typeof groupSkillsForDisplay>
   installingSkillIds: Set<string>
@@ -697,7 +702,9 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
         <CatalogSkeleton label="正在加载 skills.sh 技能目录" />
       ) : total === 0 ? (
         <CatalogEmpty
+          actionLabel={props.query || props.skillOwner !== 'official' ? '清除筛选' : undefined}
           message={props.query ? `没有匹配“${props.query}”的技能。` : '当前来源没有可展示的技能。'}
+          onAction={props.query || props.skillOwner !== 'official' ? props.clearFilters : undefined}
           title={props.query ? '没有匹配的技能' : '目录为空'}
         />
       ) : (

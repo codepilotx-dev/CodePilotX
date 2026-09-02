@@ -137,8 +137,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-panel);
   color: var(--cpx-sys-color-accent);
-  font-size: var(--cpx-sys-font-size-xs);
-  font-weight: var(--cpx-sys-font-weight-medium);
+  font: var(--cpx-sys-type-label);
 }
 
 .settings-dropdown-item-indicator {
@@ -160,7 +159,7 @@
 
 .appearance-theme-editor-rows {
   .settings-row-title {
-    font-size: var(--cpx-sys-font-size-md);
+    font: var(--cpx-sys-type-row-title);
   }
 }
 
@@ -278,7 +277,7 @@
   min-height: 28px;
   padding: 0 var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
 }
 
 .appearance-theme-font-row {
@@ -321,16 +320,14 @@
     border-radius: var(--cpx-sys-radius-md);
     background: var(--cpx-sys-color-surface-control);
     color: var(--cpx-sys-color-fg-primary);
-    font-size: var(--cpx-sys-font-size-md);
-    line-height: var(--cpx-sys-line-height-tight);
+    font: var(--cpx-sys-type-body);
     text-align: right;
     box-shadow: none;
   }
 
   span {
     color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-sys-font-size-sm);
-    line-height: var(--cpx-sys-line-height-tight);
+    font: var(--cpx-sys-type-body-sm);
   }
 }
 

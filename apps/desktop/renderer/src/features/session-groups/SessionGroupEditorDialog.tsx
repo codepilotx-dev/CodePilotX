@@ -58,10 +58,10 @@ export function SessionGroupEditorDialog({
           >
             <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
               <div className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:text-lg tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+                <Dialog.Title className="u-type-title-sm tw:text-app-text">
                   {creating ? '新建会话组' : '编辑会话组'}
                 </Dialog.Title>
-                <Dialog.Description className="tw:mt-1 tw:text-sm tw:text-app-text-soft">
+                <Dialog.Description className="u-type-body-sm tw:mt-1 tw:text-app-text-soft">
                   {creating ? '为相关会话建立一个共享上下文。' : '修改会话组的名称和说明。'}
                 </Dialog.Description>
               </div>
@@ -72,10 +72,10 @@ export function SessionGroupEditorDialog({
               </Dialog.Close>
             </header>
 
-            <label className="tw:grid tw:gap-1.5 tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+            <label className="u-type-control tw:grid tw:gap-1.5 tw:text-app-text">
               名称
               <input
-                className="tw:w-full tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-base tw:font-normal tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="u-type-control tw:w-full tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={120}
                 onChange={event => onNameChange(event.currentTarget.value)}
                 placeholder="例如：登录流程修复"
@@ -83,10 +83,10 @@ export function SessionGroupEditorDialog({
                 value={name}
               />
             </label>
-            <label className="tw:grid tw:gap-1.5 tw:text-sm tw:font-[var(--cpx-sys-font-weight-medium)] tw:text-app-text">
+            <label className="u-type-control tw:grid tw:gap-1.5 tw:text-app-text">
               说明
               <textarea
-                className="tw:min-h-24 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-base tw:font-normal tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="u-type-control tw:min-h-24 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={4000}
                 onChange={event => onDescriptionChange(event.currentTarget.value)}
                 placeholder="说明这个会话组要共同解决的问题（可选）"
@@ -95,7 +95,7 @@ export function SessionGroupEditorDialog({
             </label>
 
             {error ? (
-              <p className="tw:m-0 tw:text-sm tw:text-app-danger" role="alert">
+              <p className="u-type-body-sm tw:m-0 tw:text-app-danger" role="alert">
                 {error}
               </p>
             ) : null}
