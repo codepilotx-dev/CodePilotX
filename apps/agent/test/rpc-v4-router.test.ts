@@ -885,7 +885,7 @@ describe("RPC v4 Router", () => {
   })
 
   test("workspace file methods encode editor revisions and expose declared file errors", async () => {
-    const { db, call, initialize } = await fixture()
+    const { db, router, call, initialize } = await fixture()
     await initialize()
     const root = roots.at(-1)!
     const project = db.createProject({ rootPath: root })
@@ -950,6 +950,32 @@ describe("RPC v4 Router", () => {
       code: -32000,
       data: { code: "PATH_DENIED", retryable: false },
     })
+
+    const watchParams = {
+      projectId: project.id,
+      folderId: project.primaryFolderId,
+      path: "tsconfig.json",
+    }
+    expect((await call("workspace/file/watch", watchParams)).result).toEqual({
+      watching: true,
+      path: "tsconfig.json",
+    })
+    expect((await call("workspace/file/watch", watchParams)).result).toEqual({
+      watching: true,
+      path: "tsconfig.json",
+    })
+    const watched = [...router.workspaceFileWatchers.values()][0]
+    expect(watched?.ownerCounts.values().next().value).toBe(2)
+
+    await call("workspace/file/unwatch", watchParams)
+    expect(router.workspaceFileWatchers.size).toBe(1)
+    await call("workspace/file/unwatch", watchParams)
+    expect(router.workspaceFileWatchers.size).toBe(0)
+
+    await call("workspace/file/watch", watchParams)
+    const [connectionId] = router.connections.keys()
+    router.closeConnection(connectionId!)
+    expect(router.workspaceFileWatchers.size).toBe(0)
     db.close()
   })
 

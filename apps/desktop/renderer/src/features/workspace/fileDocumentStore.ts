@@ -422,16 +422,11 @@ export function startFileDocumentExternalChecks(
         scope.projectId,
       )
     : desktopClient.watchWorkspaceFile(workspacePath, path)
-  void watch
-    .catch(() => undefined)
-  const timer = window.setInterval(check, EXTERNAL_CHECK_INTERVAL_MS)
-  window.addEventListener('focus', check)
-  window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
-  return () => {
-    stopped = true
-    window.clearInterval(timer)
-    window.removeEventListener('focus', check)
-    window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+  let watchReady = false
+  let released = false
+  const releaseWatch = (): void => {
+    if (released) return
+    released = true
     const unwatch = scope.projectId || scope.folderId
       ? desktopClient.unwatchWorkspaceFile(
           workspacePath,
@@ -440,8 +435,24 @@ export function startFileDocumentExternalChecks(
           scope.projectId,
         )
       : desktopClient.unwatchWorkspaceFile(workspacePath, path)
-    void unwatch
-      .catch(() => undefined)
+    void unwatch.catch(() => undefined)
+  }
+  void watch.then(
+    () => {
+      watchReady = true
+      if (stopped) releaseWatch()
+    },
+    () => undefined,
+  )
+  const timer = window.setInterval(check, EXTERNAL_CHECK_INTERVAL_MS)
+  window.addEventListener('focus', check)
+  window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+  return () => {
+    stopped = true
+    window.clearInterval(timer)
+    window.removeEventListener('focus', check)
+    window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+    if (watchReady) releaseWatch()
   }
 }
 

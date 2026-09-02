@@ -11,6 +11,7 @@ import {
   stringParam,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
+import type { RpcRouterContext } from "../request-context"
 import { ProjectService } from "../../../project/ProjectService"
 import type { AttachmentUpload } from "../../../subagent/AttachmentService"
 
@@ -38,7 +39,7 @@ export const workspaceHandlers = {
     "workspace/file/unwatch",
     "project/settings/update",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
     const { db, projectSources } = runtime.dependencies
     const params = optionalRecord(rawParams)
     const projects = new ProjectService(db, projectSources)
@@ -139,22 +140,59 @@ export const workspaceHandlers = {
         })
       }
       case "workspace/file/watch": {
+        const connectionId = runtime.requireConnection(context)
         const { projectID: projectId, folderID: folderId, workspace } = await projectWorkspace()
         const requestedPath = stringParam(params, "path")
-        const watched = await workspace.watchEditorFile(requestedPath, (path) => {
-          void runtime.emit("workspace/file/changed", { projectId, folderId, path, changedAt: Date.now() })
+        const path = await workspace.resolveEditorFilePath(requestedPath)
+        const key = `${projectId}\0${folderId}\0${path}`
+        if (!runtime.connections.has(connectionId)) {
+          return { watching: false, path }
+        }
+        const current = runtime.workspaceFileWatchers.get(key)
+        if (current) {
+          current.ownerCounts.set(
+            connectionId,
+            (current.ownerCounts.get(connectionId) ?? 0) + 1,
+          )
+          return { watching: true, path }
+        }
+        const watched = await workspace.watchEditorFile(path, (changedPath) => {
+          void runtime.emit("workspace/file/changed", { projectId, folderId, path: changedPath, changedAt: Date.now() })
         })
-        const key = `${projectId}\0${folderId}\0${watched.path}`
-        if (runtime.workspaceFileWatchers.has(key)) watched.close()
-        else runtime.workspaceFileWatchers.set(key, watched)
+        if (!runtime.connections.has(connectionId)) {
+          watched.close()
+          return { watching: false, path: watched.path }
+        }
+        const raced = runtime.workspaceFileWatchers.get(key)
+        if (raced) {
+          watched.close()
+          raced.ownerCounts.set(
+            connectionId,
+            (raced.ownerCounts.get(connectionId) ?? 0) + 1,
+          )
+        } else {
+          runtime.workspaceFileWatchers.set(key, {
+            close: watched.close,
+            ownerCounts: new Map([[connectionId, 1]]),
+          })
+        }
         return { watching: true, path: watched.path }
       }
       case "workspace/file/unwatch": {
+        const connectionId = runtime.requireConnection(context)
         const { projectID: projectId, folderID: folderId, workspace } = await projectWorkspace()
         const path = await workspace.resolveEditorFilePath(stringParam(params, "path"))
         const key = `${projectId}\0${folderId}\0${path}`
-        runtime.workspaceFileWatchers.get(key)?.close()
-        runtime.workspaceFileWatchers.delete(key)
+        const watched = runtime.workspaceFileWatchers.get(key)
+        const ownerCount = watched?.ownerCounts.get(connectionId) ?? 0
+        if (watched && ownerCount > 0) {
+          if (ownerCount === 1) watched.ownerCounts.delete(connectionId)
+          else watched.ownerCounts.set(connectionId, ownerCount - 1)
+          if (watched.ownerCounts.size === 0) {
+            watched.close()
+            runtime.workspaceFileWatchers.delete(key)
+          }
+        }
         return { watching: false, path }
       }
       case "project/settings/update": {

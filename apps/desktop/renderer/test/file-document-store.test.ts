@@ -207,6 +207,38 @@ describe('file document external checks', () => {
     watch.mockRestore()
     unwatch.mockRestore()
   })
+
+  test('releases a watcher that finishes installing after cleanup', async () => {
+    const workspacePath = 'C:\\workspace\\delayed-watch'
+    const path = 'src\\watched.ts'
+    let finishWatch!: () => void
+    const pendingWatch = new Promise<void>(resolve => {
+      finishWatch = resolve
+    })
+    const watch = spyOn(
+      desktopClient,
+      'watchWorkspaceFile',
+    ).mockReturnValue(pendingWatch)
+    const unwatch = spyOn(
+      desktopClient,
+      'unwatchWorkspaceFile',
+    ).mockResolvedValue(undefined)
+    installWindowHarness()
+
+    const stop = startFileDocumentExternalChecks(workspacePath, path)
+    stop()
+    stop()
+    expect(unwatch).not.toHaveBeenCalled()
+
+    finishWatch()
+    await pendingWatch
+    await Promise.resolve()
+
+    expect(unwatch).toHaveBeenCalledTimes(1)
+    expect(unwatch).toHaveBeenCalledWith(workspacePath, path)
+    watch.mockRestore()
+    unwatch.mockRestore()
+  })
 })
 
 function preview(

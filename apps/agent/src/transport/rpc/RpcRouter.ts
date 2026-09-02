@@ -287,7 +287,10 @@ export class RpcRouter {
   readonly subscriptions: EventSubscriptionRegistry
   private readonly interactions: InteractionService
   private readonly threadReadViews: ThreadReadViewRepository
-  readonly workspaceFileWatchers = new Map<string, { close: () => void }>()
+  readonly workspaceFileWatchers = new Map<string, {
+    close: () => void
+    ownerCounts: Map<string, number>
+  }>()
   catalogVersion = 1
   private catalogSource: Promise<{
     providers: readonly Provider.Info[]
@@ -419,6 +422,12 @@ export class RpcRouter {
   closeConnection(connectionId: string) {
     const deleted = this.connections.delete(connectionId)
     this.subscriptions.closeConnection(connectionId)
+    for (const [key, watcher] of this.workspaceFileWatchers) {
+      watcher.ownerCounts.delete(connectionId)
+      if (watcher.ownerCounts.size > 0) continue
+      watcher.close()
+      this.workspaceFileWatchers.delete(key)
+    }
     return deleted
   }
 
