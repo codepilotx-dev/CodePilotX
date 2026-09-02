@@ -114,7 +114,6 @@ function withOptionalTooltip(
       align="center"
       className="popover-item-tooltip"
       content={meta}
-      delayDuration={350}
       side="right"
       sideOffset={10}
     >

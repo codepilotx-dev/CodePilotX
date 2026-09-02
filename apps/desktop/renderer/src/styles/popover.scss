@@ -392,7 +392,7 @@
 .rm-model-menu .rm-sub-trigger,
 .chat-input__dropdown-item {
   transition:
-    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    background var(--cpx-sys-motion-instant) var(--cpx-sys-ease-standard),
     color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 }
 

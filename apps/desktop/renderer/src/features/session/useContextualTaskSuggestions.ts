@@ -176,8 +176,19 @@ export function useContextualTaskSuggestions(
             recentTasks,
             git,
           })
-        : buildContextualTaskSuggestions({ recentTasks, git }),
-    [git, input.buildWorkingSuggestions, recentTasks, surface, workspaceName],
+        : buildContextualTaskSuggestions({
+            recentTasks,
+            git,
+            hasWorkspace: Boolean(input.workspacePath || workspaceName),
+          }),
+    [
+      git,
+      input.buildWorkingSuggestions,
+      input.workspacePath,
+      recentTasks,
+      surface,
+      workspaceName,
+    ],
   );
   const context = useMemo(
     () => ({

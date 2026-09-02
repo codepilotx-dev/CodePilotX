@@ -40,6 +40,7 @@
 - [desktop/renderer] 统一会话页用户消息、执行过程、工具摘要与最终回答的连续阅读排版，使中英文内容共享同一字号和行高节奏。
 - [desktop/renderer] 将回合执行过程改为主题自适应的分层路径时间线，运行阶段自动展开并突出当前工具，同时保留历史详情与交互能力。
 - [desktop/renderer] 统一 Review Diff、Markdown 代码块、编辑器与终端的代码行高契约（`--cpx-sys-line-height-code`，字号 + 7px），建立 42rem 会话阅读轴与 48rem/1250px 三级布局宽度规范。
+- [desktop/renderer] 统一三种新会话页的 Composer 主操作轴、紧凑建议布局与缺模型引导，并收敛嵌套圆角、菜单反馈和 Tooltip 延迟行为。
 - [desktop/renderer] 侧栏工作模式标题及“置顶”“项目”“最近”章节标题改为无渐隐的单行裁切，避免 Coding 等短标题边缘出现不必要的透明衰减。
 - [desktop/renderer] 将侧栏底部帮助与更新状态槽改为内容自适应宽度，减少普通状态下的多余留白。
 - [desktop/renderer] 活动视图改为显示会话所属项目文件夹名称，收紧侧栏 footer 与账号菜单行高，使会话标题在操作图标出现时保留悬停滚动并于滚动期间双侧渐隐，同时将 footer、展开及折叠操作设为无渐隐的单行裁切例外。

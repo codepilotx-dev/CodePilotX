@@ -66,6 +66,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
+  gap: var(--cpx-sys-space-5);
   margin: auto;
 }
 
@@ -243,7 +244,7 @@
   container-type: inline-size;
 
   &.is-root {
-    margin-top: var(--cpx-sys-space-8);
+    margin-top: 0;
   }
 
   &.is-blue {
@@ -274,8 +275,14 @@
 
 .new-session-suggestion-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--cpx-sys-space-3);
+}
+
+@container (max-width: 34rem) {
+  .new-session-suggestion-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .new-session-suggestion-card,
@@ -312,12 +319,9 @@
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   text-align: left;
-  animation: new-session-suggestion-card-enter var(--cpx-sys-motion-enter)
-    var(--cpx-sys-ease-standard) both;
-  animation-delay: calc(var(--new-session-suggestion-index) * 20ms);
   transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard),
-    transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
+    background var(--cpx-sys-motion-instant) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(--cpx-sys-color-hover);
@@ -470,24 +474,6 @@
   }
 }
 
-@container (max-width: 38.249rem) {
-  .new-session-suggestion-card:nth-child(n + 4) {
-    display: none;
-  }
-}
-
-@container (max-width: 28.499rem) {
-  .new-session-suggestion-card:nth-child(n + 3) {
-    display: none;
-  }
-}
-
-@container (max-width: 18.749rem) {
-  .new-session-suggestion-card:nth-child(n + 2) {
-    display: none;
-  }
-}
-
 @media (max-height: 720px) {
   .quick-chat-view {
     padding-top: var(--cpx-sys-space-4);
@@ -503,10 +489,6 @@
   .chat-home-view .chat-home-region {
     gap: var(--cpx-sys-space-5);
     padding-block: var(--cpx-sys-space-4);
-  }
-
-  .new-session-suggestions.is-root {
-    margin-top: var(--cpx-sys-space-5);
   }
 }
 

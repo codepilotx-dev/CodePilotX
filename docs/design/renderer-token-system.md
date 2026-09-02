@@ -91,13 +91,13 @@ CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品
 
 跨 Feature 语义固定映射为 `indicator → 2xs`、`compact → xs`、`control → md`、`container → lg`、`floating → xl`、`prominent → 3xl`、`pill → full`。普通输入与图标按钮使用 `md`，列表行与普通卡片使用 `lg`，菜单和 Popover 使用 `xl`，用户消息使用 `2xl`，多行 Composer、inline 线程环境摘要与 Dialog 使用 `3xl`。`4xl` 是完整刻度中的预留层级，没有匹配职责时不得为了消费 Token 强行使用。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius，也不得创建 message、Composer、Summary 等同值 system Token。
 
-`--cpx-sys-radius-optical-scale` 是统一光学校正，不是主题设置；它只能在 `2xs` 至 `4xl` 基础 Token 中计算一次，消费方不得再次乘 scale。支持 `corner-shape` 时，`md` 至 `4xl` 使用公共 `--cpx-sys-corner-shape: superellipse(1.5)`，不支持时使用表中的回退值；`2xs / xs / sm / full` 保持普通 round。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据实际 inset 选择下一档较小刻度。
+`--cpx-sys-radius-optical-scale` 是统一光学校正，不是主题设置；它只能在 `2xs` 至 `4xl` 基础 Token 中计算一次，消费方不得再次乘 scale。支持 `corner-shape` 时，`md` 至 `4xl` 使用公共 `--cpx-sys-corner-shape: superellipse(1.5)`，不支持时使用表中的回退值；`2xs / xs / sm / full` 保持普通 round。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token（例如外层 `prominent / 20px` 在 inset 为 `12px` 时映射到 `control / 8px`，如 Coding 与 Working 首页工具条）。
 
 Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent / 3xl`，只有真实 `default + single-line` 使用 `pill / full`。`single-line` radius variant 用于覆盖默认胶囊并继续复用 `prominent / 3xl`，`compact` 使用 `container / lg`。禁止根据路由、placement、空输入、附件或历史截图推测 Composer 曲率。
 
 ### 动效
 
-时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 90 / 100 / 120 / 120 / 900ms`：hover 与按压使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
+时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 90 / 100 / 120 / 120 / 900ms`：直接指针 hover 背景与拖拽跟随使用 `instant`，hover 按压及文本颜色反馈使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。全局 Tooltip 遵循首次延迟 350ms (`delayDuration`) 与组内快速切换 300ms (`skipDelayDuration`) 规则。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
 
 ### 阴影与层级
 

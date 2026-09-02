@@ -25,7 +25,6 @@ import {
   normalizeNewSessionSurfaceSearch,
   parseNewSessionSurface,
 } from "./newSessionSurface.js";
-import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
 import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
@@ -38,6 +37,7 @@ import { WorkingNewSessionView } from "./WorkingNewSessionView.js";
 import { ChatNewSessionView } from "./ChatNewSessionView.js";
 import { CodingHeadingTransition } from "./CodingHeadingTransition.js";
 import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
+import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
 
 export function QuickChatView(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -161,7 +161,8 @@ function CodingQuickChatView(): React.ReactNode {
         onAppendComposerText(value);
       }
       requestAnimationFrame(focusComposer);
-    }, [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
+    },
+    [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
   );
 
   const handleSelectCategory = useCallback(
@@ -253,11 +254,7 @@ function CodingQuickChatView(): React.ReactNode {
 
   const handleWhaleMarkClick = useCallback(() => {
     const mark = whaleMarkRef.current;
-    if (
-      !mark || getEffectiveReducedMotion()
-    ) {
-      return;
-    }
+    if (!mark || getEffectiveReducedMotion()) return;
     whaleMarkAnimationRef.current?.cancel();
     whaleMarkAnimationRef.current = mark.animate(
       [
@@ -352,9 +349,10 @@ function CodingQuickChatView(): React.ReactNode {
           </div>
           <AnimatePresence initial={false}>
             {suggestionState.kind === "root" ||
-            suggestionState.kind === "templates" ? (
+            suggestionState.kind === "templates" ||
+            suggestionState.kind === "category" ? (
               <NewSessionPresence
-                key={`hero-${suggestionState.kind}`}
+                key={`suggestions-${suggestionState.kind}${suggestionState.kind === "category" ? `-${suggestionState.categoryId}` : ""}`}
                 kind="panel"
                 reducedMotion={reducedMotion}
               >
@@ -373,25 +371,6 @@ function CodingQuickChatView(): React.ReactNode {
         </section>
 
         <section className="quick-chat-composer-region">
-          <AnimatePresence initial={false}>
-            {suggestionState.kind === "category" ? (
-              <NewSessionPresence
-                key={`category-${suggestionState.categoryId}`}
-                kind="panel"
-                reducedMotion={reducedMotion}
-              >
-                <NewSessionSuggestions
-                  state={suggestionState}
-                  suggestions={suggestions}
-                  onSelectSuggestion={handleSelectSuggestion}
-                  onSelectCategory={handleSelectCategory}
-                  onSelectTask={handleSelectTask}
-                  onShowAll={handleShowAll}
-                  onShowSuggestions={handleShowSuggestions}
-                />
-              </NewSessionPresence>
-            ) : null}
-          </AnimatePresence>
           {composerProps ? (
             <div className="chat-composer">
               <DesktopComposer {...composerProps} surface="coding" />
