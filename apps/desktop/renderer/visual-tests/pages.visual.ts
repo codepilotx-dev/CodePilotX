@@ -70,6 +70,7 @@ async function expectNewSessionComposerContract(
     }
 
     const inputStyle = getComputedStyle(input)
+    const utilityStyle = utility ? getComputedStyle(utility) : null
     const stackRect = element.getBoundingClientRect()
     const inputRect = input.getBoundingClientRect()
     const utilityRect = utility?.getBoundingClientRect() ?? null
@@ -79,6 +80,7 @@ async function expectNewSessionComposerContract(
       inputBorderRadius: inputStyle.borderRadius,
       inputBorderWidth: inputStyle.borderWidth,
       inputBoxShadow: inputStyle.boxShadow,
+      utilityBorderRadius: utilityStyle?.borderRadius ?? null,
       inputTop: inputRect.top,
       inputBottom: inputRect.bottom,
       utilityTop: utilityRect?.top ?? null,
@@ -98,11 +100,13 @@ async function expectNewSessionComposerContract(
     expect(contract.utilityTop).not.toBeNull()
     expect(contract.utilityTop!).toBeLessThan(contract.inputTop)
     expect(contract.utilityBottom!).toBeGreaterThan(contract.inputTop)
+    expect(contract.utilityBorderRadius).toContain('8px')
   } else {
     expect(contract.utilityTop).not.toBeNull()
     expect(contract.utilityTop!).toBeGreaterThanOrEqual(
       contract.inputBottom - 2,
     )
+    expect(contract.utilityBorderRadius).toContain('8px')
   }
 }
 
@@ -112,18 +116,39 @@ async function expectWorkingHomeContract(page: Page): Promise<void> {
   ).toBeVisible()
   await expect(
     page.locator('.working-chat-view .working-suggestions'),
+  ).toHaveCount(1)
+  await expect(
+    page.locator('.working-chat-view .working-suggestion-row'),
+  ).toHaveCount(3)
+  await expect(
+    page.locator('.working-chat-view .new-session-suggestion-card'),
+  ).toHaveCount(0)
+}
+
+async function expectChatHomeContract(page: Page): Promise<void> {
+  await expect(
+    page.getByRole('heading', { name: '随时可以开始。' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.chat-home-view .new-session-suggestions'),
+  ).toHaveCount(0)
+  await expect(
+    page.locator('.chat-home-view .working-suggestions'),
   ).toHaveCount(0)
 }
 
 async function expectCodingHomeContract(
   page: Page,
-  requireFourVisibleCards: boolean,
+  isDesktop: boolean,
 ): Promise<void> {
+  await expect(
+    page.locator('.coding-chat-view h1'),
+  ).toHaveText(/(?:要在|我们应该在).+(?:内开发什么|中做些什么)？|我们该构建什么？/)
+
   const mark = page.locator('.coding-chat-view .quick-chat-mark')
   await expect(mark).toBeVisible()
   await expect(mark).toHaveCSS('width', '56px')
   await expect(mark).toHaveCSS('height', '56px')
-
   const maskImage = await mark.evaluate(element => {
     const style = getComputedStyle(element)
     return style.maskImage || style.webkitMaskImage
@@ -144,12 +169,38 @@ async function expectCodingHomeContract(
       })
       .map(element => getComputedStyle(element).borderTopWidth),
   )
-  expect(visibleCards.length).toBeGreaterThanOrEqual(1)
-  expect(visibleCards.length).toBeLessThanOrEqual(4)
-  if (requireFourVisibleCards) {
-    expect(visibleCards).toHaveLength(4)
-  }
+  expect(visibleCards).toHaveLength(4)
   expect(visibleCards.every(width => width === '1px')).toBe(true)
+
+  const layout = await page.evaluate(() => {
+    const card = document.querySelector<HTMLElement>('.coding-chat-view .new-session-suggestion-card')
+    const composer = document.querySelector<HTMLElement>('.coding-chat-view .composer-input-surface')
+    const mark = document.querySelector<HTMLElement>('.coding-chat-view .quick-chat-mark')
+    if (!card || !composer || !mark) throw new Error('Coding home layout surfaces are missing')
+    const cardRect = card.getBoundingClientRect()
+    const composerRect = composer.getBoundingClientRect()
+    const markRect = mark.getBoundingClientRect()
+    return {
+      cardHeight: cardRect.height,
+      cardsTop: cardRect.top,
+      cardsBottom: cardRect.bottom,
+      composerTop: composerRect.top,
+      heroContentCenter: (markRect.top + cardRect.bottom) / 2,
+      viewportCenter: window.innerHeight / 2,
+    }
+  })
+  expect(layout.cardHeight).toBeGreaterThanOrEqual(103)
+  expect(layout.cardHeight).toBeLessThanOrEqual(105)
+  const { cardsTop, composerTop } = layout
+  expect(cardsTop).toBeLessThan(composerTop)
+  if (isDesktop) {
+    expect(Math.abs(layout.heroContentCenter - layout.viewportCenter)).toBeLessThanOrEqual(140)
+  }
+
+  const gridColumnCount = await page
+    .locator('.coding-chat-view .new-session-suggestion-grid')
+    .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length)
+  expect(gridColumnCount).toBe(isDesktop ? 4 : 2)
 }
 
 for (const mode of VISUAL_MODES) {
@@ -164,6 +215,9 @@ for (const mode of VISUAL_MODES) {
       }
       if (scenario.id === 'working') {
         await expectWorkingHomeContract(page)
+      }
+      if (scenario.id === 'chat') {
+        await expectChatHomeContract(page)
       }
       if (scenario.id === 'new') {
         await expectCodingHomeContract(page, true)
@@ -260,6 +314,9 @@ for (const mode of VISUAL_MODES) {
       }
       if (scenario.id === 'working') {
         await expectWorkingHomeContract(page)
+      }
+      if (scenario.id === 'chat') {
+        await expectChatHomeContract(page)
       }
       if (scenario.id === 'new') {
         await expectCodingHomeContract(page, false)
