@@ -87,7 +87,7 @@
     margin: var(--composer-surface-seam) var(--cpx-sys-space-3) 0;
     padding: var(--cpx-sys-space-2);
     border: 0;
-    border-radius: 0 0 var(--cpx-sys-radius-container) var(--cpx-sys-radius-container);
+    border-radius: 0 0 var(--cpx-sys-radius-control) var(--cpx-sys-radius-control);
     background: var(--cpx-sys-color-surface-recessed);
   }
 }
@@ -128,7 +128,7 @@
     margin: 0 var(--cpx-sys-space-3) calc(-1 * var(--cpx-sys-space-5));
     padding: var(--cpx-sys-space-2) var(--cpx-sys-space-2) var(--cpx-sys-space-6);
     border: 0;
-    border-radius: var(--cpx-sys-radius-floating) var(--cpx-sys-radius-floating) 0 0;
+    border-radius: var(--cpx-sys-radius-control) var(--cpx-sys-radius-control) 0 0;
     background: var(--cpx-sys-color-surface-recessed);
   }
 

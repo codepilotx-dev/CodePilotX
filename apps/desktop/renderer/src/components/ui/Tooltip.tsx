@@ -23,7 +23,14 @@ export function TooltipProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  return <RadixTooltip.Provider>{children}</RadixTooltip.Provider>
+  return (
+    <RadixTooltip.Provider
+      delayDuration={350}
+      skipDelayDuration={300}
+    >
+      {children}
+    </RadixTooltip.Provider>
+  )
 }
 
 export function Tooltip({
