@@ -442,6 +442,26 @@ describe('sidebar shell modes', () => {
     expect(
       shouldShowSidebarPreview({
         delayedTriggerHover: false,
+        pointerX: 6,
+        previewOpen: false,
+        rearmBlocked: false,
+        resizing: false,
+        sidebarWidth: 275,
+      }),
+    ).toBe(true)
+    expect(
+      shouldShowSidebarPreview({
+        delayedTriggerHover: false,
+        pointerX: 6,
+        previewOpen: false,
+        rearmBlocked: true,
+        resizing: false,
+        sidebarWidth: 275,
+      }),
+    ).toBe(false)
+    expect(
+      shouldShowSidebarPreview({
+        delayedTriggerHover: false,
         pointerX: 100,
         previewOpen: false,
         rearmBlocked: false,
