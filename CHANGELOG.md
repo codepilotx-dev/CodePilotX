@@ -36,6 +36,7 @@
 
 ### Changed
 
+- [desktop/renderer] 参考 Oreo Side Bar 规范统一首页与设置侧栏的网格、UI 字号、章节节奏和图标规格，使项目会话与项目名称同线、会话悬浮卡标题贴齐卡片内沿、设备图标与时间组成固定尾部状态组、悬浮卡与触发行顶部对齐且元信息共享文字列，并恢复收起后从标题栏按钮或窗口左缘打开悬浮预览的体验。
 - [desktop/renderer] 重新建立全组件 Typography 内容层级，区分展示、结构、控件、连续阅读、元信息与代码文本，优先使用 Windows Segoe UI Variable 系统字体，并保留界面与代码字号设置。
 - [desktop/renderer] 统一 Browser、Terminal 与文件预览面板的工具栏和内容 inset，为浏览器加载错误补充可恢复说明，并收敛窄面板操作布局。
 - [desktop/renderer] 收敛 Review 工具栏、文件树、文件标题与 Diff 内容列线，确保窄面板和文件树折叠状态保持稳定对齐。

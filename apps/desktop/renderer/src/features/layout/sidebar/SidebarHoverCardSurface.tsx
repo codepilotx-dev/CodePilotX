@@ -107,7 +107,7 @@ export function SidebarHoverCardSurface({
       <Popover.Portal>
         <Popover.Content
           asChild
-          align="center"
+          align="start"
           aria-label={ariaLabel}
           collisionPadding={6}
           id={contentId}

@@ -1,19 +1,9 @@
-.settings-sidebar-layout {
-  --settings-nav-inline-gutter: var(--cpx-sys-space-2);
-  --settings-nav-leading-width: var(--cpx-sys-space-4);
-  --sidebar-padding-x: var(--settings-nav-inline-gutter);
-  --sidebar-item-gap: var(--cpx-sys-space-2);
-  --sidebar-row-pad-y: 5px;
-  --sidebar-trailing-width: 4.286em;
-}
-
 .settings-nav-scroll-area {
   overflow-y: auto;
 }
 
 .settings-nav-scroll-content {
   gap: var(--cpx-sys-space-4);
-  padding-inline: var(--settings-nav-inline-gutter);
 }
 
 .settings-nav-header {
@@ -23,7 +13,7 @@
 .settings-back-btn {
   margin-bottom: var(--cpx-sys-space-2);
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-control);
+  font: var(--cpx-sys-type-row-title);
 }
 
 .settings-nav-search {
@@ -31,8 +21,6 @@
 }
 
 .settings-nav-group {
-  gap: var(--cpx-sys-space-1);
-
   &-title-row {
     min-width: 0;
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
@@ -41,7 +29,7 @@
   &-title {
     margin: 0;
     color: var(--cpx-sys-color-fg-tertiary);
-    font: var(--cpx-sys-type-label);
+    font: var(--cpx-sys-type-row-title);
     letter-spacing: normal;
   }
 }
@@ -50,14 +38,9 @@
   gap: var(--cpx-sys-space-4);
 }
 
-.settings-nav-group-items,
-.settings-search-results {
-  gap: calc(var(--cpx-sys-space-1) / 2);
-}
-
 .settings-nav-item {
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-control);
+  font: var(--cpx-sys-type-row-title);
   white-space: nowrap;
 
   &.active,
@@ -68,10 +51,6 @@
 
 .settings-nav-icon {
   color: currentColor;
-  width: var(--settings-nav-leading-width);
-  height: var(--settings-nav-leading-width);
-  flex: 0 0 var(--settings-nav-leading-width);
-  stroke-width: 1.75;
 }
 
 .settings-search-empty {

@@ -1,6 +1,7 @@
 import type React from 'react'
 import { Folder, GitBranch, Laptop } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import {
   SidebarHoverCardFrame,
@@ -90,14 +91,17 @@ export function SidebarSessionHoverCardOverlay({
                   <span className="u-sr-only">正在更新会话标题</span>
                 </>
               ) : (
-                <>
-                  <span className="sidebar-session-hover-card-title">{model.title}</span>
-                  <Laptop aria-hidden="true" className="sidebar-session-hover-card-device-icon" size={14} strokeWidth={1.75} />
-                </>
+                <span className="sidebar-session-hover-card-title">{model.title}</span>
               )}
             </button>
           )}
           <span className="sidebar-session-hover-card-trailing">
+            <Laptop
+              aria-hidden="true"
+              className="sidebar-session-hover-card-device-icon"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
             <span className="sidebar-session-hover-card-time">
               {model.relativeTime}
             </span>
@@ -120,15 +124,25 @@ export function SidebarSessionHoverCardOverlay({
         </SidebarHoverCardHeader>
         <div className="sidebar-session-hover-card-meta">
           <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-            <Folder aria-hidden="true" size={14} strokeWidth={1.75} />
-            <span>{model.projectLabel}</span>
-            {model.gitBranch ? (
-              <>
-                <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">·</span>
-                <GitBranch aria-hidden="true" size={13} strokeWidth={1.75} />
-                <span>{model.gitBranch}</span>
-              </>
-            ) : null}
+            <Folder
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+            <span className="sidebar-session-hover-card-row-content">
+              <span>{model.projectLabel}</span>
+              {model.gitBranch ? (
+                <>
+                  <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">·</span>
+                  <GitBranch
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                  <span>{model.gitBranch}</span>
+                </>
+              ) : null}
+            </span>
           </SidebarHoverCardRow>
         </div>
       </SidebarHoverCardFrame>

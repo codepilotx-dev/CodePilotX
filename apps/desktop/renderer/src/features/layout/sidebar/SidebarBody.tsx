@@ -561,7 +561,7 @@ export function SidebarBody({
             onUnpinSession={onUnpinSession}
           />
         ) : (
-        <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
+        <div className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col">
           <AnimatePresence initial={false}>
           {pinnedItems.length > 0 ? (
             <SidebarSectionPresence key="pinned" reducedMotion={reducedMotion}>
@@ -908,7 +908,7 @@ function Timeline({
           {...sharedSessionProps}
         />
       ) : (
-        <div className="sidebar-focus-section-header tw:flex tw:justify-between tw:items-center tw:px-3 tw:py-1">
+        <div className="sidebar-focus-section-header tw:flex tw:justify-between tw:items-center">
           <h3 className="sidebar-focus-section-title">优先级</h3>
           <TimelinePriorityMenu
             hasArchivableAttention={hasArchivableAttention}
@@ -1077,7 +1077,7 @@ function FocusSectionGroup({
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
   return (
-    <section className="sidebar-section sidebar-focus-section tw:grid tw:gap-1">
+    <section className="sidebar-section sidebar-focus-section tw:grid">
       <div className="sidebar-focus-section-header">
         <h3 className="sidebar-focus-section-title">{section.label}</h3>
         {action}
@@ -1185,7 +1185,7 @@ function SidebarSectionActions({
   children: React.ReactNode;
 }): React.ReactNode {
   return (
-    <div className="sidebar-section-actions tw:flex tw:items-center tw:gap-3">
+    <div className="sidebar-section-actions tw:flex tw:items-center">
       {children}
     </div>
   );
@@ -1294,9 +1294,7 @@ function SidebarSection({
 
   return (
     <section className="sidebar-section tw:grid">
-      <div
-        className="sidebar-section-header tw:rounded-lg tw:px-2 tw:py-1.25"
-      >
+      <div className="sidebar-section-header">
         <h2 className="sidebar-section-title">
           <button
             aria-controls={contentId}
@@ -1327,7 +1325,7 @@ function SidebarSection({
       </div>
       <DisclosureContent
         className="sidebar-section-disclosure"
-        contentClassName="sidebar-section-content tw:grid tw:gap-1"
+        contentClassName="sidebar-section-content tw:grid"
         expanded={expanded}
         id={contentId}
         mountPolicy="always"

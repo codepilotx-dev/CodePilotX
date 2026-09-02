@@ -88,7 +88,7 @@ export function SidebarProjectHoverCardOverlay({
         onClick={event => event.stopPropagation()}
       >
         <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
-          <ProjectAppearanceGlyph appearance={appearance} size={18} />
+          <ProjectAppearanceGlyph appearance={appearance} />
           <strong title={project.name}>{project.name}</strong>
           <IconButton
             className="sidebar-project-hover-card-pin"
@@ -110,18 +110,18 @@ export function SidebarProjectHoverCardOverlay({
           </IconButton>
         </SidebarHoverCardHeader>
         <SidebarHoverCardRow className="sidebar-project-hover-card-stats">
-          <span className="sidebar-project-hover-card-stat-item">
-            <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
+          <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
+          <span className="sidebar-project-hover-card-stats-content">
             <span>{conversationCount} 个任务</span>
+            {unreadCount > 0 ? (
+              <>
+                <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
+                <span>{unreadCount} 条未读</span>
+              </>
+            ) : null}
+            <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
+            <span>{openCount} 个已开启</span>
           </span>
-          {unreadCount > 0 ? (
-            <>
-              <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
-              <span>{unreadCount} 条未读</span>
-            </>
-          ) : null}
-          <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
-          <span>{openCount} 个已开启</span>
         </SidebarHoverCardRow>
         <div className="sidebar-project-hover-card-folders">
           {folders.map(folder => (

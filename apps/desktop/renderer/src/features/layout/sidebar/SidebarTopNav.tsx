@@ -235,7 +235,7 @@ export function SidebarHeader({
   }
 
   return (
-    <header className="sidebar-header tw:px-1.5">
+    <header className="sidebar-header">
       <PopoverMenu
         align="start"
         className="popover-menu--no-icons sidebar-product-mode-menu"
@@ -369,7 +369,7 @@ export function SidebarTopNav({
     }),
   )
   return (
-    <nav className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5" aria-label="主要导航">
+    <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label="主要导航">
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
   );
@@ -399,7 +399,7 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label="新建对话"
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-1.5"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >
       <SidebarNavItems items={fixedItems} isActiveView={isActiveView} />

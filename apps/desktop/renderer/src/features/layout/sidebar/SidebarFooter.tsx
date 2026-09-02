@@ -210,13 +210,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const accountTriggerName = githubAuthenticated ? accountName : "设置";
   return (
     <footer
-      className="sidebar-footer tw:mt-2 tw:flex tw:w-full tw:shrink-0 tw:items-center tw:gap-1 tw:px-1.5"
+      className="sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center"
       ref={ref}
     >
       <PopoverMenu
         className="popover-sidebar-footer popover-menu--grid"
         open={menuOpen}
         side="top"
+        sideOffset={8}
         width={Math.max(0, sidebarWidth - 12)}
         maxWidth="calc(100vw - 16px)"
         trigger={

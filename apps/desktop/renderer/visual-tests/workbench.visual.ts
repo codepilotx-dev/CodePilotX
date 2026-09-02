@@ -2643,9 +2643,74 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     return radius
   })
   for (const row of [navRow, projectRow, activeSessionRow]) {
-    await expect(row).toHaveCSS('min-height', '30px')
+    await expect(row).toHaveCSS('min-height', '32px')
     await expect(row).toHaveCSS('border-radius', sidebarRowRadius)
   }
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const sectionHeader = page.locator(
+    '.sidebar-section:has([data-sidebar-section-id="projects"]) .sidebar-section-header',
+  )
+  const footerRow = page.locator('.sidebar-footer .sidebar-settings-link')
+  const [sidebarBox, navBox, navLeadingBox, navMainBox, sectionHeaderBox, projectRowBox, projectTrailingBox, footerBox, footerLeadingBox, footerMainBox] =
+    await Promise.all([
+      sidebar.boundingBox(),
+      navRow.boundingBox(),
+      navRow.locator('.sidebar-row-leading').boundingBox(),
+      navRow.locator('.sidebar-row-main').boundingBox(),
+      sectionHeader.boundingBox(),
+      projectRow.boundingBox(),
+      projectRow.locator('.sidebar-row-trailing').boundingBox(),
+      footerRow.boundingBox(),
+      footerRow.locator('.sidebar-row-leading').boundingBox(),
+      footerRow.locator('.sidebar-row-main').boundingBox(),
+    ])
+  expect(sidebarBox).not.toBeNull()
+  expect(navBox).not.toBeNull()
+  expect(navLeadingBox).not.toBeNull()
+  expect(navMainBox).not.toBeNull()
+  expect(sectionHeaderBox).not.toBeNull()
+  expect(projectRowBox).not.toBeNull()
+  expect(projectTrailingBox).not.toBeNull()
+  expect(footerBox).not.toBeNull()
+  expect(footerLeadingBox).not.toBeNull()
+  expect(footerMainBox).not.toBeNull()
+  if (
+    !sidebarBox || !navBox || !navLeadingBox || !navMainBox ||
+    !sectionHeaderBox || !projectRowBox || !projectTrailingBox || !footerBox ||
+    !footerLeadingBox || !footerMainBox
+  ) return
+  expect(navBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(navBox.width).toBeCloseTo(sidebarBox.width - 16, 0)
+  expect(navLeadingBox.x - sidebarBox.x).toBeCloseTo(16, 0)
+  expect(navLeadingBox.width).toBeCloseTo(16, 0)
+  expect(navMainBox.x - sidebarBox.x).toBeCloseTo(40, 0)
+  expect(sectionHeaderBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(projectTrailingBox.x + projectTrailingBox.width - sidebarBox.x).toBeCloseTo(
+    sidebarBox.width - 16,
+    0,
+  )
+  expect(footerBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(footerLeadingBox.x - sidebarBox.x).toBeCloseTo(16, 0)
+  expect(footerMainBox.x - sidebarBox.x).toBeCloseTo(40, 0)
+  expect(projectRowBox.y - (sectionHeaderBox.y + sectionHeaderBox.height)).toBeLessThanOrEqual(0.5)
+  await expect(navRow).toHaveCSS('font-size', '14px')
+  await expect(sectionHeader.locator('.sidebar-section-title')).toHaveCSS('font-size', '14px')
+  expect(
+    await sidebar.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
+  expect(
+    await sidebar.locator('.ui-button.icon-button').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const bounds = element.getBoundingClientRect()
+        return `${bounds.width}x${bounds.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['24x24'])
   await expect(projectButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(activeSessionRow.locator('.sidebar-session-button')).toHaveCSS(
     'background-color',
@@ -2702,6 +2767,25 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     expandedBeforeTailAction ?? 'true',
   )
   await page.keyboard.press('Escape')
+
+  const activityToggle = page.getByRole('button', { name: /查看活动|关闭活动视图/ })
+  if (await activityToggle.getAttribute('aria-pressed') !== 'true') {
+    await activityToggle.click()
+  }
+  const activityTimeline = page.locator('.sidebar-timeline')
+  const activityHeader = activityTimeline.locator('.sidebar-focus-section-header').first()
+  const activityTitle = activityHeader.locator('.sidebar-focus-section-title')
+  await expect(activityTimeline).toBeVisible()
+  await expect(activityHeader).toBeVisible()
+  const [activityHeaderBox, activityTitleBox] = await Promise.all([
+    activityHeader.boundingBox(),
+    activityTitle.boundingBox(),
+  ])
+  expect(activityHeaderBox).not.toBeNull()
+  expect(activityTitleBox).not.toBeNull()
+  if (!activityHeaderBox || !activityTitleBox) return
+  expect(activityHeaderBox.x - sidebarBox.x).toBeCloseTo(8, 0)
+  expect(activityTitleBox.x - sidebarBox.x).toBeCloseTo(16, 0)
 })
 
 test('pinned session icon and overflowing title motion match the sidebar contract', async ({
@@ -2738,6 +2822,18 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   await expect(ordinaryRow).toHaveClass(/sidebar-row--session/)
   await expect(ordinaryRow).toHaveCSS('padding-left', '32px')
   await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  const projectRow = page.locator('.sidebar-project-header').first()
+  const showMore = projectRow.locator('xpath=..').locator('.sidebar-show-more-actions')
+  const [projectMainBox, ordinaryMainBox, showMoreMainBox] = await Promise.all([
+    projectRow.locator('.sidebar-row-main').boundingBox(),
+    ordinaryRow.locator('.sidebar-row-main').boundingBox(),
+    showMore.locator('.sidebar-row-main').boundingBox(),
+  ])
+  expect(projectMainBox).not.toBeNull()
+  expect(ordinaryMainBox).not.toBeNull()
+  expect(showMoreMainBox).not.toBeNull()
+  expect(ordinaryMainBox!.x - projectMainBox!.x).toBeCloseTo(0, 0)
+  expect(showMoreMainBox!.x - ordinaryMainBox!.x).toBeCloseTo(0, 0)
 
   await page.addStyleTag({
     content: `
@@ -2800,6 +2896,114 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
     return style.maskImage || style.webkitMaskImage
   })
   expect(reducedMotionMask).toContain('linear-gradient')
+
+  await ordinaryRow.hover()
+  const sessionCard = page.locator('.sidebar-session-hover-card:visible').last()
+  await expect(sessionCard).toBeVisible()
+  const sessionContentId = await sessionCard.getAttribute('id')
+  expect(sessionContentId).not.toBeNull()
+  const sessionAnchor = page.locator(`[aria-controls="${sessionContentId}"]`)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const [sidebarBox, sessionAnchorBox, sessionCardBox] = await Promise.all([
+    sidebar.boundingBox(),
+    sessionAnchor.boundingBox(),
+    sessionCard.boundingBox(),
+  ])
+  expect(sidebarBox).not.toBeNull()
+  expect(sessionAnchorBox).not.toBeNull()
+  expect(sessionCardBox).not.toBeNull()
+  expect(sessionCardBox!.y - sessionAnchorBox!.y).toBeCloseTo(0, 0)
+  expect(sessionCardBox!.x - (sidebarBox!.x + sidebarBox!.width)).toBeCloseTo(4, 0)
+  const sessionTitle = sessionCard.locator('.sidebar-session-hover-card-title')
+  const sessionMeta = sessionCard.locator('.sidebar-session-hover-card-row-content')
+  const sessionContent = sessionCard.locator('.sidebar-session-hover-card-content')
+  const [sessionTitleBox, sessionMetaBox, sessionContentBox] = await Promise.all([
+    sessionTitle.boundingBox(),
+    sessionMeta.boundingBox(),
+    sessionContent.boundingBox(),
+  ])
+  expect(sessionTitleBox).not.toBeNull()
+  expect(sessionMetaBox).not.toBeNull()
+  expect(sessionContentBox).not.toBeNull()
+  expect(sessionTitleBox!.x - sessionContentBox!.x).toBeCloseTo(0, 0)
+  expect(sessionMetaBox!.x - sessionTitleBox!.x).toBeCloseTo(22, 0)
+  await expect(sessionTitle).toHaveCSS('text-align', 'left')
+  await expect(sessionCard.locator('.sidebar-session-hover-card-title-group')).toHaveCSS(
+    'align-items',
+    'flex-start',
+  )
+  const sessionTrailing = sessionCard.locator('.sidebar-session-hover-card-trailing')
+  const sessionDevice = sessionTrailing.locator('.sidebar-session-hover-card-device-icon')
+  const sessionTime = sessionTrailing.locator('.sidebar-session-hover-card-time')
+  await expect(sessionTrailing).toHaveCSS('gap', '4px')
+  const [sessionDeviceBox, sessionTimeBox] = await Promise.all([
+    sessionDevice.boundingBox(),
+    sessionTime.boundingBox(),
+  ])
+  expect(sessionDeviceBox).not.toBeNull()
+  expect(sessionTimeBox).not.toBeNull()
+  expect(sessionTimeBox!.x - (sessionDeviceBox!.x + sessionDeviceBox!.width)).toBeCloseTo(4, 0)
+  expect(
+    sessionTimeBox!.y + sessionTimeBox!.height / 2
+      - (sessionDeviceBox!.y + sessionDeviceBox!.height / 2),
+  ).toBeCloseTo(0, 0)
+  expect(await sessionCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.mouse.move(900, 700)
+  await page.waitForTimeout(300)
+  const projectButton = page.locator('.sidebar-project-button[data-current]').first()
+  await projectButton.hover()
+  const projectCard = page.locator('.sidebar-project-hover-card:visible').last()
+  await expect(projectCard).toBeVisible()
+  const projectContentId = await projectCard.getAttribute('id')
+  expect(projectContentId).not.toBeNull()
+  const projectAnchor = page.locator(`[aria-controls="${projectContentId}"]`)
+  const [projectAnchorBox, projectCardBox] = await Promise.all([
+    projectAnchor.boundingBox(),
+    projectCard.boundingBox(),
+  ])
+  expect(projectAnchorBox).not.toBeNull()
+  expect(projectCardBox).not.toBeNull()
+  expect(projectCardBox!.y - projectAnchorBox!.y).toBeCloseTo(0, 0)
+  expect(projectCardBox!.x - (sidebarBox!.x + sidebarBox!.width)).toBeCloseTo(4, 0)
+  const projectTitle = projectCard.locator('.sidebar-project-hover-card-header strong')
+  const projectStats = projectCard.locator('.sidebar-project-hover-card-stats-content')
+  const projectPath = projectCard.locator('.sidebar-project-hover-card-folder-path').first()
+  const projectEdit = projectCard.locator('.sidebar-project-hover-card-edit span')
+  const [projectTitleBox, projectStatsBox, projectPathBox, projectEditBox] = await Promise.all([
+    projectTitle.boundingBox(),
+    projectStats.boundingBox(),
+    projectPath.boundingBox(),
+    projectEdit.boundingBox(),
+  ])
+  for (const box of [projectTitleBox, projectStatsBox, projectPathBox, projectEditBox]) {
+    expect(box).not.toBeNull()
+    expect(box!.x - projectTitleBox!.x).toBeCloseTo(0, 0)
+  }
+  expect(
+    await projectCard.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
+  await expect(projectCard.locator('.sidebar-project-hover-card-pin')).toHaveCSS('width', '24px')
+  await expect(projectCard.locator('.sidebar-project-hover-card-pin')).toHaveCSS('height', '24px')
+  expect(await projectCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 1440, height: 480 })
+  await projectButton.hover()
+  const collisionAdjustedProjectCard = page.locator(
+    '.sidebar-project-hover-card:visible',
+  ).last()
+  await expect(collisionAdjustedProjectCard).toBeVisible()
+  const collisionAdjustedProjectCardBox = await collisionAdjustedProjectCard.boundingBox()
+  expect(collisionAdjustedProjectCardBox).not.toBeNull()
+  expect(collisionAdjustedProjectCardBox!.y).toBeGreaterThanOrEqual(6)
+  expect(
+    collisionAdjustedProjectCardBox!.y + collisionAdjustedProjectCardBox!.height,
+  ).toBeLessThanOrEqual(474)
 })
 
 test('sidebar session reorder displaces live and persists after remount', async ({
@@ -3609,22 +3813,40 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 800 })
-  await page.goto('/?visualCase=empty#/settings/appearance')
+  await page.goto('/?visualCase=rich#/settings/appearance')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
   await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
-  await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
+  const settingsSearch = page.getByRole('combobox', { name: '搜索设置' })
+  await expect(settingsSearch).toBeVisible()
   const settingsNavigationRow = page.locator('.settings-nav-item:visible').first()
+  const settingsGroupTitle = page.locator('.settings-nav-group-title:visible').first()
   await expect(settingsNavigationRow).toBeVisible()
+  await expect(settingsGroupTitle).toHaveCSS('font-size', '14px')
+  const sharedSidebarRowRadius = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.borderRadius = 'var(--cpx-sys-radius-lg)'
+    document.body.append(probe)
+    const radius = getComputedStyle(probe).borderRadius
+    probe.remove()
+    return radius
+  })
   await expectCompactInteractiveRow(settingsNavigationRow, {
-    borderRadius: '8px',
+    borderRadius: sharedSidebarRowRadius,
     fontSize: '14px',
-    height: 30,
+    height: 32,
     lineHeight: '20px',
     paddingInline: '8px',
   })
-
+  expect(
+    await sidebar.locator('svg').evaluateAll(elements =>
+      [...new Set(elements.map(element => {
+        const style = getComputedStyle(element)
+        return `${style.width}x${style.height}`
+      }))].sort(),
+    ),
+  ).toEqual(['14pxx14px'])
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
   await page.mouse.move(6, 400)
@@ -3717,7 +3939,7 @@ for (const mode of MODES) {
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
   page,
 }) => {
-  await page.goto('/?visualCase=empty#/new')
+  await page.goto('/?visualCase=rich#/new')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
@@ -3728,9 +3950,13 @@ test('sidebar trigger does not reopen the preview until the pointer leaves', asy
   await page.waitForTimeout(150)
   await expect(sidebar).toHaveClass(/is-collapsed/)
 
-  await page.mouse.move(600, 400)
-  await sidebarTrigger.hover()
+  await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
+  await expect(sidebar).toHaveCSS('border-right-width', '1px')
+  await expect(sidebar).not.toHaveCSS('box-shadow', 'none')
+  await expect
+    .poll(() => page.evaluate(() => document.elementFromPoint(80, 60)?.closest('.desktop-sidebar') !== null))
+    .toBe(true)
 })
 
 test('Escape closes the theme picker and restores focus', async ({ page }) => {
