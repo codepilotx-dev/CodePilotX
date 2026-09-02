@@ -9,7 +9,6 @@ import {
   CanonicalConversationTurn,
   CanonicalProcessGroup,
   resolveTurnElapsedSeconds,
-  shouldHideActiveExplorationItem,
 } from "../src/features/session/timeline/CanonicalThreadView.js";
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
@@ -19,6 +18,10 @@ import {
   isCurrentCanonicalThreadRequest,
   selectVisibleCanonicalState,
 } from "../src/features/session/timeline/useCanonicalThreadConversation.js";
+import {
+  processItemPathState,
+  summarizeTurnProcessItems,
+} from "../src/features/session/timeline/summarizeProcessItems.js";
 
 function disclosureStore(...expandedKeys: string[]) {
   return createKeyedDisclosureStore({ initialExpandedKeys: expandedKeys });
@@ -66,7 +69,7 @@ describe("canonical thread switch", () => {
     expect(isCurrentCanonicalThreadRequest("thread-a", 2, "thread-a", 1)).toBe(false);
   });
 
-  test("keeps process groups locally collapsed even while active", () => {
+  test("initializes completed groups collapsed and active groups expanded", () => {
     const completed = renderToStaticMarkup(
       <CanonicalProcessGroup
         active={false}
@@ -297,8 +300,8 @@ describe("canonical thread switch", () => {
       command: null,
       tool: "Read",
     };
-    expect(shouldHideActiveExplorationItem({ ...exploration, state: "running" })).toBe(true);
-    expect(shouldHideActiveExplorationItem(exploration)).toBe(false);
+    expect(processItemPathState({ ...exploration, state: "running" })).toBe("running");
+    expect(processItemPathState(exploration)).toBe("completed");
     expect(buildProcessActivityModel(
       [exploration, reasoning, tool("command-after-read")],
       { activitySliceClosed: true, turnActive: false },
@@ -696,10 +699,12 @@ describe("canonical thread switch", () => {
     expect(markup).not.toContain("canonical-process-group--commands");
     expect(markup).toContain("cpx-agent-activity__item");
     expect(markup).toContain('data-presentation="grouped"');
-    expect(multiCommandMarkup).toContain("运行了命令");
+    expect(multiCommandMarkup).toContain("运行命令");
+    expect(multiCommandMarkup.match(/cpx-agent-activity__path-step/g)).toHaveLength(2);
+    expect(multiCommandMarkup).toContain('class="cpx-agent-activity__path-step" data-state="completed"');
     expect(multiCommandMarkup).not.toContain("canonical-process-group--commands");
     expect(multiCommandMarkup).toContain("canonical-command-shell");
-    expect(activeWithAnswerMarkup).toContain("运行了命令");
+    expect(activeWithAnswerMarkup).toContain("运行命令");
     expect(activeWithAnswerMarkup).not.toContain("正在思考");
     expect(activeWithAnswerMarkup).not.toContain("lucide-loader-circle");
     expect(activeWithAnswerMarkup).toContain('data-expandable="true"');
@@ -715,13 +720,13 @@ describe("canonical thread switch", () => {
       processSectionEnd,
     );
     expect(processSection).toContain("中间处理说明标记");
-    expect(processSection).toContain("运行了命令");
+    expect(processSection).toContain("运行命令");
     expect(processSection).toContain("继续处理说明标记");
     expect(processSection).toContain("已更新计划");
     expect(processSection.indexOf("中间处理说明标记")).toBeLessThan(
-      processSection.indexOf("运行了命令"),
+      processSection.indexOf("运行命令"),
     );
-    expect(processSection.indexOf("运行了命令")).toBeLessThan(
+    expect(processSection.indexOf("运行命令")).toBeLessThan(
       processSection.indexOf("继续处理说明标记"),
     );
     expect(processSection.indexOf("继续处理说明标记")).toBeLessThan(
@@ -744,5 +749,73 @@ describe("canonical thread switch", () => {
     expect(activeMarkup).not.toContain("已编辑 1 个文件");
     expect(activeMarkup).toContain("已处理 5m 59s");
     expect(markup.match(/canonical-message-actions--assistant/g)).toHaveLength(1);
+  });
+
+  test("summarizes process items into neutral stage labels and auto-expands active groups", () => {
+    const tool = (
+      id: string,
+      activity: Extract<Item, { type: "tool" }>["activity"],
+      state: "running" | "completed" = "completed",
+    ): Extract<Item, { type: "tool" }> => ({
+      id,
+      messageID: `message-${id}`,
+      turnId: "turn-1",
+      agentId: "agent-1",
+      type: "tool",
+      callID: `call-${id}`,
+      tool: "Bash",
+      title: id,
+      state,
+      input: null,
+      command: null,
+      activity,
+      output: null,
+      error: null,
+      startedAt: 1_000,
+      finishedAt: 2_000,
+      durationMs: 1_000,
+      createdAt: 1_000,
+    });
+
+    const readTool = tool("read-1", { type: "read", subject: "file" });
+    const cmdTool = tool("cmd-1", { type: "command", kind: "test" }, "running");
+    const integrationTool = tool("gh-1", { type: "integration", source: "GitHub" });
+
+    const runningSummary = summarizeTurnProcessItems([readTool, cmdTool], "running");
+    expect(runningSummary.label).toBe("读取文件、运行命令");
+    expect(runningSummary.active).toBe(true);
+
+    const integrationSummary = summarizeTurnProcessItems([integrationTool], "completed");
+    expect(integrationSummary.label).toBe("使用 GitHub");
+    expect(integrationSummary.active).toBe(false);
+
+    const activeMarkup = renderToStaticMarkup(
+      <CanonicalProcessGroup
+        active={true}
+        failed={false}
+        kind="command"
+        label="读取文件、运行命令"
+        summaryKey="active:read-1|cmd-1:read-cmd"
+      >
+        <span data-testid="running-step">step output</span>
+      </CanonicalProcessGroup>,
+    );
+    expect(activeMarkup).toContain('data-expanded="true"');
+    expect(activeMarkup).toContain("running-step");
+
+    const completedMarkup = renderToStaticMarkup(
+      <CanonicalProcessGroup
+        active={false}
+        failed={false}
+        kind="command"
+        label="读取文件、运行命令"
+        summaryKey="completed:read-1|cmd-1:read-cmd"
+      >
+        <span data-testid="completed-step">step output</span>
+      </CanonicalProcessGroup>,
+    );
+    expect(completedMarkup).toContain('data-expanded="false"');
+    expect(processItemPathState(cmdTool)).toBe("running");
+    expect(processItemPathState({ ...cmdTool, state: "error" })).toBe("failed");
   });
 });

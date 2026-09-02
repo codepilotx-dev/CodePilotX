@@ -75,6 +75,10 @@ function itemActivity(item: Item): ItemActivity {
   }
 }
 
+export function processItemPathState(item: Item): ItemActivity {
+  return itemActivity(item);
+}
+
 export function isProcessItemActive(item: Item): boolean {
   return itemActivity(item) === "running";
 }
@@ -86,27 +90,6 @@ function isActiveTurn(status: TurnStatus): boolean {
     || status === "waiting-subagents";
 }
 
-function activeItemSummary(item: Item): Pick<ProcessSummary, "kind" | "label"> {
-  switch (item.type) {
-    case "tool": {
-      const value = buildToolSemanticSummary(item, { nowMs: Date.now() });
-      return { kind: value.kind, label: value.collapsedLabel };
-    }
-    case "reasoning":
-      return { kind: "thinking", label: "正在思考" };
-    case "activity":
-      return {
-        kind: item.activity === "file-edit" ? "file-change" : item.activity === "build" ? "command" : "thinking",
-        label: item.title.trim() || "正在处理",
-      };
-    case "subagent":
-      return { kind: "tool", label: "正在处理子代理" };
-    case "text":
-    default:
-      return { kind: "thinking", label: "正在处理" };
-  }
-}
-
 const aggregateForTool = (item: Extract<Item, { type: "tool" }>): Aggregate => {
   const descriptor = item.activity;
   if (descriptor?.type === "integration") {
@@ -114,43 +97,43 @@ const aggregateForTool = (item: Extract<Item, { type: "tool" }>): Aggregate => {
     return {
       key: `integration:${source ?? "unknown"}`,
       kind: "integration",
-      label: source ? `使用了 ${source}` : "使用了集成",
+      label: source ? `使用 ${source}` : "使用集成",
       semanticKind: "integration",
     };
   }
   if (descriptor?.type === "read" && descriptor.subject === "skill"
     || descriptor?.type === "tool" && descriptor.mode === "load") {
-    return { key: "loaded-tool", kind: "loaded-tool", label: "加载了工具", semanticKind: "loaded-tool" };
+    return { key: "loaded-tool", kind: "loaded-tool", label: "加载工具", semanticKind: "loaded-tool" };
   }
   if (descriptor?.type === "file_change") {
     const stoppedCreate = item.state === "interrupted"
       && descriptor.changes.some((change) => change.operation === "create");
     return stoppedCreate
-      ? { key: "stopped-file-creation", kind: "stopped-file-creation", label: "停止创建了文件", semanticKind: "file-change" }
-      : { key: "file-change", kind: "file-change", label: "编辑了文件", semanticKind: "file-change" };
+      ? { key: "stopped-file-creation", kind: "stopped-file-creation", label: "停止创建文件", semanticKind: "file-change" }
+      : { key: "file-change", kind: "file-change", label: "编辑文件", semanticKind: "file-change" };
   }
   if (descriptor?.type === "tool") {
     const unnamed = descriptor.mode === "call" && !descriptor.name;
     return unnamed
-      ? { key: "tool", kind: "tool", label: "调用了工具", semanticKind: "tool" }
-      : { key: "dynamic-tool", kind: "dynamic-tool", label: "调用了工具", semanticKind: "tool" };
+      ? { key: "tool", kind: "tool", label: "调用工具", semanticKind: "tool" }
+      : { key: "dynamic-tool", kind: "dynamic-tool", label: "调用工具", semanticKind: "tool" };
   }
   const value = buildToolSemanticSummary(item);
   switch (value.kind) {
     case "exploration":
-      return { key: "exploration", kind: "exploration", label: "读取了文件", semanticKind: "exploration" };
+      return { key: "exploration", kind: "exploration", label: "读取文件", semanticKind: "exploration" };
     case "command":
-      return { key: "command", kind: "command", label: "运行了命令", semanticKind: "command" };
+      return { key: "command", kind: "command", label: "运行命令", semanticKind: "command" };
     case "web-search":
-      return { key: "web-search", kind: "web-search", label: "搜索了网页", semanticKind: "web-search" };
+      return { key: "web-search", kind: "web-search", label: "搜索网页", semanticKind: "web-search" };
     case "file-change":
-      return { key: "file-change", kind: "file-change", label: "编辑了文件", semanticKind: "file-change" };
+      return { key: "file-change", kind: "file-change", label: "编辑文件", semanticKind: "file-change" };
     case "integration":
-      return { key: "integration:unknown", kind: "integration", label: "使用了集成", semanticKind: "integration" };
+      return { key: "integration:unknown", kind: "integration", label: "使用集成", semanticKind: "integration" };
     case "loaded-tool":
-      return { key: "loaded-tool", kind: "loaded-tool", label: "加载了工具", semanticKind: "loaded-tool" };
+      return { key: "loaded-tool", kind: "loaded-tool", label: "加载工具", semanticKind: "loaded-tool" };
     case "tool":
-      return { key: "tool", kind: "tool", label: "调用了工具", semanticKind: "tool" };
+      return { key: "tool", kind: "tool", label: "调用工具", semanticKind: "tool" };
   }
 };
 
@@ -163,13 +146,13 @@ function completedAggregates(items: readonly Item[]): Aggregate[] {
       continue;
     }
     if (item.type === "activity" && item.activity === "file-edit") {
-      values.set("file-change", { key: "file-change", kind: "file-change", label: "编辑了文件", semanticKind: "file-change" });
+      values.set("file-change", { key: "file-change", kind: "file-change", label: "编辑文件", semanticKind: "file-change" });
     }
     if (item.type === "activity" && item.activity === "build") {
-      values.set("command", { key: "command", kind: "command", label: "运行了命令", semanticKind: "command" });
+      values.set("command", { key: "command", kind: "command", label: "运行命令", semanticKind: "command" });
     }
     if (item.type === "subagent") {
-      values.set("tool", { key: "tool", kind: "tool", label: "调用了工具", semanticKind: "tool" });
+      values.set("tool", { key: "tool", kind: "tool", label: "调用工具", semanticKind: "tool" });
     }
   }
   return [...values.values()].sort((left, right) =>
@@ -180,29 +163,25 @@ export function summarizeTurnProcessItems(
   items: readonly Item[],
   turnStatus: TurnStatus,
 ): ProcessSummary {
-  const reversedItems = [...items].reverse();
-  const activeItem = reversedItems.find((item) => item.type === "tool" && isProcessItemActive(item))
-    ?? reversedItems.find(isProcessItemActive);
-  if (isActiveTurn(turnStatus)) {
-    const value = activeItem
-      ? activeItemSummary(activeItem)
-      : { kind: "thinking" as const, label: "正在思考" };
+  const active = isActiveTurn(turnStatus);
+  const parts = completedAggregates(items);
+  const failed = items.some((item) => itemActivity(item) === "failed");
+  const label = parts.length > 0 ? parts.map((part) => part.label).join("、") : "处理过程";
+
+  if (active) {
     return {
       active: true,
       failed: false,
-      kind: value.kind,
-      label: value.label,
-      summaryKey: `active:${activeItem?.id ?? "thinking"}:${value.label}`,
+      kind: parts[0]?.semanticKind ?? "tool",
+      label,
+      summaryKey: `active:${items.map((item) => item.id).join("|") || "thinking"}:${label}`,
     };
   }
 
-  const parts = completedAggregates(items);
-  const failed = items.some((item) => itemActivity(item) === "failed");
-  const label = parts.length > 0 ? parts.map((part) => part.label).join("、") : "已处理";
   return {
     active: false,
     failed,
-    kind: parts[0]?.semanticKind ?? "tool",
+    kind: parts[0]?.semanticKind ?? (failed ? "failed" : "tool"),
     label,
     summaryKey: `completed:${failed ? "failed" : "ok"}:${parts.map((part) => part.key).join("|") || "processed"}`,
   };

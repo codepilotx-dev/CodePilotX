@@ -258,11 +258,22 @@
 /* ── Agent activity group ── */
 
 .cpx-agent-activity {
+  position: relative;
   display: grid;
   min-width: 0;
   width: 100%;
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body-sm);
+
+  &::before {
+    position: absolute;
+    top: calc((var(--cpx-sys-space-7) + var(--cpx-sys-space-4)) / 2);
+    left: calc(var(--cpx-sys-space-4) / 2);
+    height: calc(var(--cpx-sys-space-1) + var(--cpx-sys-space-2));
+    border-left: 1px solid var(--cpx-sys-color-border-default);
+    content: "";
+    pointer-events: none;
+  }
 
   &__header {
     display: inline-flex;
@@ -313,6 +324,10 @@
     cursor: default;
   }
 
+  &[data-expandable="false"]::before {
+    display: none;
+  }
+
   &__header > &__chevron {
     width: var(--cpx-sys-space-3);
     height: var(--cpx-sys-space-3);
@@ -347,16 +362,35 @@
   }
 
   &__list-content {
+    position: relative;
     display: grid;
     gap: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1));
+    margin-left: var(--cpx-sys-space-2);
+    padding-left: var(--cpx-sys-space-3);
+
+    &::before {
+      position: absolute;
+      inset-block: 0;
+      left: 0;
+      border-left: 1px solid var(--cpx-sys-color-border-default);
+      content: "";
+      pointer-events: none;
+      transform: scaleY(0);
+      transform-origin: top;
+      transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-disclosure);
+    }
+  }
+
+  &[data-expanded="true"] &__list-content::before {
+    transform: scaleY(1);
   }
 
   /* Semantic state colours */
-  &[data-state="failed"] > &__header svg:first-child {
+  &[data-state="failed"] > &__header {
     color: var(--cpx-sys-color-danger);
   }
 
-  &[data-state="active"] > &__header .canonical-spin {
+  &[data-state="active"] > &__header {
     color: var(--cpx-sys-color-accent);
   }
 }
@@ -813,6 +847,71 @@
       overflow: auto;
       font: var(--cpx-sys-type-code);
       white-space: pre-wrap;
+    }
+  }
+}
+
+.cpx-agent-activity__path-step {
+  position: relative;
+  min-width: 0;
+
+  &::before {
+    position: absolute;
+    top: calc(var(--cpx-sys-space-7) / 2 - 4px);
+    left: calc(var(--cpx-sys-space-3) * -1);
+    width: var(--cpx-sys-space-3);
+    height: 8px;
+    border-bottom: 1px solid var(--cpx-sys-color-border-default);
+    border-left: 1px solid var(--cpx-sys-color-border-default);
+    border-bottom-left-radius: var(--cpx-sys-radius-sm);
+    content: "";
+    pointer-events: none;
+    transition: border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+  }
+
+  &[data-state="running"] {
+    &::before {
+      border-color: var(--cpx-sys-color-accent);
+    }
+
+    > :is(.cpx-agent-activity__item, .cpx-agent-activity__file-changes) .cpx-agent-activity__item-header,
+    > .canonical-process-card > .canonical-process-card__summary,
+    > .canonical-subagent-card {
+      color: var(--cpx-sys-color-accent);
+    }
+
+    .cpx-agent-activity__icon,
+    .cpx-agent-activity__verb,
+    .cpx-agent-activity__target,
+    .cpx-agent-activity__file-link {
+      color: var(--cpx-sys-color-accent);
+    }
+  }
+
+  &[data-state="completed"] {
+    > :is(.cpx-agent-activity__item, .cpx-agent-activity__file-changes) .cpx-agent-activity__item-header,
+    > .canonical-process-card > .canonical-process-card__summary,
+    > .canonical-subagent-card,
+    .cpx-agent-activity__verb,
+    .cpx-agent-activity__target,
+    .cpx-agent-activity__file-link {
+      color: var(--cpx-sys-color-fg-secondary);
+    }
+  }
+
+  &[data-state="failed"] {
+    &::before {
+      border-color: var(--cpx-sys-color-danger);
+    }
+
+    > :is(.cpx-agent-activity__item, .cpx-agent-activity__file-changes) .cpx-agent-activity__item-header,
+    > .canonical-process-card > .canonical-process-card__summary,
+    > .canonical-subagent-card,
+    .cpx-agent-activity__icon,
+    .cpx-agent-activity__verb,
+    .cpx-agent-activity__target,
+    .cpx-agent-activity__file-link {
+      color: var(--cpx-sys-color-danger);
     }
   }
 }
@@ -1602,8 +1701,10 @@
   .canonical-turn-activity__summary,
   .canonical-turn-activity__chevron,
   .cpx-agent-activity__header,
-  .cpx-agent-activity__item-header,
-  .cpx-agent-activity__chevron,
+  .cpx-agent-activity::before,
+  .cpx-agent-activity__list-content::before,
+  .cpx-agent-activity__path-step::before,
+  .cpx-agent-activity__item,
   .canonical-process-card > .canonical-process-card__summary,
   .canonical-process-card__chevron,
   .canonical-patch-card__disclosure svg,

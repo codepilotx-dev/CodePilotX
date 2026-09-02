@@ -41,6 +41,7 @@ import {
 } from "./SessionTimelineView.js";
 import {
   isProcessItemActive,
+  processItemPathState,
   summarizeTurnProcessItems,
   summarizeTurnWork,
   type ProcessSummary,
@@ -125,7 +126,15 @@ export function CanonicalProcessGroup({
   label,
   summaryKey,
 }: TimelineDisclosureProps): React.ReactNode {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [expanded, setExpanded] = React.useState(defaultExpanded || active);
+  const previousActive = React.useRef(active);
+
+  React.useEffect(() => {
+    if (previousActive.current !== active) {
+      setExpanded(active);
+      previousActive.current = active;
+    }
+  }, [active]);
   const contentId = React.useId();
   const itemsRef = React.useRef<HTMLDivElement | null>(null);
   const itemsContentRef = React.useRef<HTMLDivElement | null>(null);
@@ -345,12 +354,6 @@ export function projectProcessItem(item: Item): ProcessActivityProjection {
     return { kind: "standalone", item };
   }
   return { kind: "groupable", item };
-}
-
-export function shouldHideActiveExplorationItem(item: Item): boolean {
-  return item.type === "tool"
-    && isExplorationToolActivity(item)
-    && isProcessItemActive(item);
 }
 
 export function CanonicalTurnActivity({
@@ -744,9 +747,6 @@ function CanonicalConversationTurnComponent({
     item: RenderTurnEntry["processItems"][number],
     presentation: NonNullable<CanonicalItemRendererProps["presentation"]>,
   ): React.ReactNode => {
-    if (presentation === "grouped" && shouldHideActiveExplorationItem(item)) {
-      return null;
-    }
     if (item.type === "tool" && isFileMutationTool(item)) {
       return (
         <FileMutationItemView
@@ -805,10 +805,17 @@ function CanonicalConversationTurnComponent({
             ? entry.turn.status
             : "completed",
         );
-        const visibleItems = unit.items.filter((item) => !shouldHideActiveExplorationItem(item));
         return (
-          <CanonicalProcessGroup {...summary} canExpand={visibleItems.length > 0} key={unit.key}>
-            {visibleItems.map((item) => renderProcessItem(item, "grouped"))}
+          <CanonicalProcessGroup {...summary} canExpand={unit.items.length > 0} key={unit.key}>
+            {unit.items.map((item) => (
+              <div
+                className="cpx-agent-activity__path-step"
+                data-state={processItemPathState(item)}
+                key={item.id}
+              >
+                {renderProcessItem(item, "grouped")}
+              </div>
+            ))}
           </CanonicalProcessGroup>
         );
       })}
