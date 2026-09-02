@@ -195,6 +195,16 @@ describe('composer suggestions', () => {
     )
   })
 
+  test('uses generic prompts without assuming repository when hasWorkspace is false', () => {
+    const suggestions = buildContextualTaskSuggestions({
+      recentTasks: [],
+      git: null,
+      hasWorkspace: false,
+    })
+    expect(suggestions).toHaveLength(4)
+    expect(suggestions.every(item => !item.prompt.includes('this codebase'))).toBe(true)
+  })
+
   test('builds three Working suggestions from unfinished, Git, and completed work', () => {
     const suggestions = buildWorkingContextualTaskSuggestions({
       workspaceName: 'CodePilotX',
