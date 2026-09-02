@@ -880,3 +880,7 @@
   outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 1px;
 }
+
+.settings-content-inner.plugins-settings-content {
+  max-width: var(--cpx-sys-layout-wide-max-width);
+}

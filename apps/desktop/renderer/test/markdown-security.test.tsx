@@ -111,3 +111,15 @@ describe('Markdown file references', () => {
     expect(html).not.toContain('<code>')
   })
 })
+
+describe('Markdown tables and accessibility', () => {
+  test('renders tables with keyboard focusable scroll container and scope="col" header cells', () => {
+    const markdown = '| Col A | Col B |\n| :--- | :--- |\n| Val 1 | Val 2 |\n'
+    const html = renderToStaticMarkup(<MarkdownMessage text={markdown} />)
+
+    expect(html).toContain('class="md-table-block md-wide-block"')
+    expect(html).toContain('class="md-table-scroll" tabindex="0"')
+    expect(html).toContain('<th scope="col"')
+    expect(html).toContain('Val 1')
+  })
+})

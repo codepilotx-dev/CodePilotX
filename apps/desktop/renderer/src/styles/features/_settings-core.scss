@@ -3,6 +3,9 @@
 }
 
 .settings-nav-scroll-content {
+  --settings-nav-inline-gutter: var(--cpx-sys-space-2);
+
+  padding-inline: var(--settings-nav-inline-gutter);
   gap: var(--cpx-sys-space-4);
 }
 
@@ -134,8 +137,9 @@
 }
 
 .settings-content-inner {
+  container-type: inline-size;
   width: 100%;
-  max-width: var(--cpx-sys-layout-wide-max-width);
+  max-width: var(--cpx-sys-layout-content-max-width);
   min-width: 0;
   margin: 0 auto;
   padding: var(--cpx-sys-space-5);
@@ -165,6 +169,7 @@
 
 .settings-page-desc {
   margin: 0;
+  max-width: 68ch;
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body-sm);
 }
@@ -209,6 +214,7 @@
 
 .settings-section-desc {
   margin: var(--cpx-sys-space-1) 0 0;
+  max-width: 68ch;
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body-sm);
 }
@@ -506,17 +512,6 @@ button.settings-management-row-main {
   font: var(--cpx-sys-type-caption);
 }
 
-@media (max-width: 900px) {
-  .settings-section-header {
-    flex-direction: column;
-    align-items: stretch;
-
-    &-actions {
-      justify-content: flex-start;
-    }
-  }
-}
-
 @media (max-width: 640px) {
   .settings-management-dialog-row {
     grid-template-columns: minmax(0, 1fr);
@@ -526,7 +521,8 @@ button.settings-management-row-main {
 
 /* --- Row --- */
 .settings-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cpx-sys-space-4);
   min-width: 0;
@@ -539,7 +535,6 @@ button.settings-management-row-main {
 
   &-info {
     min-width: 0;
-    flex: 1;
   }
 
   &-title {
@@ -550,6 +545,7 @@ button.settings-management-row-main {
 
   &-desc {
     margin: var(--cpx-sys-space-1) 0 0;
+    max-width: 68ch;
     color: var(--cpx-sys-color-fg-secondary);
     font: var(--cpx-sys-type-body-sm);
   }
@@ -603,10 +599,19 @@ button.settings-management-row-main {
   background: var(--cpx-sys-color-border-subtle);
 }
 
-@media (max-width: 900px) {
-  .settings-row {
-    align-items: stretch;
+@container (max-width: 42rem) {
+  .settings-section-header {
     flex-direction: column;
+    align-items: stretch;
+
+    &-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
   }
 
   .settings-row-control {

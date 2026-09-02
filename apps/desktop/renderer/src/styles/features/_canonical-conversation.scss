@@ -7,7 +7,7 @@
   );
   --conversation-item-gap: var(--cpx-sys-space-3);
   --conversation-grouped-item-gap: 4px;
-  --thread-reading-width: var(--cpx-sys-layout-content-max-width);
+  --thread-reading-width: var(--cpx-sys-layout-reading-max-width);
   --thread-resource-row-padding-x: 12px;
   background: var(--cpx-sys-color-surface-canvas);
 }
@@ -47,9 +47,9 @@
 }
 
 .conversation-page .workflow-page__composer-inner {
-  width: min(var(--thread-reading-width), var(--session-content-w));
+  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
   min-width: 0;
-  max-width: var(--thread-reading-width);
+  max-width: var(--cpx-sys-layout-content-max-width);
   margin-inline: auto;
 }
 
@@ -67,11 +67,12 @@
   contain-intrinsic-block-size: auto 420px;
   display: grid;
   gap: var(--cpx-sys-space-3);
-  width: min(var(--thread-reading-width), var(--session-content-w));
-  max-width: var(--thread-reading-width);
+  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
+  max-width: var(--cpx-sys-layout-content-max-width);
   min-width: 0;
   margin-inline: auto;
   padding-block: var(--cpx-sys-space-4);
+  font: var(--cpx-sys-type-reading);
 }
 
 .canonical-turn + .canonical-turn {
@@ -89,7 +90,7 @@
   justify-content: center;
   gap: var(--cpx-sys-space-2);
   min-height: 160px;
-  width: min(var(--thread-reading-width), var(--session-content-w));
+  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
   margin-inline: auto;
   padding: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-secondary);
@@ -121,7 +122,7 @@
 .canonical-history-control {
   display: flex;
   justify-content: center;
-  width: min(var(--thread-reading-width), var(--session-content-w));
+  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
   margin: var(--cpx-sys-space-3) auto var(--cpx-sys-space-1);
 
   button {
@@ -159,7 +160,7 @@
   gap: var(--cpx-sys-space-2);
   min-height: 28px;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   svg {
     width: 15px;
@@ -176,8 +177,8 @@
   grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cpx-sys-space-3);
-  width: min(var(--thread-reading-width), var(--session-content-w));
-  max-width: var(--thread-reading-width);
+  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
+  max-width: var(--cpx-sys-layout-content-max-width);
   min-width: 0;
   margin: var(--cpx-sys-space-3) auto;
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
@@ -252,7 +253,7 @@
 }
 
 .canonical-turn__process {
-  gap: var(--conversation-item-gap, var(--cpx-sys-space-4));
+  gap: var(--cpx-sys-space-1);
 }
 
 /* ── Agent activity group ── */
@@ -263,7 +264,7 @@
   min-width: 0;
   width: 100%;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   &::before {
     position: absolute;
@@ -456,7 +457,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   &__summary {
     display: inline-flex;
@@ -725,7 +726,7 @@
 
   &--process {
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font: inherit;
 
     > .md-body {
       font: inherit;
@@ -733,7 +734,7 @@
   }
 
   > .md-body {
-    max-width: none;
+    max-width: var(--thread-reading-width);
   }
 }
 
@@ -745,11 +746,12 @@
   box-shadow: none;
 
   > .md-body {
-    max-width: none;
+    max-width: var(--thread-reading-width);
   }
 }
 
 .canonical-user-message__bubble .md-body,
+.canonical-text-item--process > .md-body,
 .canonical-text-item--result > .md-body {
   p,
   blockquote,
@@ -767,7 +769,7 @@
 .canonical-process-card {
   min-width: 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   > .canonical-process-card__summary {
     display: grid;
@@ -919,7 +921,7 @@
 .cpx-agent-activity__item {
   min-width: 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   &[data-expanded="true"] > .cpx-agent-activity__item-header {
     color: var(--cpx-sys-color-fg-primary);
@@ -1068,7 +1070,7 @@
   padding-left: var(--cpx-sys-space-2);
   border-left: 1px solid var(--cpx-sys-color-border-subtle);
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   &--diff {
     width: 100%;
@@ -1244,7 +1246,7 @@
   display: grid;
   min-width: 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   &[data-state="error"],
   &[data-state="interrupted"] {
@@ -1303,7 +1305,7 @@
   min-height: 28px;
   padding: var(--cpx-sys-space-1) 0;
   color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
 
   > svg,
   &__icon > svg {
@@ -1383,7 +1385,7 @@
   p {
     margin: 0;
     color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+    font: inherit;
   }
 }
 
@@ -1594,7 +1596,7 @@
   background: var(--cpx-sys-color-surface-panel);
   box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-body-sm);
+  font: inherit;
   text-align: left;
 
   &__files {

@@ -771,7 +771,12 @@ function MarkdownTable({
   }
 
   return (
-    <figure className="md-table-block">
+    <figure
+      className={cx(
+        'md-table-block',
+        context.allowWideBlocks && 'md-wide-block',
+      )}
+    >
       <div className="md-table-actions">
         <IconButton
           className={cx('md-table-copy', copied && 'is-copied')}
@@ -796,7 +801,7 @@ function MarkdownTable({
           )}
         </IconButton>
       </div>
-      <div className="md-table-scroll">
+      <div className="md-table-scroll" tabIndex={0}>
         <table>
           <thead>
             <tr>
@@ -833,7 +838,11 @@ function renderTableCell(
 ): React.ReactNode {
   const Tag = heading ? 'th' : 'td'
   return (
-    <Tag key={key} style={cell.align ? { textAlign: cell.align } : undefined}>
+    <Tag
+      key={key}
+      scope={heading ? 'col' : undefined}
+      style={cell.align ? { textAlign: cell.align } : undefined}
+    >
       {renderTokens(cell.tokens, context, `${key}-content`)}
     </Tag>
   )

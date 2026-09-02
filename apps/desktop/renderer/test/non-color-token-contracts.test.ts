@@ -449,4 +449,82 @@ describe('non-color design token contracts', () => {
       `base.scss must not set non-zero motion tokens; offending: ${nonZero.map(([name, value]) => `${name}: ${value}`).join(', ') || 'none'}`,
     ).toEqual([])
   })
+
+  test('tokens.scss defines the 3-tier layout width tokens (reading 42rem, content 48rem, wide 1250px)', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+    expect(tokens.get('--cpx-sys-layout-reading-max-width')).toBe('42rem')
+    expect(tokens.get('--cpx-sys-layout-content-max-width')).toBe('48rem')
+    expect(tokens.get('--cpx-sys-layout-wide-max-width')).toBe('1250px')
+  })
+
+  test('canonical conversation aligns final agent response with reading width', async () => {
+    const conversation = await read('../src/styles/features/_canonical-conversation.scss')
+    const markdown = await read('../src/styles/markdown.scss')
+    expect(conversation).toMatch(/--thread-reading-width:\s*var\(--cpx-sys-layout-reading-max-width\)/)
+    expect(conversation).toMatch(
+      /\.canonical-text-item--result\s*\{[\s\S]*?> \.md-body\s*\{[\s\S]*?max-width:\s*var\(--thread-reading-width\)/,
+    )
+    expect(markdown).toMatch(
+      /\.conversation-page \.canonical-text-item--result > \.md-body \.md-wide-block\s*\{[\s\S]*?width:\s*min\(\s*var\(--cpx-sys-layout-content-max-width\),\s*var\(--session-content-w\)\s*\)/,
+    )
+  })
+
+  test('canonical conversation narrative content inherits one reading rhythm', async () => {
+    const conversation = await read('../src/styles/features/_canonical-conversation.scss')
+    const markdown = await read('../src/styles/markdown.scss')
+    expect(conversation).toMatch(
+      /\.canonical-turn\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-reading\);/,
+    )
+    for (const selector of [
+      '\\.canonical-turn__thinking,\\s*\\.canonical-turn__status',
+      '\\.cpx-agent-activity',
+      '\\.canonical-turn-activity',
+      '\\.canonical-process-card',
+      '\\.cpx-agent-activity__item',
+      '\\.cpx-agent-activity__details',
+      '\\.cpx-agent-activity__file-changes',
+      '\\.canonical-lifecycle-tool',
+      '\\.canonical-subagent-card',
+    ]) {
+      expect(conversation).toMatch(
+        new RegExp(`${selector}\\s*\\{[\\s\\S]*?font:\\s*inherit;`),
+      )
+    }
+    expect(conversation).toMatch(
+      /\.canonical-text-item\s*\{[\s\S]*?&--process\s*\{[\s\S]*?font:\s*inherit;/,
+    )
+    expect(conversation).toMatch(
+      /\.canonical-user-message__bubble \.md-body,\s*\.canonical-text-item--process > \.md-body,\s*\.canonical-text-item--result > \.md-body/,
+    )
+    expect(conversation).toMatch(
+      /\.canonical-turn__process\s*\{\s*gap:\s*var\(--cpx-sys-space-1\);/,
+    )
+    expect(markdown).toMatch(
+      /\.md-table-block table\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-body\);/,
+    )
+    expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-caption\);/)
+    expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-code\);/)
+    expect(conversation).toMatch(
+      /line-height:\s*var\(--cpx-sys-line-height-code\);/,
+    )
+  })
+
+  test('Markdown code fallbacks use the shared code line-height token without a local floor', async () => {
+    const markdown = await read('../src/styles/markdown.scss')
+    expect(markdown).not.toMatch(/line-height:\s*max\(20px,\s*var\(--cpx-sys-line-height-code\)\)/)
+    expect(markdown).toMatch(
+      /\.md-code-placeholder,[\s\S]*?\.md-math-fallback\s*\{[\s\S]*?line-height:\s*var\(--cpx-sys-line-height-code\)/,
+    )
+  })
+
+  test('settings page content defaults to content max width', async () => {
+    const settings = await read('../src/styles/features/_settings-core.scss')
+    expect(settings).toMatch(/max-width:\s*var\(--cpx-sys-layout-content-max-width\)/)
+  })
+
+  test('review diff uses shared code line-height token instead of local formula', async () => {
+    const review = await read('../src/styles/features/review.scss')
+    expect(review).not.toMatch(/--review-diffs-line-height:\s*max\(/)
+    expect(review).toMatch(/line-height:\s*var\(--cpx-sys-line-height-code\)/)
+  })
 })

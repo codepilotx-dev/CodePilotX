@@ -238,7 +238,10 @@ describe('Codex CPX design system token contract', () => {
       /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--settings-nav-inline-gutter\);/,
     )
     expect(settings).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{[\s\S]*?flex-direction: column;/,
+      /@container \(max-width: 42rem\)[\s\S]*?\.settings-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+    )
+    expect(settings).not.toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{/,
     )
     expect(billing).not.toMatch(/^\s*\.settings-row,\s*$/m)
     expect(billing).not.toMatch(/^\s*\.settings-row-control\s*\{/m)

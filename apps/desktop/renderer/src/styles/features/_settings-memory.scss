@@ -20,7 +20,7 @@
 
 /* --- Memory Settings --- */
 .memory-settings-page .settings-content-inner {
-  max-width: 1040px;
+  max-width: var(--cpx-sys-layout-wide-max-width);
 }
 
 .memory-settings-toolbar {

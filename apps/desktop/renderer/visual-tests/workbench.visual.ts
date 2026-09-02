@@ -5334,6 +5334,68 @@ test('execution plan popover is content-adaptive and never overflows', async ({
 
 /* ── Line-height governance scenarios ──────────────────────── */
 
+test('conversation narrative content shares one reading rhythm at every UI font size', async ({
+  page,
+}) => {
+  for (const uiFontSize of [11, 14, 16] as const) {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await prepareVisualTheme(page, 'dark', { uiFontSize })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+
+    const narrativeTypography = await page.evaluate(() => {
+      const turn = document.querySelector<HTMLElement>('.canonical-turn')
+      if (!turn) throw new Error('Missing canonical turn typography host')
+      const host = document.createElement('div')
+      const process = document.createElement('article')
+      const processBody = document.createElement('div')
+      const processParagraph = document.createElement('p')
+      const result = document.createElement('article')
+      const activity = document.createElement('div')
+      const subagent = document.createElement('button')
+      host.style.width = '360px'
+      process.className = 'canonical-text-item canonical-text-item--process'
+      processBody.className = 'md-body'
+      processParagraph.textContent =
+        'English process prose wraps with the same comfortable rhythm as 中文连续阅读文本。'
+      processBody.append(processParagraph)
+      process.append(processBody)
+      result.className = 'canonical-text-item canonical-text-item--result'
+      result.textContent = '最终回答'
+      activity.className = 'cpx-agent-activity'
+      activity.textContent = '读取文件、运行命令'
+      subagent.className = 'canonical-subagent-card'
+      subagent.textContent = '子代理任务'
+      host.append(process, result, activity, subagent)
+      turn.append(host)
+      const probe = (element: HTMLElement) => {
+        const style = getComputedStyle(element)
+        return {
+          fontSize: Number.parseFloat(style.fontSize),
+          lineHeight: Number.parseFloat(style.lineHeight),
+          overflows: element.scrollWidth > element.clientWidth + 1,
+        }
+      }
+      const metrics = {
+        process: probe(processParagraph),
+        result: probe(result),
+        activity: probe(activity),
+        subagent: probe(subagent),
+      }
+      host.remove()
+      return metrics
+    })
+    const readingDelta = uiFontSize - 14
+    for (const narrative of Object.values(narrativeTypography)) {
+      expect(narrative).toMatchObject({
+        fontSize: 14 + readingDelta,
+        lineHeight: 24 + readingDelta,
+        overflows: false,
+      })
+    }
+  }
+})
+
 test('scalable typography never clips and keeps chrome fixed at every UI font size', async ({
   page,
 }) => {

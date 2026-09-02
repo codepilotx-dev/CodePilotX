@@ -17,7 +17,7 @@
   ul,
   ol,
   dl {
-    margin-block: 14px;
+    margin-block: 16px;
   }
 
   h1,
@@ -31,27 +31,27 @@
   }
 
   h1 {
-    margin: 30px 0 12px;
+    margin: 28px 0 12px;
     padding: 0;
     border: 0;
     font: var(--cpx-sys-type-heading-xl);
   }
 
   h2 {
-    margin: 26px 0 10px;
+    margin: 24px 0 8px;
     padding: 0;
     font: var(--cpx-sys-type-heading-lg);
   }
 
   h3 {
-    margin: 22px 0 8px;
+    margin: 20px 0 8px;
     font: var(--cpx-sys-type-heading-sm);
   }
 
   h4,
   h5,
   h6 {
-    margin: 18px 0 6px;
+    margin: 16px 0 4px;
     font: var(--cpx-sys-type-row-title);
   }
 
@@ -65,7 +65,7 @@
   }
 
   li + li {
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   li > :first-child {
@@ -86,7 +86,7 @@
 
   li > ol,
   li > ul {
-    margin-top: 10px;
+    margin-top: 8px;
     margin-bottom: 0;
   }
 
@@ -204,7 +204,9 @@
       transparent
     );
     color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-code);
+    font-family: var(--cpx-sys-font-family-mono);
+    font-size: var(--cpx-sys-font-size-code);
+    line-height: inherit;
     box-decoration-break: clone;
     word-break: break-word;
   }
@@ -304,6 +306,18 @@
   transform: none;
 }
 
+.conversation-page .canonical-text-item--result > .md-body .md-wide-block {
+  width: min(
+    var(--cpx-sys-layout-content-max-width),
+    var(--session-content-w)
+  );
+  max-width: min(
+    var(--cpx-sys-layout-content-max-width),
+    var(--session-content-w)
+  );
+  margin-inline: 0;
+}
+
 .right-dock .md-wide-block,
 .workflow-composer-card .md-wide-block {
   left: auto;
@@ -390,7 +404,7 @@
   color: var(--cpx-sys-color-fg-secondary);
   font-family: var(--cpx-sys-font-family-mono);
   font-size: var(--cpx-sys-font-size-code);
-  line-height: max(20px, var(--cpx-sys-line-height-code));
+  line-height: var(--cpx-sys-line-height-code);
   white-space: pre-wrap;
 }
 
@@ -467,6 +481,12 @@
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
+  border-radius: var(--cpx-sys-radius-control);
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 2px;
+  }
 }
 
 .md-table-block table {
@@ -474,7 +494,7 @@
   min-width: 100%;
   table-layout: auto;
   border-collapse: collapse;
-  font: var(--cpx-sys-type-reading);
+  font: var(--cpx-sys-type-body);
   font-variant-numeric: lining-nums tabular-nums;
 }
 

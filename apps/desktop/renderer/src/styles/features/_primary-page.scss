@@ -30,6 +30,7 @@
 
 .primary-page-layout__description {
   margin: var(--cpx-sys-space-2) 0 0;
+  max-width: 68ch;
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body);
 }
