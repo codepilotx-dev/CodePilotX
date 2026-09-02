@@ -893,6 +893,12 @@
   padding-left: var(--cpx-sys-layout-sidebar-session-indent);
 }
 
+.sidebar-standard-mode
+  .sidebar-section:has([data-sidebar-section-id='recent'])
+  .sidebar-row--session {
+  padding-left: var(--sidebar-padding-x);
+}
+
 .sidebar-reorder-group,
 .sidebar-reorder-item {
   min-width: 0;

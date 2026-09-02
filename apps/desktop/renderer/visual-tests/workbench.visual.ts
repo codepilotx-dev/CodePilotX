@@ -2726,7 +2726,7 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
     '[data-sidebar-pinned-item-key="session:visual-scroll-edge"]',
   )
   const pinnedRow = pinnedItem.locator('.sidebar-session-row')
-  const ordinaryRow = page
+  const projectRow = page
     .locator('[data-sidebar-session-id="visual-scroll-edge-02"]')
     .first()
   await expect(pinnedItem).toBeVisible()
@@ -2735,9 +2735,23 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   ).toBeVisible()
   await expect(pinnedRow).not.toHaveClass(/sidebar-row--session/)
   await expect(pinnedRow).toHaveCSS('padding-left', '8px')
-  await expect(ordinaryRow).toHaveClass(/sidebar-row--session/)
-  await expect(ordinaryRow).toHaveCSS('padding-left', '32px')
-  await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  await expect(projectRow).toHaveClass(/sidebar-row--session/)
+  await expect(projectRow).toHaveCSS('padding-left', '32px')
+  await expect(projectRow.locator('.sidebar-row-leading')).toHaveCount(0)
+
+  const recentSection = page.locator(
+    '.sidebar-section:has([data-sidebar-section-id="recent"])',
+  )
+  await recentSection
+    .getByRole('button', { name: '整理侧栏' })
+    .click({ force: true })
+  await page.getByRole('menuitemradio', { name: '在一个列表中' }).click()
+  const recentRow = recentSection
+    .locator('[data-sidebar-session-id="visual-scroll-edge-02"]')
+    .first()
+  await expect(recentRow).toHaveClass(/sidebar-row--session/)
+  await expect(recentRow).toHaveCSS('padding-left', '8px')
+  await expect(recentRow.locator('.sidebar-row-leading')).toHaveCount(0)
 
   await page.addStyleTag({
     content: `

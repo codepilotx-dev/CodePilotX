@@ -9,6 +9,7 @@
 
 ### Added
 
+- [desktop/renderer] 新增全局页面缩放快捷键与可交互胶囊提示，支持跨窗口同步并记忆缩放比例。
 - [agent/desktop/renderer] 集成官方 MiniMax CLI 的一键安装、更新与卸载，自动跟随 API Key Hub 当前生效的 MiniMax Coding Plan Key，并将 mmx Skills 动态接入 Agent。
 - [desktop] 新增可恢复的本地自动化调度、任务管理与运行收件箱。
 - [agent] 增加兼容 Codex manifest 的内置插件发现、启停与插件 Skill 接入，并明确用户插件缓存随 CodePilotX 数据目录迁移。
@@ -165,6 +166,7 @@
 
 ### Fixed
 
+- [desktop/renderer] 修复侧栏“最近”会话继承项目层级缩进的问题，使一级会话标题与区段标题对齐。
 - [desktop] 修复时间线状态与隐藏内容长期滞留，以及全局设置、编辑命令和 Review 状态广播导致的 Renderer CPU 与内存持续增长。
 - [desktop] 修复展开状态向时间线、侧栏和表单父级广播导致的高频重渲染，连续展开收缩不再阻塞界面。
 - [desktop/renderer] 修复文件修改摘要卡片在较窄会话区域将审核操作换到第二行的问题，使操作按钮始终保持在标题行右侧。
@@ -660,4 +662,3 @@
 - [renderer] React + Vite 渲染器、会话视图与工作台布局
 - [packages] 共享领域契约、provider 插件系统、AI 模型目录与故障转移
 - [ci] PR 与 tag 触发 CI，支持静默安装验证与 smoke 测试
-- [desktop/renderer] 新增全局页面缩放快捷键与可交互胶囊提示，支持跨窗口同步并记忆缩放比例。
