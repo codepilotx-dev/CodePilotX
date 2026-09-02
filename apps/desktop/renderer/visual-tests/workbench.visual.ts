@@ -58,6 +58,14 @@ const MARKDOWN_TYPOGRAPHY_CASES = [
   { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
 ] as const
 
+async function maskTransparentStopCount(locator: Locator): Promise<number> {
+  return locator.evaluate(element => {
+    const style = getComputedStyle(element)
+    const mask = style.maskImage || style.webkitMaskImage
+    return mask.match(/rgba\(0, 0, 0, 0\)|transparent/g)?.length ?? 0
+  })
+}
+
 test('canonical thread stays active through StrictMode effect replay', async ({
   page,
 }) => {
@@ -2712,6 +2720,13 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     ),
   ).toEqual(['24x24'])
   await expect(projectButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  const projectTitle = projectRow.locator('.sidebar-project-title-text')
+  await expect(projectTitle).toHaveCSS('white-space', 'nowrap')
+  await expect(projectTitle).toHaveCSS('text-overflow', 'clip')
+  expect(await projectTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
   await expect(activeSessionRow.locator('.sidebar-session-button')).toHaveCSS(
     'background-color',
     'rgba(0, 0, 0, 0)',
@@ -2775,8 +2790,60 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   const activityTimeline = page.locator('.sidebar-timeline')
   const activityHeader = activityTimeline.locator('.sidebar-focus-section-header').first()
   const activityTitle = activityHeader.locator('.sidebar-focus-section-title')
+  const activityRow = activityTimeline.locator('[data-sidebar-session-id="visual-rich"]')
+  const activityWorkspaceName = activityRow.locator('.sidebar-session-workspace-meta__name')
   await expect(activityTimeline).toBeVisible()
   await expect(activityHeader).toBeVisible()
+  await expect(activityRow).toBeVisible()
+  await expect(activityWorkspaceName).toHaveText('CodePilotX-Ts')
+  await expect(activityRow.locator('.sidebar-session-snippet')).toHaveCount(0)
+  const activitySessionTitle = activityRow.locator('.sidebar-session-title')
+  const activityTitleTrack = activitySessionTitle.locator(
+    '.sidebar-session-title-track',
+  )
+  await page.addStyleTag({
+    content: `
+      .sidebar-timeline [data-sidebar-session-id="visual-rich"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+    `,
+  })
+  await page.mouse.move(1000, 400)
+  await expect(activitySessionTitle).toHaveAttribute('data-overflowing', 'true')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(1)
+  const activityTitleBeforeHover = await activitySessionTitle.boundingBox()
+  await activityRow.hover()
+  await expect(activityRow.locator('.sidebar-session-actions')).toBeVisible()
+  await expect(activitySessionTitle).toHaveAttribute('data-scrolling', 'true')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(2)
+  const activityTitleAfterHover = await activitySessionTitle.boundingBox()
+  expect(activityTitleBeforeHover).not.toBeNull()
+  expect(activityTitleAfterHover).not.toBeNull()
+  expect(activityTitleAfterHover!.x).toBeCloseTo(activityTitleBeforeHover!.x, 0)
+  await expect.poll(async () => activityTitleTrack.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
+  expect(await activitySessionTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  await page.mouse.move(1000, 400)
+  await expect(activitySessionTitle).not.toHaveAttribute('data-scrolling')
+  await expect(activityTitleTrack).toHaveCSS('transform', 'none')
+  expect(await maskTransparentStopCount(activitySessionTitle)).toBe(1)
+  for (const label of [
+    navRow.locator('.sidebar-item-label'),
+    activityTitle,
+    activityWorkspaceName,
+  ]) {
+    await expect(label).toHaveCSS('white-space', 'nowrap')
+    await expect(label).toHaveCSS('text-overflow', 'clip')
+    expect(await label.evaluate(element => {
+      const style = getComputedStyle(element)
+      return style.maskImage || style.webkitMaskImage
+    })).toContain('linear-gradient')
+  }
   const [activityHeaderBox, activityTitleBox] = await Promise.all([
     activityHeader.boundingBox(),
     activityTitle.boundingBox(),
@@ -2788,7 +2855,7 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   expect(activityTitleBox.x - sidebarBox.x).toBeCloseTo(16, 0)
 })
 
-test('pinned session icon and overflowing title motion match the sidebar contract', async ({
+test('pinned session icon and overflowing title motion keep the sidebar fade contract', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 800 })
@@ -2824,20 +2891,57 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
   const projectRow = page.locator('.sidebar-project-header').first()
   const showMore = projectRow.locator('xpath=..').locator('.sidebar-show-more-actions')
-  const [projectMainBox, ordinaryMainBox, showMoreMainBox] = await Promise.all([
+  const [projectMainBox, ordinaryMainBox, showMoreMainBox, ordinaryTitleBox, showMoreTextBox] = await Promise.all([
     projectRow.locator('.sidebar-row-main').boundingBox(),
     ordinaryRow.locator('.sidebar-row-main').boundingBox(),
     showMore.locator('.sidebar-row-main').boundingBox(),
+    ordinaryRow.locator('.sidebar-session-title').boundingBox(),
+    showMore.locator('.sidebar-show-more-button span').first().boundingBox(),
   ])
   expect(projectMainBox).not.toBeNull()
   expect(ordinaryMainBox).not.toBeNull()
   expect(showMoreMainBox).not.toBeNull()
+  expect(ordinaryTitleBox).not.toBeNull()
+  expect(showMoreTextBox).not.toBeNull()
   expect(ordinaryMainBox!.x - projectMainBox!.x).toBeCloseTo(0, 0)
   expect(showMoreMainBox!.x - ordinaryMainBox!.x).toBeCloseTo(0, 0)
+  expect(showMoreTextBox!.x - ordinaryTitleBox!.x).toBeCloseTo(0, 0)
+
+  const showMoreButtons = showMore.locator('.sidebar-show-more-button')
+  const showMoreLabels = showMoreButtons.locator('span')
+  await expect(showMoreButtons).toHaveCount(1)
+  const primaryTextColor = await page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--cpx-sys-color-fg-primary)'
+    document.body.append(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  })
+  await showMoreButtons.first().click()
+  await expect(showMoreButtons).toHaveCount(2)
+  for (let index = 0; index < 2; index += 1) {
+    const button = showMoreButtons.nth(index)
+    const label = showMoreLabels.nth(index)
+    await expect(label).toHaveCSS('white-space', 'nowrap')
+    await expect(label).toHaveCSS('text-overflow', 'clip')
+    expect(await label.evaluate(element => {
+      const style = getComputedStyle(element)
+      return style.maskImage || style.webkitMaskImage
+    })).toBe('none')
+    await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await button.hover()
+    await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(button).toHaveCSS('color', primaryTextColor)
+  }
 
   await page.addStyleTag({
     content: `
       [data-sidebar-pinned-item-key="session:visual-scroll-edge"] .sidebar-session-title {
+        width: 72px;
+        flex: 0 0 72px;
+      }
+      [data-sidebar-session-id="visual-scroll-edge-02"] .sidebar-session-title {
         width: 72px;
         flex: 0 0 72px;
       }
@@ -2851,8 +2955,10 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
 
   const resting = await title.evaluate(element => {
     const style = getComputedStyle(element)
+    const box = element.getBoundingClientRect()
     return {
       clientWidth: element.clientWidth,
+      left: box.left,
       maskImage: style.maskImage || style.webkitMaskImage,
       scrollWidth: element.scrollWidth,
       transform: getComputedStyle(
@@ -2862,42 +2968,78 @@ test('pinned session icon and overflowing title motion match the sidebar contrac
   })
   expect(resting.scrollWidth).toBeGreaterThan(resting.clientWidth)
   expect(resting.maskImage).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(1)
   expect(resting.transform).toBe('none')
 
   await pinnedItem.hover()
+  await expect(pinnedItem.locator('.sidebar-session-actions')).toBeVisible()
   await expect(title).toHaveAttribute('data-scrolling', 'true')
-  const scrolling = await title.evaluate(element => {
+  await expect.poll(async () => track.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
+  const hovered = await title.evaluate(element => {
     const style = getComputedStyle(element)
-    const trackStyle = getComputedStyle(
-      element.querySelector('.sidebar-session-title-track')!,
-    )
+    const box = element.getBoundingClientRect()
     return {
+      left: box.left,
+      maskImage: style.maskImage || style.webkitMaskImage,
       distance: Number.parseFloat(
         style.getPropertyValue('--sidebar-title-scroll-distance'),
       ),
       duration: Number.parseFloat(
         style.getPropertyValue('--sidebar-title-scroll-duration'),
       ),
-      timingFunction: trackStyle.transitionTimingFunction,
+      transform: getComputedStyle(
+        element.querySelector('.sidebar-session-title-track')!,
+      ).transform,
     }
   })
-  expect(scrolling.distance).toBe(resting.scrollWidth - resting.clientWidth)
-  expect(scrolling.duration).toBeCloseTo(
-    Math.max(4, scrolling.distance / 20),
+  expect(hovered.left).toBeCloseTo(resting.left, 0)
+  expect(hovered.maskImage).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(2)
+  expect(hovered.distance).toBe(resting.scrollWidth - resting.clientWidth)
+  expect(hovered.duration).toBeCloseTo(
+    Math.max(4, hovered.distance / 20),
     2,
   )
-  expect(scrolling.timingFunction).toBe('linear')
+  expect(hovered.transform).not.toBe('none')
+
+  await page.mouse.move(1000, 400)
+  await expect(title).not.toHaveAttribute('data-scrolling')
+  await expect(track).toHaveCSS('transform', 'none')
+  expect(await maskTransparentStopCount(title)).toBe(1)
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(title).not.toHaveAttribute('data-scrolling', 'true')
+  await pinnedItem.hover()
+  await expect(title).not.toHaveAttribute('data-scrolling')
   await expect(track).toHaveCSS('transform', 'none')
-  const reducedMotionMask = await title.evaluate(element => {
+  expect(await title.evaluate(element => {
     const style = getComputedStyle(element)
     return style.maskImage || style.webkitMaskImage
-  })
-  expect(reducedMotionMask).toContain('linear-gradient')
+  })).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(title)).toBe(1)
 
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const ordinaryTitle = ordinaryRow.locator('.sidebar-session-title')
+  const ordinaryTrack = ordinaryTitle.locator('.sidebar-session-title-track')
+  await page.mouse.move(1000, 400)
+  await expect(ordinaryTitle).toHaveAttribute('data-overflowing', 'true')
+  const ordinaryTitleBeforeHover = await ordinaryTitle.boundingBox()
   await ordinaryRow.hover()
+  await expect(ordinaryRow.locator('.sidebar-session-actions')).toBeVisible()
+  await expect(ordinaryTitle).toHaveAttribute('data-scrolling', 'true')
+  const ordinaryTitleAfterHover = await ordinaryTitle.boundingBox()
+  expect(ordinaryTitleBeforeHover).not.toBeNull()
+  expect(ordinaryTitleAfterHover).not.toBeNull()
+  expect(ordinaryTitleAfterHover!.x).toBeCloseTo(ordinaryTitleBeforeHover!.x, 0)
+  expect(await ordinaryTitle.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  expect(await maskTransparentStopCount(ordinaryTitle)).toBe(2)
+  await expect.poll(async () => ordinaryTrack.evaluate(element =>
+    getComputedStyle(element).transform,
+  )).not.toBe('none')
   const sessionCard = page.locator('.sidebar-session-hover-card:visible').last()
   await expect(sessionCard).toBeVisible()
   const sessionContentId = await sessionCard.getAttribute('id')
@@ -3100,6 +3242,8 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   const sidebar = page.locator('aside.desktop-sidebar')
   const scrollArea = sidebar.locator('.sidebar-scroll-area')
   const footer = sidebar.locator('.sidebar-footer')
+  const footerStatusSlot = footer.locator('.sidebar-footer-status-slot')
+  const footerTrigger = footer.locator('.sidebar-footer-trigger')
 
   const expectFooterOutsideScrollViewport = async () => {
     await expect
@@ -3115,6 +3259,14 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   }
 
   await expectFooterOutsideScrollViewport()
+  await expect(footer).toHaveCSS('height', '37px')
+  await expect(footerStatusSlot).toHaveCSS('min-width', '24px')
+  await expect(footerTrigger).toHaveCSS('white-space', 'nowrap')
+  await expect(footerTrigger).toHaveCSS('text-overflow', 'clip')
+  expect(await footerTrigger.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
   await scrollArea.evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
@@ -3139,6 +3291,24 @@ test('sidebar footer reserves space outside the task scroll viewport', async ({
   const footerMenu = page.locator('.popover-sidebar-footer')
   await expect(footerMenu).toBeVisible()
   await expect(footerMenu).toHaveAttribute('data-side', 'top')
+  const settingsItem = footerMenu.locator('.popover-item').filter({ hasText: '设置' }).first()
+  const petItem = footerMenu.locator('.popover-item').filter({ hasText: /显示宠物|隐藏宠物/ }).first()
+  await expect(settingsItem).toHaveCSS('min-height', '32px')
+  await expect(petItem).toHaveCSS('min-height', '32px')
+  const [settingsItemBox, petItemBox] = await Promise.all([
+    settingsItem.boundingBox(),
+    petItem.boundingBox(),
+  ])
+  expect(settingsItemBox).not.toBeNull()
+  expect(petItemBox).not.toBeNull()
+  expect(settingsItemBox!.height).toBeCloseTo(petItemBox!.height, 0)
+  const footerMenuLabel = settingsItem.locator('.popover-item-label')
+  await expect(footerMenuLabel).toHaveCSS('white-space', 'nowrap')
+  await expect(footerMenuLabel).toHaveCSS('text-overflow', 'clip')
+  expect(await footerMenuLabel.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
   const footerMenuBox = await footerMenu.boundingBox()
   expect(footerMenuBox).not.toBeNull()
   expect(footerMenuBox!.y + footerMenuBox!.height).toBeLessThanOrEqual(

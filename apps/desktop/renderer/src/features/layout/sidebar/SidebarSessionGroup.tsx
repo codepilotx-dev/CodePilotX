@@ -707,29 +707,11 @@ export function getSidebarSessionDisplayGroups<T>(
   };
 }
 
-export function sessionSnippet(session: SessionListItem): string | null {
-  const raw = session.summary || session.preview || session.firstPrompt || null
-  if (!raw) return null
-  const cleaned = raw
-    .replace(/^#+\s+/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return cleaned || null
-}
-
 function SidebarSessionSubtitle({
   session,
 }: {
   session: SessionListItem
 }): React.ReactNode {
-  const snippet = sessionSnippet(session)
-  if (snippet) {
-    return (
-      <span className="sidebar-session-snippet" title={snippet}>
-        {snippet}
-      </span>
-    )
-  }
   return <SidebarSessionWorkspaceMeta session={session} />
 }
 

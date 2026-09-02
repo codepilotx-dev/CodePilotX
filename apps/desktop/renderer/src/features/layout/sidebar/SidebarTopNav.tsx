@@ -161,7 +161,7 @@ function SidebarNavItems({
             asChild
             className={cx("sidebar-nav-link", active ? "active" : undefined)}
             key={item.view}
-            labelClassName={cx('sidebar-item-label', 'u-min-w-0', 'u-truncate')}
+            labelClassName={cx('sidebar-item-label', 'u-min-w-0')}
             layout="flex"
             leading={item.icon}
           >
@@ -249,7 +249,7 @@ export function SidebarHeader({
             className="sidebar-product-mode-trigger"
             type="button"
           >
-            <span>{activeMode.label}</span>
+            <span className="sidebar-product-mode-label">{activeMode.label}</span>
             <ChevronDown aria-hidden="true" size={14} />
           </button>
         }

@@ -216,7 +216,7 @@ function SidebarProjectGroupComponent({
       type="button"
       onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
-      <span>
+      <span className="sidebar-project-title-text">
         {managedProject.name}
       </span>
     </button>

@@ -1305,7 +1305,7 @@ function SidebarSection({
             onClick={() => disclosureStore.setExpanded(disclosureKey, !expanded)}
           >
             <span
-              className={cx("sidebar-section-label", "u-min-w-0", "u-truncate")}
+              className={cx("sidebar-section-label", "u-min-w-0")}
             >
               {title}
             </span>

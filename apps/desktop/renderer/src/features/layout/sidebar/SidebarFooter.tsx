@@ -225,7 +225,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             active={settingsActive}
             asChild
             className="sidebar-settings-link"
-            labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
+            labelClassName={cx('sidebar-settings-label', 'u-min-w-0')}
             layout="flex"
             leading={
               <span className="popover-account-avatar" aria-hidden="true">
@@ -357,7 +357,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                           'popover-usage-action-label',
                           'u-flex-1',
                           'u-min-w-0',
-                          'u-truncate',
                         )}
                       >
                         了解更多
