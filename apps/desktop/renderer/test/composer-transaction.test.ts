@@ -236,6 +236,37 @@ describe('composer submit transaction', () => {
     )
   })
 
+  test('serializes visible task and browser references and allows reference-only submission', () => {
+    const prepared = prepareComposerSubmission(draft({
+      document: {
+        text: '',
+        tokens: [
+          {
+            id: 'thread-1',
+            kind: 'thread',
+            label: '任务：[登录修复]',
+            value: 'codepilotx://threads/thread-1',
+            from: 0,
+            to: 0,
+          },
+          {
+            id: 'browser-1',
+            kind: 'browser',
+            label: '网页：参考文档',
+            value: 'https://example.com/docs',
+            from: 0,
+            to: 0,
+          },
+        ],
+      },
+    }))
+
+    expect('input' in prepared && prepared.input.text).toBe(
+      '[任务：\\[登录修复\\]](<codepilotx://threads/thread-1>) [网页：参考文档](<https://example.com/docs>)',
+    )
+    expect('input' in prepared && prepared.input.attachments).toEqual([])
+  })
+
   test('navigates before the first send and reports a recoverable send failure', async () => {
     const events: string[] = []
     let nextId = 0

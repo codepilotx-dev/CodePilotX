@@ -38,4 +38,40 @@ describe('composer skill inline token', () => {
       path: 'builtin://builtin-helper/SKILL.md',
     })
   })
+
+  test('往返保留多个上下文 token 的顺序和正文位置', () => {
+    const document = {
+      text: '检查这里',
+      tokens: [
+        {
+          id: 'skill-1',
+          kind: 'skill' as const,
+          name: 'review',
+          label: 'review',
+          value: 'skills/review',
+          from: 0,
+          to: 0,
+        },
+        {
+          id: 'thread-1',
+          kind: 'thread' as const,
+          label: '任务：登录修复',
+          value: 'codepilotx://threads/thread-1',
+          from: 2,
+          to: 2,
+        },
+        {
+          id: 'browser-1',
+          kind: 'browser' as const,
+          label: '网页：文档',
+          value: 'https://example.com/docs',
+          from: 2,
+          to: 2,
+        },
+      ],
+    }
+
+    const proseMirrorDocument = composerDocumentToProseMirrorDocument(document)
+    expect(composerDocumentFromProseMirrorDocument(proseMirrorDocument)).toEqual(document)
+  })
 })

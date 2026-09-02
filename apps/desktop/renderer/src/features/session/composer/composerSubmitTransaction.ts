@@ -28,7 +28,7 @@ export function prepareComposerSubmission(
   draft: ComposerDraft,
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
-  const text = snapshot.document.text
+  const text = serializeComposerDocument(snapshot.document)
   const hasContent =
     Boolean(text.trim()) ||
     snapshot.attachments.length > 0 ||
@@ -57,6 +57,20 @@ export function prepareComposerSubmission(
       ? `$${snapshot.skillInvocation.name} ${text}`.trim()
       : undefined,
   }
+}
+
+export function serializeComposerDocument(
+  document: ComposerDraft['document'],
+): string {
+  const references = document.tokens
+    .filter(token => token.kind === 'thread' || token.kind === 'browser')
+    .map(token => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
+  if (references.length === 0) return document.text
+  return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/([\\\[\]])/gu, '\\$1')
 }
 
 export async function executeComposerSubmitTransaction({

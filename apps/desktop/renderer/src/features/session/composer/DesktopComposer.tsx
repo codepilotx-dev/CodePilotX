@@ -22,6 +22,8 @@ import { ComposerCard } from './ComposerCard.js'
 import type {
   ComposerCapabilities,
   ComposerDeliveryIntent,
+  ComposerBrowserContext,
+  ComposerContextTask,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
   ComposerDocument,
@@ -100,6 +102,8 @@ export type DesktopComposerProps = {
   modelPresets: ModelPreset[]
   providerOptions: ProviderModelOption[]
   recentWorkspaces: DesktopWorkspace[]
+  contextTasks?: ComposerContextTask[]
+  browserContext?: ComposerBrowserContext | null
   workspace: DesktopWorkspace | null
   attachments: DesktopComposerAttachment[]
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
@@ -130,8 +134,11 @@ export type DesktopComposerProps = {
   ) => Promise<DesktopWorkspace | null>
   onCloneGithub: () => void
   onClearWorkspace: () => void
-  onOpenBrowser?: () => void
   onOpenMcpSettings?: () => void
+  onOpenSideChat?: () => void
+  onForkConversation?: () => void
+  canForkConversation?: boolean
+  onArchiveConversation?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onStartReview?: (
@@ -210,6 +217,8 @@ export function DesktopComposer({
   modelPresets,
   providerOptions,
   recentWorkspaces,
+  contextTasks,
+  browserContext,
   workspace,
   attachments,
   onAttachmentsChange,
@@ -226,8 +235,11 @@ export function DesktopComposer({
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
-  onOpenBrowser,
   onOpenMcpSettings,
+  onOpenSideChat,
+  onForkConversation,
+  canForkConversation,
+  onArchiveConversation,
   onBranchSelect,
   onCreateBranch,
   onStartReview,
@@ -267,10 +279,10 @@ export function DesktopComposer({
     fileAttachmentsAvailable,
     goalModeEnabled,
     handleAddFiles,
+    handleAddFilePaths,
     handleCommandError,
     handleCompact,
     handleComposerDocumentChange,
-    handleOpenFiles,
     handleRemoveAttachment,
     handleSkillDeselect,
     handleSkillSelect,
@@ -394,6 +406,8 @@ export function DesktopComposer({
       branchName={branchName}
       branches={workspace?.branches ?? []}
       recentWorkspaces={recentWorkspaces}
+      contextTasks={contextTasks}
+      browserContext={browserContext}
       workspace={workspace}
       attachments={attachments}
       skillCommands={skillCommands}
@@ -419,14 +433,17 @@ export function DesktopComposer({
       onProviderOpen={onProviderOpen}
       onProviderSearch={onProviderSearch}
       onAddFiles={files => void handleAddFiles(files)}
-      onOpenFiles={() => void handleOpenFiles()}
+      onAddFilePaths={handleAddFilePaths}
       onRemoveAttachment={handleRemoveAttachment}
       onOpenAttachment={onOpenAttachment}
       onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
       onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}
-      onOpenBrowser={onOpenBrowser}
       onOpenMcpSettings={onOpenMcpSettings}
+      onOpenSideChat={onOpenSideChat}
+      onForkConversation={onForkConversation}
+      canForkConversation={canForkConversation}
+      onArchiveConversation={onArchiveConversation}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onStartReview={onStartReview}

@@ -7,6 +7,7 @@ import {
 } from '../src/features/session/composer/ComposerCard.js'
 import {
   filterComposerCommands,
+  getActiveSlashCommandQuery,
   getActiveSkillTokenQuery,
   mergeSlashCommands,
   parseSlashInvocation,
@@ -83,6 +84,26 @@ describe('composer suggestions', () => {
     expect(filterComposerCommands(merged, '上下文').map(item => item.id)).toEqual([
       'status',
     ])
+  })
+
+  test('keeps temporarily disabled commands and hides commands outside the environment', () => {
+    const disabled = builtin('compact', '压缩', '压缩上下文', false)
+    const hidden = {
+      ...builtin('side', '侧边聊天', '打开侧边聊天'),
+      availability: { visible: false, enabled: true },
+    }
+    expect(mergeSlashCommands([disabled, hidden], []).map(item => item.id)).toEqual([
+      'compact',
+    ])
+  })
+
+  test('detects a slash command query at the cursor without replacing the draft', () => {
+    expect(getActiveSlashCommandQuery('继续处理 /rev 后续', 9)).toEqual({
+      start: 5,
+      end: 9,
+      query: 'rev',
+    })
+    expect(getActiveSlashCommandQuery('https://example.com', 8)).toBeNull()
   })
 
   test('parses only exact registered slash commands', async () => {

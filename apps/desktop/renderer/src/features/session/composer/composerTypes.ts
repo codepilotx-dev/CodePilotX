@@ -91,6 +91,7 @@ export type ComposerTokenKind =
   | 'skill'
   | 'file'
   | 'thread'
+  | 'browser'
   | 'agent'
   | 'plugin'
   | 'prompt-macro'
@@ -114,6 +115,17 @@ export type ComposerDocumentToken = {
 export type ComposerDocument = {
   text: string
   tokens: ComposerDocumentToken[]
+}
+
+export type ComposerContextTask = {
+  id: string
+  title: string
+  workspaceName?: string
+}
+
+export type ComposerBrowserContext = {
+  title: string
+  url: string
 }
 
 export type ComposerDraftKey =

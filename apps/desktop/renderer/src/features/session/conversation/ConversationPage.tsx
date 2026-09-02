@@ -1138,6 +1138,11 @@ export function ConversationPage(): React.ReactNode {
         {!activePermissionRequest ? (
           <DesktopComposer
             {...composerProps}
+            canForkConversation={Boolean(
+              conversationFork.onForkFromMessage && latestConversationForkPoint,
+            )}
+            onArchiveConversation={archiveCurrentSession}
+            onForkConversation={continueInNewConversation}
             sessionStatus={effectiveSessionStatus}
             contextUsage={canonicalAuxiliary.contextUsage}
             queuedFollowUps={canonicalAuxiliary.queuedFollowUps}

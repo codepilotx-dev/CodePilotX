@@ -36,6 +36,7 @@ import {
   BuiltinSkillIcon,
   getBuiltinSkillPresentation,
   isBuiltinSkill,
+  skillScopeLabel,
 } from '../../plugins/builtinSkillPresentation.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
@@ -46,7 +47,7 @@ import {
   clearPluginDetailsDeepLink,
   resolvePluginDetailsDeepLink,
 } from './pluginDetailsDeepLink.js'
-import { SkillDetailsDialog, skillScopeLabel } from './SkillDetailsDialog.js'
+import { SkillDetailsDialog } from './SkillDetailsDialog.js'
 import {
   listRuntimeSkills,
   setRuntimeSkillEnabled,

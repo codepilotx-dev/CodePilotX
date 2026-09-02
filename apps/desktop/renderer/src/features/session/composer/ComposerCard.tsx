@@ -15,26 +15,26 @@ import * as Popover from "@radix-ui/react-popover";
 import * as Select from "@radix-ui/react-select";
 import {
   Activity,
+  Archive,
   ArrowUp,
   Box,
-  Blocks,
   Brain,
   Check,
   ChevronDown,
-  Compass,
+  ChevronLeft,
+  File,
   FileText,
   Folder,
-  FileSpreadsheet,
+  GitFork,
   GitBranch,
+  Globe2,
   Hand,
   ListChecks,
   MessageSquare,
+  MessageSquarePlus,
   MessagesSquare,
-  Palette,
   Paperclip,
-  PawPrint,
   Plus,
-  Presentation,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -59,6 +59,7 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
+  DesktopFileEntry,
   LocalRouterMode,
   ModelProviderID,
 } from "../../../../shared/types.js";
@@ -88,6 +89,8 @@ import {
   DEFAULT_COMPOSER_CAPABILITIES,
   isInlineComposerFailure,
   type ComposerCapabilities,
+  type ComposerBrowserContext,
+  type ComposerContextTask,
   type ComposerDocument,
   type ComposerDraftKey,
   type ComposerDeliveryIntent,
@@ -106,7 +109,7 @@ import {
 } from './composerSkillToken.js';
 import {
   getActiveSkillTokenQuery,
-  isSlashCommandQuery,
+  getActiveSlashCommandQuery,
   mergeSlashCommands,
   parseSlashInvocation,
   type ComposerCommand,
@@ -115,7 +118,16 @@ import {
   type ComposerSlashCommandId,
 } from "./composerSlashCommands.js";
 import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
-import { BuiltinSkillIcon } from "../../plugins/builtinSkillPresentation.js";
+import { BuiltinSkillIcon, skillScopeLabel } from "../../plugins/builtinSkillPresentation.js";
+import { buildThreadDeepLink } from '@codepilotx/shared/thread-reference'
+import { desktopClient } from '../../../services/desktop-client/index.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import {
+  ComposerCommandMenu,
+  composerMenuItemId,
+  filterComposerMenuItems,
+  type ComposerMenuItem,
+} from './ComposerCommandMenu.js'
 import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
 import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
@@ -144,112 +156,6 @@ type ComposerDropdown =
   | "status"
   | "goal"
   | "plugin";
-
-type ContextPluginTone =
-  | "docs"
-  | "pdf"
-  | "sheets"
-  | "slides"
-  | "template"
-  | "browser";
-
-type ContextPlugin = {
-  name: string;
-  description: string;
-  tone: ContextPluginTone;
-  icon: React.ReactNode;
-};
-
-type ContextAgentOption = {
-  name: string;
-  role: string;
-  icon: string;
-  tone: "red" | "amber";
-};
-
-export const CONTEXT_AGENT_OPTIONS: ContextAgentOption[] = [
-  { name: "Schrodinger", role: "explorer", icon: "DNA", tone: "red" },
-  { name: "Russell", role: "explorer", icon: "ATOM", tone: "amber" },
-];
-
-const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
-  {
-    name: "Documents",
-    description: "Create and edit document artifacts",
-    tone: "docs",
-    icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-  },
-  {
-    name: "PDF",
-    description: "Read, create, and verify PDF files",
-    tone: "pdf",
-    icon: <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-  },
-  {
-    name: "Spreadsheets",
-    description: "Create and edit spreadsheet files",
-    tone: "sheets",
-    icon: (
-      <FileSpreadsheet
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
-    ),
-  },
-  {
-    name: "Presentations",
-    description: "Create and edit presentation files",
-    tone: "slides",
-    icon: (
-      <Presentation size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    ),
-  },
-  {
-    name: "Template Creator",
-    description: "Create or update personal artifact templates",
-    tone: "template",
-    icon: <Palette size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-  },
-  {
-    name: "浏览器",
-    description: "Control the in-app browser with CodePilotX",
-    tone: "browser",
-    icon: <Compass size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-  },
-];
-
-type UnifiedMenuGroup = "添加" | "子智能体" | "插件" | "Skills";
-
-type UnifiedMenuItem = {
-  group: UnifiedMenuGroup;
-  key: string;
-  label: string;
-  hint?: string;
-  icon: React.ReactNode;
-  /** Text for keyword filtering (label + keywords) */
-  matchText: string;
-  /** Whether the item is active/pressed */
-  isActive?: boolean;
-  /** Whether the option is visible but not wired in this desktop surface yet. */
-  disabled?: boolean;
-  /** Core action, without trigger-text-clearing or dropdown-closing */
-  onSelect: () => void;
-  command?: ComposerCommand;
-};
-
-const UNIFIED_GROUP_ORDER: UnifiedMenuGroup[] = [
-  "添加",
-  "子智能体",
-  "插件",
-  "Skills",
-];
-
-const UNIFIED_GROUP_LABELS: Record<UnifiedMenuGroup, string> = {
-  添加: "添加",
-  子智能体: "子智能体",
-  插件: "插件",
-  Skills: "技能",
-};
 
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   default: "permission-chip permission-chip-default",
@@ -292,6 +198,8 @@ type Props = {
   document?: ComposerDocument;
   skillCommands?: ComposerSkillCommand[];
   selectedSkillToken?: ComposerSkillCommand;
+  contextTasks?: ComposerContextTask[];
+  browserContext?: ComposerBrowserContext | null;
   placeholder?: string;
   onChooseWorkspace: () => void;
   onInputChange: (value: string) => void;
@@ -305,14 +213,17 @@ type Props = {
   onProviderOpen?: (providerID: ModelProviderID) => void;
   onProviderSearch?: (providerID: ModelProviderID, query: string) => void;
   onAddFiles?: (files: FileList) => void;
-  onOpenFiles: () => void;
+  onAddFilePaths?: (paths: string[]) => Promise<void>;
   onRemoveAttachment?: (attachmentId: string) => void;
   onOpenAttachment?: (attachment: DesktopComposerAttachment) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onCloneGithub?: () => void;
   onClearWorkspace: () => void;
-  onOpenBrowser?: () => void;
   onOpenMcpSettings?: () => void;
+  onOpenSideChat?: () => void;
+  onForkConversation?: () => void;
+  canForkConversation?: boolean;
+  onArchiveConversation?: () => void;
   onBranchSelect: (branch: string) => void;
   onCreateBranch: () => void;
   onStartReview?: (
@@ -408,6 +319,8 @@ export function ComposerCard({
   document,
   skillCommands = [],
   selectedSkillToken,
+  contextTasks = [],
+  browserContext,
   placeholder = "随心输入",
   onChooseWorkspace,
   onInputChange,
@@ -418,14 +331,17 @@ export function ComposerCard({
   onProviderOpen,
   onProviderSearch,
   onAddFiles,
-  onOpenFiles,
+  onAddFilePaths,
   onRemoveAttachment,
   onOpenAttachment,
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
-  onOpenBrowser,
   onOpenMcpSettings,
+  onOpenSideChat,
+  onForkConversation,
+  canForkConversation = false,
+  onArchiveConversation,
   onBranchSelect,
   onCreateBranch,
   onStartReview,
@@ -539,6 +455,12 @@ export function ComposerCard({
   const [thinkingPreviewMode, setThinkingPreviewMode] =
     useState<DesktopThinkingMode | null>(null);
   const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
+  const [buttonContextRequest, setButtonContextRequest] = useState<{
+    start: number;
+    end: number;
+    query: string;
+    input: string;
+  } | null>(null);
   const [branchSearch, setBranchSearch] = useState("");
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
@@ -568,6 +490,13 @@ export function ComposerCard({
     null,
   );
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [archiveConfirmationOpen, setArchiveConfirmationOpen] = useState(false);
+  const [contextDirectory, setContextDirectory] = useState('.');
+  const [contextEntries, setContextEntries] = useState<DesktopFileEntry[]>([]);
+  const [contextEntriesLoading, setContextEntriesLoading] = useState(false);
+  const [contextEntriesError, setContextEntriesError] = useState<string | null>(null);
+  const [contextReloadToken, setContextReloadToken] = useState(0);
+  const contextLoadGenerationRef = useRef(0);
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
   );
@@ -635,22 +564,39 @@ export function ComposerCard({
       onGoalModeChange,
       onOpenReview: () => setReviewMenuRequested(true),
       onCompact,
+      onOpenSide: onOpenSideChat,
+      onFork: onForkConversation,
+      onArchive: () => setArchiveConfirmationOpen(true),
+      onChooseProject: onChooseWorkspace,
+      onClearProject: onClearWorkspace,
+      showThreadActions:
+        placement === 'thread' && !subagentMode && Boolean(routedSessionId),
+      showNewSessionActions: placement === 'new-session' && !subagentMode,
+      canFork: canForkConversation,
+      hasProject: Boolean(workspace),
       onError: onCommandError,
     });
 
-  const slashDropdownRequested =
-    isSlashCommandQuery(input) && input !== dismissedSlashInput;
-
-  const slashSearch = useMemo(() => {
-    if (!input.startsWith("/")) return "";
-    return input.slice(1).trimStart();
-  }, [input]);
+  const activeSlashQuery = useMemo(() => {
+    if (isComposing || dismissedSlashInput === input) return null;
+    return getActiveSlashCommandQuery(input, selectionStart);
+  }, [dismissedSlashInput, input, isComposing, selectionStart]);
 
   const activeMention = useMemo(() => {
     if (isComposing) return null;
     if (dismissedMention !== null) return null;
     return getActiveComposerMention(input, selectionStart);
   }, [input, isComposing, dismissedMention, selectionStart]);
+  const activeContextRequest = activeMention ?? (
+    buttonContextRequest?.input === input ? buttonContextRequest : null
+  );
+  const buttonContextOpen = Boolean(
+    buttonContextRequest && buttonContextRequest.input === input,
+  );
+
+  useEffect(() => {
+    if (activeMention && buttonContextRequest) setButtonContextRequest(null);
+  }, [activeMention, buttonContextRequest]);
 
   const activeSkillQuery = useMemo(() => {
     if (isComposing || dismissedSkillInput === input) return null;
@@ -658,305 +604,225 @@ export function ComposerCard({
   }, [dismissedSkillInput, input, isComposing, selectionStart]);
 
   const showSlashContextDropdown =
-    slashDropdownRequested && !activeMention && !activeSkillQuery;
+    Boolean(activeSlashQuery) && !activeContextRequest && !activeSkillQuery;
 
-  const unifiedMenuItems = useMemo((): UnifiedMenuItem[] => {
-    const items: UnifiedMenuItem[] = [];
-
-    // 添加
-    items.push({
-      group: "添加",
-      key: "add-files",
-      label: "Files and folders",
-      icon: <Paperclip size={14} />,
-      matchText: "Files and folders 添加 add files",
-      onSelect: () => {
-        onOpenFiles();
-      },
-    });
-
-    items.push(
-      {
-        group: "添加",
-        key: "ide-context",
-        label: "IDE 上下文",
-        hint: "包含当前选择、打开的文件以及其他来自你的 IDE 的上下文",
-        icon: <Blocks size={14} />,
-        matchText: "IDE 上下文 ide context",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "code-review-uncommitted",
-        label: "审阅未提交的更改",
-        hint: "让 AI 审查当前工作树和暂存区中的变更",
-        icon: <ShieldCheck size={14} />,
-        matchText: "代码审查 code review",
-        disabled:
-          subagentMode || !onStartReview || !routedSessionId || !workspace,
-        onSelect: () => onStartReview?.({ type: "uncommittedChanges" }),
-      },
-      {
-        group: "添加",
-        key: "task",
-        label: "任务",
-        hint: "不要在项目中工作",
-        icon: <MessageSquare size={14} />,
-        matchText: "任务 task",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "initialize",
-        label: "初始化",
-        hint: "创建包含 Codex 说明的 AGENTS.md 文件",
-        icon: <FileText size={14} />,
-        matchText: "初始化 initialize agents md",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "feedback",
-        label: "反馈",
-        hint: "发送关于此任务的反馈",
-        icon: <MessageSquare size={14} />,
-        matchText: "反馈 feedback",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "pet",
-        label: "宠物",
-        hint: "唤醒或收起桌面宠物",
-        icon: <PawPrint size={14} />,
-        matchText: "宠物 pet",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "fast",
-        label: "快速",
-        hint: "1.5x speed, increased usage",
-        icon: <Zap size={14} />,
-        matchText: "快速 fast speed",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "worktree",
-        label: "新工作树",
-        hint: "在新的工作树中运行此任务",
-        icon: <GitBranch size={14} />,
-        matchText: "新工作树 worktree",
-        disabled: true,
-        onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "memory",
-        label: "记忆",
-        hint: "生成 · 开",
-        icon: <Brain size={14} />,
-        matchText: "记忆 memory",
-        disabled: true,
-        onSelect: () => {},
-      },
-    );
-
-    for (const branch of branches
-      .filter((candidate) => candidate && candidate !== branchName)
-      .slice(0, 6)) {
-      items.push({
-        group: "添加",
-        key: `code-review-branch:${branch}`,
-        label: `与 ${branch} 比较`,
-        hint: "从 merge-base 开始审阅当前分支的变更",
-        icon: <GitBranch size={14} />,
-        matchText: `代码审查 branch review ${branch}`,
-        disabled:
-          subagentMode || !onStartReview || !routedSessionId || !workspace,
-        onSelect: () => onStartReview?.({ type: "baseBranch", branch }),
+  useEffect(() => {
+    const generation = ++contextLoadGenerationRef.current;
+    if (!activeContextRequest || !workspace) {
+      setContextDirectory('.');
+      setContextEntries([]);
+      setContextEntriesError(null);
+      setContextEntriesLoading(false);
+      return;
+    }
+    setContextEntriesLoading(true);
+    setContextEntriesError(null);
+    void desktopClient
+      .listWorkspaceFiles(
+        workspace.path,
+        contextDirectory,
+        workspace.primaryFolderId,
+        workspace.projectId,
+      )
+      .then(entries => {
+        if (contextLoadGenerationRef.current === generation) setContextEntries(entries);
+      })
+      .catch(error => {
+        if (contextLoadGenerationRef.current === generation) {
+          setContextEntries([]);
+          setContextEntriesError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (contextLoadGenerationRef.current === generation) setContextEntriesLoading(false);
       });
-    }
-
-    for (const id of [
-      "mcp",
-      "reasoning",
-      "model",
-      "status",
-      "goal",
-      "plan",
-    ] satisfies ComposerSlashCommandId[]) {
-      const command = builtinSlashCommands.find((item) => item.id === id);
-      if (!command?.availability.visible) continue;
-      const menuItem = composerCommandMenuItem(
-        command,
-        executeCommand,
-        onSkillSelect,
-      );
-      if (id === "model") menuItem.hint = selectedModelLabel;
-      if (id === "reasoning") menuItem.hint = selectedThinkingLabel;
-      if (id === "goal") menuItem.isActive = goalModeEnabled;
-      if (id === "plan") menuItem.isActive = planModeActive;
-      items.push(menuItem);
-    }
-
-    // 智能体
-    for (const agent of CONTEXT_AGENT_OPTIONS) {
-      items.push({
-        group: "子智能体",
-        key: `agent-${agent.name}`,
-        label: agent.name,
-        hint: agent.role,
-        icon: (
-          <span
-            className="chat-input__dropdown-agent-icon"
-            style={{
-              color: agent.tone === "red" ? "#ef4444" : "#f59e0b",
-            }}
-          >
-            {agent.icon === "DNA" ? "🧬" : "⚛️"}
-          </span>
-        ),
-        matchText: `${agent.name} ${agent.role} 智能体`,
-        disabled: subagentMode,
-        onSelect: () => {},
-      });
-    }
-
-    // 插件
-    for (const plugin of INSTALLED_CONTEXT_PLUGINS) {
-      const bgColor =
-        plugin.tone === "docs"
-          ? "#3b82f6"
-          : plugin.tone === "pdf"
-            ? "#ef4444"
-            : plugin.tone === "sheets"
-              ? "#22c55e"
-              : plugin.tone === "slides"
-                ? "#f59e0b"
-                : plugin.tone === "template"
-                  ? "#ec4899"
-                  : "#06b6d4";
-      items.push({
-        group: "插件",
-        key: `plugin-${plugin.name}`,
-        label: plugin.name,
-        hint: plugin.description,
-        icon: (
-          <span
-            className="chat-input__dropdown-bullet"
-            style={{ background: bgColor }}
-          />
-        ),
-        matchText: `${plugin.name} ${plugin.description} 插件`,
-        onSelect: () => {
-          if (plugin.tone === "browser") {
-            onOpenBrowser?.();
-          }
-        },
-      });
-    }
-
-    return items.filter((item) => {
-      if (item.disabled) return false;
-      if (item.key === "add-files") return capabilities.fileAttachments;
-      if (item.key.startsWith("code-review")) return capabilities.review;
-      if (item.command?.source === "builtin") {
-        return item.command.availability.visible;
-      }
-      if (item.key.startsWith("plugin-")) {
-        return (
-          capabilities.plugins &&
-          item.key === "plugin-浏览器" &&
-          Boolean(onOpenBrowser)
-        );
-      }
-      if (item.key.startsWith("agent-")) {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    goalModeEnabled,
-    builtinSlashCommands,
-    executeCommand,
-    planModeActive,
-    onOpenFiles,
-    onGoalModeChange,
-    onPlanModeChange,
-    onOpenBrowser,
-    onStartReview,
-    onSkillSelect,
-    selectedModelLabel,
-    selectedThinkingLabel,
-    subagentMode,
-    branches,
-    branchName,
-    routedSessionId,
-    workspace,
-    capabilities,
-  ]);
+  }, [Boolean(activeContextRequest), contextDirectory, contextReloadToken, workspace]);
 
   const slashMenuItems = useMemo(
     () =>
       mergeSlashCommands(builtinSlashCommands, skillCommands).map((command) =>
-        composerCommandMenuItem(command, executeCommand, onSkillSelect, "/"),
+        composerCommandMenuItem(command, executeCommand, onSkillSelect),
       ),
     [builtinSlashCommands, executeCommand, onSkillSelect, skillCommands],
   );
   const skillMenuItems = useMemo(
     () =>
       skillCommands.map((command) =>
-        composerCommandMenuItem(command, executeCommand, onSkillSelect, "$"),
+        composerCommandMenuItem(command, executeCommand, onSkillSelect),
       ),
     [executeCommand, onSkillSelect, skillCommands],
   );
-  const reviewMenuItems = useMemo(
-    () =>
-      unifiedMenuItems.filter((item) => item.key.startsWith("code-review")),
-    [unifiedMenuItems],
-  );
+  const reviewMenuItems = useMemo((): ComposerMenuItem[] => [
+    {
+      key: 'code-review-uncommitted',
+      label: '审阅未提交的更改',
+      description: '审查当前工作树和暂存区中的变更',
+      icon: <ShieldCheck size={14} />,
+      matchText: '代码审查 review uncommitted',
+      onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
+    },
+    ...branches
+      .filter(candidate => candidate && candidate !== branchName)
+      .slice(0, 6)
+      .map(branch => ({
+        key: `code-review-branch:${branch}`,
+        label: `与 ${branch} 比较`,
+        description: '从 merge-base 开始审阅当前分支的变更',
+        icon: <GitBranch size={14} />,
+        matchText: `代码审查 branch review ${branch}`,
+        onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
+      })),
+  ], [branchName, branches, onStartReview]);
+
+  const mentionMenuItems = useMemo((): ComposerMenuItem[] => {
+    if (!activeContextRequest) return [];
+    const insertReference = (
+      kind: 'thread' | 'browser',
+      label: string,
+      value: string,
+    ): void => {
+      editorRef.current?.replaceTextRangeWithToken(activeContextRequest.start, activeContextRequest.end, {
+        id: crypto.randomUUID(),
+        kind,
+        label,
+        value,
+        from: activeContextRequest.start,
+        to: activeContextRequest.start,
+      });
+      closeDropdown();
+    };
+    const items: ComposerMenuItem[] = contextTasks.map(task => ({
+      key: `thread:${task.id}`,
+      section: '最近任务',
+      label: task.title,
+      description: task.workspaceName,
+      icon: <MessageSquare size={14} />,
+      matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
+      onSelect: () => insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
+    }));
+    if (browserContext) {
+      items.push({
+        key: 'browser:current',
+        section: '浏览器',
+        label: browserContext.title || browserContext.url,
+        description: browserContext.url,
+        icon: <Globe2 size={14} />,
+        matchText: `${browserContext.title} ${browserContext.url} browser 网页`,
+        onSelect: () => insertReference('browser', `网页：${browserContext.title || browserContext.url}`, browserContext.url),
+      });
+    }
+    if (workspace && capabilities.fileAttachments && onAddFilePaths) {
+      if (contextDirectory !== '.') {
+        items.push({
+          key: 'files:parent',
+          section: '文件和文件夹',
+          label: '返回上一级',
+          description: parentWorkspacePath(contextDirectory),
+          icon: <ChevronLeft size={14} />,
+          matchText: '返回 上一级 parent',
+          onSelect: () => {
+            setContextDirectory(parentWorkspacePath(contextDirectory));
+            if (activeMention) {
+              editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@');
+            }
+          },
+        });
+      }
+      items.push({
+        key: `files:current:${contextDirectory}`,
+        section: '文件和文件夹',
+        label: '引用当前目录',
+        description: contextDirectory === '.' ? workspace.name : contextDirectory,
+        icon: <Folder size={14} />,
+        matchText: `引用 当前 目录 ${contextDirectory}`,
+        onSelect: () => void addWorkspaceContextPath(contextDirectory, activeContextRequest),
+      });
+      for (const entry of contextEntries) {
+        items.push({
+          key: `files:${entry.type}:${entry.path}`,
+          section: '文件和文件夹',
+          label: entry.name,
+          description: entry.path,
+          meta: entry.type === 'directory' ? '进入' : undefined,
+          icon: entry.type === 'directory' ? <Folder size={14} /> : <File size={14} />,
+          matchText: `${entry.name} ${entry.path}`,
+          onSelect: entry.type === 'directory'
+            ? () => {
+                setContextDirectory(entry.path);
+                if (activeMention) {
+                  editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@');
+                }
+              }
+            : () => void addWorkspaceContextPath(entry.path, activeContextRequest),
+        });
+      }
+      if (contextEntriesLoading) {
+        items.push({
+          key: 'files:loading',
+          section: '文件和文件夹',
+          label: '正在加载…',
+          icon: <Activity size={14} />,
+          matchText: 'loading 加载',
+          disabled: true,
+          onSelect: () => {},
+        });
+      } else if (contextEntriesError) {
+        items.push({
+          key: 'files:retry',
+          section: '文件和文件夹',
+          label: '重新加载',
+          description: contextEntriesError,
+          icon: <Activity size={14} />,
+          matchText: 'retry 重试 重新加载',
+          onSelect: () => setContextReloadToken(value => value + 1),
+        });
+      }
+    }
+    return items;
+  }, [
+    activeContextRequest,
+    activeMention,
+    browserContext,
+    capabilities.fileAttachments,
+    contextDirectory,
+    contextEntries,
+    contextEntriesError,
+    contextEntriesLoading,
+    contextTasks,
+    onAddFilePaths,
+    workspace,
+  ]);
   const activeMenuScopeRef = useRef("");
   const [storedActiveMenuKey, setStoredActiveMenuKey] = useState<string | null>(
     null,
   );
   const activeMenuKeyword = reviewMenuRequested
     ? ""
-    : openDropdown === "context"
-      ? ""
-      : activeSkillQuery
-        ? activeSkillQuery.query
-        : (activeMention?.query ?? slashSearch);
+    : activeSkillQuery
+      ? activeSkillQuery.query
+      : (activeContextRequest?.query ?? activeSlashQuery?.query ?? '');
   const activeMenuItems = useMemo(() => {
     const source = reviewMenuRequested
       ? reviewMenuItems
       : activeSkillQuery
         ? skillMenuItems
-        : showSlashContextDropdown
-          ? slashMenuItems
-          : unifiedMenuItems;
-    return filterUnifiedMenuItems(source, activeMenuKeyword);
+        : activeContextRequest
+          ? mentionMenuItems
+          : slashMenuItems;
+    return filterComposerMenuItems(source, activeMenuKeyword);
   }, [
     activeMenuKeyword,
     activeSkillQuery,
+    activeContextRequest,
+    mentionMenuItems,
     reviewMenuItems,
     reviewMenuRequested,
-    showSlashContextDropdown,
     skillMenuItems,
     slashMenuItems,
-    unifiedMenuItems,
   ]);
   const unifiedMenuOpen =
-    openDropdown === "context" ||
     showSlashContextDropdown ||
-    Boolean(activeMention) ||
+    Boolean(activeContextRequest) ||
     Boolean(activeSkillQuery) ||
     reviewMenuRequested;
 
@@ -964,11 +830,9 @@ export function ComposerCard({
     ? 0
     : activeSkillQuery
       ? 1
-      : showSlashContextDropdown
-        ? 2
-        : activeMention
-          ? `3:${activeMention.start}`
-          : 4}:${activeMenuKeyword}`;
+      : activeContextRequest
+        ? `2:${activeContextRequest.start}:${contextDirectory}`
+        : 3}:${activeMenuKeyword}`;
   const firstActiveMenuKey =
     activeMenuItems[firstEnabledMenuIndex(activeMenuItems)]?.key ?? null;
   const storedActiveMenuAvailable = activeMenuItems.some(
@@ -1013,10 +877,10 @@ export function ComposerCard({
   ]);
 
   useEffect(() => {
-    if (input.trimStart() !== "/") {
+    if (dismissedSlashInput !== null && dismissedSlashInput !== input) {
       setDismissedSlashInput(null);
     }
-  }, [input]);
+  }, [dismissedSlashInput, input]);
 
   useEffect(() => {
     if (dismissedSkillInput !== null && dismissedSkillInput !== input) {
@@ -1037,31 +901,12 @@ export function ComposerCard({
   function closeDropdown(): void {
     setOpenDropdown(null);
     setReviewMenuRequested(false);
+    setButtonContextRequest(null);
   }
 
-  function handleUnifiedPlusSelect(item: UnifiedMenuItem): void {
-    if (item.disabled) return;
-    // Items that manage their own dropdown (status, model, reasoning) should
-    // not be followed by closeDropdown(), otherwise React batches the two
-    // setOpenDropdown calls and the sub-dropdown never opens.
-    const managesOwnDropdown =
-      item.command?.source === "builtin" &&
-      (item.command.id === "status" ||
-        item.command.id === "model" ||
-        item.command.id === "reasoning");
-    item.onSelect();
-    if (!managesOwnDropdown) {
-      closeDropdown();
-    }
-  }
-
-  function handleUnifiedSlashSelect(item: UnifiedMenuItem): void {
-    if (item.disabled) return;
-    // Clear slash trigger text (preserve text after the /command)
-    const slashMatch = input.match(/^\/\S+/);
-    if (slashMatch) {
-      onInputChange(input.slice(slashMatch[0].length).trimStart());
-    }
+  function handleUnifiedSlashSelect(item: ComposerMenuItem): void {
+    if (item.disabled || !activeSlashQuery) return;
+    editorRef.current?.replaceTextRange(activeSlashQuery.start, activeSlashQuery.end, '');
     setDismissedSlashInput(input);
     // Same logic as handleUnifiedPlusSelect: skip closeDropdown for items
     // that open a sub-dropown, otherwise React batches both setOpenDropdown
@@ -1078,31 +923,32 @@ export function ComposerCard({
     }
   }
 
-  function handleUnifiedMentionSelect(item: UnifiedMenuItem): void {
-    if (item.disabled) return;
-    if (activeMention) {
-      const newInput =
-        input.slice(0, activeMention.start) + input.slice(activeMention.end);
-      onInputChange(newInput);
-      setDismissedMention(activeMention.start);
-      setSelectionStart(activeMention.start);
+  function handleUnifiedMentionSelect(item: ComposerMenuItem): void {
+    if (!item.disabled) item.onSelect();
+  }
+
+  async function addWorkspaceContextPath(
+    relativePath: string,
+    mention: { start: number; end: number },
+  ): Promise<void> {
+    if (!workspace || !onAddFilePaths) return;
+    try {
+      await onAddFilePaths(resolveWorkspaceContextPath(workspace.path, relativePath));
+      editorRef.current?.replaceTextRange(mention.start, mention.end, '');
+      closeDropdown();
+    } catch (error) {
+      onCommandError?.(error instanceof Error ? error.message : String(error));
     }
-    item.onSelect();
-    closeDropdown();
   }
 
-  function handleSkillQuerySelect(item: UnifiedMenuItem): void {
+  function handleSkillQuerySelect(item: ComposerMenuItem): void {
     if (item.disabled || !activeSkillQuery) return;
-    const nextInput =
-      input.slice(0, activeSkillQuery.start) +
-      input.slice(activeSkillQuery.end);
-    onInputChange(nextInput);
-    setSelectionStart(activeSkillQuery.start);
+    editorRef.current?.replaceTextRange(activeSkillQuery.start, activeSkillQuery.end, '');
     item.onSelect();
     closeDropdown();
   }
 
-  function handleReviewSelect(item: UnifiedMenuItem): void {
+  function handleReviewSelect(item: ComposerMenuItem): void {
     if (item.disabled) return;
     item.onSelect();
     setReviewMenuRequested(false);
@@ -1161,116 +1007,6 @@ export function ComposerCard({
   const usedPercent = contextUsage
     ? Math.min(100, Math.max(0, contextUsage.usedPercent))
     : 0;
-  function UnifiedMenuContent({
-    items,
-    keyword,
-    onItemSelect,
-    activeKey,
-    onActiveKeyChange,
-  }: {
-    items: UnifiedMenuItem[];
-    keyword: string;
-    onItemSelect: (item: UnifiedMenuItem) => void;
-    activeKey: string | null;
-    onActiveKeyChange: (key: string) => void;
-  }): React.ReactNode {
-    const filtered = filterUnifiedMenuItems(items, keyword);
-
-    // Group by group in fixed order
-    const grouped = new Map<UnifiedMenuGroup, UnifiedMenuItem[]>();
-    for (const item of filtered) {
-      const list = grouped.get(item.group) ?? [];
-      list.push(item);
-      grouped.set(item.group, list);
-    }
-
-    const visibleGroups = UNIFIED_GROUP_ORDER.filter(
-      (g) => (grouped.get(g)?.length ?? 0) > 0,
-    );
-
-    if (visibleGroups.length === 0) {
-      return (
-        <div
-          aria-label="Composer 命令"
-          className="chat-input__dropdown-empty"
-          id={menuId}
-          role="listbox"
-        >
-          无命令
-        </div>
-      );
-    }
-
-    return (
-      <div
-        aria-label="Composer 命令"
-        className="chat-input__dropdown-items"
-        id={menuId}
-        role="listbox"
-      >
-        {visibleGroups.map((group, gi) => {
-          const groupLabelId = `${menuId}-group-${group}`;
-          return (
-          <div aria-labelledby={groupLabelId} key={group} role="group">
-            {gi > 0 ? (
-              <div
-                aria-hidden="true"
-                className="chat-input__dropdown-separator"
-              />
-            ) : null}
-            <div
-              className="chat-input__dropdown-section-title"
-              id={groupLabelId}
-            >
-              <span className="chat-input__dropdown-section-leading" />
-              <span className="chat-input__dropdown-section-label">
-                {UNIFIED_GROUP_LABELS[group]}
-              </span>
-              <span className="chat-input__dropdown-section-trailing" />
-            </div>
-            {(grouped.get(group) ?? []).map((item) => (
-                <button
-                  aria-disabled={item.disabled ? true : undefined}
-                  aria-current={item.isActive ? "true" : undefined}
-                  className={[
-                    "chat-input__dropdown-item",
-                    item.isActive ? "is-active" : "",
-                    item.key === activeKey ? "is-keyboard-active" : "",
-                    item.disabled ? "is-disabled" : "",
-                  ].join(" ")}
-                  id={menuItemId(item.key)}
-                  key={item.key}
-                  onClick={() => {
-                    if (!item.disabled) onItemSelect(item);
-                  }}
-                  onMouseEnter={() => {
-                    if (!item.disabled) onActiveKeyChange(item.key);
-                  }}
-                  role="option"
-                  tabIndex={-1}
-                  type="button"
-                >
-                  <span className="chat-input__dropdown-leading">
-                    {item.icon}
-                  </span>
-                  <span className="chat-input__dropdown-label">
-                    {item.label}
-                  </span>
-                  <span className="chat-input__dropdown-trailing">
-                    {item.hint ? (
-                      <span className="chat-input__dropdown-hint">
-                        {item.hint}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-            ))}
-          </div>
-        )})}
-      </div>
-    );
-  }
-
   return (
     <div
       className="composer-stack tw:relative tw:flex tw:w-full tw:flex-col"
@@ -1351,7 +1087,7 @@ export function ComposerCard({
             <ComposerEditor
               ariaActiveDescendant={
                 unifiedMenuOpen && activeMenuKey
-                  ? menuItemId(activeMenuKey)
+                  ? composerMenuItemId(menuId, activeMenuKey)
                   : undefined
               }
               ariaControls={unifiedMenuOpen ? menuId : undefined}
@@ -1415,7 +1151,7 @@ export function ComposerCard({
                       event.preventDefault();
                       if (reviewMenuRequested) handleReviewSelect(item);
                       else if (activeSkillQuery) handleSkillQuerySelect(item);
-                      else if (activeMention) handleUnifiedMentionSelect(item);
+                      else if (activeContextRequest) handleUnifiedMentionSelect(item);
                       else handleUnifiedSlashSelect(item);
                       return true;
                     }
@@ -1432,6 +1168,11 @@ export function ComposerCard({
                   if (activeMention) {
                     event.preventDefault();
                     setDismissedMention(activeMention.start);
+                    return true;
+                  }
+                  if (buttonContextOpen) {
+                    event.preventDefault();
+                    setButtonContextRequest(null);
                     return true;
                   }
                   if (activeSkillQuery) {
@@ -1491,17 +1232,18 @@ export function ComposerCard({
 
         <ChatInputDropdown
           open={showSlashContextDropdown}
-          side="bottom"
+          side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
           onClose={() => {
             setDismissedSlashInput(input);
           }}
         >
-          <UnifiedMenuContent
-            activeKey={activeMenuKey}
-            items={slashMenuItems}
-            keyword={slashSearch}
+              <ComposerCommandMenu
+                id={menuId}
+                activeKey={activeMenuKey}
+                items={slashMenuItems}
+                keyword={activeSlashQuery?.query ?? ''}
             onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedSlashSelect}
           />
@@ -1509,12 +1251,13 @@ export function ComposerCard({
 
         <ChatInputDropdown
           open={Boolean(activeSkillQuery)}
-          side="bottom"
+          side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
           onClose={() => setDismissedSkillInput(input)}
         >
-          <UnifiedMenuContent
+              <ComposerCommandMenu
+                id={menuId}
             activeKey={activeMenuKey}
             items={skillMenuItems}
             keyword={activeSkillQuery?.query ?? ""}
@@ -1525,12 +1268,13 @@ export function ComposerCard({
 
         <ChatInputDropdown
           open={reviewMenuRequested}
-          side="bottom"
+          side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
           onClose={() => setReviewMenuRequested(false)}
         >
-          <UnifiedMenuContent
+              <ComposerCommandMenu
+                id={menuId}
             activeKey={activeMenuKey}
             items={reviewMenuItems}
             keyword=""
@@ -1540,18 +1284,20 @@ export function ComposerCard({
         </ChatInputDropdown>
 
         <ChatInputDropdown
-          open={Boolean(activeMention)}
-          side="bottom"
+          open={Boolean(activeContextRequest)}
+          side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
           onClose={() => {
             if (activeMention) setDismissedMention(activeMention.start);
+            setButtonContextRequest(null);
           }}
         >
-          <UnifiedMenuContent
+              <ComposerCommandMenu
+                id={menuId}
             activeKey={activeMenuKey}
-            items={unifiedMenuItems}
-            keyword={activeMention?.query ?? ""}
+            items={mentionMenuItems}
+            keyword={activeContextRequest?.query ?? ""}
             onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedMentionSelect}
           />
@@ -1560,14 +1306,27 @@ export function ComposerCard({
         <div className="composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2">
           <div className="toolbar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
             <IconButton
-              active={openDropdown === "context"}
-              aria-expanded={openDropdown === "context"}
-              color={openDropdown === "context" ? "ghostActive" : "ghostSecondary"}
+              active={buttonContextOpen}
+              aria-expanded={buttonContextOpen}
+              color={buttonContextOpen ? "ghostActive" : "ghostSecondary"}
               size="composer"
-              title="添加上下文"
-              onClick={() =>
-                setOpenDropdown(openDropdown === "context" ? null : "context")
-              }
+              title="添加文件等内容"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                if (buttonContextOpen) {
+                  setButtonContextRequest(null);
+                  return;
+                }
+                setButtonContextRequest({
+                  start: selectionStart,
+                  end: selectionStart,
+                  query: '',
+                  input,
+                });
+                setDismissedMention(activeMention?.start ?? null);
+                setDismissedSlashInput(input);
+                setDismissedSkillInput(input);
+              }}
             >
               <Plus size={APP_ICON_SIZE} />
             </IconButton>
@@ -1917,21 +1676,6 @@ export function ComposerCard({
             </button>
           </div>
         </div>
-        <ChatInputDropdown
-          open={openDropdown === "context"}
-          onClose={closeDropdown}
-          side={contextDropdownSide}
-          width="100%"
-          maxWidth="100%"
-        >
-          <UnifiedMenuContent
-            activeKey={activeMenuKey}
-            items={unifiedMenuItems}
-            keyword=""
-            onActiveKeyChange={setActiveMenuKey}
-            onItemSelect={handleUnifiedPlusSelect}
-          />
-        </ChatInputDropdown>
         <ComposerStatusOverlay
           open={openDropdown === "status"}
           onClose={closeDropdown}
@@ -2141,8 +1885,34 @@ export function ComposerCard({
         onNameChange={setSessionGroupDraftName}
         onSubmit={() => void createSessionGroup()}
       />
+      <ConfirmationDialog
+        actionLabel="确认归档"
+        description="归档后可在设置中恢复此任务。"
+        open={archiveConfirmationOpen}
+        title="归档当前任务？"
+        onAction={() => {
+          setArchiveConfirmationOpen(false)
+          onArchiveConversation?.()
+        }}
+        onCancel={() => setArchiveConfirmationOpen(false)}
+      />
     </div>
   );
+}
+
+function parentWorkspacePath(path: string): string {
+  const parts = path.replace(/\\/gu, '/').split('/').filter(Boolean)
+  parts.pop()
+  return parts.length > 0 ? parts.join('/') : '.'
+}
+
+function resolveWorkspaceContextPath(
+  workspacePath: string,
+  relativePath: string,
+): string[] {
+  if (relativePath === '.') return [workspacePath]
+  const separator = workspacePath.includes('\\') ? '\\' : '/'
+  return [`${workspacePath.replace(/[\\/]+$/u, '')}${separator}${relativePath.replace(/^[.][\\/]/u, '')}`]
 }
 
 function formatCompactNumber(value: number): string {
@@ -2163,21 +1933,18 @@ function composerCommandMenuItem(
   command: ComposerCommand,
   executeCommand: (command: ComposerSlashCommand) => Promise<void>,
   onSkillSelect: ((skill: ComposerSkillCommand) => void) | undefined,
-  triggerPrefix?: "/" | "$",
-): UnifiedMenuItem {
+): ComposerMenuItem {
   return {
-    group: command.source === "skill" ? "Skills" : "添加",
     key:
       command.source === "skill"
         ? `skill-${command.trigger}`
         : `slash-${command.id}`,
-    label: triggerPrefix
-      ? `${triggerPrefix}${command.trigger}`
-      : command.title,
-    hint: command.description,
+    label: command.title,
+    description: command.description,
+    meta: command.source === 'skill' ? skillScopeLabel(command.skill.scope) : undefined,
     icon:
       command.source === "skill" ? (
-        <Sparkles size={14} strokeWidth={1.5} />
+        <BuiltinSkillIcon skill={command.skill} size={14} />
       ) : (
         composerSlashCommandIcon(command.id)
       ),
@@ -2185,6 +1952,8 @@ function composerCommandMenuItem(
     matchText: `${command.trigger} ${command.title} ${command.description}`,
     disabled:
       command.source === "builtin" && !command.availability.enabled,
+    disabledReason:
+      command.source === 'builtin' ? command.availability.disabledReason : undefined,
     onSelect: () => {
       if (command.source === "skill") {
         onSkillSelect?.(command);
@@ -2215,6 +1984,16 @@ function composerSlashCommandIcon(
       return <Paperclip size={14} />;
     case "status":
       return <Activity size={14} />;
+    case "side":
+      return <MessageSquarePlus size={14} />;
+    case "fork":
+      return <GitFork size={14} />;
+    case "archive":
+      return <Archive size={14} />;
+    case "project":
+      return <Folder size={14} />;
+    case "task":
+      return <MessageSquare size={14} />;
   }
 }
 
@@ -2254,21 +2033,11 @@ export function resolveComposerSubmitIntent(
   return event.ctrlKey || event.metaKey ? "follow-up" : "default";
 }
 
-function filterUnifiedMenuItems(
-  items: UnifiedMenuItem[],
-  keyword: string,
-): UnifiedMenuItem[] {
-  const normalized = keyword.toLowerCase().trim();
-  return normalized
-    ? items.filter((item) => item.matchText.toLowerCase().includes(normalized))
-    : items;
-}
-
-function firstEnabledMenuIndex(items: UnifiedMenuItem[]): number {
+function firstEnabledMenuIndex(items: ComposerMenuItem[]): number {
   return items.findIndex((item) => !item.disabled);
 }
 
-function lastEnabledMenuIndex(items: UnifiedMenuItem[]): number {
+function lastEnabledMenuIndex(items: ComposerMenuItem[]): number {
   for (let index = items.length - 1; index >= 0; index -= 1) {
     if (!items[index]?.disabled) return index;
   }
@@ -2276,7 +2045,7 @@ function lastEnabledMenuIndex(items: UnifiedMenuItem[]): number {
 }
 
 function nextEnabledMenuIndex(
-  items: UnifiedMenuItem[],
+  items: ComposerMenuItem[],
   current: number,
   direction: 1 | -1,
 ): number {
@@ -2306,7 +2075,7 @@ export function getActiveComposerMention(
   const textBefore = input.slice(0, selectionStart);
   const atIndex = textBefore.lastIndexOf("@");
   if (atIndex === -1) return null;
-  if (atIndex > 0 && input[atIndex - 1] !== " ") return null;
+  if (atIndex > 0 && !/\s/u.test(input[atIndex - 1] ?? '')) return null;
   const query = textBefore.slice(atIndex + 1);
   if (query.includes(" ")) return null;
   // Cursor must be at end of query — no valid mention chars immediately after

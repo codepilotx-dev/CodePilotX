@@ -3849,7 +3849,7 @@ test('composer utility controls preserve hover and selected state hierarchy', as
   await expectSelectedBackgroundOnHover(selectedPlanMode)
 })
 
-test('composer unified menu keeps the hovered command across rerenders', async ({
+test('composer add-context menu keeps the hovered item across rerenders', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 920 })
@@ -3906,7 +3906,9 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   const editor = composer.locator(
     '.composer-editor-content[contenteditable="true"]',
   )
-  await composer.getByTitle('添加上下文').click()
+  const originalText = await editor.textContent()
+  await composer.getByTitle('添加文件等内容').click()
+  await expect(editor).toHaveText(originalText ?? '')
 
   const dropdown = composer.locator('.chat-input__dropdown:visible')
   const firstEnabledItem = dropdown
@@ -3914,7 +3916,8 @@ test('composer unified menu keeps the hovered command across rerenders', async (
     .first()
   const modelItem = dropdown
     .locator('.chat-input__dropdown-item')
-    .filter({ hasText: /^模型/ })
+    .filter({ hasText: /文件|任务|浏览器/ })
+    .first()
   await expect(firstEnabledItem).toHaveClass(/is-keyboard-active/)
 
   const menuTypography = await modelItem.evaluate((item) => {
@@ -3985,9 +3988,8 @@ test('composer unified menu keeps the hovered command across rerenders', async (
   expect(modelItemId).not.toBeNull()
   await expect(editor).toHaveAttribute('aria-activedescendant', modelItemId!)
 
-  await modelItem.click()
+  await composer.getByTitle('添加文件等内容').click()
   await expect(dropdown).toHaveCount(0)
-  await expect(page.locator('.rm-model-menu:visible')).toBeVisible()
 })
 
 test('settings toolbar trigger restores the Codex hover overlay', async ({

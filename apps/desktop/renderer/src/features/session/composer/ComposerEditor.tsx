@@ -62,12 +62,43 @@ export const composerSchema = new Schema({
         ]
       },
     },
+    context_token: {
+      atom: true,
+      attrs: {
+        id: { default: '' },
+        kind: { default: 'thread' },
+        label: { default: '' },
+        value: { default: '' },
+      },
+      group: 'inline',
+      inline: true,
+      selectable: true,
+      toDOM: node => ['span', {
+        'aria-label': `${node.attrs.kind === 'browser' ? '网页' : '任务'}引用 ${node.attrs.label}`,
+        'data-composer-token': node.attrs.kind,
+        'data-token-id': node.attrs.id,
+        contenteditable: 'false',
+        class: 'composer-inline-context-token',
+      },
+      ['span', {
+        'aria-hidden': 'true',
+        class: 'composer-inline-context-token-icon',
+      }, node.attrs.kind === 'browser' ? '◎' : '@'],
+      ['span', { class: 'composer-inline-context-token-label' }, String(node.attrs.label)],
+      ],
+    },
   },
 })
 
 export type ComposerEditorHandle = {
   focus: () => void
   insertText: (text: string) => void
+  replaceTextRange: (start: number, end: number, text: string) => void
+  replaceTextRangeWithToken: (
+    start: number,
+    end: number,
+    token: ComposerDocumentToken,
+  ) => void
 }
 
 export type ComposerEditorProps = {
@@ -136,6 +167,28 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
         const view = viewRef.current
         if (!view || !text) return
         view.dispatch(insertTextTransaction(view.state, text).scrollIntoView())
+        view.focus()
+      },
+      replaceTextRange: (start, end, text) => {
+        const view = viewRef.current
+        if (!view) return
+        const from = positionAtTextOffset(view.state.doc, start)
+        const to = positionAtTextOffset(view.state.doc, end)
+        view.dispatch(view.state.tr.insertText(text, from, to).scrollIntoView())
+        view.focus()
+      },
+      replaceTextRangeWithToken: (start, end, token) => {
+        const view = viewRef.current
+        if (!view) return
+        const from = positionAtTextOffset(view.state.doc, start)
+        const to = positionAtTextOffset(view.state.doc, end)
+        const node = composerTokenNode(token)
+        const transaction = view.state.tr.replaceWith(from, to, node)
+        view.dispatch(
+          transaction
+            .setSelection(TextSelection.create(transaction.doc, from + node.nodeSize))
+            .scrollIntoView(),
+        )
         view.focus()
       },
     }), [])
@@ -352,21 +405,29 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
 export function composerDocumentToProseMirrorDocument(
   document: ComposerDocument,
 ) {
-  const skillToken = document.tokens.find(token => token.kind === 'skill')
-  const paragraphs = document.text.split('\n').map((line, index) => {
+  const lines = document.text.split('\n')
+  const tokens = document.tokens
+    .map((token, index) => ({ token, index }))
+    .sort((left, right) => left.token.from - right.token.from || left.index - right.index)
+  let tokenIndex = 0
+  let textOffset = 0
+  const paragraphs = lines.map((line, index) => {
     const content: ProseMirrorNode[] = []
-    if (index === 0) {
-      if (skillToken) {
-        const token = skillToken
-        content.push(composerSchema.nodes.skill_token.create({
-          id: token.id,
-          name: token.name ?? token.label,
-          label: token.label,
-          value: token.value,
-        }))
+    let lineOffset = 0
+    const lineEnd = textOffset + line.length
+    while (tokenIndex < tokens.length) {
+      const next = tokens[tokenIndex]
+      if (!next || (next.token.from > lineEnd && index < lines.length - 1)) break
+      const localOffset = Math.max(0, Math.min(line.length, next.token.from - textOffset))
+      if (localOffset > lineOffset) {
+        content.push(composerSchema.text(line.slice(lineOffset, localOffset)))
       }
+      content.push(composerTokenNode(next.token))
+      lineOffset = localOffset
+      tokenIndex += 1
     }
-    if (line) content.push(composerSchema.text(line))
+    if (lineOffset < line.length) content.push(composerSchema.text(line.slice(lineOffset)))
+    textOffset = lineEnd + (index < lines.length - 1 ? 1 : 0)
     return composerSchema.nodes.paragraph.create(null, content)
   })
   return composerSchema.nodes.doc.create(null, paragraphs)
@@ -391,13 +452,11 @@ export function composerDocumentFromProseMirrorDocument(
     paragraph.forEach(node => {
       const token = composerTokenFromNode(node)
       if (token) {
-        if (tokens.length === 0) {
-          tokens.push({
-            ...token,
-            from: textOffset + line.length,
-            to: textOffset + line.length,
-          })
-        }
+        tokens.push({
+          ...token,
+          from: textOffset + line.length,
+          to: textOffset + line.length,
+        })
         return
       }
       line += node.textContent
@@ -417,6 +476,17 @@ function textFromDocument(doc: EditorState['doc']): string {
 function composerTokenFromNode(
   node: ProseMirrorNode,
 ): ComposerDocumentToken | null {
+  if (node.type.name === 'context_token') {
+    const kind = node.attrs.kind === 'browser' ? 'browser' : 'thread'
+    return {
+      id: String(node.attrs.id),
+      kind,
+      label: String(node.attrs.label),
+      value: String(node.attrs.value),
+      from: 0,
+      to: 0,
+    }
+  }
   if (node.type.name !== 'skill_token') return null
   return {
     id: String(node.attrs.id),
@@ -427,6 +497,26 @@ function composerTokenFromNode(
     from: 0,
     to: 0,
   }
+}
+
+function composerTokenNode(token: ComposerDocumentToken): ProseMirrorNode {
+  if (token.kind === 'skill') {
+    return composerSchema.nodes.skill_token.create({
+      id: token.id,
+      name: token.name ?? token.label,
+      label: token.label,
+      value: token.value,
+    })
+  }
+  if (token.kind === 'thread' || token.kind === 'browser') {
+    return composerSchema.nodes.context_token.create({
+      id: token.id,
+      kind: token.kind,
+      label: token.label,
+      value: token.value,
+    })
+  }
+  throw new Error(`Unsupported Composer token kind: ${token.kind}`)
 }
 
 function textOffsetAtPosition(state: EditorState, position: number): number {

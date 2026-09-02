@@ -105,7 +105,6 @@ import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
-import { useLiveResizeValue } from '../useLiveResizeValue.js'
 import type { ResizePhase } from '../useSidebarResizeCollapseConfirm.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
 import type {
@@ -125,6 +124,7 @@ import { SubagentDockContent } from '../../session/subagents/SubagentDockContent
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
+import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 
 const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
 const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
@@ -358,9 +358,12 @@ export function DesktopLayout(): React.ReactNode {
     rightDockMinWidth,
     rightDockMaxWidth,
     rightDockWidth,
+    rightPanelCommittedSize,
+    rightPanelLiveResize,
     bottomPanelMinHeight,
     bottomPanelMaxHeight,
     bottomPanelHeight,
+    bottomPanelLiveResize,
     openRightDockTab,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
@@ -383,11 +386,6 @@ export function DesktopLayout(): React.ReactNode {
   } = useWorkbenchShellController()
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
-  const rightPanelCommittedSize = rightDockFullWidth
-    ? Math.max(workspaceWidth, rightDockWidth)
-    : rightDockWidth
-  const rightPanelLiveResize = useLiveResizeValue(rightPanelCommittedSize)
-  const bottomPanelLiveResize = useLiveResizeValue(bottomPanelHeight)
   const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
   const commandMenuInputRef = useRef<HTMLInputElement>(null)
@@ -2237,6 +2235,21 @@ export function DesktopLayout(): React.ReactNode {
         ),
       }))
   }, [currentWorkspace?.path, sessions])
+  const composerContextTasks = useMemo(
+    () => buildCommandMenuTasks(
+      sessions.filter(item => item.id !== routedSessionId),
+      '',
+    ).map(item => ({
+      id: item.id,
+      title: item.title,
+      workspaceName: item.workspaceName,
+    })),
+    [routedSessionId, sessions],
+  )
+  const composerBrowserContext = useMemo(() => {
+    if (!browserState?.open || !/^https?:\/\//u.test(browserState.url)) return null
+    return { title: browserState.title, url: browserState.url }
+  }, [browserState?.open, browserState?.title, browserState?.url])
 
   const activeSessionFallbackTitle = useMemo(
     () => {
@@ -2516,6 +2529,8 @@ export function DesktopLayout(): React.ReactNode {
           modelPresets: selectedProviderModelPresets,
           providerOptions: providerModelOptions,
           recentWorkspaces,
+          contextTasks: composerContextTasks,
+          browserContext: composerBrowserContext,
           workspace: currentWorkspace,
           attachments: composerAttachments,
           onAttachmentsChange: setComposerAttachments,
@@ -2532,8 +2547,8 @@ export function DesktopLayout(): React.ReactNode {
           onOpenWorkspace: handleOpenRecentWorkspace,
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
-          onOpenBrowser: handleOpenBrowser,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+          onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: invocation => {
             void handleActivateComposerSkill(invocation)
           },
@@ -2622,6 +2637,8 @@ export function DesktopLayout(): React.ReactNode {
         modelPresets={sideModelPresets}
         providerOptions={providerModelOptions}
         recentWorkspaces={recentWorkspaces}
+        contextTasks={composerContextTasks}
+        browserContext={composerBrowserContext}
         workspace={currentWorkspace}
         attachments={sideChatAttachments}
         onAttachmentsChange={setSideChatAttachments}
@@ -2652,7 +2669,6 @@ export function DesktopLayout(): React.ReactNode {
         onOpenWorkspace={handleOpenRecentWorkspace}
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
-        onOpenBrowser={handleOpenBrowser}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
         onSkillTokenActivate={invocation => {
           void handleActivateComposerSkill(invocation)

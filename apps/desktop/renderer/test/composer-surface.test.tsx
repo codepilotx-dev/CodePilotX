@@ -55,7 +55,6 @@ function composerCardProps(
     onPermissionChange: () => {},
     onSubmit: () => {},
     onThinkingChange: () => {},
-    onOpenFiles: () => {},
     placement: 'new-session',
     ...overrides,
   }

@@ -15,6 +15,7 @@ import {
   BuiltinSkillIcon,
   getBuiltinSkillPresentation,
   isBuiltinSkill,
+  skillScopeLabel,
 } from '../../plugins/builtinSkillPresentation.js'
 
 type Props = {
@@ -184,21 +185,6 @@ export function SkillDetailsDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
-}
-
-export function skillScopeLabel(
-  scope: DesktopInstalledSkill['scope'],
-): string {
-  switch (scope) {
-    case 'repo':
-      return '团队'
-    case 'user':
-      return '个人'
-    case 'system':
-      return '内置'
-    case 'admin':
-      return '管理员安装'
-  }
 }
 
 function errorMessageOf(error: unknown, fallback: string): string {

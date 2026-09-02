@@ -508,6 +508,31 @@
   box-shadow: var(--cpx-sys-focus-ring-inset);
 }
 
+.composer-inline-context-token {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cpx-sys-space-1);
+  margin-inline: var(--cpx-sys-space-1);
+  padding-inline: var(--cpx-sys-space-1);
+  border-radius: var(--cpx-sys-radius-sm);
+  background: var(--cpx-sys-color-accent-subtle-bg);
+  color: var(--cpx-sys-color-accent-fg);
+  font-size: inherit;
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: inherit;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.composer-inline-context-token-icon {
+  color: var(--cpx-sys-color-fg-tertiary);
+}
+
+.composer-inline-context-token.ProseMirror-selectednode {
+  outline: none;
+  box-shadow: var(--cpx-sys-focus-ring-inset);
+}
+
 .composer .icon-button {
   width: var(--cpx-sys-space-8);
   height: var(--cpx-sys-space-8);

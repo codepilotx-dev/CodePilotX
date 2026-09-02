@@ -74,3 +74,18 @@ export function BuiltinSkillIcon({
     />
   )
 }
+
+export function skillScopeLabel(
+  scope: DesktopInstalledSkill['scope'],
+): string {
+  switch (scope) {
+    case 'repo':
+      return '团队'
+    case 'user':
+      return '个人'
+    case 'system':
+      return '内置'
+    case 'admin':
+      return '管理员安装'
+  }
+}
