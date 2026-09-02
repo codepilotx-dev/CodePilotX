@@ -132,7 +132,12 @@ test.describe("真实 Electron 宿主", () => {
       isEnvControlled: true,
     })
 
-    await page.evaluate(() => window.codePilotXDesktop.openPetOverlay())
+    await page.evaluate(() =>
+      Promise.all([
+        window.codePilotXDesktop.openPetOverlay(),
+        window.codePilotXDesktop.openPetOverlay(),
+      ]),
+    )
     await expect
       .poll(() =>
         application
@@ -141,6 +146,11 @@ test.describe("真实 Electron 宿主", () => {
           ?.url() ?? null,
       )
       .toMatch(/\/#\/pet-overlay$/)
+    expect(
+      application
+        .windows()
+        .filter(candidate => candidate.url().endsWith("/#/pet-overlay")),
+    ).toHaveLength(1)
     const overlayPage = application
       .windows()
       .find(candidate => candidate.url().endsWith("/#/pet-overlay"))

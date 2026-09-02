@@ -8,6 +8,7 @@ import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useEverOpened } from './hooks/usePresenceRetention.js'
 import { PageZoomCapsule } from './components/PageZoomCapsule.js'
+import { PET_OVERLAY_HASH_PREFIX } from './startup/startupSplashHandoff.js'
 
 const GlobalErrorModal = lazy(() => import('./components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 
@@ -82,7 +83,9 @@ export function App(): React.ReactNode {
                     />
                   </Suspense>
                 ) : null}
-                <PageZoomCapsule />
+                {window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX)
+                  ? null
+                  : <PageZoomCapsule />}
                 <RouterProvider router={router} />
               </div>
             }
