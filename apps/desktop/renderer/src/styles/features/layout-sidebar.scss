@@ -129,6 +129,10 @@
 .sidebar-product-mode-label {
   min-width: 0;
   overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .settings-nav-scroll-content {
@@ -479,7 +483,13 @@
 }
 
 .sidebar-section-label {
+  min-width: 0;
+  overflow: hidden;
   color: var(--cpx-sys-color-fg-tertiary);
+  text-overflow: clip;
+  white-space: nowrap;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .sidebar-section-main {
@@ -678,9 +688,7 @@
 }
 
 :where(
-  .sidebar-product-mode-label,
   .sidebar-item-label,
-  .sidebar-section-label,
   .sidebar-focus-section-title,
   .sidebar-project-title-text,
   .sidebar-session-workspace-meta__name,

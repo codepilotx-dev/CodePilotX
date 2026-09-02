@@ -2655,6 +2655,7 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     await expect(row).toHaveCSS('border-radius', sidebarRowRadius)
   }
   const sidebar = page.locator('aside.desktop-sidebar')
+  const productModeLabel = sidebar.locator('.sidebar-product-mode-label')
   const sectionHeader = page.locator(
     '.sidebar-section:has([data-sidebar-section-id="projects"]) .sidebar-section-header',
   )
@@ -2702,7 +2703,21 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   expect(footerMainBox.x - sidebarBox.x).toBeCloseTo(40, 0)
   expect(projectRowBox.y - (sectionHeaderBox.y + sectionHeaderBox.height)).toBeLessThanOrEqual(0.5)
   await expect(navRow).toHaveCSS('font-size', '14px')
-  await expect(sectionHeader.locator('.sidebar-section-title')).toHaveCSS('font-size', '14px')
+  await expect(productModeLabel).toHaveCSS('white-space', 'nowrap')
+  await expect(productModeLabel).toHaveCSS('text-overflow', 'clip')
+  expect(await productModeLabel.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
+  const sectionTitle = sectionHeader.locator('.sidebar-section-title')
+  const sectionLabel = sectionTitle.locator('.sidebar-section-label')
+  await expect(sectionTitle).toHaveCSS('font-size', '14px')
+  await expect(sectionLabel).toHaveCSS('white-space', 'nowrap')
+  await expect(sectionLabel).toHaveCSS('text-overflow', 'clip')
+  expect(await sectionLabel.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
   expect(
     await sidebar.locator('svg').evaluateAll(elements =>
       [...new Set(elements.map(element => {
