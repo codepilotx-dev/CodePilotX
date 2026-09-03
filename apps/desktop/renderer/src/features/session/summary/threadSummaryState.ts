@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export const THREAD_SUMMARY_PANEL_WIDTH = 300;
+export const THREAD_SUMMARY_PANEL_WIDTH = 260;
 export const THREAD_SUMMARY_PANEL_GAP = 16;
 export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959;
 export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535;

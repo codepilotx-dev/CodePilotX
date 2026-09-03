@@ -628,7 +628,7 @@ describe('Codex CPX design system token contract', () => {
       summary.match(/--thread-summary-inline-width:/g),
     ).toHaveLength(1)
     expect(summary).toMatch(
-      /\.workflow-page__main\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 75\);/,
+      /\.workflow-page__main,\s*\.thread-summary-popover\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 65\);/,
     )
     expect(summary).toMatch(
       /\.workflow-page__main\[data-thread-summary-inline="true"\][\s\S]*?padding-inline-end: calc\([\s\S]*?var\(--thread-summary-inline-width\)/,
@@ -639,7 +639,7 @@ describe('Codex CPX design system token contract', () => {
     expect(summary).toMatch(
       /\.thread-summary-popover,[\s\S]*?\.thread-summary-error\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,
     )
-    expect(summary).not.toMatch(/width:\s*(?:272|300)px/)
+    expect(summary).not.toMatch(/width:\s*(?:260|272|300)px/)
   })
 
   test('keeps component tokens private to shared component styles', async () => {

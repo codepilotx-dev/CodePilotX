@@ -1,5 +1,6 @@
-.workflow-page__main {
-  --thread-summary-inline-width: calc(var(--cpx-sys-space-1) * 75);
+.workflow-page__main,
+.thread-summary-popover {
+  --thread-summary-inline-width: calc(var(--cpx-sys-space-1) * 65);
 }
 
 .workflow-page__main[data-thread-summary-inline="true"] {
