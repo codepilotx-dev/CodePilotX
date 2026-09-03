@@ -711,7 +711,6 @@
 .canonical-user-message__bubble .md-body,
 .canonical-text-item--process > .md-body,
 .canonical-text-item--result > .md-body {
-  p,
   blockquote,
   ul,
   ol,
@@ -724,6 +723,14 @@
   }
 }
 
+.canonical-text-item--process > .md-body,
+.canonical-text-item--result > .md-body {
+  p {
+    margin-block: var(--cpx-sys-space-3);
+  }
+}
+
+.canonical-user-message__bubble .md-body,
 .canonical-text-item--process > .md-body,
 .canonical-text-item--result > .md-body {
   > :first-child {

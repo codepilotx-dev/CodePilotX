@@ -511,6 +511,9 @@ describe('non-color design token contracts', () => {
       /\.canonical-user-message__bubble \.md-body,\s*\.canonical-text-item--process > \.md-body,\s*\.canonical-text-item--result > \.md-body/,
     )
     expect(conversation).toMatch(
+      /\.canonical-text-item--process > \.md-body,\s*\.canonical-text-item--result > \.md-body\s*\{\s*p\s*\{\s*margin-block:\s*var\(--cpx-sys-space-3\);/,
+    )
+    expect(conversation).toMatch(
       /\.canonical-turn__process\s*\{\s*gap:\s*var\(--cpx-sys-space-1\);/,
     )
     expect(markdown).toMatch(
