@@ -19,12 +19,14 @@ import {
 type Props = {
   appearance: ProjectAppearance
   disabled?: boolean
+  glyphSize?: number
   onChange: (appearance: ProjectAppearance) => void
 }
 
 export function ProjectAppearancePicker({
   appearance,
   disabled = false,
+  glyphSize = 16,
   onChange,
 }: Props): React.ReactNode {
   const [open, setOpen] = useState(false)
@@ -49,7 +51,7 @@ export function ProjectAppearancePicker({
           disabled={disabled}
           type="button"
         >
-          <ProjectAppearanceGlyph appearance={appearance} size={18} />
+          <ProjectAppearanceGlyph appearance={appearance} size={glyphSize} />
         </button>
       )}
       width="auto"

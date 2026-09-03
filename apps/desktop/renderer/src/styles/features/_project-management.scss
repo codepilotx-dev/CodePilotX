@@ -40,28 +40,20 @@
 }
 
 .project-edit-backdrop {
-  position: fixed;
-  z-index: var(--cpx-sys-z-composer);
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: var(--cpx-sys-color-scrim);
-  backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
+  backdrop-filter: none;
 }
 
 .project-edit-dialog {
-  display: grid;
-  width: min(35rem, calc(100vw - 2rem));
-  max-height: min(42rem, calc(100vh - 2rem));
-  overflow: auto;
-  gap: var(--cpx-sys-space-5);
-  border: 1px solid var(--color-app-border);
-  border-radius: var(--cpx-sys-radius-xl);
+  display: flex;
+  flex-direction: column;
+  width: min(32rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-5);
   outline: none;
-  background: var(--color-app-chrome);
-  padding: var(--cpx-sys-space-6);
-  color: var(--color-app-text);
-  box-shadow: var(--cpx-sys-shadow-floating);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .project-edit-header {
@@ -73,11 +65,11 @@
   h2 {
     margin: 0;
     font: var(--cpx-sys-type-heading-lg);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
-.project-edit-close,
-.project-edit-folder-action {
+.project-edit-close {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -85,12 +77,12 @@
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-secondary);
   cursor: pointer;
 
   &:hover:not(:disabled) {
     background: var(--cpx-sys-color-hover);
-    color: var(--color-app-text);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:disabled {
@@ -101,105 +93,100 @@
 
 .project-edit-name-field {
   display: flex;
-  min-height: 2.75rem;
+  align-items: center;
+  height: 2.5rem;
+  min-height: 2.5rem;
   overflow: hidden;
-  border: 1px solid var(--color-app-border);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--color-app-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 
   &:focus-within {
-    border-color: var(--color-app-accent);
+    border-color: var(--cpx-sys-color-border-strong);
     box-shadow: var(--cpx-sys-focus-ring-inset);
   }
-}
 
-.project-appearance-trigger {
-  display: inline-flex;
-  width: 3rem;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-inline-end: 1px solid var(--color-app-border);
-  background: var(--cpx-sys-color-surface-recessed);
-  color: var(--color-app-text-soft);
-  cursor: pointer;
+  .project-appearance-trigger {
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: var(--cpx-sys-color-fg-secondary);
+    cursor: pointer;
+    padding: 0;
 
-  &:hover:not(:disabled) {
-    background: var(--cpx-sys-color-hover);
-    color: var(--color-app-text);
+    &:hover:not(:disabled) {
+      background: var(--cpx-sys-color-hover);
+      color: var(--cpx-sys-color-fg-primary);
+    }
   }
 }
 
 .project-edit-name-input {
   min-width: 0;
   flex: 1;
+  height: 100%;
   border: 0;
   outline: 0;
   background: transparent;
-  padding: 0 var(--cpx-sys-space-4);
-  color: var(--color-app-text);
-  font: inherit;
-  font-size: var(--cpx-sys-font-size-md);
+  padding: 0 var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-fg-primary);
+  font: var(--cpx-sys-type-body);
 }
 
 .project-edit-folders {
-  display: grid;
-  gap: var(--cpx-sys-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-2);
 
   h3 {
     margin: 0;
     font: var(--cpx-sys-type-row-title);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
 .project-edit-folder-list {
-  overflow: hidden;
-  border: 1px solid var(--color-app-border);
+  overflow-y: auto;
+  max-height: 15rem;
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
-  background: var(--color-app-canvas);
+  background: var(--cpx-sys-color-surface-canvas);
 }
 
 .project-edit-folder-row,
 .project-edit-add-folder {
   display: flex;
-  min-height: 3.25rem;
+  height: 3rem;
+  min-height: 3rem;
   width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: var(--cpx-sys-space-3);
   border: 0;
-  border-bottom: 1px solid var(--color-app-border);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   background: transparent;
-  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-  color: var(--color-app-text);
+  padding: 0 var(--cpx-sys-space-3);
+  color: var(--cpx-sys-color-fg-primary);
   text-align: start;
 }
 
-.project-edit-folder-row.is-missing {
-  color: var(--color-app-text-soft);
+.project-edit-folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--cpx-sys-space-1);
+  font: var(--cpx-sys-type-body);
 }
 
-.project-edit-folder-copy {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  gap: var(--cpx-sys-space-1);
-
-  strong,
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  strong {
-    font: var(--cpx-sys-type-row-title);
-  }
-
-  span {
-    color: var(--color-app-text-soft);
-    font: var(--cpx-sys-type-caption);
-  }
+.project-edit-folder-row.is-missing {
+  color: var(--cpx-sys-color-fg-tertiary);
 }
 
 .project-edit-primary-badge {
@@ -207,25 +194,48 @@
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-secondary);
   font-size: var(--cpx-sys-font-size-xs);
+  line-height: var(--cpx-sys-line-height-tight);
 }
 
 .project-edit-folder-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   width: 1.875rem;
   height: 1.875rem;
+  border: 0;
+  border-radius: var(--cpx-sys-radius-md);
+  background: transparent;
+  color: var(--cpx-sys-color-fg-secondary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
 }
 
 .project-edit-add-folder {
   border-bottom: 0;
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-secondary);
   cursor: pointer;
-  font: inherit;
-  font-size: var(--cpx-sys-font-size-md);
+  font: var(--cpx-sys-type-body);
+
+  span {
+    padding: 0 var(--cpx-sys-space-1);
+  }
 
   &:hover:not(:disabled) {
     background: var(--cpx-sys-color-hover);
-    color: var(--color-app-text);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -234,12 +244,13 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
+  margin-top: var(--cpx-sys-space-2);
+}
 
-  > div {
-    display: flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-3);
-  }
+.project-edit-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-3);
 }
 
 .project-edit-delete {
@@ -248,19 +259,19 @@
 
 .project-edit-empty {
   margin: 0;
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-tertiary);
   font: var(--cpx-sys-type-body);
 }
 
 .project-appearance-popover {
-  z-index: var(--cpx-sys-z-composer);
+  z-index: var(--cpx-sys-z-popover);
   width: 16.25rem;
-  border: 1px solid var(--color-app-border);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-xl);
   outline: none;
-  background: var(--color-app-chrome);
+  background: var(--cpx-sys-color-surface-raised);
   padding: var(--cpx-sys-space-2);
-  color: var(--color-app-text);
+  color: var(--cpx-sys-color-fg-primary);
   box-shadow: var(--cpx-sys-shadow-floating);
 }
 
@@ -269,7 +280,7 @@
   grid-template-columns: repeat(6, 1fr);
   gap: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-3);
-  border-bottom: 1px solid var(--color-app-border);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 }
 
 .project-appearance-color {
@@ -281,21 +292,21 @@
   border: 3px solid transparent;
   border-radius: var(--cpx-sys-radius-full);
   background: currentcolor;
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-secondary);
   cursor: pointer;
   box-shadow: var(--cpx-sys-focus-ring-inset);
 
   &[data-project-color='default'] {
-    background: var(--color-app-text-soft);
+    background: var(--cpx-sys-color-fg-secondary);
   }
 
   &.is-selected {
-    border-color: var(--color-app-chrome);
+    border-color: var(--cpx-sys-color-surface-canvas);
     outline: 2px solid currentcolor;
   }
 
   svg {
-    color: var(--color-app-chrome);
+    color: var(--cpx-sys-color-surface-canvas);
   }
 }
 
@@ -315,13 +326,13 @@
   border: 0;
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-app-text-soft);
+  color: var(--cpx-sys-color-fg-secondary);
   cursor: pointer;
 
   &:hover,
   &.is-selected {
     background: var(--cpx-sys-color-hover);
-    color: var(--color-app-text);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 

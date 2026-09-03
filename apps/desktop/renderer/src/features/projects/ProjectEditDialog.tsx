@@ -284,6 +284,7 @@ export function ProjectEditDialog({
                 <ProjectAppearancePicker
                   appearance={draftAppearance}
                   disabled={busy}
+                  glyphSize={16}
                   onChange={nextAppearance => {
                     setDraftAppearance(nextAppearance)
                     onAppearanceChange(nextAppearance)
@@ -313,14 +314,17 @@ export function ProjectEditDialog({
                       )}
                       key={folder.id}
                     >
-                      <Folder size={APP_ICON_SIZE + 2} />
-                      <div className="project-edit-folder-copy">
-                        <strong>{folder.name}</strong>
-                        <span title={folder.path}>{folder.path}</span>
-                      </div>
-                      {folder.role === 'primary' ? (
+                      <Folder size={APP_ICON_SIZE} />
+                      <span
+                        className="project-edit-folder-name"
+                        title={folder.path}
+                      >
+                        {folder.name}
+                      </span>
+                      {draftFolders.length > 1 && folder.role === 'primary' ? (
                         <span className="project-edit-primary-badge">主目录</span>
-                      ) : (
+                      ) : null}
+                      {draftFolders.length > 1 && folder.role !== 'primary' ? (
                         <IconButton
                           className="project-edit-folder-action"
                           color="ghostSecondary"
@@ -332,7 +336,7 @@ export function ProjectEditDialog({
                         >
                           <Star size={APP_ICON_SIZE} />
                         </IconButton>
-                      )}
+                      ) : null}
                       {folder.availability === 'missing' ? (
                         <IconButton
                           className="project-edit-folder-action"
@@ -365,8 +369,8 @@ export function ProjectEditDialog({
                     type="button"
                     onClick={() => void addFolder()}
                   >
-                    <FolderPlus size={APP_ICON_SIZE + 2} />
-                    添加文件夹
+                    <FolderPlus size={APP_ICON_SIZE} />
+                    <span>添加文件夹</span>
                   </button>
                 </div>
               </section>
@@ -376,22 +380,27 @@ export function ProjectEditDialog({
           <footer className="project-edit-footer">
             <Button
               className="project-edit-delete"
-              disabled={busy || !projectId}
               color="danger"
+              disabled={busy || !projectId}
+              size="medium"
               onClick={onRequestRemove}
             >
               <Trash2 size={APP_ICON_SIZE} />
               删除项目
             </Button>
-            <div>
+            <div className="project-edit-footer-actions">
               <Dialog.Close asChild>
-                <Button color="secondary" disabled={busy}>取消</Button>
+                <Button color="secondary" disabled={busy} size="medium">
+                  取消
+                </Button>
               </Dialog.Close>
-              <Button color="primary"
+              <Button
+                color="primary"
                 disabled={
                   busy || !projectId || !draftName.trim() || !primaryDraft
                 }
                 loading={busy}
+                size="medium"
                 onClick={() => void save()}
               >
                 保存
