@@ -15,6 +15,7 @@ import {
   MessagesSquare,
   MessageSquarePlus,
   MoreHorizontal,
+  Menu,
   Pencil,
   Pin,
   Sparkles,
@@ -195,6 +196,7 @@ export function ConversationPage(): React.ReactNode {
     rightDockPlanEventId,
   } = useQuickChatContext();
   const {
+    conversationWidth,
     defaultOpenTargetId,
     setDefaultOpenTargetId,
     diffMarkerStyle,
@@ -1055,6 +1057,24 @@ export function ConversationPage(): React.ReactNode {
             </PopoverRadioGroup>
           </PopoverMenu>
         </div>
+        <IconButton
+          color="ghostSecondary"
+          size="toolbar"
+          title={`聊天宽度：${{ default: "默认", narrow: "窄", wide: "宽" }[conversationWidth]}，点击切换为${{ default: "窄", narrow: "宽", wide: "默认" }[conversationWidth]}`}
+          onClick={() => {
+            settingsDraft.setValue("conversationWidth", current =>
+              current === "default" ? "narrow" : current === "narrow" ? "wide" : "default",
+            );
+            settingsDraft.autoSave();
+          }}
+        >
+          <Menu
+            className="conversation-width-icon"
+            data-width={conversationWidth}
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </IconButton>
         {threadSummary.displayMode === "overlay" ? (
           <ThreadSummaryPopover
             open={threadSummary.isPopoverOpen}
@@ -1072,6 +1092,7 @@ export function ConversationPage(): React.ReactNode {
     [
       branches,
       activeSessionId,
+      conversationWidth,
       defaultOpenTargetId,
       onBranchSelect,
       onCommitOrPush,
@@ -1084,6 +1105,8 @@ export function ConversationPage(): React.ReactNode {
       openTargets,
       navigate,
       selectedOpenTarget,
+      settingsDraft.setValue,
+      settingsDraft.autoSave,
       settingsDraft.values.terminalProfileId,
       setSidebarSessionPins,
       threadSummary,
@@ -1213,6 +1236,7 @@ export function ConversationPage(): React.ReactNode {
   return (
     <section
       ref={workflowPageRef}
+      data-conversation-width={conversationWidth}
       className={
         activePermissionRequest
           ? "conversation-page workflow-page approval-active tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text"

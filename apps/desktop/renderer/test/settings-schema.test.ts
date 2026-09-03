@@ -526,3 +526,19 @@ test("不再持久化 GitHub OAuth 客户端与认证服务地址", () => {
   expect("githubOAuthClientId" in settings).toBe(false)
   expect("authBaseUrl" in settings).toBe(false)
 })
+
+
+describe('聊天宽度', () => {
+  test('保留三个档位，旧设置及非法值回落默认宽度', () => {
+    expect(defaultDesktopStoredSettings().conversationWidth).toBe('default')
+    expect(normalizeDesktopStoredSettings({}).conversationWidth).toBe('default')
+    for (const conversationWidth of ['default', 'narrow', 'wide'] as const) {
+      expect(normalizeDesktopStoredSettings({ conversationWidth }).conversationWidth)
+        .toBe(conversationWidth)
+    }
+    for (const conversationWidth of ['full', '', 1250, null]) {
+      expect(normalizeDesktopStoredSettings({ conversationWidth }).conversationWidth)
+        .toBe('default')
+    }
+  })
+})

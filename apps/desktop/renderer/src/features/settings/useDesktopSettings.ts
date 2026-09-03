@@ -92,6 +92,7 @@ export type UseDesktopSettingsResult = {
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   reviewDelivery: DesktopReviewDelivery
+  conversationWidth: StoredDesktopSettings['conversationWidth']
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
@@ -498,6 +499,8 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
   const [reviewDelivery, setReviewDelivery] = useState<DesktopReviewDelivery>(
     initial.reviewDelivery,
   )
+  const [conversationWidth, setConversationWidth] =
+    useState<StoredDesktopSettings['conversationWidth']>(initial.conversationWidth)
   const [diffMarkerStyle, setDiffMarkerStyle] =
     useState<DesktopDiffMarkerStyle>(initial.diffMarkerStyle)
   const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
@@ -644,6 +647,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
         setReviewDelivery(settings.reviewDelivery)
+        setConversationWidth(settings.conversationWidth)
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setSidebarOrganization(settings.sidebarOrganization)
@@ -738,6 +742,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarProductMode,
@@ -813,6 +818,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarProductMode,
@@ -938,6 +944,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
       setReviewDelivery(snapshot.reviewDelivery)
+      setConversationWidth(snapshot.conversationWidth)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
       setSidebarOrganization(snapshot.sidebarOrganization)
       setSidebarProductMode(snapshot.sidebarProductMode)
@@ -1148,6 +1155,7 @@ defaultOpenTargetId,
     githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
     sidebarOrganization,
     sidebarProductMode,

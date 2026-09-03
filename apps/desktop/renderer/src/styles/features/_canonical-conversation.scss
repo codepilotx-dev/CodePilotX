@@ -1,4 +1,17 @@
+.conversation-width-icon {
+  transform-origin: center;
+
+  &[data-width='narrow'] {
+    transform: scaleX(0.75);
+  }
+
+  &[data-width='wide'] {
+    transform: scaleX(1.25);
+  }
+}
+
 .conversation-page {
+  --conversation-content-max-width: var(--cpx-sys-layout-content-max-width);
   --session-content-inline-start-gutter: 48px;
   --session-content-inline-end-gutter: 16px;
   --session-content-w: calc(
@@ -7,9 +20,16 @@
   );
   --conversation-item-gap: var(--cpx-sys-space-3);
   --conversation-grouped-item-gap: 4px;
-  --thread-reading-width: var(--cpx-sys-layout-reading-max-width);
   --thread-resource-row-padding-x: 12px;
   background: var(--cpx-sys-color-surface-canvas);
+
+  &[data-conversation-width='narrow'] {
+    --conversation-content-max-width: var(--cpx-sys-layout-reading-max-width);
+  }
+
+  &[data-conversation-width='wide'] {
+    --conversation-content-max-width: var(--cpx-sys-layout-wide-max-width);
+  }
 }
 
 .conversation-page .chat-session-header {
@@ -47,9 +67,9 @@
 }
 
 .conversation-page .workflow-page__composer-inner {
-  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
+  width: min(var(--conversation-content-max-width), var(--session-content-w));
   min-width: 0;
-  max-width: var(--cpx-sys-layout-content-max-width);
+  max-width: var(--conversation-content-max-width);
   margin-inline: auto;
 }
 
@@ -67,8 +87,8 @@
   contain-intrinsic-block-size: auto 420px;
   display: grid;
   gap: var(--cpx-sys-space-3);
-  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
-  max-width: var(--cpx-sys-layout-content-max-width);
+  width: min(var(--conversation-content-max-width), var(--session-content-w));
+  max-width: var(--conversation-content-max-width);
   min-width: 0;
   margin-inline: auto;
   padding-block: var(--cpx-sys-space-4);
@@ -90,7 +110,7 @@
   justify-content: center;
   gap: var(--cpx-sys-space-2);
   min-height: 160px;
-  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
+  width: min(var(--conversation-content-max-width), var(--session-content-w));
   margin-inline: auto;
   padding: var(--cpx-sys-space-6);
   color: var(--cpx-sys-color-fg-secondary);
@@ -122,7 +142,7 @@
 .canonical-history-control {
   display: flex;
   justify-content: center;
-  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
+  width: min(var(--conversation-content-max-width), var(--session-content-w));
   margin: var(--cpx-sys-space-3) auto var(--cpx-sys-space-1);
 
   button {
@@ -177,8 +197,8 @@
   grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cpx-sys-space-3);
-  width: min(var(--cpx-sys-layout-content-max-width), var(--session-content-w));
-  max-width: var(--cpx-sys-layout-content-max-width);
+  width: min(var(--conversation-content-max-width), var(--session-content-w));
+  max-width: var(--conversation-content-max-width);
   min-width: 0;
   margin: var(--cpx-sys-space-3) auto;
   padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
@@ -733,9 +753,6 @@
     }
   }
 
-  > .md-body {
-    max-width: var(--thread-reading-width);
-  }
 }
 
 /* ── Markdown overrides for canonical result text ── */
@@ -745,9 +762,6 @@
   background: transparent;
   box-shadow: none;
 
-  > .md-body {
-    max-width: var(--thread-reading-width);
-  }
 }
 
 .canonical-user-message__bubble .md-body,

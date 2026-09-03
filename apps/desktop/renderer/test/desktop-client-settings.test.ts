@@ -1775,3 +1775,26 @@ function initializedResult() {
     connectionId: 'test-connection',
   }
 }
+
+
+test('聊天宽度经过桌面 bridge 保存并在新 client 中读取', async () => {
+  const { defaultDesktopStoredSettings } = await import('../shared/settingsSchema.js')
+  let stored = defaultDesktopStoredSettings()
+  const environment = {
+    window: {
+      codePilotXDesktop: {
+        getDesktopSettings: async () => stored,
+        saveDesktopSettings: async (settings: typeof stored) => {
+          stored = settings
+          return stored
+        },
+      },
+    },
+  }
+  const client = createDesktopClient(environment)
+  for (const conversationWidth of ['wide', 'narrow', 'default'] as const) {
+    await client.saveDesktopSettings({ ...stored, conversationWidth })
+    const reopened = createDesktopClient(environment)
+    expect((await reopened.getDesktopSettings()).conversationWidth).toBe(conversationWidth)
+  }
+})

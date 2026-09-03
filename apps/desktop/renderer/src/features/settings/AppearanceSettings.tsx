@@ -1050,6 +1050,26 @@ export function AppearanceSettings({
         <SettingsSection title="偏好设置">
           <SettingsRow
             autoSave
+            title="聊天宽度"
+            description="设置聊天内容和输入框的最大宽度"
+            control={
+              <SegmentedControl
+                ariaLabel="聊天宽度"
+                options={[
+                  { value: 'default', label: '默认' },
+                  { value: 'narrow', label: '窄' },
+                  { value: 'wide', label: '宽' },
+                ]}
+                value={desktopSettings.draft.values.conversationWidth}
+                onChange={conversationWidth => {
+                  desktopSettings.draft.setValue('conversationWidth', conversationWidth)
+                  desktopSettings.draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            autoSave
             title="使用指针光标"
             description="悬停按钮、菜单等交互元素时显示手形指针"
             control={

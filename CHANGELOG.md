@@ -9,6 +9,10 @@
 
 ### Added
 
+- [desktop] 聊天页右上角新增宽度快捷按钮，点击循环切换默认、窄和宽，并与外观设置同步。
+
+- [desktop] 新增聊天宽度设置，支持默认、窄和宽三档，并自动保存用户选择。
+
 - [desktop/renderer] 新增全局页面缩放快捷键与可交互胶囊提示，支持跨窗口同步并记忆缩放比例。
 - [agent/desktop/renderer] 集成官方 MiniMax CLI 的一键安装、更新与卸载，自动跟随 API Key Hub 当前生效的 MiniMax Coding Plan Key，并将 mmx Skills 动态接入 Agent。
 - [desktop] 新增可恢复的本地自动化调度、任务管理与运行收件箱。
@@ -36,6 +40,10 @@
 - [agent/desktop] 补齐工作目录、会话 ID 与系统深链复制，支持 CodePilotX Agent 分页读取关联会话，并为外部 Agent 提供按会话 ID 查询的 SQLite 只读语义视图。
 
 ### Changed
+
+- [desktop] 移除助手正文独立阅读宽度限制，所有宽度档位下正文均占满外层内容区域。
+
+- [desktop] 聊天宽度快捷入口改用 Menu 图标，点击三态轮换，三条横线长度随档位同步变化。
 
 - [desktop] 优化 Composer 命令与上下文面板：统一 `+` 与 `@` 上下文入口，补充会话命令、真实引用和技能作用域展示。
 

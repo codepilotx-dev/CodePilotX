@@ -204,6 +204,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     githubMemoryRepository: '',
     reviewView: 'inline',
     reviewDelivery: 'inline',
+    conversationWidth: 'default',
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
     sidebarOrganization: 'projects',
@@ -466,6 +467,10 @@ export function normalizeDesktopStoredSettings(
       parsed.reviewDelivery === 'detached'
         ? parsed.reviewDelivery
         : defaults.reviewDelivery,
+    conversationWidth:
+      parsed.conversationWidth === 'narrow' || parsed.conversationWidth === 'wide'
+        ? parsed.conversationWidth
+        : defaults.conversationWidth,
     diffMarkerStyle: isDesktopDiffMarkerStyle(parsed.diffMarkerStyle)
       ? parsed.diffMarkerStyle
       : defaults.diffMarkerStyle,
