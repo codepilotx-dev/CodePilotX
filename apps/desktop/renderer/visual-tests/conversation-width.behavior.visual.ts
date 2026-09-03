@@ -27,100 +27,277 @@ async function iconGeometry(button: Locator) {
   })
 }
 
+async function expectContentWidth(locator: Locator, expected: number, tolerance = 1.5) {
+  await expect(locator).toBeVisible()
+  await expect.poll(async () => {
+    const box = await locator.boundingBox()
+    return box ? Math.abs(box.width - expected) : 999
+  }).toBeLessThanOrEqual(tolerance)
+}
+
 for (const mode of ['light', 'dark'] as const) {
-  test(`聊天宽度自动保存与布局 ${mode}`, async ({ page }) => {
+  test(`页面宽度全局自动保存与各页面布局 ${mode}`, async ({ page }) => {
+    test.setTimeout(120_000)
     await page.setViewportSize({ width: 1920, height: 1080 })
     await page.emulateMedia({ colorScheme: mode, reducedMotion: 'no-preference' })
     await page.goto('/?visualCase=rich#/settings/appearance', { waitUntil: 'commit' })
-    const group = page.locator('.segmented-control[aria-label="聊天宽度"]')
+
+    // 安装测试 fixture 数据（模拟会话组与详情以便测量独立详情容器宽度）
+    await page.evaluate(async () => {
+      const modulePath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(modulePath)
+      desktopClient.listSessionGroups = async () => [
+        {
+          id: 'visual-group',
+          name: '可视化测试会话组',
+          description: '用于测试会话组详情容器宽度',
+          version: 1,
+          memberCount: 0,
+          projectLabels: [],
+          latestStepAt: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ]
+      desktopClient.readSessionGroup = async () => ({
+        group: {
+          id: 'visual-group',
+          name: '可视化测试会话组',
+          description: '用于测试会话组详情容器宽度',
+          version: 1,
+          memberCount: 0,
+          projectLabels: [],
+          latestStepAt: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        members: [],
+        contextEntries: [],
+      })
+      desktopClient.listSessionGroupSteps = async () => []
+    })
+
+    const group = page.locator('.segmented-control[aria-label="页面宽度"]')
     const option = (label: string) => group.getByRole('radio', { name: label, exact: true })
     await group.waitFor({ state: 'visible', timeout: 15_000 })
     await expect(option('默认')).toHaveAttribute('data-state', 'on')
 
-    for (const [value, label, max] of [
-      ['wide', '宽', 1250],
-      ['narrow', '窄', 672],
-      ['default', '默认', 768],
-    ] as const) {
-      await option(label).focus()
-      await page.keyboard.press('Space')
-      await expect(option(label)).toHaveAttribute('data-state', 'on')
-      await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
-      const conversation = page.locator('.conversation-page')
-      await expect(conversation).toHaveAttribute('data-conversation-width', value)
-      const widthButton = page.getByRole('button', { name: /^聊天宽度：/ })
-      const states = {
-        default: { next: 'narrow', label: '默认', scale: 1 },
-        narrow: { next: 'wide', label: '窄', scale: 0.75 },
-        wide: { next: 'default', label: '宽', scale: 1.25 },
-      } as const
-      let current: keyof typeof states = value
-      const initial = await iconGeometry(widthButton)
-      expect(initial.lines).toHaveLength(3)
-      for (const action of ['click', 'Enter', 'Space'] as const) {
-        if (action === 'click') await widthButton.click()
-        else await page.keyboard.press(action)
-        current = states[current].next
-        const state = states[current]
-        await expect(conversation).toHaveAttribute('data-conversation-width', current)
-        await expect(widthButton).toHaveAccessibleName(`聊天宽度：${state.label}，点击切换为${states[state.next].label}`)
-        await expect(widthButton).toBeFocused()
-        await expect(page.getByRole('menu')).toHaveCount(0)
-        await expect(widthButton.locator('svg')).toHaveAttribute('data-width', current)
-        const geometry = await iconGeometry(widthButton)
-        expect(geometry.width).toBe(initial.width)
-        expect(geometry.height).toBe(initial.height)
-        expect(geometry.iconHeight).toBe(initial.iconHeight)
-        expect(geometry.center).toBeCloseTo(0, 1)
-        expect(geometry.lines).toHaveLength(3)
-        for (const [index, line] of geometry.lines.entries()) {
-          expect(line.width / initial.lines[index].width).toBeCloseTo(state.scale / states[value].scale, 2)
-          expect(line.width).toBeCloseTo(geometry.lines[0].width, 2)
-          expect(line.center).toBeCloseTo(0, 1)
-          expect(line.y).toBeCloseTo(initial.lines[index].y, 2)
-          expect(line.stroke).toBe(initial.lines[index].stroke)
-        }
-      }
-      await expect(conversation).toHaveAttribute('data-conversation-width', value)
-      const turn = page.locator('.canonical-turn').first()
-      await expect(turn).toHaveCSS('max-width', `${max}px`)
-      await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', `${max}px`)
-      const body = turn.locator('.canonical-text-item--result > .md-body').first()
-      await expect(body).toHaveCSS('max-width', 'none')
-      await expect.poll(async () => {
-        const bodyBox = await body.boundingBox()
-        const outerBox = await turn.boundingBox()
-        return Math.abs(bodyBox!.width - outerBox!.width)
-      }).toBeLessThan(1)
-      const turnBox = await turn.boundingBox()
-      const composerBox = await page.locator('.workflow-page__composer-inner').boundingBox()
-      expect(turnBox).not.toBeNull()
-      expect(composerBox).not.toBeNull()
-      expect(Math.abs(turnBox!.width - composerBox!.width)).toBeLessThan(1)
-      await expectNoHorizontalOverflow(page)
+    const mainRoute = page.locator('.desktop-main-route')
 
-      if (value === 'wide') {
-        await page.getByRole('button', { name: '显示右侧面板', exact: true }).click()
-        await page.setViewportSize({ width: 1100, height: 800 })
-        await expectNoHorizontalOverflow(page)
-        await expect(widthButton).toBeInViewport()
-        const available = await conversation.boundingBox()
-        const compact = await turn.boundingBox()
-        expect(compact!.width).toBeLessThanOrEqual(available!.width)
-        await expect.poll(async () => {
-          const bodyBox = await body.boundingBox()
-          const outerBox = await turn.boundingBox()
-          return Math.abs(bodyBox!.width - outerBox!.width)
-        }).toBeLessThan(1)
-        await page.getByRole('button', { name: '关闭右侧面板', exact: true }).click()
-        await page.setViewportSize({ width: 1920, height: 1080 })
-      }
-      await page.evaluate(() => { window.location.hash = '#/new' })
-      await expect(conversation).toHaveCount(0)
-      await expect(page.locator('[data-conversation-width]')).toHaveCount(0)
-      await expect(widthButton).toHaveCount(0)
-      await page.evaluate(() => { window.location.hash = '#/settings/appearance' })
-      await expect(option(label)).toHaveAttribute('data-state', 'on')
-    }
+    // 1. 验证外观设置初始为默认档（768px）
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectNoHorizontalOverflow(page)
+
+    // 2. 在外观设置中切换为“窄”（672px），验证即时生效
+    await option('窄').focus()
+    await page.keyboard.press('Space')
+    await expect(option('窄')).toHaveAttribute('data-state', 'on')
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 672)
+
+    // 3. 导航到聊天页，确认继承“窄”档位，Menu 快捷按钮可见
+    await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
+    const conversation = page.locator('.conversation-page')
+    await expect(conversation).toBeVisible()
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+
+    const widthButton = page.getByRole('button', { name: /^页面宽度：/ })
+    await expect(widthButton).toBeVisible()
+    await expect(widthButton).toHaveAccessibleName('页面宽度：窄，点击切换为宽')
+
+    // 4. 从聊天页通过 Menu 按钮轮换三档（窄 -> 宽 -> 默认 -> 窄），验证几何动效反馈
+    const states = {
+      default: { next: 'narrow', label: '默认', scale: 1 },
+      narrow: { next: 'wide', label: '窄', scale: 0.75 },
+      wide: { next: 'default', label: '宽', scale: 1.25 },
+    } as const
+
+    const initial = await iconGeometry(widthButton)
+    expect(initial.lines).toHaveLength(3)
+
+    // a. 点击 Menu 按钮切换为“宽”
+    await widthButton.click()
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(widthButton).toHaveAccessibleName('页面宽度：宽，点击切换为默认')
+    await expect(widthButton.locator('svg')).toHaveAttribute('data-width', 'wide')
+    const geoWide = await iconGeometry(widthButton)
+    expect(geoWide.lines[0].width / initial.lines[0].width).toBeCloseTo(states.wide.scale / states.narrow.scale, 2)
+
+    // b. 按 Enter 键切换为“默认”
+    await page.keyboard.press('Enter')
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
+    await expect(widthButton).toHaveAccessibleName('页面宽度：默认，点击切换为窄')
+    await expect(widthButton.locator('svg')).toHaveAttribute('data-width', 'default')
+    const geoDefault = await iconGeometry(widthButton)
+    expect(geoDefault.lines[0].width / initial.lines[0].width).toBeCloseTo(states.default.scale / states.narrow.scale, 2)
+
+    // c. 按 Space 键切换回“窄”
+    await page.keyboard.press('Space')
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await expect(widthButton).toHaveAccessibleName('页面宽度：窄，点击切换为宽')
+    await expect(widthButton.locator('svg')).toHaveAttribute('data-width', 'narrow')
+
+    // 5. 在窄档（672px）下验证各布局类型
+    const turn = page.locator('.canonical-turn').first()
+    await expect(turn).toHaveCSS('max-width', '672px')
+    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '672px')
+    const body = turn.locator('.canonical-text-item--result > .md-body').first()
+    await expect(body).toHaveCSS('max-width', 'none')
+    await expect.poll(async () => {
+      const bodyBox = await body.boundingBox()
+      const outerBox = await turn.boundingBox()
+      return Math.abs(bodyBox!.width - outerBox!.width)
+    }).toBeLessThan(1)
+    await expectNoHorizontalOverflow(page)
+
+    // 窄档下验证 PrimaryPageLayout
+    await page.evaluate(() => { window.location.hash = '#/plugins' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 672)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 672)
+
+    // 窄档下验证 ModelCenter
+    await page.evaluate(() => { window.location.hash = '#/settings/providers' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.model-center-shell .settings-page-header').first(), 672)
+
+    // 窄档下验证 QuickChat
+    await page.evaluate(() => { window.location.hash = '#/new' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 672)
+
+    // 6. 回到聊天页切换为“默认档”（768px），验证跨页面生效
+    await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
+    await expect(conversation).toBeVisible()
+    await expect(widthButton).toBeVisible()
+    await widthButton.click() // 窄 -> 宽
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await widthButton.click() // 宽 -> 默认
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
+    await expect(turn).toHaveCSS('max-width', '768px')
+    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '768px')
+
+    // 默认档下验证 SettingsLayout 与 PrimaryPageLayout
+    await page.evaluate(() => { window.location.hash = '#/settings/appearance' })
+    await expect(option('默认')).toHaveAttribute('data-state', 'on')
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
+
+    await page.evaluate(() => { window.location.hash = '#/session-groups' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 768)
+
+    await page.evaluate(() => { window.location.hash = '#/new' })
+    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 768)
+
+    // 7. 回到聊天页切换为“宽档”（1250px），验证全部一级页面及独立详情
+    await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
+    await expect(conversation).toBeVisible()
+    await expect(widthButton).toBeVisible()
+    await widthButton.click() // 默认 -> 窄
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
+    await widthButton.click() // 窄 -> 宽
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(turn).toHaveCSS('max-width', '1250px')
+    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '1250px')
+
+    // 宽档下验证右侧面板展开与视口收缩时的自适应
+    await page.getByRole('button', { name: '显示右侧面板', exact: true }).click()
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await expectNoHorizontalOverflow(page)
+    await expect(widthButton).toBeInViewport()
+    const available = await conversation.boundingBox()
+    const compact = await turn.boundingBox()
+    expect(compact!.width).toBeLessThanOrEqual(available!.width)
+    await page.getByRole('button', { name: '关闭右侧面板', exact: true }).click()
+    await page.setViewportSize({ width: 1920, height: 1080 })
+
+    // 宽档下全面覆盖所有一级路由与详情：
+    // 项目 (PrimaryPageLayout)
+    await page.evaluate(() => { window.location.hash = '#/projects' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 模型中心 (ModelCenter)
+    await page.evaluate(() => { window.location.hash = '#/settings/providers' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.model-center-shell .settings-page-header').first(), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 插件列表及独立详情
+    await page.evaluate(() => { window.location.hash = '#/plugins' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    const pluginCard = page.locator('.plugin-catalog-card__main').first()
+    await pluginCard.click()
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.catalog-details-view'), 1250)
+    await expectNoHorizontalOverflow(page)
+    await page.evaluate(() => { window.location.hash = '#/plugins' })
+    await expect(page.locator('.catalog-details-view')).toHaveCount(0)
+
+    // 会话组列表及独立详情
+    await page.evaluate(() => { window.location.hash = '#/session-groups' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    await page.evaluate(() => { window.location.hash = '#/session-groups/visual-group' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.session-group-detail__inner'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 自动化
+    await page.evaluate(() => { window.location.hash = '#/automations' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 宠物
+    await page.evaluate(() => { window.location.hash = '#/pets' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // Pull Requests
+    await page.evaluate(() => { window.location.hash = '#/pull-requests' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1250)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 新建聊天
+    await page.evaluate(() => { window.location.hash = '#/new' })
+    await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
+    await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
+    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 1250)
+    await expectNoHorizontalOverflow(page)
+
+    // 8. 重新回到外观设置，验证选择持久化保留为“宽”档
+    await page.evaluate(() => { window.location.hash = '#/settings/appearance' })
+    await expect(option('宽')).toHaveAttribute('data-state', 'on')
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 1250)
+    await expectNoHorizontalOverflow(page)
   })
 }

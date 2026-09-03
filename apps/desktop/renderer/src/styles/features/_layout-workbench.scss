@@ -154,6 +154,16 @@
 }
 
 .desktop-main-route {
+  --page-content-max-width: var(--cpx-sys-layout-content-max-width);
+
+  &[data-page-width='narrow'] {
+    --page-content-max-width: var(--cpx-sys-layout-reading-max-width);
+  }
+
+  &[data-page-width='wide'] {
+    --page-content-max-width: var(--cpx-sys-layout-wide-max-width);
+  }
+
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;

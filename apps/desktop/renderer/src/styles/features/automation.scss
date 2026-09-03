@@ -13,6 +13,7 @@
 }
 
 .automation-view {
+  container-type: inline-size;
   min-height: 30rem;
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -596,13 +597,13 @@
   }
 }
 
-@media (max-width: 64rem) {
+@container (max-width: 64rem) {
   .automation-page-stage[data-detail-open='true'] {
     grid-template-columns: minmax(17rem, 0.8fr) minmax(22rem, 1fr);
   }
 }
 
-@media (max-width: 48rem) {
+@container (max-width: 48rem) {
   .automation-page-navigation {
     flex-wrap: wrap;
   }

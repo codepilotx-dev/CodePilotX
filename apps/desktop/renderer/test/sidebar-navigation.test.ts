@@ -1,3 +1,4 @@
+import { resolveConversationProject } from '../src/features/projects/projectDetailsModel.js'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
@@ -1705,5 +1706,28 @@ describe('侧栏时间线投影', () => {
         currentLimit: 50,
       }),
     ).toBe(5)
+  })
+})
+
+
+describe('聊天 header 项目归属', () => {
+  const first: DesktopWorkspace = { projectId: 'project-a', name: 'A', path: 'F:/work/a', branchName: null }
+  const second: DesktopWorkspace = { projectId: 'project-b', name: 'B', path: 'F:/work/b', branchName: null }
+  test('以聊天项目 ID 为准，不使用恰好选中的其他工作区', () => {
+    const active = { ...session('task', second.path), projectId: first.projectId }
+    expect(resolveConversationProject(active, [first, second], second)).toBe(first)
+    expect(resolveConversationProject(active, [second], second)).toBeNull()
+  })
+  test('无项目与未解析聊天没有项目入口', () => {
+    expect(resolveConversationProject({ ...session('task', first.path), projectId: first.projectId, standalone: true }, [first], first)).toBeNull()
+    expect(resolveConversationProject(null, [first], first)).toBeNull()
+    expect(resolveConversationProject(session('task', ''), [first], first)).toBeNull()
+  })
+  test('旧路径项目复用规范化 key，当前工作区只能作为同项目回退', () => {
+    const legacy = { ...first, projectId: undefined }
+    const active = session('task', 'f:/WORK/a/')
+    expect(resolveConversationProject(active, [legacy], second)).toBe(legacy)
+    expect(resolveConversationProject(active, [], legacy)).toBe(legacy)
+    expect(resolveConversationProject(active, [], second)).toBeNull()
   })
 })

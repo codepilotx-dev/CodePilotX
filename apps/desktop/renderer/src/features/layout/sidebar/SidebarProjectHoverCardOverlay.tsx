@@ -1,23 +1,14 @@
 import type React from 'react'
-import { FolderOpen, MessageSquare, Pin, PinOff, Settings } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import { useRef } from 'react'
 import type {
   DesktopWorkspace,
   ProjectAppearance,
 } from '../../../../shared/types.js'
-import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import { ProjectAppearanceGlyph } from '../../projects/projectAppearance.js'
 import {
   focusSidebarHoverCardAnchor,
   type SidebarHoverCardOverlayRenderProps,
 } from './SidebarHoverCard.js'
-import {
-  SidebarHoverCardFrame,
-  SidebarHoverCardHeader,
-  SidebarHoverCardRow,
-} from './SidebarHoverCardLayout.js'
+import { ProjectDetailsCard } from '../../projects/ProjectDetailsCard.js'
 import { SidebarHoverCardSurface } from './SidebarHoverCardSurface.js'
 
 type Props = SidebarHoverCardOverlayRenderProps & {
@@ -53,26 +44,6 @@ export function SidebarProjectHoverCardOverlay({
   ...interactionProps
 }: Props): React.ReactNode {
   const initialFocusRef = useRef<HTMLButtonElement | null>(null)
-  const folders = useMemo(
-    () =>
-      project.folders?.length
-        ? [...project.folders].sort(
-            (left, right) =>
-              left.order - right.order || left.name.localeCompare(right.name),
-          )
-        : [{
-            id: `path:${project.path}`,
-            name: project.name,
-            path: project.path,
-            role: 'primary' as const,
-            availability: 'available' as const,
-            order: 0,
-            createdAt: 0,
-            updatedAt: 0,
-          }],
-    [project],
-  )
-
   return (
     <SidebarHoverCardSurface
       {...interactionProps}
@@ -83,81 +54,29 @@ export function SidebarProjectHoverCardOverlay({
       onFocusRequestHandled={onFocusRequestHandled}
       positionOutsideSidebar
     >
-      <SidebarHoverCardFrame
-        className="sidebar-project-hover-card-content"
-        onClick={event => event.stopPropagation()}
-      >
-        <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
-          <ProjectAppearanceGlyph appearance={appearance} />
-          <strong title={project.name}>{project.name}</strong>
-          <IconButton
-            className="sidebar-project-hover-card-pin"
-            color={isPinned ? "ghostActive" : "ghostSecondary"}
-            ref={initialFocusRef}
-            size="toolbar"
-            title={isPinned ? '取消置顶项目' : '置顶项目'}
-            onClick={() => {
-              onTogglePinned()
-              interactionProps.requestOpenChange(false)
-              focusProjectAnchorAfterUpdate(projectKey, !isPinned)
-            }}
-          >
-            {isPinned ? (
-              <PinOff size={APP_ICON_SIZE} />
-            ) : (
-              <Pin size={APP_ICON_SIZE} />
-            )}
-          </IconButton>
-        </SidebarHoverCardHeader>
-        <SidebarHoverCardRow className="sidebar-project-hover-card-stats">
-          <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
-          <span className="sidebar-project-hover-card-stats-content">
-            <span>{conversationCount} 个任务</span>
-            {unreadCount > 0 ? (
-              <>
-                <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
-                <span>{unreadCount} 条未读</span>
-              </>
-            ) : null}
-            <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">·</span>
-            <span>{openCount} 个已开启</span>
-          </span>
-        </SidebarHoverCardRow>
-        <div className="sidebar-project-hover-card-folders">
-          {folders.map(folder => (
-            folder.path ? (
-              <button
-                className="sidebar-project-hover-card-folder"
-                disabled={
-                  isUnavailable || folder.availability === 'missing'
-                }
-                key={folder.id}
-                type="button"
-                title={folder.path}
-                onClick={() => {
-                  onOpenFolder(folder.path)
-                  interactionProps.requestOpenChange(false)
-                }}
-              >
-                <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />
-                <span className="sidebar-project-hover-card-folder-path">{folder.path}</span>
-              </button>
-            ) : null
-          ))}
-        </div>
-        <Button
-          color="ghostSecondary"
-          className="sidebar-project-hover-card-edit"
-          size="compact"
-          onClick={() => {
-            onEdit()
-            interactionProps.requestOpenChange(false)
-          }}
-        >
-          <Settings aria-hidden="true" size={APP_ICON_SIZE} />
-          <span>编辑项目</span>
-        </Button>
-      </SidebarHoverCardFrame>
+      <ProjectDetailsCard
+        appearance={appearance}
+        conversationCount={conversationCount}
+        openCount={openCount}
+        unreadCount={unreadCount}
+        isPinned={isPinned}
+        isUnavailable={isUnavailable}
+        project={project}
+        pinRef={initialFocusRef}
+        onEdit={() => {
+          onEdit()
+          interactionProps.requestOpenChange(false)
+        }}
+        onOpenFolder={path => {
+          onOpenFolder(path)
+          interactionProps.requestOpenChange(false)
+        }}
+        onTogglePinned={() => {
+          onTogglePinned()
+          interactionProps.requestOpenChange(false)
+          focusProjectAnchorAfterUpdate(projectKey, !isPinned)
+        }}
+      />
     </SidebarHoverCardSurface>
   )
 }

@@ -1,3 +1,4 @@
+import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
 import {
   desktopClient,
   desktopClipboard,
@@ -3397,6 +3398,20 @@ export function DesktopLayout(): React.ReactNode {
             sessionTitle: quickChatSessionTitle,
             editableSessionTitle: quickChatEditableSessionTitle,
             titleRegenerating: regeneratingActiveSessionTitle,
+            projectDetailsTrigger: isConversationRoute && !isConversationLoading && activeSessionItem?.id === sessionId ? (
+              <ConversationProjectDetails
+                session={activeSessionItem}
+                currentWorkspace={currentWorkspace}
+                projects={recentWorkspaces}
+                sessions={sessions}
+                unavailableWorkspacePaths={unavailableWorkspacePaths}
+                onPinWorkspace={handlePinWorkspace}
+                onUnpinWorkspace={handleUnpinWorkspace}
+                onRemoveWorkspace={handleRemoveWorkspace}
+                onArchiveSessions={handleArchiveSessions}
+                onReport={setNoticeMessage}
+              />
+            ) : null,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
@@ -3527,6 +3542,7 @@ export function DesktopLayout(): React.ReactNode {
                     aria-label="主要内容"
                     ref={mainRouteRef}
                     className="desktop-main-route"
+                    data-page-width={settings.values.conversationWidth}
                     id="desktop-main-content"
                     tabIndex={-1}
                     role="region"

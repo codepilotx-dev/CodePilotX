@@ -139,7 +139,7 @@
 .settings-content-inner {
   container-type: inline-size;
   width: 100%;
-  max-width: var(--cpx-sys-layout-content-max-width);
+  max-width: calc(var(--page-content-max-width) + var(--cpx-sys-space-5) * 2);
   min-width: 0;
   margin: 0 auto;
   padding: var(--cpx-sys-space-5);

@@ -6,10 +6,8 @@ import {
   AppWindow,
   Archive,
   Bot,
-  ChevronDown,
   ChevronRight,
   Copy,
-  FolderOpen,
   GitFork,
   LayoutList,
   MessagesSquare,
@@ -25,10 +23,8 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
-import { OpenTargetIcon } from "../../../components/ui/openTargetIcon.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import type {
-  DesktopOpenTarget,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionStatus,
@@ -58,8 +54,6 @@ import {
 import {
   PopoverCheckboxItem,
   PopoverItem,
-  PopoverRadioGroup,
-  PopoverRadioItem,
   PopoverSeparator,
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
@@ -99,7 +93,9 @@ import {
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
 import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
 import {
+  canInlineEditConversationTitle,
   canRegenerateConversationTitle,
+  normalizeConversationTitle,
   shouldCloseConversationRenameDialog,
 } from "./conversationTitleActions.js";
 import { useConversationForkController } from "../workflow/fork/useConversationForkController.js";
@@ -121,14 +117,6 @@ const ConversationEnvironmentControls = React.lazy(() =>
     default: module.ConversationEnvironmentControls,
   }))
 );
-
-const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
-  {
-    id: "file-explorer",
-    label: "File Explorer",
-    kind: "file-explorer",
-  },
-];
 
 const WORKSPACE_HEADER_ICON_SIZE = 16;
 
@@ -160,6 +148,7 @@ export function ConversationPage(): React.ReactNode {
     editableSessionTitle,
     titleRegenerating,
     sessionStatus,
+    projectDetailsTrigger,
     workspacePath,
     branchName,
     branches,
@@ -197,8 +186,6 @@ export function ConversationPage(): React.ReactNode {
   } = useQuickChatContext();
   const {
     conversationWidth,
-    defaultOpenTargetId,
-    setDefaultOpenTargetId,
     diffMarkerStyle,
     reviewView,
     draft: settingsDraft,
@@ -247,14 +234,38 @@ export function ConversationPage(): React.ReactNode {
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState("");
   const [renamingSession, setRenamingSession] = React.useState(false);
+  const [isInlineEditing, setIsInlineEditing] = React.useState(false);
+  const [inlineTitleValue, setInlineTitleValue] = React.useState("");
+  const isComposingRef = React.useRef(false);
+  const skipNextBlurSaveRef = React.useRef(false);
+  const editStartTimeRef = React.useRef(0);
+  const inlineInputRef = React.useRef<HTMLInputElement | null>(null);
   const activeSessionIdRef = React.useRef(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
+
+  React.useEffect(() => {
+    setIsInlineEditing(false);
+    skipNextBlurSaveRef.current = false;
+  }, [activeSessionId]);
+
+  const handleInlineInputRef = React.useCallback(
+    (node: HTMLInputElement | null) => {
+      inlineInputRef.current = node;
+      if (node) {
+        node.focus();
+        node.select();
+        const frame = requestAnimationFrame(() => {
+          node.focus();
+          node.select();
+        });
+        return () => cancelAnimationFrame(frame);
+      }
+    },
+    [],
+  );
+
   const [conversationSelectedText, setConversationSelectedText] =
     React.useState("");
-  const [openTargetMenuOpen, setOpenTargetMenuOpen] = React.useState(false);
-  const [openTargets, setOpenTargets] = React.useState<DesktopOpenTarget[]>(
-    FALLBACK_OPEN_TARGETS,
-  );
   React.useEffect(() => {
     return () => {
       clearConversationSelectionHighlight();
@@ -480,9 +491,20 @@ export function ConversationPage(): React.ReactNode {
     pending: titleRegenerating,
     status: effectiveSessionStatus,
   });
-  const selectedOpenTarget =
-    openTargets.find((target) => target.id === defaultOpenTargetId) ??
-    FALLBACK_OPEN_TARGETS[0];
+  const canInlineEdit = canInlineEditConversationTitle({
+    hasActiveSession,
+    isLoading: isThreadLoading,
+    isRegenerating: titleRegenerating,
+    isRenaming: renamingSession,
+  });
+
+  React.useEffect(() => {
+    if (isInlineEditing && !canInlineEdit && !renamingSession) {
+      setIsInlineEditing(false);
+      skipNextBlurSaveRef.current = false;
+    }
+  }, [canInlineEdit, isInlineEditing, renamingSession]);
+
   const activePermissionRequest = pendingPermissions[0] ?? null;
   const composerMode = workflowComposerMode(activePermissionRequest);
   const composerTransition = useHeightTransition([
@@ -549,24 +571,6 @@ export function ConversationPage(): React.ReactNode {
       clearHiddenRoot();
     };
   }, []);
-  React.useEffect(() => {
-    let mounted = true;
-    void desktopClient
-      .listOpenTargets()
-      .then((targets) => {
-        if (!mounted) return;
-        setOpenTargets(targets.length ? targets : FALLBACK_OPEN_TARGETS);
-      })
-      .catch(() => {
-        if (mounted) {
-          setOpenTargets(FALLBACK_OPEN_TARGETS);
-        }
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   function closeSessionMenu(): void {
     setSessionMenuOpen(false);
   }
@@ -600,12 +604,17 @@ export function ConversationPage(): React.ReactNode {
 
   const openRenameSessionDialog = React.useCallback((): void => {
     if (!hasActiveSession || renameDialogOpen || renamingSession) return;
+    if (isInlineEditing) {
+      setIsInlineEditing(false);
+      skipNextBlurSaveRef.current = true;
+    }
     setSessionMenuOpen(false);
     setRenameValue(editableSessionTitle ?? renderedSessionTitle);
     setRenameDialogOpen(true);
   }, [
     editableSessionTitle,
     hasActiveSession,
+    isInlineEditing,
     renameDialogOpen,
     renderedSessionTitle,
     renamingSession,
@@ -629,6 +638,118 @@ export function ConversationPage(): React.ReactNode {
       setRenamingSession(false);
     }
   }
+
+  const startInlineEdit = React.useCallback((): void => {
+    if (!canInlineEdit || isInlineEditing) return;
+    editStartTimeRef.current = Date.now();
+    setInlineTitleValue(editableSessionTitle ?? renderedSessionTitle);
+    setIsInlineEditing(true);
+    skipNextBlurSaveRef.current = false;
+  }, [canInlineEdit, editableSessionTitle, isInlineEditing, renderedSessionTitle]);
+
+  const submitInlineRename = React.useCallback(
+    async (options?: { fromBlur?: boolean }): Promise<void> => {
+      if (options?.fromBlur) {
+        if (skipNextBlurSaveRef.current) {
+          skipNextBlurSaveRef.current = false;
+          return;
+        }
+        if (Date.now() - editStartTimeRef.current < 200) {
+          return;
+        }
+      }
+
+      if (!activeSessionId || renamingSession || isComposingRef.current) return;
+
+      const currentTitle = editableSessionTitle ?? renderedSessionTitle;
+      const trimmed = normalizeConversationTitle(inlineTitleValue);
+
+      // Empty title: cancel and revert to original
+      if (!trimmed) {
+        setIsInlineEditing(false);
+        setInlineTitleValue(currentTitle);
+        skipNextBlurSaveRef.current = false;
+        return;
+      }
+
+      // Name unchanged: exit without request
+      if (trimmed === normalizeConversationTitle(currentTitle)) {
+        setIsInlineEditing(false);
+        skipNextBlurSaveRef.current = false;
+        return;
+      }
+
+      const requestedSessionId = activeSessionId;
+      setRenamingSession(true);
+      try {
+        const renamed = await onRenameSession(trimmed);
+        if (
+          shouldCloseConversationRenameDialog({
+            activeSessionId: activeSessionIdRef.current,
+            requestedSessionId,
+            succeeded: Boolean(renamed),
+          })
+        ) {
+          setIsInlineEditing(false);
+          skipNextBlurSaveRef.current = false;
+        } else {
+          // Save failed: keep isInlineEditing = true, retain input value
+          skipNextBlurSaveRef.current = false;
+        }
+      } catch {
+        // Save failed: keep isInlineEditing = true, retain input value
+        skipNextBlurSaveRef.current = false;
+      } finally {
+        setRenamingSession(false);
+      }
+    },
+    [
+      activeSessionId,
+      editableSessionTitle,
+      inlineTitleValue,
+      onRenameSession,
+      renamingSession,
+      renderedSessionTitle,
+    ],
+  );
+
+  const handleInlineKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ): void => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      skipNextBlurSaveRef.current = true;
+      setIsInlineEditing(false);
+      setInlineTitleValue(editableSessionTitle ?? renderedSessionTitle);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (
+        isComposingRef.current ||
+        (event.nativeEvent as KeyboardEvent).isComposing ||
+        event.keyCode === 229
+      ) {
+        return;
+      }
+      event.preventDefault();
+      skipNextBlurSaveRef.current = true;
+      void submitInlineRename();
+    }
+  };
+
+  const handleInlineBlur = (): void => {
+    void submitInlineRename({ fromBlur: true });
+  };
+
+  const handleTitleKeyDown = (
+    event: React.KeyboardEvent<HTMLSpanElement>,
+  ): void => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      startInlineEdit();
+    }
+  };
 
   const regenerateCurrentSessionTitle = React.useCallback(async (): Promise<void> => {
     if (!canRegenerateSessionTitle) return;
@@ -695,29 +816,6 @@ export function ConversationPage(): React.ReactNode {
     onArchiveSession();
   }
 
-  function openWorkspaceWithDefaultTarget(): void {
-    if (!workspacePath) return;
-    onOpenWorkspacePath();
-  }
-
-  function selectOpenTarget(targetId: string): void {
-    if (!workspacePath) return;
-    setOpenTargetMenuOpen(false);
-    setDefaultOpenTargetId(targetId);
-    void desktopClient
-      .getDesktopSettings()
-      .then((settings) =>
-        desktopClient.saveDesktopSettings({
-          ...settings,
-          defaultOpenTargetId: targetId,
-        }),
-      )
-      .catch(() => undefined)
-      .then(() => {
-        onOpenWorkspacePath();
-      });
-  }
-
   const openReviewSidebar = React.useCallback((): void => {
     onRefreshDiff();
     onOpenRightDock("review");
@@ -782,26 +880,55 @@ export function ConversationPage(): React.ReactNode {
     () => {
       return (
       <div className="chat-session-title">
-        <FolderOpen
-          aria-hidden="true"
-          className="chat-session-title__icon"
-          size={WORKSPACE_HEADER_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-        <span
-          aria-busy={titleRegenerating}
-          aria-live="polite"
-          className="chat-session-title__text"
-        >
-          {isThreadLoading ? (
-            "加载对话中"
-          ) : titleRegenerating ? (
-            <>
-              <SkeletonBlock className="chat-session-title__skeleton" />
-              <span className="u-sr-only">正在更新会话标题</span>
-            </>
-          ) : renderedSessionTitle}
-        </span>
+        {projectDetailsTrigger}
+        {isInlineEditing ? (
+          <input
+            autoFocus
+            ref={handleInlineInputRef}
+            aria-label="重命名对话"
+            className="chat-session-title__input"
+            disabled={renamingSession}
+            maxLength={160}
+            type="text"
+            value={inlineTitleValue}
+            onBlur={handleInlineBlur}
+            onChange={(e) => setInlineTitleValue(e.target.value)}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+            }}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onKeyDown={handleInlineKeyDown}
+          />
+        ) : (
+          <span
+            aria-busy={titleRegenerating}
+            aria-label={
+              canInlineEdit
+                ? `重命名对话：${renderedSessionTitle}`
+                : undefined
+            }
+            aria-live="polite"
+            className="chat-session-title__text"
+            role={canInlineEdit ? "button" : undefined}
+            tabIndex={canInlineEdit ? 0 : undefined}
+            title={renderedSessionTitle}
+            onClick={canInlineEdit ? startInlineEdit : undefined}
+            onKeyDown={canInlineEdit ? handleTitleKeyDown : undefined}
+          >
+            {isThreadLoading ? (
+              "加载对话中"
+            ) : titleRegenerating ? (
+              <>
+                <SkeletonBlock className="chat-session-title__skeleton" />
+                <span className="u-sr-only">正在更新会话标题</span>
+              </>
+            ) : (
+              renderedSessionTitle
+            )}
+          </span>
+        )}
         <PopoverMenu
           align="start"
           className="popover-session-actions popover-menu--grid"
@@ -936,19 +1063,28 @@ export function ConversationPage(): React.ReactNode {
     },
     [
       activeSessionId,
+      canInlineEdit,
       canRegenerateSessionTitle,
       conversationFork.onForkFromMessage,
+      handleInlineBlur,
+      handleInlineInputRef,
+      handleInlineKeyDown,
+      handleTitleKeyDown,
       hasActiveSession,
+      inlineTitleValue,
+      isInlineEditing,
       isThreadLoading,
       isSessionPinned,
       latestConversationForkPoint,
       openRenameSessionDialog,
       openConversationInNewWindow,
       regenerateCurrentSessionTitle,
+      startInlineEdit,
       titleRegenerating,
       renamingSession,
       renderedSessionTitle,
       sessionMenuOpen,
+      projectDetailsTrigger,
       workspacePath,
     ],
   );
@@ -1006,61 +1142,10 @@ export function ConversationPage(): React.ReactNode {
 
       return (
         <div className="chat-session-actions">
-        <div className="open-target-split-button">
-          <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
-            <IconButton
-              aria-disabled={!workspacePath}
-              className="open-target-main"
-              color="ghostSecondary"
-              size="toolbar"
-              title={`用 ${selectedOpenTarget.label} 打开`}
-              onClick={openWorkspaceWithDefaultTarget}
-            >
-              {renderOpenTargetIcon(selectedOpenTarget)}
-            </IconButton>
-          </Tooltip>
-          <PopoverMenu
-            align="end"
-            className="popover-open-targets popover-menu--grid"
-            open={openTargetMenuOpen}
-            sideOffset={4}
-            width={220}
-            trigger={
-              <IconButton
-                className="open-target-trigger"
-                color="ghostSecondary"
-                disabled={!workspacePath}
-                size="toolbar"
-                title="切换默认打开目标"
-              >
-                <ChevronDown
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </IconButton>
-            }
-            onOpenChange={setOpenTargetMenuOpen}
-          >
-            <PopoverRadioGroup
-              value={defaultOpenTargetId}
-              onValueChange={selectOpenTarget}
-            >
-              {openTargets.map((target) => (
-                <PopoverRadioItem
-                  icon={renderOpenTargetIcon(target)}
-                  key={target.id}
-                  value={target.id}
-                >
-                  {target.label}
-                </PopoverRadioItem>
-              ))}
-            </PopoverRadioGroup>
-          </PopoverMenu>
-        </div>
         <IconButton
           color="ghostSecondary"
           size="toolbar"
-          title={`聊天宽度：${{ default: "默认", narrow: "窄", wide: "宽" }[conversationWidth]}，点击切换为${{ default: "窄", narrow: "宽", wide: "默认" }[conversationWidth]}`}
+          title={`页面宽度：${{ default: "默认", narrow: "窄", wide: "宽" }[conversationWidth]}，点击切换为${{ default: "窄", narrow: "宽", wide: "默认" }[conversationWidth]}`}
           onClick={() => {
             settingsDraft.setValue("conversationWidth", current =>
               current === "default" ? "narrow" : current === "narrow" ? "wide" : "default",
@@ -1093,7 +1178,6 @@ export function ConversationPage(): React.ReactNode {
       branches,
       activeSessionId,
       conversationWidth,
-      defaultOpenTargetId,
       onBranchSelect,
       onCommitOrPush,
       onCreateBranch,
@@ -1101,10 +1185,7 @@ export function ConversationPage(): React.ReactNode {
       onOpenPlanInRightDock,
       onOpenSubagent,
       onOpenWorkspacePath,
-      openTargetMenuOpen,
-      openTargets,
       navigate,
-      selectedOpenTarget,
       settingsDraft.setValue,
       settingsDraft.autoSave,
       settingsDraft.values.terminalProfileId,
@@ -1513,16 +1594,6 @@ function SessionSubmenu({
         </DropdownMenu.SubContent>
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
-  );
-}
-
-function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
-  return (
-    <OpenTargetIcon
-      className="chat-open-target-icon"
-      kind={target.kind}
-      targetId={target.id}
-    />
   );
 }
 

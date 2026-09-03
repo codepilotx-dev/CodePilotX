@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
@@ -39,6 +40,7 @@ export type QuickChatContextValue = {
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
   editableSessionTitle: string | null
+  projectDetailsTrigger?: ReactNode
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null

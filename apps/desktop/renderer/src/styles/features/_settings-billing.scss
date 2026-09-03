@@ -6,7 +6,6 @@
   --usage-chart-4: var(--cpx-sys-color-accent);
   --usage-chart-5: var(--cpx-sys-color-accent);
   --usage-chart-other: var(--cpx-sys-color-fg-tertiary);
-  max-width: var(--cpx-sys-layout-wide-max-width);
 }
 .usage-page-header,
 .usage-panel-toolbar,
@@ -703,7 +702,7 @@
   height: 180px;
 }
 
-@media (max-width: 1100px) {
+@container (max-width: 1100px) {
   .usage-visual-grid {
     grid-template-columns: 1fr;
   }
@@ -714,7 +713,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@container (max-width: 900px) {
   .usage-page-header,
   .usage-panel-toolbar,
   .provider-usage-header {

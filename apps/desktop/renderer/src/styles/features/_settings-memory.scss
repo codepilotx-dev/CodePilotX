@@ -19,10 +19,6 @@
 }
 
 /* --- Memory Settings --- */
-.memory-settings-page .settings-content-inner {
-  max-width: var(--cpx-sys-layout-wide-max-width);
-}
-
 .memory-settings-toolbar {
   display: flex;
   align-items: center;
@@ -387,7 +383,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@container (max-width: 900px) {
   .model-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }

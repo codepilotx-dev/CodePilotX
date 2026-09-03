@@ -5786,3 +5786,216 @@ test('workspace header keeps equal edge insets across sidebar and dock states', 
   await shellAction.click()
   await expectInsets(false)
 })
+
+for (const mode of MODES) {
+  test(`workspace toolbar backgrounds and compact file opener ${mode}`, async ({ page }) => {
+    test.setTimeout(90_000)
+    await prepareVisualTheme(page, mode, { reduceMotion: 'off' })
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+    const colors = await page.evaluate(() => {
+      const probe = document.createElement('div')
+      document.body.append(probe)
+      probe.style.background = 'var(--cpx-sys-color-hover)'
+      probe.style.color = 'var(--cpx-sys-color-fg-primary)'
+      const hover = getComputedStyle(probe).backgroundColor
+      const primary = getComputedStyle(probe).color
+      probe.style.background = 'var(--cpx-sys-color-selected)'
+      const selected = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return { hover, primary, selected }
+    })
+    const checkHover = async (button: Locator) => {
+      await button.hover()
+      await expect(button).toHaveCSS('background-color',
+        await button.getAttribute('aria-pressed') === 'true' ? colors.selected : colors.hover)
+      await expect(button).toHaveCSS('color', colors.primary)
+    }
+    const header = page.getByRole('toolbar', { name: '工作区工具栏' })
+    await expect(header.locator('.open-target-split-button')).toHaveCount(0)
+    await expect(header.getByTitle('切换默认打开目标')).toHaveCount(0)
+    for (const button of await header.locator('.icon-button:enabled:not([aria-disabled="true"])').all()) {
+      await checkHover(button)
+    }
+    const shell = header.locator('.workspace-shell-control-button').last()
+    if (await shell.getAttribute('aria-pressed') !== 'true') await shell.click()
+    const dock = page.getByRole('complementary', { name: '右侧面板' })
+    await dock.getByRole('button', { name: '文件 Ctrl+P' }).click()
+    for (const button of await dock.locator('.file-breadcrumb-toolbar .icon-button:enabled').all()) {
+      await checkHover(button)
+    }
+    await dock.getByText('README.md', { exact: true }).click()
+    await expect(dock.getByRole('tab', { name: 'README.md' })).toBeVisible()
+    const group = dock.locator('.file-breadcrumb-toolbar__open-group')
+    const main = group.locator('.file-breadcrumb-toolbar__open')
+    const menu = group.locator('.file-breadcrumb-toolbar__open-menu')
+    await expect(group.locator('.icon-button')).toHaveCount(2)
+    await expect(main).toBeEnabled()
+    await expect(main).toHaveText('')
+    await expect(main).toHaveAttribute('title', /^使用 .+ 打开$/)
+    const [mainBox, menuBox] = await Promise.all([main.boundingBox(), menu.boundingBox()])
+    expect(mainBox).not.toBeNull()
+    expect(menuBox).not.toBeNull()
+    expect(Math.abs(mainBox!.height - menuBox!.height)).toBeLessThanOrEqual(1)
+    expect(Math.abs(mainBox!.x + mainBox!.width - menuBox!.x - 1)).toBeLessThanOrEqual(1)
+    for (const button of await dock.locator('.right-dock-header .icon-button:enabled, .file-breadcrumb-toolbar .icon-button:enabled').all()) {
+      await checkHover(button)
+    }
+    const opens: Array<{ path: string; target: string }> = []
+    await page.exposeFunction('recordToolbarOpen', (path: string, target: string) => { opens.push({ path, target }) })
+    await page.evaluate(async () => {
+      const modulePath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(modulePath)
+      desktopClient.openPathWithTarget = async (path: string, target: string) => {
+        await (window as unknown as { recordToolbarOpen(path: string, target: string): Promise<void> }).recordToolbarOpen(path, target)
+      }
+    })
+    await main.click()
+    await expect.poll(() => opens.length).toBe(1)
+    expect(opens[0]!.path.endsWith('README.md')).toBe(true)
+    await menu.click()
+    await expect(menu).toHaveAttribute('data-state', 'open')
+    await expect(menu).toHaveCSS('background-color', colors.hover)
+    await expect(page.getByRole('menuitem', { name: '在文件资源管理器中显示' })).toBeVisible()
+    await page.getByRole('menuitemradio').first().click()
+    await expect.poll(() => opens.length).toBe(2)
+    expect(opens[1]).toEqual(opens[0])
+    await main.focus()
+    await page.keyboard.press('Tab')
+    await expect(menu).toBeFocused()
+    await expect(menu).toHaveCSS('outline-style', 'solid')
+    await main.evaluate((button: HTMLButtonElement) => { button.disabled = true })
+    await main.hover()
+    await expect(main).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await main.evaluate((button: HTMLButtonElement) => {
+      button.disabled = false
+      button.setAttribute('aria-disabled', 'true')
+    })
+    await main.hover()
+    await expect(main).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await main.evaluate(button => button.removeAttribute('aria-disabled'))
+    await main.evaluate(button => button.setAttribute('data-active', 'true'))
+    await page.mouse.move(0, 0)
+    await expect(main).toHaveCSS('background-color', colors.hover)
+    await main.evaluate(button => button.removeAttribute('data-active'))
+  })
+}
+
+for (const mode of MODES) {
+  test(`conversation project details share sidebar data and actions ${mode}`, async ({ page }) => {
+    test.setTimeout(90_000)
+    await prepareVisualTheme(page, mode, { reduceMotion: 'off' })
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await closeTransientErrorToast(page)
+    const openedFolders: string[] = []
+    await page.exposeFunction('recordProjectFolder', (path: string) => { openedFolders.push(path) })
+    const projectPath = await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const eventsPath = '/src/features/projects/projectCatalogEvents.ts'
+      const { desktopClient } = await import(clientPath)
+      const snapshot = await desktopClient.getSession('visual-rich')
+      let project = {
+        ...snapshot.workspace,
+        projectId: 'header-project',
+        name: 'Header Project',
+        projectVersion: 1,
+        primaryFolderId: 'header-primary',
+        folders: [{ id: 'header-primary', name: 'Root', path: snapshot.workspace.path,
+          role: 'primary', availability: 'available', order: 0, createdAt: 0, updatedAt: 0 }],
+      }
+      snapshot.item = { ...snapshot.item, projectId: project.projectId, standalone: false }
+      snapshot.workspace = project
+      desktopClient.listProjects = async () => [project]
+      desktopClient.updateProject = async (input: { name: string }) => {
+        project = { ...project, name: input.name, projectVersion: project.projectVersion + 1 }
+        return project
+      }
+      desktopClient.openPathWithDefaultTarget = async (path: string) => {
+        await (window as unknown as { recordProjectFolder(path: string): Promise<void> }).recordProjectFolder(path)
+      }
+      await desktopClient.setActiveSession('visual-rich')
+      const { notifyProjectCatalogChanged } = await import(eventsPath)
+      notifyProjectCatalogChanged()
+      return project.path
+    })
+    const trigger = page.locator('.chat-session-project-details')
+    await expect(trigger).toHaveAttribute('title', '项目详情：Header Project')
+    await trigger.hover()
+    await expect(page.getByRole('dialog', { name: '项目详情', exact: true })).toHaveCount(0)
+    await trigger.focus()
+    await expect(page.getByRole('dialog', { name: '项目详情', exact: true })).toHaveCount(0)
+    await page.keyboard.press('Enter')
+    const card = page.getByRole('dialog', { name: '项目详情', exact: true })
+    await expect(card).toBeVisible()
+    await expect(trigger).toHaveAttribute('data-state', 'open')
+    await expect(trigger).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    const stats = await card.locator('.sidebar-project-hover-card-stats-content').textContent()
+    await expect(card).toHaveCSS('width', '280px')
+    await page.mouse.move(1400, 880)
+    await expect(card).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(trigger).toBeFocused()
+    const projectsToggle = page.locator('[data-sidebar-section-id="projects"]')
+    if (await projectsToggle.getAttribute('aria-expanded') === 'false') await projectsToggle.click()
+    const sidebarProject = page.locator('.sidebar-project-button[data-sidebar-project-key="id:header-project"]').first()
+    await sidebarProject.hover()
+    const sidebarCard = page.locator('.sidebar-project-hover-card:visible').last()
+    await expect(sidebarCard.locator('.sidebar-project-hover-card-stats-content')).toHaveText(stats)
+    await page.mouse.move(1400, 880)
+    await expect(sidebarCard).toBeHidden()
+    await trigger.click()
+    await card.getByRole('button', { name: '置顶项目', exact: true }).click()
+    await expect(card).toBeHidden()
+    await expect(trigger).toBeFocused()
+    const pinnedToggle = page.locator('[data-sidebar-section-id="pinned"]')
+    if (await pinnedToggle.getAttribute('aria-expanded') === 'false') await pinnedToggle.click()
+    await sidebarProject.hover()
+    await expect(sidebarCard.getByRole('button', { name: '取消置顶项目', exact: true })).toBeVisible()
+    await page.mouse.move(1400, 880)
+    await expect(sidebarCard).toBeHidden()
+    await trigger.click()
+    await card.getByRole('button', { name: '取消置顶项目', exact: true }).click()
+    await trigger.click()
+    await card.locator('.sidebar-project-hover-card-folder').first().click()
+    await expect.poll(() => openedFolders).toEqual([projectPath])
+    await expect(trigger).toBeFocused()
+    await trigger.click()
+    await card.getByRole('button', { name: '编辑项目', exact: true }).click()
+    const editor = page.getByRole('dialog', { name: '编辑项目', exact: true })
+    await expect(editor).toBeVisible()
+    await expect.poll(() => editor.evaluate(element => element.contains(document.activeElement))).toBe(true)
+    await editor.getByRole('button', { name: '选择项目图标和颜色', exact: true }).click()
+    await page.getByRole('radio', { name: '蓝色', exact: true }).click()
+    await page.getByRole('radio', { name: '书本', exact: true }).click()
+    await page.getByRole('button', { name: '完成', exact: true }).click()
+    await editor.getByRole('textbox', { name: '项目名称', exact: true }).fill('Renamed Header Project')
+    await editor.getByRole('button', { name: '保存', exact: true }).click()
+    await expect(editor).toBeHidden()
+    await expect(trigger).toHaveAttribute('title', '项目详情：Renamed Header Project')
+    await expect(sidebarProject).toContainText('Renamed Header Project')
+    await expect(trigger.locator('[data-project-color]')).toHaveAttribute('data-project-color', 'blue')
+    await expect(trigger.locator('svg')).toHaveClass(/lucide-book-open/)
+    const sidebarToggle = page.locator('[data-app-shell-sidebar-trigger]')
+    if (await sidebarToggle.getAttribute('title') !== '展开侧边栏') await sidebarToggle.click()
+    await trigger.focus()
+    await page.keyboard.press('Space')
+    await expect(card).toBeVisible()
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(clientPath)
+      const snapshot = await desktopClient.getSession('visual-rich')
+      snapshot.item = { ...snapshot.item, standalone: true }
+      await desktopClient.setActiveSession('visual-rich')
+    })
+    await expect(trigger).toHaveCount(0)
+    await expect(card).toBeHidden()
+    const header = page.getByRole('toolbar', { name: '工作区工具栏' })
+    await expect(header.locator('.chat-session-title__icon')).toHaveCount(0)
+    const [headerBox, textBox] = await Promise.all([
+      header.boundingBox(), header.locator('.chat-session-title__text').boundingBox(),
+    ])
+    expect(Math.abs(textBox!.x - headerBox!.x - 8)).toBeLessThanOrEqual(1)
+  })
+}

@@ -372,7 +372,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@container (max-width: 760px) {
   .appearance-mode-gallery {
     gap: var(--cpx-sys-space-2);
   }

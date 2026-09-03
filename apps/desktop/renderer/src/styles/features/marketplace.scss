@@ -400,6 +400,7 @@
 }
 
 .plugins-details-page {
+  width: 100%;
   min-width: 0;
   height: 100%;
   overflow: auto;
@@ -411,7 +412,7 @@
 
 .catalog-details-view {
   display: grid;
-  width: min(var(--cpx-sys-layout-wide-max-width), 100%);
+  width: min(var(--page-content-max-width), 100%);
   margin-inline: auto;
   gap: var(--cpx-sys-space-7);
 }
@@ -879,8 +880,4 @@
 .mcp-editor-advanced-disclosure:focus-visible {
   outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 1px;
-}
-
-.settings-content-inner.plugins-settings-content {
-  max-width: var(--cpx-sys-layout-wide-max-width);
 }

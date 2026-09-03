@@ -266,14 +266,8 @@ for (const mode of ['light', 'dark'] as const) {
     await expect(composerAction).toHaveAttribute('data-active', 'true')
     await expect(composerAction).toHaveCSS('background-color', transparent)
     await composerAction.click()
-    for (const button of await page.locator('.open-target-split-button .icon-button').all()) {
-      await expectHover(button)
-    }
-    const openTarget = page.getByRole('button', { name: '切换默认打开目标', exact: true })
-    await openTarget.click()
-    await expect(openTarget).toHaveAttribute('data-state', 'open')
-    await expect(openTarget).toHaveCSS('background-color', transparent)
-    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: '切换默认打开目标', exact: true })).toHaveCount(0)
+    await expect(page.locator('.open-target-split-button')).toHaveCount(0)
     const table = page.locator('.md-table-block').first()
     await table.hover()
     await expectHover(table.locator('.md-table-copy'))

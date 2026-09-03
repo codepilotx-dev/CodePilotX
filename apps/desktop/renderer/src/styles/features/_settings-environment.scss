@@ -374,7 +374,7 @@
   font: var(--cpx-sys-type-code);
 }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   .environment-page-heading {
     flex-direction: column;
   }

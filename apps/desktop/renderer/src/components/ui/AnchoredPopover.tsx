@@ -17,6 +17,7 @@ export type AnchoredPopoverProps = PopoverSizingProps & {
   defaultOpen?: boolean
   modal?: boolean
   onOpenChange?: (open: boolean) => void
+  onCloseAutoFocus?: React.ComponentProps<typeof RadixPopover.Content>['onCloseAutoFocus']
   open?: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
@@ -35,6 +36,7 @@ export function AnchoredPopover({
   maxWidth,
   modal = false,
   onOpenChange,
+  onCloseAutoFocus,
   open,
   side = 'bottom',
   sideOffset = 4,
@@ -51,6 +53,7 @@ export function AnchoredPopover({
       <RadixPopover.Trigger asChild>{trigger}</RadixPopover.Trigger>
       <RadixPopover.Portal>
         <RadixPopover.Content
+          onCloseAutoFocus={onCloseAutoFocus}
           aria-label={contentLabel}
           align={align}
           className={cx(

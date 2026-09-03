@@ -1,5 +1,5 @@
 import type React from 'react'
-import { lazy, memo, Suspense, useEffect, useId, useState } from 'react'
+import { memo, useEffect, useId, useState } from 'react'
 import {
   Archive,
   FolderOpen,
@@ -37,25 +37,14 @@ import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
 } from '../../projects/projectAppearance.js'
-import { notifyProjectCatalogChanged } from '../../projects/projectCatalogEvents.js'
 import {
   type SidebarProjectSessionBucket,
   sidebarProjectKey,
   normalizeSidebarPath,
 } from './sidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
-import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
+import { ProjectManagementDialogs } from '../../projects/ProjectManagementDialogs.js'
 import { sidebarProjectDisclosureKey } from './sidebarDisclosureStore.js'
-
-const ProjectEditDialog = lazy(async () => {
-  const module = await import('../../projects/ProjectEditDialog.js')
-  return { default: module.ProjectEditDialog }
-})
-
-const ConfirmationDialog = lazy(async () => {
-  const module = await import('../../../components/ui/ConfirmationDialog.js')
-  return { default: module.ConfirmationDialog }
-})
 
 type Props = {
   activeSessionId: string | null
@@ -116,13 +105,11 @@ function SidebarProjectGroupComponent({
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
-  const confirmationDialogMounted = useEverOpened(confirmRemoveOpen)
-  const managerDialogMounted = useEverOpened(managerOpen)
   const [managedProject, setManagedProject] = useState(project)
   const [processingAction, setProcessingAction] = useState<
-    'archive' | 'remove' | null
+    'archive' | null
   >(null)
-  const { projectAppearances, setProjectAppearances } = useDesktopSettings()
+  const { projectAppearances } = useDesktopSettings()
 
   useEffect(() => setManagedProject(project), [project])
 
@@ -381,72 +368,18 @@ function SidebarProjectGroupComponent({
         /> : null}
       </DisclosureContent>
 
-      {confirmationDialogMounted ? (
-        <Suspense fallback={null}>
-          <ConfirmationDialog
-            actionDisabled={processingAction !== null}
-            actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
-            description="项目任务将一并归档。磁盘上的目录与文件不会被删除。"
-            open={confirmRemoveOpen}
-            title={`移除 ${managedProject.name}?`}
-            tone="danger"
-            onAction={() => {
-              if (processingAction) return
-              setProcessingAction('remove')
-              void (managedProject.projectId
-                ? desktopClient
-                    .removeProject(managedProject.projectId)
-                    .then(() => true)
-                : onArchiveSessions(countedProjectSessions)
-              )
-                .then(success => {
-                  if (!success) return
-                  setConfirmRemoveOpen(false)
-                  if (managedProject.projectId) {
-                    setProjectAppearances(current => {
-                      const {
-                        [managedProject.projectId as string]: _removed,
-                        ...next
-                      } = current
-                      return next
-                    })
-                  }
-                  onRemoveWorkspace(managedProject)
-                  notifyProjectCatalogChanged()
-                })
-                .catch(error => onReport(
-                  error instanceof Error ? error.message : String(error),
-                ))
-                .finally(() => setProcessingAction(null))
-            }}
-            onCancel={() => setConfirmRemoveOpen(false)}
-          />
-        </Suspense>
-      ) : null}
-
-      {managerDialogMounted ? (
-        <Suspense fallback={null}>
-          <ProjectEditDialog
-            appearance={appearance}
-            open={managerOpen}
-            project={managedProject}
-            onAppearanceChange={nextAppearance => {
-              if (!managedProject.projectId) return
-              setProjectAppearances(current => ({
-                ...current,
-                [managedProject.projectId as string]: nextAppearance,
-              }))
-            }}
-            onOpenChange={setManagerOpen}
-            onProjectChange={setManagedProject}
-            onReport={onReport}
-            onRequestRemove={() => {
-              setManagerOpen(false)
-              setConfirmRemoveOpen(true)
-            }}
-          />
-        </Suspense>
-      ) : null}
+      <ProjectManagementDialogs
+        project={managedProject}
+        managerOpen={managerOpen}
+        confirmRemoveOpen={confirmRemoveOpen}
+        busy={processingAction !== null}
+        setManagerOpen={setManagerOpen}
+        setConfirmRemoveOpen={setConfirmRemoveOpen}
+        onProjectChange={setManagedProject}
+        onArchiveSessions={() => onArchiveSessions(countedProjectSessions)}
+        onRemoveWorkspace={onRemoveWorkspace}
+        onReport={onReport}
+      />
     </section>
   )
 }

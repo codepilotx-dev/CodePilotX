@@ -1262,10 +1262,24 @@
   align-items: center;
   column-gap: var(--sidebar-hover-column-gap);
 
+  .project-appearance-glyph,
+  > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--sidebar-hover-leading-width);
+    height: var(--sidebar-hover-leading-width);
+  }
+
+  svg {
+    display: block;
+  }
+
   strong {
     min-width: 0;
-    flex: 1;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font: var(--cpx-sys-type-body);
     font-weight: var(--cpx-sys-font-weight-medium);
     color: var(--cpx-sys-color-fg-primary);
@@ -1273,7 +1287,11 @@
 }
 
 .sidebar-project-hover-card-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
+  justify-self: end;
 }
 
 .sidebar-project-hover-card-stats {

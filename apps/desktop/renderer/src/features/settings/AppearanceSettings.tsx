@@ -1050,11 +1050,11 @@ export function AppearanceSettings({
         <SettingsSection title="偏好设置">
           <SettingsRow
             autoSave
-            title="聊天宽度"
-            description="设置聊天内容和输入框的最大宽度"
+            title="页面宽度"
+            description="设置所有一级页面主内容区域的最大宽度"
             control={
               <SegmentedControl
-                ariaLabel="聊天宽度"
+                ariaLabel="页面宽度"
                 options={[
                   { value: 'default', label: '默认' },
                   { value: 'narrow', label: '窄' },
