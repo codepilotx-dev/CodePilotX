@@ -358,6 +358,32 @@ export function isExplorationToolActivity(item: ToolItem): boolean {
     || item.activity?.type === "list_files";
 }
 
+export function ToolActivityHeader({
+  canExpand, children, contentId, expanded, label, onToggle,
+}: {
+  canExpand: boolean;
+  children: React.ReactNode;
+  contentId: string;
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+}): React.ReactNode {
+  return (
+    <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--tool">
+      <button
+        aria-controls={canExpand ? contentId : undefined}
+        aria-expanded={canExpand ? expanded : undefined}
+        aria-label={label}
+        className="cpx-agent-activity__item-toggle"
+        disabled={!canExpand}
+        onClick={onToggle}
+        type="button"
+      />
+      {children}
+    </div>
+  );
+}
+
 function ToolActivityFileLink({ path, text }: { path: string; text: string }): React.ReactNode {
   const { onOpenFileReference } = useConversationItemContext();
   return (

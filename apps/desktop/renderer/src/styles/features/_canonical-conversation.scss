@@ -962,6 +962,41 @@
 
 }
 
+.cpx-agent-activity__item-header--tool {
+  position: relative;
+  isolation: isolate;
+
+  > .cpx-agent-activity__icon,
+  > .cpx-agent-activity__label,
+  > .cpx-agent-activity__chevron {
+    pointer-events: none;
+  }
+
+  .cpx-agent-activity__file-link {
+    position: relative;
+    z-index: var(--cpx-sys-z-local);
+    pointer-events: auto;
+  }
+
+  &:has(> .cpx-agent-activity__item-toggle:focus-visible) {
+    box-shadow: var(--cpx-sys-focus-ring-inset);
+  }
+}
+
+.cpx-agent-activity__item-toggle {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: inherit;
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
 .cpx-agent-activity__item-header--static {
   cursor: default;
 }

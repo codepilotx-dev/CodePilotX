@@ -362,16 +362,18 @@ export function DesktopSettingsProvider({
 
 export function useDesktopSettings(): UseDesktopSettingsResult {
   const settings = useContext(DesktopSettingsContext)
-  if (settings) {
-    return settings
+  if (!settings) {
+    throw new Error('useDesktopSettings 必须在 DesktopSettingsProvider 内使用')
   }
-  return useDesktopSettingsState().settings
+  return settings
 }
 
 export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
   const settings = useContext(DesktopRuntimeSettingsContext)
-  if (settings) return settings
-  return useDesktopSettingsState().runtime
+  if (!settings) {
+    throw new Error('useDesktopRuntimeSettings 必须在 DesktopSettingsProvider 内使用')
+  }
+  return settings
 }
 
   function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): DesktopSettingsState {

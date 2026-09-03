@@ -61,6 +61,7 @@ import {
 import { useToolArtifactImageSource } from "./useToolArtifactImageSource.js";
 import {
   buildToolSemanticSummary,
+  ToolActivityHeader,
   ToolActivityLabel,
   toolSemanticIcon,
   type ToolActivityIconKind,
@@ -729,12 +730,12 @@ export function ToolItemView({
       data-presentation={presentation}
       data-state={item.state}
     >
-      <button
-        aria-controls={view.canExpand ? contentId : undefined}
-        aria-disabled={!view.canExpand}
-        aria-expanded={view.canExpand ? expanded : undefined}
-        className="cpx-agent-activity__item-header"
-        onClick={() => {
+      <ToolActivityHeader
+        canExpand={view.canExpand}
+        contentId={contentId}
+        expanded={expanded}
+        label={expanded ? view.expandedLabel : view.collapsedLabel}
+        onToggle={() => {
           if (!view.canExpand) return;
           if (disclosure) {
             disclosure.onExpandedChange(disclosure.id, !expanded);
@@ -742,7 +743,6 @@ export function ToolItemView({
             setLocalExpanded(!expanded);
           }
         }}
-        type="button"
       >
         {view.active ? (
           <LoaderCircle className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
@@ -761,7 +761,7 @@ export function ToolItemView({
           </span>
         )}
         <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
-      </button>
+      </ToolActivityHeader>
       <DisclosureContent
         contentClassName="cpx-agent-activity__details"
         expanded={expanded}
