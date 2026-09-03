@@ -9,6 +9,8 @@
 
 ### Added
 
+- [agent] 实施 Sidecar 长期高内存与堆外内存治理：限制 SQLite 单库 4MB 页面缓存上限（PRAGMA cache_size = -4000），引入 MemoryManager 核心服务实现 Turn 终态 1.5s 防抖与 60s 静默空闲主动 GC 与 shrink_memory（结合 wal_checkpoint(PASSIVE) 归还未用页面），对 GitReview 文件 Diff 快照（上限 3 项）与 Compaction（上限 10 项）引入 LRU 有界淘汰，并预留 system/shrinkMemory RPC 契约与 system.memory.v1 capability。
+
 - [desktop/renderer] 支持在工作区工具栏单击标题原地编辑会话名称（单次点击即可自动聚焦并全选现有标题，支持 Enter 与失焦保存、Esc 取消、输入法组合防误触与失败保留），并对齐顶部项目图标居中与项目详情卡片首行（图标、名称与置顶按钮）水平中心线。
 
 - [desktop] 聊天 header 项目图标支持打开项目详情，复用侧栏统计、置顶与编辑操作；无项目聊天不再显示图标或占位。
@@ -44,6 +46,8 @@
 - [agent/desktop] 补齐工作目录、会话 ID 与系统深链复制，支持 CodePilotX Agent 分页读取关联会话，并为外部 Agent 提供按会话 ID 查询的 SQLite 只读语义视图。
 
 ### Changed
+
+- [desktop/renderer] 调整用户消息 Markdown 气泡排版，取消 user-message-markdown 中 md-body 段落 (p) 继承的 margin-block: var(--cpx-sys-space-3) 规则，由基础 Markdown 样式保障首尾外边距清除与段落自然间距。
 
 - [desktop/renderer] 对齐 Codex 项目编辑弹窗与聊天交互：弹窗宽度设为 32rem（20px 内边距、12px 分段与 20px 底部留白）、移除背景模糊并保留暗色遮罩；名称栏采用 40px 高度、40px 图标区与整体边框高亮；源文件夹列表统一容器与 48px 行高，名称单行省略并支持悬停展示完整路径，仅在多文件夹时展示主目录徽章与设为主目录操作；底部操作按钮统一采用 medium 尺寸，并将项目图标选择弹层层级提升至弹窗之上。
 
@@ -240,6 +244,8 @@
 - [Agent] Skills 与可选 MCP server 改为按需发现和加载，单个外部资源故障不再阻断普通对话。
 
 ### Fixed
+
+- [desktop/renderer] 设置 Hook 统一读取现有 Provider，移除条件创建状态的回退；拆分工具卡片展开按钮与文件按钮，修复 Hooks 顺序隐患和按钮嵌套，并保留独立文件预览及键盘操作。
 
 - [desktop] 统一工作区 header 两端 8px 留白，侧栏与右侧面板展开、收起及调整宽度后保持对齐。
 
