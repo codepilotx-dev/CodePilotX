@@ -93,17 +93,21 @@ describe('WorkspaceShellControls', () => {
 describe('Panel toggle icons', () => {
   test('BottomPanelToggleIcon renders expected path for open and closed states', () => {
     const openHtml = renderToStaticMarkup(<BottomPanelToggleIcon open={true} />)
-    expect(openHtml).toContain('M2.5 12.5h15')
+    expect(openHtml).toContain('lucide-panel-bottom')
+    expect(openHtml).toContain('data-open="true"')
+    expect(openHtml).toContain('M3 15h18')
 
     const closedHtml = renderToStaticMarkup(<BottomPanelToggleIcon open={false} />)
-    expect(closedHtml).toContain('M7 12.5h6')
+    expect(closedHtml).toContain('data-open="false"')
   })
 
   test('RightPanelToggleIcon renders expected path for open and closed states', () => {
     const openHtml = renderToStaticMarkup(<RightPanelToggleIcon open={true} />)
-    expect(openHtml).toContain('M12.25 3.5v13')
+    expect(openHtml).toContain('lucide-panel-right')
+    expect(openHtml).toContain('data-open="true"')
+    expect(openHtml).toContain('M15 3v18')
 
     const closedHtml = renderToStaticMarkup(<RightPanelToggleIcon open={false} />)
-    expect(closedHtml).toContain('M12.9 7v6')
+    expect(closedHtml).toContain('data-open="false"')
   })
 })

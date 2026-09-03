@@ -178,8 +178,7 @@
   color: var(--cpx-sys-color-fg-tertiary);
 }
 
-.file-breadcrumb-toolbar__action,
-.file-breadcrumb-toolbar__open-menu {
+.file-breadcrumb-toolbar__action {
   display: inline-flex;
   height: var(--cpx-sys-space-6);
   align-items: center;
@@ -188,11 +187,6 @@
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: inherit;
-
-  &:hover {
-    background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-fg-primary);
-  }
 
   &:focus-visible {
     outline: none;
@@ -263,28 +257,26 @@
   flex: 0 0 auto;
 }
 
-.file-breadcrumb-toolbar__open {
-  min-width: 0;
-
-  span {
-    max-width: 112px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 .file-breadcrumb-toolbar__open-group {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: var(--cpx-sys-layout-toolbar-gap);
+  gap: 0;
+
+  .icon-button {
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+  }
+}
+
+.file-breadcrumb-toolbar__open {
+  border-radius: var(--cpx-sys-radius-md) 0 0 var(--cpx-sys-radius-md);
 }
 
 .file-breadcrumb-toolbar__open-menu {
-  width: 24px;
-  padding: 0;
-  border-left: 1px solid var(--cpx-sys-color-border-default);
+  --file-open-target-seam: -1px;
+
+  margin-left: var(--file-open-target-seam);
+  border-radius: 0 var(--cpx-sys-radius-md) var(--cpx-sys-radius-md) 0;
 }
 
 .file-breadcrumb-open-target-icon {
@@ -477,7 +469,6 @@
   }
 
   .file-breadcrumb-toolbar__directory,
-  .file-breadcrumb-toolbar__open span,
   .file-breadcrumb-toolbar__actions small {
     display: none;
   }
@@ -844,4 +835,13 @@
   min-height: 3rem;
   flex: 1 1 auto;
   max-height: none;
+}
+
+.file-breadcrumb-toolbar .icon-button[data-color] {
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
 }

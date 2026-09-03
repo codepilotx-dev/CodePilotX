@@ -536,41 +536,43 @@ export function WorkbenchPanel({
       <WorkbenchPanelSurface
         target={target}
         header={
-          <TabStripButtonProvider>
-            <WorkbenchTabStrip
-              state={state}
-              tabsById={tabsById}
-              target={target}
-              terminalDisplayPath={terminalDisplayPath}
-              onClosePanel={target === 'bottom' ? stableOnClose : undefined}
-              onCloseOtherTabs={onCloseOtherTabs}
-              onCloseTab={onCloseTab}
-              onCloseTabsToRight={onCloseTabsToRight}
-              onMoveTab={onMoveTab}
-              onOpenTab={stableOnOpenTab}
-              onCreateSideChat={onCreateSideChat}
-              sideChatAvailable={sideChat.available}
-              onPinTab={onPinTab}
-              onReorderTab={onReorderTab}
-              onSelectTab={onSelectTab}
-            />
+          <>
+            <TabStripButtonProvider>
+              <WorkbenchTabStrip
+                state={state}
+                tabsById={tabsById}
+                target={target}
+                terminalDisplayPath={terminalDisplayPath}
+                onClosePanel={target === 'bottom' ? stableOnClose : undefined}
+                onCloseOtherTabs={onCloseOtherTabs}
+                onCloseTab={onCloseTab}
+                onCloseTabsToRight={onCloseTabsToRight}
+                onMoveTab={onMoveTab}
+                onOpenTab={stableOnOpenTab}
+                onCreateSideChat={onCreateSideChat}
+                sideChatAvailable={sideChat.available}
+                onPinTab={onPinTab}
+                onReorderTab={onReorderTab}
+                onSelectTab={onSelectTab}
+              />
+            </TabStripButtonProvider>
             {target === 'right' && onToggleRightFullWidth ? (
               <IconButton
-              aria-pressed={rightFullWidth}
-              className="right-dock-full-width"
-              color="ghostSecondary"
-              size="toolbar"
-              title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
-              onClick={onToggleRightFullWidth}
-            >
-              {rightFullWidth ? (
-                <Minimize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              ) : (
-                <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              )}
+                aria-pressed={rightFullWidth}
+                className="right-dock-full-width"
+                color="ghostSecondary"
+                size="toolbar"
+                title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
+                onClick={onToggleRightFullWidth}
+              >
+                {rightFullWidth ? (
+                  <Minimize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                ) : (
+                  <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                )}
               </IconButton>
             ) : null}
-          </TabStripButtonProvider>
+          </>
         }
       >
         <MemoizedWorkbenchPanelContent

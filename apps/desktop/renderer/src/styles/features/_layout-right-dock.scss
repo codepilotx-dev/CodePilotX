@@ -687,3 +687,12 @@
     border-top-color: CanvasText;
   }
 }
+
+.right-dock-header .icon-button[data-color] {
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+}

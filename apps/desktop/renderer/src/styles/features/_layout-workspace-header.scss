@@ -227,3 +227,26 @@
     outline-offset: -1px;
   }
 }
+
+.desktop-workspace-header .icon-button[data-color] {
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+}
+
+.workspace-panel-icon > path {
+  transform-box: view-box;
+  transform-origin: center;
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+}
+
+.workspace-panel-icon--bottom[data-open="false"] > path {
+  transform: scaleX(0.4);
+}
+
+.workspace-panel-icon--right[data-open="false"] > path {
+  transform: scaleY(0.4);
+}

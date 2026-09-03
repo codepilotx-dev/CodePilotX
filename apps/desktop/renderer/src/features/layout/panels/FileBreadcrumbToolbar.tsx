@@ -171,7 +171,9 @@ export function FileBreadcrumbToolbar({
           />
         </IconButton>
         <div className="file-breadcrumb-toolbar__open-group">
-          <button
+          <IconButton
+            color="ghostSecondary"
+            size="toolbar"
             className="file-breadcrumb-toolbar__open"
             disabled={!absolutePath || !preferredOpenTarget}
             title={
@@ -192,8 +194,7 @@ export function FileBreadcrumbToolbar({
                 targetId={preferredOpenTarget.id}
               />
             ) : null}
-            <span>打开</span>
-          </button>
+          </IconButton>
           <PopoverMenu
             align="end"
             className="file-breadcrumb-open-popover popover-menu--grid"

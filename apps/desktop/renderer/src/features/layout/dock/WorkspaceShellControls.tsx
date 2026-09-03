@@ -1,4 +1,6 @@
 import type React from 'react'
+import { PanelBottom, PanelRight } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import type { WorkbenchPanelSnapshot } from './rightDockState.js'
 
@@ -61,26 +63,24 @@ export function WorkspaceShellControls({
 
 export function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
   return (
-    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
-      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
-      <path
-        d={open ? 'M2.5 12.5h15' : 'M7 12.5h6'}
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
+    <PanelBottom
+      aria-hidden="true"
+      className="workspace-panel-icon workspace-panel-icon--bottom"
+      data-open={open}
+      size={APP_ICON_SIZE}
+      strokeWidth={APP_ICON_STROKE_WIDTH}
+    />
   )
 }
 
 export function RightPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
   return (
-    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
-      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
-      <path
-        d={open ? 'M12.25 3.5v13' : 'M12.9 7v6'}
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
+    <PanelRight
+      aria-hidden="true"
+      className="workspace-panel-icon workspace-panel-icon--right"
+      data-open={open}
+      size={APP_ICON_SIZE}
+      strokeWidth={APP_ICON_STROKE_WIDTH}
+    />
   )
 }
