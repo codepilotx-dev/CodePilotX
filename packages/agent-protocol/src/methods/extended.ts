@@ -370,6 +370,30 @@ const ApiKeyTestResultSchema = Schema.Struct({
   message: Schema.String,
 })
 
+export const SystemShrinkReasonSchema = Schema.Literals(["turn_end", "idle", "manual"])
+export type SystemShrinkReason = typeof SystemShrinkReasonSchema.Type
+
+export const SystemShrinkMemoryParamsSchema = Schema.Struct({
+  reason: Schema.optional(SystemShrinkReasonSchema),
+})
+export type SystemShrinkMemoryParams = typeof SystemShrinkMemoryParamsSchema.Type
+
+export const MemoryStatsSchema = Schema.Struct({
+  rss: NonNegativeIntSchema,
+  heapTotal: NonNegativeIntSchema,
+  heapUsed: NonNegativeIntSchema,
+  external: NonNegativeIntSchema,
+  arrayBuffers: Schema.optional(NonNegativeIntSchema),
+})
+export type MemoryStats = typeof MemoryStatsSchema.Type
+
+export const SystemShrinkMemoryResultSchema = Schema.Struct({
+  success: Schema.Boolean,
+  stats: MemoryStatsSchema,
+  freedRssBytes: Schema.optional(Schema.Int),
+})
+export type SystemShrinkMemoryResult = typeof SystemShrinkMemoryResultSchema.Type
+
 const SUBAGENT_CAPABILITY = "subagents.v1"
 
 export const ExtendedRpcMethods = {
@@ -868,6 +892,16 @@ export const ExtendedRpcMethods = {
     result: Schema.Struct({ session: AuthSessionSchema }),
     errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
     capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "system/shrinkMemory": defineMethod({
+    params: SystemShrinkMemoryParamsSchema,
+    result: SystemShrinkMemoryResultSchema,
+    errors: ["INTERNAL_ERROR"] as const,
+    capability: "system.memory.v1",
     exactParams: true,
     exactResult: true,
     mutation: true,

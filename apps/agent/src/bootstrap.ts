@@ -57,6 +57,7 @@ import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { MemoryManager } from "./resource/MemoryManager";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import { GitWorkspaceService } from "./git/GitWorkspaceService";
@@ -422,6 +423,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       options.onReviewGitCommand,
       logger,
     );
+    const memoryManager = new MemoryManager({ logger });
+    memoryManager.registerHook("sqlite", () => db.shrinkMemory());
+    memoryManager.registerHook("git_review", () => review.shrink());
     const git = new GitWorkspaceService(db);
     const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
@@ -676,6 +680,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       toolExecutor,
       contextCompaction: new ContextCompactionService(db),
       artifacts,
+      memoryManager,
       observeHarnessEvent: (context, event) =>
         harnessLogs.observe({
           threadId: context.threadID,
@@ -996,6 +1001,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadExecutions,
       sessionGroups,
       automation,
+      memoryManager,
     });
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
     void providers.refresh(false).catch(() => undefined).then(async () => {
@@ -1017,6 +1023,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeConfig();
       await sideChats.discardAll(true);
       await orchestrator.dispose();
+      memoryManager.dispose();
       await configService.dispose();
       await mcpConnections.dispose();
       // Stop background model-health workers before tearing down the provider,

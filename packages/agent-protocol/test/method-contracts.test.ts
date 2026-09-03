@@ -3198,6 +3198,19 @@ const fixtures = {
     sourceId: "xai-management",
     disconnected: true,
   }),
+  "system/shrinkMemory": methodFixture("system/shrinkMemory", {
+    reason: "manual",
+  }, {
+    success: true,
+    stats: {
+      rss: 120_000_000,
+      heapTotal: 60_000_000,
+      heapUsed: 40_000_000,
+      external: 10_000_000,
+      arrayBuffers: 2_000_000,
+    },
+    freedRssBytes: 15_000_000,
+  }),
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
@@ -3277,7 +3290,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(231)
+    expect(methods).toHaveLength(232)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3608,7 +3621,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(225)
+    expect(Object.keys(RpcMethods)).toHaveLength(226)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
@@ -4020,5 +4033,40 @@ describe("RPC method schema contracts", () => {
       ...payload,
       latencyMs: 12,
     })).toThrow()
+  })
+
+  test("system/shrinkMemory 声明 system.memory.v1 能力且参数与结果保持精确 envelope", () => {
+    expect(Capabilities).toContain("system.memory.v1")
+    expect(RpcMethods["system/shrinkMemory"]).toMatchObject({
+      capability: "system.memory.v1",
+      mutation: true,
+      exactParams: true,
+      exactResult: true,
+    })
+    const decodeParams = Schema.decodeUnknownSync(
+      RpcMethods["system/shrinkMemory"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeParams({})).toEqual({})
+    expect(decodeParams({ reason: "idle" })).toEqual({ reason: "idle" })
+    expect(() => decodeParams({ reason: "unknown" })).toThrow()
+    expect(() => decodeParams({ reason: "manual", extra: 1 })).toThrow()
+
+    const decodeResult = Schema.decodeUnknownSync(
+      RpcMethods["system/shrinkMemory"].result,
+      { onExcessProperty: "error" },
+    )
+    const validResult = {
+      success: true,
+      stats: {
+        rss: 100_000_000,
+        heapTotal: 50_000_000,
+        heapUsed: 30_000_000,
+        external: 5_000_000,
+      },
+      freedRssBytes: 10_000_000,
+    }
+    expect(decodeResult(validResult)).toEqual(validResult)
+    expect(() => decodeResult({ ...validResult, extra: 1 })).toThrow()
   })
 })

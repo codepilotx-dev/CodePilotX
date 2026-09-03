@@ -17,7 +17,7 @@ import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
 import { SessionGroupRepository } from "../repositories/session-group-repository"
-import { configureConnection } from "./connection"
+import { configureConnection, shrinkDatabaseMemory } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
 import { prepareStorage, type StoragePaths } from "./reset"
@@ -85,6 +85,11 @@ export class AgentDatabase extends RepositoryDatabase {
 
   /** Tool-result artifact catalog over the same history connection. */
   readonly artifacts: ArtifactRepository
+
+  shrinkMemory(): void {
+    shrinkDatabaseMemory(this.sqlite)
+    if (this.profileSqlite !== this.sqlite) shrinkDatabaseMemory(this.profileSqlite)
+  }
 
   close() {
     this.sqlite.close()

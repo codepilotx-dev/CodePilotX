@@ -76,6 +76,8 @@ type ReviewSnapshotPhase =
   | "post-scan"
   | "finalize"
 
+export const DEFAULT_MAX_REVIEW_SNAPSHOTS = 3
+
 export class GitReviewService {
   private readonly watchers = new Map<string, ProjectWatcher>()
   private readonly watcherRequests = new Map<string, Promise<void>>()
@@ -85,6 +87,7 @@ export class GitReviewService {
   private readonly projectEpochs = new Map<string, number>()
   private readonly repositoryRoots = new Map<string, string>()
   private readonly dirtyProjects = new Set<string>()
+  private readonly maxSnapshots: number
   private disposed = false
   private readonly gitRunner: GitCommandRunner
 
@@ -99,12 +102,48 @@ export class GitReviewService {
     }) => Promise<{ baseSha: string; headSha: string }>) | undefined,
     private readonly onGitCommand?: ((args: readonly string[]) => void) | undefined,
     private readonly logger?: ReviewLogger | undefined,
+    options?: { maxSnapshots?: number } | undefined,
   ) {
+    this.maxSnapshots = options?.maxSnapshots ?? DEFAULT_MAX_REVIEW_SNAPSHOTS
     this.gitRunner = new GitCommandRunner({
       maxOutputBytes: MAX_GIT_OUTPUT_BYTES,
       timeoutMs: GIT_TIMEOUT_MS,
       onCommand: this.onGitCommand,
     })
+  }
+
+  private touchSnapshot(key: string, entry: CachedReviewSnapshot): void {
+    this.snapshots.delete(key)
+    this.snapshots.set(key, entry)
+  }
+
+  private setSnapshot(key: string, entry: CachedReviewSnapshot): void {
+    this.snapshots.delete(key)
+    this.snapshots.set(key, entry)
+    while (this.snapshots.size > this.maxSnapshots) {
+      const oldestKey = this.snapshots.keys().next().value
+      if (!oldestKey) break
+      this.evictSnapshot(oldestKey)
+    }
+  }
+
+  private evictSnapshot(key: string): void {
+    const entry = this.snapshots.get(key)
+    if (entry) {
+      entry.fileDiffs.clear()
+      entry.fileDiffRequests.clear()
+      entry.fileDiffBatchRequests.clear()
+      this.snapshots.delete(key)
+    }
+  }
+
+  shrink(): void {
+    while (this.snapshots.size > 1) {
+      const oldestKey = this.snapshots.keys().next().value
+      if (!oldestKey) break
+      this.evictSnapshot(oldestKey)
+    }
+    this.watcherRequests.clear()
   }
 
   private reviewFailureDetails(cause: unknown) {
@@ -124,6 +163,9 @@ export class GitReviewService {
     for (const watcher of this.watchers.values()) watcher.close()
     this.watchers.clear()
     this.watcherRequests.clear()
+    for (const key of [...this.snapshots.keys()]) {
+      this.evictSnapshot(key)
+    }
   }
 
   private async git(
@@ -983,7 +1025,7 @@ export class GitReviewService {
     this.dirtyProjects.delete(projectId)
     this.snapshotRequestStartedAt.set(key, performance.now())
     const request = this.buildSnapshot(projectId, source).then((entry) => {
-      this.snapshots.set(key, entry)
+      this.setSnapshot(key, entry)
       return entry
     })
     this.snapshotRequests.set(key, request)
@@ -1012,6 +1054,7 @@ export class GitReviewService {
     const startedAt = performance.now()
     const key = this.cacheKey(projectId, source)
     const cached = this.snapshots.get(key)
+    if (cached) this.touchSnapshot(key, cached)
     const cacheHit = !refresh && cached !== undefined
     this.logger?.info("review.summary.started", {
       details: {
@@ -1084,6 +1127,7 @@ export class GitReviewService {
   ) {
     const key = this.cacheKey(projectId, source)
     let entry = this.snapshots.get(key)
+    if (entry) this.touchSnapshot(key, entry)
     if (entry && !entry.stale) {
       const currentEntry = entry
       const indexChanged = source.kind === "unstaged"

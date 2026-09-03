@@ -58,6 +58,7 @@ import type { SpeechTranscriptionService } from "../speech/SpeechTranscriptionSe
 import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
 import type { SessionGroupService } from "../session-group/SessionGroupService"
 import type { AutomationService } from "../automation"
+import type { MemoryManager } from "../resource/MemoryManager"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -110,6 +111,7 @@ export interface TransportDependencies {
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
   automation: AutomationService
+  memoryManager?: MemoryManager | undefined
 }
 
 export const resolveEventCursor = (
@@ -386,7 +388,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation, memoryManager: dependencies.memoryManager })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

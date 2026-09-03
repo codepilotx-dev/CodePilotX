@@ -45,6 +45,7 @@ import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from "../runtime-
 import { SkillService } from "../prompt/SkillService";
 import type { WorkspaceService } from "../workspace/WorkspaceService";
 import { classifyToolActivity, storedToolActivity } from "../tool/ToolActivityClassifier";
+import type { MemoryManager } from "../resource/MemoryManager";
 
 export type {
   DelegationController,
@@ -319,6 +320,8 @@ export const piItemDeltaPayload = (input: {
   delta: input.delta,
 });
 
+export const MAX_CACHED_COMPACTIONS = 10;
+
 export interface AgentRuntimeServiceOptions {
   db: AgentDatabase;
   hub: EventHub;
@@ -326,6 +329,7 @@ export interface AgentRuntimeServiceOptions {
   toolExecutor: ToolExecutor;
   contextCompaction: ContextCompactionService;
   artifacts?: ArtifactService;
+  memoryManager?: MemoryManager | undefined;
   observeHarnessEvent?: (
     context: PiRuntimeEventContext,
     event: AgentHarnessEvent,
@@ -345,6 +349,16 @@ export class AgentRuntimeService implements AgentRuntime {
     this.repo = new SqlitePiSessionRepo(options.db);
     this.turnPiBoundaries = new TurnPiBoundaryRepository(options.db);
     this.runtimeCompositions = new RuntimeCompositionService({ db: options.db });
+  }
+
+  private setCompletedCompaction(threadId: string, compaction: ContextCompaction): void {
+    this.completedCompactions.delete(threadId);
+    this.completedCompactions.set(threadId, compaction);
+    while (this.completedCompactions.size > MAX_CACHED_COMPACTIONS) {
+      const oldestKey = this.completedCompactions.keys().next().value;
+      if (!oldestKey) break;
+      this.completedCompactions.delete(oldestKey);
+    }
   }
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
@@ -857,7 +871,7 @@ export class AgentRuntimeService implements AgentRuntime {
             trigger: input.trigger,
           });
         });
-        this.completedCompactions.set(context.threadID, completed.compaction);
+        this.setCompletedCompaction(context.threadID, completed.compaction);
         await this.publish(completed.event);
       },
       aborted: async (context) => {
@@ -868,6 +882,7 @@ export class AgentRuntimeService implements AgentRuntime {
   }
 
   async run(request: AgentRuntimeRequest) {
+    this.options.memoryManager?.notifyTurnStarted();
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
     // durable Pi session context; side effects remain protected by toolCallID.
     const resolved = await request.resolveModel(request.fallbackModel);
@@ -1449,7 +1464,11 @@ export class AgentRuntimeService implements AgentRuntime {
       ? { status: "paused" as const, output: result.output }
       : result;
     } finally {
-      await composition.release().catch(() => undefined);
+      try {
+        await composition.release().catch(() => undefined);
+      } finally {
+        this.options.memoryManager?.notifyTurnCompleted();
+      }
     }
   }
 
@@ -1553,7 +1572,7 @@ export class AgentRuntimeService implements AgentRuntime {
         trigger: "manual",
       });
     });
-    this.completedCompactions.set(threadID, completed.compaction);
+    this.setCompletedCompaction(threadID, completed.compaction);
     await this.publish(completed.event);
     return completed.compaction;
   }

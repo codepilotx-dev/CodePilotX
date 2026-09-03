@@ -40,6 +40,7 @@ export const systemHandlers = {
     "event/subscribe",
     "event/ack",
     "event/unsubscribe",
+    "system/shrinkMemory",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
     const { db } = runtime.dependencies
@@ -116,6 +117,26 @@ export const systemHandlers = {
         return runtime.subscriptions.ack(runtime.requireConnection(context), params as never)
       case "event/unsubscribe":
         return runtime.subscriptions.unsubscribe(runtime.requireConnection(context), stringParam(params, "subscriptionId"))
+      case "system/shrinkMemory": {
+        const memoryManager = runtime.dependencies.memoryManager
+        const reason = typeof params.reason === "string" && (params.reason === "turn_end" || params.reason === "idle" || params.reason === "manual")
+          ? params.reason
+          : "manual"
+        if (!memoryManager) {
+          const stats = process.memoryUsage()
+          return {
+            success: true,
+            stats: {
+              rss: stats.rss,
+              heapTotal: stats.heapTotal,
+              heapUsed: stats.heapUsed,
+              external: stats.external,
+              arrayBuffers: stats.arrayBuffers,
+            },
+          }
+        }
+        return memoryManager.shrink(reason)
+      }
       default:
         throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
     }

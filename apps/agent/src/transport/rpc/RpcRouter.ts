@@ -70,6 +70,7 @@ import type { SessionGroupService } from "../../session-group/SessionGroupServic
 import type { AutomationService } from "../../automation"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
 import type { SideChatService } from "../../session/side-chat/SideChatService"
+import type { MemoryManager } from "../../resource/MemoryManager"
 import { InteractionService } from "../../interaction/InteractionService"
 import { ThreadReadViewRepository } from "../../session/ThreadReadViewRepository"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
@@ -169,6 +170,7 @@ export type RpcRouterDependencies = {
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
   automation: AutomationService
+  memoryManager?: MemoryManager | undefined
 }
 
 export type { RpcRouterContext } from "./request-context"
