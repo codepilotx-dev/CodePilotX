@@ -98,6 +98,11 @@
   padding-right: 0;
 }
 
+.desktop-workspace-header[data-right-dock-open]
+  .desktop-workspace-header-route-right {
+  padding-right: var(--cpx-sys-space-2);
+}
+
 .desktop-workspace-header-item {
   max-width: 100%;
   color: var(--cpx-sys-color-fg-secondary);
@@ -173,28 +178,24 @@
   padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-1);
 }
 
+.workspace-shell-controls__divider {
+  width: 1px;
+  height: 14px;
+  background: var(--cpx-sys-color-border-subtle);
+  flex-shrink: 0;
+}
+
 .workspace-shell-control-button {
   border: 0;
   background: transparent;
   color: var(--cpx-sys-color-fg-secondary);
   transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
-    transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
-
-  &:hover {
-    background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-fg-primary);
-  }
+    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
   &[aria-pressed="true"] {
     background: var(--cpx-sys-color-selected);
     color: var(--cpx-sys-color-fg-primary);
-  }
-
-  &:active:not(:disabled) {
-    background: var(--cpx-sys-color-selected);
-    transform: translateY(1px);
   }
 
   &:focus-visible {
@@ -215,6 +216,10 @@
 
   .desktop-workspace-header[data-divider]::before {
     border-bottom-color: CanvasText;
+  }
+
+  .workspace-shell-controls__divider {
+    background: CanvasText;
   }
 
   .workspace-shell-control-button[aria-pressed="true"] {

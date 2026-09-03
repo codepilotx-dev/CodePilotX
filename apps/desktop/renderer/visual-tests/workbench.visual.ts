@@ -2603,9 +2603,11 @@ for (const mode of MODES) {
   })
 }
 
-test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
+for (const mode of MODES) {
+test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, async ({
   page,
 }) => {
+  await prepareVisualTheme(page, mode, { reduceMotion: 'off' })
   await page.setViewportSize({ width: 1440, height: 800 })
   await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
@@ -2757,6 +2759,38 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   })
   await projectRow.hover()
   await expect(projectRow).toHaveCSS('background-color', sidebarHoverBackground)
+  const primaryForeground = await projectRow.evaluate(element => getComputedStyle(element).color)
+  const projectActions = projectRow.locator('.sidebar-project-action-button')
+  for (const action of await projectActions.all()) {
+    await action.hover()
+    await expect(action).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(action).toHaveCSS('color', primaryForeground)
+    await expect(projectRow).toHaveCSS('background-color', sidebarHoverBackground)
+  }
+  const createAction = projectRow.getByRole('button', { name: '新建对话' })
+  await page.mouse.move(1000, 400)
+  const defaultForeground = await createAction.evaluate(element => getComputedStyle(element).color)
+  await createAction.evaluate((element: HTMLButtonElement) => { element.disabled = true })
+  await createAction.hover()
+  await expect(createAction).toHaveCSS('color', defaultForeground)
+  await expect(createAction).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await createAction.evaluate((element: HTMLButtonElement) => { element.disabled = false })
+
+  await sectionHeader.hover()
+  for (const action of await sectionHeader.locator('.icon-button').all()) {
+    await action.hover()
+    await expect(action).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(action).toHaveCSS('color', primaryForeground)
+  }
+  await projectsToggle.focus()
+  await page.mouse.move(1000, 400)
+  await page.keyboard.press('Tab')
+  const organizeAction = sectionHeader.getByRole('button', { name: '整理侧栏' })
+  await expect(organizeAction).toBeFocused()
+  await expect(sectionHeader.locator('.sidebar-section-actions')).toHaveCSS('opacity', '1')
+  await expect(organizeAction).toHaveCSS('outline-style', 'solid')
+  await expect(organizeAction).toHaveCSS('outline-width', '2px')
+
   const sidebarSelectedBackground = await page.evaluate(() => {
     const probe = document.createElement('div')
     probe.style.background = 'var(--cpx-sys-color-selected)'
@@ -2772,7 +2806,7 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   await activeSessionRow.hover()
   await expect(activeSessionRow).toHaveCSS(
     'background-color',
-    sidebarSelectedBackground,
+    sidebarHoverBackground,
   )
 
   await projectButton.focus()
@@ -2796,6 +2830,10 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
     'aria-expanded',
     expandedBeforeTailAction ?? 'true',
   )
+  const moreAction = projectRow.getByRole('button', { name: '更多' })
+  await expect(moreAction).toHaveAttribute('data-state', 'open')
+  await expect(moreAction).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(moreAction).toHaveCSS('color', primaryForeground)
   await page.keyboard.press('Escape')
 
   const activityToggle = page.getByRole('button', { name: /查看活动|关闭活动视图/ })
@@ -2812,6 +2850,17 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   await expect(activityRow).toBeVisible()
   await expect(activityWorkspaceName).toHaveText('CodePilotX-Ts')
   await expect(activityRow.locator('.sidebar-session-snippet')).toHaveCount(0)
+  await activityHeader.hover()
+  const timelineAction = activityHeader.locator('.sidebar-timeline-menu-button')
+  await timelineAction.hover()
+  await expect(timelineAction).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(timelineAction).toHaveCSS('color', primaryForeground)
+  await activityRow.hover()
+  for (const action of await activityRow.locator('.sidebar-session-action-button').all()) {
+    await action.hover()
+    await expect(action).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(action).toHaveCSS('color', primaryForeground)
+  }
   const activitySessionTitle = activityRow.locator('.sidebar-session-title')
   const activityTitleTrack = activitySessionTitle.locator(
     '.sidebar-session-title-track',
@@ -2869,6 +2918,7 @@ test('sidebar rows own Codex geometry, hover, selection, and focus', async ({
   expect(activityHeaderBox.x - sidebarBox.x).toBeCloseTo(8, 0)
   expect(activityTitleBox.x - sidebarBox.x).toBeCloseTo(16, 0)
 })
+}
 
 test('pinned session icon and overflowing title motion keep the sidebar fade contract', async ({
   page,
@@ -5240,11 +5290,7 @@ test('execution plan popover is content-adaptive and never overflows', async ({
   page,
 }) => {
   const route = '/?visualCase=execution-plan#/threads/visual-execution-plan'
-  await page.emulateMedia({
-    colorScheme: 'dark',
-    forcedColors: 'none',
-    reducedMotion: 'reduce',
-  })
+  await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
 
   async function loadDesktop(): Promise<void> {
     await page.setViewportSize({ width: 1440, height: 920 })
@@ -5261,7 +5307,11 @@ test('execution plan popover is content-adaptive and never overflows', async ({
   const capsuleBefore = await capsule.boundingBox()
   expect(capsuleBefore).not.toBeNull()
 
+  await planTrigger.hover()
+  await expect(planTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(planTrigger).toHaveAttribute('aria-expanded', 'true')
   await planTrigger.focus()
+  await expect(planTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   const planCard = page.locator('.composer-change-summary__plan-preview .execution-plan-card')
   await expect(planCard).toBeVisible()
   await expect(planCard).toHaveCSS('position', 'absolute')
@@ -5684,4 +5734,55 @@ test('user message collapse threshold recomputes when the UI font changes at run
     expect(clamp!.scrollHeight).toBeLessThanOrEqual(clamp!.clientHeight + 1)
   }
   await expect(toggle).toBeVisible()
+})
+
+test('workspace header keeps equal edge insets across sidebar and dock states', async ({ page }) => {
+  await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+  await closeTransientErrorToast(page)
+  const header = page.getByRole('toolbar', { name: '工作区工具栏' })
+  const title = header.locator('.chat-session-title')
+  const routeAction = header.locator('.chat-session-actions > .icon-button').last()
+  const shellAction = header.locator('.workspace-shell-control-button').last()
+  const dock = page.getByRole('complementary', { name: '右侧面板' })
+  const sidebarToggle = page.locator('[data-app-shell-sidebar-trigger]')
+
+  async function expectInsets(open: boolean): Promise<void> {
+    await expect.poll(async () => {
+      const [headerBox, titleBox, routeBox, shellBox, dockBox] = await Promise.all([
+        header.boundingBox(), title.boundingBox(), routeAction.boundingBox(),
+        shellAction.boundingBox(), open ? dock.boundingBox() : Promise.resolve(null),
+      ])
+      if (!headerBox || !titleBox || !routeBox || !shellBox || (open && !dockBox)) return Infinity
+      const left = titleBox.x - headerBox.x
+      const outerRight = headerBox.x + headerBox.width - shellBox.x - shellBox.width
+      const routeRight = open ? dockBox!.x - routeBox.x - routeBox.width : outerRight
+      const overlap = titleBox.x + titleBox.width > routeBox.x
+      return overlap ? Infinity : Math.max(Math.abs(left - 8), Math.abs(outerRight - 8), Math.abs(routeRight - 8))
+    }).toBeLessThanOrEqual(1)
+  }
+
+  for (const collapsed of [false, true, false]) {
+    const isCollapsed = await sidebarToggle.getAttribute('title') === '展开侧边栏'
+    if (isCollapsed !== collapsed) await sidebarToggle.click()
+    for (const open of [false, true]) {
+      if ((await shellAction.getAttribute('aria-pressed') === 'true') !== open) await shellAction.click()
+      await expect(shellAction).toHaveAttribute('aria-pressed', String(open))
+      await expectInsets(open)
+    }
+  }
+  const handle = page.getByRole('separator', { name: '调整右侧面板宽度' })
+  const before = await dock.boundingBox()
+  const grip = await handle.boundingBox()
+  expect(before).not.toBeNull()
+  expect(grip).not.toBeNull()
+  await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip!.x - 80, grip!.y + grip!.height / 2, { steps: 6 })
+  await page.mouse.up()
+  await expect.poll(async () => (await dock.boundingBox())!.width).toBeGreaterThan(before!.width + 40)
+  await expectInsets(true)
+  await shellAction.click()
+  await expectInsets(false)
 })

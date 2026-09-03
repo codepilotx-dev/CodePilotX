@@ -111,10 +111,6 @@
     background: var(--cpx-sys-color-hover);
   }
 
-  &:active {
-    transform: translateY(1px);
-  }
-
   &:focus-visible {
     outline: 1px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;

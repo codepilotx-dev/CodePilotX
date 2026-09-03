@@ -497,11 +497,6 @@
 /* --- Clear button --- */
 .search-input-clear {
   flex-shrink: 0;
-  color: var(--cpx-sys-color-fg-primary);
-
-  &:hover {
-    color: var(--cpx-sys-color-fg-primary);
-  }
 }
 
 @media (forced-colors: active) {

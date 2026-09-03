@@ -1028,7 +1028,7 @@ export function ConversationPage(): React.ReactNode {
             trigger={
               <IconButton
                 className="open-target-trigger"
-                color="outline"
+                color="ghostSecondary"
                 disabled={!workspacePath}
                 size="toolbar"
                 title="切换默认打开目标"

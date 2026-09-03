@@ -504,7 +504,8 @@
   transition: opacity var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 
   &.is-visible,
-  .sidebar-section-header:hover & {
+  .sidebar-section-header:hover &,
+  .sidebar-section-header:focus-within & {
     opacity: 1;
     pointer-events: auto;
   }

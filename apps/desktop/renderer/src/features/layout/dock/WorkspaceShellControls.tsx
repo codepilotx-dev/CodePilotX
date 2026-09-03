@@ -1,10 +1,5 @@
 import type React from 'react'
-import { SquareTerminal } from 'lucide-react'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../../components/ui/iconTokens.js'
 import type { WorkbenchPanelSnapshot } from './rightDockState.js'
 
 export type WorkspaceShellControlsProps = {
@@ -30,23 +25,21 @@ export function WorkspaceShellControls({
 
   return (
     <div className="workspace-shell-controls">
+      <div aria-hidden="true" className="workspace-shell-controls__divider" />
       {showBottomPanel ? (
         <IconButton
-          aria-label={terminalVisible ? '隐藏集成终端' : '打开集成终端'}
+          aria-label={terminalVisible ? '隐藏底部面板' : '打开底部面板'}
           aria-pressed={terminalVisible}
           className="workspace-shell-control-button"
           color="ghostSecondary"
           disabled={!terminalAvailable}
           size="toolbar"
           title={terminalAvailable
-            ? terminalVisible ? '隐藏集成终端' : '打开集成终端 (Ctrl+`)'
-            : '创建任务后可使用集成终端'}
+            ? terminalVisible ? '隐藏底部面板' : '打开底部面板 (Ctrl+`)'
+            : '创建任务后可使用底部面板'}
           onClick={onToggleTerminal}
         >
-          <SquareTerminal
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <BottomPanelToggleIcon open={terminalVisible} />
         </IconButton>
       ) : null}
       {showRightPanel ? (
@@ -66,7 +59,20 @@ export function WorkspaceShellControls({
   )
 }
 
-function RightPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
+export function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
+  return (
+    <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
+      <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />
+      <path
+        d={open ? 'M2.5 12.5h15' : 'M7 12.5h6'}
+        stroke="currentColor"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+export function RightPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
   return (
     <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 20 20" width="20">
       <rect height="14" rx="2.5" stroke="currentColor" width="16" x="2" y="3" />

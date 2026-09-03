@@ -511,7 +511,6 @@
   place-items: center;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: var(--cpx-comp-surface-panel);
   color: var(--cpx-sys-color-fg-tertiary);
   opacity: 0;
   pointer-events: none;
@@ -527,11 +526,6 @@
 .md-table-copy.is-copied {
   opacity: 1;
   pointer-events: auto;
-}
-
-.md-table-copy:hover {
-  background: var(--cpx-sys-color-hover);
-  color: var(--cpx-sys-color-fg-primary);
 }
 
 .md-table-copy:focus-visible {

@@ -112,10 +112,25 @@
   border-color: transparent;
   background: transparent;
 
-  &:enabled:hover,
-  &[data-state="open"],
-  &[data-active] {
-    background: var(--cpx-sys-color-hover);
+  &:where(:not(.icon-button)) {
+    &:enabled:hover,
+    &[data-state="open"],
+    &[data-active] {
+      background: var(--cpx-sys-color-hover);
+    }
+  }
+}
+
+.ui-button.icon-button:is(
+  [data-color="ghost"],
+  [data-color="ghostSecondary"],
+  [data-color="ghostActive"]
+):where(:not([aria-pressed="true"])) {
+  &:where(:enabled:not([aria-disabled="true"])):hover,
+  &:where(:not(:disabled):not([aria-disabled="true"]))[data-state="open"],
+  &:where(:not(:disabled):not([aria-disabled="true"]))[data-active] {
+    background: transparent;
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
@@ -293,6 +308,11 @@
   --button-padding-inline: 10px;
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: 16px;
+}
+
+.ui-button[aria-pressed="true"] {
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .ui-button[data-radius="large"] {

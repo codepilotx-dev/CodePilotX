@@ -82,6 +82,10 @@ async function installPrimitiveFixture(page: Page): Promise<void> {
     returnButton.className = 'composer-change-summary__return'
     returnButton.dataset.contract = 'return-to-bottom'
     fixture.append(returnButton)
+    const changes = document.createElement('button')
+    changes.className = 'composer-change-summary__changes'
+    changes.textContent = '4 个文件已更改'
+    fixture.append(changes)
     document.body.append(fixture)
   })
 }
@@ -228,3 +232,128 @@ test('sidebar product mode uses the Codex title trigger and radio menu', async (
     name: '切换工作模式，当前为 Working',
   })).toBeVisible()
 })
+
+for (const mode of ['light', 'dark'] as const) {
+  test(`ordinary icon buttons keep transparent interaction backgrounds (${mode})`, async ({ page }) => {
+    await prepareVisualTheme(page, mode, { reduceMotion: 'off' })
+    await page.setViewportSize({ width: 1440, height: 920 })
+    test.setTimeout(90_000)
+    await page.goto('/?visualCase=rich#/threads/visual-rich', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-canonical-thread-id="visual-rich"]')).toBeVisible({ timeout: 60_000 })
+    await waitForVisualPage(page, mode, page.locator('[data-canonical-thread-id="visual-rich"]'))
+    const colors = await page.evaluate(() => {
+      const probe = document.createElement('div')
+      probe.style.color = 'var(--cpx-sys-color-fg-primary)'
+      probe.style.background = 'var(--cpx-sys-color-selected)'
+      document.body.append(probe)
+      const style = getComputedStyle(probe)
+      const result = { primary: style.color, selected: style.backgroundColor }
+      probe.style.color = 'var(--cpx-sys-color-fg-secondary)'
+      const secondary = getComputedStyle(probe).color
+      probe.remove()
+      return { ...result, secondary }
+    })
+    const transparent = 'rgba(0, 0, 0, 0)'
+    const expectHover = async (button: Locator) => {
+      await button.hover()
+      await expect(button).toHaveCSS('background-color', transparent)
+      await expect(button).toHaveCSS('color', colors.primary)
+    }
+
+    const composerAction = page.getByRole('button', { name: '添加文件等内容', exact: true })
+    await expectHover(composerAction)
+    await composerAction.click()
+    await expect(composerAction).toHaveAttribute('data-active', 'true')
+    await expect(composerAction).toHaveCSS('background-color', transparent)
+    await composerAction.click()
+    for (const button of await page.locator('.open-target-split-button .icon-button').all()) {
+      await expectHover(button)
+    }
+    const openTarget = page.getByRole('button', { name: '切换默认打开目标', exact: true })
+    await openTarget.click()
+    await expect(openTarget).toHaveAttribute('data-state', 'open')
+    await expect(openTarget).toHaveCSS('background-color', transparent)
+    await page.keyboard.press('Escape')
+    const table = page.locator('.md-table-block').first()
+    await table.hover()
+    await expectHover(table.locator('.md-table-copy'))
+    const panelActions = page.locator('.chat-session-actions > .icon-button, .workspace-shell-controls > .icon-button')
+    await expect(panelActions).toHaveCount(4)
+    for (const action of await panelActions.all()) {
+      const disabled = await action.isDisabled()
+      if (disabled) {
+        await action.hover()
+        await expect(action).toHaveCSS('background-color', transparent)
+        await action.evaluate((element: HTMLButtonElement) => { element.disabled = false })
+      }
+      await action.hover()
+      await expect(action).not.toHaveCSS('background-color', transparent)
+      if (disabled) await action.evaluate((element: HTMLButtonElement) => { element.disabled = true })
+    }
+    const panelToggle = page.locator('.workspace-shell-control-button').last()
+    if (await panelToggle.getAttribute('aria-pressed') !== 'true') await panelToggle.click()
+    await panelToggle.hover()
+    await expect(panelToggle).toHaveCSS('background-color', colors.selected)
+
+    await installPrimitiveFixture(page)
+    const fixture = page.locator('#button-contract-fixture')
+    const changes = fixture.locator('.composer-change-summary__changes')
+    await expectHover(changes)
+    await changes.evaluate(element => element.setAttribute('aria-expanded', 'true'))
+    await page.mouse.move(1400, 900)
+    await expect(changes).toHaveCSS('background-color', transparent)
+    await expect(changes).toHaveCSS('color', colors.primary)
+    const icon = fixture.locator('.icon-button[data-size="icon"]')
+    const originalSize = await icon.boundingBox()
+    for (const color of ['ghost', 'ghostSecondary', 'ghostActive']) {
+      await icon.evaluate((element, value) => { element.setAttribute('data-color', value) }, color)
+      await page.mouse.move(1400, 900)
+      await expect(icon).toHaveCSS('background-color', transparent)
+      await expectHover(icon)
+      await page.mouse.move(1400, 900)
+      for (const attribute of ['data-state', 'data-active']) {
+        await icon.evaluate((element, key) => element.setAttribute(key, key === 'data-state' ? 'open' : 'true'), attribute)
+        await expect(icon).toHaveCSS('background-color', transparent)
+        await expect(icon).toHaveCSS('color', colors.primary)
+        await icon.evaluate((element, key) => element.removeAttribute(key), attribute)
+      }
+    }
+    await icon.evaluate(element => element.setAttribute('data-color', 'ghostSecondary'))
+    await page.mouse.move(1400, 900)
+    await expect(icon).toHaveCSS('color', colors.secondary)
+    for (const attribute of ['disabled', 'aria-disabled']) {
+      await icon.evaluate((element, key) => element.setAttribute(key, 'true'), attribute)
+      await icon.hover()
+      await expect(icon).toHaveCSS('color', colors.secondary)
+      await expect(icon).toHaveCSS('background-color', transparent)
+      await page.mouse.move(1400, 900)
+      await icon.evaluate((element, key) => element.removeAttribute(key), attribute)
+    }
+    await icon.focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(icon).toBeFocused()
+    await expect(icon).toHaveCSS('outline-style', 'solid')
+    await expect(icon).toHaveCSS('outline-width', '2px')
+    const finalSize = await icon.boundingBox()
+    expect(finalSize?.width).toBe(originalSize?.width)
+    expect(finalSize?.height).toBe(originalSize?.height)
+    const textGhost = fixture.locator('[data-contract-color="ghost"]')
+    await textGhost.hover()
+    await expect(textGhost).not.toHaveCSS('background-color', transparent)
+    for (const color of ['primary', 'danger']) {
+      await icon.evaluate((element, value) => element.setAttribute('data-color', value), color)
+      await icon.hover()
+      await expect(icon).not.toHaveCSS('background-color', transparent)
+      await expect(icon).not.toHaveCSS('color', colors.primary)
+    }
+
+    await page.evaluate(() => { location.hash = '/automations' })
+    const search = page.getByPlaceholder('搜索已安排任务')
+    await search.fill('测试')
+    const clear = page.locator('.search-input-clear')
+    await expectHover(clear)
+    await clear.click()
+    await expect(search).toHaveValue('')
+  })
+}

@@ -518,7 +518,6 @@
 
 .right-dock-control:active:not(:disabled) {
   background: var(--cpx-sys-color-selected);
-  transform: translateY(1px);
 }
 
 .popover.popover-right-dock-add {

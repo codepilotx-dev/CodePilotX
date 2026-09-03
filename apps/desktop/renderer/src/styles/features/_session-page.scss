@@ -619,6 +619,15 @@
   white-space: nowrap;
 }
 
+.chat-session-actions > .icon-button[data-size="toolbar"],
+.workspace-shell-controls > .icon-button[data-size="toolbar"] {
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+}
+
 .open-target-split-button {
   display: inline-flex;
   align-items: center;
@@ -626,12 +635,6 @@
 
   .icon-button {
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-canvas);
-
-    &:hover:not([aria-disabled="true"]),
-    &[data-state="open"] {
-      background: var(--cpx-sys-color-hover);
-    }
   }
 }
 
@@ -775,13 +778,11 @@
     font-weight: inherit;
     white-space: nowrap;
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled),
+    &[aria-expanded="true"] {
       border-color: transparent;
-      background: color-mix(
-        in srgb,
-        var(--cpx-sys-color-fg-primary) 4%,
-        transparent
-      );
+      background: transparent;
+      color: var(--cpx-sys-color-fg-primary);
       box-shadow: none;
     }
 

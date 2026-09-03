@@ -537,20 +537,6 @@
   width: var(--cpx-sys-space-8);
   height: var(--cpx-sys-space-8);
   border-radius: var(--cpx-sys-radius-full);
-
-  &:hover {
-    background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  &[data-active="true"] {
-    background: var(--cpx-sys-color-selected);
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
 }
 
 .composer-mic-button {
