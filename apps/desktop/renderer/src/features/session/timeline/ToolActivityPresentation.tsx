@@ -108,30 +108,36 @@ function commandDuration(item: ToolItem, nowMs?: number): string | null {
   return duration !== null && duration >= 1_000 ? formatToolDuration(duration) : null;
 }
 
+export function cleanCommandSummary(command: string): string {
+  const trimmed = command.trim();
+  const cdPattern = /^cd\s+(?:"[^"]*"|'[^']*'|\S+)\s*(?:&&|;)\s*/i;
+  const stripped = trimmed.replace(cdPattern, "").trim();
+  return stripped || trimmed;
+}
+
 function commandStateSegments(
   item: ToolItem,
   target: readonly ToolActivitySegment[],
   duration: string | null,
 ): ToolActivitySegment[] {
   if (item.state === "completed") {
-    return [
-      {
-        kind: "verb",
-        text: duration ? `已在 ${duration}内执行 ` : "已执行 ",
-      },
-      ...target,
-    ];
+    const segments: ToolActivitySegment[] = [...target];
+    if (duration) {
+      segments.push({ kind: "text", text: ` · ${duration}` });
+    }
+    return segments;
   }
   const verb = stateVerb(item, {
-    completed: "已执行",
-    error: "执行失败",
+    completed: "",
+    error: "运行失败",
     interrupted: "已停止执行",
-    running: "正在执行",
+    running: "正在运行",
   });
-  const segments: ToolActivitySegment[] = [
-    { kind: "verb", text: `${verb} ` },
-    ...target,
-  ];
+  const segments: ToolActivitySegment[] = [];
+  if (verb) {
+    segments.push({ kind: "verb", text: `${verb} ` });
+  }
+  segments.push(...target);
   if (duration) segments.push({ kind: "text", text: ` · ${duration}` });
   return segments;
 }
@@ -142,8 +148,9 @@ export function buildToolSemanticSummary(
 ): ToolSemanticSummary {
   const activity = item.activity;
   if (!activity) {
-    const command = oneLine(item.command);
-    if (command) {
+    const rawCommand = oneLine(item.command);
+    if (rawCommand) {
+      const command = cleanCommandSummary(rawCommand);
       const duration = commandDuration(item, options.nowMs);
       const segments = commandStateSegments(
         item,
@@ -266,12 +273,12 @@ export function buildToolSemanticSummary(
         } else {
           target.push({ kind: "text", text: "技能脚本 " });
         }
-        target.push({ kind: "target", text: activity.scriptName ?? oneLine(item.command) ?? item.tool });
+        target.push({ kind: "target", text: activity.scriptName ?? cleanCommandSummary(oneLine(item.command) ?? item.tool) });
         segments = commandStateSegments(item, target, commandDuration(item, options.nowMs));
       } else {
         segments = commandStateSegments(
           item,
-          [{ kind: "target", text: oneLine(item.command) ?? item.tool }],
+          [{ kind: "target", text: cleanCommandSummary(oneLine(item.command) ?? item.tool) }],
           commandDuration(item, options.nowMs),
         );
       }

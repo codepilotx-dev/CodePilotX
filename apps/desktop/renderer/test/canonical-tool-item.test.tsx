@@ -7,15 +7,19 @@ import {
   buildStructuredToolDetail,
   buildToolItemDisplay,
   buildToolSemanticSummary,
+  cleanCommandOutput,
+  cleanCommandSummary,
   fileMutationDisplay,
   FileMutationItemView,
   formatToolDuration,
+  isProcessEnvelope,
   isStandaloneLifecycleTool,
   LifecycleToolItemView,
   syntheticPatchDisplay,
   ToolItemView,
   ToolExecutionCard,
 } from "../src/features/session/timeline/CanonicalItemRenderer.js";
+import { CodeBlock } from "../src/features/syntax/CodeBlock.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
 import { AttachmentFilePill } from "../src/features/session/attachments/AttachmentRowPrimitives.js";
 import { threadPatchDiffToDesktopFile } from "../src/features/session/timeline/FileMutationDiffContent.js";
@@ -70,22 +74,70 @@ describe("canonical tool item display", () => {
     expect(markup).not.toMatch(/class="[^"]*attachment-file-pill__open[^"]*ui-button/);
   });
 
+
+  test("cleanCommandOutput extracts stdout/stderr and drops process JSON envelope", () => {
+    const rawEnvelope = JSON.stringify({
+      exitCode: 0,
+      signal: null,
+      stdout: "On branch dev\nYour branch is ahead",
+      stderr: "",
+      timedOut: false,
+      truncated: false,
+    });
+    expect(cleanCommandOutput(rawEnvelope)).toBe("On branch dev\nYour branch is ahead");
+
+    const withStderr = JSON.stringify({
+      exitCode: 1,
+      signal: null,
+      stdout: "warning message",
+      stderr: "fatal error",
+    });
+    expect(cleanCommandOutput(withStderr)).toBe("warning message\nfatal error");
+
+    const emptyEnvelope = JSON.stringify({
+      exitCode: 0,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      timedOut: false,
+    });
+    expect(cleanCommandOutput(emptyEnvelope)).toBeNull();
+
+    expect(cleanCommandOutput("plain terminal output")).toBe("plain terminal output");
+  });
+
+  test("isProcessEnvelope detects various process execution payloads", () => {
+    expect(isProcessEnvelope({ exitCode: 0, signal: null, stdout: "ok", stderr: "" })).toBe(true);
+    expect(isProcessEnvelope('{"exitCode":0,"stdout":"ok"}')).toBe(true);
+    expect(isProcessEnvelope('```json\n{"exitCode":0,"stdout":"ok"}\n```')).toBe(true);
+    expect(isProcessEnvelope({ exit_code: 0, stdout: "ok" })).toBe(true);
+    expect(isProcessEnvelope({ result: { exitCode: 0, stdout: "ok" } })).toBe(true);
+    expect(isProcessEnvelope([{ exitCode: 0, stdout: "ok" }])).toBe(true);
+    expect(isProcessEnvelope({ custom: "data", status: 200 })).toBe(false);
+    expect(isProcessEnvelope("plain user output")).toBe(false);
+  });
+
+  test("cleanCommandSummary strips directory changes", () => {
+    expect(cleanCommandSummary("cd F:/CodeProject/CodePilotX && git diff CHANGELOG.md")).toBe("git diff CHANGELOG.md");
+    expect(cleanCommandSummary("cd \"C:\\Program Files\" ; npm test")).toBe("npm test");
+    expect(cleanCommandSummary("git status")).toBe("git status");
+  });
   test("formats command durations independently from semantic summaries", () => {
     expect(formatToolDuration(250)).toBe("1 秒");
     expect(formatToolDuration(84_000)).toBe("1 分 24 秒");
-    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("已在 1 秒内执行 bun test");
+    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
       activity: undefined,
-    })).collapsedLabel).toBe("已在 1 秒内执行 bun test");
+    })).collapsedLabel).toBe("bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
       durationMs: null,
       finishedAt: null,
-    })).collapsedLabel).toBe("已执行 bun test");
+    })).collapsedLabel).toBe("bun test");
     expect(buildToolSemanticSummary(toolItem({
       durationMs: null,
       finishedAt: null,
       state: "running",
-    }), { nowMs: 2_500 }).collapsedLabel).toBe("正在执行 bun test · 2 秒");
+    }), { nowMs: 2_500 }).collapsedLabel).toBe("正在运行 bun test · 2 秒");
   });
 
   test("only allows an active command to expand after output arrives", () => {
@@ -102,8 +154,8 @@ describe("canonical tool item display", () => {
       output: "partial output",
     }))).toMatchObject({
       canExpand: true,
-      collapsedLabel: "正在执行 bun test",
-      expandedLabel: "正在执行 bun test",
+      collapsedLabel: "正在运行 bun test",
+      expandedLabel: "正在运行 bun test",
       resultText: "partial output",
     });
   });
@@ -118,7 +170,7 @@ describe("canonical tool item display", () => {
       [{ type: "read", subject: "skill", target: { displayLabel: "reverse-engineer-ui-feature" } }, "正在读取 reverse-engineer-ui-feature 技能", "已读取 reverse-engineer-ui-feature 技能", "skill"],
       [{ type: "web_search" }, "正在搜索网页", "已搜索网页", "web-search"],
       [{ type: "integration", source: "github" }, "正在使用 github", "已使用 github", "integration"],
-      [{ type: "command", kind: "skill_script", skillName: "review", scriptName: "check.py" }, "正在执行 review 技能中的脚本 check.py", "已在 1 秒内执行 review 技能中的脚本 check.py", "command"],
+      [{ type: "command", kind: "skill_script", skillName: "review", scriptName: "check.py" }, "正在运行 review 技能中的脚本 check.py", "review 技能中的脚本 check.py · 1 秒", "command"],
       [{ type: "command", kind: "current_time" }, "正在检查当前日期和时间", "已检查当前日期和时间 · 1 秒", "current-time"],
     ] as const;
 
@@ -174,7 +226,7 @@ describe("canonical tool item display", () => {
   test("uses state-specific failure and interruption labels", () => {
     expect(buildToolSemanticSummary(toolItem({
       state: "error",
-    })).collapsedLabel).toBe("执行失败 bun test · 1 秒");
+    })).collapsedLabel).toBe("运行失败 bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
       state: "interrupted",
     })).collapsedLabel).toBe("已停止执行 bun test · 1 秒");
@@ -425,7 +477,53 @@ describe("canonical tool item display", () => {
     expect(withResult).toContain("pass\nwarning");
     expect(withoutResult).toContain('aria-label="复制执行内容"');
     expect(withoutResult).not.toContain('aria-label="复制返回结果"');
-    expect(withoutResult).toContain("无输出");
+    expect(withoutResult).not.toContain('aria-label="返回结果"');
+    expect(withResult.match(/<figure /g)).toHaveLength(2);
+    expect(withoutResult.match(/<figure /g)).toHaveLength(1);
+    expect(withResult.match(/md-code-surface/g)).toHaveLength(1);
+    expect(withResult.match(/data-surface="embedded"/g)).toHaveLength(2);
+    expect(withoutResult.match(/data-surface="embedded"/g)).toHaveLength(1);
+    const output = withResult.slice(withResult.indexOf('aria-label="返回结果"'));
+    expect(output.indexOf('aria-label="复制返回结果"')).toBeLessThan(output.indexOf("canonical-command-shell__scroller"));
+    expect(output).not.toContain("<details");
+    expect(withResult).toContain('<details class="md-code-disclosure">');
+    expect(withResult.match(/bun test/g)).toHaveLength(1);
+    expect(withResult).not.toContain("md-code-summary-text");
+    expect(output).not.toContain("<figcaption");
+    expect(withResult.match(/<figcaption/g)).toHaveLength(1);
+    expect(withResult).not.toContain("执行内容 ·");
+    expect(output).toContain("canonical-command-shell__scroll-content");
+    expect(output).not.toContain("tw:overflow-x-auto");
+    expect(withoutResult).not.toContain("<pre");
+    expect(withResult).not.toContain("canonical-command-shell__prompt");
+  });
+
+  test("renders multiline execution content once inside its collapsed summary", () => {
+    const command = ["python script.py", "second line", "third line"].join(String.fromCharCode(10));
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <CodeBlock collapsible code={command} language="text" />
+      </TooltipProvider>,
+    );
+    expect(markup).toContain(command);
+    expect(markup.match(/second line/g)).toHaveLength(1);
+    expect(markup).toContain('<details class="md-code-disclosure">');
+    expect(markup).not.toContain("<pre");
+    expect(markup).not.toContain("lucide-chevron");
+  });
+
+  test("keeps ordinary code blocks on a standalone surface", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <CodeBlock code="const answer = 42" language="typescript" />
+      </TooltipProvider>,
+    );
+    expect(markup).toContain('data-surface="standalone"');
+    expect(markup.match(/md-code-surface/g)).toHaveLength(1);
+    expect(markup).toContain('aria-label="复制代码"');
+    expect(markup).toContain("typescript");
+    expect(markup).toContain("const answer = 42");
+    expect(markup).not.toContain("<details");
   });
 
   test("renders workspace targets as isolated file links", () => {
@@ -500,14 +598,16 @@ describe("canonical tool item display", () => {
     );
 
     expect(embedded).toContain("canonical-command-shell--embedded");
-    expect(embedded).not.toContain("canonical-command-shell__header");
+    expect(embedded).toContain("md-code-header");
+    expect(embedded).toContain(">bash</span>");
     expect(embedded).toContain('aria-label="复制执行内容"');
     expect(embedded).toContain('aria-label="复制返回结果"');
     expect(embedded).toContain("bun test");
     expect(embedded).toContain("pass");
     expect(embedded).toContain("成功");
     expect(standalone).not.toContain("canonical-command-shell--embedded");
-    expect(standalone).toContain("canonical-command-shell__header");
+    expect(standalone).toContain("md-code-header");
+    expect(standalone).toContain(">bash</span>");
     expect(groupedItem).toContain('data-presentation="grouped"');
     expect(groupedItem).toContain("canonical-command-shell--embedded");
   });
@@ -539,14 +639,16 @@ describe("canonical tool item display", () => {
       </TooltipProvider>,
     );
 
-    expect(collapsed).toContain("已在 1 秒内执行 bun test");
+    expect(collapsed.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");
+    expect(collapsed).not.toContain('title="bun test · 1 秒"');
     expect(collapsed).toContain('aria-label="执行内容"');
     expect(collapsed).toContain('data-mount-policy="always"');
     expect(collapsed).toContain('aria-hidden="true"');
     expect(collapsed).toContain("inert");
     expect(collapsed).toContain("lucide-chevron-right");
     expect(collapsed).not.toContain("lucide-chevron-down");
-    expect(expanded).toContain("已在 1 秒内执行 bun test");
+    expect(expanded.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");
+    expect(expanded).not.toContain('title="bun test · 1 秒"');
     expect(expanded).toContain('aria-label="执行内容"');
     expect(expanded).toContain("lucide-chevron-right");
     expect(expanded).not.toContain("lucide-chevron-down");
@@ -803,6 +905,61 @@ describe("canonical tool item display", () => {
     expect(markup).toContain("preview.png");
     expect(markup).toContain("attachment-file-pill");
     expect(markup).toContain("notes.txt");
+  });
+
+  test("filters out process execution envelopes from resultBlocks completely", () => {
+    const item = toolItem({
+      command: "git status",
+      output: JSON.stringify({
+        exitCode: 0,
+        signal: null,
+        stdout: "On branch dev\nclean working tree",
+        stderr: "",
+        timedOut: false,
+        truncated: false,
+      }),
+      resultBlocks: [
+        {
+          type: "json",
+          value: {
+            exitCode: 0,
+            signal: null,
+            stdout: "On branch dev\nclean working tree",
+            stderr: "",
+            timedOut: false,
+            truncated: false,
+          },
+        },
+        {
+          type: "text",
+          text: JSON.stringify({
+            exitCode: 0,
+            signal: null,
+            stdout: "On branch dev\nclean working tree",
+            stderr: "",
+          }),
+        },
+        {
+          type: "artifact",
+          artifactId: "art-1",
+          name: "screenshot.png",
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("On branch dev\nclean working tree");
+    expect(markup).toContain("attachment-image-tile");
+    expect(markup).not.toContain("exitCode");
+    expect(markup).not.toContain("timedOut");
+    expect(markup).not.toContain("canonical-tool-result-block--json");
+    expect(markup).not.toContain("canonical-tool-result-block--text");
   });
 
   test("renders a single legacy text block when resultBlocks are absent", () => {

@@ -43,6 +43,7 @@ import {
   useDisclosureExpanded,
 } from "../../../components/ui/keyedDisclosureStore.js";
 import { desktopClipboard } from "../../../services/desktop-client/index.js";
+import { CodeBlock } from "../../syntax/CodeBlock.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown.js";
@@ -69,6 +70,7 @@ import {
 
 export {
   buildToolSemanticSummary,
+  cleanCommandSummary,
   formatToolDuration,
   toolSemanticIcon,
 } from "./ToolActivityPresentation.js";
@@ -146,7 +148,6 @@ export type ToolItemDisplay = {
   iconKind: ToolActivityIconKind;
   resultText: string | null;
   semanticSummary: ToolSemanticSummary | null;
-  showShellPrompt: boolean;
   statusLabel: string;
   semanticKind: ToolSemanticKind;
   toolLabel: string;
@@ -741,7 +742,6 @@ export function ToolItemView({
             setLocalExpanded(!expanded);
           }
         }}
-        title={view.collapsedLabel}
         type="button"
       >
         {view.active ? (
@@ -774,6 +774,38 @@ export function ToolItemView({
   );
 }
 
+export function resolveShellTag(item: ToolItem): string {
+  const rawTool = (item.tool ?? "").trim().toLowerCase();
+  const toolLeaf = rawTool.split(/[./]/).at(-1) ?? "";
+
+  // Check if input specifies shell
+  if (item.input && typeof item.input === "object") {
+    const inputObj = item.input as Record<string, unknown>;
+    const shellField = typeof inputObj.shell === "string" ? inputObj.shell.toLowerCase() : "";
+    if (shellField.includes("pwsh") || shellField.includes("powershell")) return "pwsh";
+    if (shellField.includes("zsh")) return "zsh";
+    if (shellField.includes("bash")) return "bash";
+    if (shellField.includes("cmd")) return "cmd";
+    if (shellField.includes("fish")) return "fish";
+  }
+
+  // Check command string prefix
+  const command = (item.command ?? "").trim();
+  if (/^pwsh(\.exe)?\b/i.test(command) || /^powershell(\.exe)?\b/i.test(command)) return "pwsh";
+  if (/^bash\b/i.test(command)) return "bash";
+  if (/^zsh\b/i.test(command)) return "zsh";
+  if (/^cmd(\.exe)?\s*\/c\b/i.test(command)) return "cmd";
+
+  // Check tool name
+  if (toolLeaf === "zsh") return "zsh";
+  if (toolLeaf === "pwsh" || toolLeaf === "powershell") return "pwsh";
+  if (toolLeaf === "cmd") return "cmd";
+  if (toolLeaf === "fish") return "fish";
+  if (toolLeaf === "bash") return "bash";
+
+  return "Shell";
+}
+
 export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   item,
   presentation = "standalone",
@@ -786,42 +818,41 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   view: ToolItemDisplay;
 }): React.ReactNode {
   const embedded = presentation === "grouped";
+  const shellTag = resolveShellTag(item);
   return (
     <article
-      className={`canonical-command-shell${embedded ? " canonical-command-shell--embedded" : ""}`}
+      className={`canonical-command-shell md-code-surface${embedded ? " canonical-command-shell--embedded" : ""}`}
       data-state={item.state}
     >
-      {!embedded ? (
-        <header className="canonical-command-shell__header">{view.toolLabel}</header>
-      ) : null}
-      <section className="canonical-command-shell__section" aria-label="执行内容">
-        <CopyButton ariaLabel="复制执行内容" className="canonical-command-shell__copy-button" text={view.executionContent} />
-        {wrapEmbeddedOutput(
-          embedded,
-          <pre>
-            <code>
-              {view.showShellPrompt ? <span className="canonical-command-shell__prompt">$ </span> : null}
-              {view.executionContent}
-            </code>
-          </pre>,
-        )}
-      </section>
-      <section
-        className="canonical-command-shell__section canonical-command-shell__result"
-        aria-label="返回结果"
-        data-empty={view.resultText ? undefined : "true"}
-      >
+      <div className="canonical-command-shell__body">
+        <CodeBlock
+          surface="embedded"
+          collapsible
+          ariaLabel="执行内容"
+          headerLabel={shellTag}
+          copyLabel="复制执行内容"
+          code={view.executionContent}
+          language="text"
+          streaming={view.active}
+        />
         {view.resultText ? (
-          <CopyButton ariaLabel="复制返回结果" className="canonical-command-shell__copy-button" text={view.resultText} />
+          <CodeBlock
+            surface="embedded"
+            ariaLabel="返回结果"
+            headerLabel={null}
+            copyLabel="复制返回结果"
+            code={view.resultText}
+            language="text"
+            streaming={view.active}
+            wrapContent={content => (
+              <CommandShellEmbeddedScroll>{content}</CommandShellEmbeddedScroll>
+            )}
+          />
         ) : null}
-        {wrapEmbeddedOutput(
-          embedded,
-          <pre><code>{view.resultText ?? "无输出"}</code></pre>,
-        )}
-      </section>
-      {item.resultBlocks?.length ? (
-        <ToolResultBlocksView item={item} threadId={threadId} />
-      ) : null}
+        {item.resultBlocks?.length ? (
+          <ToolResultBlocksView item={item} threadId={threadId} />
+        ) : null}
+      </div>
       <footer className="canonical-command-shell__footer">
         <span className="canonical-command-shell__status">
           {item.state === "completed" ? (
@@ -859,9 +890,23 @@ function ToolResultBlocksView({
   threadId?: string;
 }): React.ReactNode {
   const blocks = item.resultBlocks ?? [];
+  const filteredBlocks = blocks.filter((block) => {
+    if (block.type === "json") {
+      if (isProcessEnvelope(block.value)) {
+        return false;
+      }
+    }
+    if (block.type === "text") {
+      if (isProcessEnvelope(block.text)) {
+        return false;
+      }
+    }
+    return true;
+  });
+  if (!filteredBlocks.length) return null;
   return (
     <section className="canonical-tool-result-blocks" aria-label="结构化返回结果">
-      {blocks.map((block, index) => (
+      {filteredBlocks.map((block, index) => (
         <ToolResultBlockView
           block={block}
           itemId={item.id}
@@ -882,6 +927,12 @@ function ToolResultBlockView({
   itemId: string;
   threadId?: string;
 }): React.ReactNode {
+  if (block.type === "json" && isProcessEnvelope(block.value)) {
+    return null;
+  }
+  if (block.type === "text" && isProcessEnvelope(block.text)) {
+    return null;
+  }
   switch (block.type) {
     case "text":
       return (
@@ -1356,7 +1407,6 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
       iconKind: "tool",
       resultText: null,
       semanticSummary: null,
-      showShellPrompt: false,
       statusLabel: toolStateLabel(item.state),
       semanticKind: "tool",
       toolLabel: lifecycle.toolLabel,
@@ -1372,9 +1422,10 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
     ?? command
     ?? safeInput
     ?? fallbackExecution;
-  const resultText = structuredDetail
+  const rawResultText = structuredDetail
     ? structuredDetail.resultText
     : appendToolError(nonBlank(item.output), nonBlank(item.error));
+  const resultText = cleanCommandOutput(rawResultText);
   const active = isActiveToolState(item.state);
   const terminal = !active;
   const semanticSummary = buildToolSemanticSummary(item, { nowMs });
@@ -1389,7 +1440,6 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
     iconKind: semanticSummary.iconKind,
     resultText,
     semanticSummary,
-    showShellPrompt: command !== null,
     statusLabel: toolStateLabel(item.state),
     semanticKind: semanticSummary.kind,
     toolLabel: semanticSummary.toolLabel,
@@ -1551,6 +1601,91 @@ function appendToolError(
 ): string | null {
   if (result && error) return `${result}\n${error}`;
   return result ?? error;
+}
+
+/**
+ * 深度检测某个值是否为底层进程执行包装（exitCode / exit_code / stdout / stderr / signal / timedOut / truncated 等）。
+ * 适用于对象、嵌套对象、JSON 字符串以及 Markdown 代码块格式。
+ */
+export function isProcessEnvelope(value: unknown): boolean {
+  if (!value) return false;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const cleanStr = trimmed.startsWith("```")
+      ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim()
+      : trimmed;
+    if (cleanStr.startsWith("{") && cleanStr.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(cleanStr);
+        return isProcessEnvelope(parsed);
+      } catch {
+        // fall through to text heuristic
+      }
+    }
+    if (
+      (cleanStr.includes('"exitCode"') || cleanStr.includes('"exit_code"') || cleanStr.includes("exitCode:") || cleanStr.includes("exit_code:"))
+      && (cleanStr.includes('"stdout"') || cleanStr.includes('"stderr"') || cleanStr.includes('"signal"') || cleanStr.includes('"timedOut"') || cleanStr.includes("stdout:") || cleanStr.includes("stderr:"))
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (typeof value === "object") {
+    if (Array.isArray(value)) {
+      return value.length > 0 && value.every((item) => isProcessEnvelope(item));
+    }
+    const rec = value as Record<string, unknown>;
+    if (
+      "exitCode" in rec
+      || "exit_code" in rec
+      || "returncode" in rec
+      || "return_code" in rec
+      || "timedOut" in rec
+      || "timed_out" in rec
+      || "truncated" in rec
+      || ("stdout" in rec && ("stderr" in rec || "signal" in rec))
+    ) {
+      return true;
+    }
+    if (rec.result && typeof rec.result === "object" && isProcessEnvelope(rec.result)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isShellTool(tool: string | null | undefined): boolean {
+  if (!tool) return false;
+  const leaf = tool.split(/[./]/).at(-1)?.toLowerCase() ?? "";
+  return /^(shell|bash|powershell|pwsh|cmd|exec|terminal|command|run_command|execute_command)/i.test(leaf);
+}
+
+/**
+ * 清洗工具执行输出：
+ * 若输出为底层进程通信包装的 JSON（含 exitCode / stdout / stderr / timedOut 等），
+ * 则智能提取出真实的 stdout / stderr 内容，彻底杜绝在终端卡片中露出内部 JSON 结构。
+ */
+export function cleanCommandOutput(rawText: string | null): string | null {
+  const text = nonBlank(rawText);
+  if (!text) return null;
+  const trimmed = text.trim();
+  const cleanStr = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim()
+    : trimmed;
+  if (cleanStr.startsWith("{") && cleanStr.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(cleanStr);
+      if (isProcessEnvelope(parsed)) {
+        const stdout = typeof parsed.stdout === "string" ? parsed.stdout.trim() : "";
+        const stderr = typeof parsed.stderr === "string" ? parsed.stderr.trim() : "";
+        const combined = [stdout, stderr].filter(Boolean).join("\n");
+        return combined || null;
+      }
+    } catch {
+      // 保持原样文本
+    }
+  }
+  return text;
 }
 
 function isToolSearchName(tool: string): boolean {

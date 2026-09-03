@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
+
+import type { CSSProperties, ReactNode } from 'react'
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Check, Copy, Pencil } from 'lucide-react'
 import { IconButton } from '../../components/ui/IconButton.js'
@@ -22,7 +23,12 @@ import { useHighlightedCode } from './useHighlightedCode.js'
 const COPY_FEEDBACK_DURATION_MS = 2_000
 
 export type CodeBlockProps = {
+  collapsible?: boolean
+  surface?: 'standalone' | 'embedded'
   ariaLabel?: string
+  headerLabel?: string | null
+  copyLabel?: string
+  wrapContent?: (content: ReactNode) => ReactNode
   className?: string
   code: string
   language?: string | null
@@ -32,7 +38,12 @@ export type CodeBlockProps = {
 }
 
 export function CodeBlock({
+  collapsible = false,
+  surface = 'standalone',
   ariaLabel,
+  headerLabel,
+  copyLabel = '复制代码',
+  wrapContent,
   className,
   code,
   language,
@@ -117,11 +128,82 @@ export function CodeBlock({
     codeStyle.color = presentation.highlighted.foreground
   }
 
+  const codeContent = (
+    <code className="md-code-content" style={codeStyle}>
+      <HighlightedTokens result={presentation.highlighted} />
+      {presentation.plainText}
+    </code>
+  )
+
+  const content = (
+    <pre
+      className={cx(
+        'md-code-pre',
+        'tw:m-0',
+        'tw:max-w-full',
+        'tw:font-mono',
+        !wrapContent && 'tw:overflow-x-auto',
+        'tw:whitespace-pre',
+        onChangeCode && !isEditingCode && 'tw:cursor-text',
+      )}
+    >
+      {isEditingCode ? (
+        <textarea
+          ref={textareaRef}
+          aria-label="编辑代码内容"
+          className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:text-app-text tw:outline-none tw:whitespace-pre tw:overflow-x-auto"
+          style={{
+            ...codeStyle,
+            minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            lineHeight: 'inherit',
+          }}
+          value={editCodeValue}
+          onBlur={() => {
+            setIsEditingCode(false)
+            if (editCodeValue !== code) {
+              onChangeCode?.(editCodeValue)
+            }
+          }}
+          onChange={e => {
+            setEditCodeValue(e.target.value)
+          }}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            e.stopPropagation()
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              setIsEditingCode(false)
+              setEditCodeValue(code)
+            } else if (e.key === 'Tab') {
+              e.preventDefault()
+              const target = e.currentTarget
+              const start = target.selectionStart
+              const end = target.selectionEnd
+              const val = target.value
+              const nextVal = `${val.substring(0, start)}  ${val.substring(end)}`
+              setEditCodeValue(nextVal)
+              queueMicrotask(() => {
+                target.selectionStart = target.selectionEnd = start + 2
+              })
+            }
+          }}
+          onPointerDown={e => e.stopPropagation()}
+        />
+      ) : (
+        codeContent
+      )}
+    </pre>
+  )
+
   return (
     <figure
+      data-surface={surface}
       aria-label={ariaLabel ?? `${languageLabel} 代码块`}
       className={cx(
         'md-code-block',
+        surface === 'standalone' && 'md-code-surface',
         'tw:mx-0',
         'tw:w-full',
         'tw:max-w-full',
@@ -129,155 +211,103 @@ export function CodeBlock({
         className,
       )}
     >
-      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 u-type-caption tw:text-app-text-soft">
-        {isEditingLang ? (
-          <input
-            autoFocus
-            aria-label="输入代码语言"
-            className="md-code-lang-input tw:h-6 tw:w-28 tw:rounded-xs tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
-            placeholder="语言 (如 ts, json)"
-            value={editLangValue}
-            onBlur={commitLanguageChange}
-            onChange={e => setEditLangValue(e.target.value)}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              e.stopPropagation()
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                commitLanguageChange()
-              } else if (e.key === 'Escape') {
-                e.preventDefault()
-                setIsEditingLang(false)
-                setEditLangValue(language ?? '')
-              }
-            }}
-            onPointerDown={e => e.stopPropagation()}
-          />
-        ) : onChangeLanguage ? (
-          <button
-            aria-label={`修改代码语言：当前为 ${languageLabel}`}
-            className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
-            title="点击直接修改代码语言"
-            type="button"
-            onClick={e => {
-              e.stopPropagation()
-              setEditLangValue(language ?? '')
-              setIsEditingLang(true)
-            }}
-            onPointerDown={e => e.stopPropagation()}
-          >
-            <span>{languageLabel}</span>
-          </button>
-        ) : (
-          <span className="md-code-lang tw:font-mono">
-            {languageLabel}
-          </span>
-        )}
-        <span className="md-code-actions tw:flex tw:items-center">
-          {onChangeCode && !isEditingCode ? (
-            <IconButton
-              color="ghostSecondary"
-              size="toolbar"
-              title="编辑代码"
-              type="button"
-              onClick={() => {
-                setEditCodeValue(code)
-                setIsEditingCode(true)
+      {headerLabel !== null ? (
+        <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between u-type-caption tw:text-app-text-soft">
+          {isEditingLang ? (
+            <input
+              autoFocus
+              aria-label="输入代码语言"
+              className="md-code-lang-input tw:h-6 tw:w-28 tw:rounded-xs tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
+              placeholder="语言 (如 ts, json)"
+              value={editLangValue}
+              onBlur={commitLanguageChange}
+              onChange={e => setEditLangValue(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => {
+                e.stopPropagation()
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitLanguageChange()
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setIsEditingLang(false)
+                  setEditLangValue(language ?? '')
+                }
               }}
+              onPointerDown={e => e.stopPropagation()}
+            />
+          ) : onChangeLanguage ? (
+            <button
+              aria-label={`修改代码语言：当前为 ${languageLabel}`}
+              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+              title="点击直接修改代码语言"
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                setEditLangValue(language ?? '')
+                setIsEditingLang(true)
+              }}
+              onPointerDown={e => e.stopPropagation()}
             >
-              <Pencil aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
-          ) : null}
+              <span>{languageLabel}</span>
+            </button>
+          ) : (
+            <span className="md-code-lang tw:font-mono">
+              {headerLabel ?? languageLabel}
+            </span>
+          )}
+        </figcaption>
+      ) : null}
+      <span className="md-code-actions tw:flex tw:items-center">
+        {onChangeCode && !isEditingCode ? (
           <IconButton
-            className={cx(
-              'md-code-action md-code-copy',
-              copied && 'is-copied',
-              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
-            )}
             color="ghostSecondary"
             size="toolbar"
-            title={copied ? '已复制代码' : '复制代码'}
+            title="编辑代码"
             type="button"
-            onClick={() => void handleCopy()}
+            onClick={() => {
+              setEditCodeValue(code)
+              setIsEditingCode(true)
+            }}
           >
-            {copied ? (
-              <Check
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            ) : (
-              <Copy
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            )}
+            <Pencil aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
-        </span>
-      </figcaption>
-      <pre
-        className={cx(
-          'md-code-pre',
-          'tw:m-0',
-          'tw:max-w-full',
-          'tw:font-mono',
-          'tw:overflow-x-auto',
-          'tw:whitespace-pre',
-          onChangeCode && !isEditingCode && 'tw:cursor-text',
-        )}
-      >
-        {isEditingCode ? (
-          <textarea
-            ref={textareaRef}
-            aria-label="编辑代码内容"
-            className="md-code-editor-textarea tw:m-0 tw:w-full tw:resize-y tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-inherit tw:text-app-text tw:outline-none tw:whitespace-pre tw:overflow-x-auto"
-            style={{
-              ...codeStyle,
-              minHeight: `${Math.max(2, editCodeValue.split('\n').length) * 1.5}em`,
-              fontFamily: 'inherit',
-              fontSize: 'inherit',
-              lineHeight: 'inherit',
-            }}
-            value={editCodeValue}
-            onBlur={() => {
-              setIsEditingCode(false)
-              if (editCodeValue !== code) {
-                onChangeCode?.(editCodeValue)
-              }
-            }}
-            onChange={e => {
-              setEditCodeValue(e.target.value)
-            }}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              e.stopPropagation()
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                setIsEditingCode(false)
-                setEditCodeValue(code)
-              } else if (e.key === 'Tab') {
-                e.preventDefault()
-                const target = e.currentTarget
-                const start = target.selectionStart
-                const end = target.selectionEnd
-                const val = target.value
-                const nextVal = `${val.substring(0, start)}  ${val.substring(end)}`
-                setEditCodeValue(nextVal)
-                queueMicrotask(() => {
-                  target.selectionStart = target.selectionEnd = start + 2
-                })
-              }
-            }}
-            onPointerDown={e => e.stopPropagation()}
-          />
-        ) : (
-          <code className="md-code-content" style={codeStyle}>
-            <HighlightedTokens result={presentation.highlighted} />
-            {presentation.plainText}
-          </code>
-        )}
-      </pre>
+        ) : null}
+        <IconButton
+          className={cx(
+            'md-code-action md-code-copy',
+            copied && 'is-copied',
+            'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
+          )}
+          color="ghostSecondary"
+          size="toolbar"
+          aria-label={copied ? '已复制代码' : copyLabel}
+          title={copied ? '已复制代码' : copyLabel}
+          type="button"
+          onClick={() => void handleCopy()}
+        >
+          {copied ? (
+            <Check
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          ) : (
+            <Copy
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          )}
+        </IconButton>
+      </span>
+      {collapsible ? (
+        <details className="md-code-disclosure">
+          <summary className="md-code-summary">{codeContent}</summary>
+        </details>
+      ) : (
+        wrapContent ? wrapContent(content) : content
+      )}
     </figure>
   )
 }

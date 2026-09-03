@@ -327,8 +327,25 @@
 }
 
 .md-code-block {
+  position: relative;
   margin-top: 16px;
   margin-bottom: 20px;
+
+  &[data-surface="embedded"] {
+    margin: 0;
+
+    > .md-code-actions {
+      top: var(--cpx-sys-space-2);
+    }
+
+    > .md-code-header + .md-code-actions {
+      top: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
+    }
+  }
+}
+
+.md-code-surface {
+  overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
   background: color-mix(
@@ -339,11 +356,29 @@
 }
 
 .md-code-header {
+  padding-inline: var(--cpx-sys-space-2) calc(var(--cpx-sys-space-8) * 2);
   background: transparent;
 }
 
 .md-code-lang {
   letter-spacing: normal;
+}
+
+.md-code-actions {
+  position: absolute;
+  z-index: var(--cpx-sys-z-local);
+  top: 0;
+  right: var(--cpx-sys-space-2);
+  min-height: var(--cpx-sys-space-8);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+}
+
+.md-code-block:hover > .md-code-actions,
+.md-code-block:focus-within > .md-code-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .md-code-action {
@@ -361,6 +396,37 @@
   font-size: var(--cpx-sys-font-size-code);
   line-height: var(--cpx-sys-line-height-code);
   scrollbar-gutter: stable;
+}
+
+.md-code-summary {
+  padding: var(--cpx-sys-space-3) calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-3)) var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--cpx-sys-font-family-mono);
+  font-size: var(--cpx-sys-font-size-code);
+  line-height: var(--cpx-sys-line-height-code);
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--cpx-sys-color-accent);
+    outline-offset: -1px;
+  }
+}
+
+.md-code-summary > .md-code-content {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.md-code-disclosure:not([open]) > .md-code-summary > .md-code-content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .md-code-content {

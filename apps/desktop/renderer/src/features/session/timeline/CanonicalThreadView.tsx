@@ -806,7 +806,11 @@ function CanonicalConversationTurnComponent({
             : "completed",
         );
         return (
-          <CanonicalProcessGroup {...summary} canExpand={unit.items.length > 0} key={unit.key}>
+          <CanonicalProcessGroup
+            {...summary}
+            canExpand={unit.items.length > 0}
+            key={unit.key}
+          >
             {unit.items.map((item) => (
               <div
                 className="cpx-agent-activity__path-step"

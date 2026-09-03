@@ -680,13 +680,14 @@ describe("canonical thread switch", () => {
       </CanonicalTestProviders>,
     );
 
-    const workStatusIndex = markup.indexOf("已处理 5m 59s");
-    const processTextIndex = markup.indexOf("中间处理说明标记");
-    const lifecycleIndex = markup.indexOf("已更新计划");
-    const commandsIndex = markup.indexOf("已在 1 秒内执行 bun test");
-    const answerIndex = markup.indexOf("最终回复标记");
-    const patchIndex = markup.indexOf("已编辑 1 个文件");
-    const postAssistantIndex = markup.indexOf("上下文已自动压缩标记");
+    const visibleText = markup.replace(/<[^>]*>/g, "");
+    const workStatusIndex = visibleText.indexOf("已处理 5m 59s");
+    const processTextIndex = visibleText.indexOf("中间处理说明标记");
+    const lifecycleIndex = visibleText.indexOf("已更新计划");
+    const commandsIndex = visibleText.indexOf("bun test · 1 秒");
+    const answerIndex = visibleText.indexOf("最终回复标记");
+    const patchIndex = visibleText.indexOf("已编辑 1 个文件");
+    const postAssistantIndex = visibleText.indexOf("上下文已自动压缩标记");
     expect(processTextIndex).toBeGreaterThan(-1);
     expect(workStatusIndex).toBeGreaterThan(-1);
     expect(workStatusIndex).toBeLessThan(processTextIndex);

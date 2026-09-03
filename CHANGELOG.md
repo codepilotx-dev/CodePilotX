@@ -45,6 +45,24 @@
 
 - [desktop] 聊天宽度快捷入口改用 Menu 图标，点击三态轮换，三条横线长度随档位同步变化。
 
+- [desktop/renderer] 合并工具行与分组行公共样式，统一同层级高度、圆角及悬停焦点效果，移除单个工具行重复的原生文字提示。
+
+- [desktop/renderer] 统一正文与顶层工具展开行之间的垂直间距，消除正文首尾外边距与工具行内边距叠加。
+
+- [desktop/renderer] 执行内容改为同一份正文原地展开，默认保留两行并截断，展开自动换行，移除重复摘要和展开箭头。
+
+- [desktop/renderer] 工具执行内容默认显示单行可展开摘要，保留完整命令复制与横向滚动；复制按钮悬浮于分区右上角，不再占用整列正文空间。
+
+- [desktop/renderer] 精简工具卡片为 Shell 标签与连续输入输出，移除分区标题和分隔线，复制按钮改为各分区独立悬停或焦点浮现。
+
+- [desktop/renderer] 代码块支持独立与嵌入 Surface，工具输入、输出和状态合并为同一底板，操作按钮在悬停或键盘焦点进入时浮现。
+
+- [desktop/renderer] 工具输入与输出复用统一 CodeBlock，保留分区复制、执行状态与输出滚动，移除重复代码块样式。
+
+- [desktop/renderer] 全流程重塑会话执行过程折叠组（Modern Timeline）：引入极简贯通时间轴线，自动剥离机械性目录切换前缀并后置耗时，实现多层结构化进程通信包装（exitCode / exit_code / stdout / stderr / timedOut / truncated 等对象、JSON 字符串及 Markdown 代码块）的深度清洗与阻断，并将展开卡片与文本起始列自然对齐。
+
+- [desktop/renderer] 统一重塑终端执行卡片（canonical-command-shell 与 embedded 模式）：采用深色一体化终端卡片外观，支持 shell 类型动态标签、命令与输出连贯排版、在各内容区域（命令行/输出区）右上角独立悬停浮现复制操作与右下角简明状态展示。
+
 - [desktop] 优化 Composer 命令与上下文面板：统一 `+` 与 `@` 上下文入口，补充会话命令、真实引用和技能作用域展示。
 
 - [desktop/renderer] 调整会话内联摘要开启时工作区主体内容右侧边距（`padding-inline-end`）计算间距。

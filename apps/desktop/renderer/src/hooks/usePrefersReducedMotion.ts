@@ -1,7 +1,11 @@
 import { useDesktopTheme } from '../features/theme/themeContext.js'
 
 export function usePrefersReducedMotion(): boolean {
-  return useDesktopTheme().reducedMotion
+  try {
+    return useDesktopTheme().reducedMotion
+  } catch {
+    return getEffectiveReducedMotion()
+  }
 }
 
 export function getEffectiveReducedMotion(): boolean {

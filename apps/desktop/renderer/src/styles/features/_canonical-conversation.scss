@@ -273,7 +273,13 @@
 }
 
 .canonical-turn__process {
-  gap: var(--cpx-sys-space-1);
+  gap: var(--cpx-sys-space-3);
+
+  > .cpx-agent-activity > .cpx-agent-activity__header,
+  > .cpx-agent-activity__item > .cpx-agent-activity__item-header {
+    min-height: 1lh;
+    padding-block: 0;
+  }
 }
 
 /* ── Agent activity group ── */
@@ -287,47 +293,7 @@
   font: inherit;
 
   &::before {
-    position: absolute;
-    top: calc((var(--cpx-sys-space-7) + var(--cpx-sys-space-4)) / 2);
-    left: calc(var(--cpx-sys-space-4) / 2);
-    height: calc(var(--cpx-sys-space-1) + var(--cpx-sys-space-2));
-    border-left: 1px solid var(--cpx-sys-color-border-default);
-    content: "";
-    pointer-events: none;
-  }
-
-  &__header {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-    min-width: 0;
-    min-height: var(--cpx-sys-space-7);
-    width: fit-content;
-    max-width: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
-
-    &:hover {
-      color: var(--cpx-sys-color-fg-primary);
-    }
-
-    &:focus-visible {
-      outline: none;
-      box-shadow: var(--cpx-sys-focus-ring-inset);
-    }
-
-    svg {
-      flex: 0 0 auto;
-      width: var(--cpx-sys-space-4);
-      height: var(--cpx-sys-space-4);
-    }
+    display: none;
   }
 
   &__summary {
@@ -349,18 +315,6 @@
     display: none;
   }
 
-  &__header > &__chevron {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
-    opacity: 0;
-    transform: rotate(0deg);
-    transition:
-      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
-      transform var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
-  }
-
-  &__header:hover > &__chevron,
-  &__header:focus-within > &__chevron,
   &[data-expanded="true"] > &__header > &__chevron {
     opacity: 1;
   }
@@ -391,9 +345,10 @@
 
     &::before {
       position: absolute;
-      inset-block: 0;
+      inset-block: 6px;
       left: 0;
-      border-left: 1px solid var(--cpx-sys-color-border-default);
+      width: 1px;
+      background: var(--cpx-sys-color-border-subtle);
       content: "";
       pointer-events: none;
       transform: scaleY(0);
@@ -422,7 +377,6 @@
  * mask-image。伪元素 pointer-events: none，不阻挡滚动、点击、选择或焦点。
  */
 .cpx-agent-activity__edge-fade,
-.canonical-command-shell__edge-fade,
 .execution-plan-card__edge-fade {
   position: relative;
   min-width: 0;
@@ -463,8 +417,7 @@
   }
 }
 
-.right-dock-side-chat .cpx-agent-activity__edge-fade,
-.right-dock-side-chat .canonical-command-shell__edge-fade {
+.right-dock-side-chat .cpx-agent-activity__edge-fade {
   --edge-fade-fill: var(--cpx-sys-color-surface-panel);
 }
 
@@ -780,6 +733,17 @@
   }
 }
 
+.canonical-text-item--process > .md-body,
+.canonical-text-item--result > .md-body {
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}
+
 .canonical-process-card {
   min-width: 0;
   color: var(--cpx-sys-color-fg-secondary);
@@ -872,17 +836,7 @@
   min-width: 0;
 
   &::before {
-    position: absolute;
-    top: calc(var(--cpx-sys-space-7) / 2 - 4px);
-    left: calc(var(--cpx-sys-space-3) * -1);
-    width: var(--cpx-sys-space-3);
-    height: 8px;
-    border-bottom: 1px solid var(--cpx-sys-color-border-default);
-    border-left: 1px solid var(--cpx-sys-color-border-default);
-    border-bottom-left-radius: var(--cpx-sys-radius-sm);
-    content: "";
-    pointer-events: none;
-    transition: border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+    display: none;
   }
 
   &[data-state="running"] {
@@ -960,24 +914,27 @@
   }
 }
 
+.cpx-agent-activity__header,
 .cpx-agent-activity__item-header {
   display: inline-flex;
   align-items: center;
-  gap: var(--cpx-sys-space-1);
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  min-height: var(--cpx-sys-space-7);
+  min-height: 26px;
   width: fit-content;
   max-width: 100%;
-  padding: 0;
+  padding: calc(var(--cpx-sys-space-1) / 2) var(--cpx-sys-space-2);
   border: 0;
-  border-radius: 0;
+  border-radius: var(--cpx-sys-radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
   list-style: none;
-  transition: color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+  transition:
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 
   &:disabled {
     opacity: 1;
@@ -988,6 +945,7 @@
   }
 
   &:hover {
+    background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-primary);
   }
 
@@ -1005,9 +963,16 @@
     opacity: 1;
   }
 
-  &--static {
-    cursor: default;
+  > svg:not(.cpx-agent-activity__chevron) {
+    flex: 0 0 auto;
+    width: var(--cpx-sys-space-4);
+    height: var(--cpx-sys-space-4);
   }
+
+}
+
+.cpx-agent-activity__item-header--static {
+  cursor: default;
 }
 
 .cpx-agent-activity__icon {
@@ -1080,9 +1045,9 @@
 
 .cpx-agent-activity__details {
   min-width: 0;
-  margin-left: var(--cpx-sys-space-5);
-  padding-left: var(--cpx-sys-space-2);
-  border-left: 1px solid var(--cpx-sys-color-border-subtle);
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
   color: var(--cpx-sys-color-fg-secondary);
   font: inherit;
 
@@ -1103,126 +1068,98 @@
 
 .canonical-command-shell {
   min-width: 0;
-  margin: var(--cpx-sys-space-1) 0;
-  overflow: hidden;
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-container);
-  background: var(--cpx-sys-color-surface-panel);
-  box-shadow: none;
-  color: var(--cpx-sys-color-fg-primary);
+  margin: var(--cpx-sys-space-2) 0;
 
-  &__header {
-    min-height: 34px;
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-    background: var(--cpx-sys-color-surface-recessed);
-    color: var(--cpx-sys-color-fg-secondary);
-    font: var(--cpx-sys-type-body-sm);
+  &__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
   }
 
-  &__section {
+  &__scroll-content .md-code-pre {
+    overflow: visible;
+  }
+
+  &__edge-fade {
     position: relative;
     min-width: 0;
-    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
-
-    > .canonical-command-shell__copy-button {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      z-index: 1;
-      background: var(--cpx-sys-color-surface-recessed);
-    }
-
-    pre {
-      max-height: 260px;
-      margin: 0;
-      padding: var(--cpx-sys-space-3) calc(var(--cpx-sys-space-1) * 11) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-      overflow: auto;
-      font-family: var(--cpx-sys-font-family-mono);
-      font-size: var(--cpx-sys-font-size-code);
-      line-height: var(--cpx-sys-line-height-code);
-      white-space: pre;
-    }
-
-    code {
-      font-family: inherit;
-    }
   }
 
-  &__result {
-    pre {
-      max-height: 360px;
+  &__scroller {
+    max-height: 240px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+
+    &:hover {
+      scrollbar-color: var(--cpx-sys-color-border-strong) transparent;
     }
 
-    &[data-empty="true"] {
-      color: var(--cpx-sys-color-fg-tertiary);
-      font-style: italic;
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
     }
-  }
 
-  &__prompt {
-    color: var(--cpx-sys-color-fg-tertiary);
-    user-select: none;
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: var(--cpx-sys-radius-pill);
+      background: transparent;
+      transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+    }
+
+    &:hover::-webkit-scrollbar-thumb {
+      background: var(--cpx-sys-color-border-strong);
+    }
   }
 
   &__footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
-    min-height: 34px;
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-    background: var(--cpx-sys-color-surface-recessed);
+    min-height: 24px;
+    padding: 0 var(--cpx-sys-space-3) var(--cpx-sys-space-2);
+    border-top: 0;
+    background: transparent;
   }
 
   &__status {
     display: inline-flex;
     align-items: center;
     gap: var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-fg-secondary);
+    color: var(--cpx-sys-color-fg-tertiary);
     font: var(--cpx-sys-type-caption);
 
     svg {
-      width: 15px;
-      height: 15px;
-      stroke-width: 1.75;
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
     }
   }
 
   &[data-state="completed"] &__status {
-    color: var(--cpx-sys-color-success);
+    color: var(--cpx-sys-color-fg-secondary);
+
+    svg {
+      color: var(--cpx-sys-color-success);
+    }
   }
 
   &[data-state="error"] &__status,
   &[data-state="interrupted"] &__status {
     color: var(--cpx-sys-color-danger);
+
+    svg {
+      color: var(--cpx-sys-color-danger);
+    }
   }
 
   &--embedded {
-    margin: 0;
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-
-    .canonical-command-shell__section {
-      border-bottom: 0;
-    }
-
-    .canonical-command-shell__section pre {
-      max-height: none;
-      overflow: visible;
-    }
-
-    .canonical-command-shell__section .canonical-command-shell__scroller {
-      max-height: 9rem;
-      overflow: auto;
-    }
-
-    .canonical-command-shell__footer {
-      justify-content: flex-start;
-      min-height: 0;
-      padding: var(--cpx-sys-space-1) var(--cpx-sys-space-3);
-      background: transparent;
-    }
+    margin: var(--cpx-sys-space-1) 0;
   }
 }
 
@@ -1676,9 +1613,7 @@
 
   /* 保留静态边缘提示，但取消渐隐的 opacity transition。 */
   .cpx-agent-activity__edge-fade::before,
-  .cpx-agent-activity__edge-fade::after,
-  .canonical-command-shell__edge-fade::before,
-  .canonical-command-shell__edge-fade::after {
+  .cpx-agent-activity__edge-fade::after {
     transition: none;
   }
 }
