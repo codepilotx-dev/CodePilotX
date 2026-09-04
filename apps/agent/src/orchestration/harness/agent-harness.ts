@@ -531,12 +531,16 @@ export class AgentHarness<
 				const result = await this.emitHook({ type: "context", messages: [...messages] });
 				return result?.messages ?? messages;
 			},
-			beforeToolCall: async ({ toolCall, args }) => {
+			beforeToolCall: async ({ assistantMessage, toolCall, args }) => {
+				const messageToolCallCount = assistantMessage.content.filter(
+					(part) => part.type === "toolCall",
+				).length;
 				const result = await this.emitHook({
 					type: "tool_call",
 					toolCallId: toolCall.id,
 					toolName: toolCall.name,
 					input: args as Record<string, unknown>,
+					messageToolCallCount,
 				});
 				return result ? {
 					...(result.block !== undefined ? { block: result.block } : {}),

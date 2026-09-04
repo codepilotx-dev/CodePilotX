@@ -184,7 +184,7 @@ export interface HarnessRuntimeOptions {
   eventSink?: PiRuntimeEventSink
   activated?(threadID: string, active: ActiveHarness): void
   lifecycle?: PiLifecycleCallbacks
-  beforeToolCall?: (request: HarnessRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown> }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
+  beforeToolCall?: (request: HarnessRuntimeRequest, input: { toolCallID: string; tool: string; input: Record<string, unknown>; messageToolCallCount: number }) => Promise<{ block?: boolean; reason?: string; pause?: boolean } | undefined>
   compaction?: {
     shouldAutoCompact(threadID: string): boolean | Promise<boolean>
     recordFailure(threadID: string, trigger: RuntimeCompactionTrigger): void | Promise<void>

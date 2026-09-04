@@ -7,7 +7,17 @@
 
 ## Unreleased
 
+## 0.2.0-beta.5 — 2026-09-04
+
+### Security
+
+- [agent] 结构化结果校验失败时改用固定安全错误，避免非法字段值进入工具结果、事件或持久化记录。
+
 ### Added
+
+- [agent] 实施主循环结构化交付：新增 orchestration 共享结果模块，统一 finalize_result 的完整字段 schema、共享领域 schema 校验与确定性可读交付说明（摘要、验证、风险）；运行时校验与宿主 callback 均成功后候选结果才绑定 toolCallID，且仅当最终模型消息即提交消息时才作为本轮交付，后续 steering 或继续执行不复用旧候选；summary 非空约束只作用于新提交；合法独立提交结束循环、不发起收尾模型请求，普通问答仍以文本自然结束。
+
+- [agent] 为 Chat 主 Agent 开放可选 finalize_result 结构化收尾（Plan 模式不暴露、继续以 <proposed_plan> 交付，子 Agent 收尾仍必须提交结构化结果，恢复旧快照不补入未冻结新工具）；工具成功输出同一条可读交付说明并附脱敏 details/structuredContent，经现有 PiEventAdapter 投影为工具卡 output 与 resultBlocks JSON 块，HarnessRunResult.output 在有效交付时使用同一份说明，不新增 ToolItem、RPC、事件或数据库表。
 
 - [agent] 实施 Sidecar 长期高内存与堆外内存治理：限制 SQLite 单库 4MB 页面缓存上限（PRAGMA cache_size = -4000），引入 MemoryManager 核心服务实现 Turn 终态 1.5s 防抖与 60s 静默空闲主动 GC 与 shrink_memory（结合 wal_checkpoint(PASSIVE) 归还未用页面），对 GitReview 文件 Diff 快照（上限 3 项）与 Compaction（上限 10 项）引入 LRU 有界淘汰，并预留 system/shrinkMemory RPC 契约与 system.memory.v1 capability。
 
@@ -46,6 +56,8 @@
 - [agent/desktop] 补齐工作目录、会话 ID 与系统深链复制，支持 CodePilotX Agent 分页读取关联会话，并为外部 Agent 提供按会话 ID 查询的 SQLite 只读语义视图。
 
 ### Changed
+
+- [agent] 委派改用指导策略并精简主/子代理 prompt 与生命周期工具描述：小型、强耦合工作由主 Agent 直接完成，只把边界明确、有独立产出、能隔离大量中间信息或适合并行的问题交给子代理，尊重用户与仓库规则的并行要求；task 字符串携带目标、范围、关键背景、约束与预期证据；子代理交付要求（结论、证据引用、必要验证与未决事项、长日志留在任务记录、outcome 如实陈述、不得编造验证成功）写入 profile 提示、子代理任务输入与 finalize_result 描述，主 Agent 复核与最终交付相关的结论且不为总结再造子代理。
 
 - [desktop/renderer] 调整用户消息 Markdown 气泡排版，取消 user-message-markdown 中 md-body 段落 (p) 继承的 margin-block: var(--cpx-sys-space-3) 规则，由基础 Markdown 样式保障首尾外边距清除与段落自然间距。
 

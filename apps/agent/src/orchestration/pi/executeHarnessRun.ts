@@ -1,7 +1,6 @@
 import { AgentHarness } from "../harness/agent-harness"
 import { DeferredToolCatalog } from "../../tool/harness/deferred-tool-catalog"
 import { type AssistantMessage, type ImageContent } from "@earendil-works/pi-ai"
-import { z } from "zod"
 import { AgentError } from "../../domain"
 import type { SubagentResult } from "../../domain"
 import { PromptComposer } from "../../prompt/PromptComposer"
@@ -10,6 +9,7 @@ import { secretScrubber } from "../../security/SecretScrubber"
 import { PiEventAdapter } from "./PiEventAdapter"
 import { applyPromptCacheRuntimePolicy } from "./PiPromptCacheAdapter"
 import { adaptToolDefinition, createPiTools } from "./PiToolAdapter"
+import { formatStructuredResult, parseStructuredResult } from "./structured-result"
 import type { ActiveHarness, HarnessRunResult, HarnessRuntimeOptions, HarnessRuntimeRequest } from "./types"
 import type { RuntimeCompactionTrigger } from "./types"
 import {
@@ -17,16 +17,6 @@ import {
   REACTIVE_COMPACTION_INSTRUCTIONS,
   REACTIVE_CONTINUATION_PROMPT,
 } from "./ContextOverflow"
-
-const subagentResultSchema = z.object({
-  outcome: z.enum(["succeeded", "partial", "blocked"]),
-  summary: z.string(),
-  findings: z.array(z.object({ title: z.string(), detail: z.string(), severity: z.enum(["info", "warning", "error"]) })),
-  changedFiles: z.array(z.object({ path: z.string(), summary: z.string() })),
-  validation: z.array(z.object({ command: z.string(), status: z.enum(["passed", "failed", "skipped"]), output: z.string().optional() })),
-  risks: z.array(z.string()),
-  references: z.array(z.object({ kind: z.enum(["file", "url", "thread", "subagent"]), value: z.string(), label: z.string().optional() })),
-})
 
 const promptContext = (request: HarnessRuntimeRequest, contextItems: readonly unknown[]) => {
   const attachments = request.attachments?.flatMap((attachment) => attachment.kind === "text"
@@ -62,13 +52,19 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
     const initialCachePolicy = inferPromptCacheRuntimePolicy(request.model, bundle.cacheKey)
     await request.onPromptComposed?.(bundle)
 
-    let finalizedResult: SubagentResult | undefined
+    // A successful submission only becomes the delivery of this runtime after
+    // validation AND the host callback succeed, and it stays bound to its tool
+    // call id. Validation failures, callback errors and blocked calls return
+    // tool errors without retaining a candidate or ending the loop.
+    let delivery: { toolCallID: string; result: SubagentResult } | undefined
     const lifecycle = {
       ...options.lifecycle,
       ...(options.lifecycle?.finalizeResult ? {
         finalizeResult: async (input: SubagentResult, id: string) => {
-          finalizedResult = subagentResultSchema.parse(input) as SubagentResult
-          return options.lifecycle!.finalizeResult!(finalizedResult, id)
+          const parsed = parseStructuredResult(input)
+          const accepted = await options.lifecycle!.finalizeResult!(parsed, id)
+          delivery = { toolCallID: id, result: parsed }
+          return accepted
         },
       } : {}),
     }
@@ -123,8 +119,16 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
       return { payload: secretScrubber.scrub(applied.payload) }
     })
     const pausedToolCalls = new Set<string>()
-    if (options.beforeToolCall) harness.on("tool_call", async (event) => {
-      const result = await options.beforeToolCall!(request, { toolCallID: event.toolCallId, tool: event.toolName, input: event.input })
+    const finalizeEnabled = options.lifecycle?.finalizeResult !== undefined
+    // The hook carries the per-message tool call count so the runtime can
+    // reject a submission mixed with other tool calls; every other tool in the
+    // batch keeps following the existing execution rules.
+    if (finalizeEnabled || options.beforeToolCall) harness.on("tool_call", async (event) => {
+      if (event.toolName === "finalize_result" && event.messageToolCallCount > 1) {
+        return { block: true, reason: "finalize_result 必须是该条回复中唯一的工具调用；先完成并验证其他工作，然后在单独一条回复中提交。" }
+      }
+      if (!options.beforeToolCall) return undefined
+      const result = await options.beforeToolCall!(request, { toolCallID: event.toolCallId, tool: event.toolName, input: event.input, messageToolCallCount: event.messageToolCallCount })
       if (result?.pause) pausedToolCalls.add(event.toolCallId)
       return result ? { ...(result.block === undefined ? {} : { block: result.block }), ...(result.reason === undefined ? {} : { reason: result.reason }) } : undefined
     })
@@ -186,7 +190,19 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
           await compaction.recordFailure(request.threadID, "automatic")
         }
       }
-      return { status: "completed", output, ...(finalizedResult ? { result: finalizedResult } : {}) }
+      // The delivery candidate is bound to its tool call: only when the final
+      // assistant message is the one that carried the successful submission is
+      // it the delivery result of this runtime. Later steering or continued
+      // execution must never reuse a candidate from an earlier round.
+      const delivered = delivery !== undefined
+        && message.content.some((part) => part.type === "toolCall" && part.id === delivery!.toolCallID)
+        ? delivery
+        : undefined
+      return {
+        status: "completed",
+        output: delivered ? formatStructuredResult(delivered.result) : output,
+        ...(delivered ? { result: delivered.result } : {}),
+      }
     } finally {
       request.signal.removeEventListener("abort", onAbort)
     }

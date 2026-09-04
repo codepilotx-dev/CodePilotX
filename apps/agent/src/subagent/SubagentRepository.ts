@@ -76,7 +76,9 @@ export class SubagentRepository {
           `工作区：${input.workspaceRoot}`,
           `工作区模式：${input.workspaceMode}`,
           `权限上限：${stringify(input.permissionCeiling)}`,
-          "只返回与你的任务直接相关的结构化结论；不要假设主对话中未显式提供的上下文。",
+          "只返回与任务直接相关的结构化结论，不要假设主对话中未显式提供的上下文。",
+          "任务收尾时必须单独调用 finalize_result 提交结构化结果：summary 非空并说明做了什么与结果如何，没有内容的列表提交空数组。outcome 如实陈述（succeeded/partial/blocked），受阻或部分完成也是合法交付，不得编造验证成功。",
+          "结构化结果包含结论、变更或证据引用、必要验证与未解决事项；长日志留在本任务记录中，不要复制进摘要。",
         ].join("\n\n"),
         model: input.model, permission, taskMode: input.taskMode ?? "chat", sequence: 0, timestamp,
       })

@@ -640,6 +640,8 @@ export interface ToolCallEvent {
 	toolCallId: string;
 	toolName: string;
 	input: Record<string, unknown>;
+	/** Number of tool calls requested by the assistant message this call belongs to. */
+	messageToolCallCount: number;
 }
 
 export interface ToolResultEvent {

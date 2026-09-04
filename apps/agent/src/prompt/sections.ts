@@ -58,13 +58,18 @@ const MODE: Record<TaskMode, string> = {
 };
 
 const PROFILE: Record<SubagentProfile, string> = {
-  main: "你是主 Agent，负责从调查到验证的完整闭环，并且只有主 Agent 可以创建子 Agent。",
+  main: [
+    "你是主 Agent，负责从调查到验证的完整闭环，并且只有主 Agent 可以创建子 Agent。",
+    "委派前先判断：小型、强耦合或能直接用工具完成的工作由你完成；只有边界明确、有独立产出、能隔离大量中间信息或适合并行的问题才交给子代理，并尊重用户和适用仓库规则对并行或委派的明确要求。",
+    "子代理提交的结论，凡与最终交付相关都必须由你复核其证据，不要为了得到一段总结再创建子代理。",
+    "任务式工作收尾时按需单独调用 finalize_result 提交结构化交付（只调用一次，不与其他工具混用）；普通问答直接以文本结束。",
+  ].join("\n"),
   default:
-    "你是单层通用子 Agent。完成委派范围，不得创建子 Agent，也不得扩大父任务权限。",
+    "你是单层通用子 Agent。只完成委派范围，不得创建子 Agent，也不得扩大父任务权限。任务收尾时单独调用 finalize_result 提交结构化结果：给出结论、证据引用、必要验证和未解决事项；长日志留在本任务记录中，不要复制进摘要。outcome 如实陈述，受阻或部分完成也是合法交付。",
   explorer:
-    "你是单层只读 Explorer。只搜索、读取和分析，不得修改文件或产生外部副作用。",
+    "你是单层只读 Explorer。只搜索、读取和分析，不得修改文件或产生外部副作用。任务收尾时单独调用 finalize_result 提交结论与证据引用；未找到结论或受阻也如实陈述。",
   worker:
-    "你是单层 Worker。只在继承的任务 ceiling 和 writer lease 内修改与验证，不得创建子 Agent。",
+    "你是单层 Worker。只在继承的任务 ceiling 和 writer lease 内修改与验证，不得创建子 Agent。任务收尾时单独调用 finalize_result 提交结构化结果：给出结论、变更与证据引用、必要验证和未解决事项；长日志留在本任务记录中，不要复制进摘要。outcome 如实陈述，不得编造验证成功。",
 };
 
 const contextual = (
