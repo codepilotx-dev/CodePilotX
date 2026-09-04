@@ -7,6 +7,13 @@
 
 ## Unreleased
 
+### Changed
+
+- [desktop/renderer] 调整全局页面宽度三档，窄、默认和宽分别使用 768px、1009px 和 1250px。
+
+- [desktop/renderer] 统一任务与设置侧栏的图标、正文、操作和分组列线，在保持现有密度与交互的同时改善跨区域对齐。
+- [agent/desktop/renderer] 精简模型目录转发层与未使用依赖，折叠后卸载会话重内容并移除工具卡片独立计时器，同时修复无效懒加载，使 Renderer 首屏 gzip JS 减少约 62 KiB。
+
 ## 0.2.0-beta.5 — 2026-09-04
 
 ### Security
