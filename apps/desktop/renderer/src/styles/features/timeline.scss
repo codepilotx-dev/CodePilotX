@@ -190,10 +190,10 @@
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: 8px;
+  left: var(--conversation-rail-inline-start, var(--cpx-sys-space-2));
   top: 50%;
   z-index: 5;
-  width: 32px;
+  width: var(--conversation-rail-width, var(--cpx-sys-space-8));
   max-height: min(70vh, 640px);
   opacity: 0;
   visibility: hidden;
@@ -214,7 +214,7 @@
 
 .conversation-turn-nav-list {
   display: flex;
-  width: 32px;
+  width: var(--conversation-rail-width, var(--cpx-sys-space-8));
   max-height: min(70vh, 640px);
   flex-direction: column;
   align-items: flex-start;
@@ -242,9 +242,9 @@
 .conversation-turn-nav-item {
   position: relative;
   display: flex;
-  width: 32px;
+  width: var(--conversation-rail-width, var(--cpx-sys-space-8));
   height: 10px;
-  min-width: 32px;
+  min-width: var(--conversation-rail-width, var(--cpx-sys-space-8));
   min-height: 10px;
   align-items: center;
   justify-content: flex-start;

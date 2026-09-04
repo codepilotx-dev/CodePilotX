@@ -312,8 +312,16 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     )
     await expect(markdown.locator('blockquote')).toBeVisible()
     await expect(markdown.locator('.md-table-block table')).toBeVisible()
-    const codeWideHost = markdown.locator('.md-wide-block').first()
-    await codeWideHost.scrollIntoViewIfNeeded()
+    const nestedCodeWideHost = markdown.locator('.md-wide-block').filter({
+      hasText: 'nestedWideBlock',
+    })
+    const codeWideHost = markdown.locator('.md-wide-block').filter({
+      hasText: 'responsiveFixturePath',
+    })
+    await nestedCodeWideHost.scrollIntoViewIfNeeded()
+    await expect(
+      nestedCodeWideHost.locator('.md-code-block:not(.md-table-block)'),
+    ).toBeVisible()
     await expect(
       codeWideHost.locator('.md-code-block:not(.md-table-block)'),
     ).toBeVisible()
@@ -345,13 +353,22 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       const inlineCode = style('p code')
       const list = style('ul')
       const listItem = style('li')
+      const listItemElement = select<HTMLElement>(':scope > ul > li')
       const spacedListItem = style(':scope > ul > li + li')
       const nestedSpacedListItem = style(':scope > ul > li > ul > li + li')
       const directListParagraph = style(':scope > ul > li > p')
       const secondListParagraph = style(':scope > ul > li > p + p')
       const nestedList = style(':scope > ul > li > ul')
       const codeBlock = style('.md-code-block:not(.md-table-block)')
-      const codeBlockElement = select<HTMLElement>('.md-wide-block')
+      const codeBlockElement = Array.from(
+        element.querySelectorAll<HTMLElement>('.md-wide-block'),
+      ).find(target => target.textContent?.includes('responsiveFixturePath'))
+      const nestedCodeBlockElement = Array.from(
+        element.querySelectorAll<HTMLElement>('.md-wide-block'),
+      ).find(target => target.textContent?.includes('nestedWideBlock'))
+      if (!codeBlockElement || !nestedCodeBlockElement) {
+        throw new Error('Missing top-level or nested Markdown code fixture')
+      }
       const codePreElement = select<HTMLElement>(
         '.md-code-block:not(.md-table-block) .md-code-pre',
       )
@@ -472,6 +489,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
           codeBlockElement.getBoundingClientRect().left
           + codeBlockElement.getBoundingClientRect().width / 2,
         codeBlockWidth: codeBlockElement.getBoundingClientRect().width,
+        codeBlockLeft: codeBlockElement.getBoundingClientRect().left,
         codeBlockMarginBottom: px(codeBlock.marginBottom),
         codeBlockMarginTop: px(codeBlock.marginTop),
         codePreFontSize: codePre.fontSize,
@@ -517,6 +535,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         leadTitleDisplay: leadTitle.display,
         listItemMarginBottom: px(listItem.marginBottom),
         listItemMarginTop: px(listItem.marginTop),
+        listItemLeft: listItemElement.getBoundingClientRect().left,
         listItemSiblingMarginTopRatio:
           px(spacedListItem.marginTop) / bodySize,
         listDirectParagraphMarginBottom: px(directListParagraph.marginBottom),
@@ -555,6 +574,10 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
         )
           ? 1
           : 0,
+        nestedCodeBlockLeft:
+          nestedCodeBlockElement.getBoundingClientRect().left,
+        nestedCodeBlockWidth:
+          nestedCodeBlockElement.getBoundingClientRect().width,
         quoteBorderRadius: quote.borderTopLeftRadius,
         quoteBorderWidth: quote.borderLeftWidth,
         quotePaddingBlockRatio: px(quote.paddingTop) / rootSize,
@@ -712,6 +735,16 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     expect(metrics.resultSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.postSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.codeBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
+    expect(metrics.codeBlockLeft).toBeCloseTo(metrics.readingBlockLeft, 0)
+    expect(metrics.nestedCodeBlockWidth).toBeCloseTo(
+      metrics.readingBlockWidth,
+      0,
+    )
+    expect(metrics.nestedCodeBlockLeft).toBeCloseTo(
+      metrics.readingBlockLeft,
+      0,
+    )
+    expect(metrics.listItemLeft).toBeGreaterThan(metrics.readingBlockLeft)
     expect(metrics.composerWidth).toBeLessThanOrEqual(1009)
     expect(metrics.tableBlockWidth).toBeLessThanOrEqual(1009)
     expect(metrics.tableBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
@@ -2162,7 +2195,7 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
   await rightPanel.getByRole('button', { name: /^审阅/ }).click()
 
   const summary = page.locator('.thread-summary-inline')
-  const timeline = page.locator('.session-timeline-container')
+  const turn = page.locator('.canonical-turn').first()
   const composer = page.locator('.workflow-page__composer-inner')
   const workflowMain = page.locator('.workflow-page__main')
   await expect(summary).toBeVisible()
@@ -2193,40 +2226,57 @@ test('wide workspace keeps the summary beside a 600px review panel', async ({
     summary.locator('button.interactive-row--adaptive').first(),
   )
 
-  const [summaryBox, timelineBox, composerBox, rightPanelBox, workflowMainBox] =
-    await Promise.all([
+  const [
+    summaryBox,
+    turnBox,
+    composerBox,
+    rightPanelBox,
+    workflowMainBox,
+  ] = await Promise.all([
       summary.boundingBox(),
-      timeline.boundingBox(),
+      turn.boundingBox(),
       composer.boundingBox(),
       rightPanel.boundingBox(),
       workflowMain.boundingBox(),
     ])
   expect(summaryBox).not.toBeNull()
-  expect(timelineBox).not.toBeNull()
+  expect(turnBox).not.toBeNull()
   expect(composerBox).not.toBeNull()
   expect(rightPanelBox).not.toBeNull()
   expect(workflowMainBox).not.toBeNull()
   if (
     !summaryBox
-    || !timelineBox
+    || !turnBox
     || !composerBox
     || !rightPanelBox
     || !workflowMainBox
   ) return
 
   expect(summaryBox.width).toBeCloseTo(272, 0)
-  expect(timelineBox.width).toBeGreaterThan(640)
-  expect(composerBox.width).toBeCloseTo(timelineBox.width, 0)
-  expect(composerBox.x).toBeCloseTo(timelineBox.x, 0)
-  expect(timelineBox.x - workflowMainBox.x).toBeCloseTo(48, 0)
-  await expect(workflowMain).toHaveCSS('padding-right', '304px')
+  expect(turnBox.width).toBeGreaterThan(640)
+  expect(turnBox.width).toBeCloseTo(composerBox.width, 0)
+  expect(turnBox.x).toBeCloseTo(composerBox.x, 0)
+  expect(turnBox.x - workflowMainBox.x).toBeCloseTo(48, 0)
+  const reservedInlineEnd = await workflowMain.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).paddingRight),
+  )
+  expect(reservedInlineEnd).toBeCloseTo(summaryBox.width + 32, 0)
   expect(rightPanelBox.width).toBeCloseTo(600, 0)
   expect(
-    summaryBox.x - (timelineBox.x + timelineBox.width),
+    summaryBox.x - (turnBox.x + turnBox.width),
   ).toBeGreaterThanOrEqual(16)
   expect(
     rightPanelBox.x - (summaryBox.x + summaryBox.width),
   ).toBeGreaterThanOrEqual(16)
+
+  await page.getByRole('button', { name: '取消置顶摘要' }).click()
+  await expect(summary).toHaveCount(0)
+  const [unpinnedTurnBox, unpinnedComposerBox] = await Promise.all([
+    turn.boundingBox(),
+    composer.boundingBox(),
+  ])
+  expect(unpinnedTurnBox?.x).toBeCloseTo(turnBox.x, 0)
+  expect(unpinnedComposerBox?.x).toBeCloseTo(composerBox.x, 0)
 
   const overflow = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -2662,6 +2712,25 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
     '.sidebar-section:has([data-sidebar-section-id="projects"]) .sidebar-section-header',
   )
   const footerRow = page.locator('.sidebar-footer .sidebar-settings-link')
+  const readRowForegrounds = (row: Locator) => row.evaluate((element) => {
+    const main = element.querySelector<HTMLElement>('.sidebar-row-main')
+    const leading = element.querySelector<HTMLElement>('.sidebar-item-icon')
+    return {
+      leading: leading ? getComputedStyle(leading).color : null,
+      main: main ? getComputedStyle(main).color : null,
+      row: getComputedStyle(element).color,
+    }
+  })
+  const primaryForeground = await projectRow.evaluate(element =>
+    getComputedStyle(element).color,
+  )
+  for (const row of [navRow, projectRow, footerRow]) {
+    expect(await readRowForegrounds(row)).toEqual({
+      leading: primaryForeground,
+      main: primaryForeground,
+      row: primaryForeground,
+    })
+  }
   const [sidebarBox, navBox, navLeadingBox, navMainBox, sectionHeaderBox, projectRowBox, projectTrailingBox, footerBox, footerLeadingBox, footerMainBox] =
     await Promise.all([
       sidebar.boundingBox(),
@@ -2757,9 +2826,16 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
     probe.remove()
     return background
   })
+  for (const row of [navRow, footerRow]) {
+    const foregroundsBeforeHover = await readRowForegrounds(row)
+    await row.hover()
+    await expect(row).toHaveCSS('background-color', sidebarHoverBackground)
+    expect(await readRowForegrounds(row)).toEqual(foregroundsBeforeHover)
+  }
+  const projectForegroundsBeforeHover = await readRowForegrounds(projectRow)
   await projectRow.hover()
   await expect(projectRow).toHaveCSS('background-color', sidebarHoverBackground)
-  const primaryForeground = await projectRow.evaluate(element => getComputedStyle(element).color)
+  expect(await readRowForegrounds(projectRow)).toEqual(projectForegroundsBeforeHover)
   const projectActions = projectRow.locator('.sidebar-project-action-button')
   for (const action of await projectActions.all()) {
     await action.hover()
@@ -2808,6 +2884,11 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
     'background-color',
     sidebarHoverBackground,
   )
+  await expect(activeSessionRow).toHaveCSS('color', primaryForeground)
+  await expect(activeSessionRow.locator('.sidebar-session-button')).toHaveCSS(
+    'color',
+    primaryForeground,
+  )
 
   await projectButton.focus()
   await page.keyboard.press('Shift+Tab')
@@ -2844,6 +2925,15 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
   const activityHeader = activityTimeline.locator('.sidebar-focus-section-header').first()
   const activityTitle = activityHeader.locator('.sidebar-focus-section-title')
   const activityRow = activityTimeline.locator('[data-sidebar-session-id="visual-rich"]')
+  const activitySection = activityRow.locator(
+    'xpath=ancestor::section[contains(@class, "sidebar-focus-section")]',
+  )
+  const activitySectionHeader = activitySection.locator(
+    '.sidebar-focus-section-header',
+  )
+  const activityClipWindow = activitySection.locator(
+    '.sidebar-focus-section-clip-window',
+  )
   const activityWorkspaceName = activityRow.locator('.sidebar-session-workspace-meta__name')
   await expect(activityTimeline).toBeVisible()
   await expect(activityHeader).toBeVisible()
@@ -2855,7 +2945,60 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
   await timelineAction.hover()
   await expect(timelineAction).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(timelineAction).toHaveCSS('color', primaryForeground)
+  await timelineAction.click()
+  const timelineMenu = page.locator('.sidebar-timeline-menu')
+  const timelineMenuItems = timelineMenu.locator('.popover-item')
+  const priorityMenuItem = timelineMenu.getByRole('menuitemcheckbox', {
+    name: '优先事项部分',
+  })
+  const priorityMenuCheck = priorityMenuItem.locator('.popover-item-check')
+  await expect(timelineMenu).toBeVisible()
+  await expect(timelineMenu.locator('.popover-section-title')).toHaveText('显示')
+  await expect(timelineMenu.getByRole('menuitemcheckbox')).toHaveText([
+    '优先事项部分',
+    '置顶',
+    '已安排',
+  ])
+  await expect(timelineMenu.getByRole('menuitem')).toHaveText([
+    '全部标为已读',
+    '归档聊天',
+  ])
+  await expect(timelineMenu).toHaveCSS('width', '192px')
+  await expect(timelineMenu.locator('.popover-scroll-content')).toHaveCSS('padding', '4px')
+  for (const item of await timelineMenuItems.all()) {
+    await expect(item).toHaveCSS('min-height', '32px')
+    await expect(item.locator('.popover-item-leading')).toHaveCSS('display', 'none')
+  }
+  const [timelineMenuBox, priorityMenuCheckBox] = await Promise.all([
+    timelineMenu.boundingBox(),
+    priorityMenuCheck.boundingBox(),
+  ])
+  expect(timelineMenuBox).not.toBeNull()
+  expect(priorityMenuCheckBox).not.toBeNull()
+  expect(
+    timelineMenuBox!.x + timelineMenuBox!.width
+      - (priorityMenuCheckBox!.x + priorityMenuCheckBox!.width),
+  ).toBeCloseTo(12, 0)
+  const priorityMenuForeground = await priorityMenuItem.evaluate(element =>
+    getComputedStyle(element).color,
+  )
+  const priorityMenuBackground = await priorityMenuItem.evaluate(element =>
+    getComputedStyle(element).backgroundColor,
+  )
+  await priorityMenuItem.hover()
+  await expect(priorityMenuItem).toHaveCSS('color', priorityMenuForeground)
+  await expect.poll(async () => priorityMenuItem.evaluate(element =>
+    getComputedStyle(element).backgroundColor,
+  )).not.toBe(priorityMenuBackground)
+  await expect(
+    timelineMenu.getByRole('menuitemcheckbox', { name: '已安排' }),
+  ).toHaveAttribute('data-disabled')
+  await page.keyboard.press('Escape')
+  const activityWorkspaceForeground = await activityWorkspaceName.evaluate(element =>
+    getComputedStyle(element).color,
+  )
   await activityRow.hover()
+  await expect(activityWorkspaceName).toHaveCSS('color', activityWorkspaceForeground)
   for (const action of await activityRow.locator('.sidebar-session-action-button').all()) {
     await action.hover()
     await expect(action).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
@@ -2869,7 +3012,6 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
     content: `
       .sidebar-timeline [data-sidebar-session-id="visual-rich"] .sidebar-session-title {
         width: 72px;
-        flex: 0 0 72px;
       }
     `,
   })
@@ -2881,10 +3023,27 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
   await expect(activityRow.locator('.sidebar-session-actions')).toBeVisible()
   await expect(activitySessionTitle).toHaveAttribute('data-scrolling', 'true')
   expect(await maskTransparentStopCount(activitySessionTitle)).toBe(2)
-  const activityTitleAfterHover = await activitySessionTitle.boundingBox()
+  const [activityRowBox, activityTitleAfterHover, activityActionsBox] = await Promise.all([
+    activityRow.boundingBox(),
+    activitySessionTitle.boundingBox(),
+    activityRow.locator('.sidebar-session-actions').boundingBox(),
+  ])
+  expect(activityRowBox).not.toBeNull()
   expect(activityTitleBeforeHover).not.toBeNull()
   expect(activityTitleAfterHover).not.toBeNull()
+  expect(activityActionsBox).not.toBeNull()
+  expect(activityRowBox!.height).toBeCloseTo(48, 0)
   expect(activityTitleAfterHover!.x).toBeCloseTo(activityTitleBeforeHover!.x, 0)
+  expect(
+    activityActionsBox!.y + activityActionsBox!.height / 2,
+  ).toBeCloseTo(
+    activityTitleAfterHover!.y + activityTitleAfterHover!.height / 2,
+    0,
+  )
+  expect(
+    activityActionsBox!.x
+      - (activityTitleAfterHover!.x + activityTitleAfterHover!.width),
+  ).toBeGreaterThanOrEqual(8)
   await expect.poll(async () => activityTitleTrack.evaluate(element =>
     getComputedStyle(element).transform,
   )).not.toBe('none')
@@ -2896,18 +3055,40 @@ test(`sidebar rows own Codex geometry, hover, selection, and focus (${mode})`, a
   await expect(activitySessionTitle).not.toHaveAttribute('data-scrolling')
   await expect(activityTitleTrack).toHaveCSS('transform', 'none')
   expect(await maskTransparentStopCount(activitySessionTitle)).toBe(1)
-  for (const label of [
-    navRow.locator('.sidebar-item-label'),
-    activityTitle,
-    activityWorkspaceName,
-  ]) {
+  const navLabel = navRow.locator('.sidebar-item-label')
+  await expect(navLabel).toHaveCSS('white-space', 'nowrap')
+  await expect(navLabel).toHaveCSS('text-overflow', 'clip')
+  expect(await navLabel.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toContain('linear-gradient')
+  for (const label of [activityTitle, activityWorkspaceName]) {
     await expect(label).toHaveCSS('white-space', 'nowrap')
     await expect(label).toHaveCSS('text-overflow', 'clip')
     expect(await label.evaluate(element => {
       const style = getComputedStyle(element)
       return style.maskImage || style.webkitMaskImage
-    })).toContain('linear-gradient')
+    })).toBe('none')
   }
+  expect(await activityHeader.evaluate(element => {
+    const style = getComputedStyle(element, '::before')
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
+  expect(await activityClipWindow.evaluate(element => {
+    const style = getComputedStyle(element)
+    return style.maskImage || style.webkitMaskImage
+  })).toBe('none')
+  for (const header of [activityHeader, activitySectionHeader]) {
+    await expect(header).toHaveCSS('animation-name', 'none')
+    await expect(header).toHaveCSS('opacity', '1')
+  }
+  await sidebar.locator('.sidebar-scroll-area').evaluate((element) => {
+    element.scrollTop = Math.min(120, element.scrollHeight - element.clientHeight)
+  })
+  await expect(activitySectionHeader).toHaveCSS('opacity', '1')
+  await sidebar.locator('.sidebar-scroll-area').evaluate((element) => {
+    element.scrollTop = 0
+  })
   const [activityHeaderBox, activityTitleBox] = await Promise.all([
     activityHeader.boundingBox(),
     activityTitle.boundingBox(),
@@ -3688,28 +3869,72 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(items).toHaveCount(4)
 
   const frame = page.locator('.workflow-main-scroll-frame')
-  const timeline = page.locator('.session-timeline-container')
+  const turn = page.locator('.canonical-turn').first()
+  const assistant = turn.locator('.canonical-turn__result').first()
+  const userBubble = turn.locator('.canonical-user-message__bubble').first()
   const composer = page.locator('.workflow-page__composer-inner')
-  const [frameBox, timelineBox, composerBox, railBox] = await Promise.all([
+  const [
+    frameBox,
+    turnBox,
+    assistantBox,
+    userBubbleBox,
+    composerBox,
+    railBox,
+  ] = await Promise.all([
     frame.boundingBox(),
-    timeline.boundingBox(),
+    turn.boundingBox(),
+    assistant.boundingBox(),
+    userBubble.boundingBox(),
     composer.boundingBox(),
     rail.boundingBox(),
   ])
   expect(frameBox).not.toBeNull()
-  expect(timelineBox).not.toBeNull()
+  expect(turnBox).not.toBeNull()
+  expect(assistantBox).not.toBeNull()
+  expect(userBubbleBox).not.toBeNull()
   expect(composerBox).not.toBeNull()
   expect(railBox).not.toBeNull()
-  if (!frameBox || !timelineBox || !composerBox || !railBox) return
+  if (
+    !frameBox
+    || !turnBox
+    || !assistantBox
+    || !userBubbleBox
+    || !composerBox
+    || !railBox
+  ) return
 
-  expect(timelineBox.x - frameBox.x).toBeCloseTo(48, 0)
+  const conversationColumns = await frame.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      railStart: Number.parseFloat(
+        style.getPropertyValue('--conversation-rail-inline-start'),
+      ),
+      railWidth: Number.parseFloat(
+        style.getPropertyValue('--conversation-rail-width'),
+      ),
+      railGap: Number.parseFloat(
+        style.getPropertyValue('--conversation-rail-gap'),
+      ),
+    }
+  })
   expect(
-    frameBox.x + frameBox.width - (timelineBox.x + timelineBox.width),
-  ).toBeCloseTo(16, 0)
-  expect(composerBox.x).toBeCloseTo(timelineBox.x, 0)
-  expect(composerBox.width).toBeCloseTo(timelineBox.width, 0)
+    conversationColumns.railStart
+      + conversationColumns.railWidth
+      + conversationColumns.railGap,
+  ).toBeCloseTo(48, 0)
+  expect(turnBox.x - frameBox.x).toBeGreaterThanOrEqual(48)
+  expect(
+    frameBox.x + frameBox.width - (turnBox.x + turnBox.width),
+  ).toBeGreaterThanOrEqual(16)
+  expect(turnBox.x).toBeCloseTo(composerBox.x, 0)
+  expect(turnBox.width).toBeCloseTo(composerBox.width, 0)
+  expect(assistantBox.x).toBeCloseTo(turnBox.x, 0)
+  expect(userBubbleBox.x + userBubbleBox.width).toBeCloseTo(
+    turnBox.x + turnBox.width,
+    0,
+  )
   expect(railBox.x - frameBox.x).toBeCloseTo(8, 0)
-  expect(timelineBox.x - (railBox.x + railBox.width)).toBeCloseTo(8, 0)
+  expect(turnBox.x - (railBox.x + railBox.width)).toBeGreaterThanOrEqual(8)
 
   const lastItem = items.last()
   await expect(lastItem).toHaveAttribute('aria-current', 'true')
@@ -4124,6 +4349,9 @@ test('task and settings sidebars share row grid columns', async ({ page }) => {
   const projectRow = sidebar.locator('.sidebar-project-header').first()
   const footerRow = sidebar.locator('.sidebar-settings-link')
   const taskRows = [navRow, projectRow, footerRow]
+  const taskForeground = await navRow.evaluate(element =>
+    getComputedStyle(element).color,
+  )
   const taskMainBoxes = await Promise.all(
     taskRows.map(row => row.locator('.sidebar-row-main').boundingBox()),
   )
@@ -4158,7 +4386,11 @@ test('task and settings sidebars share row grid columns', async ({ page }) => {
 
   await page.goto('/?visualCase=rich#/settings/appearance')
   await closeTransientErrorToast(page)
+  const settingsBackRow = page.locator('aside.desktop-sidebar .settings-back-btn')
   const settingsRow = page.locator('aside.desktop-sidebar .settings-nav-item:visible').first()
+  const activeSettingsRow = page.locator(
+    'aside.desktop-sidebar .settings-nav-item.active:visible',
+  )
   const [settingsRowBox, settingsLeadingBox, settingsMainBox] = await Promise.all([
     settingsRow.boundingBox(),
     settingsRow.locator('.sidebar-row-leading').boundingBox(),
@@ -4173,6 +4405,38 @@ test('task and settings sidebars share row grid columns', async ({ page }) => {
     0,
   )
   expect(settingsMainBox!.x).toBeCloseTo(taskMainBoxes[0]!.x, 0)
+
+  for (const row of [settingsBackRow, settingsRow, activeSettingsRow]) {
+    const foregrounds = await row.evaluate((element) => {
+      const leading = element.querySelector<HTMLElement>('.sidebar-item-icon')
+      const main = element.querySelector<HTMLElement>('.sidebar-row-main')
+      return {
+        leading: leading ? getComputedStyle(leading).color : null,
+        main: main ? getComputedStyle(main).color : null,
+        row: getComputedStyle(element).color,
+      }
+    })
+    expect(foregrounds).toEqual({
+      leading: taskForeground,
+      main: taskForeground,
+      row: taskForeground,
+    })
+  }
+
+  const settingsForegroundBeforeHover = await settingsRow.evaluate(element =>
+    getComputedStyle(element).color,
+  )
+  const settingsHoverBackground = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.background = 'var(--cpx-sys-color-hover)'
+    document.body.append(probe)
+    const background = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return background
+  })
+  await settingsRow.hover()
+  await expect(settingsRow).toHaveCSS('color', settingsForegroundBeforeHover)
+  await expect(settingsRow).toHaveCSS('background-color', settingsHoverBackground)
 })
 
 for (const mode of MODES) {

@@ -167,13 +167,12 @@
 /* 滚动区内部：次级导航与时间线/任务主体之间的分组间距 */
 .sidebar-scroll-main {
   min-width: 0;
-  padding-top: var(--cpx-sys-space-4);
+  padding-top: var(--cpx-sys-space-2);
 }
 
 .sidebar-nav-link {
   min-height: var(--cpx-sys-space-8);
   border-radius: var(--cpx-sys-radius-md);
-  color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-control);
 
   .sidebar-item-label {
@@ -198,7 +197,6 @@
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
   background: var(--cpx-sys-color-selected);
-  color: var(--cpx-sys-color-fg-primary);
 }
 
 .sidebar-section-title {
@@ -291,20 +289,13 @@
   user-select: none;
   cursor: pointer;
   outline: none;
-  transition:
-    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
-    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
+  transition: background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
 }
 
 .sidebar-row.sidebar-nav-link {
-  color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-row-title);
-
-  &.active {
-    color: var(--cpx-sys-color-fg-primary);
-  }
 }
 
 .sidebar-row:not(.sidebar-empty-row):hover {
@@ -429,16 +420,14 @@
   width: auto;
 }
 
-.sidebar-item-icon {
-  color: var(--cpx-sys-color-fg-tertiary);
+.sidebar-session-row:has(.sidebar-session-button-lines--meta)
+  > .sidebar-row-trailing:has(.sidebar-session-actions) {
+  align-self: start;
+  padding-top: calc(var(--cpx-sys-space-1) / 2);
 }
 
-.sidebar-row:hover .sidebar-item-icon,
-.sidebar-row:focus-within .sidebar-item-icon,
-.sidebar-row.active .sidebar-item-icon,
-.sidebar-project-header:hover .sidebar-item-icon,
-.sidebar-project-header:focus-within .sidebar-item-icon {
-  color: var(--cpx-sys-color-fg-primary);
+.sidebar-item-icon {
+  color: currentColor;
 }
 
 .sidebar-project-header--unavailable,
@@ -669,9 +658,7 @@
 
 :where(
   .sidebar-item-label,
-  .sidebar-focus-section-title,
   .sidebar-project-title-text,
-  .sidebar-session-workspace-meta__name,
   .sidebar-empty
 ) {
   min-width: 0;
@@ -774,16 +761,6 @@
   pointer-events: none;
   background: var(--cpx-sys-color-workbench-sidebar-bg);
   backdrop-filter: none;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 4px),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    black calc(100% - 4px),
-    transparent
-  );
 }
 
 .sidebar-focus-section-clip-window,
@@ -800,8 +777,7 @@
   }
 
   .sidebar-focus-section-clip-window,
-  .sidebar-focus-section-clip-content,
-  .sidebar-focus-section-header {
+  .sidebar-focus-section-clip-content {
     animation-duration: auto;
     animation-timing-function: var(--cpx-sys-ease-linear);
     animation-fill-mode: both;
@@ -816,28 +792,12 @@
   .sidebar-focus-section-clip-window {
     margin-top: calc(-1 * var(--cpx-sys-space-1));
     padding-top: var(--cpx-sys-space-1);
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      transparent -4px,
-      black 0
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      transparent -4px,
-      black 0
-    );
     animation-name: sidebar-sticky-section-clip-window;
     overflow: hidden;
   }
 
   .sidebar-focus-section-clip-content {
     animation-name: sidebar-sticky-section-clip-content;
-  }
-
-  .sidebar-focus-section-header {
-    animation-name: sidebar-sticky-section-heading-fade;
-    animation-timeline: view(block 8px 0);
-    animation-range: exit 0% exit 8px;
   }
 }
 
@@ -850,12 +810,6 @@
 @keyframes sidebar-sticky-section-clip-content {
   to {
     transform: translateY(calc(-100% - 4px));
-  }
-}
-
-@keyframes sidebar-sticky-section-heading-fade {
-  to {
-    opacity: 0;
   }
 }
 
@@ -873,12 +827,11 @@
 
   .sidebar-session-row {
     min-height: 48px;
-    padding-block: var(--cpx-sys-space-1);
   }
 }
 
 .sidebar-standard-mode {
-  gap: var(--cpx-sys-space-4);
+  gap: var(--cpx-sys-space-2);
   padding-inline: var(--sidebar-inline-gutter);
 }
 
@@ -912,6 +865,8 @@
   white-space: nowrap;
   font: var(--cpx-sys-type-row-title);
   color: var(--cpx-sys-color-fg-tertiary);
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .sidebar-session-button-lines {
@@ -925,9 +880,9 @@
 
 .sidebar-session-button-lines--meta {
   gap: var(--cpx-sys-space-1);
-  padding-block: var(--cpx-sys-space-1);
 
   .sidebar-session-title {
+    flex: none;
     font: var(--cpx-sys-type-body);
   }
 }
@@ -941,13 +896,6 @@
   font: var(--cpx-sys-type-caption);
 }
 
-.sidebar-session-row:hover,
-.sidebar-session-row.active {
-  .sidebar-session-workspace-meta {
-    color: var(--cpx-sys-color-fg-secondary);
-  }
-}
-
 .sidebar-session-workspace-meta__icon,
 .sidebar-session-workspace-meta__glyph {
   flex: 0 0 auto;
@@ -957,6 +905,8 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .sidebar-session-row {
@@ -1367,13 +1317,6 @@
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .sidebar-focus-section-header::before {
-    background: var(--cpx-sys-color-surface-canvas);
-    backdrop-filter: none;
-  }
-}
-
 .sidebar-session-approval {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1451,22 +1394,7 @@
   width: 100%;
   min-width: 0;
   min-height: 30px;
-  color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body);
-
-  &.active {
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-  .sidebar-item-icon {
-    color: var(--cpx-sys-color-fg-tertiary);
-  }
-
-  &:hover .sidebar-item-icon,
-  &:focus-within .sidebar-item-icon,
-  &.active .sidebar-item-icon {
-    color: var(--cpx-sys-color-fg-primary);
-  }
 }
 
 .sidebar-settings-link .popover-account-avatar {
@@ -1830,16 +1758,14 @@
   .sidebar-hover-card-surface,
   .sidebar-collapse-confirm-target,
   .sidebar-focus-section-clip-window,
-  .sidebar-focus-section-clip-content,
-  .sidebar-focus-section-header
+  .sidebar-focus-section-clip-content
 ) {
   animation: none;
 }
 
 :root[data-reduce-motion="on"] :is(
   .sidebar-focus-section-clip-window,
-  .sidebar-focus-section-clip-content,
-  .sidebar-focus-section-header
+  .sidebar-focus-section-clip-content
 ) {
   transform: none;
 }

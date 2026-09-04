@@ -977,12 +977,12 @@ function TimelinePriorityMenu({
   return (
     <PopoverMenu
       align="start"
-      className="sidebar-timeline-menu"
+      className="sidebar-timeline-menu popover-menu--flex"
       modal
       open={menuOpen}
       side="bottom"
       sideOffset={4}
-      width={208}
+      width={192}
       trigger={
         <IconButton
           aria-label="优先级显示选项"
@@ -998,18 +998,14 @@ function TimelinePriorityMenu({
     >
       <PopoverLabel>显示</PopoverLabel>
       <PopoverCheckboxItem
-        checked={showWork}
+        checked={showWork && showChat}
         keepOpen
-        onCheckedChange={onShowWorkChange}
+        onCheckedChange={checked => {
+          onShowWorkChange(checked)
+          onShowChatChange(checked)
+        }}
       >
-        Work
-      </PopoverCheckboxItem>
-      <PopoverCheckboxItem
-        checked={showChat}
-        keepOpen
-        onCheckedChange={onShowChatChange}
-      >
-        Chat
+        优先事项部分
       </PopoverCheckboxItem>
       <PopoverCheckboxItem
         checked={showPinned}
@@ -1037,7 +1033,7 @@ function TimelinePriorityMenu({
         disabled={!hasArchivableAttention}
         onClick={onRequestArchiveAttention}
       >
-        归档任务
+        归档聊天
       </PopoverItem>
     </PopoverMenu>
   )

@@ -11,11 +11,17 @@
 }
 
 .conversation-page {
-  --session-content-inline-start-gutter: 48px;
-  --session-content-inline-end-gutter: 16px;
+  --conversation-rail-inline-start: var(--cpx-sys-space-2);
+  --conversation-rail-width: var(--cpx-sys-space-8);
+  --conversation-rail-gap: var(--cpx-sys-space-2);
+  --conversation-content-inline-start: calc(
+    var(--conversation-rail-inline-start) + var(--conversation-rail-width) +
+      var(--conversation-rail-gap)
+  );
+  --conversation-content-inline-end: var(--cpx-sys-space-4);
   --session-content-w: calc(
-    100% - var(--session-content-inline-start-gutter) -
-      var(--session-content-inline-end-gutter)
+    100% - var(--conversation-content-inline-start) -
+      var(--conversation-content-inline-end)
   );
   --conversation-item-gap: var(--cpx-sys-space-3);
   --conversation-grouped-item-gap: 4px;
@@ -76,6 +82,7 @@
 .canonical-turn {
   content-visibility: auto;
   contain-intrinsic-block-size: auto 420px;
+  container-type: inline-size;
   display: grid;
   gap: var(--cpx-sys-space-3);
   width: min(var(--page-content-max-width), var(--session-content-w));
@@ -1654,8 +1661,8 @@
 @media (max-width: 760px) {
   .conversation-page {
     --session-content-inline-gutter: 16px;
-    --session-content-inline-start-gutter: 16px;
-    --session-content-inline-end-gutter: 16px;
+    --conversation-content-inline-start: var(--cpx-sys-space-4);
+    --conversation-content-inline-end: var(--cpx-sys-space-4);
   }
 
   .conversation-page .chat-session-header {

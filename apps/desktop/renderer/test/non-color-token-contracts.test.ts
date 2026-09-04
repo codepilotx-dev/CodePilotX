@@ -463,12 +463,18 @@ describe('non-color design token contracts', () => {
     expect(conversation).toMatch(
       /\.canonical-turn\s*\{[\s\S]*?max-width:\s*var\(--page-content-max-width\)/,
     )
+    expect(conversation).toMatch(
+      /\.canonical-turn\s*\{[\s\S]*?container-type:\s*inline-size/,
+    )
     expect(conversation).not.toMatch(/--thread-reading-width/)
     expect(conversation).toMatch(
       /\.canonical-text-item--result\s*\{\s*width:\s*100%;\s*background:\s*transparent;\s*box-shadow:\s*none;\s*\}/,
     )
     expect(markdown).toMatch(
-      /\.conversation-page \.canonical-text-item--result > \.md-body \.md-wide-block\s*\{[\s\S]*?width:\s*min\(\s*var\(--cpx-sys-layout-content-max-width\),\s*var\(--session-content-w\)\s*\)/,
+      /\.conversation-page \.md-wide-block\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%/,
+    )
+    expect(markdown).toMatch(
+      /:is\(ul, ol\)[\s\S]*?\.md-wide-block\s*\{[\s\S]*?width:\s*100cqi;[\s\S]*?max-width:\s*100cqi;[\s\S]*?margin-inline-start:\s*calc\(100% - 100cqi\)/,
     )
   })
 

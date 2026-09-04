@@ -306,16 +306,14 @@
   transform: none;
 }
 
-.conversation-page .canonical-text-item--result > .md-body .md-wide-block {
-  width: min(
-    var(--cpx-sys-layout-content-max-width),
-    var(--session-content-w)
-  );
-  max-width: min(
-    var(--cpx-sys-layout-content-max-width),
-    var(--session-content-w)
-  );
-  margin-inline: 0;
+.conversation-page
+  .canonical-text-item--result
+  > .md-body
+  :is(ul, ol)
+  .md-wide-block {
+  width: 100cqi;
+  max-width: 100cqi;
+  margin-inline-start: calc(100% - 100cqi);
 }
 
 .right-dock .md-wide-block,
