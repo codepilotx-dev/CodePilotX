@@ -1,5 +1,4 @@
 import React from 'react'
-import { FileIcon, FolderIcon } from '@codepilotx/material-icon-theme'
 import {
   ChevronRight,
   Copy,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { FileTypeIcon, FolderTypeIcon } from '../../layout/FileTypeIcon.js'
 import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './buildReviewFileTree.js'
 import {
   normalizeReviewFileStatus,
@@ -67,7 +67,7 @@ export function ReviewFileTreeRow({
         className={collapsed ? undefined : 'is-expanded'}
         size={APP_ICON_SIZE}
       />
-      <FolderIcon
+      <FolderTypeIcon
         aria-hidden="true"
         expanded={!collapsed}
         path={node.dirPath}
@@ -114,7 +114,7 @@ function ReviewFileRow({
       type="button"
       onClick={() => onSelect(file.path)}
     >
-      <FileIcon
+      <FileTypeIcon
         aria-hidden="true"
         associationMode="extension-only"
         path={file.path}

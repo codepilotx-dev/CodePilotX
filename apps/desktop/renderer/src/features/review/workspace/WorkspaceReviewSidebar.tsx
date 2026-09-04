@@ -1,5 +1,4 @@
 import React from "react";
-import { FileIcon } from "@codepilotx/material-icon-theme";
 import { motion } from "motion/react";
 import {
   Briefcase,

@@ -1,5 +1,4 @@
 import React from "react";
-import { FileIcon } from "@codepilotx/material-icon-theme";
 import { VList } from "virtua";
 import {
   Briefcase,
@@ -53,6 +52,7 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
+import { FileTypeIcon } from "../../layout/FileTypeIcon.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import {
   useDisclosureExpanded,
@@ -720,7 +720,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           type="button"
           onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
         >
-          <FileIcon
+          <FileTypeIcon
             associationMode="extension-only"
             aria-hidden="true"
             className="review-file-icon"

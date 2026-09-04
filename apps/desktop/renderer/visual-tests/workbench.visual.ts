@@ -4114,6 +4114,67 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   await expect(page.getByRole('combobox', { name: '搜索设置' })).toBeVisible()
 })
 
+test('task and settings sidebars share row grid columns', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await page.goto('/?visualCase=rich#/new')
+  await closeTransientErrorToast(page)
+
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const navRow = sidebar.locator('.sidebar-nav-link').first()
+  const projectRow = sidebar.locator('.sidebar-project-header').first()
+  const footerRow = sidebar.locator('.sidebar-settings-link')
+  const taskRows = [navRow, projectRow, footerRow]
+  const taskMainBoxes = await Promise.all(
+    taskRows.map(row => row.locator('.sidebar-row-main').boundingBox()),
+  )
+  const taskLeadingBoxes = await Promise.all(
+    taskRows.map(row => row.locator('.sidebar-row-leading').boundingBox()),
+  )
+  const taskRowBoxes = await Promise.all(taskRows.map(row => row.boundingBox()))
+
+  for (const box of [...taskMainBoxes, ...taskLeadingBoxes, ...taskRowBoxes]) {
+    expect(box).not.toBeNull()
+  }
+  for (const box of taskMainBoxes.slice(1)) {
+    expect(box!.x).toBeCloseTo(taskMainBoxes[0]!.x, 0)
+  }
+  for (const box of taskLeadingBoxes.slice(1)) {
+    expect(box!.x + box!.width / 2).toBeCloseTo(
+      taskLeadingBoxes[0]!.x + taskLeadingBoxes[0]!.width / 2,
+      0,
+    )
+  }
+  for (const box of taskRowBoxes.slice(1)) {
+    expect(box!.x).toBeCloseTo(taskRowBoxes[0]!.x, 0)
+  }
+
+  const projectMainBeforeAction = await projectRow.locator('.sidebar-row-main').boundingBox()
+  await projectRow.locator('.sidebar-project-button').focus()
+  await expect(projectRow.locator('.sidebar-project-actions')).toBeVisible()
+  const projectMainAfterAction = await projectRow.locator('.sidebar-row-main').boundingBox()
+  expect(projectMainBeforeAction).not.toBeNull()
+  expect(projectMainAfterAction).not.toBeNull()
+  expect(projectMainAfterAction!.x).toBeCloseTo(projectMainBeforeAction!.x, 0)
+
+  await page.goto('/?visualCase=rich#/settings/appearance')
+  await closeTransientErrorToast(page)
+  const settingsRow = page.locator('aside.desktop-sidebar .settings-nav-item:visible').first()
+  const [settingsRowBox, settingsLeadingBox, settingsMainBox] = await Promise.all([
+    settingsRow.boundingBox(),
+    settingsRow.locator('.sidebar-row-leading').boundingBox(),
+    settingsRow.locator('.sidebar-row-main').boundingBox(),
+  ])
+  expect(settingsRowBox).not.toBeNull()
+  expect(settingsLeadingBox).not.toBeNull()
+  expect(settingsMainBox).not.toBeNull()
+  expect(settingsRowBox!.x).toBeCloseTo(taskRowBoxes[0]!.x, 0)
+  expect(settingsLeadingBox!.x + settingsLeadingBox!.width / 2).toBeCloseTo(
+    taskLeadingBoxes[0]!.x + taskLeadingBoxes[0]!.width / 2,
+    0,
+  )
+  expect(settingsMainBox!.x).toBeCloseTo(taskMainBoxes[0]!.x, 0)
+})
+
 for (const mode of MODES) {
   test(`settings dropdown follows the compact row contract in ${mode} mode`, async ({
     page,

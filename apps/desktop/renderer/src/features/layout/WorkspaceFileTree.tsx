@@ -7,7 +7,6 @@ import {
   useState,
 } from 'react'
 import type React from 'react'
-import { FolderIcon } from '@codepilotx/material-icon-theme'
 import { ChevronRight, LoaderCircle, RotateCcw } from 'lucide-react'
 import type {
   DesktopFileEntry,
