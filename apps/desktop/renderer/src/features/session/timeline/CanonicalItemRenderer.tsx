@@ -614,7 +614,7 @@ function ReasoningItemView({ disclosure, item }: {
         contentClassName="canonical-process-card__body tw:bg-app-chrome"
         expanded={expanded}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
         <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${item.text}`}>
           <MarkdownMessage text={item.text || "正在整理思路…"} streaming={streaming} />
@@ -672,7 +672,7 @@ function ActivityItemView({ disclosure, item }: {
         contentClassName="cpx-agent-activity__details"
         expanded={expanded}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
         {canExpand ? (
           <>
@@ -700,13 +700,7 @@ export function ToolItemView({
   presentation?: CanonicalItemRendererProps["presentation"];
   threadId?: string;
 }): React.ReactNode {
-  const [nowMs, setNowMs] = React.useState(Date.now);
-  React.useEffect(() => {
-    if (item.activity?.type !== "command" || !isActiveToolState(item.state)) return;
-    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
-    return () => window.clearInterval(interval);
-  }, [item.activity?.type, item.state]);
-  const view = React.useMemo(() => buildToolItemDisplay(item, nowMs), [item, nowMs]);
+  const view = React.useMemo(() => buildToolItemDisplay(item), [item]);
   const [localExpanded, setLocalExpanded] = React.useState(false);
   const requestedExpanded = disclosure?.expanded ?? localExpanded;
   const expanded = view.canExpand && requestedExpanded;
@@ -766,7 +760,7 @@ export function ToolItemView({
         contentClassName="cpx-agent-activity__details"
         expanded={expanded}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
         <ToolExecutionCard item={item} presentation={presentation} threadId={threadId} view={view} />
       </DisclosureContent>
@@ -1195,7 +1189,7 @@ export function PatchSummaryView({
         <DisclosureContent
           expanded={filesExpanded}
           id={filesDisclosureId}
-          mountPolicy="always"
+          mountPolicy="until-exit"
         >
           {hiddenFiles.map((file) => (
             <PatchFileButton file={file} key={file.path} onOpenReview={onOpenReview} />

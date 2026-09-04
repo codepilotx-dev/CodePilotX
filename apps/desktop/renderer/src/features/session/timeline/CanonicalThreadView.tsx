@@ -192,7 +192,7 @@ export function CanonicalProcessGroup({
         contentClassName="cpx-agent-activity__content"
         expanded={canExpand && expanded}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
         <div
           className="cpx-agent-activity__edge-fade"
@@ -421,7 +421,7 @@ export function CanonicalTurnActivity({
         contentClassName="canonical-turn-activity__content"
         expanded={contentVisible}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
         {children}
       </DisclosureContent>

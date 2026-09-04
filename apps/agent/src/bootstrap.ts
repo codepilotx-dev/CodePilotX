@@ -30,7 +30,6 @@ import {
   PiModelService,
   PiModelsFileStore,
 } from "./provider/pi";
-import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
 import { resolveSpecializedPiModel } from "./provider/pi/PiSpecializedModelResolver";
 import { createApp } from "./transport/server";
@@ -448,7 +447,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         };
       },
     });
-    const providers = new PiModelCatalogAdapter(piModels);
+    const providers = piModels;
     const modelHealth = new ModelHealthService(
       piModels,
       async (payload) => {

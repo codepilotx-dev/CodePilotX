@@ -129,7 +129,7 @@ export function ExpandableFileMutationRow({
         contentClassName="cpx-agent-activity__details cpx-agent-activity__details--diff"
         expanded={expanded}
         id={contentId}
-        mountPolicy="always"
+        mountPolicy="until-exit"
       >
           {loadState.status === "loaded" ? (
             <FileMutationDiffBody diff={loadState.diff} diffMarkerStyle={diffMarkerStyle} />

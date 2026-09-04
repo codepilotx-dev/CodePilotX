@@ -36,15 +36,11 @@ import {
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
+import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
   return { default: module.SidebarSessionHoverCard }
-})
-
-const InputDialog = lazy(async () => {
-  const module = await import('../../../components/ui/ConfirmationDialog.js')
-  return { default: module.InputDialog }
 })
 
 const GROUP_LIMIT = 5;

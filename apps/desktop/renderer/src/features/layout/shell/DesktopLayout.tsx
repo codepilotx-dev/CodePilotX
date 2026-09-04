@@ -126,12 +126,13 @@ import { WorkbenchPanel } from '../dock/RightDock.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
+import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 
 const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
-const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
-const ConfirmationDialog = lazy(() => import('../../../components/ui/ConfirmationDialog.js').then(module => ({ default: module.ConfirmationDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -905,8 +906,7 @@ export function DesktopLayout(): React.ReactNode {
       return
     }
     openRightDockTab({ id: 'browser', kind: 'browser' })
-    void import('../../../services/desktop-client/desktop-browser-client.js')
-      .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
+    void desktopBrowserClient.openBrowser()
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -1008,8 +1008,7 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleReloadBrowser = useCallback((): void => {
-    void import('../../../services/desktop-client/desktop-browser-client.js')
-      .then(({ desktopBrowserClient }) => desktopBrowserClient.reloadBrowser())
+    void desktopBrowserClient.reloadBrowser()
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -3078,9 +3077,6 @@ export function DesktopLayout(): React.ReactNode {
         return
       }
       try {
-        const { desktopBrowserClient } = await import(
-          '../../../services/desktop-client/desktop-browser-client.js'
-        )
         if (!desktopBrowserClient.available) return
         setBrowserState(await desktopBrowserClient.closeBrowser())
       } catch (error) {
@@ -3184,8 +3180,7 @@ export function DesktopLayout(): React.ReactNode {
               setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
               return
             }
-            void import('../../../services/desktop-client/desktop-browser-client.js')
-              .then(({ desktopBrowserClient }) => desktopBrowserClient.openBrowser())
+            void desktopBrowserClient.openBrowser()
               .then(setBrowserState)
               .catch(error =>
                 setErrorMessage(error instanceof Error ? error.message : String(error)),

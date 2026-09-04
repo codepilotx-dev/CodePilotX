@@ -5,12 +5,12 @@ import { DesktopThemeProvider } from './features/theme/DesktopThemeProvider.js'
 import { TooltipProvider } from './components/ui/Tooltip.js'
 import { AppContextMenu } from './components/ui/AppContextMenu.js'
 import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useEverOpened } from './hooks/usePresenceRetention.js'
 import { PageZoomCapsule } from './components/PageZoomCapsule.js'
 import { PET_OVERLAY_HASH_PREFIX } from './startup/startupSplashHandoff.js'
-
-const GlobalErrorModal = lazy(() => import('./components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
+import { GlobalErrorModal } from './components/GlobalErrorModal.js'
+import { fullErrorMessage } from './utils/errors.js'
 
 function isResizeObserverLoopError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
@@ -23,9 +23,7 @@ export function App(): React.ReactNode {
 
   useEffect(() => {
     const showError = (error: unknown): void => {
-      void import('./utils/errors.js').then(module => {
-        setErrorMessage(module.fullErrorMessage(error))
-      })
+      setErrorMessage(fullErrorMessage(error))
     }
     const handleError = (event: ErrorEvent): void => {
       if (

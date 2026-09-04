@@ -487,6 +487,8 @@ export class PiModelService {
     this.catalogVersion += 1;
   }
 
+  getModel(ref: Model.Ref): Promise<PiModel<Api>> { return this.getPiModel(ref) }
+
   catalogStatus(): Provider.CatalogSourceStatus {
     return clone(this.modelsDevStatus);
   }

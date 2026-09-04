@@ -641,10 +641,11 @@ describe("canonical tool item display", () => {
 
     expect(collapsed.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");
     expect(collapsed).not.toContain('title="bun test · 1 秒"');
-    expect(collapsed).toContain('aria-label="执行内容"');
-    expect(collapsed).toContain('data-mount-policy="always"');
+    expect(collapsed).not.toContain('aria-label="执行内容"');
+    expect(collapsed).toContain('data-mount-policy="until-exit"');
     expect(collapsed).toContain('aria-hidden="true"');
     expect(collapsed).toContain("inert");
+    expect(collapsed).not.toContain("canonical-command-shell");
     expect(collapsed).toContain("lucide-chevron-right");
     expect(collapsed).not.toContain("lucide-chevron-down");
     expect(expanded.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");

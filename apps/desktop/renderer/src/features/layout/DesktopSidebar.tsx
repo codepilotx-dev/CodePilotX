@@ -1,7 +1,7 @@
 import { mergeCatalogProjects } from './sidebar/useSidebarProjectCatalog.js'
 import type React from "react";
 import { useLocation } from "react-router-dom";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
@@ -41,11 +41,7 @@ import {
   createSidebarDisclosureStore,
   sidebarSectionDisclosureKey,
 } from './sidebar/sidebarDisclosureStore.js'
-
-const ConfirmationDialog = lazy(async () => {
-  const module = await import('../../components/ui/ConfirmationDialog.js')
-  return { default: module.ConfirmationDialog }
-})
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
 type Props = {
   activeSessionId: string | null;

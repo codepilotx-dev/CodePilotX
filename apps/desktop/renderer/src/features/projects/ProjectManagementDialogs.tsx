@@ -6,15 +6,11 @@ import { useEverOpened } from '../../hooks/usePresenceRetention.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import { DEFAULT_PROJECT_APPEARANCE } from './projectAppearance.js'
 import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
 const ProjectEditDialog = lazy(async () => {
   const module = await import('./ProjectEditDialog.js')
   return { default: module.ProjectEditDialog }
-})
-
-const ConfirmationDialog = lazy(async () => {
-  const module = await import('../../components/ui/ConfirmationDialog.js')
-  return { default: module.ConfirmationDialog }
 })
 
 type Props = {

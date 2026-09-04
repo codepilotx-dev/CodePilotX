@@ -110,7 +110,7 @@ import {
 } from "./sessionReferenceActions.js";
 export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
-const DesktopComposer = React.lazy(() => import("../composer/DesktopComposer.js").then(module => ({ default: module.DesktopComposer })));
+import { DesktopComposer } from "../composer/DesktopComposer.js";
 
 const ConversationEnvironmentControls = React.lazy(() =>
   import("../workflow/ConversationEnvironmentControls.js").then((module) => ({

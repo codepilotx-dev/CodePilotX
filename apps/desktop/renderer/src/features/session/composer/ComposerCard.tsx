@@ -421,7 +421,6 @@ export function ComposerCard({
     setSessionGroupSaving(true)
     setSessionGroupCreateError(null)
     try {
-      const { desktopClient } = await import('../../../services/desktop-client/index.js')
       const group = await desktopClient.createSessionGroup({
         name,
         description: sessionGroupDraftDescription.trim(),
@@ -442,9 +441,7 @@ export function ComposerCard({
     const preferredId = readPreferredSessionGroupId()
     if (!preferredId) return
     let active = true
-    void import('../../../services/desktop-client/index.js').then(({ desktopClient }) =>
-      desktopClient.listSessionGroups(),
-    ).then(groups => {
+    void desktopClient.listSessionGroups().then(groups => {
       if (!active) return
       const preferred = groups.find(group => group.id === preferredId) ?? null
       setSelectedSessionGroup(preferred)

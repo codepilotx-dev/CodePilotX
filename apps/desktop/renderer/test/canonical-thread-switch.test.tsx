@@ -137,8 +137,8 @@ describe("canonical thread switch", () => {
       />,
     );
 
-    expect(completed).toContain("expensive-tool-card");
-    expect(completed).toContain('data-mount-policy="always"');
+    expect(completed).not.toContain("expensive-tool-card");
+    expect(completed).toContain('data-mount-policy="until-exit"');
     expect(completed).toContain('aria-hidden="true"');
     expect(completed).toContain("inert");
     expect(completed).not.toContain("lucide-check");
@@ -148,7 +148,7 @@ describe("canonical thread switch", () => {
     expect(active).toContain("active-tool-card");
     expect(active).toContain("lucide-loader-circle");
     expect(active).toContain("lucide-chevron-right");
-    expect(failed).toContain("failed-tool-card");
+    expect(failed).not.toContain("failed-tool-card");
     expect(failed).toContain("lucide-circle-alert");
     expect(persisted).toContain("persisted-tool-card");
     expect(persisted).toContain("lucide-chevron-right");
@@ -463,8 +463,8 @@ describe("canonical thread switch", () => {
       </CanonicalTestProviders>,
     );
 
-    expect(markup).toContain("折叠后不可见的处理说明");
-    expect(markup).toContain('data-mount-policy="always"');
+    expect(markup).not.toContain("折叠后不可见的处理说明");
+    expect(markup).toContain('data-mount-policy="until-exit"');
     expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain("请选择发布方式");
     expect(markup).toContain("等待你的回答");
@@ -701,10 +701,9 @@ describe("canonical thread switch", () => {
     expect(markup).toContain("cpx-agent-activity__item");
     expect(markup).toContain('data-presentation="grouped"');
     expect(multiCommandMarkup).toContain("运行命令");
-    expect(multiCommandMarkup.match(/cpx-agent-activity__path-step/g)).toHaveLength(2);
-    expect(multiCommandMarkup).toContain('class="cpx-agent-activity__path-step" data-state="completed"');
+    expect(multiCommandMarkup).not.toContain("cpx-agent-activity__path-step");
     expect(multiCommandMarkup).not.toContain("canonical-process-group--commands");
-    expect(multiCommandMarkup).toContain("canonical-command-shell");
+    expect(multiCommandMarkup).not.toContain("canonical-command-shell");
     expect(activeWithAnswerMarkup).toContain("运行命令");
     expect(activeWithAnswerMarkup).not.toContain("正在思考");
     expect(activeWithAnswerMarkup).not.toContain("lucide-loader-circle");
@@ -738,8 +737,8 @@ describe("canonical thread switch", () => {
     expect(markup).toContain('class="canonical-turn-activity"');
     expect(markup).toContain('aria-expanded="true"');
     expect(collapsedMarkup).toContain('aria-expanded="false"');
-    expect(collapsedMarkup).toContain("中间处理说明标记");
-    expect(collapsedMarkup).toContain("bun test");
+    expect(collapsedMarkup).not.toContain("中间处理说明标记");
+    expect(collapsedMarkup).not.toContain("bun test");
     expect(collapsedMarkup).toContain('aria-hidden="true"');
     expect(collapsedMarkup).toContain("inert");
     expect(collapsedMarkup).toContain("最终回复标记");
