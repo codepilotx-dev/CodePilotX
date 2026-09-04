@@ -15,6 +15,8 @@
 
 - [security/dependencies] 将存在 symlink 越界风险的 extract-zip 固定为仓库内维护的安全修复版，统一 Agent 与 Electron 的依赖解析，并移除可能在工作树半安装状态下损坏依赖的 Bun 动态补丁。
 
+- [security/dependencies] 升级 React Router 并固定已修复的 fast-uri、browserslist 与 toml 传递依赖，移除过期安全豁免，恢复 High/Critical 依赖审计门禁。
+
 ### Added
 
 - [agent] 实施主循环结构化交付：新增 orchestration 共享结果模块，统一 finalize_result 的完整字段 schema、共享领域 schema 校验与确定性可读交付说明（摘要、验证、风险）；运行时校验与宿主 callback 均成功后候选结果才绑定 toolCallID，且仅当最终模型消息即提交消息时才作为本轮交付，后续 steering 或继续执行不复用旧候选；summary 非空约束只作用于新提交；合法独立提交结束循环、不发起收尾模型请求，普通问答仍以文本自然结束。

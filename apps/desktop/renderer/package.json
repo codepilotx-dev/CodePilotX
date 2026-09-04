@@ -68,7 +68,7 @@
     "prosemirror-view": "^1.41.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-router-dom": "^7.17.0",
+    "react-router-dom": "^7.18.2",
     "shiki": "4.3.1",
     "virtua": "0.49.1"
   },
