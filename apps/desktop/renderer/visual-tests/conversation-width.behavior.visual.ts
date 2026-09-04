@@ -84,18 +84,18 @@ for (const mode of ['light', 'dark'] as const) {
 
     const mainRoute = page.locator('.desktop-main-route')
 
-    // 1. 验证外观设置初始为默认档（768px）
+    // 1. 验证外观设置初始为默认档（1009px）
     await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
-    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 1009)
     await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
 
-    // 2. 在外观设置中切换为“窄”（672px），验证即时生效
+    // 2. 在外观设置中切换为“窄”（768px），验证即时生效
     await option('窄').focus()
     await page.keyboard.press('Space')
     await expect(option('窄')).toHaveAttribute('data-state', 'on')
     await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
-    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 672)
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
 
     // 3. 导航到聊天页，确认继承“窄”档位，Menu 快捷按钮可见
     await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
@@ -139,10 +139,10 @@ for (const mode of ['light', 'dark'] as const) {
     await expect(widthButton).toHaveAccessibleName('页面宽度：窄，点击切换为宽')
     await expect(widthButton.locator('svg')).toHaveAttribute('data-width', 'narrow')
 
-    // 5. 在窄档（672px）下验证各布局类型
+    // 5. 在窄档（768px）下验证各布局类型
     const turn = page.locator('.canonical-turn').first()
-    await expect(turn).toHaveCSS('max-width', '672px')
-    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '672px')
+    await expect(turn).toHaveCSS('max-width', '768px')
+    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '768px')
     const body = turn.locator('.canonical-text-item--result > .md-body').first()
     await expect(body).toHaveCSS('max-width', 'none')
     await expect.poll(async () => {
@@ -156,22 +156,22 @@ for (const mode of ['light', 'dark'] as const) {
     await page.evaluate(() => { window.location.hash = '#/plugins' })
     await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
     await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
-    await expectContentWidth(page.locator('.primary-page-layout__header'), 672)
-    await expectContentWidth(page.locator('.primary-page-layout__body'), 672)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 768)
+    await expectContentWidth(page.locator('.primary-page-layout__body'), 768)
 
     // 窄档下验证 ModelCenter
     await page.evaluate(() => { window.location.hash = '#/settings/providers' })
     await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
     await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
-    await expectContentWidth(page.locator('.model-center-shell .settings-page-header').first(), 672)
+    await expectContentWidth(page.locator('.model-center-shell .settings-page-header').first(), 768)
 
     // 窄档下验证 QuickChat
     await page.evaluate(() => { window.location.hash = '#/new' })
     await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
     await expect(page.getByRole('button', { name: /^页面宽度：/ })).toHaveCount(0)
-    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 672)
+    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 768)
 
-    // 6. 回到聊天页切换为“默认档”（768px），验证跨页面生效
+    // 6. 回到聊天页切换为“默认档”（1009px），验证跨页面生效
     await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })
     await expect(conversation).toBeVisible()
     await expect(widthButton).toBeVisible()
@@ -179,20 +179,20 @@ for (const mode of ['light', 'dark'] as const) {
     await expect(mainRoute).toHaveAttribute('data-page-width', 'wide')
     await widthButton.click() // 宽 -> 默认
     await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
-    await expect(turn).toHaveCSS('max-width', '768px')
-    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '768px')
+    await expect(turn).toHaveCSS('max-width', '1009px')
+    await expect(page.locator('.workflow-page__composer-inner')).toHaveCSS('max-width', '1009px')
 
     // 默认档下验证 SettingsLayout 与 PrimaryPageLayout
     await page.evaluate(() => { window.location.hash = '#/settings/appearance' })
     await expect(option('默认')).toHaveAttribute('data-state', 'on')
-    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
+    await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 1009)
 
     await page.evaluate(() => { window.location.hash = '#/session-groups' })
     await expect(mainRoute).toHaveAttribute('data-page-width', 'default')
-    await expectContentWidth(page.locator('.primary-page-layout__header'), 768)
+    await expectContentWidth(page.locator('.primary-page-layout__header'), 1009)
 
     await page.evaluate(() => { window.location.hash = '#/new' })
-    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 768)
+    await expectContentWidth(page.locator('.quick-chat-view .chat-composer'), 1009)
 
     // 7. 回到聊天页切换为“宽档”（1250px），验证全部一级页面及独立详情
     await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })

@@ -706,14 +706,14 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
     )
     expect(metrics.timelineWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
     expect(metrics.composerWidth).toBeLessThanOrEqual(metrics.mainRouteWidth)
-    expect(metrics.readingBlockWidth).toBeLessThanOrEqual(768)
+    expect(metrics.readingBlockWidth).toBeLessThanOrEqual(1009)
     expect(metrics.canonicalTurnWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.processSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.resultSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.postSectionWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.codeBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
-    expect(metrics.composerWidth).toBeLessThanOrEqual(768)
-    expect(metrics.tableBlockWidth).toBeLessThanOrEqual(768)
+    expect(metrics.composerWidth).toBeLessThanOrEqual(1009)
+    expect(metrics.tableBlockWidth).toBeLessThanOrEqual(1009)
     expect(metrics.tableBlockWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     expect(metrics.patchCardWidth).toBeCloseTo(metrics.readingBlockWidth, 0)
     for (const center of [
@@ -728,7 +728,7 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       expect(Math.abs(center - metrics.readingBlockCenter)).toBeLessThanOrEqual(1)
     }
     expect(Math.abs(metrics.processSummaryLeft - metrics.readingBlockLeft)).toBeLessThanOrEqual(1)
-    expect(metrics.userTurnWidth).toBeLessThanOrEqual(768)
+    expect(metrics.userTurnWidth).toBeLessThanOrEqual(1009)
     expect(metrics.userMessageWidth).toBeCloseTo(metrics.userTurnWidth, 0)
     expect(metrics.userBubbleMaxWidth).toBe('77%')
     expect(metrics.userBubbleWidth).toBeLessThanOrEqual(
@@ -742,15 +742,15 @@ for (const visualCase of MARKDOWN_TYPOGRAPHY_CASES) {
       Math.abs(metrics.composerCenter - metrics.readingBlockCenter),
     ).toBeLessThanOrEqual(1)
     if (visualCase.id === 'desktop-light') {
-      expect(metrics.readingBlockWidth).toBeCloseTo(768, 0)
-      expect(metrics.canonicalTurnWidth).toBeCloseTo(768, 0)
-      expect(metrics.processSectionWidth).toBeCloseTo(768, 0)
-      expect(metrics.resultSectionWidth).toBeCloseTo(768, 0)
-      expect(metrics.postSectionWidth).toBeCloseTo(768, 0)
-      expect(metrics.codeBlockWidth).toBeCloseTo(768, 0)
-      expect(metrics.composerWidth).toBeCloseTo(768, 0)
-      expect(metrics.tableBlockWidth).toBeCloseTo(768, 0)
-      expect(metrics.patchCardWidth).toBeCloseTo(768, 0)
+      expect(metrics.readingBlockWidth).toBeCloseTo(1009, 0)
+      expect(metrics.canonicalTurnWidth).toBeCloseTo(1009, 0)
+      expect(metrics.processSectionWidth).toBeCloseTo(1009, 0)
+      expect(metrics.resultSectionWidth).toBeCloseTo(1009, 0)
+      expect(metrics.postSectionWidth).toBeCloseTo(1009, 0)
+      expect(metrics.codeBlockWidth).toBeCloseTo(1009, 0)
+      expect(metrics.composerWidth).toBeCloseTo(1009, 0)
+      expect(metrics.tableBlockWidth).toBeCloseTo(1009, 0)
+      expect(metrics.patchCardWidth).toBeCloseTo(1009, 0)
       expect(metrics.timelineWidth).toBeGreaterThan(metrics.composerWidth)
     }
     expect(metrics.canonicalTurnScrollWidth).toBeLessThanOrEqual(
@@ -4807,7 +4807,7 @@ test('settings shell search and appearance source contracts', async ({
     diffAfterGallery: true,
     editorsAfterDiff: true,
     galleryMaxWidth: 'none',
-    innerMaxWidth: '768px',
+    innerMaxWidth: '1049px',
     innerPadding: '20px',
     cardRadius: '12px',
   })

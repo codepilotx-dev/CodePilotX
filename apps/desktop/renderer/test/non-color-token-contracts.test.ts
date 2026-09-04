@@ -450,19 +450,22 @@ describe('non-color design token contracts', () => {
     ).toEqual([])
   })
 
-  test('tokens.scss defines the 3-tier layout width tokens (reading 42rem, content 48rem, wide 1250px)', async () => {
+  test('tokens.scss defines the 3-tier layout width tokens (reading 768px, content 1009px, wide 1250px)', async () => {
     const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
-    expect(tokens.get('--cpx-sys-layout-reading-max-width')).toBe('42rem')
-    expect(tokens.get('--cpx-sys-layout-content-max-width')).toBe('48rem')
+    expect(tokens.get('--cpx-sys-layout-reading-max-width')).toBe('768px')
+    expect(tokens.get('--cpx-sys-layout-content-max-width')).toBe('1009px')
     expect(tokens.get('--cpx-sys-layout-wide-max-width')).toBe('1250px')
   })
 
-  test('canonical conversation aligns final agent response with reading width', async () => {
+  test('canonical conversation lets the final agent response fill the page width', async () => {
     const conversation = await read('../src/styles/features/_canonical-conversation.scss')
     const markdown = await read('../src/styles/markdown.scss')
-    expect(conversation).toMatch(/--thread-reading-width:\s*var\(--cpx-sys-layout-reading-max-width\)/)
     expect(conversation).toMatch(
-      /\.canonical-text-item--result\s*\{[\s\S]*?> \.md-body\s*\{[\s\S]*?max-width:\s*var\(--thread-reading-width\)/,
+      /\.canonical-turn\s*\{[\s\S]*?max-width:\s*var\(--page-content-max-width\)/,
+    )
+    expect(conversation).not.toMatch(/--thread-reading-width/)
+    expect(conversation).toMatch(
+      /\.canonical-text-item--result\s*\{\s*width:\s*100%;\s*background:\s*transparent;\s*box-shadow:\s*none;\s*\}/,
     )
     expect(markdown).toMatch(
       /\.conversation-page \.canonical-text-item--result > \.md-body \.md-wide-block\s*\{[\s\S]*?width:\s*min\(\s*var\(--cpx-sys-layout-content-max-width\),\s*var\(--session-content-w\)\s*\)/,
@@ -536,7 +539,9 @@ describe('non-color design token contracts', () => {
 
   test('settings page content defaults to content max width', async () => {
     const settings = await read('../src/styles/features/_settings-core.scss')
-    expect(settings).toMatch(/max-width:\s*var\(--cpx-sys-layout-content-max-width\)/)
+    expect(settings).toMatch(
+      /max-width:\s*calc\(var\(--page-content-max-width\) \+ var\(--cpx-sys-space-5\) \* 2\)/,
+    )
   })
 
   test('review diff uses shared code line-height token instead of local formula', async () => {
