@@ -49,12 +49,7 @@ import { DesktopSidebar } from '../DesktopSidebar.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
-import type {
-  FileMenuAction,
-  HelpMenuAction,
-  ViewMenuAction,
-  WindowMenuAction,
-} from '../MenuBar.js'
+import { useAppMenuActions } from './useAppMenuActions.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
@@ -242,7 +237,7 @@ function routeAccessibilityLabel(pathname: string): string {
   if (pathname.startsWith('/projects')) return '项目'
   if (pathname === '/plugins') return '插件与技能'
   if (pathname === '/pull-requests') return '拉取请求'
-  if (pathname === '/automations') return '自动化'
+  if (pathname === '/automations') return '已安排'
   if (pathname === '/pets') return '宠物'
   if (pathname.startsWith('/settings/')) return '设置'
   return 'CodePilotX'
@@ -1500,39 +1495,11 @@ export function DesktopLayout(): React.ReactNode {
       } else if (
         commandShortcutAllowed
         && !event.shiftKey
-        && key === 'n'
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        void handleCreateSession()
-      } else if (
-        commandShortcutAllowed
-        && !event.shiftKey
-        && key === 'o'
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        void handleChooseWorkspace()
-      } else if (
-        commandShortcutAllowed
-        && !event.shiftKey
         && key === 'p'
         && currentWorkspace !== null
       ) {
         event.preventDefault()
         setCommandMenuOpen(false)
-        handleOpenFilesDock()
-      } else if (!event.shiftKey && !event.altKey && key === 'b') {
-        event.preventDefault()
-        toggleSidebarCollapsed()
-      } else if (!event.shiftKey && !event.altKey && key === 'j') {
-        event.preventDefault()
-        togglePanel('right')
-      } else if (!event.shiftKey && !event.altKey && key === 't') {
-        event.preventDefault()
-        handleOpenBrowser()
-      } else if (event.shiftKey && !event.altKey && key === 'e') {
-        event.preventDefault()
         handleOpenFilesDock()
       } else if (event.shiftKey && !event.altKey && key === 'g') {
         event.preventDefault()
@@ -1551,20 +1518,6 @@ export function DesktopLayout(): React.ReactNode {
       ) {
         event.preventDefault()
         setSidebarTimelineEnabled(current => !current)
-      } else if (
-        !event.shiftKey &&
-        !event.altKey &&
-        event.code === 'BracketLeft'
-      ) {
-        event.preventDefault()
-        navigateBack()
-      } else if (
-        !event.shiftKey &&
-        !event.altKey &&
-        event.code === 'BracketRight'
-      ) {
-        event.preventDefault()
-        navigateForward()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1572,17 +1525,10 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     commandMenuOpen,
     currentWorkspace,
-    handleChooseWorkspace,
-    handleCreateSession,
-    handleOpenBrowser,
     handleOpenFilesDock,
     handleOpenReview,
     handleOpenSideChat,
-    navigateBack,
-    navigateForward,
-    togglePanel,
     toggleIntegratedTerminal,
-    toggleSidebarCollapsed,
   ])
 
   useEffect(() => {
@@ -1632,114 +1578,6 @@ export function DesktopLayout(): React.ReactNode {
     sidebarShell.mode,
   ])
 
-  const handleFileMenuAction = useCallback(
-    (action: FileMenuAction): void => {
-      switch (action) {
-        case 'close':
-          void desktopClient.closeWindow()
-          break
-        case 'newWindow':
-          void desktopClient.newWindow()
-          break
-        case 'newChat':
-          void handleNewConversation()
-          break
-        case 'quickChat':
-          navigate(QUICK_CHAT_PATH)
-          break
-        case 'openFolder':
-          void handleChooseWorkspace()
-          break
-        case 'openSettings':
-          void desktopClient.openSettings()
-          break
-        case 'logOut':
-          void desktopClient.logOut()
-          break
-        case 'exit':
-          void desktopClient.exitApp()
-          break
-      }
-    },
-    [handleChooseWorkspace, handleNewConversation, navigate],
-  )
-
-  const handleViewMenuAction = useCallback(
-    (action: ViewMenuAction): void => {
-      if (action === 'toggleSidebar') {
-        toggleSidebarCollapsed()
-        return
-      }
-      if (action === 'toggleBottomPanel') {
-        togglePanel('bottom')
-        return
-      }
-      if (action === 'openBrowserTab') {
-        handleOpenBrowser()
-        return
-      }
-      if (action === 'toggleFileTree') {
-        handleOpenFilesDock()
-        return
-      }
-      if (action === 'toggleSidePanel') {
-        togglePanel('right')
-        return
-      }
-      if (action === 'reloadBrowserPage') {
-        handleReloadBrowser()
-        return
-      }
-      if (action === 'back') {
-        navigateBack()
-        return
-      }
-      if (action === 'forward') {
-        navigateForward()
-        return
-      }
-      if (action === 'zoomIn') {
-        void window.codePilotXDesktop?.changePageZoom('in')
-        return
-      }
-      if (action === 'zoomOut') {
-        void window.codePilotXDesktop?.changePageZoom('out')
-        return
-      }
-      if (action === 'actualSize') {
-        void window.codePilotXDesktop?.changePageZoom('reset')
-      }
-    },
-    [
-      handleOpenBrowser,
-      handleOpenFilesDock,
-      handleReloadBrowser,
-      navigateBack,
-      navigateForward,
-      togglePanel,
-      toggleSidebarCollapsed,
-    ],
-  )
-
-  const handleWindowMenuAction = useCallback(
-    (action: WindowMenuAction): void => {
-      switch (action) {
-        case 'minimize':
-          void desktopClient.minimizeWindow()
-          break
-        case 'zoom':
-          void desktopClient
-            .toggleWindowMaximized()
-            .then(next => setIsWindowMaximized(next))
-          break
-        case 'close':
-          void desktopClient.closeWindow()
-          break
-      }
-    },
-    [setIsWindowMaximized],
-  )
-
   const openWhatsNewDialog = useCallback(
     (restoreFocusElement: HTMLElement | null): void => {
       setWhatsNewRestoreFocusElement(restoreFocusElement)
@@ -1748,17 +1586,27 @@ export function DesktopLayout(): React.ReactNode {
     [],
   )
 
-  const handleHelpMenuAction = useCallback(
-    (
-      action: HelpMenuAction,
-      restoreFocusElement?: HTMLElement | null,
-    ): void => {
-      if (action === 'whatsNew') {
-        openWhatsNewDialog(restoreFocusElement ?? null)
-      }
-    },
-    [openWhatsNewDialog],
-  )
+  const menuActions = useAppMenuActions({
+    client: desktopClient,
+    bridge: window.codePilotXDesktop,
+    browserAvailable,
+    browserOpen: Boolean(browserState?.open),
+    canNavigateBack,
+    canNavigateForward,
+    navigate,
+    newChat: handleCreateSession,
+    openFolder: handleChooseWorkspace,
+    toggleSidebar: toggleSidebarCollapsed,
+    togglePanel,
+    openFiles: handleOpenFilesDock,
+    openBrowser: handleOpenBrowser,
+    reloadBrowser: handleReloadBrowser,
+    navigateBack,
+    navigateForward,
+    setMaximized: setIsWindowMaximized,
+    openWhatsNew: openWhatsNewDialog,
+    onError: setErrorMessage,
+  })
 
   const modelPresets = useMemo(
     () =>
@@ -2400,10 +2248,7 @@ export function DesktopLayout(): React.ReactNode {
           .toggleWindowMaximized()
           .then(next => setIsWindowMaximized(next))
       }}
-      onFileMenuAction={handleFileMenuAction}
-      onViewMenuAction={handleViewMenuAction}
-      onWindowMenuAction={handleWindowMenuAction}
-      onHelpMenuAction={handleHelpMenuAction}
+      {...menuActions}
     />
   )
 

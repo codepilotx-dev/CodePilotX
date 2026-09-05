@@ -3593,11 +3593,11 @@ export function createAgentSessionDesktopClient(
     cancelCopilotLogin: lazyMock('cancelCopilotLogin'),
     cancelDebugToolProbe: lazyMock('cancelDebugToolProbe'),
     closeDevTools: lazyMock('closeDevTools'),
-    closeWindow: lazyMock('closeWindow'),
+    closeWindow: async () => { await environment.window?.codePilotXDesktop?.close?.() },
     deleteDesktopToolchain: lazyMock('deleteDesktopToolchain'),
     diagnoseDesktopToolchain: lazyMock('diagnoseDesktopToolchain'),
     discardWorkspaceChanges: lazyMock('discardWorkspaceChanges'),
-    exitApp: lazyMock('exitApp'),
+    exitApp: async () => { await environment.window?.codePilotXDesktop?.quitDuringStartup?.() },
     exportUserMemory: lazyMock('exportUserMemory'),
     getCopilotAuthStatus: lazyMock('getCopilotAuthStatus'),
     getWorkspaceReviewDiff: lazyMock('getWorkspaceReviewDiff'),
@@ -3616,7 +3616,7 @@ export function createAgentSessionDesktopClient(
     reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
     runDebugToolProbe: lazyMock('runDebugToolProbe'),
     startCopilotLogin: lazyMock('startCopilotLogin'),
-    toggleWindowMaximized: lazyMock('toggleWindowMaximized'),
+    toggleWindowMaximized: async () => (await environment.window?.codePilotXDesktop?.toggleMaximize?.()) ?? false,
   }
 
   const client = {
