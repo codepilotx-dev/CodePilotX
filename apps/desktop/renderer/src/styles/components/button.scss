@@ -52,8 +52,8 @@
 
   > svg {
     display: block;
-    width: var(--button-icon-size, 1em);
-    height: var(--button-icon-size, 1em);
+    width: var(--button-icon-size, var(--cpx-sys-icon-size));
+    height: var(--button-icon-size, var(--cpx-sys-icon-size));
     flex: 0 0 auto;
   }
 }
@@ -231,7 +231,7 @@
 .ui-button[data-size="composerUtility"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-radius: var(--cpx-sys-radius-full);
-  --button-icon-size: 16px;
+  --button-icon-size: var(--cpx-sys-icon-size);
 }
 
 .ui-button[data-size="composer"] {
@@ -293,21 +293,21 @@
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 8px;
   --button-radius: var(--cpx-comp-button-radius-lg);
-  --button-icon-size: 16px;
+  --button-icon-size: var(--cpx-sys-icon-size);
 }
 
 .ui-button[data-size="toolbar"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 8px;
   --button-radius: var(--cpx-comp-button-radius-lg);
-  --button-icon-size: 16px;
+  --button-icon-size: var(--cpx-sys-icon-size);
 }
 
 .ui-button[data-size="toolbarLabel"] {
   --button-size: var(--cpx-comp-button-size-toolbar);
   --button-padding-inline: 10px;
   --button-radius: var(--cpx-comp-button-radius-lg);
-  --button-icon-size: 16px;
+  --button-icon-size: var(--cpx-sys-icon-size);
 }
 
 .ui-button[aria-pressed="true"] {

@@ -85,7 +85,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
   return (
     <article className="schedule-plan-card" data-state={proposal.status}>
       <header>
-        <span className="schedule-plan-card__icon" aria-hidden="true"><CalendarCheck2 /></span>
+        <span className="schedule-plan-card__icon" aria-hidden="true"><CalendarCheck2 size={APP_ICON_SIZE} /></span>
         <div><strong>{committed ? '日程已创建' : '确认任务规划'}</strong><span>{horizonLabel(proposal.horizon)} · {enabledCount}/{items.length} 项已启用</span></div>
         {committed ? <Button color="secondary" size="compact" onClick={openCalendar}>打开<ExternalLink aria-hidden="true" size={APP_ICON_SIZE} /></Button> : null}
       </header>

@@ -251,7 +251,7 @@ export function PetSettings({
           </div>
           {preview ? (
             <div className="pet-settings-preview">
-              <PawPrint size={20} />
+              <PawPrint size={APP_ICON_SIZE} />
               <div>
                 <strong>{preview.pet.displayName}</strong>
                 <p>

@@ -80,7 +80,7 @@ export function ConfirmationDialog({
                     title="关闭对话框"
                   >
                     <X
-                      size={APP_ICON_SIZE + 2}
+                      size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </IconButton>
@@ -183,7 +183,7 @@ export function InputDialog({
                     <IconButton className="tw:shrink-0" color="ghostSecondary" size="toolbar" title="关闭对话框">
                       <X
                         aria-hidden="true"
-                        size={APP_ICON_SIZE + 2}
+                        size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </IconButton>

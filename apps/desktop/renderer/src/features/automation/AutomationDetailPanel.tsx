@@ -497,7 +497,7 @@ function SaveIndicator({
   if (controller.saveState === 'saving')
     return (
       <span className="automation-save-state">
-        <RotateCcw aria-hidden="true" />
+        <RotateCcw size={APP_ICON_SIZE} aria-hidden="true" />
         正在保存…
       </span>
     )
@@ -521,7 +521,7 @@ function SaveIndicator({
   if (controller.saveState === 'saved')
     return (
       <span className="automation-save-state">
-        <Check aria-hidden="true" />
+        <Check size={APP_ICON_SIZE} aria-hidden="true" />
         已保存
       </span>
     )

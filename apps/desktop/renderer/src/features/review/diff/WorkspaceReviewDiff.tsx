@@ -163,7 +163,7 @@ export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240;
 export const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520;
 export const REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP = 24;
 export const REVIEW_DIFF_PREVIEW_MIN_WIDTH = 260;
-export const REVIEW_FILE_ACTION_ICON_SIZE = 12;
+export const REVIEW_FILE_ACTION_ICON_SIZE = APP_ICON_SIZE;
 export const ListChevronsDownUp = createLucideIcon("list-chevrons-down-up", [
   ["path", { d: "M3 5h8", key: "18g2rq" }],
   ["path", { d: "M3 12h8", key: "1xfjp6" }],
@@ -1255,7 +1255,7 @@ export function ReviewProjectEmptyState({
   return (
     <div className="review-project-empty-state">
       <div className="review-project-empty-state__content">
-        <FileDiff aria-hidden="true" />
+        <FileDiff size={APP_ICON_SIZE} aria-hidden="true" />
         <div className="review-project-empty-state__copy">
           <strong>尚无文件更改</strong>
           <span>此项目中的更改将显示在此处。</span>

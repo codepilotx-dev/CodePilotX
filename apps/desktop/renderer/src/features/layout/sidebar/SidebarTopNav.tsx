@@ -250,7 +250,7 @@ export function SidebarHeader({
             type="button"
           >
             <span className="sidebar-product-mode-label">{activeMode.label}</span>
-            <ChevronDown aria-hidden="true" size={14} />
+            <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
           </button>
         }
         onOpenChange={setModeMenuOpen}

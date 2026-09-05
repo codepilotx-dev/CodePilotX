@@ -64,8 +64,8 @@
   }
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 }
@@ -118,8 +118,8 @@
   }
 
   svg {
-    width: 32px;
-    height: 32px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 }
@@ -216,8 +216,8 @@
   }
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 }
@@ -437,8 +437,8 @@
   font-variant-numeric: tabular-nums;
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 }
@@ -748,8 +748,8 @@
 }
 
 .settings-open-target-icon {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   border-radius: var(--cpx-sys-radius-md);
   flex-shrink: 0;
   object-fit: contain;

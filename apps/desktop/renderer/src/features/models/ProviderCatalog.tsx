@@ -88,7 +88,7 @@ export function ProviderCatalog({
         <div className="model-center-catalog-empty">
           <Server
             aria-hidden
-            size={APP_ICON_SIZE + 4}
+            size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
           <strong>没有匹配的供应商</strong>
@@ -118,7 +118,7 @@ export function ProviderCatalog({
                         fallback={
                           <Server
                             aria-hidden
-                            size={APP_ICON_SIZE + 4}
+                            size={APP_ICON_SIZE}
                             strokeWidth={APP_ICON_STROKE_WIDTH}
                           />
                         }
@@ -127,7 +127,7 @@ export function ProviderCatalog({
                     ) : (
                       <Server
                         aria-hidden
-                        size={APP_ICON_SIZE + 4}
+                        size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     )}
@@ -165,7 +165,7 @@ export function ProviderCatalog({
                       data-tone="healthy"
                       title="凭据健康"
                     >
-                      <CheckCircle2 size={14} aria-hidden />
+                      <CheckCircle2 size={APP_ICON_SIZE} aria-hidden />
                     </span>
                   ) : provider.healthTone === "warning" ? (
                     <span
@@ -173,7 +173,7 @@ export function ProviderCatalog({
                       data-tone="warning"
                       title="凭据异常"
                     >
-                      <AlertTriangle size={14} aria-hidden />
+                      <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
                     </span>
                   ) : null}
                 </button>

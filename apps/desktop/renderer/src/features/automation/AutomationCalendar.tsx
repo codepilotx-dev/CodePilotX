@@ -448,7 +448,7 @@ export function AutomationCalendar({
                                       : selectDate(cell.date)
                                   }}
                                 >
-                                  <Plus aria-hidden="true" size={12} />
+                                  <Plus aria-hidden="true" size={APP_ICON_SIZE} />
                                 </button>
                               </div>
                               {dayOccurrences.length ? (
@@ -489,9 +489,9 @@ export function AutomationCalendar({
                                         >
                                           {occurrence.source.kind ===
                                           'automation' ? (
-                                            <RefreshCw size={10} />
+                                            <RefreshCw size={APP_ICON_SIZE} />
                                           ) : (
-                                            <CalendarCheck2 size={10} />
+                                            <CalendarCheck2 size={APP_ICON_SIZE} />
                                           )}
                                         </span>
                                         <time>
@@ -580,7 +580,7 @@ export function AutomationCalendar({
                               : selectDate(cell.date)
                           }}
                         >
-                          <Plus aria-hidden="true" size={12} />
+                          <Plus aria-hidden="true" size={APP_ICON_SIZE} />
                         </button>
                       </header>
 
@@ -616,11 +616,11 @@ export function AutomationCalendar({
                                 <div className="automation-calendar__week-card-header">
                                   <span className="automation-calendar__week-card-type">
                                     {occurrence.source.kind === 'automation' ? (
-                                      <RefreshCw aria-hidden="true" size={11} />
+                                      <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} />
                                     ) : (
                                       <CalendarCheck2
                                         aria-hidden="true"
-                                        size={11}
+                                        size={APP_ICON_SIZE}
                                       />
                                     )}
                                     <span>
@@ -698,7 +698,7 @@ export function AutomationCalendar({
                               : selectDate(group.date)
                           }
                         >
-                          <Plus aria-hidden="true" size={12} />
+                          <Plus aria-hidden="true" size={APP_ICON_SIZE} />
                           <span>新建</span>
                         </button>
                       </header>
@@ -729,9 +729,9 @@ export function AutomationCalendar({
                                   aria-hidden="true"
                                 >
                                   {occurrence.source.kind === 'automation' ? (
-                                    <RefreshCw size={14} />
+                                    <RefreshCw size={APP_ICON_SIZE} />
                                   ) : (
-                                    <CalendarCheck2 size={14} />
+                                    <CalendarCheck2 size={APP_ICON_SIZE} />
                                   )}
                                 </span>
                                 <strong className="automation-calendar__list-card-title">
@@ -801,7 +801,7 @@ export function AutomationCalendar({
                 </div>
               ) : (
                 <div className="automation-calendar__list-empty" role="status">
-                  <CalendarCheck2 aria-hidden="true" size={36} />
+                  <CalendarCheck2 aria-hidden="true" size={APP_ICON_SIZE} />
                   <p>当前没有已安排的任务或执行记录。</p>
                   <Button
                     color="secondary"

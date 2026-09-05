@@ -138,7 +138,7 @@ function EnvironmentList({
               : DEFAULT_PROJECT_APPEARANCE
           }
           className="project-appearance-marker"
-          size={APP_ICON_SIZE + 2}
+          size={APP_ICON_SIZE}
         />
       </span>
       <span className="environment-project-copy">
@@ -526,9 +526,9 @@ function EnvironmentDetail({
         >
           <ArrowLeft size={APP_ICON_SIZE} />
           环境
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE - 2} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
           <span>{project.name}</span>
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE - 2} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
           <span>编辑</span>
         </button>
 

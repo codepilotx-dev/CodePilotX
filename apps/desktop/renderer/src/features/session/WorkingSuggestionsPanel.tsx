@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type React from "react";
 import {
   ArrowLeft,
@@ -85,7 +86,7 @@ export function WorkingSuggestionsPanel({
               <ListChecks
                 aria-hidden
                 className="tw:shrink-0 tw:text-app-text-soft"
-                size={16}
+                size={APP_ICON_SIZE}
               />
               <span>{suggestion.label}</span>
             </button>
@@ -101,7 +102,7 @@ export function WorkingSuggestionsPanel({
             type="button"
             onClick={onShowTemplates}
           >
-            <LayoutTemplate aria-hidden className="tw:shrink-0" size={16} />
+            <LayoutTemplate aria-hidden className="tw:shrink-0" size={APP_ICON_SIZE} />
             <span>查看工作模板</span>
           </button>
         </div>
@@ -119,11 +120,11 @@ export function WorkingSuggestionsPanel({
         <div className="working-suggestion-list tw:grid tw:gap-0.5">
           <div className="new-session-suggestion-list-heading working-suggestion-list-heading">
             <span className="tw:text-app-text-soft">
-              <LayoutTemplate aria-hidden size={16} />
+              <LayoutTemplate aria-hidden size={APP_ICON_SIZE} />
               工作模板
             </span>
             <button type="button" onClick={onShowSuggestions}>
-              <ArrowLeft aria-hidden size={14} />
+              <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
               返回建议
             </button>
           </div>
@@ -145,7 +146,7 @@ export function WorkingSuggestionsPanel({
                 <Icon
                   aria-hidden
                   className="tw:shrink-0 tw:text-app-text-soft"
-                  size={16}
+                  size={APP_ICON_SIZE}
                 />
                 <span>{category.label}</span>
               </button>
@@ -171,12 +172,12 @@ export function WorkingSuggestionsPanel({
             <Icon
               aria-hidden
               className="tw:shrink-0 tw:text-app-text-soft"
-              size={16}
+              size={APP_ICON_SIZE}
             />
             {category.label}
           </span>
           <button type="button" onClick={() => onBack(category)}>
-            <ArrowLeft aria-hidden size={14} />
+            <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
             返回
           </button>
         </div>

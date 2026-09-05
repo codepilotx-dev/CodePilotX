@@ -154,19 +154,19 @@ export function SideChatThreadPanel({
       >
         {creating ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <LoaderCircle className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : expired ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <CirclePlus aria-hidden="true" />
+            <CirclePlus size={APP_ICON_SIZE} aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
             <Button color="primary" onClick={() => onRecreate(tab)}>开始新的侧边聊天</Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <LoaderCircle className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : visibleTurnCount === 0 && !conversation.error ? (
@@ -174,7 +174,7 @@ export function SideChatThreadPanel({
             <span className="right-dock-side-chat__empty-icon">
               <CirclePlus
                 aria-hidden="true"
-                size={APP_ICON_SIZE + 8}
+                size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>

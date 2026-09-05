@@ -488,11 +488,11 @@
 
 .composer-inline-skill-token-icon,
 .composer-inline-skill-token-fallback-icon {
-  width: 16px;
-  height: 16px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   margin-inline-end: var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-indicator);
-  object-fit: cover;
+  object-fit: contain;
   vertical-align: text-bottom;
 }
 

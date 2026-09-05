@@ -61,7 +61,7 @@ export function SessionFollowUpDock({
             className="session-follow-up-resume"
             onClick={onResume}
           >
-            <Play aria-hidden="true" size={12} />
+            <Play aria-hidden="true" size={APP_ICON_SIZE} />
             继续队列
           </Button>
         </div>

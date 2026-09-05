@@ -148,7 +148,7 @@ function AttachmentRemoveButton({
       size="iconMd"
       title={`移除 ${name}`}
     >
-      <X aria-hidden="true" size={12} strokeWidth={2.25} />
+      <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={2.25} />
     </IconButton>
   )
 }

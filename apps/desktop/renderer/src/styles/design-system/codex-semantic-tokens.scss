@@ -248,7 +248,7 @@
   --cpx-comp-menu-item-gap-y: 2px;
   --cpx-comp-menu-rich-item-height: 44px;
   --cpx-comp-menu-rich-item-padding-block: 6px;
-  --cpx-comp-menu-icon-size: 16px;
+  --cpx-comp-menu-icon-size: var(--cpx-sys-icon-size);
   --cpx-comp-menu-font: var(--cpx-sys-type-body);
   --cpx-comp-menu-detail-font: var(--cpx-sys-type-body-sm);
 
@@ -260,12 +260,12 @@
   --cpx-comp-dropdown-item-gap-y: 2px;
   --cpx-comp-dropdown-rich-item-height: 44px;
   --cpx-comp-dropdown-rich-item-padding-block: 6px;
-  --cpx-comp-dropdown-icon-size: 16px;
+  --cpx-comp-dropdown-icon-size: var(--cpx-sys-icon-size);
 
   // Icon
-  --cpx-comp-icon-size-sm: 14px;
-  --cpx-comp-icon-size-md: 16px;
-  --cpx-comp-icon-size-lg: 18px;
+  --cpx-comp-icon-size-sm: var(--cpx-sys-icon-size);
+  --cpx-comp-icon-size-md: var(--cpx-sys-icon-size);
+  --cpx-comp-icon-size-lg: var(--cpx-sys-icon-size);
   --cpx-comp-icon-stroke-width: 1.75;
 
   // Navigation row

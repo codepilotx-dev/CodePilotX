@@ -124,7 +124,7 @@ function ReviewFileRow({
       <span className="review-file-tree-trailing">
         {commentCount > 0 ? (
           <span className="review-comment-badge">
-            <MessageSquare size={12} />
+            <MessageSquare size={APP_ICON_SIZE} />
             {commentCount}
           </span>
         ) : null}

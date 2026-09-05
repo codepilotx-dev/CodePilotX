@@ -45,10 +45,10 @@
 }
 
 .file-editor-status:not([data-error])::before {
-  width: 14px;
-  height: 14px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   box-sizing: border-box;
-  flex: 0 0 14px;
+  flex: 0 0 var(--cpx-sys-icon-size);
   content: '';
   border: 1.5px solid currentcolor;
   border-right-color: transparent;

@@ -527,8 +527,8 @@
 }
 
 .preview-card-output-icon {
-  width: 18px;
-  height: 18px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   flex: 0 0 auto;
   opacity: 0.7;
 }

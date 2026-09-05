@@ -345,9 +345,9 @@ export function AutomationView(): React.ReactNode {
             </Button>
           )}
         >
-          <PopoverItem icon={<Sparkles />} onClick={() => void planThroughChat()}>规划任务</PopoverItem>
-          <PopoverItem icon={<CalendarClock />} onClick={() => openScheduledTask()}>计划任务</PopoverItem>
-          <PopoverItem icon={<AlarmClock />} onClick={() => openCreate()}>自动化执行</PopoverItem>
+          <PopoverItem icon={<Sparkles size={APP_ICON_SIZE} />} onClick={() => void planThroughChat()}>规划任务</PopoverItem>
+          <PopoverItem icon={<CalendarClock size={APP_ICON_SIZE} />} onClick={() => openScheduledTask()}>计划任务</PopoverItem>
+          <PopoverItem icon={<AlarmClock size={APP_ICON_SIZE} />} onClick={() => openCreate()}>自动化执行</PopoverItem>
         </PopoverMenu>
       </WorkspaceHeaderItem>
 
@@ -661,7 +661,7 @@ function AutomationRow({ automation, selected, runs, targetLabel, menuOpen, onMe
     <li data-selected={selected || undefined} data-status={rowStatus}>
       <button className="automation-row" type="button" onClick={onSelect}>
         <span className="automation-row-icon" aria-hidden="true">
-          {activeRun ? <LoaderCircle /> : automation.status === 'paused' ? <Pause /> : completed ? <CheckCircle2 /> : <Play />}
+          {activeRun ? <LoaderCircle size={APP_ICON_SIZE} /> : automation.status === 'paused' ? <Pause size={APP_ICON_SIZE} /> : completed ? <CheckCircle2 size={APP_ICON_SIZE} /> : <Play size={APP_ICON_SIZE} />}
         </span>
         <span className="automation-row-content">
           <span className="automation-row-title">
@@ -685,11 +685,11 @@ function AutomationRow({ automation, selected, runs, targetLabel, menuOpen, onMe
           </IconButton>
         )}
       >
-        <PopoverItem icon={<Play />} onClick={onRun}>立即运行</PopoverItem>
-        <PopoverItem icon={automation.status === 'paused' ? <Play /> : <Pause />} onClick={onPause}>
+        <PopoverItem icon={<Play size={APP_ICON_SIZE} />} onClick={onRun}>立即运行</PopoverItem>
+        <PopoverItem icon={automation.status === 'paused' ? <Play size={APP_ICON_SIZE} /> : <Pause size={APP_ICON_SIZE} />} onClick={onPause}>
           {automation.status === 'paused' ? '恢复' : '暂停'}
         </PopoverItem>
-        <PopoverItem icon={<Trash2 />} onClick={onDelete}>删除</PopoverItem>
+        <PopoverItem icon={<Trash2 size={APP_ICON_SIZE} />} onClick={onDelete}>删除</PopoverItem>
       </PopoverMenu>
     </li>
   )
@@ -698,7 +698,7 @@ function AutomationRow({ automation, selected, runs, targetLabel, menuOpen, onMe
 function AutomationEmptyState(): React.ReactNode {
   return (
     <div className="automation-empty-state" role="status">
-      <CalendarClock aria-hidden="true" />
+      <CalendarClock size={APP_ICON_SIZE} aria-hidden="true" />
       <h2>暂无已安排任务</h2>
       <p>创建任务后，它们会按状态显示在这里。</p>
     </div>
@@ -718,7 +718,7 @@ function AutomationSuggestions({ divided, suggestions, onCreate }: {
           <li key={item.id} data-tone={item.tone}>
             <button type="button" onClick={() => onCreate(item.id)}>
               <span className="automation-suggestion-icon" aria-hidden="true">
-                {item.id === 'daily-brief' ? <AlarmClock /> : item.id === 'weekly-review' ? <CalendarClock /> : <FileSearch />}
+                {item.id === 'daily-brief' ? <AlarmClock size={APP_ICON_SIZE} /> : item.id === 'weekly-review' ? <CalendarClock size={APP_ICON_SIZE} /> : <FileSearch size={APP_ICON_SIZE} />}
               </span>
               <span className="automation-suggestion-content">
                 <span className="automation-suggestion-title"><strong>{item.name}</strong><span>{automationScheduleSummary(item.schedule)}</span></span>

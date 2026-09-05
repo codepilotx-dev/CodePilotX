@@ -158,7 +158,7 @@ export function RightDockPlanPanel({
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
-          <ListChecks size={58} strokeWidth={1.8} />
+          <ListChecks size={APP_ICON_SIZE} strokeWidth={1.8} />
           <strong className="tw:text-app-text">暂无计划</strong>
           <span className="tw:max-w-full tw:text-app-text-soft">从主对话里的计划卡片打开计划书</span>
         </div>
@@ -306,13 +306,13 @@ export function RightDockFilesPanel({
                 aria-hidden="true"
                 className="right-dock-open-file-illustration"
                 fill="none"
-                height="58"
+                height={APP_ICON_SIZE}
                 stroke="currentColor"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="1.6"
                 viewBox="0 0 24 24"
-                width="58"
+                width={APP_ICON_SIZE}
               >
                 <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
                 <path d="M9 13h6" />
@@ -532,7 +532,7 @@ export function RightDockFilePreviewPanel({
   if (document.status !== 'ready') {
     return (
       <div className="right-dock-empty-state">
-        <Folder size={58} strokeWidth={1.8} />
+        <Folder size={APP_ICON_SIZE} strokeWidth={1.8} />
         <strong>正在读取文件</strong>
         <span>{expectedPath}</span>
       </div>

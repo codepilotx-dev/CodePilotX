@@ -94,7 +94,7 @@ export function ProviderDetail({
               fallback={(
                 <Server
                   aria-hidden
-                  size={APP_ICON_SIZE + 6}
+                  size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
@@ -104,7 +104,7 @@ export function ProviderDetail({
             <span className="model-center-provider-identity-logo">
               <Server
                 aria-hidden
-                size={APP_ICON_SIZE + 6}
+                size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>

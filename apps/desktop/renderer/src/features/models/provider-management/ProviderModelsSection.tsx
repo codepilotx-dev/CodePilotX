@@ -267,7 +267,7 @@ export function ProviderModelsSection({
         <div className="model-center-detail-card-body">
           {filteredModels.length === 0 ? (
             <div className="model-center-section-empty-hint">
-              <Server aria-hidden size={24} />
+              <Server aria-hidden size={APP_ICON_SIZE} />
               <span>
                 {models.length === 0
                   ? '尚未获取到可用模型，请点击上方「刷新目录」同步供应商模型列表。'
@@ -329,7 +329,7 @@ function ModelRowItem({
         <div className="model-center-model-caps">
           {contextLength ? (
             <span className="model-cap-pill" title={`最大上下文长度：${metadata?.contextWindow} tokens`}>
-              <Clock aria-hidden size={12} />
+              <Clock aria-hidden size={APP_ICON_SIZE} />
               {contextLength} 上下文
             </span>
           ) : null}
@@ -340,25 +340,25 @@ function ModelRowItem({
           ) : null}
           {metadata?.reasoning ? (
             <span className="model-cap-pill model-cap-pill--highlight" title="支持思考/推理过程">
-              <Brain aria-hidden size={12} />
+              <Brain aria-hidden size={APP_ICON_SIZE} />
               推理
             </span>
           ) : null}
           {metadata?.toolCall ? (
             <span className="model-cap-pill" title="支持 Function Calling 工具调用">
-              <Hammer aria-hidden size={12} />
+              <Hammer aria-hidden size={APP_ICON_SIZE} />
               工具
             </span>
           ) : null}
           {metadata?.vision ? (
             <span className="model-cap-pill" title="支持图片/多模态视觉输入">
-              <Eye aria-hidden size={12} />
+              <Eye aria-hidden size={APP_ICON_SIZE} />
               视觉
             </span>
           ) : null}
           {metadata?.structuredOutput ? (
             <span className="model-cap-pill" title="支持结构化 JSON Schema 输出">
-              <Braces aria-hidden size={12} />
+              <Braces aria-hidden size={APP_ICON_SIZE} />
               结构化
             </span>
           ) : null}
@@ -369,17 +369,17 @@ function ModelRowItem({
         {/* Speedtest Status Feedback */}
         {testStatus.state === 'testing' ? (
           <span className="model-speed-status model-speed-status--testing">
-            <Loader2 aria-hidden size={13} className="spin" />
+            <Loader2 aria-hidden size={APP_ICON_SIZE} className="spin" />
             测速中...
           </span>
         ) : testStatus.state === 'reachable' ? (
           <span className="model-speed-status model-speed-status--healthy" title={`响应耗时 ${testStatus.latencyMs} 毫秒`}>
-            <CheckCircle2 aria-hidden size={13} />
+            <CheckCircle2 aria-hidden size={APP_ICON_SIZE} />
             {testStatus.latencyMs} ms
           </span>
         ) : testStatus.state === 'failed' ? (
           <span className="model-speed-status model-speed-status--failed" title={testStatus.message}>
-            <AlertCircle aria-hidden size={13} />
+            <AlertCircle aria-hidden size={APP_ICON_SIZE} />
             测速失败
           </span>
         ) : null}

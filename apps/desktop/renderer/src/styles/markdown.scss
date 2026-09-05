@@ -260,16 +260,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1em;
-  height: 1em;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   margin-right: 2px;
   vertical-align: -0.125em;
 }
 
 .md-file-reference__icon > svg {
   display: block;
-  width: 1em;
-  height: 1em;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .md-file-reference__label {
@@ -286,8 +286,8 @@
 
 .md-file-reference__target-icon {
   display: block;
-  width: 1em;
-  height: 1em;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .md-wide-block {
@@ -689,8 +689,8 @@
   cursor: pointer;
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     transition: transform var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
   }
 

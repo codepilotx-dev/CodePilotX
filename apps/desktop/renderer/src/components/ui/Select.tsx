@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from './iconTokens.js'
 import React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import * as RadixSelect from '@radix-ui/react-select'
@@ -67,7 +68,7 @@ function OptionContent({
         ) : null}
       </div>
       {showSelectedIndicator && selected ? (
-        <Check aria-hidden="true" className="ui-select-item-indicator settings-dropdown-item-indicator" size={14} />
+        <Check aria-hidden="true" className="ui-select-item-indicator settings-dropdown-item-indicator" size={APP_ICON_SIZE} />
       ) : null}
     </div>
   )
@@ -117,7 +118,7 @@ function BasicSelect<T extends string>({
           </RadixSelect.Value>
         </span>
         <RadixSelect.Icon asChild>
-          <ChevronDown aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
+          <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
@@ -295,7 +296,7 @@ function SearchableSelect<T extends string>({
             {selectedOption?.icon}
             <span>{selectedOption?.label ?? placeholder}</span>
           </span>
-          <ChevronDown aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
+          <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>

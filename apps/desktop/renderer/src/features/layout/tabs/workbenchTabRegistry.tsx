@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React, { Suspense, useEffect, type ReactNode } from 'react'
 import {
   Bot,
@@ -231,7 +232,7 @@ export type WorkbenchTabDefinition = {
   ) => ReactNode
 }
 
-const iconSize = 14
+const iconSize = APP_ICON_SIZE
 
 const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
   review: 0,

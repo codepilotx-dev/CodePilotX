@@ -258,8 +258,9 @@
   --cpx-sys-focus-ring-inset: inset 0 0 0 1px var(--cpx-sys-color-border-focus);
 
   // Button icon and action sizing
-  --button-icon-size-xs: 14px;
-  --button-icon-size-sm: 16px;
+  --cpx-sys-icon-size: 14px;
+  --button-icon-size-xs: var(--cpx-sys-icon-size);
+  --button-icon-size-sm: var(--cpx-sys-icon-size);
   --button-size-icon-large: 36px;
 
   // Chrome & workspace sizing

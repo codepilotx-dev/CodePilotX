@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import {
   ChevronRight,
@@ -148,15 +149,15 @@ export function CanonicalProcessGroup({
   const summaryContent = (
     <>
       {active ? (
-        <LoaderCircle className="canonical-spin" aria-hidden="true" />
+        <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
       ) : failed ? (
-        <CircleAlert aria-hidden="true" />
+        <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
       ) : (
-        <SummaryIcon aria-hidden="true" />
+        <SummaryIcon size={APP_ICON_SIZE} aria-hidden="true" />
       )}
       <span className="cpx-agent-activity__summary">{visibleLabel}</span>
       {canExpand ? (
-        <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
+        <ChevronRight size={APP_ICON_SIZE} className="cpx-agent-activity__chevron" aria-hidden="true" />
       ) : null}
     </>
   );
@@ -385,7 +386,7 @@ export function CanonicalTurnActivity({
     <>
       <span>{summary.label}</span>
       {disclosureEnabled ? (
-        <ChevronRight
+        <ChevronRight size={APP_ICON_SIZE}
           aria-hidden="true"
           className="canonical-turn-activity__chevron"
         />
@@ -592,10 +593,10 @@ function CanonicalThreadViewComponent({
   if (error && turns.length === 0) {
     return (
       <div className="canonical-thread-state canonical-thread-state--error" role="alert">
-        <CircleAlert aria-hidden="true" />
+        <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
         <span><strong>无法加载会话</strong><small>{error}</small></span>
         <button type="button" onClick={() => void onReload()}>
-          <RotateCcw aria-hidden="true" />重试
+          <RotateCcw size={APP_ICON_SIZE} aria-hidden="true" />重试
         </button>
       </div>
     );
@@ -614,7 +615,7 @@ function CanonicalThreadViewComponent({
             disabled={loadingOlder}
             onClick={() => void loadOlderPreservingAnchor()}
           >
-            {loadingOlder ? <LoaderCircle className="canonical-spin" aria-hidden="true" /> : null}
+            {loadingOlder ? <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" /> : null}
             {loadingOlder ? "正在加载" : "加载更早的对话"}
           </button>
         </div>
@@ -825,7 +826,7 @@ function CanonicalConversationTurnComponent({
       })}
       {processActivity.showThinkingFallback ? (
         <div className="canonical-turn__thinking" role="status" aria-live="polite">
-          <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
           <span>正在思考</span>
         </div>
       ) : null}
@@ -919,7 +920,7 @@ function CanonicalConversationTurnComponent({
         <div
           className="canonical-turn__status canonical-turn__status--error"
         >
-          <CircleAlert aria-hidden="true" />
+          <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
           <span>{entry.turn.error}</span>
         </div>
       ) : null}
@@ -942,7 +943,7 @@ function CanonicalBlocker({
   return (
     <article className="canonical-blocker-card" data-state={blocker.approval.status}>
       <header>
-        <CircleAlert aria-hidden="true" />
+        <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
         <strong>{blocker.approval.tool} 需要授权</strong>
       </header>
       <p>{blocker.approval.reason}</p>

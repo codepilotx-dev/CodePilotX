@@ -73,8 +73,8 @@
   }
 
   svg {
-    width: clamp(44px, 12vh, 58px);
-    height: clamp(44px, 12vh, 58px);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 }
 
@@ -280,8 +280,8 @@
 }
 
 .file-breadcrumb-open-target-icon {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   object-fit: contain;
 }
 
@@ -614,8 +614,8 @@
 
 .right-dock-tree-chevron {
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;

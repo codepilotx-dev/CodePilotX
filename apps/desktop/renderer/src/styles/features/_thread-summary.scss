@@ -211,8 +211,8 @@
   text-decoration: none;
 
   > svg:first-child {
-    width: 16px;
-    height: 16px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-primary);
     stroke-width: 1.75;
   }
@@ -255,8 +255,8 @@
   text-align: left;
 
   > svg {
-    width: 16px;
-    height: 16px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-primary);
     stroke-width: 1.75;
   }
@@ -286,8 +286,8 @@
   cursor: not-allowed;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
   &:hover,

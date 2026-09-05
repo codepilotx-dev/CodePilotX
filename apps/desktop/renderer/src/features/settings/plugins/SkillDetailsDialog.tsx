@@ -103,8 +103,8 @@ export function SkillDetailsDialog({
               >
                 {presentation ? (
                   <BuiltinSkillIcon
-                    className="tw:size-7 tw:rounded-md"
-                    size={28}
+                    className="tw:rounded-md"
+                    size={APP_ICON_SIZE}
                     skill={skill}
                   />
                 ) : (

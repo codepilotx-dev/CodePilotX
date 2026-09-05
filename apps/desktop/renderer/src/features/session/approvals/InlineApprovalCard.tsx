@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import { ArrowDown, ArrowUp, CornerDownLeft, Info, Pencil } from 'lucide-react'
 import type {
@@ -249,7 +250,7 @@ export function InlineApprovalCard({
             </Button>
             <Button color="primary" onClick={submitPermissionGrant}>
               提交
-              <CornerDownLeft size={14} />
+              <CornerDownLeft size={APP_ICON_SIZE} />
             </Button>
           </div>
         </div>
@@ -315,9 +316,9 @@ export function InlineApprovalCard({
             >
               {isCommandExpanded ? '折叠' : '展开'}
               {isCommandExpanded ? (
-                <ArrowUp size={14} />
+                <ArrowUp size={APP_ICON_SIZE} />
               ) : (
-                <ArrowDown size={14} />
+                <ArrowDown size={APP_ICON_SIZE} />
               )}
             </button>
           </div>
@@ -356,7 +357,7 @@ export function InlineApprovalCard({
           }
         >
           <span className="inline-approval-note-icon" aria-hidden="true">
-            <Pencil size={16} />
+            <Pencil size={APP_ICON_SIZE} />
           </span>
           <textarea
             className="inline-approval-feedback-input"
@@ -381,7 +382,7 @@ export function InlineApprovalCard({
             onClick={submitChoice}
           >
             提交
-            <CornerDownLeft size={14} />
+            <CornerDownLeft size={APP_ICON_SIZE} />
           </Button>
         </div>
       </div>
@@ -489,12 +490,12 @@ function ApprovalOption({
         ) : null}
       </span>
       <span className="inline-approval-option-info" aria-hidden="true">
-        <Info size={14} />
+        <Info size={APP_ICON_SIZE} />
       </span>
       {selected ? (
         <span className="inline-approval-option-arrows" aria-hidden="true">
-          <ArrowUp size={14} />
-          <ArrowDown size={14} />
+          <ArrowUp size={APP_ICON_SIZE} />
+          <ArrowDown size={APP_ICON_SIZE} />
         </span>
       ) : null}
     </button>

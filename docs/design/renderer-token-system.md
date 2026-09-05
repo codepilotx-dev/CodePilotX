@@ -62,6 +62,10 @@ CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品
 
 颜色与排版角色互相独立：正文和关键值使用 `--cpx-sys-color-fg-primary`，说明使用 `fg-secondary`，时间、路径和其他辅助元信息使用 `fg-tertiary`，`fg-disabled` 只用于真实禁用态。业务成功、警告和错误继续使用对应 tone，不以异常字号或额外粗体代替状态语义。
 
+### 图标
+
+所有界面图标统一为 `14×14 CSS px`，CSS 消费 `--cpx-sys-icon-size`，React 图标复用 `APP_ICON_SIZE`。按钮、菜单、状态、加载、文件/文件夹、空状态和界面内品牌/插件 Logo 均遵循此尺寸，组件尺寸槽位统一引用公共 Token。Logo 在 14×14 盒内等比显示。按钮点击区域、行高和图标线宽独立保留；内容图片、图表、宠物、安装包图标和系统原生窗口按钮不适用。禁止使用全局 `svg` / `img` 强制覆盖内容尺寸。
+
 ### 间距
 
 普通 padding、margin 和 gap 只使用开放 4px 刻度：

@@ -34,8 +34,8 @@
 
 .ui-date-picker-trigger-icon,
 .ui-date-picker-chevron {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   flex-shrink: 0;
   color: var(--cpx-sys-color-fg-secondary);
 }
@@ -95,8 +95,8 @@
 }
 
 .ui-date-picker-nav svg {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .ui-date-picker-nav:hover,

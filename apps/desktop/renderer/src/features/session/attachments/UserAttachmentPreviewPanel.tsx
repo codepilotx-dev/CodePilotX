@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import {
   Copy,
   Download,
@@ -317,11 +318,11 @@ function ImageAttachmentPreview({
           size="toolbar"
           title="缩小"
         >
-          <Minus size={15} />
+          <Minus size={APP_ICON_SIZE} />
         </IconButton>
         <small style={zoomStyle}>{Math.round(scale * 100)}%</small>
         <IconButton color="ghostSecondary" onClick={fitImage} size="toolbar" title="适应窗口">
-          <Maximize2 size={15} />
+          <Maximize2 size={APP_ICON_SIZE} />
         </IconButton>
         <IconButton
           color="ghostSecondary"
@@ -330,10 +331,10 @@ function ImageAttachmentPreview({
           size="toolbar"
           title="放大"
         >
-          <Plus size={15} />
+          <Plus size={APP_ICON_SIZE} />
         </IconButton>
         <IconButton color="ghostSecondary" onClick={handleDownload} size="toolbar" title="下载">
-          <Download size={15} />
+          <Download size={APP_ICON_SIZE} />
         </IconButton>
       </AttachmentToolbar>
       <div
@@ -427,7 +428,7 @@ function TextAttachmentPreview({
           size="toolbar"
           title="复制"
         >
-          <Copy size={15} />
+          <Copy size={APP_ICON_SIZE} />
         </IconButton>
         <IconButton
           color="ghostSecondary"
@@ -441,7 +442,7 @@ function TextAttachmentPreview({
           size="toolbar"
           title="下载"
         >
-          <Download size={15} />
+          <Download size={APP_ICON_SIZE} />
         </IconButton>
       </AttachmentToolbar>
       {formatted.jsonInvalid ? (

@@ -232,7 +232,7 @@ function SidebarProjectGroupComponent({
             labelClassName="sidebar-project-name"
             layout="grid"
             leading={
-              <ProjectAppearanceGlyph
+              <ProjectAppearanceGlyph size={APP_ICON_SIZE}
                 appearance={appearance}
                 className="project-appearance-marker"
               />

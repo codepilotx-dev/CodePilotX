@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { LoaderCircle } from "lucide-react";
 import type { RpcResult } from "@codepilotx/agent-protocol";
@@ -34,7 +35,7 @@ export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
 export function FileMutationDiffLoading(): React.ReactNode {
   return (
     <div className="canonical-file-mutation__message" role="status">
-      <LoaderCircle className="canonical-spin" aria-hidden="true" />
+      <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
       正在加载差异
     </div>
   );

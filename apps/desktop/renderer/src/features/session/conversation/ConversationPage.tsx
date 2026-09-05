@@ -118,7 +118,7 @@ const ConversationEnvironmentControls = React.lazy(() =>
   }))
 );
 
-const WORKSPACE_HEADER_ICON_SIZE = 16;
+const WORKSPACE_HEADER_ICON_SIZE = APP_ICON_SIZE;
 
 async function chooseSessionGroupForThread(threadId: string): Promise<void> {
   const groups = await desktopClient.listSessionGroups()
@@ -1447,7 +1447,7 @@ export function ConversationPage(): React.ReactNode {
                             <div className="subagent-timeline-summary" aria-label="子智能体任务">
                               {subagents.map(({ task, currentRun }) => (
                                 <button key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
-                                  <Bot size={14} />
+                                  <Bot size={APP_ICON_SIZE} />
                                   <span>{task.displayName}</span>
                                   <small>{subagentStatusLabel(currentRun?.status ?? "interrupted")}</small>
                                 </button>

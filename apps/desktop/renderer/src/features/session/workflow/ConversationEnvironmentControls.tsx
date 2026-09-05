@@ -371,7 +371,7 @@ export function ConversationEnvironmentControls({
                 <IconButton color="ghostSecondary" disabled={busy} size="toolbar" title="关闭移交对话框">
                   <X
                     aria-hidden="true"
-                    size={APP_ICON_SIZE + 2}
+                    size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 </IconButton>

@@ -409,7 +409,7 @@ export function ModelPickerPopover({
                         <ChevronRight
                           aria-hidden="true"
                           className="rm-intelligence-view-toggle-icon"
-                          size={12}
+                          size={APP_ICON_SIZE}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                         />
                       </span>

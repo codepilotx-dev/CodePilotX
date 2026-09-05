@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import {
@@ -151,7 +152,7 @@ export function ProfileSettings(): React.ReactNode {
               disabled={!user?.htmlUrl}
               onClick={() => user?.htmlUrl && void desktopClient.openExternalURL(user.htmlUrl)}
             >
-              <Edit3 />
+              <Edit3 size={APP_ICON_SIZE} />
               编辑
             </Button>
             <Button color="primary"
@@ -159,7 +160,7 @@ export function ProfileSettings(): React.ReactNode {
               onClick={() => void loadGithubAuth()}
               title={loading ? '正在刷新中...' : '刷新'}
             >
-              <RefreshCw />
+              <RefreshCw size={APP_ICON_SIZE} />
               {loading ? '刷新中...' : '刷新'}
             </Button>
 
@@ -176,11 +177,11 @@ export function ProfileSettings(): React.ReactNode {
                   {user?.avatarUrl ? (
                     <RemoteImage
                       alt=""
-                      fallback={<User />}
+                      fallback={<User size={APP_ICON_SIZE} />}
                       src={user.avatarUrl}
                     />
                   ) : (
-                    <User />
+                    <User size={APP_ICON_SIZE} />
                   )}
                 </div>
                 {user ? (
@@ -222,11 +223,11 @@ export function ProfileSettings(): React.ReactNode {
               ) : null}
               {githubOverview ? (
                 <div className="profile-meta-line">
-                  <ProfileMeta icon={<User />} value={`${githubOverview.user.followers} followers`} />
-                  <ProfileMeta icon={<GitFork />} value={`${githubOverview.user.following} following`} />
-                  <ProfileMeta icon={<MapPin />} value={githubOverview.user.location} />
-                  <ProfileMeta icon={<Globe />} value={githubOverview.user.websiteUrl} />
-                  <ProfileMeta icon={<Mail />} value={githubOverview.user.email} />
+                  <ProfileMeta icon={<User size={APP_ICON_SIZE} />} value={`${githubOverview.user.followers} followers`} />
+                  <ProfileMeta icon={<GitFork size={APP_ICON_SIZE} />} value={`${githubOverview.user.following} following`} />
+                  <ProfileMeta icon={<MapPin size={APP_ICON_SIZE} />} value={githubOverview.user.location} />
+                  <ProfileMeta icon={<Globe size={APP_ICON_SIZE} />} value={githubOverview.user.websiteUrl} />
+                  <ProfileMeta icon={<Mail size={APP_ICON_SIZE} />} value={githubOverview.user.email} />
                 </div>
               ) : null}
             </section>
@@ -322,7 +323,7 @@ export function ProfileSettings(): React.ReactNode {
                     onClick={() => void loadGithubAuth()}
                     type="button"
                   >
-                    <RefreshCw />
+                    <RefreshCw size={APP_ICON_SIZE} />
                     刷新
                   </Button>
                   <Button color="secondary"
@@ -512,7 +513,7 @@ function ProfileRepositoryRow({
       />
       <span className="profile-repository-name">{repository.fullName}</span>
       <span className="profile-repository-count">
-        <Star />
+        <Star size={APP_ICON_SIZE} />
         {repository.stargazerCount.toLocaleString()}
       </span>
     </button>

@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import {
   Check,
   ChevronLeft,
@@ -420,16 +421,16 @@ export function ModelSetupPage(): React.ReactNode {
                         <RemoteImage
                           alt=""
                           className="model-setup-provider-logo"
-                          fallback={<Server aria-hidden />}
+                          fallback={<Server size={APP_ICON_SIZE} aria-hidden />}
                           src={provider.logoURL}
                         />
-                      ) : <span className="model-setup-provider-logo"><Server aria-hidden /></span>}
+                      ) : <span className="model-setup-provider-logo"><Server size={APP_ICON_SIZE} aria-hidden /></span>}
                       <span className="model-setup-provider-copy">
                         <strong>{provider.displayName}</strong>
                         <small>{provider.providerID} · {provider.defaultModels.length} 个模型</small>
                       </span>
                       <span className="model-setup-provider-status" data-connected={connected || undefined}>
-                        {connected ? <><Check aria-hidden />已连接</> : '未连接'}
+                        {connected ? <><Check size={APP_ICON_SIZE} aria-hidden />已连接</> : '未连接'}
                       </span>
                     </button>
                   )
@@ -446,7 +447,7 @@ export function ModelSetupPage(): React.ReactNode {
                       <strong>{selectedProvider.displayName}</strong>
                       <p>{providerConnected ? '此供应商已经可以用于模型请求。' : '添加 API Key，或使用供应商支持的 OAuth。'}</p>
                     </div>
-                    {providerConnected ? <span className="model-setup-connected"><Check aria-hidden />已连接</span> : null}
+                    {providerConnected ? <span className="model-setup-connected"><Check size={APP_ICON_SIZE} aria-hidden />已连接</span> : null}
                   </div>
                   {!providerConnected && supportsApiKey ? (
                     <ApiKeyEditorForm
@@ -512,7 +513,7 @@ export function ModelSetupPage(): React.ReactNode {
                   setStep('provider')
                   setNotice(null)
                   setError(null)
-                }}><ChevronLeft aria-hidden />更换供应商</Button>
+                }}><ChevronLeft size={APP_ICON_SIZE} aria-hidden />更换供应商</Button>
               </div>
               <div
                 aria-label="模型"
@@ -545,7 +546,7 @@ export function ModelSetupPage(): React.ReactNode {
                         {metadata?.reasoning ? '推理' : null}
                         {metadata?.vision ? '图片' : null}
                       </span>
-                      {modelId === id ? <Check aria-hidden /> : null}
+                      {modelId === id ? <Check size={APP_ICON_SIZE} aria-hidden /> : null}
                     </button>
                   )
                 })}

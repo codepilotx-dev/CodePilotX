@@ -328,8 +328,8 @@
 }
 
 .sidebar-context-menu-leading {
-  width: calc(var(--cpx-comp-menu-icon-size) + 2px);
-  height: calc(var(--cpx-comp-menu-icon-size) + 2px);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -338,8 +338,8 @@
 
 .sidebar-context-menu-leading > svg,
 .sidebar-context-menu-leading > img {
-  width: calc(var(--cpx-comp-menu-icon-size) + 2px);
-  height: calc(var(--cpx-comp-menu-icon-size) + 2px);
+  width: var(--cpx-comp-menu-icon-size);
+  height: var(--cpx-comp-menu-icon-size);
   stroke-width: var(--cpx-comp-icon-stroke-width);
 }
 
@@ -497,8 +497,8 @@
 }
 
 .context-plugin-icon {
-  width: 18px;
-  height: 18px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -696,8 +696,8 @@
   .popover-item-icon,
   .popover-item-icon svg,
   .popover-item-icon img {
-    width: calc(var(--cpx-comp-menu-icon-size) + 2px);
-    height: calc(var(--cpx-comp-menu-icon-size) + 2px);
+    width: var(--cpx-comp-menu-icon-size);
+    height: var(--cpx-comp-menu-icon-size);
   }
 }
 

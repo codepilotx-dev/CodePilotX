@@ -179,8 +179,8 @@
   }
 
   svg {
-    width: clamp(48px, 14vh, 86px);
-    height: clamp(48px, 14vh, 86px);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 }
 

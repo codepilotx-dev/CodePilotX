@@ -356,7 +356,7 @@ export function DesktopBrowserPanel({
       >
         {!state.url ? (
           <div className="browser-empty-state">
-            <Globe2 size={86} strokeWidth={1.6} />
+            <Globe2 size={APP_ICON_SIZE} strokeWidth={1.6} />
             <strong>开始浏览</strong>
             <span>输入 URL 以打开页面</span>
           </div>

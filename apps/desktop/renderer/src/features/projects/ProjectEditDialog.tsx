@@ -269,7 +269,7 @@ export function ProjectEditDialog({
                 title="关闭编辑项目"
               >
                 <X
-                  size={APP_ICON_SIZE + 2}
+                  size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               </IconButton>
@@ -284,7 +284,7 @@ export function ProjectEditDialog({
                 <ProjectAppearancePicker
                   appearance={draftAppearance}
                   disabled={busy}
-                  glyphSize={16}
+                  glyphSize={APP_ICON_SIZE}
                   onChange={nextAppearance => {
                     setDraftAppearance(nextAppearance)
                     onAppearanceChange(nextAppearance)

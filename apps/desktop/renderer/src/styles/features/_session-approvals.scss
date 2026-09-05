@@ -193,8 +193,8 @@
 }
 
 .inline-approval-option-custom-icon .lucide-pen-line {
-  width: var(--cpx-sys-space-3);
-  height: var(--cpx-sys-space-3);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
@@ -324,8 +324,8 @@
   }
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 }
 
@@ -831,8 +831,8 @@
   transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
   &:hover {
@@ -1008,8 +1008,8 @@
   font: var(--cpx-sys-type-body);
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
   &:not(:disabled):hover {

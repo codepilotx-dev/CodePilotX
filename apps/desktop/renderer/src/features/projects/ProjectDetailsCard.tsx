@@ -51,7 +51,7 @@ export function ProjectDetailsCard({ appearance, conversationCount, openCount, u
         onClick={event => event.stopPropagation()}
       >
         <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
-          <ProjectAppearanceGlyph appearance={appearance} />
+          <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
           <strong title={project.name}>{project.name}</strong>
           <IconButton
             className="sidebar-project-hover-card-pin"

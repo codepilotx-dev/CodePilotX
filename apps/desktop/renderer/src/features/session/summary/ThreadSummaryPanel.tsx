@@ -334,7 +334,7 @@ function ThreadSummarySubagentsRow({
       <span className="thread-summary-subagents-summary__avatars">
         {subagents.slice(0, 4).map((subagent) => (
           <span aria-hidden="true" key={subagent.id}>
-            <Bot size={12} />
+            <Bot size={APP_ICON_SIZE} />
           </span>
         ))}
       </span>
@@ -440,7 +440,7 @@ function ThreadSummarySection({
           >
             <span id={headingId}>{title}</span>
             {!expanded ? collapsedSummary : null}
-            <ChevronDown aria-hidden="true" size={12} />
+            <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
           </button>
         </h2>
         <span className="thread-summary-section__actions">

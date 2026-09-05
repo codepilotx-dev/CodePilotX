@@ -69,7 +69,7 @@ export function WorkspaceFileTree(
               <ChevronRight
                 aria-hidden="true"
                 className="right-dock-tree-chevron"
-                size={14}
+                size={APP_ICON_SIZE}
               />
               <span>{folder.name}</span>
               {folder.role === 'primary' ? <em>主目录</em> : null}
@@ -474,13 +474,13 @@ function WorkspaceFileTreeContent({
           <LoaderCircle
             aria-hidden="true"
             className="right-dock-tree-chevron is-spinning"
-            size={14}
+            size={APP_ICON_SIZE}
           />
         ) : file.type === 'directory' && directoryErrors.has(key) ? (
           <RotateCcw
             aria-hidden="true"
             className="right-dock-tree-chevron"
-            size={14}
+            size={APP_ICON_SIZE}
           />
         ) : file.type === 'directory' ? (
           <ChevronRight
@@ -489,7 +489,7 @@ function WorkspaceFileTreeContent({
               'right-dock-tree-chevron',
               expandedDirectories.has(key) && 'is-expanded',
             )}
-            size={14}
+            size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (

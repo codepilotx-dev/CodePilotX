@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import {
   desktopClient,
   desktopClipboard,
@@ -655,7 +656,7 @@ export function ModelCenterWorkbench({
               loading={refreshingProviderData}
               onClick={() => void refreshProviderData()}
             >
-              {!refreshingProviderData ? <RefreshCw aria-hidden /> : null}
+              {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
               <span className="model-center-header-action-label">刷新</span>
             </Button>
           ) : null}
@@ -669,7 +670,7 @@ export function ModelCenterWorkbench({
                 setProviderEditorOpen(true);
               }}
             >
-              <Plus aria-hidden />
+              <Plus size={APP_ICON_SIZE} aria-hidden />
               <span className="model-center-header-action-label">
                 新增自定义 Provider
               </span>
@@ -687,7 +688,7 @@ export function ModelCenterWorkbench({
                   setProviderEditorOpen(true);
                 }}
               >
-                <Pencil aria-hidden />
+                <Pencil size={APP_ICON_SIZE} aria-hidden />
                 <span className="model-center-header-action-label">
                   编辑 Provider
                 </span>
@@ -696,7 +697,7 @@ export function ModelCenterWorkbench({
                 color="danger"
                 onClick={() => void deleteCustomProvider()}
               >
-                <Trash2 aria-hidden />
+                <Trash2 size={APP_ICON_SIZE} aria-hidden />
                 <span className="model-center-header-action-label">
                   删除 Provider
                 </span>
@@ -714,7 +715,7 @@ export function ModelCenterWorkbench({
               onClick={() => void testConnection()}
               title="测试当前连接"
             >
-              <Cable aria-hidden />
+              <Cable size={APP_ICON_SIZE} aria-hidden />
               <span className="model-center-header-action-label">
                 测试连接
               </span>
@@ -731,7 +732,7 @@ export function ModelCenterWorkbench({
               onClick={() => void fetchModels()}
               title="刷新模型目录"
             >
-              <RefreshCw aria-hidden className={busy ? "spin" : undefined} />
+              <RefreshCw size={APP_ICON_SIZE} aria-hidden className={busy ? "spin" : undefined} />
               <span className="model-center-header-action-label">
                 刷新目录
               </span>

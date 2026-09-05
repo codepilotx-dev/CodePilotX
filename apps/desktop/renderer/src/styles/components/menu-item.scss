@@ -53,7 +53,7 @@
 
   .popover-item.rich {
     grid-template-columns:
-      calc(var(--cpx-comp-menu-icon-size) + 2px)
+      var(--cpx-comp-menu-icon-size)
       minmax(0, 1fr)
       max-content;
     align-items: center;
@@ -103,7 +103,7 @@
   .sidebar-context-menu-sub-trigger {
     display: grid;
     grid-template-columns:
-      calc(var(--cpx-comp-menu-icon-size) + 2px)
+      var(--cpx-comp-menu-icon-size)
       minmax(min-content, 1fr)
       max-content;
     column-gap: var(--cpx-comp-row-gap);

@@ -54,8 +54,8 @@
 }
 
 .whats-new-heading-icon > svg {
-  width: 19px;
-  height: 19px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .whats-new-dialog-description {

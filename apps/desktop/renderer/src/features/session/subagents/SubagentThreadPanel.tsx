@@ -201,7 +201,7 @@ export function SubagentThreadPanel({
             </IconButton>
           ) : null}
           <span className="subagent-thread-panel__avatar" aria-hidden="true">
-            <Bot size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Bot size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </span>
           <div className="subagent-thread-panel__title-block">
             <h2>{task.displayName}</h2>
@@ -495,12 +495,12 @@ function StatusBadge({ status }: { status: SubagentRun['status'] }): React.React
   return (
     <span className="subagent-thread-panel__status-badge" data-status={status}>
       {isActiveRunStatus(status)
-        ? <LoaderCircle className="is-spinning" size={12} />
+        ? <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
         : status === 'completed'
-          ? <Check size={12} />
+          ? <Check size={APP_ICON_SIZE} />
           : status === 'failed'
-            ? <X size={12} />
-            : <Circle size={12} />}
+            ? <X size={APP_ICON_SIZE} />
+            : <Circle size={APP_ICON_SIZE} />}
       {subagentStatusLabel(status)}
     </span>
   )

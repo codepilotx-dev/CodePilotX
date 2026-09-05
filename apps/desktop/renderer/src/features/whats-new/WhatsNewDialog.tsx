@@ -96,7 +96,7 @@ export function WhatsNewDialog({
           >
             <header className="whats-new-dialog-header">
               <span aria-hidden="true" className="whats-new-heading-icon">
-                <Sparkles />
+                <Sparkles size={APP_ICON_SIZE} />
               </span>
               <div className="whats-new-dialog-heading">
                 <Dialog.Title className="whats-new-dialog-title">

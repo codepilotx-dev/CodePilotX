@@ -1440,7 +1440,7 @@ function FileReferenceButton({
             <span aria-hidden="true" className="md-file-reference__icon">
               <FileTypeIcon
                 path={reference.path}
-                size={16}
+                size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>

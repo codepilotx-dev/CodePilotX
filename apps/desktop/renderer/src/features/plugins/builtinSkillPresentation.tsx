@@ -64,7 +64,7 @@ export function BuiltinSkillIcon({
       alt=""
       aria-hidden="true"
       className={[
-        'tw:shrink-0 tw:object-cover tw:object-center',
+        'tw:shrink-0 tw:object-contain tw:object-center',
         className ?? '',
       ].filter(Boolean).join(' ')}
       height={size}

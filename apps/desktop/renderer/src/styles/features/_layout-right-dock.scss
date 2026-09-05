@@ -401,14 +401,14 @@
 
 .right-dock-tab.compact .right-dock-tab-icon,
 .right-dock-tab.compact .right-dock-tab-icon svg {
-  width: var(--cpx-sys-space-5);
-  height: var(--cpx-sys-space-5);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .right-dock-tab-icon,
 .right-dock-tab-icon svg {
-  width: 16px;
-  height: 16px;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   display: inline-flex;
   align-items: center;
   justify-content: center;

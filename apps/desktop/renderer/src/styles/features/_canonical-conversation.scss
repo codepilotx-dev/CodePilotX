@@ -181,8 +181,8 @@
   font: inherit;
 
   svg {
-    width: 15px;
-    height: 15px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 }
 
@@ -230,8 +230,8 @@
     cursor: pointer;
 
     svg {
-      width: 14px;
-      height: 14px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
     }
   }
 }
@@ -469,8 +469,8 @@
 
   &__chevron {
     flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     opacity: 1;
     transform: rotate(0deg);
     transition: transform var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
@@ -647,8 +647,8 @@
   }
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     transition: transform var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
   }
 
@@ -785,8 +785,8 @@
     }
 
     svg {
-      width: 15px;
-      height: 15px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
       stroke-width: 1.75;
     }
 
@@ -970,8 +970,8 @@
 
   > svg:not(.cpx-agent-activity__chevron) {
     flex: 0 0 auto;
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
 }
@@ -1017,8 +1017,8 @@
 
 .cpx-agent-activity__icon {
   flex: 0 0 auto;
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   color: inherit;
 }
 
@@ -1074,8 +1074,8 @@
 
 .cpx-agent-activity__chevron {
   flex: 0 0 auto;
-  width: var(--cpx-sys-space-3);
-  height: var(--cpx-sys-space-3);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   opacity: 0;
   transform: rotate(0deg);
   transition:
@@ -1175,8 +1175,8 @@
     font: var(--cpx-sys-type-caption);
 
     svg {
-      width: 14px;
-      height: 14px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
       stroke-width: 2;
     }
   }
@@ -1259,8 +1259,8 @@
 
 .canonical-file-mutation {
   &__message > svg {
-    width: 15px;
-    height: 15px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 
@@ -1300,16 +1300,16 @@
 
   > svg,
   &__icon > svg {
-    width: 15px;
-    height: 15px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     stroke-width: 1.75;
   }
 
   &__icon {
     position: relative;
     display: grid;
-    width: 15px;
-    height: 15px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     overflow: hidden;
 
     > svg {
@@ -1367,8 +1367,8 @@
 
     svg {
       flex: 0 0 auto;
-      width: 17px;
-      height: 17px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
       color: var(--cpx-sys-color-accent);
     }
   }
@@ -1429,8 +1429,8 @@
     );
 
     svg {
-      width: 17px;
-      height: 17px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
     }
   }
 
@@ -1541,8 +1541,8 @@
     }
 
     svg {
-      width: 15px;
-      height: 15px;
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
       transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
     }
   }

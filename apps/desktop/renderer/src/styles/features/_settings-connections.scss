@@ -27,8 +27,8 @@
   }
 
   &-icon {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-secondary);
     stroke-width: 1.75;
   }
@@ -267,8 +267,8 @@
 }
 
 .settings-provider-logo {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   border-radius: var(--cpx-sys-radius-md);
   flex-shrink: 0;
   object-fit: contain;

@@ -78,10 +78,10 @@ export function SkillCatalogCard({
 
 function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
   if (status === 'pass') {
-    return <ShieldCheck aria-hidden="true" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return <ShieldCheck aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
   if (status === 'warn') {
-    return <ShieldAlert aria-hidden="true" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return <ShieldAlert aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
-  return <ShieldX aria-hidden="true" size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+  return <ShieldX aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
 }

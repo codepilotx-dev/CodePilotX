@@ -189,7 +189,7 @@ export function GithubRepositoryModal({
 
             {!auth?.authenticated ? (
               <div className="github-login-panel">
-                <GitFork size={28} />
+                <GitFork size={APP_ICON_SIZE} />
                 <div>
                   <h3>登录 GitHub</h3>
                   <p>

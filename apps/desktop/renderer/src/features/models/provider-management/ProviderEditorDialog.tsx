@@ -303,7 +303,7 @@ export function ProviderEditorDialog({
               <div className="provider-editor-icon">
                 <Server
                   aria-hidden
-                  size={APP_ICON_SIZE + 4}
+                  size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               </div>
@@ -318,7 +318,7 @@ export function ProviderEditorDialog({
             </div>
             <Dialog.Close asChild>
               <IconButton color="ghostSecondary" size="toolbar" title="关闭">
-                <X aria-hidden />
+                <X size={APP_ICON_SIZE} aria-hidden />
               </IconButton>
             </Dialog.Close>
           </header>
@@ -342,7 +342,7 @@ export function ProviderEditorDialog({
                       <span>快速套用常用预设</span>
                       <Sparkles
                         aria-hidden
-                        size={APP_ICON_SIZE - 2}
+                        size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </div>
@@ -531,7 +531,7 @@ export function ProviderEditorDialog({
 
                 {isRemoteHttp && !allowInsecureHttp ? (
                   <div className="provider-editor-alert" data-tone="warning">
-                    <AlertTriangle aria-hidden />
+                    <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
                     <div>
                       <strong>检测到非本地明文 HTTP 端点</strong>
                       <p>当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback 明文 HTTP”或使用 HTTPS。</p>
@@ -616,12 +616,12 @@ const ProviderModelCard = memo(function ProviderModelCard({
           <span className="provider-editor-model-card-badge">{model.api}</span>
           {model.reasoning ? (
             <span className="provider-editor-model-card-tag provider-editor-model-tag--reasoning">
-              <Brain aria-hidden size={12} /> Reasoning
+              <Brain aria-hidden size={APP_ICON_SIZE} /> Reasoning
             </span>
           ) : null}
           {model.imageInput ? (
             <span className="provider-editor-model-card-tag provider-editor-model-tag--vision">
-              <Eye aria-hidden size={12} /> Vision
+              <Eye aria-hidden size={APP_ICON_SIZE} /> Vision
             </span>
           ) : null}
         </button>
@@ -759,7 +759,7 @@ function ModelEditor({
           onClick={() => setAdvanced(current => !current)}
           type="button"
         >
-          <ChevronRight aria-hidden="true" />
+          <ChevronRight size={APP_ICON_SIZE} aria-hidden="true" />
           高级配置与 Token 计费
         </button>
         <DisclosureContent

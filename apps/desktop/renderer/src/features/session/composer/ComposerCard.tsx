@@ -654,7 +654,7 @@ export function ComposerCard({
       key: 'code-review-uncommitted',
       label: '审阅未提交的更改',
       description: '审查当前工作树和暂存区中的变更',
-      icon: <ShieldCheck size={14} />,
+      icon: <ShieldCheck size={APP_ICON_SIZE} />,
       matchText: '代码审查 review uncommitted',
       onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
     },
@@ -665,7 +665,7 @@ export function ComposerCard({
         key: `code-review-branch:${branch}`,
         label: `与 ${branch} 比较`,
         description: '从 merge-base 开始审阅当前分支的变更',
-        icon: <GitBranch size={14} />,
+        icon: <GitBranch size={APP_ICON_SIZE} />,
         matchText: `代码审查 branch review ${branch}`,
         onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
       })),
@@ -693,7 +693,7 @@ export function ComposerCard({
       section: '最近任务',
       label: task.title,
       description: task.workspaceName,
-      icon: <MessageSquare size={14} />,
+      icon: <MessageSquare size={APP_ICON_SIZE} />,
       matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
       onSelect: () => insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
     }));
@@ -703,7 +703,7 @@ export function ComposerCard({
         section: '浏览器',
         label: browserContext.title || browserContext.url,
         description: browserContext.url,
-        icon: <Globe2 size={14} />,
+        icon: <Globe2 size={APP_ICON_SIZE} />,
         matchText: `${browserContext.title} ${browserContext.url} browser 网页`,
         onSelect: () => insertReference('browser', `网页：${browserContext.title || browserContext.url}`, browserContext.url),
       });
@@ -715,7 +715,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '返回上一级',
           description: parentWorkspacePath(contextDirectory),
-          icon: <ChevronLeft size={14} />,
+          icon: <ChevronLeft size={APP_ICON_SIZE} />,
           matchText: '返回 上一级 parent',
           onSelect: () => {
             setContextDirectory(parentWorkspacePath(contextDirectory));
@@ -730,7 +730,7 @@ export function ComposerCard({
         section: '文件和文件夹',
         label: '引用当前目录',
         description: contextDirectory === '.' ? workspace.name : contextDirectory,
-        icon: <Folder size={14} />,
+        icon: <Folder size={APP_ICON_SIZE} />,
         matchText: `引用 当前 目录 ${contextDirectory}`,
         onSelect: () => void addWorkspaceContextPath(contextDirectory, activeContextRequest),
       });
@@ -741,7 +741,7 @@ export function ComposerCard({
           label: entry.name,
           description: entry.path,
           meta: entry.type === 'directory' ? '进入' : undefined,
-          icon: entry.type === 'directory' ? <Folder size={14} /> : <File size={14} />,
+          icon: entry.type === 'directory' ? <Folder size={APP_ICON_SIZE} /> : <File size={APP_ICON_SIZE} />,
           matchText: `${entry.name} ${entry.path}`,
           onSelect: entry.type === 'directory'
             ? () => {
@@ -758,7 +758,7 @@ export function ComposerCard({
           key: 'files:loading',
           section: '文件和文件夹',
           label: '正在加载…',
-          icon: <Activity size={14} />,
+          icon: <Activity size={APP_ICON_SIZE} />,
           matchText: 'loading 加载',
           disabled: true,
           onSelect: () => {},
@@ -769,7 +769,7 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: '重新加载',
           description: contextEntriesError,
-          icon: <Activity size={14} />,
+          icon: <Activity size={APP_ICON_SIZE} />,
           matchText: 'retry 重试 重新加载',
           onSelect: () => setContextReloadToken(value => value + 1),
         });
@@ -1437,7 +1437,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={10}
+                      size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1468,7 +1468,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={10}
+                      size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1503,7 +1503,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={10}
+                      size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1941,7 +1941,7 @@ function composerCommandMenuItem(
     meta: command.source === 'skill' ? skillScopeLabel(command.skill.scope) : undefined,
     icon:
       command.source === "skill" ? (
-        <BuiltinSkillIcon skill={command.skill} size={14} />
+        <BuiltinSkillIcon skill={command.skill} size={APP_ICON_SIZE} />
       ) : (
         composerSlashCommandIcon(command.id)
       ),
@@ -1966,31 +1966,31 @@ function composerSlashCommandIcon(
 ): React.ReactNode {
   switch (id) {
     case "model":
-      return <Box size={14} />;
+      return <Box size={APP_ICON_SIZE} />;
     case "reasoning":
-      return <Brain size={14} />;
+      return <Brain size={APP_ICON_SIZE} />;
     case "plan":
-      return <ListChecks size={14} />;
+      return <ListChecks size={APP_ICON_SIZE} />;
     case "goal":
-      return <Target size={14} />;
+      return <Target size={APP_ICON_SIZE} />;
     case "review":
-      return <ShieldCheck size={14} />;
+      return <ShieldCheck size={APP_ICON_SIZE} />;
     case "compact":
-      return <Zap size={14} />;
+      return <Zap size={APP_ICON_SIZE} />;
     case "mcp":
-      return <Paperclip size={14} />;
+      return <Paperclip size={APP_ICON_SIZE} />;
     case "status":
-      return <Activity size={14} />;
+      return <Activity size={APP_ICON_SIZE} />;
     case "side":
-      return <MessageSquarePlus size={14} />;
+      return <MessageSquarePlus size={APP_ICON_SIZE} />;
     case "fork":
-      return <GitFork size={14} />;
+      return <GitFork size={APP_ICON_SIZE} />;
     case "archive":
-      return <Archive size={14} />;
+      return <Archive size={APP_ICON_SIZE} />;
     case "project":
-      return <Folder size={14} />;
+      return <Folder size={APP_ICON_SIZE} />;
     case "task":
-      return <MessageSquare size={14} />;
+      return <MessageSquare size={APP_ICON_SIZE} />;
   }
 }
 

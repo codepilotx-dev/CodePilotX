@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import { KeyRound, X } from 'lucide-react'
 import type React from 'react'
@@ -195,7 +196,7 @@ export function ApiKeyEditorDialog({
           >
             <header className="settings-management-dialog-header model-center-key-dialog-header">
               <div className="settings-management-dialog-heading model-center-key-dialog-heading">
-                <span className="model-center-key-dialog-icon"><KeyRound aria-hidden /></span>
+                <span className="model-center-key-dialog-icon"><KeyRound size={APP_ICON_SIZE} aria-hidden /></span>
                 <div>
                   <Dialog.Title id={titleId}>{editing ? '编辑 API Key' : '新增 API Key'}</Dialog.Title>
                   <Dialog.Description id={descriptionId}>
@@ -206,7 +207,7 @@ export function ApiKeyEditorDialog({
                 </div>
               </div>
               <Dialog.Close asChild>
-                <IconButton color="ghostSecondary" size="toolbar" title="关闭"><X aria-hidden /></IconButton>
+                <IconButton color="ghostSecondary" size="toolbar" title="关闭"><X size={APP_ICON_SIZE} aria-hidden /></IconButton>
               </Dialog.Close>
             </header>
             <ApiKeyEditorForm

@@ -207,17 +207,19 @@
 }
 
 .plugin-logo {
+  flex-shrink: 0;
   position: relative;
   display: inline-flex;
-  width: 100%;
-  height: 100%;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   align-items: center;
   justify-content: center;
 }
 
 .plugin-logo__image {
-  width: 100%;
-  height: 100%;
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
+  flex-shrink: 0;
   object-fit: contain;
 }
 
@@ -564,9 +566,9 @@
 }
 
 .catalog-plugin-prompts__plugin-icon {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
-  flex: 0 0 var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
+  flex: 0 0 var(--cpx-sys-icon-size);
   overflow: hidden;
   border-radius: var(--cpx-sys-radius-sm);
 }

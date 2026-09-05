@@ -762,7 +762,7 @@ export function PluginsSettingsPage({
                   description={skill.shortDescription || skill.description || '未提供技能说明。'}
                   icon={
                     getBuiltinSkillPresentation(skill) ? (
-                      <BuiltinSkillIcon skill={skill} />
+                      <BuiltinSkillIcon size={APP_ICON_SIZE} skill={skill} />
                     ) : (
                       <FileCode2
                         size={APP_ICON_SIZE}
@@ -939,7 +939,7 @@ function EmptyState({ label }: { label: string }): React.ReactNode {
       <span className="tw:grid tw:justify-items-center tw:gap-3">
         <Package
           aria-hidden="true"
-          size={APP_ICON_SIZE + 6}
+          size={APP_ICON_SIZE}
           strokeWidth={APP_ICON_STROKE_WIDTH}
         />
         {label}

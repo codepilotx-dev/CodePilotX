@@ -336,7 +336,7 @@ export function McpEditorDialog({
                   onClick={onOpenDocumentation}
                 >
                   官方 MCP 文档
-                  <ExternalLink aria-hidden="true" size={12} />
+                  <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} />
                 </Button>
               </span>
               <Dialog.Close asChild>

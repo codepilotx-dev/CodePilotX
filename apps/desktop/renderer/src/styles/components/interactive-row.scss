@@ -47,6 +47,8 @@
   }
 
   > svg {
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     display: block;
   }
 }

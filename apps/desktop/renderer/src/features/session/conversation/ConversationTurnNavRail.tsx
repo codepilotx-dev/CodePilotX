@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { FileTypeIcon } from "../../layout/FileTypeIcon.js";
@@ -161,7 +162,7 @@ function PreviewCard({
                   aria-hidden="true"
                   className="preview-card-output-icon"
                   path={output.path}
-                  size={18}
+                  size={APP_ICON_SIZE}
                 />
                 <span className="preview-card-output-label">
                   {output.label || fileName(output.path)}

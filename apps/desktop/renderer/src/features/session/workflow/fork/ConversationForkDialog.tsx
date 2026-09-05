@@ -64,7 +64,7 @@ export function ConversationForkDialog({
                   <IconButton className="tw:shrink-0" color="ghostSecondary" size="toolbar" title="关闭对话框">
                     <X
                       aria-hidden="true"
-                      size={APP_ICON_SIZE + 2}
+                      size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </IconButton>
@@ -146,7 +146,7 @@ function DestinationButton({
       <GitFork
         aria-hidden="true"
         className="tw:shrink-0"
-        size={APP_ICON_SIZE + 2}
+        size={APP_ICON_SIZE}
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
       <span className="tw:grid tw:min-w-0 tw:gap-1">

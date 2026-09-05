@@ -1521,8 +1521,8 @@
 
   .popover-item-leading,
   .popover-item-icon {
-    width: 18px;
-    height: 18px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
   .popover-item-label {
@@ -1669,8 +1669,8 @@
 
 .popover-usage-action-icon {
   flex: 0 0 auto;
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   color: var(--cpx-sys-color-fg-tertiary);
   stroke-width: 1.75;
 }

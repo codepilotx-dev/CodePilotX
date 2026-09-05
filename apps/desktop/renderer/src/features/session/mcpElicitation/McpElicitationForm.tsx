@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { CornerDownLeft, X } from 'lucide-react'
 import React from 'react'
 import { Button } from '../../../components/ui/Button.js'
@@ -164,14 +165,14 @@ export function McpElicitationForm({
         <Button color="secondary"
           onClick={onCancel}
         >
-          <X size={14} />
+          <X size={APP_ICON_SIZE} />
           取消
         </Button>
         <Button color="primary"
           onClick={handleSubmit}
         >
           提交
-          <CornerDownLeft size={14} />
+          <CornerDownLeft size={APP_ICON_SIZE} />
         </Button>
       </div>
     </section>
@@ -224,7 +225,7 @@ export function McpElicitationUnsupported({
         <Button color="secondary"
           onClick={onCancel}
         >
-          <X size={14} />
+          <X size={APP_ICON_SIZE} />
           取消
         </Button>
       </div>

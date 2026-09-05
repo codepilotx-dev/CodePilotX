@@ -142,8 +142,8 @@
 }
 
 .automation-row-icon svg {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   color: var(--cpx-sys-color-fg-secondary);
 }
 
@@ -273,8 +273,8 @@
 }
 
 .automation-empty-state svg {
-  width: var(--cpx-sys-space-8);
-  height: var(--cpx-sys-space-8);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .automation-empty-state h2,
@@ -345,8 +345,8 @@
 }
 
 .automation-suggestion-icon svg {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .automation-suggestions li[data-tone='info'] .automation-suggestion-icon {
@@ -586,8 +586,8 @@
 }
 
 .automation-save-state svg {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
 }
 
 .automation-save-retry {

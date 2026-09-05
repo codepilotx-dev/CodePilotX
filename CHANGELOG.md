@@ -17,6 +17,8 @@
 
 ### Changed
 
+- [desktop] 将全界面图标统一为侧边栏标准的 14×14，覆盖菜单、状态、文件图标、空状态与界面内 Logo。
+
 - [desktop] 统一项目与会话的 sidebar-indicator、sidebar-unread-dot 样式，复用项目行已有尾部容器并移除多余包裹。
 
 - [desktop] 侧栏会话右侧常态图标与悬停操作的列间距由 8px 缩至 4px，保持两种状态中心线对齐。

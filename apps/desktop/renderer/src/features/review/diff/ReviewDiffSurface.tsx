@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import {
   CheckCircle2,
@@ -887,7 +888,7 @@ export function LineCommentButton({
         onCreateDraft({ ...anchor, body: "" });
       }}
     >
-      <MessageSquarePlus size={12} />
+      <MessageSquarePlus size={APP_ICON_SIZE} />
     </button>
   );
 }
@@ -992,12 +993,12 @@ export function ReviewComment({
       <div className="review-comment-actions">
         {comment.status === "open" ? (
           <Button size="compact" type="button" onClick={onResolve}>
-            <CheckCircle2 size={12} />
+            <CheckCircle2 size={APP_ICON_SIZE} />
             解决
           </Button>
         ) : null}
         <Button size="compact" color="danger" type="button" onClick={onDelete}>
-          <Trash2 size={12} />
+          <Trash2 size={APP_ICON_SIZE} />
           删除
         </Button>
       </div>

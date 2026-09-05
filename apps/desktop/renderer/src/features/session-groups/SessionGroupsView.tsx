@@ -139,7 +139,7 @@ export function SessionGroupsView(): React.ReactNode {
         value: session.id,
         label: session.title,
         detail: session.workspaceLabel,
-        icon: <MessageSquare className="session-group-select-icon" size={14} />,
+        icon: <MessageSquare className="session-group-select-icon" size={APP_ICON_SIZE} />,
       }))
   }, [availableSessions, memberThreadIds])
 
@@ -276,7 +276,7 @@ export function SessionGroupsView(): React.ReactNode {
               <header className="session-group-detail__header">
                 <div className="session-group-detail__info">
                   <span className="chip-semantic accent session-group-eyebrow">
-                    <Sparkles size={11} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     共享上下文
                   </span>
                   <h1>{detail.group.name}</h1>
@@ -296,7 +296,7 @@ export function SessionGroupsView(): React.ReactNode {
 
               <section className="session-group-section">
                 <div className="session-group-section__title-row">
-                  <BookOpen size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <BookOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>当前摘要</h3>
                 </div>
                 <div className="session-group-digest-card">
@@ -323,7 +323,7 @@ export function SessionGroupsView(): React.ReactNode {
 
               <section className="session-group-section">
                 <div className="session-group-section__title-row">
-                  <Users size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <Users size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>成员会话</h3>
                   <span className="session-group-section-count">{detail.members.length}</span>
                 </div>
@@ -354,7 +354,7 @@ export function SessionGroupsView(): React.ReactNode {
                   {detail.members.map(member => (
                     <article className="session-group-member-card" key={member.threadId}>
                       <div className="session-group-member-card__icon">
-                        <MessageSquare size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </div>
                       <Link
                         className="session-group-member-card__body"
@@ -390,7 +390,7 @@ export function SessionGroupsView(): React.ReactNode {
 
               <section className="session-group-section">
                 <div className="session-group-section__title-row">
-                  <History size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                  <History size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>步骤时间线</h3>
                   <span className="session-group-section-count">{steps.length}</span>
                 </div>
@@ -474,7 +474,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={32} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <h2>暂无会话组</h2>
                 <p>将相关会话组织在一起，共享上下文并追踪每一步验证。</p>
                 <Button color="secondary" onClick={openCreateDialog}>创建新会话组</Button>
@@ -482,7 +482,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={32} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <h2>未找到会话组</h2>
                 <p>没有与“{search}”匹配的会话组。</p>
                 <Button color="secondary" size="compact" onClick={() => setSearch('')}>清除搜索</Button>
@@ -572,11 +572,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           )}
         >
           {isFailed ? (
-            <AlertCircle size={14} strokeWidth={2.2} />
+            <AlertCircle size={APP_ICON_SIZE} strokeWidth={2.2} />
           ) : isCompleted ? (
-            <CheckCircle2 size={14} strokeWidth={2.2} />
+            <CheckCircle2 size={APP_ICON_SIZE} strokeWidth={2.2} />
           ) : (
-            <Sparkles size={13} strokeWidth={2} />
+            <Sparkles size={APP_ICON_SIZE} strokeWidth={2} />
           )}
         </div>
         <span className="session-group-step__seq">{step.sequence}</span>
@@ -609,7 +609,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               to={`/threads/${encodeURIComponent(step.sourceThreadId)}`}
             >
               <span>打开来源</span>
-              <ArrowUpRight size={13} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <ArrowUpRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Link>
           ) : (
             <span className="session-group-step__link session-group-step__link--disabled">
@@ -666,11 +666,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               >
                 <div className="session-group-step__validation-header">
                   {validation.status === 'passed' ? (
-                    <Check className="u-text-success" size={14} />
+                    <Check className="u-text-success" size={APP_ICON_SIZE} />
                   ) : validation.status === 'failed' ? (
-                    <AlertCircle className="u-text-danger" size={14} />
+                    <AlertCircle className="u-text-danger" size={APP_ICON_SIZE} />
                   ) : (
-                    <History className="u-text-meta" size={14} />
+                    <History className="u-text-meta" size={APP_ICON_SIZE} />
                   )}
                   <strong>
                     {validation.status === 'passed'
@@ -690,7 +690,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         {step.failure ? (
           <div className="session-group-step__failure" role="alert">
             <div className="session-group-step__failure-title">
-              <AlertCircle size={15} />
+              <AlertCircle size={APP_ICON_SIZE} />
               <strong>失败阶段：{step.failure.stage}</strong>
             </div>
             <span>{step.failure.message}</span>
@@ -708,7 +708,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             >
               <FileDiff size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span>{step.changedFiles.length} 个变更文件</span>
-              {diffOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {diffOpen ? <ChevronUp size={APP_ICON_SIZE} /> : <ChevronDown size={APP_ICON_SIZE} />}
             </button>
             <DisclosureContent
               contentClassName="session-group-step__diff"

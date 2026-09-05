@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import {
   ArrowDown,
@@ -176,7 +177,7 @@ export function AskUserQuestionApproval({
             onClick={onReject}
           >
             拒绝
-            <CornerDownLeft size={16} />
+            <CornerDownLeft size={APP_ICON_SIZE} />
           </Button>
         </div>
       </div>
@@ -374,7 +375,7 @@ export function AskUserQuestionApproval({
                     className="inline-approval-option-custom-icon"
                     aria-hidden="true"
                   >
-                    <PenLine size={14} />
+                    <PenLine size={APP_ICON_SIZE} />
                   </span>
                   <textarea
                     ref={customInputRef}
@@ -456,7 +457,7 @@ export function AskUserQuestionApproval({
                       className="inline-approval-option-info"
                       aria-hidden="true"
                     >
-                      <Info size={14} />
+                      <Info size={APP_ICON_SIZE} />
                     </span>
                   ) : null}
                   {index === 0 ? (
@@ -476,7 +477,7 @@ export function AskUserQuestionApproval({
                       }
                       aria-hidden="true"
                     >
-                      {selected ? <Check size={14} /> : null}
+                      {selected ? <Check size={APP_ICON_SIZE} /> : null}
                     </span>
                   </span>
                 ) : selected ? (
@@ -485,8 +486,8 @@ export function AskUserQuestionApproval({
                       className="inline-approval-option-arrows"
                       aria-hidden="true"
                     >
-                      <ArrowUp size={14} />
-                      <ArrowDown size={14} />
+                      <ArrowUp size={APP_ICON_SIZE} />
+                      <ArrowDown size={APP_ICON_SIZE} />
                     </span>
                   </span>
                 ) : null}
@@ -507,7 +508,7 @@ export function AskUserQuestionApproval({
                   <Button color="secondary"
                     onClick={() => goToQuestion(-1)}
                   >
-                    <ChevronLeft size={14} />
+                    <ChevronLeft size={APP_ICON_SIZE} />
                     上一题
                   </Button>
                 ) : null}
@@ -516,7 +517,7 @@ export function AskUserQuestionApproval({
                     onClick={() => goToQuestion(1)}
                   >
                     下一题
-                    <ChevronRight size={14} />
+                    <ChevronRight size={APP_ICON_SIZE} />
                   </Button>
                 ) : null}
               </div>
@@ -527,7 +528,7 @@ export function AskUserQuestionApproval({
                 onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
               >
                 提交
-                <CornerDownLeft size={16} />
+                <CornerDownLeft size={APP_ICON_SIZE} />
               </Button>
             ) : null}
           </div>

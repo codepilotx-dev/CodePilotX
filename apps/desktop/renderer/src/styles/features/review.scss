@@ -373,9 +373,9 @@
 }
 
 .review-file-icon {
-  width: 16px;
-  min-width: 16px;
-  height: 16px;
+  width: var(--cpx-sys-icon-size);
+  min-width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   flex: 0 0 auto;
   margin-right: var(--cpx-sys-space-2);
 }
@@ -651,8 +651,8 @@
   opacity: 0;
 
   svg {
-    width: var(--cpx-sys-space-3);
-    height: var(--cpx-sys-space-3);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 }
 
@@ -1168,8 +1168,8 @@
   gap: var(--cpx-sys-space-3);
 
   > svg {
-    width: auto;
-    height: 72px;
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-tertiary);
     stroke-width: 1.2;
   }
@@ -1488,8 +1488,8 @@
     justify-content: center;
 
     svg {
-      width: var(--cpx-sys-space-4);
-      height: var(--cpx-sys-space-4);
+      width: var(--cpx-sys-icon-size);
+      height: var(--cpx-sys-icon-size);
       stroke-width: 1.75;
     }
 
@@ -1668,8 +1668,8 @@
   cursor: pointer;
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
   }
 
   &:hover {

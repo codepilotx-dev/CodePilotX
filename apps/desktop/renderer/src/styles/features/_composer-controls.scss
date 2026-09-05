@@ -101,8 +101,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
   flex-shrink: 0;
 }
 
@@ -115,9 +115,9 @@
 }
 
 .composer-plan-mode-chip-icon-exit {
-  width: var(--cpx-sys-space-4);
-  height: var(--cpx-sys-space-4);
-  padding: var(--cpx-sys-space-1);
+  width: var(--cpx-sys-icon-size);
+  height: var(--cpx-sys-icon-size);
+  padding: 0;
   border-radius: var(--cpx-sys-radius-full);
   background: color-mix(in srgb, currentColor 18%, transparent);
   opacity: 0;
@@ -144,8 +144,8 @@
   font: var(--cpx-sys-type-body-sm);
 
   > svg:first-child {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     display: block;
     flex-shrink: 0;
     stroke-width: 1.75;
@@ -190,8 +190,8 @@
   color: var(--cpx-sys-color-fg-primary);
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     display: block;
     stroke-width: 1.75;
   }
@@ -455,8 +455,8 @@
   color: var(--cpx-sys-color-fg-primary);
 
   svg {
-    width: var(--cpx-sys-space-4);
-    height: var(--cpx-sys-space-4);
+    width: var(--cpx-sys-icon-size);
+    height: var(--cpx-sys-icon-size);
     display: block;
   }
 }

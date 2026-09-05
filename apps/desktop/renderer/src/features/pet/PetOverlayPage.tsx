@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Send, X } from 'lucide-react'
 import { PetSprite } from './PetSprite.js'
@@ -109,14 +110,14 @@ export function PetOverlayPage(): React.ReactNode {
                   onClick={() => void controller.openThread(notification.threadId)}
                   type="button"
                 >
-                  <ExternalLink size={15} />
+                  <ExternalLink size={APP_ICON_SIZE} />
                 </button>
                 <button
                   aria-label="关闭提醒"
                   onClick={() => controller.dismiss(notification.id)}
                   type="button"
                 >
-                  <X size={15} />
+                  <X size={APP_ICON_SIZE} />
                 </button>
               </div>
             ) : null}
@@ -168,7 +169,7 @@ export function PetOverlayPage(): React.ReactNode {
                 disabled={replySubmitting || !reply.trim()}
                 type="submit"
               >
-                <Send size={14} />
+                <Send size={APP_ICON_SIZE} />
               </button>
               {replyError ? (
                 <span aria-live="polite" className="pet-overlay-reply-error">

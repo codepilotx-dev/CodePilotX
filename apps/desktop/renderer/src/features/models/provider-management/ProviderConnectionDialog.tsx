@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { UsageSourceDescriptor } from '@codepilotx/agent-protocol'
 import {
@@ -115,11 +116,11 @@ export function ProviderConnectionDialog({
                   size="toolbar"
                   title="返回连接方式"
                 >
-                  <ChevronLeft aria-hidden />
+                  <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
                 </IconButton>
               ) : (
                 <span className="model-center-key-dialog-icon">
-                  <Link2 aria-hidden />
+                  <Link2 size={APP_ICON_SIZE} aria-hidden />
                 </span>
               )}
               <div>
@@ -135,7 +136,7 @@ export function ProviderConnectionDialog({
             </div>
             <Dialog.Close asChild>
               <IconButton color="ghostSecondary" size="toolbar" title="关闭">
-                <X aria-hidden />
+                <X size={APP_ICON_SIZE} aria-hidden />
               </IconButton>
             </Dialog.Close>
           </header>
@@ -151,8 +152,8 @@ export function ProviderConnectionDialog({
                 >
                   <span className="model-center-connection-choice-icon">
                     {choice.kind === 'inference-key'
-                      ? <KeyRound aria-hidden size={18} />
-                      : <ShieldCheck aria-hidden size={18} />}
+                      ? <KeyRound aria-hidden size={APP_ICON_SIZE} />
+                      : <ShieldCheck aria-hidden size={APP_ICON_SIZE} />}
                   </span>
                   <span className="model-center-connection-choice-text">
                     <strong>{choiceLabel(choice)}</strong>

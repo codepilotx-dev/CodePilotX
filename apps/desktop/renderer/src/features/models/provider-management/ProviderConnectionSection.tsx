@@ -203,7 +203,7 @@ export function ProviderConnectionSection({
               </div>
             ) : (
               <div className="model-center-section-empty-hint">
-                <KeyRound aria-hidden size={20} />
+                <KeyRound aria-hidden size={APP_ICON_SIZE} />
                 <span>尚未保存此供应商的 API Key，点击右上角「新增 API Key」进行配置。</span>
               </div>
             )}
@@ -340,7 +340,7 @@ export function ProviderConnectionSection({
             <div className="model-center-account-readonly-list">
               {envConnections.map(connection => (
                 <div key={connection.id}>
-                  <Cable aria-hidden />
+                  <Cable size={APP_ICON_SIZE} aria-hidden />
                   <span>{connection.label}</span>
                   <strong>已生效</strong>
                 </div>
@@ -353,7 +353,7 @@ export function ProviderConnectionSection({
       {/* 6. Quick Connectivity Test Footer */}
       <section className="model-center-detail-card model-center-test-banner-card">
         <div className="model-center-test-banner-info">
-          <Zap aria-hidden size={20} />
+          <Zap aria-hidden size={APP_ICON_SIZE} />
           <div>
             <strong>快速连通性诊断</strong>
             <span>发送一个最小测试请求验证当前配置与凭据是否可用。</span>
@@ -412,7 +412,7 @@ function ApiKeyRowItem({
           size="iconMd"
           title={`上移 ${keyItem.label}`}
         >
-          <ArrowUp aria-hidden />
+          <ArrowUp size={APP_ICON_SIZE} aria-hidden />
         </IconButton>
         <IconButton
           color="ghostSecondary"
@@ -421,7 +421,7 @@ function ApiKeyRowItem({
           size="iconMd"
           title={`下移 ${keyItem.label}`}
         >
-          <ArrowDown aria-hidden />
+          <ArrowDown size={APP_ICON_SIZE} aria-hidden />
         </IconButton>
       </div>
 
@@ -454,7 +454,7 @@ function ApiKeyRowItem({
 
       <div className="model-center-key-actions">
         <Button color="secondary" disabled={busy} onClick={onCopy}>
-          <Copy aria-hidden />
+          <Copy size={APP_ICON_SIZE} aria-hidden />
           复制
         </Button>
         <Button color="secondary" disabled={busy} onClick={onTest} title="测试当前 Key 有效性">
@@ -470,7 +470,7 @@ function ApiKeyRowItem({
               size="iconMd"
               title={`操作 ${keyItem.label}`}
             >
-              <MoreHorizontal aria-hidden />
+              <MoreHorizontal size={APP_ICON_SIZE} aria-hidden />
             </IconButton>
           )}
           width={180}

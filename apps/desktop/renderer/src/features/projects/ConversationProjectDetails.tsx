@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { mergeCatalogProjects, useSidebarProjectCatalog } from '../layout/sidebar/useSidebarProjectCatalog.js'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -77,7 +78,7 @@ function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
         }}
         trigger={
           <IconButton ref={triggerRef} className="chat-session-project-details" color="ghostSecondary" size="toolbar" title={`项目详情：${managedProject.name}`}>
-            <ProjectAppearanceGlyph appearance={appearance} />
+            <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
           </IconButton>
         }
       >

@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -26,7 +27,7 @@ type Props = {
 export function ProjectAppearancePicker({
   appearance,
   disabled = false,
-  glyphSize = 16,
+  glyphSize = APP_ICON_SIZE,
   onChange,
 }: Props): React.ReactNode {
   const [open, setOpen] = useState(false)
@@ -77,7 +78,7 @@ export function ProjectAppearancePicker({
                 value={color}
               >
                 <RadioGroup.Indicator>
-                  <Check aria-hidden="true" size={14} />
+                  <Check aria-hidden="true" size={APP_ICON_SIZE} />
                 </RadioGroup.Indicator>
               </RadioGroup.Item>
             ))}
@@ -102,7 +103,7 @@ export function ProjectAppearancePicker({
               >
                 <ProjectAppearanceGlyph
                   appearance={{ ...appearance, icon }}
-                  size={19}
+                  size={APP_ICON_SIZE}
                 />
               </RadioGroup.Item>
             ))}

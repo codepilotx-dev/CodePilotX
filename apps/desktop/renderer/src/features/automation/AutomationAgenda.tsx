@@ -65,7 +65,7 @@ export function AutomationAgenda({
               aria-label={`在 ${dateValue} 新建任务`}
               onClick={event => onQuickCreate(dateValue, event.currentTarget)}
             >
-              <Plus aria-hidden="true" size={12} />
+              <Plus aria-hidden="true" size={APP_ICON_SIZE} />
               <span>新建</span>
             </Button>
           ) : null}
@@ -121,7 +121,7 @@ export function AutomationAgenda({
                           title="立即运行"
                           onClick={() => onRunOccurrence(occurrence)}
                         >
-                          <Play aria-hidden="true" size={12} />
+                          <Play aria-hidden="true" size={APP_ICON_SIZE} />
                         </IconButton>
                       ) : null}
                       {occurrence.threadId && onOpenThread ? (
@@ -131,7 +131,7 @@ export function AutomationAgenda({
                           title="查看会话"
                           onClick={() => onOpenThread(occurrence.threadId!)}
                         >
-                          <MessageSquare aria-hidden="true" size={12} />
+                          <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
                         </IconButton>
                       ) : null}
                     </div>
