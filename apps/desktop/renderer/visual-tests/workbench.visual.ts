@@ -58,6 +58,555 @@ const MARKDOWN_TYPOGRAPHY_CASES = [
   { id: 'compact-dark', mode: 'dark', width: 960, height: 640 },
 ] as const
 
+for (const viewport of VIEWPORTS) {
+  test(`calendar focus preserves the loaded range and keyboard flow ${viewport.id}`, async ({ page }, testInfo) => {
+    testInfo.setTimeout(180_000)
+    page.setDefaultTimeout(10_000)
+    await page.setViewportSize(viewport)
+    await gotoWorkbenchFixture(page, '/?visualCase=rich#/threads/visual-rich')
+    await page.getByRole('button', { name: '知道了', exact: true }).click()
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.evaluate(() => { document.documentElement.dataset.reduceMotion = 'off' })
+    const ranges: Array<{ from: number; to: number }> = []
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    await page.exposeFunction('recordCalendarRange', (range: { from: number; to: number }) => {
+      ranges.push(range)
+    })
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const modelPath = '/src/features/automation/automationModel.ts'
+      const { desktopClient } = await import(clientPath)
+      const { defaultAutomationDraft } = await import(modelPath)
+      const scheduledFor = new Date(2026, 8, 5, 9).getTime()
+      const draft = defaultAutomationDraft({ projectId: null, model: { providerID: 'openai', id: 'gpt-5' } })
+      const tasks = Array.from({ length: 7 }, (_, index) => ({
+        ...draft,
+        id: `calendar-focus-${index}`,
+        revision: 1,
+        name: `聚焦任务 ${index + 1}`,
+        prompt: '检查日历交互',
+        kind: 'thread',
+        targetThreadId: 'visual-rich',
+        execution: null,
+        scheduledFor: scheduledFor + index * 3_600_000,
+        status: 'scheduled',
+        threadId: null,
+        turnId: null,
+        worktreeId: null,
+        readAt: null,
+        safeErrorCode: null,
+        createdAt: scheduledFor,
+        updatedAt: scheduledFor,
+        startedAt: null,
+        completedAt: null,
+        cancelledAt: null,
+      }))
+      const capabilities = await desktopClient.getRuntimeCapabilities()
+      desktopClient.getRuntimeCapabilities = async () => [...new Set([...capabilities, 'calendar.manage.v1', 'automation.manage.v1'])]
+      desktopClient.listSessions = async () => [{ item: { id: 'visual-rich', customTitle: '测试聊天', archivedAt: null } }]
+      desktopClient.listAutomations = async () => ({ automations: [] })
+      desktopClient.listAutomationRuns = async () => ({ runs: [] })
+      desktopClient.listProjects = async () => []
+      desktopClient.listCalendarOccurrences = async (range: { from: number; to: number }) => {
+        await (window as unknown as { recordCalendarRange(range: { from: number; to: number }): Promise<void> }).recordCalendarRange(range)
+        return {
+          occurrences: tasks.map(task => ({
+            id: task.id,
+            source: { kind: 'scheduled-task', id: task.id },
+            definitionKind: 'one-off',
+            title: task.name,
+            scheduledFor: task.scheduledFor,
+            status: task.status,
+            runId: null,
+            threadId: null,
+            proposalId: null,
+          })),
+          truncated: false,
+        }
+      }
+      desktopClient.readScheduledTask = async ({ id }: { id: string }) => ({ scheduledTask: tasks.find(task => task.id === id) })
+      desktopClient.updateScheduledTask = async ({ id, expectedRevision, ...patch }: Partial<(typeof tasks)[number]> & { id: string; expectedRevision: number }) => {
+        const index = tasks.findIndex(task => task.id === id)
+        if (index < 0 || tasks[index].revision !== expectedRevision) throw new Error('测试任务版本不匹配')
+        tasks[index] = { ...tasks[index], ...patch, revision: expectedRevision + 1 }
+        return { scheduledTask: tasks[index] }
+      }
+      window.location.hash = '/automations?date=2026-09-05'
+    })
+    const calendar = page.locator('.automation-calendar')
+    const shell = page.locator('.automation-focus-shell')
+    const pages = shell.locator('.automation-focus-pages')
+    const agenda = shell.locator('[data-page="agenda"]')
+    const detail = page.locator('.automation-focus-dialog')
+    const day = calendar.locator('[data-calendar-date="2026-09-05"]')
+    const trigger = day.locator('.automation-calendar__day-item').first()
+    await expect(trigger).toBeVisible()
+    const loadedRangeCount = ranges.length
+    expect(loadedRangeCount).toBeGreaterThan(0)
+    expect(ranges.every(range => (range.to - range.from) / 86_400_000 === 42)).toBe(true)
+    await expect(calendar.getByRole('gridcell')).toHaveCount(42)
+    expect(await calendar.locator(".automation-calendar__grid-scroll").evaluate(element => element.scrollHeight)).toBeGreaterThan(viewport.height)
+    await expect(calendar.locator('aside')).toHaveCount(0)
+    await expect(calendar.getByRole('button', { name: /[收起展开]+当日议程/ })).toHaveCount(0)
+    const otherDay = calendar.locator('[data-calendar-date="2026-09-06"]')
+    await otherDay.locator('.automation-calendar__day-num').click()
+    await expect(otherDay).toHaveAttribute('aria-selected', 'true')
+    await expect(page).toHaveURL(/date=2026-09-06/)
+    await expect(agenda).toBeHidden()
+    await expect(detail).toBeHidden()
+    await day.click({ position: { x: 50, y: 180 } })
+    await expect(agenda).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await trigger.focus()
+    await expect(trigger).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(agenda).toBeVisible()
+    await expect(trigger).toHaveAttribute('data-automation-focus-open')
+    await expect(agenda.locator('[data-highlighted="true"]')).toContainText('聚焦任务 1')
+    await expect(agenda.locator('[data-agenda-occurrence-id="calendar-focus-0"]')).toBeFocused()
+    await expect(trigger).toHaveCSS('transform', 'none')
+    await expect(trigger).toHaveCSS('transition-duration', '0s')
+    await expect(agenda).toHaveCSS('animation-name', 'none')
+    await expect(page.locator('.automation-calendar__focus-backdrop')).toHaveCSS('animation-name', 'none')
+    await expect(page.locator('.automation-calendar__focus-backdrop')).toHaveCSS('backdrop-filter', 'blur(4px)')
+    expect(await trigger.evaluate(element => Number(getComputedStyle(element).zIndex))).toBeGreaterThan(
+      await page.locator('.automation-calendar__focus-backdrop').evaluate(element => Number(getComputedStyle(element).zIndex)),
+    )
+    await expect(trigger).toHaveCSS('filter', 'none')
+    await expect(shell).toHaveCount(1)
+    await expect(page.locator('.automation-calendar__focus-backdrop')).toHaveCount(1)
+    const agendaBox = await shell.boundingBox()
+    expect(agendaBox).not.toBeNull()
+    expect(agendaBox!.x).toBeGreaterThanOrEqual(0)
+    expect(agendaBox!.y).toBeGreaterThanOrEqual(36)
+    expect(agendaBox!.x + agendaBox!.width).toBeLessThanOrEqual(viewport.width)
+    expect(agendaBox!.y + agendaBox!.height).toBeLessThanOrEqual(viewport.height)
+    await testInfo.attach(`calendar-agenda-${viewport.id}`, { body: await page.screenshot({ path: testInfo.outputPath('calendar-agenda.png') }), contentType: 'image/png' })
+    await page.keyboard.press('Escape')
+    await expect(agenda).toBeHidden()
+    await expect(trigger).toBeFocused()
+    await trigger.click()
+    await page.locator('.automation-calendar__focus-backdrop').click({ position: { x: 8, y: 48 } })
+    await expect(agenda).toBeHidden()
+    await expect(trigger).toBeFocused()
+
+    const more = day.getByRole('button', { name: '+2 项', exact: true })
+    await more.click()
+    await expect(agenda).toBeVisible()
+    for (let index = 1; index <= 7; index += 1) {
+      await expect(agenda.getByText(`聚焦任务 ${index}`, { exact: true })).toBeVisible()
+    }
+    const originBox = await shell.boundingBox()
+    await shell.evaluate(element => { element.setAttribute('data-test-shell', 'retained') })
+    await pages.evaluate(element => {
+      const transitions: Array<{ direction: string; inert: boolean }> = []
+      new MutationObserver(() => {
+        const direction = element.getAttribute('data-direction')
+        if (direction) transitions.push({ direction, inert: element.querySelector('[data-leaving]')?.hasAttribute('inert') === true })
+        element.setAttribute('data-test-transitions', JSON.stringify(transitions))
+      }).observe(element, { attributes: true, attributeFilter: ['data-direction'], subtree: false })
+    })
+    await agenda.getByText('聚焦任务 1', { exact: true }).click()
+    await expect(pages).not.toHaveAttribute('data-direction')
+    await expect(shell).toHaveAttribute('data-test-shell', 'retained')
+    await expect(page.locator('.automation-calendar__focus-backdrop')).toHaveCount(1)
+    expect(await shell.boundingBox()).toMatchObject({ x: originBox!.x, y: originBox!.y, width: originBox!.width })
+    expect((await shell.boundingBox())!.height).toBeLessThanOrEqual(560)
+    expect(JSON.parse(await pages.getAttribute('data-test-transitions') ?? '[]')).toContainEqual({ direction: 'forward', inert: true })
+    await expect(detail).toBeVisible()
+    await expect(agenda).toBeHidden()
+    await expect(detail).toHaveCSS('animation-name', 'none')
+    await expect(detail.getByRole('combobox', { name: '运行方式', exact: true })).toBeHidden()
+    await expect(detail.getByRole('button', { name: '目标聊天', exact: true })).toBeVisible()
+    const detailBox = await detail.boundingBox()
+    expect(detailBox).not.toBeNull()
+    expect(detailBox!.width).toBeLessThanOrEqual(400)
+    expect(detailBox!.x).toBeGreaterThanOrEqual(0)
+    expect(detailBox!.y).toBeGreaterThanOrEqual(36)
+    expect(detailBox!.x + detailBox!.width).toBeLessThanOrEqual(viewport.width)
+    expect(detailBox!.y + detailBox!.height).toBeLessThanOrEqual(viewport.height)
+    await testInfo.attach(`calendar-detail-${viewport.id}`, { body: await page.screenshot({ path: testInfo.outputPath('calendar-detail.png') }), contentType: 'image/png' })
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('')
+    const discard = page.getByRole('alertdialog', { name: '丢弃未保存的修改？' })
+    const exitPrompt = detail.getByRole('button', { name: '再按一次退出', exact: true })
+    const returnPrompt = detail.getByRole('button', { name: '再按一次返回', exact: true })
+    await expect(detail.getByRole('button', { name: '关闭详情' })).toBeVisible()
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(returnPrompt).toBeFocused()
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(exitPrompt).toBeVisible()
+    await expect(returnPrompt).toHaveCount(0)
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(returnPrompt).toBeVisible()
+    await expect(exitPrompt).toHaveCount(0)
+    await expect(discard).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(detail.getByRole('button', { name: '返回当日议程' })).toBeFocused()
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('')
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await returnPrompt.click()
+    await expect(pages).not.toHaveAttribute('data-direction')
+    await expect(detail).toBeHidden()
+    await expect(agenda).toBeVisible()
+    expect(await shell.boundingBox()).toMatchObject({ x: originBox!.x, y: originBox!.y, width: originBox!.width })
+    expect((await shell.boundingBox())!.height).toBeLessThanOrEqual(560)
+    expect(JSON.parse(await pages.getAttribute('data-test-transitions') ?? '[]')).toContainEqual({ direction: 'back', inert: true })
+    await expect(agenda.locator('[data-agenda-occurrence-id="calendar-focus-0"]')).toBeFocused()
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await agenda.getByText('聚焦任务 1', { exact: true }).click()
+    await expect(pages).not.toHaveAttribute('data-direction')
+    await expect(detail).toBeVisible()
+    await expect(shell.locator('[data-page="detail"]')).toHaveCSS('animation-name', 'none')
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(agenda).toBeVisible()
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(clientPath)
+      const read = desktopClient.readScheduledTask
+      desktopClient.readScheduledTask = (input: { id: string }) => new Promise(resolve => {
+        ;(window as unknown as { finishCalendarRead: () => Promise<void> }).finishCalendarRead = async () => {
+          desktopClient.readScheduledTask = read
+          resolve(await read(input))
+        }
+      })
+    })
+    await agenda.getByText('聚焦任务 1', { exact: true }).click()
+    await expect(detail.getByText('正在载入任务详情', { exact: true })).toBeVisible()
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(agenda).toBeVisible()
+    await page.evaluate(async () => {
+      await (window as unknown as { finishCalendarRead: () => Promise<void> }).finishCalendarRead()
+    })
+    await expect(detail).toBeHidden()
+    await expect(page).not.toHaveURL(/scheduledTaskId=/)
+    await page.setViewportSize({ width: viewport.width - 120, height: viewport.height - 80 })
+    const resizedBox = await shell.boundingBox()
+    expect(resizedBox!.x + resizedBox!.width).toBeLessThanOrEqual(viewport.width - 120)
+    expect(resizedBox!.y + resizedBox!.height).toBeLessThanOrEqual(viewport.height - 80)
+    await agenda.getByText('聚焦任务 1', { exact: true }).click()
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toBeVisible()
+    expect(await shell.boundingBox()).toMatchObject({ x: resizedBox!.x, y: resizedBox!.y, width: resizedBox!.width })
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(agenda).toBeVisible()
+    await page.setViewportSize(viewport)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.keyboard.press('Escape')
+    await expect(more).toBeFocused()
+
+    await calendar.getByRole('radio', { name: '周', exact: true }).click()
+    await calendar.locator('.automation-calendar__week-card').first().click()
+    await expect(agenda).toBeVisible()
+    await expect(detail).toBeHidden()
+    await page.keyboard.press('Escape')
+    await calendar.getByRole('radio', { name: '列表', exact: true }).click()
+    const listTask = calendar.locator('.automation-calendar__list-card-content').first()
+    await listTask.focus()
+    await page.keyboard.press('Enter')
+    await expect(detail).toBeVisible()
+    await expect(agenda).toBeHidden()
+    await expect(detail.getByRole('button', { name: '返回当日议程' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await page.locator('.automation-calendar__focus-backdrop').click({ position: { x: viewport.width - 8, y: viewport.height - 80 } })
+    await expect(detail).toBeVisible()
+    await expect(exitPrompt).toHaveCount(0)
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(detail).toBeHidden()
+    await expect(listTask).toBeFocused()
+
+    for (const name of ['计划任务', '自动化', '执行记录', '全部']) {
+      await page.getByRole('tab', { name, exact: true }).click()
+      await expect(calendar).toBeVisible()
+      await expect(page.locator('.automation-loading')).toHaveCount(0)
+    }
+    const search = page.getByRole('searchbox', { name: '搜索已安排任务' })
+    await search.fill('聚焦任务 2')
+    await expect(calendar.locator('.automation-calendar__list-card')).toHaveCount(1)
+    await calendar.getByRole('radio', { name: '月', exact: true }).click()
+    await day.locator('.automation-calendar__day-item').first().click()
+    await expect(detail).toBeVisible()
+    await expect(agenda).toBeHidden()
+    await expect(detail.getByRole('button', { name: '返回当日议程' })).toHaveCount(0)
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(shell).toHaveCount(0)
+    await search.fill('')
+    await trigger.click()
+    // External filter updates can remove an anchor while its modal layer is open.
+    await page.getByRole('searchbox', { name: '搜索已安排任务', includeHidden: true }).evaluate((element: HTMLInputElement) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(element, 'no matching task')
+      element.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await expect(agenda).toBeHidden()
+    await expect(day).toBeFocused()
+    await search.fill('')
+
+    const create = day.getByRole('button', { name: '在 2026-09-05 新建任务', exact: true })
+    await create.click()
+    await expect(detail).toBeVisible()
+    expect(await shell.boundingBox()).toMatchObject({ x: originBox!.x, y: originBox!.y, width: originBox!.width })
+    await expect(detail.getByText('新计划', { exact: true })).toHaveCount(0)
+    await expect(detail.getByRole('alert')).toHaveCount(0)
+    await expect(detail.getByRole('button', { name: '创建计划任务', exact: true })).toBeDisabled()
+    const settingsToggle = detail.getByRole('button', { name: '更多设置', exact: true })
+    await settingsToggle.focus()
+    await page.keyboard.press('Enter')
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('Space')
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(detail.getByRole('combobox', { name: '运行方式', exact: true })).toBeHidden()
+    await expect(settingsToggle.locator('svg')).toHaveCount(0)
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('尚未填写说明')
+    await page.keyboard.press('Escape')
+    await expect(detail).toBeVisible()
+    await expect(exitPrompt).toHaveCount(0)
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(exitPrompt).toBeFocused()
+    await expect(discard).toHaveCount(0)
+    expect(await exitPrompt.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('继续编辑保留确认')
+    await expect(exitPrompt).toBeVisible()
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await detail.getByRole('combobox', { name: '运行方式', exact: true }).click()
+    await expect(page.getByRole('listbox')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await expect(exitPrompt).toBeVisible()
+    await page.locator('.automation-calendar__focus-backdrop').click({ position: { x: viewport.width - 8, y: viewport.height - 80 } })
+    await expect(exitPrompt).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(exitPrompt).toHaveCount(0)
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('继续编辑保留确认')
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await exitPrompt.click()
+    await expect(detail).toBeHidden()
+    await expect(create).toBeFocused()
+    await page.emulateMedia({ forcedColors: 'active' })
+    await trigger.click()
+    await expect(shell).toHaveCSS('border-top-style', 'solid')
+    await expect(page.locator('.automation-calendar__focus-backdrop')).toHaveCSS('backdrop-filter', 'none')
+    await page.keyboard.press('Escape')
+    expect(ranges).toHaveLength(loadedRangeCount)
+    await page.emulateMedia({ forcedColors: 'none' })
+
+    // Collapsing settings never discards a value, including across an explicit save.
+    await page.evaluate(() => { window.location.hash = '/automations?date=2026-09-05&scheduledTaskId=calendar-focus-0' })
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('聚焦任务 1')
+    const dateInput = detail.getByLabel('执行日期', { exact: true })
+    const timeInput = detail.getByLabel('执行时刻', { exact: true })
+    await expect(dateInput).toHaveAttribute('type', 'date')
+    await expect(timeInput).toHaveAttribute('type', 'time')
+    await dateInput.fill('')
+    await expect(timeInput).toHaveValue('09:00')
+    await expect(detail.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+    await dateInput.fill('2026-09-05')
+    await timeInput.fill('')
+    await expect(dateInput).toHaveValue('2026-09-05')
+    await expect(detail.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+    await timeInput.fill('10:30')
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await detail.getByRole('combobox', { name: '通知策略', exact: true }).click()
+    await page.getByRole('option', { name: '仅失败', exact: true }).click()
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await detail.getByRole('button', { name: '保存', exact: true }).click()
+    await expect(detail.getByRole('button', { name: '保存', exact: true })).toBeEnabled()
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(detail).toBeHidden()
+    await page.evaluate(() => { window.location.hash = '/automations?date=2026-09-05&scheduledTaskId=calendar-focus-0' })
+    await expect(dateInput).toHaveValue('2026-09-05')
+    await expect(timeInput).toHaveValue('10:30')
+    await expect(detail.getByRole('combobox', { name: '通知策略', exact: true })).toBeHidden()
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await expect(detail.getByRole('combobox', { name: '通知策略', exact: true })).toContainText('仅失败')
+    await detail.getByRole('button', { name: '保存', exact: true }).click()
+    await expect(detail.getByRole('button', { name: '保存', exact: true })).toBeEnabled()
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'true')
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(clientPath)
+      desktopClient.updateScheduledTask = async () => { throw new Error('保存失败，请稍后重试（测试）') }
+    })
+    await detail.getByRole('button', { name: '保存', exact: true }).click()
+    await expect(detail.getByRole('alert')).toHaveText('保存失败，请稍后重试（测试）')
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('')
+    await expect(detail.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+    await expect(detail.getByRole('alert')).toHaveText('保存失败，请稍后重试（测试）')
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await exitPrompt.click()
+    await expect(detail).toBeHidden()
+
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(clientPath)
+      const originalRead = desktopClient.readScheduledTask
+      const { scheduledTask } = await originalRead({ id: 'calendar-focus-0' })
+      desktopClient.readScheduledTask = async ({ id }: { id: string }) => id === 'calendar-readonly'
+        ? { scheduledTask: { ...scheduledTask, id, name: '执行中的摘要任务', status: 'running', threadId: 'visual-rich', prompt: Array.from({ length: 12 }, (_, index) => `第 ${index + 1} 行：完整任务说明必须保留。`).join(String.fromCharCode(10)) } }
+        : originalRead({ id })
+      window.location.hash = '/automations?date=2026-09-05&scheduledTaskId=calendar-readonly'
+    })
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('执行中的摘要任务')
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveAttribute('readonly')
+    await expect(dateInput).toHaveAttribute('readonly')
+    await expect(timeInput).toHaveAttribute('readonly')
+    await expect(detail.getByRole('textbox', { name: '任务说明', exact: true })).toHaveAttribute('readonly')
+    await expect(detail.getByRole('textbox', { name: '任务说明', exact: true })).toHaveValue(/第 12 行/)
+    await expect(detail.getByRole('button', { name: '目标聊天', exact: true })).toBeDisabled()
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveCSS('opacity', '1')
+    await expect(detail.getByRole('button', { name: '展开全文', exact: true })).toHaveCount(0)
+    await expect(detail.locator('.automation-summary-prompt')).toHaveCount(0)
+    await testInfo.attach(`calendar-summary-${viewport.id}`, { body: await page.screenshot({ path: testInfo.outputPath('calendar-summary.png') }), contentType: 'image/png' })
+    await detail.getByRole('button', { name: '打开执行任务', exact: true }).click()
+    await expect(page).toHaveURL(/threads\/visual-rich/)
+
+    await page.evaluate(() => { window.location.hash = '/automations?date=2026-09-05&automationMode=create' })
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toBeVisible()
+    await expect(detail.getByText('新任务', { exact: true })).toHaveCount(0)
+    await expect(detail.getByRole('alert')).toHaveCount(0)
+    await expect(detail.getByRole('button', { name: '创建自动化', exact: true })).toBeDisabled()
+    await expect(detail.getByRole('textbox', { name: '任务说明', exact: true })).toHaveAttribute('rows', '3')
+    await expect(detail.getByRole('button', { name: '项目', exact: true })).toBeVisible()
+    await expect(detail.getByRole('combobox', { name: '运行方式', exact: true })).toBeHidden()
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await detail.getByRole('combobox', { name: '运行方式', exact: true }).click()
+    await page.getByRole('option', { name: '续接聊天', exact: true }).click()
+    await detail.getByRole('button', { name: '更多设置', exact: true }).click()
+    await expect(detail.getByRole('button', { name: '目标聊天', exact: true })).toBeVisible()
+    await expect(detail.getByRole('button', { name: '目标聊天', exact: true })).toContainText('测试聊天')
+    await expect(detail.getByRole('button', { name: '项目', exact: true })).toHaveCount(0)
+    for (const schedule of ['每周', '每小时', '自定义 RRULE']) {
+      await detail.getByRole('combobox', { name: '排期', exact: true }).click()
+      await page.getByRole('option', { name: schedule, exact: true }).click()
+      if (schedule === '每周') {
+        await expect(detail.getByRole('combobox', { name: '每周执行日', exact: true })).toBeVisible()
+        await expect(detail.getByLabel('执行时间', { exact: true })).toBeVisible()
+      } else if (schedule === '每小时') {
+        await expect(detail.getByRole('spinbutton', { name: '间隔（分钟）', exact: true })).toBeVisible()
+      } else {
+        await expect(detail.getByRole('textbox', { name: /RFC 5545 RRULE/ })).toBeVisible()
+      }
+      const box = await detail.boundingBox()
+      const footer = await detail.locator('.automation-detail-footer').boundingBox()
+      expect(box!.width).toBeLessThanOrEqual(400)
+      expect(footer!.y).toBeGreaterThanOrEqual(box!.y)
+      expect(footer!.y + footer!.height).toBeLessThanOrEqual(box!.y + box!.height + 1)
+      expect(await detail.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    }
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('校验提示测试')
+    await detail.getByRole('textbox', { name: '任务说明', exact: true }).fill('测试保存错误')
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const { desktopClient } = await import(clientPath)
+      const preview = desktopClient.previewAutomationSchedule
+      desktopClient.previewAutomationSchedule = async (input: Parameters<typeof preview>[0]) => {
+        if (input.schedule.mode === 'custom' && input.schedule.rrule === 'INVALID') throw new Error('排期格式无效（测试）')
+        return { canonicalRrule: input.schedule.mode === 'custom' ? input.schedule.rrule : 'FREQ=DAILY', summary: '测试排期', nextRunAt: [] }
+      }
+      desktopClient.createAutomation = async () => { throw new Error('创建失败，请稍后重试（测试）') }
+    })
+    const rrule = detail.getByRole('textbox', { name: /RFC 5545 RRULE/ })
+    await rrule.fill('INVALID')
+    await detail.getByRole('button', { name: '创建自动化', exact: true }).click()
+    await expect(detail.getByRole('alert')).toContainText('排期格式无效（测试）')
+    await rrule.fill('')
+    await expect(detail.getByRole('alert')).toHaveCount(0)
+    await expect(detail.getByRole('button', { name: '创建自动化', exact: true })).toBeDisabled()
+    await rrule.fill('FREQ=DAILY;BYHOUR=9')
+    await detail.getByRole('button', { name: '创建自动化', exact: true }).click()
+    await expect(detail.getByRole('alert')).toContainText('创建失败，请稍后重试（测试）')
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await exitPrompt.click()
+    await page.evaluate(() => { window.location.hash = '/threads/visual-rich' })
+    await expect(shell).toHaveCount(0)
+    await page.evaluate(async () => {
+      const clientPath = '/src/services/desktop-client/index.ts'
+      const modelPath = '/src/features/automation/automationModel.ts'
+      const { desktopClient } = await import(clientPath)
+      const { defaultAutomationDraft } = await import(modelPath)
+      const draft = defaultAutomationDraft({ projectId: null, model: { providerID: 'openai', id: 'gpt-5' } })
+      const scheduledFor = new Date(2026, 8, 5, 9).getTime()
+      desktopClient.listAutomations = async () => ({ automations: [{ ...draft, id: 'calendar-auto', revision: 1, name: '自动化退出确认', prompt: '检查独立退出动作', kind: 'thread', targetThreadId: 'visual-rich', execution: null, status: 'active', canonicalRrule: 'FREQ=DAILY', nextRunAt: scheduledFor, pendingCatchUp: false, activeRunId: null, createdAt: scheduledFor, updatedAt: scheduledFor, deletedAt: null }] })
+      desktopClient.listCalendarOccurrences = async () => ({ occurrences: [0, 1].map(index => ({ id: `auto-occurrence-${index}`, source: { kind: 'automation', id: 'calendar-auto' }, definitionKind: 'recurring', title: `自动化入口 ${index + 1}`, scheduledFor: scheduledFor + index * 3_600_000, status: 'scheduled', runId: null, threadId: null, proposalId: null })), truncated: false })
+      window.location.hash = '/automations?date=2026-09-05'
+    })
+    await day.locator('.automation-calendar__day-item').first().click()
+    await expect(agenda).toBeVisible()
+    await agenda.getByText('自动化入口 1', { exact: true }).click()
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('')
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(returnPrompt).toBeVisible()
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await expect(exitPrompt).toBeVisible()
+    await expect(returnPrompt).toHaveCount(0)
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await expect(returnPrompt).toBeVisible()
+    await expect(exitPrompt).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(returnPrompt).toHaveCount(0)
+    await expect(detail.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('')
+    await detail.getByRole('button', { name: '返回当日议程' }).click()
+    await returnPrompt.click()
+    await expect(agenda).toBeVisible()
+    await agenda.getByText('自动化入口 1', { exact: true }).click()
+    await detail.getByRole('textbox', { name: '名称', exact: true }).fill('')
+    await detail.getByRole('button', { name: '关闭详情' }).click()
+    await exitPrompt.click()
+    await expect(shell).toHaveCount(0)
+    for (const kind of ['scheduled-task', 'automation']) {
+      for (const name of ['短标题', '超长中文任务标题'.repeat(16), 'UnbrokenAutomationTaskTitle'.repeat(12), '混合标题Mixed任务123'.repeat(16)]) {
+        await page.evaluate(() => { window.location.hash = '/threads/visual-rich' })
+        await expect(page.locator('.automation-calendar')).toHaveCount(0)
+        await page.evaluate(async ({ kind, name }) => {
+          const clientPath = '/src/services/desktop-client/index.ts'
+          const modelPath = '/src/features/automation/automationModel.ts'
+          const { desktopClient } = await import(clientPath)
+          const { defaultAutomationDraft } = await import(modelPath)
+          const draft = defaultAutomationDraft({ projectId: null, model: { providerID: 'openai', id: 'gpt-5' } })
+          const scheduledFor = new Date(2026, 8, 5, 9).getTime()
+          const common = { ...draft, id: 'title-layout', revision: 1, name, prompt: '标题布局验证', kind: 'thread', targetThreadId: 'visual-rich', execution: null, createdAt: scheduledFor, updatedAt: scheduledFor }
+          desktopClient.listAutomations = async () => ({ automations: [{ ...common, status: 'active', canonicalRrule: 'FREQ=DAILY', nextRunAt: scheduledFor, pendingCatchUp: false, activeRunId: null, deletedAt: null }] })
+          desktopClient.readScheduledTask = async () => ({ scheduledTask: { ...common, scheduledFor, status: 'scheduled', threadId: null, turnId: null, worktreeId: null, readAt: null, safeErrorCode: null, startedAt: null, completedAt: null, cancelledAt: null } })
+          desktopClient.listCalendarOccurrences = async () => ({ occurrences: [0, 1].map(index => ({ id: `title-occurrence-${index}`, source: { kind, id: 'title-layout' }, definitionKind: kind === 'automation' ? 'recurring' : 'one-off', title: `标题入口 ${index + 1}`, scheduledFor: scheduledFor + index * 3_600_000, status: 'scheduled', runId: null, threadId: null, proposalId: null })), truncated: false })
+          window.location.hash = '/automations?date=2026-09-05'
+        }, { kind, name })
+        await day.locator('.automation-calendar__day-item').first().click()
+        await agenda.getByText('标题入口 1', { exact: true }).click()
+        const heading = detail.locator('.automation-detail-header h2')
+        await expect(heading).toHaveText(name)
+        await expect(heading).toHaveAttribute('title', name)
+        const initialShell = await shell.boundingBox()
+        const initialHeader = await detail.locator('.automation-detail-header').boundingBox()
+        await detail.getByRole('textbox', { name: '任务说明', exact: true }).fill('')
+        for (const state of ['normal', 'back', 'close']) {
+          if (state !== 'normal') await detail.getByRole('button', { name: state === 'back' ? '返回当日议程' : '关闭详情', exact: true }).click()
+          expect(await shell.boundingBox()).toMatchObject({ x: initialShell!.x, y: initialShell!.y, width: initialShell!.width })
+          expect((await detail.locator('.automation-detail-header').boundingBox())!.height).toBe(initialHeader!.height)
+          expect(await maskTransparentStopCount(heading)).toBeGreaterThan(0)
+          expect(await detail.evaluate(element => {
+            const header = element.querySelector('.automation-detail-header')!
+            const box = header.getBoundingClientRect()
+            return Array.from(header.querySelectorAll('button, .automation-status-pill')).every(control => {
+              const rect = control.getBoundingClientRect()
+              return rect.width > 0 && rect.left >= box.left && rect.right <= box.right && rect.top >= box.top && rect.bottom <= box.bottom && control.scrollWidth <= control.clientWidth
+            }) && Array.from(element.querySelectorAll('.automation-form, .automation-detail-scroll, .automation-detail-footer, .automation-execution-inputs')).every(control => control.scrollWidth <= control.clientWidth)
+          })).toBe(true)
+          if (name === '短标题') expect(await heading.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+          await page.keyboard.press('Escape')
+        }
+        await page.emulateMedia({ forcedColors: 'active' })
+        await expect(heading).toHaveCSS('mask-image', 'none')
+        await expect(heading).toHaveCSS('text-overflow', 'ellipsis')
+        await page.emulateMedia({ forcedColors: 'none' })
+        if (name.startsWith('Unbroken')) await testInfo.attach(`calendar-long-title-${kind}-${viewport.id}`, { body: await page.screenshot({ path: testInfo.outputPath(`calendar-long-title-${kind}.png`) }), contentType: 'image/png' })
+        await detail.getByRole('button', { name: '关闭详情' }).click()
+        await exitPrompt.click()
+        await expect(shell).toHaveCount(0)
+      }
+    }
+    expect(errors).toEqual([])
+  })
+}
+
 async function maskTransparentStopCount(locator: Locator): Promise<number> {
   return locator.evaluate(element => {
     const style = getComputedStyle(element)
@@ -3268,8 +3817,73 @@ test('pinned session icon and overflowing title motion keep the sidebar fade con
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   const ordinaryTitle = ordinaryRow.locator('.sidebar-session-title')
   const ordinaryTrack = ordinaryTitle.locator('.sidebar-session-title-track')
+  const sessionCard = page.locator('.sidebar-session-hover-card:visible').last()
   await page.mouse.move(1000, 400)
   await expect(ordinaryTitle).toHaveAttribute('data-overflowing', 'true')
+  await ordinaryRow.hover()
+  await page.waitForTimeout(150)
+  await pinnedItem.hover()
+  await page.waitForTimeout(150)
+  await expect(page.locator('.sidebar-session-hover-card:visible')).toHaveCount(0)
+  await page.waitForTimeout(170)
+  await expect(sessionCard).toBeVisible()
+  await expect(sessionCard).toHaveCSS('opacity', '1')
+  await expect(sessionCard).toHaveCSS('transform', 'none')
+  expect(await sessionCard.evaluate(element =>
+    element.getAnimations({ subtree: true }).length,
+  )).toBe(0)
+  await page.evaluate(() => {
+    document.body.dataset.sidebarHoverCardHandoff = 'one'
+    const observer = new MutationObserver(() => {
+      const count = document.querySelectorAll(
+        '.sidebar-session-hover-card, .sidebar-project-hover-card',
+      ).length
+      if (count === 0) document.body.dataset.sidebarHoverCardHandoff = 'none'
+      if (count > 1) document.body.dataset.sidebarHoverCardHandoff = 'multiple'
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    ;(window as typeof window & {
+      sidebarHoverCardHandoffObserver?: MutationObserver
+    }).sidebarHoverCardHandoffObserver = observer
+  })
+  const ordinaryCardTitle = (await ordinaryTrack.textContent())?.trim()
+  await ordinaryRow.hover()
+  await expect(sessionCard).toBeVisible({ timeout: 100 })
+  await expect(sessionCard.locator('.sidebar-session-hover-card-title')).toHaveText(
+    ordinaryCardTitle ?? '',
+  )
+  expect(await page.evaluate(() => {
+    const testWindow = window as typeof window & {
+      sidebarHoverCardHandoffObserver?: MutationObserver
+    }
+    testWindow.sidebarHoverCardHandoffObserver?.disconnect()
+    delete testWindow.sidebarHoverCardHandoffObserver
+    return document.body.dataset.sidebarHoverCardHandoff
+  })).toBe('one')
+  const intentCardBox = await sessionCard.boundingBox()
+  expect(intentCardBox).not.toBeNull()
+  await page.mouse.move(intentCardBox!.x + 4, intentCardBox!.y + 4)
+  await page.waitForTimeout(150)
+  await expect(sessionCard).toBeVisible()
+  await page.mouse.move(1000, 400)
+  await page.waitForTimeout(60)
+  await expect(sessionCard).toBeVisible()
+  await page.waitForTimeout(80)
+  await expect(sessionCard).toBeHidden()
+
+  const ordinaryButton = ordinaryRow.locator('.sidebar-session-button')
+  await ordinaryButton.focus()
+  await expect(sessionCard).toBeVisible({ timeout: 100 })
+  await page.keyboard.press('F2')
+  await expect(sessionCard.getByRole('textbox', { name: '任务名称' })).toBeVisible({
+    timeout: 100,
+  })
+  await pinnedItem.hover()
+  await page.waitForTimeout(150)
+  await expect(sessionCard.getByRole('textbox', { name: '任务名称' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(sessionCard).toBeHidden()
+
   const ordinaryTitleBeforeHover = await ordinaryTitle.boundingBox()
   await ordinaryRow.hover()
   await expect(ordinaryRow.locator('.sidebar-session-actions')).toBeVisible()
@@ -3286,7 +3900,6 @@ test('pinned session icon and overflowing title motion keep the sidebar fade con
   await expect.poll(async () => ordinaryTrack.evaluate(element =>
     getComputedStyle(element).transform,
   )).not.toBe('none')
-  const sessionCard = page.locator('.sidebar-session-hover-card:visible').last()
   await expect(sessionCard).toBeVisible()
   const sessionContentId = await sessionCard.getAttribute('id')
   expect(sessionContentId).not.toBeNull()
@@ -3337,12 +3950,31 @@ test('pinned session icon and overflowing title motion keep the sidebar fade con
   ).toBeCloseTo(0, 0)
   expect(await sessionCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
 
+  const projectButton = page.locator('.sidebar-project-button[data-current]').first()
+  const projectCard = page.locator('.sidebar-project-hover-card:visible').last()
+  await projectButton.hover()
+  await expect(projectCard).toBeVisible({ timeout: 100 })
+  await expect(page.locator(
+    '.sidebar-session-hover-card:visible, .sidebar-project-hover-card:visible',
+  )).toHaveCount(1)
+
   await page.mouse.move(900, 700)
   await page.waitForTimeout(300)
-  const projectButton = page.locator('.sidebar-project-button[data-current]').first()
+  await projectButton.focus()
+  await expect(projectCard).toBeVisible({ timeout: 100 })
+  await page.keyboard.press('Alt+ArrowRight')
+  await expect(projectCard).toBeVisible({ timeout: 100 })
+  await page.keyboard.press('Escape')
+  await expect(projectCard).toBeHidden()
   await projectButton.hover()
-  const projectCard = page.locator('.sidebar-project-hover-card:visible').last()
+  await page.waitForTimeout(150)
+  await expect(projectCard).toBeHidden()
   await expect(projectCard).toBeVisible()
+  await expect(projectCard).toHaveCSS('opacity', '1')
+  await expect(projectCard).toHaveCSS('transform', 'none')
+  expect(await projectCard.evaluate(element =>
+    element.getAnimations({ subtree: true }).length,
+  )).toBe(0)
   const projectContentId = await projectCard.getAttribute('id')
   expect(projectContentId).not.toBeNull()
   const projectAnchor = page.locator(`[aria-controls="${projectContentId}"]`)
@@ -3951,6 +4583,10 @@ test('turn navigation preview matches Codex geometry and output limits', async (
     '[data-thread-user-message-navigation-tooltip-preview]',
   ).last()
   await expect(preview).toBeVisible()
+  await expect(tooltip).toHaveCSS('animation-name', 'none')
+  await expect(tooltip).toHaveCSS('opacity', '1')
+  await expect(tooltip).toHaveCSS('transform', 'none')
+  expect(await tooltip.evaluate(element => element.getAnimations().length)).toBe(0)
   await expect(preview).toHaveCSS('width', '320px')
   await expect(preview).toHaveCSS('padding', '8px')
   await expect(preview).toHaveCSS('font-size', '12px')
@@ -3978,6 +4614,10 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect
     .poll(async () => (await marker.boundingBox())?.width)
     .toBeCloseTo(26, 0)
+
+  await items.nth((await items.count()) - 2).hover()
+  await expect(tooltip).toBeVisible({ timeout: 100 })
+  await expect(tooltip).toHaveCSS('animation-name', 'none')
 
   await page.setViewportSize({ width: 760, height: 920 })
   await expect(rail).toHaveCount(0)
@@ -4022,12 +4662,17 @@ test('turn navigation supports click, keyboard, and pointer scrubbing', async ({
     firstBox.y + firstBox.height / 2,
   )
   await page.mouse.down()
+  const previewTooltip = page.locator('.conversation-turn-preview-tooltip').last()
+  await expect(previewTooltip).toBeVisible({ timeout: 100 })
+  await expect(previewTooltip).toHaveCSS('animation-name', 'none')
   await page.mouse.move(
     lastBox.x + lastBox.width / 2,
     lastBox.y + lastBox.height / 2,
     { steps: 4 },
   )
   await expect(items.last()).toHaveAttribute('data-scrub-target', '')
+  await expect(previewTooltip).toBeVisible({ timeout: 100 })
+  await expect(previewTooltip).toHaveCSS('animation-name', 'none')
   await page.mouse.up()
   await expect(rail.locator('[data-scrub-target]')).toHaveCount(0)
   await expect(userMessage('第 4 轮：继续校准交互和视觉。')).toBeInViewport()
@@ -6324,3 +6969,67 @@ for (const mode of MODES) {
     expect(Math.abs(textBox!.x - headerBox!.x - 8)).toBeLessThanOrEqual(1)
   })
 }
+
+test('month calendar keeps five tasks and overflow entry inside padded cells', async ({ page }) => {
+  test.setTimeout(90_000)
+  page.setDefaultTimeout(10_000)
+  await page.goto('/?visualCase=empty#/new', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.desktop-workspace')).toBeVisible()
+  await page.getByRole('button', { name: '知道了', exact: true }).click()
+  await page.evaluate(async () => {
+    const reactPath = '/node_modules/.vite/deps/react.js'
+    const clientPath = '/node_modules/.vite/deps/react-dom_client.js'
+    const calendarPath = '/src/features/automation/AutomationCalendar.tsx'
+    const [{ default: { createElement } }, { default: { createRoot } }, { AutomationCalendar }] = await Promise.all([
+      import(reactPath), import(clientPath), import(calendarPath),
+    ])
+    const host = document.createElement('div')
+    host.id = 'calendar-padding-fixture'
+    host.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;background:white;z-index:9999'
+    document.body.append(host)
+    createRoot(host).render(createElement(AutomationCalendar, {
+      defaultSelectedDate: '2026-09-06',
+      occurrences: Array.from({ length: 7 }, (_, index) => ({
+        id: `padding-${index}`, source: { kind: 'scheduled-task', id: `padding-${index}` },
+        definitionKind: 'one-off', title: `测试任务 ${index + 1}`,
+        scheduledFor: new Date(2026, 8, 5, 9 + index).getTime(), status: 'completed',
+        runId: null, threadId: null, proposalId: null,
+      })),
+      onOccurrenceSelect: () => {},
+      onQuickCreate: () => {},
+    }))
+  })
+  const day = page.locator('#calendar-padding-fixture [data-calendar-date="2026-09-05"]')
+  for (const viewport of [{ width: 1440, height: 920 }, { width: 960, height: 640 }]) {
+    await page.setViewportSize(viewport)
+    const cells = page.locator('#calendar-padding-fixture [role="gridcell"]')
+    await expect(cells).toHaveCount(42)
+    const heights = await cells.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height))
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(188)
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1)
+    expect(await page.locator('#calendar-padding-fixture .automation-calendar__grid-scroll').evaluate(element => element.scrollHeight)).toBeGreaterThan(viewport.height)
+    await page.mouse.move(0, 0)
+    const normalBackground = await day.evaluate(element => getComputedStyle(element).backgroundColor)
+    await day.hover({ position: { x: 50, y: 180 } })
+    expect(await day.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(normalBackground)
+    for (const selector of ['.automation-calendar__day-item', '.automation-calendar__day-more', '.automation-calendar__day-add']) {
+      await day.locator(selector).first().hover()
+      expect(await day.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(normalBackground)
+    }
+    expect((await day.locator('.automation-calendar__day-item').first().boundingBox())!.height).toBeCloseTo(20, 0)
+    await expect(day.locator('.automation-calendar__day-item')).toHaveCount(5)
+    await expect(day.locator('.automation-calendar__day-more')).toHaveText('+2 项')
+    await expect.poll(() => day.evaluate(element => {
+      const box = element.getBoundingClientRect()
+      const style = getComputedStyle(element)
+      return Array.from(element.querySelectorAll('.automation-calendar__day-item, .automation-calendar__day-more')).every(item => {
+        const rect = item.getBoundingClientRect()
+        return rect.bottom <= box.bottom - parseFloat(style.paddingBottom) + 1 && rect.left >= box.left + parseFloat(style.paddingLeft) - 1 && rect.right <= box.right - parseFloat(style.paddingRight) + 1
+      })
+    })).toBe(true)
+    await cells.last().scrollIntoViewIfNeeded()
+    const lastBox = await cells.last().boundingBox()
+    expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(viewport.height)
+    await day.scrollIntoViewIfNeeded()
+  }
+})

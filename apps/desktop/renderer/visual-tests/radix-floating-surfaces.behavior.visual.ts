@@ -339,7 +339,43 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(
     page.locator('.sidebar-context-menu-content[data-state="open"]'),
   ).toHaveCount(0)
+  const trigger = (name: string) => page.locator('.menubar-trigger').filter({ hasText: name })
+  const menu = page.locator('.menubar-content[data-state="open"]')
+  await editor.focus()
+  await page.keyboard.press('F10')
+  await expect(trigger('文件')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(editor).toBeFocused()
+  await page.keyboard.press('Alt+h')
+  await expect(menu.getByText('新特性', { exact: true })).toBeVisible()
+  await expect(menu.getByText('启动性能追踪', { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+  await menu.getByText('新特性', { exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Control+,')
+  await expect(page).toHaveURL(/#\/threads\/visual-rich$/)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(trigger('帮助')).toBeFocused()
+  await trigger('查看').click()
+  for (const label of ['查找', '上一个聊天', '下一个聊天', '切换全屏']) {
+    await expect(menu.getByText(label, { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+  }
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await trigger('文件').focus()
+  await trigger('文件').press('ArrowDown')
+  await menu.getByText('设置...', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/general$/)
+  await page.keyboard.press('Control+Shift+Slash')
+  await expect(page).toHaveURL(/#\/settings\/shortcuts$/)
+  await trigger('帮助').click()
+  await menu.getByText('技能', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/plugins\?tab=skills$/)
+  await trigger('帮助').click()
+  await menu.getByText('模型上下文协议', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/plugins\?tab=mcps$/)
 })
+
 
 async function expectReadableFloatingSurface(content: Locator): Promise<void> {
   const [contentBox, styles] = await Promise.all([
