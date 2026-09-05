@@ -4,8 +4,9 @@ import { ChevronDown } from "lucide-react";
 import {
   MarkdownMessage,
   type MarkdownMessageProps,
-} from "../MarkdownMessage.js";
+} from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "./ConversationTurnErrorBoundary.js";
+import { useHeightTransition } from "../../../hooks/useHeightTransition.js";
 
 const DEFAULT_COLLAPSED_LINE_COUNT = 20;
 const FALLBACK_FONT_SIZE_PX = 13;
@@ -64,24 +65,32 @@ export function CollapsibleUserMarkdown({
   React.useLayoutEffect(() => {
     if (!measurementElement) return;
 
-    const updateMeasurement = (): void => {
-      const next = measureTextContent(
-        measurementElement,
-        collapsedLineCount,
-        FALLBACK_FONT_SIZE_PX,
-      );
+    const updateMeasurement = (contentHeightPx: number): void => {
+      const next = {
+        collapsedHeightPx: measureCollapsedTextHeight(
+          measurementElement,
+          collapsedLineCount,
+          FALLBACK_FONT_SIZE_PX,
+        ),
+        contentHeightPx: Math.ceil(contentHeightPx),
+      };
       setMeasurement((current) =>
-        current?.collapsedHeightPx === next.collapsedHeightPx &&
-        current.contentHeightPx === next.contentHeightPx
+        isTextMeasurementCollapsible(current) ===
+        isTextMeasurementCollapsible(next)
           ? current
           : next,
       );
     };
 
-    updateMeasurement();
+    updateMeasurement(measurementElement.scrollHeight);
     if (typeof ResizeObserver === "undefined") return;
 
-    const observer = new ResizeObserver(updateMeasurement);
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      updateMeasurement(
+        entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height,
+      );
+    });
     observer.observe(measurementElement);
     return () => observer.disconnect();
   }, [collapsedLineCount, measurementElement, text]);
@@ -90,6 +99,12 @@ export function CollapsibleUserMarkdown({
   const collapsed = collapseState === "collapsed";
   const showsEllipsis = collapsed && collapsedLineCount > 2;
   const visibleLineCount = collapsedLineCount - (showsEllipsis ? 1 : 0);
+  const heightTransition = useHeightTransition([
+    collapsed,
+    text,
+    showsEllipsis,
+    visibleLineCount,
+  ]);
 
   React.useEffect(() => {
     if (!collapsed) return;
@@ -100,7 +115,11 @@ export function CollapsibleUserMarkdown({
 
   return (
     <div className="user-message-markdown">
-      <div className="user-message-markdown__body">
+      <div
+        className="user-message-markdown__body"
+        ref={heightTransition.ref}
+        style={heightTransition.style}
+      >
         <div
           className={
             collapsed
@@ -142,11 +161,21 @@ export function CollapsibleUserMarkdown({
           }}
           type="button"
         >
-          <span>{collapseState === "expanded" ? "收起" : "显示更多"}</span>
+          <span>{collapseState === "expanded" ? "收起" : "展开全文"}</span>
           <ChevronDown aria-hidden="true" />
         </button>
       )}
     </div>
+  );
+}
+
+function isTextMeasurementCollapsible(
+  measurement: TextMeasurement | null,
+): boolean {
+  return Boolean(
+    measurement &&
+      measurement.contentHeightPx >
+        measurement.collapsedHeightPx + HEIGHT_EPSILON_PX,
   );
 }
 
@@ -155,21 +184,17 @@ export function resolveCollapseState(
   text: string,
   expandedText: string | null,
 ): CollapseState {
-  if (
-    measurement === null ||
-    measurement.contentHeightPx <=
-      measurement.collapsedHeightPx + HEIGHT_EPSILON_PX
-  ) {
+  if (!isTextMeasurementCollapsible(measurement)) {
     return "uncollapsible";
   }
   return expandedText === text ? "expanded" : "collapsed";
 }
 
-function measureTextContent(
+function measureCollapsedTextHeight(
   element: HTMLElement,
   collapsedLineCount: number,
   fallbackFontSizePx: number,
-): TextMeasurement {
+): number {
   const computedStyle = window.getComputedStyle(element);
   const parsedFontSize = Number.parseFloat(computedStyle.fontSize);
   const fontSizePx = Number.isFinite(parsedFontSize)
@@ -179,11 +204,13 @@ function measureTextContent(
   const lineHeightPx = Number.isFinite(parsedLineHeight)
     ? parsedLineHeight
     : fontSizePx * FALLBACK_LINE_HEIGHT_RATIO;
-  return {
-    collapsedHeightPx: Math.ceil(lineHeightPx * collapsedLineCount),
-    contentHeightPx: Math.ceil(element.scrollHeight),
-  };
+  return Math.ceil(lineHeightPx * collapsedLineCount);
 }
+
+/*
+ * The remaining helpers intentionally stay below the component so the resize
+ * observer above only performs the minimum threshold calculation per frame.
+ */
 
 function hideClippedFocusableDescendants(viewport: HTMLElement): () => void {
   const trackedElements = new Map<HTMLElement, string | null>();

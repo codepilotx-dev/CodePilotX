@@ -31,6 +31,7 @@ type ReviewApi = Pick<DesktopAgentReviewApi, ReviewApiMethod>
 
 type Dependencies = {
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call' | 'ensureInitialized'>
+  loadProjectById: (projectId: string) => Promise<Project>
   loadProjectForPath: (workspacePath: string) => Promise<Project>
   preparePullRequestReview: (
     projectId: string,
@@ -48,6 +49,7 @@ type Dependencies = {
 
 export function createAgentReviewApi({
   rpc,
+  loadProjectById,
   loadProjectForPath,
   preparePullRequestReview,
   requireGithubPullRequestCapability,
@@ -55,6 +57,9 @@ export function createAgentReviewApi({
   unsupportedReviewOperation,
   withAgentOrMock,
 }: Dependencies): ReviewApi {
+  const loadProject = (workspacePath: string, projectId?: string) =>
+    projectId ? loadProjectById(projectId) : loadProjectForPath(workspacePath)
+
   return {
     getAgentReviewSummary: input => {
       const visualFixture = browserVisualReviewSummary(input.source)
@@ -62,7 +67,7 @@ export function createAgentReviewApi({
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           await preparePullRequestReview(
             project.id,
             input.source,
@@ -85,7 +90,7 @@ export function createAgentReviewApi({
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           return rpc.call<DesktopReviewAgentFileDiff>('review/fileDiff', {
             projectId: project.id,
             source: input.source,
@@ -124,7 +129,7 @@ export function createAgentReviewApi({
           )) {
             unsupportedReviewOperation()
           }
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           return rpc.call('review/file-diffs', {
             projectId: project.id,
             source: input.source,
@@ -142,7 +147,7 @@ export function createAgentReviewApi({
         : withAgentOrMock(
             async () => {
               requireReviewCapability()
-              const project = await loadProjectForPath(input.workspacePath)
+              const project = await loadProject(input.workspacePath, input.projectId)
               await rpc.call('review/apply', {
                 projectId: project.id,
                 source: input.source,
@@ -167,7 +172,7 @@ export function createAgentReviewApi({
         : withAgentOrMock(
             async () => {
               requireReviewCapability()
-              const project = await loadProjectForPath(input.workspacePath)
+              const project = await loadProject(input.workspacePath, input.projectId)
               return rpc.call('review/applyBatch', {
                 projectId: project.id,
                 source: input.source,
@@ -178,13 +183,13 @@ export function createAgentReviewApi({
             },
             async () => unsupportedReviewOperation(),
           ),
-    getAgentReviewBranches: workspacePath =>
+    getAgentReviewBranches: (workspacePath, projectId) =>
       isBrowserVisualReviewCase()
         ? Promise.resolve([])
         : withAgentOrMock(
             async () => {
               requireReviewCapability()
-              const project = await loadProjectForPath(workspacePath)
+              const project = await loadProject(workspacePath, projectId)
               const result = await rpc.call<{
                 branches: Array<{
                   name: string
@@ -197,13 +202,13 @@ export function createAgentReviewApi({
             },
             async () => unsupportedReviewOperation(),
           ),
-    getAgentReviewCommits: workspacePath =>
+    getAgentReviewCommits: (workspacePath, projectId) =>
       isBrowserVisualReviewCase()
         ? Promise.resolve([])
         : withAgentOrMock(
             async () => {
               requireReviewCapability()
-              const project = await loadProjectForPath(workspacePath)
+              const project = await loadProject(workspacePath, projectId)
               const result = await rpc.call<{
                 commits: Array<{
                   sha: string
@@ -223,7 +228,7 @@ export function createAgentReviewApi({
         : withAgentOrMock(
             async () => {
               requireReviewCapability()
-              const project = await loadProjectForPath(input.workspacePath)
+              const project = await loadProject(input.workspacePath, input.projectId)
               const result = await rpc.call<{
                 comments: DesktopReviewAgentComment[]
               }>('review/comment/list', {
@@ -239,7 +244,7 @@ export function createAgentReviewApi({
       withAgentOrMock(
         async () => {
           requireReviewCapability()
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           const result = await rpc.call<{
             comment: DesktopReviewAgentComment
           }>('review/comment/save', {
@@ -268,7 +273,7 @@ export function createAgentReviewApi({
       withAgentOrMock(
         async () => {
           requireReviewCapability()
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           const result = await rpc.call<{
             comment: DesktopReviewAgentComment
           }>('review/comment/resolve', {
@@ -284,7 +289,7 @@ export function createAgentReviewApi({
       withAgentOrMock(
         async () => {
           requireReviewCapability()
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           await rpc.call('review/comment/delete', {
             projectId: project.id,
             threadId: input.threadId,

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -133,14 +134,16 @@ export function PullRequestPopover({
           <strong>+{formatPanelNumber(additions)}</strong>
           <em>-{formatPanelNumber(deletions)}</em>
         </span>
-        <button
-          aria-label="关闭"
+        <IconButton
           className="review-popover-close"
+          color="ghostSecondary"
+          size="toolbar"
+          title="关闭"
           type="button"
           onClick={onClose}
         >
           <X size={APP_ICON_SIZE} />
-        </button>
+        </IconButton>
       </header>
 
       <label className="review-popover-field">
@@ -184,7 +187,7 @@ export function PullRequestPopover({
       </label>
 
       <div className="review-popover-actions">
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
@@ -194,7 +197,7 @@ export function PullRequestPopover({
           </span>
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
@@ -203,7 +206,7 @@ export function PullRequestPopover({
             创建拉取请求
           </span>
         </Button>
-        <Button
+        <Button color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onOpenPR()}
         >

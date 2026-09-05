@@ -27,7 +27,10 @@ export type AgentMessageAdmission = {
 type AgentTurnQueueClientDependencies = {
   rpc: AgentRpcClient
   awaitPendingSettingsUpdate: (sessionId: string) => Promise<void>
-  importAttachments: (input: DesktopUserMessageInput) => Promise<string[]>
+  importMessageContext: (
+    sessionId: string,
+    input: DesktopUserMessageInput,
+  ) => Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }>
   resolveModelRef: (
     model: string | DesktopModelSelection | undefined,
     sessionId: string,
@@ -43,7 +46,7 @@ type AgentTurnQueueClientDependencies = {
 export function createAgentTurnQueueClient({
   rpc,
   awaitPendingSettingsUpdate,
-  importAttachments,
+  importMessageContext,
   resolveModelRef,
   permissionConfigForSession,
   taskModeForSession,
@@ -62,7 +65,10 @@ export function createAgentTurnQueueClient({
     },
   ): Promise<AgentMessageAdmission> {
     await awaitPendingSettingsUpdate(sessionId)
-    const attachmentIds = await importAttachments(input)
+    const { attachmentIds, contextReferenceIds } = await importMessageContext(
+      sessionId,
+      input,
+    )
     const content = desktopUserMessageInputToPreviewText(input)
     const inputId = options?.inputId ?? crypto.randomUUID()
 
@@ -76,12 +82,20 @@ export function createAgentTurnQueueClient({
           inputId,
           content,
           ...(attachmentIds.length ? { attachmentIds } : {}),
+          ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
         })
         await refreshSession(sessionId).catch(() => null)
         emitSessionStoreChange()
         return { inputId, outcome: 'steered' }
       }
-      await startTurn(sessionId, inputId, content, attachmentIds, options?.model)
+      await startTurn(
+        sessionId,
+        inputId,
+        content,
+        attachmentIds,
+        contextReferenceIds,
+        options?.model,
+      )
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
       return { inputId, outcome: 'sent' }
@@ -99,6 +113,7 @@ export function createAgentTurnQueueClient({
         operationId: crypto.randomUUID(),
         ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
         ...(attachmentIds.length ? { attachmentIds } : {}),
+        ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
       })
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
@@ -108,7 +123,14 @@ export function createAgentTurnQueueClient({
       }
     }
 
-    await startTurn(sessionId, inputId, content, attachmentIds, options?.model)
+    await startTurn(
+      sessionId,
+      inputId,
+      content,
+      attachmentIds,
+      contextReferenceIds,
+      options?.model,
+    )
     await refreshSession(sessionId).catch(() => null)
     emitSessionStoreChange()
     return { inputId, outcome: 'sent' }
@@ -150,6 +172,7 @@ export function createAgentTurnQueueClient({
     inputId: string,
     content: string,
     attachmentIds: string[],
+    contextReferenceIds: string[],
     model: string | DesktopModelSelection | undefined,
   ): Promise<void> {
     await rpc.call('turn/start', {
@@ -160,6 +183,7 @@ export function createAgentTurnQueueClient({
       permissionConfig: permissionConfigForSession(sessionId),
       taskMode: taskModeForSession(sessionId),
       ...(attachmentIds.length ? { attachmentIds } : {}),
+      ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
     })
   }
 

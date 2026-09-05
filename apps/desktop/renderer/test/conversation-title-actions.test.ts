@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  canInlineEditConversationTitle,
   canRegenerateConversationTitle,
+  normalizeConversationTitle,
   shouldCloseConversationRenameDialog,
+  shouldSubmitConversationRename,
 } from '../src/features/session/conversation/conversationTitleActions.js'
 
 describe('conversation title actions', () => {
@@ -46,5 +49,61 @@ describe('conversation title actions', () => {
         activeSessionId: 'session-2',
       }),
     ).toBe(false)
+  })
+
+  test('normalizes title by trimming outer whitespace', () => {
+    expect(normalizeConversationTitle('  hello world  ')).toBe('hello world')
+    expect(normalizeConversationTitle('\n\t新标题\t ')).toBe('新标题')
+    expect(normalizeConversationTitle('   ')).toBe('')
+  })
+
+  test('validates when inline rename should submit', () => {
+    const valid = {
+      currentTitle: '旧标题',
+      nextTitle: '新标题',
+    }
+    expect(shouldSubmitConversationRename(valid)).toBe(true)
+    // Same title with whitespace differences
+    expect(
+      shouldSubmitConversationRename({
+        currentTitle: '旧标题',
+        nextTitle: '  旧标题  ',
+      }),
+    ).toBe(false)
+    // Empty next title
+    expect(
+      shouldSubmitConversationRename({
+        currentTitle: '旧标题',
+        nextTitle: '   ',
+      }),
+    ).toBe(false)
+    // IME composition active
+    expect(
+      shouldSubmitConversationRename({
+        ...valid,
+        isComposing: true,
+      }),
+    ).toBe(false)
+    // Already renaming
+    expect(
+      shouldSubmitConversationRename({
+        ...valid,
+        isRenaming: true,
+      }),
+    ).toBe(false)
+  })
+
+  test('enables inline editing only when session is active and not busy', () => {
+    const ready = {
+      hasActiveSession: true,
+      isLoading: false,
+      isRegenerating: false,
+      isRenaming: false,
+    }
+    expect(canInlineEditConversationTitle(ready)).toBe(true)
+    expect(canInlineEditConversationTitle({ ...ready, hasActiveSession: false })).toBe(false)
+    expect(canInlineEditConversationTitle({ ...ready, isLoading: true })).toBe(false)
+    expect(canInlineEditConversationTitle({ ...ready, isRegenerating: true })).toBe(false)
+    expect(canInlineEditConversationTitle({ ...ready, isRenaming: true })).toBe(false)
   })
 })

@@ -40,6 +40,7 @@ export function Dropdown({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          data-theme-component="dropdown-surface"
           align={align}
           className={[
             'popover-surface',

@@ -1,17 +1,12 @@
-import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { isAbsolute, relative, resolve } from "node:path"
+import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadCreationSurface, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
+import { probeThreadsStorageCapabilities } from "../database/storage-capabilities"
 import type {
   EventEnvelope,
-  AgentExecution,
   Item,
   ModelRef,
   PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
   TaskMode,
   ThreadSnapshot,
   ToolInvocation,
@@ -146,12 +141,10 @@ export type HookTrustRequest = {
   resolvedAt: number | null
 }
 
-type SqlValue = string | number | boolean | Uint8Array | null
 
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
 const containedPath = (root: string, candidate: string) => {
   const path = relative(root, candidate)
   return path === "" || (!path.startsWith("..") && !isAbsolute(path))
@@ -166,10 +159,12 @@ export type StoredThreadWorkspace =
 export type CreateThreadInput = {
   id?: string
   title?: string | undefined
+  creationSurface?: ThreadCreationSurface | undefined
   settings?: ThreadSettings | undefined
-  workspace:
+  workspace?:
     | { kind: "project"; projectID: string }
     | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
+    | null
   operationID?: string | undefined
   requestHash?: string | undefined
 }
@@ -179,6 +174,7 @@ export type CreatedThreadRecord = {
   title: string
   projectID: string | null
   gitBranch: string | null
+  creationSurface?: ThreadCreationSurface
   workspace: StoredThreadWorkspace | null
   settings: ThreadSettings
   createdAt: number
@@ -292,7 +288,12 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
     }
 
   updateThreadSettings(threadID: string, patch: ThreadSettingsPatch) {
-      return this.transaction(() => this.syncThreadSettings(threadID, patch))
+      return this.transaction(() => {
+        const result = this.syncThreadSettings(threadID, patch)
+        const thread = this.getThread(threadID)
+        if (!thread) throw new Error("Thread not found")
+        return { ...result, version: thread.updatedAt }
+      })
     }
 
   getThreadPromptSettings<T extends Record<string, unknown> = Record<string, unknown>>(threadID: string): T | null {
@@ -330,6 +331,7 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         id,
         title,
         workspace,
+        ...(input?.creationSurface ? { creationSurface: input.creationSurface } : {}),
         ...(initialSettings ? { initialSettings } : {}),
         ...(input?.operationID ? { operationID: input.operationID } : {}),
         ...(input?.requestHash ? { requestHash: input.requestHash } : {}),
@@ -339,12 +341,13 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
   private insertThread(input: {
       id: string
       title: string
+      creationSurface?: ThreadCreationSurface
       initialSettings?: ThreadSettings
       workspace: CreateThreadInput["workspace"] | null
       operationID?: string
       requestHash?: string
     }): CreatedThreadRecord {
-      const { id, title, initialSettings } = input
+      const { id, title, creationSurface, initialSettings } = input
       const timestamp = now()
       const settings = initialSettings ?? defaultThreadSettings()
       let projectID: string | null = null
@@ -375,37 +378,74 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         workspaceKind = "projectless"
       }
       return this.transaction(() => {
-        this.sqlite.query(`INSERT INTO threads (
-          id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
-          workspace_roots, instruction_sources, output_directory,
-          create_operation_id, create_request_hash,
-          task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
-          id,
-          title,
-          projectID,
-          workspaceKind,
-          workspaceRoot,
-          workspaceCwd,
-          workspaceRoots,
-          instructionSources,
-          outputDirectory,
-          input.operationID ?? null,
-          input.requestHash ?? null,
-          settings.taskMode,
-          settings.permissionConfig.sandboxMode,
-          encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
-          settings.permissionConfig.approvalsReviewer,
-          timestamp,
-          timestamp,
-        )
+        const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.sqlite)
+        // 列缺失时实际可持久化的 creationSurface 必须为 undefined，
+        // 避免 INSERT、event payload、返回值投影出未持久化来源。
+        const persistedCreationSurface = columnExists ? creationSurface : undefined
+        if (columnExists) {
+          this.sqlite.query(`INSERT INTO threads (
+            id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
+            workspace_roots, instruction_sources, output_directory,
+            create_operation_id, create_request_hash,
+            task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at, creation_surface
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+            id,
+            title,
+            projectID,
+            workspaceKind,
+            workspaceRoot,
+            workspaceCwd,
+            workspaceRoots,
+            instructionSources,
+            outputDirectory,
+            input.operationID ?? null,
+            input.requestHash ?? null,
+            settings.taskMode,
+            settings.permissionConfig.sandboxMode,
+            encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
+            settings.permissionConfig.approvalsReviewer,
+            timestamp,
+            timestamp,
+            persistedCreationSurface ?? null,
+          )
+        } else {
+          // 历史库缺可选列时仍走原 17 列 INSERT，避免在更高 schema 下写入不存在的列。
+          // 防御性边界：即便旧客户端或异常路径把 creationSurface 透传过来，
+          // 这里也会在 INSERT / event payload / 返回值三处统一剔除持久化来源，
+          // 而不是依赖上层 capability gate。
+          this.sqlite.query(`INSERT INTO threads (
+            id, title, project_id, workspace_kind, workspace_root, workspace_cwd,
+            workspace_roots, instruction_sources, output_directory,
+            create_operation_id, create_request_hash,
+            task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
+            id,
+            title,
+            projectID,
+            workspaceKind,
+            workspaceRoot,
+            workspaceCwd,
+            workspaceRoots,
+            instructionSources,
+            outputDirectory,
+            input.operationID ?? null,
+            input.requestHash ?? null,
+            settings.taskMode,
+            settings.permissionConfig.sandboxMode,
+            encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
+            settings.permissionConfig.approvalsReviewer,
+            timestamp,
+            timestamp,
+          )
+        }
         const persistedWorkspace = this.threadWorkspace(id)
         const event = this.insertEvent(id, null, "thread/created", { thread: {
           id, title, projectID, gitBranch: null,
+          ...(persistedCreationSurface ? { creationSurface: persistedCreationSurface } : {}),
           ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
           settings, createdAt: timestamp, updatedAt: timestamp,
         } })
-        return { id, title, projectID, gitBranch: null, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
+        return { id, title, projectID, gitBranch: null, ...(persistedCreationSurface ? { creationSurface: persistedCreationSurface } : {}), workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
       })
     }
 

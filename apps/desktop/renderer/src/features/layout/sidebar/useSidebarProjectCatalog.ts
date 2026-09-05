@@ -70,3 +70,28 @@ export function useSidebarProjectCatalog({
 
   return { projectCatalogState, removeCatalogProject }
 }
+
+export function mergeCatalogProjects(
+  catalogProjects: readonly DesktopWorkspace[],
+  recentWorkspaces: readonly DesktopWorkspace[],
+): DesktopWorkspace[] {
+  const recentByKey = new Map(
+    recentWorkspaces.map(project => [projectKey(project), project]),
+  )
+  const merged = catalogProjects.map(project => {
+    const recent = recentByKey.get(projectKey(project))
+    recentByKey.delete(projectKey(project))
+    return {
+      ...recent,
+      ...project,
+      pinnedAt: recent?.pinnedAt ?? project.pinnedAt ?? null,
+    }
+  })
+  return [...merged, ...recentByKey.values()]
+}
+
+function projectKey(project: DesktopWorkspace): string {
+  return project.projectId
+    ? `id:${project.projectId}`
+    : `path:${project.path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()}`
+}

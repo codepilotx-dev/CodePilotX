@@ -1,5 +1,5 @@
 import type React from 'react'
-import { lazy, memo, Suspense, useEffect, useState } from 'react'
+import { memo, useEffect, useId, useState } from 'react'
 import {
   Archive,
   FolderOpen,
@@ -17,38 +17,39 @@ import type {
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from '../../../components/ui/keyedDisclosureStore.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { SidebarRow } from './SidebarRow.js'
 import { SidebarSessionGroup } from './SidebarSessionGroup.js'
 import {
-  SidebarContextMenu,
-  type ContextMenuAction,
-} from './SidebarContextMenu.js'
+  AppContextMenu as SidebarContextMenu,
+  type AppContextMenuAction as ContextMenuAction,
+} from '../../../components/ui/AppContextMenu.js'
 import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
 } from '../../projects/projectAppearance.js'
-import { notifyProjectCatalogChanged } from '../../projects/projectCatalogEvents.js'
 import {
   type SidebarProjectSessionBucket,
   sidebarProjectKey,
   normalizeSidebarPath,
 } from './sidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
-
-const ProjectEditDialog = lazy(async () => {
-  const module = await import('../../projects/ProjectEditDialog.js')
-  return { default: module.ProjectEditDialog }
-})
+import { ProjectManagementDialogs } from '../../projects/ProjectManagementDialogs.js'
+import { sidebarProjectDisclosureKey } from './sidebarDisclosureStore.js'
 
 type Props = {
   activeSessionId: string | null
   bucket: SidebarProjectSessionBucket
-  collapsedProjectPaths: Set<string>
+  disclosureStore: KeyedDisclosureStore
   isUnavailable: boolean
   now: number
   pendingPermissionSessionIds: ReadonlySet<string>
@@ -63,8 +64,8 @@ type Props = {
   onPinWorkspace: (workspace: DesktopWorkspace) => void
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void
   onSelectSession: (session: SessionListItem) => void
+  onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
-  onToggleProjectCollapsed: (projectKey: string) => void
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onSortChange?: (sort: 'manual') => void
   onPinSession: (session: SessionListItem) => void
@@ -76,7 +77,7 @@ type Props = {
 function SidebarProjectGroupComponent({
   activeSessionId,
   bucket,
-  collapsedProjectPaths,
+  disclosureStore,
   isUnavailable,
   now,
   pendingPermissionSessionIds,
@@ -91,8 +92,8 @@ function SidebarProjectGroupComponent({
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
+  onToggleSessionUnread,
   onRenameSession,
-  onToggleProjectCollapsed,
   onManualOrderChange,
   onSortChange,
   onPinSession,
@@ -106,23 +107,20 @@ function SidebarProjectGroupComponent({
   const [managerOpen, setManagerOpen] = useState(false)
   const [managedProject, setManagedProject] = useState(project)
   const [processingAction, setProcessingAction] = useState<
-    'archive' | 'remove' | null
+    'archive' | null
   >(null)
-  const { projectAppearances, setProjectAppearances } = useDesktopSettings()
+  const { projectAppearances } = useDesktopSettings()
 
   useEffect(() => setManagedProject(project), [project])
 
   const projectKey = sidebarProjectKey(managedProject)
+  const disclosureKey = sidebarProjectDisclosureKey(managedProject)
+  const isExpanded = useDisclosureExpanded(disclosureStore, disclosureKey)
+  const projectSessionsId = useId()
   const projectSessions = bucket.displaySessions
   const countedProjectSessions = bucket.allSessions
   const unreadCount = bucket.unreadCount
   const openCount = bucket.openCount
-  const isExpanded =
-    !collapsedProjectPaths.has(projectKey) &&
-    !collapsedProjectPaths.has(managedProject.path)
-  const collapseKey = collapsedProjectPaths.has(managedProject.path)
-    ? managedProject.path
-    : projectKey
   const isCurrent =
     workspace?.projectId && managedProject.projectId
       ? workspace.projectId === managedProject.projectId
@@ -195,6 +193,7 @@ function SidebarProjectGroupComponent({
 
   const projectButton = (
     <button
+      aria-controls={projectSessionsId}
       aria-expanded={isExpanded}
       aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown ArrowRight"
       aria-label={`${managedProject.name}，${isExpanded ? '折叠项目任务' : '展开项目任务'}`}
@@ -202,14 +201,9 @@ function SidebarProjectGroupComponent({
       data-current={isCurrent || undefined}
       data-sidebar-project-key={projectKey}
       type="button"
+      onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
-      <span
-        className={cx(
-          'sidebar-project-title-text',
-          'u-min-w-0',
-          'u-truncate',
-        )}
-      >
+      <span className="sidebar-project-title-text">
         {managedProject.name}
       </span>
     </button>
@@ -221,7 +215,7 @@ function SidebarProjectGroupComponent({
         'sidebar-project',
         'u-flex',
         'u-flex-col',
-        'tw:flex tw:flex-col tw:gap-0.5',
+        'tw:flex tw:flex-col',
       )}
       onMouseLeave={() => setHovered(false)}
     >
@@ -243,84 +237,85 @@ function SidebarProjectGroupComponent({
                 className="project-appearance-marker"
               />
             }
-            onClick={() => onToggleProjectCollapsed(collapseKey)}
             onMouseEnter={() => setHovered(true)}
             trailing={
               <div
                 className={cx(
                   'sidebar-project-actions',
-                  'tw:gap-3',
                   actionsVisible && 'is-visible',
                 )}
                 onClick={event => event.stopPropagation()}
               >
-                  <PopoverMenu
-                    className="popover-sidebar-project popover-menu--grid"
-                    open={menuOpen}
-                    side="bottom"
-                    width="auto"
-                    trigger={
-                      <button
-                        aria-label="更多"
-                        className="icon-button sidebar-project-action-button"
-                        type="button"
-                      >
-                        <MoreHorizontal size={APP_ICON_SIZE} />
-                      </button>
-                    }
-                    onOpenChange={setMenuOpen}
+                <PopoverMenu
+                  className="popover-sidebar-project popover-menu--grid"
+                  open={menuOpen}
+                  side="bottom"
+                  width="auto"
+                  trigger={
+                    <IconButton
+                      className="sidebar-project-action-button"
+                      color="ghostSecondary"
+                      size="iconMd"
+                      title="更多"
+                    >
+                      <MoreHorizontal size={APP_ICON_SIZE} />
+                    </IconButton>
+                  }
+                  onOpenChange={setMenuOpen}
+                >
+                  <PopoverItem
+                    icon={isPinned
+                      ? <PinOff size={APP_ICON_SIZE} />
+                      : <Pin size={APP_ICON_SIZE} />}
+                    onClick={togglePinned}
                   >
-                    <PopoverItem
-                      icon={isPinned
-                        ? <PinOff size={APP_ICON_SIZE} />
-                        : <Pin size={APP_ICON_SIZE} />}
-                      onClick={togglePinned}
-                    >
-                      {isPinned ? '取消置顶项目' : '置顶项目'}
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={isUnavailable}
-                      icon={<FolderOpen size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        void desktopClient.openPathWithDefaultTarget(
-                          managedProject.path,
-                        )
-                      }}
-                    >
-                      在资源管理器中打开
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<Settings2 size={APP_ICON_SIZE} />}
-                      onClick={() => setManagerOpen(true)}
-                    >
-                      编辑项目
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={
-                        countedProjectSessions.length === 0 ||
-                        processingAction !== null
-                      }
-                      icon={<Archive size={APP_ICON_SIZE} />}
-                      onClick={archiveAll}
-                    >
-                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<X size={APP_ICON_SIZE} />}
-                      onClick={() => setConfirmRemoveOpen(true)}
-                    >
-                      移除
-                    </PopoverItem>
-                  </PopoverMenu>
-                <button
-                  aria-label="新建任务"
-                  className="icon-button sidebar-project-action-button"
+                    {isPinned ? '取消置顶项目' : '置顶项目'}
+                  </PopoverItem>
+                  <PopoverItem
+                    disabled={isUnavailable}
+                    icon={<FolderOpen size={APP_ICON_SIZE} />}
+                    onClick={() => {
+                      void desktopClient.openPathWithDefaultTarget(
+                        managedProject.path,
+                      )
+                    }}
+                  >
+                    在资源管理器中打开
+                  </PopoverItem>
+                  <PopoverItem
+                    icon={<Settings2 size={APP_ICON_SIZE} />}
+                    onClick={() => setManagerOpen(true)}
+                  >
+                    编辑项目
+                  </PopoverItem>
+                  <PopoverItem
+                    disabled={
+                      countedProjectSessions.length === 0 ||
+                      processingAction !== null
+                    }
+                    icon={<Archive size={APP_ICON_SIZE} />}
+                    onClick={archiveAll}
+                  >
+                    {processingAction === 'archive' ? '归档中…' : '归档任务'}
+                  </PopoverItem>
+                  <PopoverItem
+                    icon={<X size={APP_ICON_SIZE} />}
+                    onClick={() => setConfirmRemoveOpen(true)}
+                  >
+                    移除
+                  </PopoverItem>
+                </PopoverMenu>
+                <IconButton
+                  aria-label="新建对话"
+                  className="sidebar-project-action-button"
+                  color="ghostSecondary"
                   disabled={isUnavailable}
-                  type="button"
+                  size="iconMd"
+                  title="新建对话"
                   onClick={() => onCreateSession(managedProject)}
                 >
                   <SquarePen size={APP_ICON_SIZE} />
-                </button>
+                </IconButton>
               </div>
             }
           >
@@ -345,8 +340,14 @@ function SidebarProjectGroupComponent({
         }
       />
 
-      {projectSessions.length > 0 && isExpanded ? (
-        <SidebarSessionGroup
+      <DisclosureContent
+        className="sidebar-project-sessions-disclosure"
+        contentClassName="sidebar-project-sessions-disclosure__content"
+        expanded={projectSessions.length > 0 && isExpanded}
+        id={projectSessionsId}
+        mountPolicy="always"
+      >
+        {projectSessions.length > 0 ? <SidebarSessionGroup
           activeSessionId={activeSessionId}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
           titleLoadingIds={titleLoadingIds}
@@ -360,74 +361,25 @@ function SidebarProjectGroupComponent({
           onManualOrderChange={onManualOrderChange}
           onPinSession={onPinSession}
           onSelectSession={onSelectSession}
+          onToggleSessionUnread={onToggleSessionUnread}
           onRenameSession={onRenameSession}
           onSortChange={onSortChange}
           onUnpinSession={onUnpinSession}
-        />
-      ) : null}
+        /> : null}
+      </DisclosureContent>
 
-      <ConfirmationDialog
-        actionDisabled={processingAction !== null}
-        actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
-        description="项目任务将一并归档。磁盘上的目录与文件不会被删除。"
-        open={confirmRemoveOpen}
-        title={`移除 ${managedProject.name}?`}
-        tone="danger"
-        onAction={() => {
-          if (processingAction) return
-          setProcessingAction('remove')
-          void (managedProject.projectId
-            ? desktopClient
-                .removeProject(managedProject.projectId)
-                .then(() => true)
-            : onArchiveSessions(countedProjectSessions)
-          )
-            .then(success => {
-              if (!success) return
-              setConfirmRemoveOpen(false)
-              if (managedProject.projectId) {
-                setProjectAppearances(current => {
-                  const {
-                    [managedProject.projectId as string]: _removed,
-                    ...next
-                  } = current
-                  return next
-                })
-              }
-              onRemoveWorkspace(managedProject)
-              notifyProjectCatalogChanged()
-            })
-            .catch(error => onReport(
-              error instanceof Error ? error.message : String(error),
-            ))
-            .finally(() => setProcessingAction(null))
-        }}
-        onCancel={() => setConfirmRemoveOpen(false)}
+      <ProjectManagementDialogs
+        project={managedProject}
+        managerOpen={managerOpen}
+        confirmRemoveOpen={confirmRemoveOpen}
+        busy={processingAction !== null}
+        setManagerOpen={setManagerOpen}
+        setConfirmRemoveOpen={setConfirmRemoveOpen}
+        onProjectChange={setManagedProject}
+        onArchiveSessions={() => onArchiveSessions(countedProjectSessions)}
+        onRemoveWorkspace={onRemoveWorkspace}
+        onReport={onReport}
       />
-
-      {managerOpen ? (
-        <Suspense fallback={null}>
-          <ProjectEditDialog
-            appearance={appearance}
-            open
-            project={managedProject}
-            onAppearanceChange={nextAppearance => {
-              if (!managedProject.projectId) return
-              setProjectAppearances(current => ({
-                ...current,
-                [managedProject.projectId as string]: nextAppearance,
-              }))
-            }}
-            onOpenChange={setManagerOpen}
-            onProjectChange={setManagedProject}
-            onReport={onReport}
-            onRequestRemove={() => {
-              setManagerOpen(false)
-              setConfirmRemoveOpen(true)
-            }}
-          />
-        </Suspense>
-      ) : null}
     </section>
   )
 }

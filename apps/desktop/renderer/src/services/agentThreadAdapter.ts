@@ -57,6 +57,7 @@ export function agentTurnStatusToDesktopStatus(
   if (status === 'completed') return 'done'
   if (status === 'failed') return 'error'
   if (status === 'interrupted' || status === 'stopped') return 'interrupted'
+  if (status === 'cancelled') return 'cancelled'
   return 'idle'
 }
 
@@ -70,13 +71,16 @@ export function agentThreadListItemToDesktop(
   return {
     id: thread.id,
     projectId: thread.projectID,
+    sessionGroupId: thread.sessionGroupId ?? null,
     sessionName: thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview: thread.preview ?? null,
     firstPrompt: thread.firstUserMessage ?? thread.preview,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     gitBranch: thread.gitBranch,
+    creationSurface: thread.creationSurface,
     standalone,
     archivedAt: isoOrNull(thread.archivedAt),
     permissionMode: permissionModeFromPermissionConfig(thread.settings.permissionConfig),
@@ -135,17 +139,26 @@ export function agentThreadSnapshotToDesktop(
   const standalone = snapshot.thread.workspace.kind === 'projectless'
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
+  const latestMessage = events
+    .slice()
+    .reverse()
+    .find(e => (e.type === 'message' || e.type === 'assistant_delta') && typeof e.content === 'string' && e.content.trim())
+  const preview = latestMessage?.content?.slice(0, 180) ?? latestInput?.content?.slice(0, 180) ?? null
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
+    sessionGroupId: snapshot.thread.sessionGroupId ?? null,
     sessionName: snapshot.thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview,
     firstPrompt: snapshot.inputs[0]?.content ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     gitBranch: snapshot.thread.gitBranch,
+    creationSurface: snapshot.thread.creationSurface,
     standalone,
+    archivedAt: isoOrNull(snapshot.thread.archivedAt),
     permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,

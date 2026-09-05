@@ -3,8 +3,8 @@ import type { Item } from "@codepilotx/shared/thread";
 
 import {
   formatProcessElapsed,
-  summarizeCommandItems,
   summarizeTurnProcessItems,
+  summarizeTurnWork,
 } from "../src/features/session/timeline/summarizeProcessItems.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
@@ -34,138 +34,164 @@ function toolItem(
   };
 }
 
-describe("summarizeCommandItems", () => {
-  test("completed command groups report command count instead of turn duration", () => {
-    const result = summarizeCommandItems(
-      [
-        toolItem({ state: "completed" }, "tool-1"),
-        toolItem({ state: "completed" }, "tool-2"),
-      ],
-      "completed",
-    );
+describe("summarizeTurnProcessItems", () => {
+  test("combines semantic categories in fixed order and removes duplicates", () => {
+    const result = summarizeTurnProcessItems([
+      toolItem({ state: "completed" }, "command-1"),
+      toolItem({ activity: { type: "web_search" }, command: null, state: "completed", tool: "web__run" }, "web-1"),
+      toolItem({ activity: { type: "read", subject: "file", target: { displayLabel: "src/a.ts" } }, command: null, state: "completed", tool: "Read" }, "read-1"),
+      toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/a.ts", operation: "update" }] },
+        command: null,
+        mutationDiffPaths: ["src/a.ts", "src/b.ts"],
+        state: "completed",
+        tool: "Edit",
+      }, "edit-1"),
+      toolItem({ activity: { type: "tool", mode: "call" }, command: null, state: "completed", tool: "custom_tool" }, "other-1"),
+      toolItem({ activity: { type: "tool", mode: "call", name: "custom.named" }, command: null, state: "completed", tool: "custom_named" }, "named-1"),
+      toolItem({ activity: { type: "integration", source: "drive" }, command: null, state: "completed", tool: "mcp__drive__search" }, "mcp-1"),
+      toolItem({ activity: { type: "read", subject: "skill", target: { displayLabel: "review" } }, command: null, state: "completed", tool: "skill_read" }, "skill-1"),
+    ], "completed");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       active: false,
       failed: false,
-      label: "运行了 2 条命令",
+      kind: "integration",
+      label: "使用了 drive、加载了工具、调用了工具、编辑了文件、读取了文件、运行了命令、搜索了网页、调用了工具",
     });
   });
 
-  test("one running command uses a single-line command preview", () => {
-    const result = summarizeCommandItems(
-      [toolItem({ state: "running", command: "bun test\n--watch" })],
-      "running",
-    );
+  test("uses the file label and a safe fallback", () => {
+    expect(summarizeTurnProcessItems([
+      toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/a.ts", operation: "write" }] },
+        command: null,
+        state: "completed",
+        tool: "Write",
+      }),
+    ], "completed")).toMatchObject({
+      kind: "file-change",
+      label: "编辑了文件",
+    });
 
-    expect(result).toEqual({
+    const text = {
+      id: "text-1",
+      type: "text",
+      status: "completed",
+    } as unknown as Item;
+    expect(summarizeTurnProcessItems([text], "completed")).toMatchObject({
+      kind: "tool",
+      label: "已处理",
+    });
+  });
+
+  test("uses the latest active item for a running summary", () => {
+    const result = summarizeTurnProcessItems([
+      toolItem({ state: "running" }, "command-1"),
+      toolItem({
+        activity: { type: "read", subject: "file", target: { displayLabel: "src/foo.ts" } },
+        command: null,
+        state: "running",
+        tool: "Read",
+      }, "read-1"),
+    ], "running");
+
+    expect(result).toMatchObject({
       active: true,
       failed: false,
-      label: "正在运行 bun test --watch",
+      kind: "exploration",
+      label: "正在读取 src/foo.ts",
+    });
+    expect(result.summaryKey).toContain("read-1");
+
+    const streamingReasoning = {
+      id: "reasoning-streaming",
+      type: "reasoning",
+      text: "继续分析",
+      status: "streaming",
+    } as unknown as Item;
+    expect(summarizeTurnProcessItems([
+      toolItem({
+        activity: { type: "search", query: "needle" },
+        command: null,
+        state: "running",
+        tool: "Grep",
+      }, "grep-running"),
+      streamingReasoning,
+    ], "running")).toMatchObject({
+      kind: "exploration",
+      label: "正在搜索“needle”",
+    });
+
+    const completedReasoning = {
+      id: "reasoning-1",
+      type: "reasoning",
+      text: "分析下一步",
+      status: "completed",
+    } as unknown as Item;
+    expect(summarizeTurnProcessItems(
+      [completedReasoning],
+      "running",
+    )).toMatchObject({
+      active: true,
+      kind: "thinking",
+      label: "正在思考",
     });
   });
 
-  test("concurrent running commands use the running command count", () => {
-    const result = summarizeCommandItems(
-      [
-        toolItem({ state: "running" }, "tool-1"),
-        toolItem({ state: "pending" }, "tool-2"),
-      ],
-      "running",
-    );
-
-    expect(result.label).toBe("正在运行 2 条命令");
-    expect(result.active).toBe(true);
-  });
-
-  test("terminal failures keep the command count and failed state", () => {
-    const result = summarizeCommandItems(
-      [
-        toolItem({ state: "completed" }, "tool-1"),
-        toolItem({ state: "error" }, "tool-2"),
-        toolItem({ state: "interrupted" }, "tool-3"),
-      ],
-      "completed",
-    );
-
-    expect(result).toEqual({
+  test("promotes child failures to the group state", () => {
+    expect(summarizeTurnProcessItems([
+      toolItem({ error: "failed", state: "error" }),
+      toolItem({ state: "completed" }, "command-2"),
+    ], "completed")).toMatchObject({
       active: false,
       failed: true,
-      label: "运行了 3 条命令",
+      kind: "command",
+      label: "运行了命令",
     });
   });
 
-  test("waiting turns keep the blocker visible", () => {
-    const result = summarizeCommandItems(
-      [toolItem({ state: "waiting-permission" })],
-      "waiting-permission",
-    );
-
-    expect(result).toEqual({
-      active: true,
-      failed: false,
-      label: "等待操作",
+  test("summarizes interrupted creates separately", () => {
+    expect(summarizeTurnProcessItems([
+      toolItem({
+        activity: { type: "file_change", changes: [{ path: "src/new.ts", operation: "create" }] },
+        command: null,
+        state: "interrupted",
+        tool: "Write",
+      }),
+    ], "completed")).toMatchObject({
+      failed: true,
+      kind: "file-change",
+      label: "停止创建了文件",
     });
   });
 });
 
-describe("summarizeTurnProcessItems", () => {
-  test("formats compact elapsed time for completed turns", () => {
+describe("turn work status", () => {
+  test("formats compact elapsed time", () => {
     expect(formatProcessElapsed(12)).toBe("12s");
     expect(formatProcessElapsed(300)).toBe("5m");
     expect(formatProcessElapsed(359)).toBe("5m 59s");
     expect(formatProcessElapsed(3_723)).toBe("1h 2m 3s");
     expect(formatProcessElapsed(0)).toBe("");
+  });
 
-    expect(summarizeTurnProcessItems(
-      [toolItem({ state: "completed" })],
-      "completed",
-      359,
-    )).toEqual({
-      active: false,
-      failed: false,
+  test("uses Codex working, completed and stopped copy", () => {
+    expect(summarizeTurnWork("running", 0)).toEqual({
+      kind: "working",
+      label: "处理中",
+    });
+    expect(summarizeTurnWork("running", 12)).toEqual({
+      kind: "working",
+      label: "已处理 12s",
+    });
+    expect(summarizeTurnWork("completed", 359)).toEqual({
+      kind: "worked",
       label: "已处理 5m 59s",
     });
-  });
-
-  test("keeps active and waiting turns visible", () => {
-    expect(summarizeTurnProcessItems(
-      [toolItem({ state: "running" })],
-      "running",
-      12,
-    )).toEqual({
-      active: true,
-      failed: false,
-      label: "正在处理",
-    });
-    expect(summarizeTurnProcessItems(
-      [toolItem({ state: "waiting-permission" })],
-      "waiting-permission",
-      12,
-    )).toEqual({
-      active: true,
-      failed: false,
-      label: "等待操作",
-    });
-  });
-
-  test("failed and interrupted turns remain terminal and collapsed by default", () => {
-    expect(summarizeTurnProcessItems(
-      [toolItem({ state: "error" })],
-      "failed",
-      84,
-    )).toEqual({
-      active: false,
-      failed: true,
-      label: "处理失败 1m 24s",
-    });
-    expect(summarizeTurnProcessItems(
-      [toolItem({ state: "interrupted" })],
-      "interrupted",
-      0,
-    )).toEqual({
-      active: false,
-      failed: true,
-      label: "已中断",
+    expect(summarizeTurnWork("stopped", 84)).toEqual({
+      kind: "stopped",
+      label: "你在 1m 24s 后停止了",
     });
   });
 });

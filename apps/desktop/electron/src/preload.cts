@@ -1,5 +1,9 @@
-import { contextBridge, ipcRenderer } from "electron"
-import type { DesktopThemeSettingsV6 } from "./settings/appearance-settings-store.js"
+import { contextBridge, ipcRenderer, webUtils } from "electron"
+import type { DesktopThemeSettingsV7 } from "./settings/appearance-settings-store.js"
+import type {
+  DesktopSystemFontFace,
+  DesktopSystemFontsResult,
+} from "@codepilotx/shared/desktop-theme"
 import type {
   DesktopPetOverlayBridge,
   DesktopPetPresentation,
@@ -38,6 +42,54 @@ import type {
   DesktopNotificationRequest,
   DesktopNotificationResult,
 } from "@codepilotx/shared/desktop-notification-ipc"
+import type {
+  DesktopAttachmentIpcBridge,
+  DesktopAttachmentSaveInput,
+  DesktopAttachmentSaveResult,
+  DesktopComposerPathGrant,
+  DesktopComposerPathListInput,
+  DesktopComposerPathListResult,
+  DesktopComposerPathPreview,
+  DesktopComposerPathReadInput,
+} from "@codepilotx/shared/desktop-attachment-ipc"
+import type {
+  CreateOrRestoreDesktopBrowserInput,
+  DesktopBrowserIpcBridge,
+  DesktopBrowserSnapshot,
+  DesktopBrowserTabInput,
+  NavigateDesktopBrowserInput,
+  SetDesktopBrowserBoundsInput,
+  SetDesktopBrowserVisibleInput,
+} from "@codepilotx/shared/desktop-browser-ipc"
+import type {
+  DesktopClipboardIpcBridge,
+  DesktopClipboardRichTextInput,
+  DesktopClipboardTextInput,
+  DesktopSensitiveClipboardResult,
+} from "@codepilotx/shared/desktop-clipboard-ipc"
+import type {
+  DesktopMicrophoneIpcBridge,
+} from "@codepilotx/shared/desktop-microphone-ipc"
+import type {
+  DesktopOpenWindowInput,
+  DesktopPageZoomAction,
+  DesktopPageZoomState,
+  DesktopWindowIpcBridge,
+} from "@codepilotx/shared/desktop-window-ipc"
+import type { DesktopWorkspaceIpcBridge } from "@codepilotx/shared/desktop-workspace-ipc"
+import type {
+  DesktopExternalOpenTarget,
+  DesktopShellIpcBridge,
+} from "@codepilotx/shared/desktop-shell-ipc"
+import type { DesktopStartupIpcBridge } from "@codepilotx/shared/desktop-startup-ipc"
+import type {
+  DesktopAppearanceIpcBridge,
+  DesktopStartupThemeSeed,
+} from "@codepilotx/shared/desktop-appearance-ipc"
+import type {
+  DesktopDeepLinkIpcBridge,
+  DesktopThreadDeepLinkPayload,
+} from "@codepilotx/shared/desktop-deep-link-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -99,6 +151,87 @@ const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
   activated: "desktop-notification:activated",
 } as const satisfies typeof import("@codepilotx/shared/desktop-notification-ipc").DESKTOP_NOTIFICATION_IPC_CHANNELS
 
+const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
+  saveToDownloads: "desktop-attachment:save-to-downloads",
+  chooseComposerFiles: "desktop-attachment:choose-composer-files",
+  grantComposerPaths: "desktop-attachment:grant-composer-paths",
+  readComposerPathGrant: "desktop-attachment:read-composer-path-grant",
+  listComposerPathGrant: "desktop-attachment:list-composer-path-grant",
+} as const satisfies typeof import("@codepilotx/shared/desktop-attachment-ipc").DESKTOP_ATTACHMENT_IPC_CHANNELS
+
+const DESKTOP_BROWSER_IPC_CHANNELS = {
+  getState: "desktop-browser:get-state",
+  createOrRestore: "desktop-browser:create-or-restore",
+  navigate: "desktop-browser:navigate",
+  reload: "desktop-browser:reload",
+  stop: "desktop-browser:stop",
+  goBack: "desktop-browser:go-back",
+  goForward: "desktop-browser:go-forward",
+  setBounds: "desktop-browser:set-bounds",
+  setVisible: "desktop-browser:set-visible",
+  focus: "desktop-browser:focus",
+  close: "desktop-browser:close",
+  clearAllowedSites: "desktop-browser:clear-allowed-sites",
+  stateChanged: "desktop-browser:state-changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-browser-ipc").DESKTOP_BROWSER_IPC_CHANNELS
+
+const DESKTOP_MICROPHONE_IPC_CHANNELS = {
+  openPrivacySettings: "desktop-microphone:open-privacy-settings",
+} as const satisfies typeof import("@codepilotx/shared/desktop-microphone-ipc").DESKTOP_MICROPHONE_IPC_CHANNELS
+
+const DESKTOP_WINDOW_IPC_CHANNELS = {
+  openWindow: "window:open",
+  minimize: "window:minimize",
+  toggleMaximize: "window:toggle-maximize",
+  close: "window:close",
+  isMaximized: "window:is-maximized",
+  getPageZoom: "window:page-zoom:get",
+  changePageZoom: "window:page-zoom:change",
+  pageZoomChanged: "window:page-zoom:changed",
+  resizeStateChanged: "window:resize-state-changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-window-ipc").DESKTOP_WINDOW_IPC_CHANNELS
+
+const DESKTOP_WORKSPACE_IPC_CHANNELS = {
+  pickDirectory: "workspace:pick-directory",
+} as const satisfies typeof import("@codepilotx/shared/desktop-workspace-ipc").DESKTOP_WORKSPACE_IPC_CHANNELS
+
+const DESKTOP_SHELL_IPC_CHANNELS = {
+  openExternal: "shell:open-external",
+  listExternalOpenTargets: "shell:list-external-open-targets",
+  openPathWithTarget: "shell:open-path-with-target",
+  revealPathInFolder: "shell:reveal-path-in-folder",
+} as const satisfies typeof import("@codepilotx/shared/desktop-shell-ipc").DESKTOP_SHELL_IPC_CHANNELS
+
+const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
+  writeText: "clipboard:write-text",
+  writeRichText: "clipboard:write-rich-text",
+  copyProviderApiKey: "clipboard:copy-provider-api-key",
+} as const satisfies typeof import("@codepilotx/shared/desktop-clipboard-ipc").DESKTOP_CLIPBOARD_IPC_CHANNELS
+
+const DESKTOP_STARTUP_IPC_CHANNELS = {
+  openLogs: "startup:open-logs",
+  quit: "startup:quit",
+} as const satisfies typeof import("@codepilotx/shared/desktop-startup-ipc").DESKTOP_STARTUP_IPC_CHANNELS
+
+const DESKTOP_APPEARANCE_IPC_CHANNELS = {
+  getSettings: "appearance:settings:get",
+  saveSettings: "appearance:settings:save",
+  getSystemTheme: "appearance:system-theme:get",
+  getStartupThemeSeed: "appearance:startup-theme-seed:get",
+  systemThemeChanged: "appearance:system-theme:changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
+
+applyStartupThemeSeed(
+  ipcRenderer.sendSync(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.getStartupThemeSeed,
+  ) as unknown,
+)
+
+const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
+  consumePending: "desktop-deep-link:consume-pending",
+  activated: "desktop-deep-link:activated",
+} as const satisfies typeof import("@codepilotx/shared/desktop-deep-link-ipc").DESKTOP_DEEP_LINK_IPC_CHANNELS
+
 function isDesktopNotificationActivation(
   value: unknown,
 ): value is DesktopNotificationActivation {
@@ -117,37 +250,166 @@ function isNotificationIdentifier(value: unknown): value is string {
     && /^[A-Za-z0-9._:-]+$/.test(value)
 }
 
-type AgentConnectionState = "connected" | "disconnected" | "unknown"
-type SystemThemeVariant = "light" | "dark"
+const DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH = 512
 
-interface DesktopExternalOpenTarget {
-  targetId: string
-  label: string
-  kind: "default-app" | "editor"
-  iconDataUrl?: string
+function normalizeDesktopThreadDeepLinkPayload(
+  value: unknown,
+): DesktopThreadDeepLinkPayload | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null
+  }
+  const payload = value as Record<string, unknown>
+  if (typeof payload.threadId !== "string") return null
+  const threadId = payload.threadId
+  if (threadId.trim().length < 1) return null
+  if (threadId.length > DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH) return null
+  return { threadId }
 }
 
+type SystemThemeVariant = "light" | "dark"
+const pendingComposerDropPaths = new Set<string>()
+
 const desktop = {
-  minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
-  toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-maximize"),
-  close: (): Promise<void> => ipcRenderer.invoke("window:close"),
-  isMaximized: (): Promise<boolean> => ipcRenderer.invoke("window:is-maximized"),
-  onMaximizedChange: (listener: (maximized: boolean) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, maximized: boolean) => listener(maximized)
-    ipcRenderer.on("window:maximized-changed", handler)
-    return () => ipcRenderer.removeListener("window:maximized-changed", handler)
-  },
-  pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke("workspace:pick-directory"),
-  // Main process support is intentionally optional during the transition. This
-  // listener is inert until it starts publishing agent:connection-changed.
-  onAgentConnectionChange: (listener: (state: AgentConnectionState) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, state: unknown) => {
-      if (state === "connected" || state === "disconnected" || state === "unknown") listener(state)
+  getDesktopBrowserState: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.getState, input),
+  createOrRestoreDesktopBrowser: (
+    input: CreateOrRestoreDesktopBrowserInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.createOrRestore, input),
+  navigateDesktopBrowser: (
+    input: NavigateDesktopBrowserInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.navigate, input),
+  reloadDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.reload, input),
+  stopDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.stop, input),
+  goBackDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goBack, input),
+  goForwardDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.goForward, input),
+  setDesktopBrowserBounds: (
+    input: SetDesktopBrowserBoundsInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.setBounds, input),
+  setDesktopBrowserVisible: (
+    input: SetDesktopBrowserVisibleInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.setVisible, input),
+  focusDesktopBrowser: (input: DesktopBrowserTabInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.focus, input),
+  closeDesktopBrowser: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.close, input),
+  clearDesktopBrowserAllowedSites: (
+    input: DesktopBrowserTabInput,
+  ): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.clearAllowedSites, input),
+  onDesktopBrowserStateChange: (
+    listener: (state: DesktopBrowserSnapshot) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: unknown,
+    ): void => {
+      if (isDesktopBrowserSnapshot(state)) listener(state)
     }
-    ipcRenderer.on("agent:connection-changed", handler)
-    return () => ipcRenderer.removeListener("agent:connection-changed", handler)
+    ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, handler)
   },
-  getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
+  openMicrophonePrivacySettings: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_MICROPHONE_IPC_CHANNELS.openPrivacySettings),
+  saveAttachmentToDownloads: (
+    input: DesktopAttachmentSaveInput,
+  ): Promise<DesktopAttachmentSaveResult> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.saveToDownloads, input),
+  chooseComposerFiles: (): Promise<DesktopComposerPathGrant[]> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.chooseComposerFiles),
+  grantComposerPaths: (
+    paths: readonly string[],
+  ): Promise<DesktopComposerPathGrant[]> => {
+    if (
+      !Array.isArray(paths)
+      || paths.some(path =>
+        typeof path !== "string" || !pendingComposerDropPaths.has(path),
+      )
+    ) {
+      return Promise.reject(new Error("本地文件未通过拖放或粘贴选择"))
+    }
+    for (const path of paths) pendingComposerDropPaths.delete(path)
+    return ipcRenderer.invoke(
+      DESKTOP_ATTACHMENT_IPC_CHANNELS.grantComposerPaths,
+      paths,
+    )
+  },
+  getPathForFile: (file: File): string => {
+    const path = webUtils.getPathForFile(file)
+    if (path) pendingComposerDropPaths.add(path)
+    return path
+  },
+  readComposerPathGrant: (
+    input: DesktopComposerPathReadInput,
+  ): Promise<DesktopComposerPathPreview> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.readComposerPathGrant, input),
+  listComposerPathGrant: (
+    input: DesktopComposerPathListInput,
+  ): Promise<DesktopComposerPathListResult> =>
+    ipcRenderer.invoke(DESKTOP_ATTACHMENT_IPC_CHANNELS.listComposerPathGrant, input),
+  openWindow: (input: DesktopOpenWindowInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.openWindow, input),
+  minimize: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.minimize),
+  toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.toggleMaximize),
+  close: (): Promise<void> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.close),
+  isMaximized: (): Promise<boolean> => ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.isMaximized),
+  getPageZoom: (): Promise<DesktopPageZoomState> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.getPageZoom),
+  changePageZoom: (action: DesktopPageZoomAction): Promise<DesktopPageZoomState> =>
+    ipcRenderer.invoke(DESKTOP_WINDOW_IPC_CHANNELS.changePageZoom, action),
+  onPageZoomChanged: (
+    listener: (state: DesktopPageZoomState) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: unknown,
+    ): void => {
+      if (isDesktopPageZoomState(state)) listener(state)
+    }
+    ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_WINDOW_IPC_CHANNELS.pageZoomChanged,
+        handler,
+      )
+  },
+  onWindowResizeStateChanged: (
+    listener: (resizing: boolean) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      resizing: unknown,
+    ): void => {
+      if (typeof resizing === "boolean") listener(resizing)
+    }
+    ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
+        handler,
+      )
+  },
+  pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory),
   getDataLocation: () =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
   chooseDataLocation: (workspaceRoots?: readonly string[]) =>
@@ -238,31 +500,42 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(DESKTOP_TERMINAL_IPC_CHANNELS.event, handler)
   },
+  writeClipboardText: (input: DesktopClipboardTextInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_CLIPBOARD_IPC_CHANNELS.writeText, input),
+  writeClipboardRichText: (input: DesktopClipboardRichTextInput): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_CLIPBOARD_IPC_CHANNELS.writeRichText, input),
   copyProviderApiKey: (
     credentialId: string,
-  ): Promise<{ clearAfterMs: 60000 }> =>
-    ipcRenderer.invoke("api-key:copy", credentialId),
-  openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
+  ): Promise<DesktopSensitiveClipboardResult> =>
+    ipcRenderer.invoke(
+      DESKTOP_CLIPBOARD_IPC_CHANNELS.copyProviderApiKey,
+      credentialId,
+    ),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openExternal, url),
   listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
-    ipcRenderer.invoke("shell:list-external-open-targets", targetPath),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.listExternalOpenTargets, targetPath),
   openPathWithTarget: (targetPath: string, targetId: string): Promise<void> =>
-    ipcRenderer.invoke("shell:open-path-with-target", targetPath, targetId),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.openPathWithTarget, targetPath, targetId),
   revealPathInFolder: (targetPath: string): Promise<void> =>
-    ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
-  openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
-  quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
-  getAppearanceSettings: (): Promise<DesktopThemeSettingsV6> =>
-    ipcRenderer.invoke("appearance:settings:get"),
-  saveAppearanceSettings: (settings: DesktopThemeSettingsV6): Promise<void> =>
-    ipcRenderer.invoke("appearance:settings:save", settings),
+    ipcRenderer.invoke(DESKTOP_SHELL_IPC_CHANNELS.revealPathInFolder, targetPath),
+  openLogDirectory: (): Promise<string> => ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.openLogs),
+  quitDuringStartup: (): Promise<void> => ipcRenderer.invoke(DESKTOP_STARTUP_IPC_CHANNELS.quit),
+  getAppearanceSettings: (): Promise<DesktopThemeSettingsV7> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSettings),
+  saveAppearanceSettings: (settings: DesktopThemeSettingsV7): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.saveSettings, settings),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
-    ipcRenderer.invoke("appearance:system-theme:get"),
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme),
   onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, variant: unknown) => {
       if (variant === "light" || variant === "dark") listener(variant)
     }
-    ipcRenderer.on("appearance:system-theme:changed", handler)
-    return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
+    ipcRenderer.on(DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged,
+        handler,
+      )
   },
   openPetOverlay: (): Promise<void> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
@@ -274,6 +547,44 @@ const desktop = {
     presentation: DesktopPetPresentation,
   ): Promise<DesktopPetPresentation> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
+  listSystemFonts: async (): Promise<DesktopSystemFontsResult> => {
+    // Local Font Access (Chromium 103+). Only display metadata is returned;
+    // font file paths, Blobs, and filesystem access never cross the bridge.
+    const queryLocalFonts = (
+      window as unknown as {
+        queryLocalFonts?: () => Promise<readonly LocalFontMetadata[]>
+      }
+    ).queryLocalFonts
+    if (typeof queryLocalFonts !== "function") {
+      return { ok: false, error: "unsupported" }
+    }
+    try {
+      const entries = await queryLocalFonts()
+      if (!Array.isArray(entries)) return { ok: false, error: "failed" }
+      const seen = new Set<string>()
+      const fonts: DesktopSystemFontFace[] = []
+      for (const entry of entries) {
+        const face = normalizeSystemFontFace(entry)
+        if (!face) continue
+        const key = `${face.family}\u0000${face.postscriptName}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        fonts.push(face)
+      }
+      fonts.sort(
+        (left, right) =>
+          left.family.localeCompare(right.family) ||
+          left.fullName.localeCompare(right.fullName) ||
+          left.postscriptName.localeCompare(right.postscriptName),
+      )
+      return { ok: true, fonts }
+    } catch (error) {
+      if (isRecord(error) && error.name === "NotAllowedError") {
+        return { ok: false, error: "denied" }
+      }
+      return { ok: false, error: "failed" }
+    }
+  },
   onPetPresentationPreview: (
     listener: (presentation: DesktopPetPresentation) => void,
   ): (() => void) => {
@@ -329,6 +640,32 @@ const desktop = {
         handler,
       )
   },
+  consumePendingThreadDeepLink: async (): Promise<DesktopThreadDeepLinkPayload | null> => {
+    const result: unknown = await ipcRenderer.invoke(
+      DESKTOP_DEEP_LINK_IPC_CHANNELS.consumePending,
+    )
+    if (result === null) return null
+    const normalized = normalizeDesktopThreadDeepLinkPayload(result)
+    if (normalized === null) return null
+    return normalized
+  },
+  onThreadDeepLinkActivated: (
+    listener: (payload: DesktopThreadDeepLinkPayload) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: unknown,
+    ): void => {
+      const normalized = normalizeDesktopThreadDeepLinkPayload(payload)
+      if (normalized !== null) listener(normalized)
+    }
+    ipcRenderer.on(DESKTOP_DEEP_LINK_IPC_CHANNELS.activated, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_DEEP_LINK_IPC_CHANNELS.activated,
+        handler,
+      )
+  },
 } satisfies DesktopPetOverlayBridge
   & DesktopSettingsIpcBridge
   & DesktopDataLocationIpcBridge
@@ -336,13 +673,115 @@ const desktop = {
   & DesktopUpdateIpcBridge
   & DesktopTerminalIpcBridge
   & DesktopNotificationIpcBridge
+  & DesktopAttachmentIpcBridge
+  & DesktopBrowserIpcBridge
+  & DesktopMicrophoneIpcBridge
+  & DesktopWindowIpcBridge
+  & DesktopWorkspaceIpcBridge
+  & DesktopShellIpcBridge
+  & DesktopClipboardIpcBridge
+  & DesktopStartupIpcBridge
+  & DesktopAppearanceIpcBridge
+  & DesktopDeepLinkIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
 
+function applyStartupThemeSeed(value: unknown): void {
+  if (!isStartupThemeSeed(value)) return
+
+  const applyToRoot = (root: HTMLElement): void => {
+    root.dataset.theme = value.variant
+    root.style.colorScheme = value.variant
+    root.style.setProperty("--startup-splash-background", value.surface)
+    root.style.setProperty("--startup-splash-foreground", value.ink)
+  }
+  const root = document.documentElement
+  if (root) {
+    applyToRoot(root)
+  } else {
+    const observer = new MutationObserver(() => {
+      const nextRoot = document.documentElement
+      if (!nextRoot) return
+      applyToRoot(nextRoot)
+      observer.disconnect()
+    })
+    observer.observe(document, { childList: true })
+  }
+
+  const updateThemeColor = (): void => {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      value.surface,
+    )
+  }
+  updateThemeColor()
+  document.addEventListener("DOMContentLoaded", updateThemeColor, { once: true })
+}
+
+function isStartupThemeSeed(value: unknown): value is DesktopStartupThemeSeed {
+  if (!isRecord(value)) return false
+  return value.version === 1
+    && (value.variant === "light" || value.variant === "dark")
+    && isSixDigitHexColor(value.surface)
+    && isSixDigitHexColor(value.ink)
+}
+
+function isSixDigitHexColor(value: unknown): value is `#${string}` {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
+
+function isDesktopBrowserSnapshot(
+  value: unknown,
+): value is DesktopBrowserSnapshot {
+  if (!isRecord(value)) return false
+  return isIdentifier(value.tabId)
+    && typeof value.open === "boolean"
+    && typeof value.url === "string"
+    && typeof value.title === "string"
+    && typeof value.loading === "boolean"
+    && typeof value.canGoBack === "boolean"
+    && typeof value.canGoForward === "boolean"
+    && (value.error === null || typeof value.error === "string")
+    && Array.isArray(value.allowedSites)
+    && value.allowedSites.every(site => typeof site === "string")
+    && Array.isArray(value.sitePermissions)
+}
+type LocalFontMetadata = {
+  family: string
+  fullName: string
+  postscriptName: string
+  style: string
+}
+
+function normalizeSystemFontFace(value: unknown): DesktopSystemFontFace | null {
+  if (!isRecord(value)) return null
+  const family = fontMetadataField(value.family, 200)
+  const fullName = fontMetadataField(value.fullName, 200)
+  const postscriptName = fontMetadataField(value.postscriptName, 200)
+  if (!family || !fullName || !postscriptName) return null
+  const style = typeof value.style === "string" ? value.style.trim() : ""
+  return {
+    family,
+    fullName,
+    postscriptName,
+    style: style.length > 0 && style.length <= 100 ? style : "Regular",
+  }
+}
+
+function fontMetadataField(
+  value: unknown,
+  maximumLength: number,
+): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
+}
+
 
 function isPetPresentation(value: unknown): value is DesktopPetPresentation {
   return isRecord(value)
@@ -376,6 +815,18 @@ function isDesktopUpdateStatus(
     default:
       return false
   }
+}
+
+function isDesktopPageZoomState(
+  value: unknown,
+): value is DesktopPageZoomState {
+  return isRecord(value)
+    && typeof value.percent === "number"
+    && Number.isFinite(value.percent)
+    && value.percent >= 50
+    && value.percent <= 200
+    && typeof value.canZoomIn === "boolean"
+    && typeof value.canZoomOut === "boolean"
 }
 
 function isDesktopTerminalEvent(value: unknown): value is DesktopTerminalEvent {

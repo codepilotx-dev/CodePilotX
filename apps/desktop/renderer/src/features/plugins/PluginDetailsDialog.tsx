@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type React from 'react'
 import { useRef } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
@@ -10,8 +10,12 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
-import { pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
+import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
+import {
+  PluginDetailsMetadata,
+  PluginDetailsPrimaryAction,
+} from './PluginDetailsContent.js'
 
 type Props = {
   item: PluginCatalogItem | null
@@ -20,17 +24,15 @@ type Props = {
   error?: string | null
   restoreFocusElement?: HTMLElement | null
   onOpenChange: (open: boolean) => void
-  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement) => void
-}
-
-const CATEGORY_LABELS: Record<PluginCatalogItem['category'], string> = {
-  included: '内置',
-  manageable: '可管理',
-  external: '外部',
+  onPrimaryAction: (
+    item: PluginCatalogItem,
+    trigger: HTMLButtonElement,
+    checked?: boolean,
+  ) => void
 }
 
 export function PluginDetailsDialog({
-  item,
+  item: currentItem,
   open,
   busy = false,
   error,
@@ -38,18 +40,19 @@ export function PluginDetailsDialog({
   onOpenChange,
   onPrimaryAction,
 }: Props): React.ReactNode {
+  const retainedItem = useLastNonNull(currentItem)
+  const item = open ? currentItem : retainedItem
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   if (!item) return null
 
-  const action = pluginPrimaryAction(item)
-
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop plugin-details-dialog__backdrop">
-          <Dialog.Content
-            className="plugin-details-dialog"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop plugin-details-dialog__backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog plugin-details-dialog"
+            data-dialog-size="detail"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -60,15 +63,19 @@ export function PluginDetailsDialog({
               closeButtonRef.current?.focus()
             }}
           >
-            <header className="plugin-details-dialog__header">
+            <header className="settings-management-dialog-header plugin-details-dialog__header">
               <span
                 aria-hidden="true"
                 className="plugin-details-dialog__plugin-icon"
                 data-plugin-tone={item.tone}
               >
-                <PluginIcon name={item.iconName} />
+                <PluginIcon
+                  logoDarkSource={item.logoDarkSource}
+                  logoSource={item.logoSource}
+                  name={item.iconName}
+                />
               </span>
-              <div className="plugin-details-dialog__heading">
+              <div className="settings-management-dialog-heading plugin-details-dialog__heading">
                 <Dialog.Title className="plugin-details-dialog__title">
                   {item.name}
                 </Dialog.Title>
@@ -77,7 +84,7 @@ export function PluginDetailsDialog({
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>
-                <IconButton ref={closeButtonRef} title="关闭插件详情" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeButtonRef} size="toolbar" title="关闭插件详情">
                   <X
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
@@ -87,17 +94,8 @@ export function PluginDetailsDialog({
               </Dialog.Close>
             </header>
 
-            <ScrollArea className="plugin-details-dialog__scroll-area">
-              <dl className="plugin-details-dialog__metadata">
-                <div className="plugin-details-dialog__metadata-row">
-                  <dt>来源</dt>
-                  <dd>{CATEGORY_LABELS[item.category]}</dd>
-                </div>
-                <div className="plugin-details-dialog__metadata-row">
-                  <dt>状态</dt>
-                  <dd>{pluginStatusLabel(item)}</dd>
-                </div>
-              </dl>
+            <ScrollArea className="settings-management-dialog-body plugin-details-dialog__scroll-area">
+              <PluginDetailsMetadata item={item} />
 
               {error ? (
                 <p className="plugin-details-dialog__error" role="status">
@@ -106,30 +104,17 @@ export function PluginDetailsDialog({
               ) : null}
             </ScrollArea>
 
-            <footer className="plugin-details-dialog__actions">
+            <footer className="settings-management-dialog-footer plugin-details-dialog__actions">
               <Dialog.Close asChild>
-                <Button>关闭</Button>
+                <Button color="secondary">关闭</Button>
               </Dialog.Close>
-              {action ? (
-                <Button
-                  aria-pressed={action.pressed}
-                  disabled={action.disabled}
-                  loading={busy}
-                  onClick={event => onPrimaryAction(item, event.currentTarget)}
-                >
-                  {action.label}
-                  {action.kind === 'open-external' ? (
-                    <ExternalLink
-                      aria-hidden="true"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  ) : null}
-                </Button>
-              ) : null}
+              <PluginDetailsPrimaryAction
+                busy={busy}
+                item={item}
+                onPrimaryAction={onPrimaryAction}
+              />
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

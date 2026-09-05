@@ -16,9 +16,17 @@ describe('desktop live event subscription filters', () => {
       'provider/credential/updated',
       'usage/source/updated',
     ],
+    modelHealth: [
+      'model/health/updated',
+      'catalog/updated',
+      'provider/credential/updated',
+    ],
     skills: ['skill/updated'],
+    plugins: ['plugins/updated'],
+    minimaxCli: ['minimaxCli/updated'],
     tooling: ['tooling/updated'],
     mcp: ['mcp/updated'],
+    sessionGroups: [],
     global: [
       'catalog/updated',
       'provider/credential/updated',

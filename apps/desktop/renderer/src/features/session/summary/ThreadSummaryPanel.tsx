@@ -23,6 +23,7 @@ import { previewThreadSummarySources } from "./threadSummaryViewModel.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { useDialogFocusRestore } from "../../../components/ui/useDialogFocusRestore.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 
 type ThreadSummaryActions = {
   onBranchSelect: (branch: string) => Promise<void>;
@@ -168,7 +169,7 @@ export function ThreadSummaryPanel({
           actionLabel="暂不支持创建本地环境"
         >
           <button
-            className="interactive-row interactive-row--adaptive thread-summary-row"
+            className="interactive-row interactive-row--nav thread-summary-row"
             title="打开变更审查"
             type="button"
             onClick={onOpenReview}
@@ -189,7 +190,7 @@ export function ThreadSummaryPanel({
             title={model.environment.workspacePath}
           >
             <button
-              className="interactive-row interactive-row--adaptive thread-summary-row-group__main"
+              className="interactive-row interactive-row--nav thread-summary-row-group__main"
               type="button"
               onClick={onOpenWorkspacePath}
             >
@@ -217,7 +218,7 @@ export function ThreadSummaryPanel({
             onOpenChange={setBranchPopoverOpen}
             trigger={
               <button
-                className="interactive-row interactive-row--adaptive thread-summary-row"
+                className="interactive-row interactive-row--nav thread-summary-row"
                 data-state={branchPopoverOpen ? "open" : "closed"}
                 title={model.environment.branchName ?? "未检测到 Git 分支"}
                 type="button"
@@ -256,7 +257,7 @@ export function ThreadSummaryPanel({
       {model.plan ? (
         <ThreadSummarySection title="计划">
           <button
-            className="interactive-row interactive-row--adaptive thread-summary-row"
+            className="interactive-row interactive-row--nav thread-summary-row"
             type="button"
             onClick={() => onOpenPlan(model.plan!)}
           >
@@ -274,7 +275,7 @@ export function ThreadSummaryPanel({
         >
           {sourcePreview.items.map((source) => (
             <a
-              className="interactive-row interactive-row--adaptive thread-summary-row"
+              className="interactive-row interactive-row--nav thread-summary-row"
               href={source.url}
               key={source.url}
               rel="noreferrer"
@@ -287,7 +288,7 @@ export function ThreadSummaryPanel({
           ))}
           <button
             aria-haspopup="dialog"
-            className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-source-toggle"
+            className="interactive-row interactive-row--nav thread-summary-row thread-summary-source-toggle"
             type="button"
             onClick={() => setSourcesPanelOpen(true)}
           >
@@ -327,7 +328,7 @@ function ThreadSummarySubagentsRow({
   return (
     <div
       aria-label={`子智能体：${label}`}
-      className="interactive-row interactive-row--adaptive thread-summary-row thread-summary-subagents-summary"
+      className="thread-summary-row thread-summary-subagents-summary"
       title={subagents.map((subagent) => subagent.name).join("、")}
     >
       <span className="thread-summary-subagents-summary__avatars">
@@ -359,9 +360,9 @@ function ThreadSummarySourcesPanel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="thread-summary-sources-overlay" />
+        <Dialog.Overlay className="ui-dialog-backdrop thread-summary-sources-overlay" />
         <Dialog.Content
-          className="thread-summary-sources-panel"
+          className="ui-dialog-surface ui-dialog-surface--side-right thread-summary-sources-panel"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header>
@@ -370,7 +371,7 @@ function ThreadSummarySourcesPanel({
               <span>{sources.length}</span>
             </div>
             <Dialog.Close asChild>
-              <IconButton title="关闭来源面板">
+              <IconButton color="ghostSecondary" size="toolbar" title="关闭来源面板">
                 <X aria-hidden="true" size={APP_ICON_SIZE} />
               </IconButton>
             </Dialog.Close>
@@ -381,7 +382,7 @@ function ThreadSummarySourcesPanel({
           <div className="thread-summary-sources-panel__list" role="list">
             {sources.map((source) => (
               <a
-                className="interactive-row interactive-row--adaptive"
+                className="interactive-row interactive-row--nav"
                 href={source.url}
                 key={source.url}
                 rel="noreferrer"
@@ -416,6 +417,8 @@ function ThreadSummarySection({
   title: string;
 }): React.ReactNode {
   const headingId = React.useId();
+  const generatedRowsId = React.useId();
+  const contentId = rowsId ?? generatedRowsId;
   const [expanded, setExpanded] = React.useState(true);
   return (
     <section
@@ -429,6 +432,7 @@ function ThreadSummarySection({
       <header>
         <h2>
           <button
+            aria-controls={contentId}
             aria-expanded={expanded}
             className="thread-summary-section__toggle"
             type="button"
@@ -447,16 +451,14 @@ function ThreadSummarySection({
           ) : null}
         </span>
       </header>
-      <div
-        aria-hidden={!expanded}
+      <DisclosureContent
         className="thread-summary-section__content"
-        data-expanded={expanded}
-        inert={!expanded}
+        contentClassName="thread-summary-section__rows"
+        expanded={expanded}
+        id={contentId}
       >
-        <div className="thread-summary-section__rows" id={rowsId}>
-          {children}
-        </div>
-      </div>
+        {children}
+      </DisclosureContent>
     </section>
   );
 }
@@ -502,7 +504,7 @@ function SummaryGitActionRow({
   const row = (
     <button
       aria-disabled={!enabled}
-      className="interactive-row interactive-row--adaptive thread-summary-row"
+      className="interactive-row interactive-row--nav thread-summary-row"
       type="button"
       onClick={(event) => {
         if (!enabled) {

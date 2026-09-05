@@ -9,6 +9,11 @@ export type ComposerSlashCommandId =
   | 'compact'
   | 'mcp'
   | 'status'
+  | 'side'
+  | 'fork'
+  | 'archive'
+  | 'project'
+  | 'task'
 
 export type ComposerCommandAvailability = {
   visible: boolean
@@ -36,6 +41,7 @@ export type ComposerSkillCommand = {
     name: string
     path: string
     scope: DesktopInstalledSkill['scope']
+    source: DesktopInstalledSkill['source']
   }
 }
 
@@ -65,6 +71,7 @@ export function skillToComposerCommand(
       name: skill.name,
       path: skill.path,
       scope: skill.scope,
+      source: skill.source,
     },
   }
 }
@@ -77,7 +84,7 @@ export function mergeSlashCommands(
   const triggers = new Set<string>()
 
   for (const command of builtins) {
-    if (!command.availability.visible || !command.availability.enabled) continue
+    if (!command.availability.visible) continue
     const trigger = normalizeTrigger(command.trigger)
     if (!trigger || triggers.has(trigger)) continue
     triggers.add(trigger)
@@ -108,8 +115,21 @@ export function filterComposerCommands<T extends ComposerCommand>(
   )
 }
 
-export function isSlashCommandQuery(input: string): boolean {
-  return /^\/\S*$/u.test(input)
+export function getActiveSlashCommandQuery(
+  input: string,
+  selectionStart: number | null,
+): ComposerTokenQuery | null {
+  if (selectionStart == null || selectionStart <= 0) return null
+  const beforeCursor = input.slice(0, selectionStart)
+  const match = beforeCursor.match(/(?:^|\s)\/([^\s/]*)$/u)
+  if (!match) return null
+  const token = match[0]
+  const markerOffset = token.lastIndexOf('/')
+  return {
+    start: selectionStart - token.length + markerOffset,
+    end: selectionStart,
+    query: match[1] ?? '',
+  }
 }
 
 export function parseSlashInvocation(

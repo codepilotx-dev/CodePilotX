@@ -14,6 +14,7 @@ import type {
 
 export type ProviderManagementClient = Pick<
   CodePilotXDesktopClient,
+  | 'refreshModelProviders'
   | 'listModelProviders'
   | 'getModelProviderState'
   | 'listProviderCredentials'
@@ -36,6 +37,7 @@ export type ProviderManagementStore = {
   subscribe(listener: () => void): () => void
   ensureLoaded(): Promise<ProviderManagementSnapshot>
   refresh(): Promise<ProviderManagementSnapshot>
+  refreshAllProviderData(): Promise<ProviderManagementSnapshot>
   refreshConnections(): Promise<ProviderManagementSnapshot>
   refreshSources(): Promise<RpcResult<'usage/source/list'>>
   querySources(
@@ -71,11 +73,15 @@ export type ProviderManagementStore = {
   invalidate(): void
 }
 
+const CONFIGURATION_ERROR_MESSAGE = '本地 Agent 的供应商配置暂时无法读取，请确认 Agent 已启动后重试。'
+
 const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   loaded: false,
   loading: false,
   refreshingSources: false,
+  refreshingSourceIds: [],
   error: null,
+  configurationError: null,
   providers: [],
   currentProviderState: null,
   credentials: [],
@@ -106,6 +112,11 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error && error.message.trim()
     ? error.message
     : '供应商连接状态暂时无法加载。'
+
+const fulfilledValue = <T>(result: PromiseSettledResult<T>): T => {
+  if (result.status === 'rejected') throw result.reason
+  return result.value
+}
 
 const mergeUsageResults = (
   current: ProviderManagementSnapshot['usageResults'],
@@ -152,6 +163,7 @@ export function createProviderManagementStore(
   let queryContextKey: string | null = null
   let queryEpoch = 0
   const pendingQueriesByEpoch = new Map<number, number>()
+  const activeRefreshingSourceCounts = new Map<string, number>()
   const listeners = new Set<() => void>()
 
   const update = (
@@ -164,7 +176,7 @@ export function createProviderManagementStore(
 
   const refresh = (): Promise<ProviderManagementSnapshot> => {
     if (loadRequest) return loadRequest
-    update({ loading: true, error: null })
+    update({ loading: true, error: null, configurationError: null })
     const pending = Promise.allSettled([
       client.listModelProviders(),
       client.getModelProviderState(),
@@ -174,6 +186,8 @@ export function createProviderManagementStore(
       const errors = results
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map(result => errorMessage(result.reason))
+      const configurationFailed = results[0]?.status === 'rejected'
+        || results[1]?.status === 'rejected'
       const nextUsageSources = results[3]?.status === 'fulfilled'
         ? [...results[3].value.sources]
         : snapshot.usageSources
@@ -184,6 +198,10 @@ export function createProviderManagementStore(
         loaded: true,
         loading: false,
         error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+        // 目录或 Provider 状态读取失败时，stale 的 modelConfigured 不再可信。
+        ...(configurationFailed
+          ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+          : { configurationError: null }),
         ...(results[0]?.status === 'fulfilled'
           ? { providers: [...results[0].value] }
           : {}),
@@ -216,6 +234,46 @@ export function createProviderManagementStore(
     return pending
   }
 
+  const refreshAllProviderData = async (): Promise<ProviderManagementSnapshot> => {
+    update({ loading: true })
+    try {
+      await client.refreshModelProviders()
+      const results = await Promise.allSettled([
+        client.listModelProviders(),
+        client.getModelProviderState(),
+        client.listProviderCredentials(),
+        client.listUsageSources(),
+      ])
+      const providers = fulfilledValue(results[0])
+      const currentProviderState = fulfilledValue(results[1])
+      const credentialsResult = fulfilledValue(results[2])
+      const usageSourceResult = fulfilledValue(results[3])
+      const credentials = [...credentialsResult]
+      const usageSources = [...usageSourceResult.sources]
+      return update({
+        loaded: true,
+        loading: false,
+        error: null,
+        configurationError: null,
+        providers: [...providers],
+        currentProviderState,
+        credentials,
+        apiKeys: credentials
+          .filter(credential => credential.kind === 'api-key')
+          .map(providerCredentialToApiKey),
+        usageSources,
+        usageResults: reconcileUsageResults(
+          snapshot.usageResults,
+          snapshot.usageSources,
+          usageSources,
+        ),
+      })
+    } catch (error) {
+      update({ loading: false })
+      throw error
+    }
+  }
+
   const refreshSources = async (): Promise<RpcResult<'usage/source/list'>> => {
     update({ refreshingSources: true, error: null })
     try {
@@ -239,10 +297,11 @@ export function createProviderManagementStore(
   }
 
   const refreshConnections = async (): Promise<ProviderManagementSnapshot> => {
-    update({ refreshingSources: true, error: null })
+    update({ refreshingSources: true, error: null, configurationError: null })
     const results = await Promise.allSettled([
       client.listProviderCredentials(),
       client.listUsageSources(),
+      client.getModelProviderState(),
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
@@ -253,10 +312,14 @@ export function createProviderManagementStore(
     const credentials = results[0]?.status === 'fulfilled'
       ? [...results[0].value]
       : snapshot.credentials
+    const configurationFailed = results[2]?.status === 'rejected'
     return update({
       loaded: true,
       refreshingSources: false,
       error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+      ...(configurationFailed
+        ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+        : { configurationError: null }),
       ...(results[0]?.status === 'fulfilled'
         ? {
             credentials,
@@ -275,24 +338,48 @@ export function createProviderManagementStore(
             ),
           }
         : {}),
+      ...(results[2]?.status === 'fulfilled'
+        ? { currentProviderState: results[2].value }
+        : {}),
     })
   }
 
-  const refreshCatalog = async (): Promise<ProviderManagementSnapshot> => {
+  // 目录、凭据和模型状态的一次性合并刷新：事件与凭据变更统一走这里，
+  // 避免 refreshCatalog() 与 refreshConnections() 并发、重复请求及后返回覆盖新状态。
+  const refreshConfiguration = async (): Promise<ProviderManagementSnapshot> => {
+    update({ refreshingSources: true, configurationError: null })
     const results = await Promise.allSettled([
       client.listModelProviders(),
+      client.listProviderCredentials(),
       client.getModelProviderState(),
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       .map(result => errorMessage(result.reason))
+    const configurationFailed = results[0]?.status === 'rejected'
+      || results[2]?.status === 'rejected'
+    const credentials = results[1]?.status === 'fulfilled'
+      ? [...results[1].value]
+      : snapshot.credentials
     return update({
-      error: errors.length > 0 ? [...new Set(errors)].join('；') : snapshot.error,
+      refreshingSources: false,
+      error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+      ...(configurationFailed
+        ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+        : { configurationError: null }),
       ...(results[0]?.status === 'fulfilled'
         ? { providers: [...results[0].value] }
         : {}),
       ...(results[1]?.status === 'fulfilled'
-        ? { currentProviderState: results[1].value }
+        ? {
+            credentials,
+            apiKeys: credentials
+              .filter(credential => credential.kind === 'api-key')
+              .map(providerCredentialToApiKey),
+          }
+        : {}),
+      ...(results[2]?.status === 'fulfilled'
+        ? { currentProviderState: results[2].value }
         : {}),
     })
   }
@@ -332,25 +419,29 @@ export function createProviderManagementStore(
     if (eventSubscription !== null) return
     eventSubscription = client.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
-    }, event => {
-      if (event.type === 'catalog/updated') {
-        void refreshCatalog()
-        return
+    }, async events => {
+      let refreshConfigurationRequested = false
+      let refreshSourcesRequested = false
+      for (const event of events) {
+        if (event.type === 'catalog/updated' || event.type === 'provider/credential/updated') {
+          refreshConfigurationRequested = true
+          continue
+        }
+        if (event.type === 'usage/source/updated') {
+          refreshSourcesRequested = true
+        }
       }
-      if (event.type === 'provider/credential/updated') {
-        void refreshConnections()
-        return
-      }
-      if (event.type === 'usage/source/updated') {
-        void refreshSources().catch(() => {})
-      }
+      await Promise.all([
+        ...(refreshConfigurationRequested ? [refreshConfiguration()] : []),
+        ...(refreshSourcesRequested ? [refreshSources()] : []),
+      ])
     })
   }
 
   const querySources = async (
     params: RpcParams<'usage/provider/query'>,
   ): Promise<RpcResult<'usage/provider/query'>> => {
-    const contextKey = `${params.range}\u0000${params.timeZone}`
+    const contextKey = `${params.timeZone}`
     if (queryContextKey !== contextKey) {
       queryContextKey = contextKey
       queryEpoch += 1
@@ -360,16 +451,22 @@ export function createProviderManagementStore(
       requestEpoch,
       (pendingQueriesByEpoch.get(requestEpoch) ?? 0) + 1,
     )
-    update({ refreshingSources: true, error: null })
+    for (const sourceId of params.sourceIds) {
+      activeRefreshingSourceCounts.set(
+        sourceId,
+        (activeRefreshingSourceCounts.get(sourceId) ?? 0) + 1,
+      )
+    }
+    update({
+      refreshingSources: true,
+      refreshingSourceIds: [...activeRefreshingSourceCounts.keys()],
+      error: null,
+    })
     try {
       const result = await client.queryProviderUsage(params)
       if (requestEpoch !== queryEpoch) return result
-      const sameRange = snapshot.usageRange === params.range
-        && snapshot.usageTimeZone === params.timeZone
       update({
-        usageResults: sameRange
-          ? mergeUsageResults(snapshot.usageResults, result.sources)
-          : [...result.sources],
+        usageResults: mergeUsageResults(snapshot.usageResults, result.sources),
         usageGeneratedAt: result.generatedAt,
         usageRange: result.range,
         usageTimeZone: result.timeZone,
@@ -379,14 +476,25 @@ export function createProviderManagementStore(
       if (requestEpoch === queryEpoch) update({ error: errorMessage(error) })
       throw error
     } finally {
+      for (const sourceId of params.sourceIds) {
+        const count = (activeRefreshingSourceCounts.get(sourceId) ?? 1) - 1
+        if (count <= 0) {
+          activeRefreshingSourceCounts.delete(sourceId)
+        } else {
+          activeRefreshingSourceCounts.set(sourceId, count)
+        }
+      }
       const remaining = (pendingQueriesByEpoch.get(requestEpoch) ?? 1) - 1
       if (remaining > 0) {
         pendingQueriesByEpoch.set(requestEpoch, remaining)
       } else {
         pendingQueriesByEpoch.delete(requestEpoch)
-        if (requestEpoch === queryEpoch) {
-          update({ refreshingSources: false })
-        }
+      }
+      if (requestEpoch === queryEpoch) {
+        update({
+          refreshingSources: remaining > 0 || activeRefreshingSourceCounts.size > 0,
+          refreshingSourceIds: [...activeRefreshingSourceCounts.keys()],
+        })
       }
     }
   }
@@ -405,6 +513,7 @@ export function createProviderManagementStore(
         : loadRequest ?? refresh()
     },
     refresh,
+    refreshAllProviderData,
     refreshConnections,
     refreshSources,
     querySources,
@@ -445,7 +554,7 @@ export function createProviderManagementStore(
     async createApiKey(input) {
       const result = await client.createApiKey(input)
       invalidateProviderCredentialResults(String(input.providerId))
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async updateApiKey(input) {
@@ -456,7 +565,7 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async testApiKey(credentialId) {
@@ -467,7 +576,7 @@ export function createProviderManagementStore(
     async setActiveCredential(...input) {
       const result = await client.setActiveProviderCredential(...input)
       invalidateProviderCredentialResults(String(input[0]))
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async setCredentialEnabled(...input) {
@@ -478,7 +587,7 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     async reorderApiKeys(...input) {
@@ -494,11 +603,11 @@ export function createProviderManagementStore(
       invalidateProviderCredentialResults(
         providerId === undefined ? undefined : String(providerId),
       )
-      await refreshConnections()
+      await refreshConfiguration()
       return result
     },
     invalidate() {
-      update({ loaded: false, error: null })
+      update({ loaded: false, error: null, configurationError: null })
     },
   }
 }

@@ -8,6 +8,8 @@ import {
   DESKTOP_WORKFLOW_EVENT_CHANNEL,
   type DesktopApiMethod,
 } from '../../../shared/ipcChannels.js'
+import { mockThreadHistoryPage } from './fixtureShared.js'
+import { permissionModeFromDesktopConfig } from './fixtureRuntime.js'
 import { encodeDesktopBridgeArgs } from '../../../shared/desktopBridgeArgs.js'
 import {
   defaultDesktopStoredSettings,
@@ -89,7 +91,6 @@ import {
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
   desktopPermissionModeToPermissionConfig,
-  permissionModeFromPermissionConfig,
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
 import {
@@ -182,236 +183,89 @@ export function mockWorkspace(path: string): DesktopWorkspace {
  * sessions. The adapter lives at the mock transport boundary so production
  * conversation code never falls back to the legacy flattened timeline.
  */
-export function mockThreadHistoryPage(
-  snapshot: DesktopSessionSnapshot,
-): RpcResult<'thread/history/read'> {
-  const threadId = snapshot.item.id
-  const createdAt = Date.parse(snapshot.item.createdAt) || Date.now()
-  const updatedAt = Date.parse(snapshot.updatedAt) || createdAt
-  const permissionConfig = snapshot.settings.permissionConfig
-  const mode = snapshot.settings.planModeActive ? 'plan' : 'chat'
-  const model = { providerID: 'mock', id: snapshot.settings.model ?? 'mock' }
-  const bundles: Array<Record<string, unknown>> = []
-  let current: {
-    turn: Record<string, unknown>
-    inputs: Array<Record<string, unknown>>
-    messages: Array<Record<string, unknown>>
-    agents: Array<Record<string, unknown>>
-    items: Array<Record<string, unknown>>
-    approvals: Array<Record<string, unknown>>
-    attachments: Array<Record<string, unknown>>
-  } | null = null
 
-  for (const [index, message] of snapshot.view.messages.entries()) {
-    const messageCreatedAt = typeof message.createdAt === 'number'
-      ? message.createdAt
-      : Date.parse(message.createdAt ?? '') || createdAt + index
-    if (message.role === 'user') {
-      const turnId = `mock-turn:${message.id}`
-      const agentId = `mock-agent:${message.id}`
-      current = {
-        turn: {
-          id: turnId,
-          threadId,
-          sourceInputID: message.id,
-          status: 'completed',
-          mode,
-          model,
-          permissionConfig,
-          rootAgentId: agentId,
-          mergedInputIDs: [],
-          startedAt: messageCreatedAt,
-          finishedAt: messageCreatedAt,
-          elapsedSeconds: 0,
-          error: null,
-        },
-        inputs: [{
-          id: message.id,
-          threadId,
-          turnId,
-          content: message.text,
-          delivery: 'start',
-          mode,
-          model,
-          permissionConfig,
-          attachmentIds: [],
-          state: 'completed',
-          createdAt: messageCreatedAt,
-        }],
-        messages: [{ id: message.id, threadId, turnId, role: 'user', createdAt: messageCreatedAt }],
-        agents: [{
-          id: agentId,
-          threadId,
-          turnId,
-          parentAgentId: null,
-          profile: 'main',
-          task: message.text,
-          model,
-          sessionId: `mock-session:${turnId}`,
-          depth: 0,
-          status: 'completed',
-          error: null,
-          subagentRunId: null,
-          runSequence: 0,
-          createdAt: messageCreatedAt,
-          updatedAt: messageCreatedAt,
-        }],
-        items: [],
-        approvals: [],
-        attachments: [],
-      }
-      bundles.push(current)
-      continue
-    }
-    if (message.role !== 'assistant' || !current) continue
-    const turnId = current.turn.id as string
-    const agentId = current.turn.rootAgentId as string
-    current.messages.push({ id: message.id, threadId, turnId, role: 'assistant', createdAt: messageCreatedAt })
-    current.items.push({
-      id: message.id,
-      messageID: message.id,
-      turnId,
-      agentId,
-      type: 'text',
-      placement: 'result',
-      text: message.text,
-      status: message.streaming ? 'streaming' : 'completed',
-      createdAt: messageCreatedAt,
-    })
-    if (message.streaming) {
-      current.turn.status = 'running'
-      current.turn.finishedAt = null
-      current.agents[0]!.status = 'running'
-    }
+const VISUAL_ATTACHMENT_DATA = new Map<string, {
+  data: string
+  encoding: 'base64' | 'utf8'
+}>([
+  ['visual-rich-image-1', {
+    data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    encoding: 'base64',
+  }],
+  ['visual-rich-image-2', {
+    data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    encoding: 'base64',
+  }],
+  ['visual-rich-text-1', {
+    data: '# 附件说明\n\n用于验证编辑重发时保留附件。',
+    encoding: 'utf8',
+  }],
+  ['visual-rich-text-2', {
+    data: '长文件名附件用于验证窄窗口截断。',
+    encoding: 'utf8',
+  }],
+])
+
+export function readBrowserFixtureAttachment(
+  attachmentId: string,
+): RpcResult<'attachment/read'> {
+  if (attachmentId === 'visual-rich-image-error') {
+    throw new Error('视觉用例模拟附件读取失败。')
   }
-
-  /* ── Process non-message events (tool calls, patches, plans) ── */
-
-  const toolItems = new Map<string, Record<string, unknown>>()
-
-  for (const event of snapshot.events) {
-    if (!current) continue
-    const turnId = current.turn.id as string
-    const agentId = current.turn.rootAgentId as string
-    const eventCreatedAt = typeof event.createdAt === 'number'
-      ? event.createdAt
-      : Date.parse(event.createdAt ?? '') || createdAt
-
-    if (event.type === 'tool_call') {
-      const toolUseId = (event as any).metadata?.toolUseId ?? event.id
-      const toolName = (event as any).metadata?.toolName ?? 'Bash'
-      const toolItem: Record<string, unknown> = {
-        id: toolUseId,
-        messageID: toolUseId,
-        turnId,
-        agentId,
-        type: 'tool',
-        callID: toolUseId,
-        tool: toolName,
-        title: event.content,
-        state: 'running',
-        input: null,
-        command: null,
-        output: null,
-        error: null,
-        startedAt: eventCreatedAt,
-        finishedAt: null,
-        durationMs: null,
-        createdAt: eventCreatedAt,
-      }
-      current.items.push(toolItem)
-      toolItems.set(toolUseId, toolItem)
-      if (current.turn.status === 'completed') {
-        current.turn.status = 'running'
-        current.turn.finishedAt = null
-        current.agents[0]!.status = 'running'
-      }
-    }
-
-    if (event.type === 'tool_output_delta') {
-      const toolUseId = (event as any).metadata?.toolUseId
-      const existing = toolUseId ? toolItems.get(toolUseId) : null
-      if (existing) {
-        const prev = (existing.output as string) ?? ''
-        existing.output = prev + event.content
-        existing.state = 'completed'
-        existing.finishedAt = eventCreatedAt
-      }
-    }
-
-    if (event.type === 'file_patch') {
-      const metadata = (event as any).metadata
-      const files: Array<Record<string, unknown>> = (metadata?.files ?? []).map(
-        (f: { path: string; additions?: number; deletions?: number; patch?: string }, i: number) => ({
-          path: f.path,
-          additions: f.additions ?? 1,
-          deletions: f.deletions ?? 0,
-          patch: f.patch ?? null,
-        }),
-      )
-      current.items.push({
-        id: `${event.id}`,
-        messageID: `${event.id}`,
-        turnId,
-        agentId,
-        type: 'patch',
-        files,
-        totalAdditions: files.reduce((sum: number, f: Record<string, unknown>) => sum + (f.additions as number), 0),
-        totalDeletions: files.reduce((sum: number, f: Record<string, unknown>) => sum + (f.deletions as number), 0),
-        createdAt: eventCreatedAt,
-      })
-    }
-
-    if (event.type === 'proposed_plan') {
-      current.items.push({
-        id: `${event.id}`,
-        messageID: `${event.id}`,
-        turnId,
-        agentId,
-        type: 'plan',
-        title: '实施计划',
-        markdown: event.content,
-        version: 0,
-        status: 'completed',
-        createdAt: eventCreatedAt,
-      })
-    }
-
-    if (event.type === 'execution-plan') {
-      const metadata = (event as any).metadata ?? {}
-      current.items.push({
-        id: `${event.id}`,
-        messageID: `${event.id}`,
-        turnId,
-        agentId,
-        type: 'execution-plan',
-        explanation: event.content ?? null,
-        steps: metadata.steps ?? [],
-        status: metadata.status ?? 'completed',
-        createdAt: eventCreatedAt,
-      })
-    }
-  }
-
-  // If there are tool items with no matching output delta, leave them as running
-
+  const source = VISUAL_ATTACHMENT_DATA.get(attachmentId)
+  if (!source) throw new Error('浏览器 mock 模式无法读取历史附件。')
+  const metadata = VISUAL_ATTACHMENT_METADATA.get(attachmentId)
+  const kind = metadata?.kind
+    ?? (source.encoding === 'base64' ? 'image' as const : 'text' as const)
+  const name = metadata?.name
+    ?? (kind === 'image' ? `${attachmentId}.png` : `${attachmentId}.md`)
   return {
-    thread: {
-      id: threadId,
-      title: snapshot.item.sessionName ?? snapshot.item.aiTitle ?? '浏览器会话',
-      projectID: null,
-      settings: { taskMode: mode, permissionConfig },
-      createdAt,
-      updatedAt,
+    attachment: {
+      id: attachmentId,
+      kind,
+      name,
+      mediaType: metadata?.mediaType
+        ?? (kind === 'image' ? 'image/png' : 'text/markdown'),
+      sizeBytes: source.data.length,
+      sha256: `visual-${attachmentId}`,
+      createdAt: Date.now(),
     },
-    subagents: [],
-    turns: bundles,
-    queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
-    olderCursor: null,
-    hasOlder: false,
-    streamPosition: { streamId: `mock-thread:${threadId}`, sequence: 0 },
-  } as unknown as RpcResult<'thread/history/read'>
+    data: source.data,
+    encoding: source.encoding,
+    range: {
+      offset: 0,
+      length: source.data.length,
+      total: source.data.length,
+    },
+  }
 }
+
+const VISUAL_ATTACHMENT_METADATA = new Map<string, {
+  kind: 'image' | 'text'
+  mediaType: string
+  name: string
+}>([
+  ['visual-rich-image-1', {
+    kind: 'image',
+    mediaType: 'image/png',
+    name: '工作台布局.png',
+  }],
+  ['visual-rich-image-2', {
+    kind: 'image',
+    mediaType: 'image/png',
+    name: '窄窗口对照.png',
+  }],
+  ['visual-rich-text-1', {
+    kind: 'text',
+    mediaType: 'text/markdown',
+    name: '附件说明.md',
+  }],
+  ['visual-rich-text-2', {
+    kind: 'text',
+    mediaType: 'text/markdown',
+    name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
+  }],
+])
 
 export function mockSessionSnapshot(
   sessionId: string,
@@ -438,7 +292,6 @@ export function mockSessionSnapshot(
       collaborationMode,
       planModeActive,
       model: options.model ?? null,
-      reviewModel: options.reviewModel ?? null,
       thinkingMode: options.thinkingMode ?? 'default',
       hasSystemPrompt: Boolean(options.systemPrompt),
       hasAppendSystemPrompt: Boolean(options.appendSystemPrompt),
@@ -453,11 +306,6 @@ export function mockSessionSnapshot(
       collaborationMode,
       planModeActive,
       model: options.model,
-      reviewModel: options.reviewModel,
-      smallFastModel: options.smallFastModel,
-      fastModel: options.fastModel,
-      defaultModel: options.defaultModel,
-      deepModel: options.deepModel,
       sessionName: options.sessionName,
       thinkingMode: options.thinkingMode ?? 'default',
       systemPrompt: options.systemPrompt,
@@ -494,7 +342,13 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
   }
 
   const search = new URLSearchParams(window.location.search)
-  if (search.get('performanceCase') !== 'desktop-ux') return null
+  const performanceCase = search.get('performanceCase')
+  if (
+    performanceCase !== 'desktop-ux' &&
+    performanceCase !== 'nested-scroll-edge-fade'
+  ) {
+    return null
+  }
 
   const turns = fixtureCount(
     search.get('performanceTurns'),
@@ -506,6 +360,8 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
     PERFORMANCE_SESSION_COUNTS,
     30,
   )
+  const includeNestedScrollFixture =
+    performanceCase === 'nested-scroll-edge-fade'
   const baseTime = Date.UTC(2026, 6, 30, 8, 0, 0)
   const sessions: DesktopSessionSnapshot[] = []
 
@@ -547,6 +403,61 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
       )
     }
 
+    // 首个会话的末轮插入一批工具项，为嵌套滚动边界渐隐场景提供
+    // 可滚动的 process group（12 个 Bash 工具项超出 14rem 折叠高度）。
+    if (
+      includeNestedScrollFixture &&
+      sessionIndex === 0 &&
+      sessionTurns > 0
+    ) {
+      const lastTurnIndex = sessionTurns - 1
+      const lastUser = messages[lastTurnIndex * 2]!
+      const toolEvents: DesktopSessionEvent[] = []
+      for (let toolIndex = 0; toolIndex < 12; toolIndex += 1) {
+        const toolId = `${sessionId}-tool-${lastTurnIndex}-${toolIndex}`
+        const createdAt = new Date(
+          Date.parse(lastUser.createdAt) + 120 + toolIndex * 40,
+        ).toISOString()
+        toolEvents.push(
+          {
+            id: toolId,
+            sessionId,
+            type: 'tool_call',
+            content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+            createdAt,
+            metadata: {
+              toolName: 'Bash',
+              toolUseId: toolId,
+              command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+              activity: { type: 'command', kind: 'test' },
+            },
+          },
+          {
+            id: `${toolId}-output`,
+            sessionId,
+            type: 'tool_output_delta',
+            content: `第 ${toolIndex + 1} 项验证输出：保持会话投影稳定。`,
+            createdAt: new Date(Date.parse(createdAt) + 20).toISOString(),
+            metadata: { toolName: 'Bash', toolUseId: toolId },
+          },
+        )
+      }
+      snapshot.events = messages.map(message => ({
+        id: message.id,
+        sessionId,
+        type: 'message' as const,
+        role: message.role,
+        content: message.text,
+        createdAt: message.createdAt,
+        metadata: message.metadata,
+      }))
+      snapshot.events.splice(
+        lastTurnIndex * 2 + 1,
+        0,
+        ...toolEvents,
+      )
+    }
+
     snapshot.view.messages = messages
     snapshot.item.lastMessageAt = messages.at(-1)?.createdAt ?? snapshot.item.createdAt
     snapshot.updatedAt = snapshot.item.lastMessageAt
@@ -576,7 +487,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     visualCase !== 'permission' &&
     visualCase !== 'review' &&
     visualCase !== 'turn-nav' &&
-    visualCase !== 'execution-plan'
+    visualCase !== 'execution-plan' &&
+    visualCase !== 'scroll-edge'
   ) {
     return null
   }
@@ -594,7 +506,9 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
             ? '用户消息导航'
             : visualCase === 'execution-plan'
               ? '执行计划弹层'
-              : 'Review 与 Diff',
+              : visualCase === 'scroll-edge'
+                ? '滚动边界与会话扩展'
+                : 'Review 与 Diff',
     collaborationMode: {
       mode: visualCase === 'permission' ? 'plan' : 'default',
     },
@@ -605,6 +519,32 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   const timestamp = (offsetMs: number): string =>
     new Date(baseTime + offsetMs).toISOString()
   const createdAt = timestamp(0)
+  const richUserMessage = [
+    '请把外围内容一起校准到 Codex 的阅读轴：',
+    '',
+    '1. 用户消息保持靠右且按内容收缩。',
+    '2. 图片附件与文件附件位于正文气泡之外。',
+    '3. 图片保持稳定缩略图尺寸。',
+    '4. 文件附件在窄窗口中安全截断。',
+    '5. 长消息只折叠文字正文。',
+    '6. 附件行不参与正文折叠高度。',
+    '7. 编辑态占满同一条阅读轴。',
+    '8. 编辑时允许移除历史附件。',
+    '9. 取消编辑恢复原始附件集合。',
+    '10. 重发时复制保留的历史附件。',
+    '11. 不直接复用已经绑定的附件 ID。',
+    '12. 图片读取失败时显示明确占位。',
+    '13. 长文件名不撑宽页面。',
+    '14. 附件行内部允许横向滚动。',
+    '15. 查看态气泡继续保持 77% 上限。',
+    '16. 窄窗口也不能切换成整行气泡。',
+    '17. 连续英文与 URL 可以安全断行。',
+    '18. 文件变更卡跟随 48rem 正文宽度。',
+    '19. 文件路径需要省略但增删统计不能被压缩。',
+    '20. 卡片操作在窄窗口中换到第二行。',
+    '21. Composer 的普通文件改为紧凑胶囊。',
+    '22. 键盘焦点、错误和加载状态继续清晰可见。',
+  ].join('\n')
   const richAssistantMarkdown = [
     '# Markdown 阅读排版',
     '',
@@ -613,6 +553,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     '正文段落使用舒展的行高与稳定的块间距，让较长回复保持清晰。',
     '',
     '第二段包含 **强调文字**、`theme token` 和连续内容，用于核对中英文混排。',
+    '路由 `/new` 保持代码样式，源码 `../../components/ui/Tooltip.js` 保持文件引用。',
     '',
     '普通软换行继续保留 breaks: true，',
     '第二行不会获得标题与说明的分组间距。',
@@ -626,16 +567,26 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     '### 结构清单',
     '',
     '- 固定 Codex 语义表面',
+    '',
+    '  同一列表项的补充段落保持独立但不割裂。',
+    '',
     '  - 紧凑摘要继续使用三行适配',
+    '  - 普通表格跟随正文阅读带，代码块使用宽内容带',
+    '',
+    '  ```ts',
+    '  const nestedWideBlock = "align with the conversation reading column"',
+    '  ```',
     '- 高亮主题按需加载',
     '',
     '| 排版元素 | 处理方式 |',
     '| --- | --- |',
     '| 正文 | 统一行高和段距 |',
-    '| 表格 | 保留窄容器横向滚动 |',
+    '| 表格 | 保持表格结构，并在窄容器内自动折行 |',
+    '| 长路径 | apps/desktop/renderer/src/features/layout/panels/responsive-layout-verification/WorkbenchPanelPresenceWithExtremelyLongUnbrokenFilename.tsx |',
     '',
     '```ts',
     'const theme = mode === "dark" ? "codex-dark" : "codex-light"',
+    'const responsiveFixturePath = "F:\\CodeProject\\CodePilotX\\apps\\desktop\\renderer\\src\\features\\layout\\panels\\WorkbenchPanelPresence.tsx?verification=live-resize-without-css-scale-and-with-local-code-scrolling"',
     '```',
     '',
     '已完成工作台结构梳理。',
@@ -651,8 +602,51 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           ? '请审查主题重构并确认 diff。'
           : visualCase === 'turn-nav'
             ? '第一轮：梳理 Codex 导航轨。'
-          : '把核心工作台重构成 Codex 风格，并保留现有 Agent 边界。',
+            : visualCase === 'rich'
+              ? richUserMessage
+              : '把核心工作台重构成 Codex 风格，并保留现有 Agent 边界。',
       createdAt,
+      metadata: visualCase === 'rich'
+        ? {
+            attachments: [
+              {
+                id: 'visual-rich-image-1',
+                kind: 'image',
+                name: '工作台布局.png',
+                mediaType: 'image/png',
+                sizeBytes: 684,
+              },
+              {
+                id: 'visual-rich-image-2',
+                kind: 'image',
+                name: '窄窗口对照.png',
+                mediaType: 'image/png',
+                sizeBytes: 684,
+              },
+              {
+                id: 'visual-rich-image-error',
+                kind: 'image',
+                name: '读取失败.png',
+                mediaType: 'image/png',
+                sizeBytes: 0,
+              },
+              {
+                id: 'visual-rich-text-1',
+                kind: 'text',
+                name: '附件说明.md',
+                mediaType: 'text/markdown',
+                sizeBytes: 62,
+              },
+              {
+                id: 'visual-rich-text-2',
+                kind: 'text',
+                name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
+                mediaType: 'text/markdown',
+                sizeBytes: 48,
+              },
+            ],
+          }
+        : undefined,
     },
     {
       id: `${sessionId}-assistant`,
@@ -663,7 +657,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         visualCase === 'turn-nav'
           ? '第一轮已完成。'
           : richAssistantMarkdown,
-      createdAt: timestamp(2_000),
+      createdAt: timestamp(visualCase === 'rich' ? 4_500 : 2_000),
+      metadata: visualCase === 'rich' ? { streaming: false } : undefined,
     },
   ]
 
@@ -708,6 +703,70 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     })
   }
 
+  if (visualCase === 'scroll-edge') {
+    // 14 个 Bash 工具项组成可滚动的 process group；执行计划提供
+    // 16 步可滚动的 steps。两者都用于验证滚动边界渐隐状态。
+    for (let toolIndex = 0; toolIndex < 14; toolIndex += 1) {
+      const toolId = `${sessionId}-tool-${toolIndex}`
+      events.push(
+        {
+          id: toolId,
+          sessionId,
+          type: 'tool_call',
+          content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+          createdAt: timestamp(300 + toolIndex * 40),
+          metadata: toolIndex === 0
+            ? {
+                toolName: 'Read',
+                toolUseId: toolId,
+                activity: {
+                  type: 'read',
+                  subject: 'file',
+                  target: {
+                    displayLabel: 'src/ConversationPage.tsx',
+                    workspacePath: 'src/ConversationPage.tsx',
+                  },
+                },
+              }
+            : {
+                toolName: 'Bash',
+                toolUseId: toolId,
+                command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+                activity: { type: 'command', kind: 'test' },
+              },
+        },
+        {
+          id: `${toolId}-output`,
+          sessionId,
+          type: 'tool_output_delta',
+          content: `第 ${toolIndex + 1} 项验证输出：保持会话投影稳定。`,
+          createdAt: timestamp(320 + toolIndex * 40),
+          metadata: { toolName: 'Bash', toolUseId: toolId },
+        },
+      )
+    }
+    events.push({
+      id: `${sessionId}-execution-plan`,
+      sessionId,
+      type: 'execution-plan',
+      content: '按序完成滚动边界验证。',
+      createdAt: timestamp(1_500),
+      metadata: {
+        steps: Array.from({ length: 16 }, (_, index) => ({
+          step:
+            `滚动边界第 ${index + 1} 步：验证嵌套滚动容器顶部与底部的渐隐状态。`,
+          status:
+            index < 2
+              ? 'completed'
+              : index === 2
+                ? 'in_progress'
+                : 'pending',
+        })),
+        status: 'streaming',
+      },
+    })
+  }
+
   if (visualCase === 'execution-plan') {
     events.push({
       id: `${sessionId}-execution-plan`,
@@ -747,9 +806,27 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         id: `${sessionId}-tool`,
         sessionId,
         type: 'tool_call',
-        content: 'Bash: bun run typecheck',
+        content: visualCase === 'rich' ? 'Read: src/ConversationPage.tsx' : 'Bash: bun run typecheck',
         createdAt: timestamp(3_000),
-        metadata: { toolName: 'Bash', toolUseId: 'visual-tool-1' },
+        metadata: visualCase === 'rich'
+          ? {
+              toolName: 'Read',
+              toolUseId: 'visual-tool-1',
+              activity: {
+                type: 'read',
+                subject: 'file',
+                target: {
+                  displayLabel: 'src/ConversationPage.tsx',
+                  workspacePath: 'src/ConversationPage.tsx',
+                },
+              },
+            }
+          : {
+              toolName: 'Bash',
+              toolUseId: 'visual-tool-1',
+              command: 'bun run typecheck',
+              activity: { type: 'command', kind: 'test' },
+            },
       },
       {
         id: `${sessionId}-tool-output`,
@@ -759,6 +836,31 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         createdAt: timestamp(4_000),
         metadata: { toolName: 'Bash', toolUseId: 'visual-tool-1' },
       },
+      ...(visualCase === 'rich'
+        ? [
+            {
+              id: `${sessionId}-tool-2`,
+              sessionId,
+              type: 'tool_call' as const,
+              content: 'Bash: bun run build:renderer',
+              createdAt: timestamp(4_100),
+              metadata: {
+                toolName: 'Bash',
+                toolUseId: 'visual-tool-2',
+                command: 'bun run build:renderer',
+                activity: { type: 'command', kind: 'generic' },
+              },
+            },
+            {
+              id: `${sessionId}-tool-output-2`,
+              sessionId,
+              type: 'tool_output_delta' as const,
+              content: 'renderer build complete',
+              createdAt: timestamp(4_200),
+              metadata: { toolName: 'Bash', toolUseId: 'visual-tool-2' },
+            },
+          ]
+        : []),
       {
         id: `${sessionId}-patch`,
         sessionId,
@@ -768,8 +870,11 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         metadata: {
           turnScoped: true,
           files: [
-            { path: 'apps/desktop/renderer/shared/theme.ts' },
-            { path: 'apps/desktop/renderer/src/styles/index.scss' },
+            { path: 'apps/desktop/renderer/shared/theme.ts', additions: 18, deletions: 4 },
+            { path: 'apps/desktop/renderer/src/styles/index.scss', additions: 7, deletions: 2 },
+            { path: 'apps/desktop/renderer/src/features/session/attachments/AttachmentRows.tsx', additions: 146, deletions: 0 },
+            { path: 'apps/desktop/renderer/src/features/session/timeline/CanonicalItemRenderer.tsx', additions: 94, deletions: 31 },
+            { path: 'apps/desktop/renderer/src/features/layout/panels/responsive-layout-verification/ExtremelyLongPatchFileNameThatMustTruncateWithoutCompressingTheChangeCounters.tsx', additions: 22, deletions: 8 },
           ],
         },
       },
@@ -805,12 +910,16 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       role: event.role as 'user' | 'assistant',
       text: event.content,
       createdAt: event.createdAt,
+      streaming: false,
+      metadata: event.metadata,
     }))
-  snapshot.item.status = visualCase === 'rich' ? 'running' : 'idle'
+  snapshot.item.status = 'idle'
   snapshot.item.lastMessageAt = events.at(-1)?.createdAt ?? createdAt
   snapshot.updatedAt = snapshot.item.lastMessageAt
   return snapshot
 }
+
+/* --- Taskboard 浏览器视觉 fixture（只读） --- */
 
 const VISUAL_REVIEW_GENERATION = 'visual-review-generation'
 const VISUAL_REVIEW_REVISION = 'visual-review-revision'
@@ -841,7 +950,7 @@ function createBrowserVisualReviewLargePatch(): string {
 
 function createBrowserVisualReviewSmallPatch(): string {
   const context = [
-    "import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'",
+    "import { describe, expect, test } from 'bun:test'",
     '',
     "describe('Codex semantic token contract', () => {",
     "  test('exports semantic color tokens', async () => {",
@@ -854,12 +963,12 @@ function createBrowserVisualReviewSmallPatch(): string {
   const added = [
     '    expect(tokens).toHaveLength(121)',
     '    expect(new Set(tokens).size).toBe(121)',
-    "    expect(tokens).toContain('--color-token-input-background')",
-    "    expect(tokens).toContain('--color-token-dropdown-background')",
-    "    expect(tokens).toContain('--color-token-main-surface-primary')",
-    "    expect(tokens).toContain('--color-token-panel-background')",
-    "    expect(tokens).toContain('--color-token-control-background')",
-    "    expect(tokens).toContain('--color-token-elevated-background')",
+    "    expect(tokens).toContain('--cpx-comp-input-bg')",
+    "    expect(tokens).toContain('--cpx-comp-dropdown-menu-bg')",
+    "    expect(tokens).toContain('--cpx-sys-color-surface-canvas')",
+    "    expect(tokens).toContain('--cpx-comp-workbench-panel-bg')",
+    "    expect(tokens).toContain('--cpx-sys-color-surface-control')",
+    "    expect(tokens).toContain('--cpx-sys-color-surface-raised')",
     '  })',
     '',
     "  test('keeps diff backgrounds separate from raw decoration colors', async () => {",
@@ -871,16 +980,16 @@ function createBrowserVisualReviewSmallPatch(): string {
     '    ).text()',
     '',
     '    expect(stylesheet).toContain(',
-    "      '--vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background)',",
+    "      '--cpx-comp-diff-inserted-line-bg: var(--cpx-sys-color-diff-added-line)',",
     '    )',
     '    expect(stylesheet).toContain(',
-    "      '--vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background)',",
+    "      '--cpx-comp-diff-inserted-text-bg: var(--cpx-sys-color-diff-added-text)',",
     '    )',
     '    expect(stylesheet).toContain(',
-    "      '--vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background)',",
+    "      '--cpx-comp-diff-removed-line-bg: var(--cpx-sys-color-diff-removed-line)',",
     '    )',
     '    expect(stylesheet).toContain(',
-    "      '--vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background)',",
+    "      '--cpx-comp-diff-removed-text-bg: var(--cpx-sys-color-diff-removed-text)',",
     '    )',
     '  })',
   ]
@@ -1063,8 +1172,9 @@ export function githubLoginFailure(
   }
 }
 
-export function permissionModeFromDesktopConfig(config: PermissionConfig): DesktopPermissionMode {
-  return permissionModeFromPermissionConfig(config)
-}
 
 export function noop(): void {}
+
+// 以下两个 helper 迁移到 fixtureShared.ts，仅由 Agent 路径静态引用，
+// 避免把完整 Mock fixture 带入 Electron 首屏。
+export { mockThreadHistoryPage, permissionModeFromDesktopConfig }

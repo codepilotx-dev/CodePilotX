@@ -71,10 +71,17 @@ describe("问题 checkpoint", () => {
           ],
         },
       ],
-      checkpoint: { state: '{"version":2}', interruption: { name: "request_user_input" } },
+      checkpoint: {
+        state: '{"version":2}',
+        interruption: {
+          name: "request_user_input",
+          toolCallID: "question-call",
+        },
+      },
     })
-    const row = db.sqlite.query("SELECT payload, payload_version FROM question_requests WHERE id = ?").get(id) as { payload: string; payload_version: number }
+    const row = db.sqlite.query("SELECT payload, payload_version, tool_call_id FROM question_requests WHERE id = ?").get(id) as { payload: string; payload_version: number; tool_call_id: string }
     expect(row.payload_version).toBe(2)
+    expect(row.tool_call_id).toBe("question-call")
     expect(JSON.parse(row.payload).questions).toHaveLength(2)
 
     await questions.reply(id, [

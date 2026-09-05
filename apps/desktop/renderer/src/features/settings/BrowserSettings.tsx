@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import type { DesktopBrowserSitePermission } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
@@ -17,7 +17,8 @@ export function BrowserSettings(): React.ReactNode {
   >([])
 
   useEffect(() => {
-    void desktopClient
+    if (!desktopBrowserClient.available) return
+    void desktopBrowserClient
       .getBrowserState()
       .then(state => {
         setBrowserAllowedSites(state.allowedSites)
@@ -27,7 +28,7 @@ export function BrowserSettings(): React.ReactNode {
   }, [setBrowserAllowedSites])
 
   async function clearAllowedSites(): Promise<void> {
-    const nextState = await desktopClient.clearBrowserAllowedSites()
+    const nextState = await desktopBrowserClient.clearBrowserAllowedSites()
     setBrowserAllowedSites(nextState.allowedSites)
     setSitePermissions(nextState.sitePermissions)
     draft.setValue('browserAllowedSites', nextState.allowedSites)
@@ -39,7 +40,7 @@ export function BrowserSettings(): React.ReactNode {
         <div className="settings-page-header">
           <h2 className="settings-page-title">浏览器</h2>
           <p className="settings-page-desc">
-            在桌面线程中预览本地开发页面、文件预览和无需登录的公开页面。需要登录态、扩展或已有标签页时，请使用常规浏览器。
+            在桌面线程中预览本地开发页面和无需登录的 HTTP/HTTPS 页面。需要登录态、扩展、本地文件或已有标签页时，请使用常规浏览器。
           </p>
         </div>
 
@@ -48,7 +49,7 @@ export function BrowserSettings(): React.ReactNode {
           description="浏览器内容在隔离的会话中运行，不继承你的常规浏览器 Cookie、扩展或登录状态。"
         >
           <div className="browser-settings-info">
-            <span>支持 http、https 和 file URL。</span>
+            <span>支持 HTTP 和 HTTPS URL；本地文件继续使用文件预览。</span>
             <span>批注会先插入输入框，由你确认后再发送。</span>
             <span>Browser Use 通过插件页的 Browser 入口启用。</span>
             <span>Developer Mode 暂不可用。</span>
@@ -64,7 +65,7 @@ export function BrowserSettings(): React.ReactNode {
           }
           actions={
             <Button
-              tone="danger"
+              color="danger"
               disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0}
               type="button"
               onClick={() => void clearAllowedSites()}

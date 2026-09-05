@@ -4,6 +4,11 @@ import { Schema } from "effect"
 import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
 import { AllRpcMethods } from "../src/methods/host"
 import { Capabilities, ProtocolCapabilitySchema } from "../src/runtime/capabilities"
+import {
+  ModelHealthItemSchema,
+  ModelHealthRunSchema,
+} from "../src/methods/extended"
+import { EventManifest } from "../src/wire/events"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
 const modelId = Schema.decodeUnknownSync(Model.ID)("model:test")
@@ -138,6 +143,15 @@ const attachment = {
   mediaType: "text/plain",
   sizeBytes: 7,
   sha256: "fixture-sha256",
+  createdAt: 1,
+} as const
+
+const localContextReference = {
+  id: "context:1",
+  name: "fixture.txt",
+  path: "C:\\outside\\fixture.txt",
+  kind: "file",
+  status: "available",
   createdAt: 1,
 } as const
 
@@ -397,10 +411,10 @@ const authSession = {
   expiresAt: 2,
 }
 
-const methodFixture = <M extends RpcMethod>(
+const methodFixture = <M extends string>(
   _method: M,
-  params: RpcParams<M>,
-  result: RpcResult<M>,
+  params: M extends RpcMethod ? RpcParams<M> : unknown,
+  result: M extends RpcMethod ? RpcResult<M> : unknown,
 ) => ({ params, result })
 
 type MethodFixtures = {
@@ -408,9 +422,372 @@ type MethodFixtures = {
     readonly params: RpcParams<M>
     readonly result: RpcResult<M>
   }
-}
+} & Readonly<Record<string, { readonly params: unknown; readonly result: unknown }>>
+
+const taskboardTask = {
+  id: "taskboard-task:1",
+  projectId: project.id,
+  number: 1,
+  title: "实现原生任务看板",
+  description: "共享契约与存储",
+  status: "in_progress",
+  priority: "high",
+  position: 1_024,
+  version: 2,
+  labels: [],
+  archivedAt: null,
+  createdAt: 1,
+  updatedAt: 2,
+} as const
+
+const taskboardDetails = {
+  task: taskboardTask,
+  threads: [],
+  comments: [],
+  activities: [],
+} as const
+
+const taskboardWorkflowTask = {
+  ...taskboardTask,
+  status: "blocked",
+  startDate: "2026-08-20",
+  dueDate: "2026-08-25",
+  attention: {
+    unread: true,
+    unreadAt: 3,
+    readAt: null,
+    reason: "blocked",
+  },
+} as const
+
+const taskboardWorkflowDetails = {
+  task: taskboardWorkflowTask,
+  threads: [],
+  comments: [],
+  activities: [],
+} as const
+
+const taskboardPlanAggregate = {
+  directTotal: 1,
+  directDone: 0,
+  directSkipped: 0,
+  descendantTaskCount: 0,
+  openBlockerCount: 1,
+  readyUnreadCount: 0,
+} as const
+
+const taskboardPlanItem = {
+  kind: "step",
+  id: "plan-item:1",
+  parentTaskId: taskboardTask.id,
+  title: "扫描代码库",
+  description: "查找可复用实现",
+  status: "todo",
+  skipReason: null,
+  position: 1_024,
+  readiness: { status: "ready" },
+  unreadReady: false,
+  version: 1,
+} as const
+
+const taskboardBlocker = {
+  id: "blocker:1",
+  taskId: taskboardTask.id,
+  planItemId: taskboardPlanItem.id,
+  reason: "等待用户确认",
+  status: "open",
+  sourceThreadId: null,
+  sourceTurnId: null,
+  resolution: null,
+  version: 1,
+  createdAt: 3,
+  resolvedAt: null,
+  updatedAt: 3,
+} as const
+
+const taskboardPlanningSnapshot = {
+  task: taskboardWorkflowDetails,
+  breadcrumbs: [{ taskId: taskboardTask.id, number: 1, title: taskboardTask.title }],
+  items: [taskboardPlanItem],
+  dependencies: [],
+  blockers: [taskboardBlocker],
+  aggregate: taskboardPlanAggregate,
+} as const
+
+const taskboardComment = {
+  id: "taskboard-comment:1",
+  taskId: taskboardTask.id,
+  body: "已完成契约实现",
+  author: "user",
+  sourceThreadId: null,
+  version: 1,
+  deletedAt: null,
+  createdAt: 2,
+  updatedAt: 2,
+} as const
+
+const taskboardLabel = {
+  id: "taskboard-label:1",
+  projectId: project.id,
+  name: "Desktop",
+  normalizedName: "desktop",
+  version: 1,
+  createdAt: 1,
+  updatedAt: 1,
+} as const
+
+const taskboardStartOperation = {
+  operationId: "taskboard-start:1",
+  taskId: taskboardTask.id,
+  projectId: project.id,
+  threadId: "thread:taskboard",
+  worktreeId: null,
+  execution: { kind: "local" },
+  status: "completed",
+  step: "complete",
+  revision: 3,
+  errorCode: null,
+  warnings: [],
+  startupInstruction: "请先读取任务。",
+  createdAt: 1,
+  updatedAt: 3,
+  completedAt: 3,
+} as const
+
+const automation = {
+  id: "automation:1",
+  revision: 1,
+  kind: "standalone",
+  name: "每日代码检查",
+  prompt: "检查当前项目中的待办事项。",
+  status: "active",
+  projectId: project.id,
+  targetThreadId: null,
+  execution: { kind: "local" },
+  model: modelRef,
+  reasoningEffort: "medium",
+  permissionConfig: { ...permissionConfig, approvalPolicy: "never" },
+  schedule: { mode: "daily", time: "09:00" },
+  canonicalRrule: "FREQ=DAILY;BYHOUR=9;BYMINUTE=0",
+  timeZone: "Asia/Shanghai",
+  notificationPolicy: "failures",
+  nextRunAt: 2_000,
+  pendingCatchUp: false,
+  activeRunId: null,
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  deletedAt: null,
+} as const
+
+const automationRun = {
+  id: "automation-run:1",
+  automationId: automation.id,
+  trigger: "manual",
+  scheduledFor: 1_500,
+  status: "claimed",
+  threadId: null,
+  turnId: null,
+  worktreeId: null,
+  readAt: null,
+  safeErrorCode: null,
+  createdAt: 1_500,
+  startedAt: null,
+  completedAt: null,
+} as const
+
+const scheduledTask = {
+  id: "scheduled-task:1",
+  revision: 1,
+  kind: "standalone",
+  name: "发布前检查",
+  prompt: "检查发布前状态。",
+  status: "scheduled",
+  projectId: project.id,
+  targetThreadId: null,
+  execution: { kind: "local" },
+  model: modelRef,
+  reasoningEffort: "medium",
+  permissionConfig: { ...permissionConfig, approvalPolicy: "never" },
+  scheduledFor: 2_000,
+  timeZone: "Asia/Shanghai",
+  notificationPolicy: "failures",
+  threadId: null,
+  turnId: null,
+  worktreeId: null,
+  readAt: null,
+  safeErrorCode: null,
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  startedAt: null,
+  completedAt: null,
+  cancelledAt: null,
+} as const
+
+const schedulePlanDefaults = {
+  kind: scheduledTask.kind,
+  projectId: scheduledTask.projectId,
+  targetThreadId: scheduledTask.targetThreadId,
+  execution: scheduledTask.execution,
+  model: scheduledTask.model,
+  reasoningEffort: scheduledTask.reasoningEffort,
+  permissionConfig: scheduledTask.permissionConfig,
+  timeZone: scheduledTask.timeZone,
+  notificationPolicy: scheduledTask.notificationPolicy,
+} as const
+
+const schedulePlanItems = [{
+  key: "release-check",
+  enabled: true,
+  kind: "one-off",
+  name: scheduledTask.name,
+  prompt: scheduledTask.prompt,
+  scheduledFor: scheduledTask.scheduledFor,
+}] as const
+
+const schedulePlanProposal = {
+  id: "schedule-plan:1",
+  revision: 1,
+  threadId: "thread:1",
+  turnId: "turn:1",
+  toolCallId: "tool-call:1",
+  status: "pending",
+  horizon: "week",
+  defaults: schedulePlanDefaults,
+  items: schedulePlanItems,
+  createdRefs: [],
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  committedAt: null,
+} as const
 
 const fixtures = {
+  "calendar/range": methodFixture("calendar/range", {
+    from: 1_000,
+    to: 3_000,
+    timeZone: "Asia/Shanghai",
+    query: "发布",
+    sourceKinds: ["scheduled-task", "automation"],
+  }, {
+    occurrences: [{
+      id: "calendar-occurrence:1",
+      source: { kind: "scheduled-task", id: scheduledTask.id },
+      definitionKind: "one-off",
+      title: scheduledTask.name,
+      scheduledFor: scheduledTask.scheduledFor,
+      status: scheduledTask.status,
+      runId: null,
+      threadId: null,
+      proposalId: schedulePlanProposal.id,
+    }],
+    truncated: false,
+  }),
+  "scheduled-task/read": methodFixture("scheduled-task/read", {
+    id: scheduledTask.id,
+  }, { scheduledTask }),
+  "scheduled-task/create": methodFixture("scheduled-task/create", {
+    operationId: "operation:scheduled-task-create",
+    kind: scheduledTask.kind,
+    name: scheduledTask.name,
+    prompt: scheduledTask.prompt,
+    projectId: scheduledTask.projectId,
+    targetThreadId: scheduledTask.targetThreadId,
+    execution: scheduledTask.execution,
+    model: scheduledTask.model,
+    reasoningEffort: scheduledTask.reasoningEffort,
+    permissionConfig: scheduledTask.permissionConfig,
+    scheduledFor: scheduledTask.scheduledFor,
+    timeZone: scheduledTask.timeZone,
+    notificationPolicy: scheduledTask.notificationPolicy,
+  }, { scheduledTask }),
+  "scheduled-task/update": methodFixture("scheduled-task/update", {
+    id: scheduledTask.id,
+    expectedRevision: scheduledTask.revision,
+    status: "paused",
+  }, { scheduledTask: { ...scheduledTask, revision: 2, status: "paused", updatedAt: 1_100 } }),
+  "scheduled-task/delete": methodFixture("scheduled-task/delete", {
+    id: scheduledTask.id,
+    expectedRevision: scheduledTask.revision,
+  }, { scheduledTask: { ...scheduledTask, revision: 2, status: "cancelled", updatedAt: 1_100, cancelledAt: 1_100 } }),
+  "scheduled-task/run": methodFixture("scheduled-task/run", {
+    id: scheduledTask.id,
+    operationId: "operation:scheduled-task-run",
+  }, { scheduledTask: { ...scheduledTask, status: "claimed" } }),
+  "schedule-plan/read": methodFixture("schedule-plan/read", {
+    id: schedulePlanProposal.id,
+  }, { proposal: schedulePlanProposal }),
+  "schedule-plan/commit": methodFixture("schedule-plan/commit", {
+    id: schedulePlanProposal.id,
+    expectedRevision: schedulePlanProposal.revision,
+    operationId: "operation:schedule-plan-commit",
+    defaults: schedulePlanDefaults,
+    items: schedulePlanItems,
+  }, {
+    proposal: {
+      ...schedulePlanProposal,
+      revision: 2,
+      status: "committed",
+      createdRefs: [{ kind: "scheduled-task", id: scheduledTask.id }],
+      updatedAt: 1_100,
+      committedAt: 1_100,
+    },
+  }),
+  "automation/list": methodFixture("automation/list", {
+    statuses: ["active"],
+    query: "代码",
+  }, { automations: [automation] }),
+  "automation/read": methodFixture("automation/read", {
+    automationId: automation.id,
+  }, { automation }),
+  "automation/create": methodFixture("automation/create", {
+    operationId: "operation:automation-create",
+    kind: automation.kind,
+    name: automation.name,
+    prompt: automation.prompt,
+    projectId: automation.projectId,
+    targetThreadId: automation.targetThreadId,
+    execution: automation.execution,
+    model: automation.model,
+    reasoningEffort: automation.reasoningEffort,
+    permissionConfig: automation.permissionConfig,
+    schedule: automation.schedule,
+    timeZone: automation.timeZone,
+    notificationPolicy: automation.notificationPolicy,
+  }, { automation }),
+  "automation/update": methodFixture("automation/update", {
+    automationId: automation.id,
+    expectedRevision: automation.revision,
+    name: "每日仓库检查",
+  }, { automation: { ...automation, revision: 2, name: "每日仓库检查", updatedAt: 1_100 } }),
+  "automation/delete": methodFixture("automation/delete", {
+    automationId: automation.id,
+    expectedRevision: automation.revision,
+  }, { automation: { ...automation, revision: 2, status: "deleted", nextRunAt: null, deletedAt: 1_200 } }),
+  "automation/run": methodFixture("automation/run", {
+    automationId: automation.id,
+    operationId: "operation:automation-run",
+  }, { run: automationRun }),
+  "automation/run/list": methodFixture("automation/run/list", {
+    automationId: automation.id,
+    unreadOnly: true,
+    limit: 20,
+  }, { runs: [automationRun] }),
+  "automation/run/mark-read": methodFixture("automation/run/mark-read", {
+    runId: automationRun.id,
+  }, { run: { ...automationRun, readAt: 1_600 } }),
+  "automation/run/mark-all-read": methodFixture("automation/run/mark-all-read", {
+    automationId: automation.id,
+  }, { updatedCount: 1 }),
+  "automation/schedule/preview": methodFixture("automation/schedule/preview", {
+    schedule: automation.schedule,
+    timeZone: automation.timeZone,
+    count: 3,
+  }, {
+    preview: {
+      canonicalRrule: automation.canonicalRrule,
+      summary: "每天 09:00",
+      nextRunAt: [2_000, 3_000, 4_000],
+    },
+  }),
   "config/read": methodFixture("config/read", {
     includeLayers: true,
     cwd: "F:/CodeProject/example",
@@ -735,6 +1112,11 @@ const fixtures = {
     readThroughAt: 2,
     operationId: "operation:thread-mark-read",
   }, { thread: { ...threadListItem, unreadAt: null } }),
+  "thread/mark-unread": methodFixture("thread/mark-unread", {
+    threadId: threadListItem.id,
+    unreadAt: 3,
+    operationId: "operation:thread-mark-unread",
+  }, { thread: { ...threadListItem, unreadAt: 3 } }),
   "thread/title/regenerate": methodFixture("thread/title/regenerate", {
     threadId: threadListItem.id,
     operationId: "operation:thread-title-regenerate",
@@ -753,6 +1135,22 @@ const fixtures = {
     threadId: threadListItem.id,
     operationId: "operation:thread-delete",
   }, { threadId: threadListItem.id, deletedAt: 2 }),
+  "thread/side-chat/create": methodFixture("thread/side-chat/create", {
+    sourceThreadId: threadListItem.id,
+    referenceText: "selected reference",
+    operationId: "operation:side-chat-create",
+  }, {
+    sideChat: {
+      threadId: "thread:side-chat",
+      sourceThreadId: threadListItem.id,
+      inheritedThroughTurnId: "turn:1",
+      createdAt: 2,
+    },
+  }),
+  "thread/side-chat/discard": methodFixture("thread/side-chat/discard", {
+    threadId: "thread:side-chat",
+    operationId: "operation:side-chat-discard",
+  }, { ok: true }),
   "thread/patch/diff": methodFixture("thread/patch/diff", {
     threadId: threadListItem.id,
     toolCallId: "tool:edit-1",
@@ -814,10 +1212,12 @@ const fixtures = {
   }, {
     compaction: {
       id: "compaction:1",
+      trigger: "manual",
       beforeCount: 10,
       afterCount: 4,
       beforeTokens: 1_000,
       afterTokens: 400,
+      afterTokensSource: "measured",
       targetTokens: 500,
       usageSampleId: "usage:1",
       baselineVersion: 2,
@@ -945,6 +1345,113 @@ const fixtures = {
     },
     generation: 2,
     updatedAt: 2,
+  }),
+  "plugin/list": methodFixture("plugin/list", {
+    workspace: "C:\\workspace",
+    forceReload: true,
+  }, {
+    plugins: [{
+      id: "task-planning",
+      name: "任务规划",
+      version: "1.0.0",
+      description: "澄清目标、拆解工作并生成可执行的任务规划。",
+      developerName: "CodePilotX",
+      category: "Productivity",
+      source: "bundled",
+      installationPolicy: "INSTALLED_BY_DEFAULT",
+      installed: true,
+      enabled: true,
+      status: "ready",
+      capabilities: ["task-planning"],
+      skills: ["task-planning"],
+    }],
+    generation: 1,
+    updatedAt: 1,
+  }),
+  "plugin/getDetails": methodFixture("plugin/getDetails", {
+    pluginId: "task-planning",
+    workspace: "C:\\workspace",
+  }, {
+    details: {
+      pluginId: "task-planning",
+      longDescription: "澄清目标与约束，将复杂工作拆分为里程碑和可执行任务。",
+      displayCapabilities: ["Planning"],
+      defaultPrompts: ["帮我把这个目标拆解成可执行的任务计划。"],
+      skills: [{
+        id: "task-planning",
+        name: "task-planning",
+        description: "Clarify goals and constraints.",
+      }],
+    },
+  }),
+  "plugin/setEnabled": methodFixture("plugin/setEnabled", {
+    pluginId: "task-planning",
+    enabled: false,
+    operationId: "operation:plugin-disable",
+  }, {
+    plugin: {
+      id: "task-planning",
+      name: "任务规划",
+      version: "1.0.0",
+      description: "澄清目标、拆解工作并生成可执行的任务规划。",
+      developerName: "CodePilotX",
+      category: "Productivity",
+      source: "bundled",
+      installationPolicy: "INSTALLED_BY_DEFAULT",
+      installed: true,
+      enabled: false,
+      status: "ready",
+      capabilities: ["task-planning"],
+      skills: ["task-planning"],
+    },
+    generation: 2,
+    updatedAt: 2,
+  }),
+  "minimaxCli/status": methodFixture("minimaxCli/status", {
+    forceReload: true,
+  }, {
+    installationStatus: "installed",
+    installedVersion: "1.0.22",
+    latestVersion: "1.0.22",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "coding-plan-synced",
+    credentialSource: {
+      providerId: "minimax-cn-coding-plan",
+      credentialId: "credential:minimax-cn",
+      label: "当前 Coding Plan Key",
+      maskedValue: "sk-****abcd",
+      region: "cn",
+    },
+    quotaStatus: "available",
+    quotaLabel: "套餐可用",
+    generation: 2,
+    updatedAt: 2,
+  }),
+  "minimaxCli/install": methodFixture("minimaxCli/install", {
+    operationId: "operation:minimax-install",
+  }, {
+    installationStatus: "installed",
+    installedVersion: "1.0.22",
+    latestVersion: "1.0.22",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "not-authenticated",
+    generation: 2,
+    updatedAt: 2,
+  }),
+  "minimaxCli/uninstall": methodFixture("minimaxCli/uninstall", {
+    operationId: "operation:minimax-uninstall",
+  }, {
+    installationStatus: "not-installed",
+    updateAvailable: false,
+    nodeVersion: "v22.22.1",
+    npmVersion: "10.9.4",
+    authStatus: "not-authenticated",
+    generation: 3,
+    updatedAt: 3,
   }),
   "mcp/list": methodFixture("mcp/list", {
     workspace: "C:\\workspace",
@@ -1109,6 +1616,82 @@ const fixtures = {
     encoding: "utf8",
     range: { offset: 0, length: 7, total: 7 },
   }),
+  "artifact/read": methodFixture("artifact/read", {
+    threadId: threadListItem.id,
+    artifactId: "artifact:1",
+  }, {
+    artifact: {
+      id: "artifact:1",
+      threadId: threadListItem.id,
+      turnId: "turn:1",
+      itemId: "item:1",
+      name: "preview.png",
+      mimeType: "image/png",
+      sizeBytes: 7,
+      createdAt: 1,
+    },
+    data: "Zml4dHVyZQ==",
+    encoding: "base64",
+    sizeBytes: 7,
+  }),
+  "context/path/import": methodFixture("context/path/import", {
+    threadId: threadListItem.id,
+    paths: [localContextReference.path],
+    operationId: "operation:context-import",
+  }, { references: [localContextReference] }),
+  "context/path/read": methodFixture("context/path/read", {
+    threadId: threadListItem.id,
+    referenceId: localContextReference.id,
+    range: { offset: 0, length: 7 },
+  }, {
+    reference: localContextReference,
+    relativePath: null,
+    preview: "text",
+    mediaType: "text/plain; charset=utf-8",
+    data: "fixture",
+    encoding: "utf8",
+    range: { offset: 0, length: 7, total: 7 },
+  }),
+  "context/path/list": methodFixture("context/path/list", {
+    threadId: threadListItem.id,
+    referenceId: localContextReference.id,
+    limit: 20,
+  }, {
+    reference: localContextReference,
+    relativePath: null,
+    entries: [],
+    nextCursor: null,
+  }),
+  "speech/status": methodFixture("speech/status", {}, {
+    status: {
+      state: "ready",
+      provider: "sensevoice-llamacpp",
+      runtimeVersion: "0.1.9",
+      model: "sensevoice-small-q8",
+      variant: "avx2",
+      maxDurationMs: 120_000,
+      maxAudioBytes: 4_194_304,
+    },
+  }),
+  "speech/install": methodFixture("speech/install", { force: true }, {
+    status: {
+      state: "downloading",
+      provider: "sensevoice-llamacpp",
+      runtimeVersion: "0.1.9",
+      model: "sensevoice-small-q8",
+      variant: null,
+      progress: { receivedBytes: 1024, totalBytes: 2048 },
+      maxDurationMs: 120_000,
+      maxAudioBytes: 4_194_304,
+    },
+  }),
+  "speech/transcribe": methodFixture("speech/transcribe", {
+    operationId: "operation:speech-transcribe:1",
+    audio: { mediaType: "audio/wav", encoding: "base64", data: "UklGRg==" },
+  }, { text: "你好", detectedLanguage: "zh", durationMs: 1000 }),
+  "speech/cancel": methodFixture("speech/cancel", {
+    operationId: "operation:speech-transcribe:1",
+  }, { cancelled: true }),
   "memory/list": methodFixture("memory/list", {
     scope: "project",
     projectId: project.id,
@@ -1255,12 +1838,77 @@ const fixtures = {
     model: modelRef,
     operationId: "operation:model-reviewer",
   }, { reviewerModel: modelRef, settingsVersion: 2 }),
-  "provider/test": methodFixture("provider/test", { providerId }, {
+  "provider/test": methodFixture("provider/test", { providerId, model: modelRef }, {
     providerId,
+    model: modelRef,
     status: "reachable",
     testedAt: 1,
     latencyMs: 12,
   }),
+  "model/health/preview": methodFixture("model/health/preview", {}, {
+    totalRequests: 1,
+    excludedProviders: [{
+      providerId,
+      reason: "no-eligible-models",
+      modelCount: 0,
+    }],
+  }),
+  "model/health/start": methodFixture("model/health/start", {
+    operationId: "operation:model-health",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "completed" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 1, failed: 0, cancelled: 0,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "healthy" as const,
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }],
+  } }),
+  "model/health/read": methodFixture("model/health/read", {
+    runId: "operation:model-health",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "completed" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 1, failed: 0, cancelled: 0,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "healthy" as const,
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }],
+  } }),
+  "model/health/cancel": methodFixture("model/health/cancel", {
+    runId: "operation:model-health",
+    operationId: "operation:model-health-cancel",
+  }, { run: {
+    runId: "operation:model-health",
+    status: "cancelled" as const,
+    startedAt: 1,
+    completedAt: 2,
+    counts: {
+      total: 1, queued: 0, running: 0, healthy: 0, failed: 0, cancelled: 1,
+    },
+    excludedProviders: [],
+    items: [{
+      model: modelRef,
+      status: "cancelled" as const,
+      completedAt: 2,
+    }],
+  } }),
   "provider/create": methodFixture("provider/create", {
     definition: customProviderDefinition,
     operationId: "operation:provider-create",
@@ -2176,6 +2824,401 @@ const fixtures = {
     environmentRevision: 1,
     command: "bun run dev",
   }),
+  "taskboard/context/read": methodFixture("taskboard/context/read", {
+    taskId: taskboardTask.id,
+    sections: ["objective"],
+    includeEvidence: true,
+    includeUnverified: false,
+    includeAncestors: true,
+    limit: 20,
+    offset: 0,
+  }, {
+    snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 1, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null },
+    entries: [],
+    evidence: [],
+  }),
+  "taskboard/context/update": methodFixture("taskboard/context/update", {
+    taskId: taskboardTask.id,
+    expectedContextRevision: 1,
+    changes: [{ op: "add", section: "objective", title: "目标", content: "实现任务上下文" }],
+  }, { snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 2, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null } }),
+  "taskboard/context/ai-preview": methodFixture("taskboard/context/ai-preview", { taskId: taskboardTask.id }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "draft", modelRef: "provider/model", createdAt: 1, updatedAt: 1 } }),
+  "taskboard/context/ai-apply": methodFixture("taskboard/context/ai-apply", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "applied", modelRef: "provider/model", createdAt: 1, updatedAt: 2 }, snapshot: { taskId: taskboardTask.id, evidenceRevision: 0, contextRevision: 2, summarizedThroughEvidenceRevision: 0, pendingEvidenceCount: 0, digest: "目标：任务看板", frozen: false, frozenAt: null, promotedContextRevision: null } }),
+  "taskboard/context/ai-discard": methodFixture("taskboard/context/ai-discard", { proposalId: "proposal:1" }, { proposal: { id: "proposal:1", taskId: taskboardTask.id, baseContextRevision: 1, throughEvidenceRevision: 0, changes: [], status: "discarded", modelRef: null, createdAt: 1, updatedAt: 2 } }),
+  "taskboard/context/promotion-status": methodFixture("taskboard/context/promotion-status", { taskId: taskboardTask.id }, { promotion: null }),
+  "taskboard/planning/roots": methodFixture("taskboard/planning/roots", {
+    projectId: project.id,
+    statuses: ["blocked"],
+    archived: false,
+    limit: 100,
+  }, {
+    roots: [{ task: { ...taskboardWorkflowTask, threads: [] }, aggregate: taskboardPlanAggregate }],
+    unreadCount: 1,
+    nextCursor: null,
+  }),
+  "taskboard/planning/read": methodFixture("taskboard/planning/read", {
+    taskId: taskboardTask.id,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/apply": methodFixture("taskboard/planning/apply", {
+    parentTaskId: taskboardTask.id,
+    expectedVersion: 2,
+    operationId: "operation:plan-apply",
+    items: [{ clientId: "scan", kind: "step", title: "扫描代码库", description: "查找可复用实现" }],
+    dependencies: [],
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/step/update": methodFixture("taskboard/planning/step/update", {
+    operationId: "operation:step-update",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    patch: { status: "done" },
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/step/promote": methodFixture("taskboard/planning/step/promote", {
+    operationId: "operation:step-promote",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    task: { status: "todo", priority: "high" },
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/item/reorder": methodFixture("taskboard/planning/item/reorder", {
+    operationId: "operation:item-reorder",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    beforeItemId: null,
+    afterItemId: null,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/child/reparent": methodFixture("taskboard/planning/child/reparent", {
+    operationId: "operation:child-reparent",
+    childTaskId: "taskboard-task:2",
+    expectedVersion: 1,
+    parentTaskId: taskboardTask.id,
+  }, { childTaskId: "taskboard-task:2", parentTaskId: taskboardTask.id }),
+  "taskboard/planning/dependencies/set": methodFixture("taskboard/planning/dependencies/set", {
+    operationId: "operation:dependencies-set",
+    itemId: taskboardPlanItem.id,
+    expectedVersion: 1,
+    prerequisiteItemIds: [],
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/blocker/create": methodFixture("taskboard/planning/blocker/create", {
+    operationId: "operation:blocker-create",
+    taskId: taskboardTask.id,
+    planItemId: taskboardPlanItem.id,
+    reason: taskboardBlocker.reason,
+  }, { blocker: taskboardBlocker }),
+  "taskboard/planning/blocker/resolve": methodFixture("taskboard/planning/blocker/resolve", {
+    operationId: "operation:blocker-resolve",
+    blockerId: taskboardBlocker.id,
+    expectedVersion: 1,
+    resolution: "用户已确认",
+  }, { blocker: { ...taskboardBlocker, status: "resolved", resolution: "用户已确认", version: 2, resolvedAt: 4, updatedAt: 4 } }),
+  "taskboard/planning/attention/mark-read": methodFixture("taskboard/planning/attention/mark-read", {
+    operationId: "operation:planning-mark-read",
+    taskId: taskboardTask.id,
+    itemId: taskboardPlanItem.id,
+  }, { snapshot: taskboardPlanningSnapshot }),
+  "taskboard/planning/archive-tree": methodFixture("taskboard/planning/archive-tree", {
+    operationId: "operation:archive-tree",
+    rootTaskId: taskboardTask.id,
+    expectedVersion: 2,
+    includeLinkedThreads: false,
+  }, { batchId: "archive-batch:1", taskIds: [taskboardTask.id] }),
+  "taskboard/planning/restore-tree": methodFixture("taskboard/planning/restore-tree", {
+    operationId: "operation:restore-tree",
+    rootTaskId: taskboardTask.id,
+  }, { batchId: "archive-batch:1", taskIds: [taskboardTask.id] }),
+  "taskboard/planning/delete-tree": methodFixture("taskboard/planning/delete-tree", {
+    operationId: "operation:delete-tree",
+    rootTaskId: taskboardTask.id,
+  }, { deletedTaskIds: [taskboardTask.id] }),
+  "taskboard/task/list": methodFixture("taskboard/task/list", {
+    projectId: project.id,
+    statuses: ["in_progress"],
+    priorities: ["high"],
+    labelIds: [],
+    query: "任务看板",
+    archived: false,
+    limit: 200,
+  }, {
+    tasks: [{ ...taskboardTask, threads: [] }],
+    nextCursor: null,
+  }),
+  "taskboard/task/read": methodFixture("taskboard/task/read", {
+    taskId: taskboardTask.id,
+  }, { task: taskboardDetails }),
+  "taskboard/task/create": methodFixture("taskboard/task/create", {
+    projectId: project.id,
+    title: taskboardTask.title,
+    description: taskboardTask.description,
+    status: "backlog",
+    priority: "high",
+    labelIds: [],
+    operationId: "operation:taskboard-create",
+  }, { task: taskboardDetails }),
+  "taskboard/task/update": methodFixture("taskboard/task/update", {
+    taskId: taskboardTask.id,
+    patch: { title: taskboardTask.title, priority: "high" },
+    expectedVersion: 1,
+    operationId: "operation:taskboard-update",
+  }, { task: taskboardDetails }),
+  "taskboard/task/move": methodFixture("taskboard/task/move", {
+    taskId: taskboardTask.id,
+    status: "in_progress",
+    beforeTaskId: null,
+    afterTaskId: null,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-move",
+  }, { task: taskboardDetails }),
+  "taskboard/task/archive": methodFixture("taskboard/task/archive", {
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    operationId: "operation:taskboard-archive",
+  }, { task: taskboardDetails }),
+  "taskboard/task/restore": methodFixture("taskboard/task/restore", {
+    taskId: taskboardTask.id,
+    expectedVersion: 3,
+    operationId: "operation:taskboard-restore",
+  }, { task: taskboardDetails }),
+  "taskboard/task/delete": methodFixture("taskboard/task/delete", {
+    taskId: taskboardTask.id,
+    expectedVersion: 4,
+    operationId: "operation:taskboard-delete",
+  }, { deleted: true, taskId: taskboardTask.id }),
+  "taskboard/thread/link": methodFixture("taskboard/thread/link", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    role: "primary",
+    expectedVersion: 1,
+    operationId: "operation:taskboard-link",
+  }, { task: taskboardDetails }),
+  "taskboard/thread/unlink": methodFixture("taskboard/thread/unlink", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    expectedVersion: 2,
+    operationId: "operation:taskboard-unlink",
+  }, { task: taskboardDetails }),
+  "taskboard/thread/set-primary": methodFixture("taskboard/thread/set-primary", {
+    taskId: taskboardTask.id,
+    threadId: "thread:taskboard",
+    expectedVersion: 2,
+    operationId: "operation:taskboard-primary",
+  }, { task: taskboardDetails }),
+  "taskboard/comment/create": methodFixture("taskboard/comment/create", {
+    taskId: taskboardTask.id,
+    body: taskboardComment.body,
+    expectedVersion: 2,
+    operationId: "operation:taskboard-comment-create",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/comment/update": methodFixture("taskboard/comment/update", {
+    commentId: taskboardComment.id,
+    body: taskboardComment.body,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-comment-update",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/comment/delete": methodFixture("taskboard/comment/delete", {
+    commentId: taskboardComment.id,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-comment-delete",
+  }, { task: taskboardDetails, comment: taskboardComment }),
+  "taskboard/label/list": methodFixture("taskboard/label/list", {
+    projectId: project.id,
+  }, { labels: [taskboardLabel] }),
+  "taskboard/label/create": methodFixture("taskboard/label/create", {
+    projectId: project.id,
+    name: taskboardLabel.name,
+    operationId: "operation:taskboard-label-create",
+  }, { label: taskboardLabel }),
+  "taskboard/label/update": methodFixture("taskboard/label/update", {
+    labelId: taskboardLabel.id,
+    name: taskboardLabel.name,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-label-update",
+  }, { label: taskboardLabel }),
+  "taskboard/label/delete": methodFixture("taskboard/label/delete", {
+    labelId: taskboardLabel.id,
+    expectedVersion: 1,
+    operationId: "operation:taskboard-label-delete",
+  }, { deleted: true, labelId: taskboardLabel.id }),
+  "taskboard/task/start": methodFixture("taskboard/task/start", {
+    taskId: taskboardTask.id,
+    execution: { kind: "local" },
+    operationId: taskboardStartOperation.operationId,
+  }, { operation: taskboardStartOperation }),
+  "taskboard/task/start/status": methodFixture("taskboard/task/start/status", {
+    operationId: taskboardStartOperation.operationId,
+    afterRevision: 2,
+  }, { operation: taskboardStartOperation, changed: true }),
+  "taskboard/task/start/retry-setup": methodFixture("taskboard/task/start/retry-setup", {
+    operationId: taskboardStartOperation.operationId,
+    revision: 2,
+  }, { operation: taskboardStartOperation }),
+  "taskboard/task/start/continue-without-setup": methodFixture("taskboard/task/start/continue-without-setup", {
+    operationId: taskboardStartOperation.operationId,
+    revision: 2,
+  }, { operation: taskboardStartOperation }),
+  "taskboard/workflow/list": methodFixture("taskboard/workflow/list", {
+    projectId: project.id,
+    statuses: ["blocked"],
+    priorities: ["high"],
+    labelIds: [],
+    query: "任务工作台",
+    archived: false,
+    unread: true,
+    datePreset: "due_7_days",
+    today: "2026-08-23",
+    sort: "due_date",
+    limit: 200,
+  }, {
+    tasks: [{ ...taskboardWorkflowTask, threads: [] }],
+    unreadCount: 1,
+    nextCursor: null,
+  }),
+  "taskboard/workflow/read": methodFixture("taskboard/workflow/read", {
+    taskId: taskboardTask.id,
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/diagnostics": methodFixture("taskboard/workflow/diagnostics", {
+    taskIds: [taskboardTask.id],
+  }, {
+    warnings: [{
+      code: "workflow-status-fallback",
+      taskId: taskboardTask.id,
+      fallbackStatus: "in_progress",
+    }],
+  }),
+  "taskboard/workflow/create": methodFixture("taskboard/workflow/create", {
+    operationId: "operation:workflow-create",
+    projectId: project.id,
+    title: taskboardTask.title,
+    description: taskboardTask.description,
+    status: "in_review",
+    priority: "high",
+    labelIds: [],
+    startDate: "2026-08-20",
+    dueDate: "2026-08-25",
+    threadLinks: [{ threadId: "thread:taskboard", role: "primary" }],
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/update": methodFixture("taskboard/workflow/update", {
+    operationId: "operation:workflow-update",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    patch: { priority: "high", startDate: null, dueDate: "2026-08-25" },
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/move": methodFixture("taskboard/workflow/move", {
+    operationId: "operation:workflow-move",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    status: "blocked",
+    beforeTaskId: null,
+    afterTaskId: null,
+    note: "等待用户确认权限。",
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/transition": methodFixture("taskboard/workflow/transition", {
+    operationId: "operation:workflow-transition",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    action: "report_blocked",
+    note: "等待用户确认权限。",
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/mark-read": methodFixture("taskboard/workflow/mark-read", {
+    operationId: "operation:workflow-mark-read",
+    taskId: taskboardTask.id,
+    expectedUnreadAt: 3,
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/thread-candidates": methodFixture("taskboard/workflow/thread-candidates", {
+    projectId: project.id,
+    query: "任务",
+    limit: 100,
+  }, {
+    threads: [{
+      threadId: "thread:taskboard",
+      projectId: project.id,
+      title: "任务工作台",
+      latestTurnStatus: "completed",
+      pendingPlanApproval: false,
+      updatedAt: 2,
+    }],
+    nextCursor: null,
+  }),
+  "taskboard/workflow/find-by-thread": methodFixture("taskboard/workflow/find-by-thread", {
+    threadId: "thread:taskboard",
+    projectId: project.id,
+  }, {
+    lookup: {
+      threadId: "thread:taskboard",
+      taskId: taskboardTask.id,
+      eligible: false,
+      ineligibleReason: "already_linked",
+    },
+  }),
+  "taskboard/workflow/link-threads": methodFixture("taskboard/workflow/link-threads", {
+    operationId: "operation:workflow-link",
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    links: [{ threadId: "thread:taskboard", role: "primary" }],
+  }, { task: taskboardWorkflowDetails }),
+  "taskboard/workflow/start": methodFixture("taskboard/workflow/start", {
+    operationId: taskboardStartOperation.operationId,
+    taskId: taskboardTask.id,
+    expectedVersion: 2,
+    execution: { kind: "local" },
+    mode: "continue_primary",
+    authorizeBacklog: true,
+  }, { operation: taskboardStartOperation }),
+  "session-group/list": methodFixture("session-group/list", {
+    query: "登录",
+    limit: 20,
+  }, {
+    groups: [],
+    nextCursor: null,
+  }),
+  "session-group/read": methodFixture("session-group/read", {
+    groupId: "session-group:1",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复", description: "跨项目排查登录问题", version: 1,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1,
+    },
+    memberships: [],
+  }),
+  "session-group/create": methodFixture("session-group/create", {
+    name: "登录修复", description: "跨项目排查登录问题", operationId: "operation:session-group-create",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复", description: "跨项目排查登录问题", version: 1,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1,
+    },
+  }),
+  "session-group/update": methodFixture("session-group/update", {
+    groupId: "session-group:1", expectedVersion: 1, patch: { name: "登录修复组" }, operationId: "operation:session-group-update",
+  }, {
+    group: {
+      id: "session-group:1", name: "登录修复组", description: "跨项目排查登录问题", version: 2,
+      memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 2,
+    },
+  }),
+  "session-group/delete": methodFixture("session-group/delete", {
+    groupId: "session-group:1", expectedVersion: 2, operationId: "operation:session-group-delete",
+  }, { groupId: "session-group:1", deletedAt: 3 }),
+  "session-group/membership/set": methodFixture("session-group/membership/set", {
+    threadId: "thread:1", groupId: "session-group:1", operationId: "operation:session-group-membership",
+  }, { membership: { groupId: "session-group:1", threadId: "thread:1", joinedAt: 2 } }),
+  "session-group/context/read": methodFixture("session-group/context/read", {
+    groupId: "session-group:1", sections: ["objective"],
+  }, {
+    state: { groupId: "session-group:1", contextRevision: 1, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 1 },
+    entries: [],
+  }),
+  "session-group/context/update": methodFixture("session-group/context/update", {
+    groupId: "session-group:1", expectedContextRevision: 1,
+    changes: [{ op: "add", section: "objective", title: "目标", content: "修复登录问题" }],
+    operationId: "operation:session-group-context",
+  }, {
+    state: { groupId: "session-group:1", contextRevision: 2, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 2 },
+    entries: [],
+  }),
+  "session-group/step/list": methodFixture("session-group/step/list", {
+    groupId: "session-group:1", limit: 20,
+  }, { steps: [], nextCursor: null }),
+  "session-group/step/diff": methodFixture("session-group/step/diff", {
+    groupId: "session-group:1", stepId: "session-group-step:1", path: "src/index.ts",
+  }, { stepId: "session-group-step:1", files: [] }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -2290,9 +3333,41 @@ const fixtures = {
     sourceId: "xai-management",
     disconnected: true,
   }),
+  "system/shrinkMemory": methodFixture("system/shrinkMemory", {
+    reason: "manual",
+  }, {
+    success: true,
+    stats: {
+      rss: 120_000_000,
+      heapTotal: 60_000_000,
+      heapUsed: 40_000_000,
+      external: 10_000_000,
+      arrayBuffers: 2_000_000,
+    },
+    freedRssBytes: 15_000_000,
+  }),
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
+  test("会话组使用唯一能力并停止公开任务看板协议", () => {
+    const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("session-group/"))
+    expect(methods).toHaveLength(10)
+    expect(methods.every(([, definition]) => definition.capability === "session-group.v1")).toBe(true)
+    expect(Object.keys(RpcMethods).some(method => method.startsWith("taskboard/"))).toBe(false)
+    expect(Capabilities).toContain("session-group.v1")
+    expect(Capabilities.some(capability => capability.startsWith("taskboard."))).toBe(false)
+
+    const decodeCreate = Schema.decodeUnknownSync(RpcMethods["session-group/create"].params)
+    expect(() => decodeCreate({
+      ...fixtures["session-group/create"].params,
+      name: "x".repeat(121),
+    })).toThrow()
+    expect(() => decodeCreate({
+      ...fixtures["session-group/create"].params,
+      description: "x".repeat(4_001),
+    })).toThrow()
+  })
+
   test("批量 Review Diff 使用独立的向后兼容能力", () => {
     expect(RpcMethods["review/file-diffs"].capability).toBe("git.review.batch.v1")
     expect(Capabilities).toContain("git.review.batch.v1")
@@ -2350,8 +3425,9 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(190)
-    expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
+    expect(methods).toHaveLength(240)
+    const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
+    expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
       const definition = AllRpcMethods[method]
@@ -2527,6 +3603,59 @@ describe("RPC method schema contracts", () => {
     provider.authConfigured = true
     provider.apiKey = "sk-must-not-cross-rpc"
     expect(() => decode(result)).toThrow()
+    delete provider.apiKey
+
+    const withModelCount = {
+      ...result,
+      providers: [{
+        ...result.providers[0],
+        modelCount: 42,
+      }],
+    }
+    const decoded = decode(withModelCount)
+    expect(decoded.providers[0]?.modelCount).toBe(42)
+  })
+
+  test("decodes models.dev catalog status and keeps catalog definitions read-only", () => {
+    const catalogSource = {
+      source: "models-dev" as const,
+      mode: "live" as const,
+      stale: false,
+      refreshedAt: 1,
+    }
+    const providerResult = {
+      ...structuredClone(fixtures["provider/list"].result),
+      catalogSource,
+      providers: [{
+        ...fixtures["provider/list"].result.providers[0],
+        source: {
+          type: "pi" as const,
+          kind: "models-dev" as const,
+          apis: ["openai-completions"],
+          baseUrl: "https://api.example.test/v1",
+        },
+        catalogOrigin: "models-dev" as const,
+        availability: { status: "ready" as const },
+        config: {
+          kind: "models-dev" as const,
+          id: providerId,
+          protocol: "openai-compatible" as const,
+          readOnly: true as const,
+        },
+      }],
+    }
+
+    expect(Schema.decodeUnknownSync(RpcMethods["provider/list"].result)(providerResult)
+      .catalogSource).toEqual(catalogSource)
+    expect(Schema.decodeUnknownSync(RpcMethods["model/list"].result)({
+      ...fixtures["model/list"].result,
+      catalogSource: { ...catalogSource, mode: "cache", stale: true, issue: "offline" },
+    }).catalogSource?.mode).toBe("cache")
+
+    expect(() => Schema.decodeUnknownSync(RpcMethods["provider/update"].params)({
+      ...fixtures["provider/update"].params,
+      definition: providerResult.providers[0]!.config,
+    })).toThrow()
   })
 
   test("uses explicit FIFO queue methods without reorder or queue-to-steer mutations", () => {
@@ -2570,6 +3699,15 @@ describe("RPC method schema contracts", () => {
 
     expect(decode({ ...common, workspace: { kind: "project", projectId: project.id } })).toEqual({
       ...common,
+      workspace: { kind: "project", projectId: project.id },
+    })
+    expect(decode({
+      ...common,
+      sessionGroupId: "session-group:1",
+      workspace: { kind: "project", projectId: project.id },
+    })).toEqual({
+      ...common,
+      sessionGroupId: "session-group:1",
       workspace: { kind: "project", projectId: project.id },
     })
     expect(decode({
@@ -2618,9 +3756,137 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(184)
+    expect(Object.keys(RpcMethods)).toHaveLength(234)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
+  })
+
+  test("插件管理使用精确契约并由独立能力保护", () => {
+    expect(Capabilities).toContain("plugins.manage.v1")
+    expect(Capabilities).toContain("plugins.details.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("plugins.manage.v1")).toBe("plugins.manage.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("plugins.details.v1")).toBe("plugins.details.v1")
+    expect(RpcMethods["plugin/list"]).toMatchObject({
+      capability: "plugins.manage.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/setEnabled"]).toMatchObject({
+      capability: "plugins.manage.v1",
+      mutation: true,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/setEnabled"].errors).toEqual([
+      "PLUGIN_NOT_FOUND",
+      "PLUGIN_NOT_INSTALLED",
+      "PLUGIN_INVALID",
+      "CONFLICT",
+      "PATH_DENIED",
+      "INTERNAL_ERROR",
+    ])
+    expect(RpcMethods["plugin/getDetails"].errors).toEqual(RpcMethods["plugin/setEnabled"].errors)
+
+    const decodeListParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/list"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeListParams({})).toEqual({})
+    expect(decodeListParams(fixtures["plugin/list"].params)).toEqual(fixtures["plugin/list"].params)
+
+    const decodeDetailsParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/getDetails"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeDetailsParams(fixtures["plugin/getDetails"].params)).toEqual(fixtures["plugin/getDetails"].params)
+    expect(() => decodeDetailsParams({ pluginId: "task-planning", absolutePath: "C:\\sensitive" })).toThrow()
+
+    const decodeDetails = Schema.decodeUnknownSync(
+      RpcMethods["plugin/getDetails"].result,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeDetails(fixtures["plugin/getDetails"].result)).toEqual(fixtures["plugin/getDetails"].result)
+    expect(() => decodeDetails({
+      ...fixtures["plugin/getDetails"].result,
+      details: { ...fixtures["plugin/getDetails"].result.details, manifestPath: "C:\\sensitive" },
+    })).toThrow()
+
+    const decodeSetEnabledParams = Schema.decodeUnknownSync(
+      RpcMethods["plugin/setEnabled"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeSetEnabledParams(fixtures["plugin/setEnabled"].params)).toEqual(fixtures["plugin/setEnabled"].params)
+    expect(() => decodeSetEnabledParams({
+      pluginId: "task-planning",
+      enabled: false,
+    })).toThrow()
+
+    const decodeList = Schema.decodeUnknownSync(
+      RpcMethods["plugin/list"].result,
+      { onExcessProperty: "error" },
+    )
+    const valid = fixtures["plugin/list"].result
+    expect(decodeList(valid)).toEqual(valid)
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], source: "codex-cache" }],
+    })).toThrow()
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], absolutePath: "C:\\sensitive\\plugin" }],
+    })).toThrow()
+    expect(() => decodeList({
+      ...valid,
+      plugins: [{ ...valid.plugins[0], longDescription: "not part of the summary" }],
+    })).toThrow()
+  })
+
+  test("MiniMax CLI 集成使用独立能力、精确 mutation 和可对账事件", () => {
+    expect(Capabilities).toContain("integrations.minimax-cli.v1")
+    expect(Schema.decodeUnknownSync(ProtocolCapabilitySchema)("integrations.minimax-cli.v1"))
+      .toBe("integrations.minimax-cli.v1")
+    expect(RpcMethods["minimaxCli/status"]).toMatchObject({
+      capability: "integrations.minimax-cli.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    expect(RpcMethods["plugin/getDetails"]).toMatchObject({
+      capability: "plugins.details.v1",
+      mutation: false,
+      exactParams: true,
+      exactResult: true,
+    })
+    for (const method of ["minimaxCli/install", "minimaxCli/uninstall"] as const) {
+      expect(RpcMethods[method]).toMatchObject({
+        capability: "integrations.minimax-cli.v1",
+        mutation: true,
+        exactParams: true,
+        exactResult: true,
+      })
+      const decode = Schema.decodeUnknownSync(RpcMethods[method].params, { onExcessProperty: "error" })
+      expect(decode(fixtures[method].params)).toEqual(fixtures[method].params)
+      expect(() => decode({ operationId: "operation:minimax", credentialId: "secret" })).toThrow()
+    }
+    const status = Schema.decodeUnknownSync(
+      RpcMethods["minimaxCli/status"].result,
+      { onExcessProperty: "error" },
+    )(fixtures["minimaxCli/status"].result)
+    expect(status.credentialSource).toEqual({
+      providerId: "minimax-cn-coding-plan",
+      credentialId: "credential:minimax-cn",
+      label: "当前 Coding Plan Key",
+      maskedValue: "sk-****abcd",
+      region: "cn",
+    })
+    expect(EventManifest["minimaxCli/updated"]).toMatchObject({
+      version: 1,
+      durability: "live",
+      stream: "global",
+      capability: "integrations.minimax-cli.v1",
+      reconcilesWith: "minimaxCli/status",
+    })
   })
 
   test("requires authorized projectId instead of internal projectKey for project memory", () => {
@@ -2656,6 +3922,24 @@ describe("RPC method schema contracts", () => {
       ...result,
       compaction: { ...result.compaction, replacementHistory: [{ from: "old", to: "new" }] },
     })).toThrow()
+  })
+
+  test("keeps compaction provenance optional for older method results", () => {
+    const result = structuredClone(fixtures["thread/compact"].result)
+    const legacyResult = {
+      compaction: {
+        id: result.compaction.id,
+        beforeCount: result.compaction.beforeCount,
+        afterCount: result.compaction.afterCount,
+        beforeTokens: result.compaction.beforeTokens,
+        afterTokens: result.compaction.afterTokens,
+        targetTokens: result.compaction.targetTokens,
+        usageSampleId: result.compaction.usageSampleId,
+        baselineVersion: result.compaction.baselineVersion,
+      },
+    }
+
+    expect(Schema.decodeUnknownSync(RpcMethods["thread/compact"].result)(legacyResult)).toEqual(legacyResult)
   })
 
   test("rejects sandbox runtime internals from the public result", () => {
@@ -2718,5 +4002,206 @@ describe("RPC method schema contracts", () => {
       ...fixtures["provider/apiKey/update"].result,
       key: "updated-secret",
     })).toThrow()
+  })
+
+  test("keeps Coding as the legacy suggestion surface and accepts Working categories", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["task-suggestion/generate"].params,
+      { onExcessProperty: "error" },
+    )
+    const legacy = decode(fixtures["task-suggestion/generate"].params)
+    expect(legacy.surface).toBeUndefined()
+
+    const working = decode({
+      ...fixtures["task-suggestion/generate"].params,
+      surface: "working",
+      context: {
+        ...fixtures["task-suggestion/generate"].params.context,
+        localCandidates: [
+          { id: "working:1", categoryId: "create", label: "创建", prompt: "Create a deliverable" },
+          { id: "working:2", categoryId: "research", label: "调研", prompt: "Research next steps" },
+          { id: "working:3", categoryId: "automate", label: "自动化", prompt: "Automate recurring work" },
+        ],
+      },
+    })
+    expect(working.surface).toBe("working")
+    expect(working.context.localCandidates.map(item => item.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    const decodeResult = Schema.decodeUnknownSync(
+      RpcMethods["task-suggestion/generate"].result,
+      { onExcessProperty: "error" },
+    )
+    const workingResult = decodeResult({
+      ...fixtures["task-suggestion/generate"].result,
+      suggestions: working.context.localCandidates.map((item, index) => ({
+        ...item,
+        id: `working-suggestion:${index + 1}`,
+      })),
+    })
+    expect(workingResult.suggestions.map(item => item.categoryId)).toEqual([
+      "create",
+      "research",
+      "automate",
+    ])
+    expect(() => decode({
+      ...fixtures["task-suggestion/generate"].params,
+      surface: "chat",
+    })).toThrow()
+  })
+
+  test("declares model health capability and gates the new RPC methods", () => {
+    expect(Capabilities).toContain("model.health.v1")
+    const capability = Schema.decodeUnknownSync(
+      ProtocolCapabilitySchema,
+    )("model.health.v1")
+    expect(Schema.encodeSync(ProtocolCapabilitySchema)(capability)).toBe("model.health.v1")
+    for (const method of ["model/health/preview", "model/health/start", "model/health/read", "model/health/cancel"] as const) {
+      expect(RpcMethods[method].capability).toBe("model.health.v1")
+    }
+  })
+
+  test("health run schema rejects invalid states, negative latency, and unknown categories", () => {
+    const decodeItem = Schema.decodeUnknownSync(ModelHealthItemSchema)
+    expect(decodeItem({
+      model: modelRef,
+      status: "queued",
+    })).toEqual({ model: modelRef, status: "queued" })
+    expect(decodeItem({
+      model: modelRef,
+      status: "healthy",
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 12,
+    }).status).toBe("healthy")
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "unknown-state",
+    })).toThrow()
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "healthy",
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: -1,
+    })).toThrow()
+    expect(() => decodeItem({
+      model: modelRef,
+      status: "failed",
+      startedAt: 1,
+      completedAt: 2,
+      category: "definitely-not-a-category",
+      message: "x",
+    })).toThrow()
+    const decodeRun = Schema.decodeUnknownSync(ModelHealthRunSchema)
+    expect(() => decodeRun({
+      ...fixtures["model/health/start"].result.run,
+      status: "bogus",
+    })).toThrow()
+  })
+
+  test("provider/test accepts an optional explicit model and requires match on reachable", () => {
+    const decodeParams = Schema.decodeUnknownSync(RpcMethods["provider/test"].params)
+    const withoutModel = decodeParams({ providerId })
+    expect(withoutModel.model).toBeUndefined()
+    const withModel = decodeParams({ providerId, model: modelRef })
+    expect(withModel.model).toEqual(modelRef)
+
+    const decodeResult = Schema.decodeUnknownSync(RpcMethods["provider/test"].result)
+    const reachable = decodeResult({
+      ...fixtures["provider/test"].result,
+      status: "reachable",
+    })
+    expect(reachable.model).toEqual(modelRef)
+    // The legacy method keeps the old category set: internal timeout/provider
+    // classifications are mapped to `unknown` before reaching this schema.
+    const failed = decodeResult({
+      providerId,
+      status: "unavailable",
+      testedAt: 1,
+      category: "unknown",
+      message: "请求在 15 秒内未完成",
+    })
+    if (failed.status !== "unavailable") throw new Error("expected unavailable")
+    expect(failed.category).toBe("unknown")
+    expect(() => decodeResult({
+      providerId,
+      status: "unavailable",
+      testedAt: 1,
+      category: "timeout",
+      message: "x",
+    })).toThrow()
+    expect(() => decodeResult({
+      ...fixtures["provider/test"].result,
+      status: "unreachable",
+    })).toThrow()
+  })
+
+  test("model/health/updated is a live global event reconciling with read", () => {
+    expect(EventManifest["model/health/updated"]).toMatchObject({
+      version: 1,
+      durability: "live",
+      stream: "global",
+      capability: "model.health.v1",
+      reconcilesWith: "model/health/read",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["model/health/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      runId: "operation:model-health",
+      status: "running" as const,
+      counts: {
+        total: 1,
+        queued: 0,
+        running: 1,
+        healthy: 0,
+        failed: 0,
+        cancelled: 0,
+      },
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({
+      ...payload,
+      latencyMs: 12,
+    })).toThrow()
+  })
+
+  test("system/shrinkMemory 声明 system.memory.v1 能力且参数与结果保持精确 envelope", () => {
+    expect(Capabilities).toContain("system.memory.v1")
+    expect(RpcMethods["system/shrinkMemory"]).toMatchObject({
+      capability: "system.memory.v1",
+      mutation: true,
+      exactParams: true,
+      exactResult: true,
+    })
+    const decodeParams = Schema.decodeUnknownSync(
+      RpcMethods["system/shrinkMemory"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeParams({})).toEqual({})
+    expect(decodeParams({ reason: "idle" })).toEqual({ reason: "idle" })
+    expect(() => decodeParams({ reason: "unknown" })).toThrow()
+    expect(() => decodeParams({ reason: "manual", extra: 1 })).toThrow()
+
+    const decodeResult = Schema.decodeUnknownSync(
+      RpcMethods["system/shrinkMemory"].result,
+      { onExcessProperty: "error" },
+    )
+    const validResult = {
+      success: true,
+      stats: {
+        rss: 100_000_000,
+        heapTotal: 50_000_000,
+        heapUsed: 30_000_000,
+        external: 5_000_000,
+      },
+      freedRssBytes: 10_000_000,
+    }
+    expect(decodeResult(validResult)).toEqual(validResult)
+    expect(() => decodeResult({ ...validResult, extra: 1 })).toThrow()
   })
 })

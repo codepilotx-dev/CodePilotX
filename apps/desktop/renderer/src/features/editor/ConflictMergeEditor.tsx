@@ -203,13 +203,13 @@ export function ConflictMergeEditor({
           <span>左侧为磁盘版本，右侧为本地草稿。</span>
         </div>
         <div className="conflict-merge-editor-actions">
-          <Button
+          <Button color="secondary"
             disabled={saving}
             onClick={onUseDisk}
           >
             使用磁盘版本
           </Button>
-          <Button
+          <Button color="primary"
             loading={saving}
             onClick={() => void onKeepLocal()}
           >

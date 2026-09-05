@@ -1,11 +1,12 @@
 import { Effect } from "effect";
-import type { Model } from "@codepilotx/model-schema";
 import { loadConfig } from "./config/Config";
 import { ConfigService } from "./config/ConfigService";
 import { SqliteProjectTrustStore } from "./config/ProjectTrustStore";
 import { ConfigMigrationService } from "./config/ConfigMigrationService";
 import { ConfigMigrationRepository } from "./storage/repositories/config-migration-repository";
 import { AgentDatabase } from "./storage/database/AgentDatabase";
+import { InterruptedRunRecoveryCoordinator } from "./storage/recovery/interrupted-run-recovery";
+import { StartupRecoveryCoordinator } from "./storage/recovery/StartupRecoveryCoordinator";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
@@ -18,26 +19,34 @@ import { getToolingManager } from "./tool/ToolingManager";
 import { ApprovalService } from "./permission/ApprovalService";
 import { ReviewerService } from "./permission/ReviewerService";
 import { QuestionService } from "./session/QuestionService";
+import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver";
 import { ThreadService } from "./session/ThreadService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
-import { PiOrchestratorAdapter } from "./orchestration/PiOrchestratorAdapter";
+import { AgentRuntimeService } from "./orchestration/AgentRuntimeService";
+import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
+  ModelsDevCatalogStore,
   PiModelService,
   PiModelsFileStore,
 } from "./provider/pi";
-import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
+import { resolveSpecializedPiModel } from "./provider/pi/PiSpecializedModelResolver";
 import { createApp } from "./transport/server";
 import { AgentLogger } from "./observability/AgentLogger";
 import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
 import { normalizeShellSecurityLevel } from "./security/ShellRiskClassifier";
 import { ApiKeyService } from "./provider/ApiKeyService";
+import { ModelHealthService } from "./provider/ModelHealthService";
 import { ProviderCredentialService } from "./provider/ProviderCredentialService";
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
 import { AttachmentService } from "./subagent/AttachmentService";
+import { ArtifactService } from "./storage/ArtifactService";
+import { SpeechTranscriptionService } from "./speech/SpeechTranscriptionService";
 import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
+import { LocalContextPathRepository } from "./storage/repositories/local-context-path-repository";
+import { LocalContextPathService } from "./local-context/LocalContextPathService";
 import { ProjectSourceService } from "./project/ProjectSourceService";
 import { ProjectService } from "./project/ProjectService";
 import { MemoryService } from "./memory/MemoryService";
@@ -47,10 +56,12 @@ import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { MemoryManager } from "./resource/MemoryManager";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import { GitWorkspaceService } from "./git/GitWorkspaceService";
 import type { Models } from "@earendil-works/pi-ai";
+import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
@@ -62,6 +73,10 @@ import {
 } from "./config/DataDirectoryMigration";
 import { SkillManagementService } from "./prompt/SkillManagementService";
 import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
+import { PluginSettingsRepository } from "./storage/repositories/plugin-settings-repository";
+import { PluginManagementService } from "./plugin/PluginManagementService";
+import { MiniMaxCliSettingsRepository } from "./storage/repositories/minimax-cli-settings-repository";
+import { MiniMaxCliIntegrationService } from "./integration/minimax-cli/MiniMaxCliIntegrationService";
 import { McpSettingsRepository } from "./storage/repositories/mcp-settings-repository";
 import { McpConfigService } from "./mcp/McpConfigService";
 import { McpConnectionManager } from "./mcp/McpConnectionManager";
@@ -92,6 +107,28 @@ import {
 import { WorktreeRepository } from "./worktree/WorktreeRepository";
 import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingService";
 import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
+import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
+import { SessionGroupService } from "./session-group/SessionGroupService";
+import { createAutomationDefinitions } from "./tool/Automation/definitions";
+import { createSchedulePlanDefinition } from "./tool/SchedulePlan/definition";
+import {
+  AutomationRunCoordinator,
+  AutomationScheduler,
+  AutomationService,
+  ThreadAutomationRunExecutor,
+} from "./automation";
+import {
+  CalendarService,
+  SchedulePlanService,
+  ScheduledTaskCoordinator,
+  ScheduledTaskService,
+} from "./calendar";
+import {
+  probeAutomationStorageCapabilities,
+  probeScheduleCalendarStorageCapabilities,
+} from "./storage/database/storage-capabilities";
+import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
+import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
   BindingHandoffWorkspace,
   HandoffLifecycle,
@@ -103,6 +140,10 @@ import { ConversationHistoryForkRepository } from "./session/fork/ConversationHi
 import { ThreadForkWorkspaceService } from "./session/fork/ThreadForkWorkspaceService";
 import { ThreadMessageForkRepository } from "./session/fork/ThreadMessageForkRepository";
 import { ThreadMessageForkService } from "./session/fork/ThreadMessageForkService";
+import { SideChatService } from "./session/side-chat/SideChatService";
+import { SideChatEnvironmentCleanup } from "./session/side-chat/SideChatEnvironmentCleanup";
+
+registerBunOAuthFlows();
 
 export interface BootstrapOptions {
   models?: Models;
@@ -163,6 +204,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const terminalContext = new TerminalContextService(workspaceResolver);
     const terminalOutput = new TerminalOutputMirror();
     const environmentDeltas = new EnvironmentDeltaStore(config.dataDir);
+    const threadExecutions = new ThreadExecutionPreparationService(
+      db,
+      executionBindings,
+      environmentDeltas,
+    );
     const localEnvironmentRunner = new LocalEnvironmentRunner(environmentDeltas);
     const localEnvironment = new LocalEnvironmentService(
       new LocalEnvironmentDiscovery(new GitCommandRunner({
@@ -199,6 +245,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     }));
     const hub = yield* EventHub.make;
+    const sessionGroups = new SessionGroupService(db, hub);
+    queueMicrotask(() => { void sessionGroups.recoverMissingSteps() });
+    const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
+      await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
+    });
+    yield* Effect.promise(() => speech.initialize());
     const turnPatches = new TurnPatchService(
       db,
       hub,
@@ -264,10 +316,26 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           },
     );
     const pets = new PetService(config.petsDir);
+    const plugins = new PluginManagementService(
+      new PluginSettingsRepository(db),
+      {
+        builtinPluginsRoot: config.builtinPluginsRoot,
+        userHome: homedir(),
+      },
+    );
+    let minimaxCli: MiniMaxCliIntegrationService;
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
-      { dataRoot: config.dataDir, userHome: homedir() },
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+        builtinSkillsRoot: config.builtinSkillsRoot,
+      },
       configService,
+      async () => [
+        ...await plugins.enabledSkillRoots(),
+        ...await minimaxCli?.enabledSkillRoots() ?? [],
+      ],
     );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
@@ -314,6 +382,33 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     );
     yield* providerCredentialStore.initialize();
+    minimaxCli = new MiniMaxCliIntegrationService(
+      new MiniMaxCliSettingsRepository(db),
+      providerCredentialStore,
+      {
+        userHome: homedir(),
+        integrationRoot: join(config.builtinIntegrationsRoot, "minimax-cli"),
+      },
+    );
+    const unsubscribeMiniMaxCli = minimaxCli.subscribe((status) => {
+      void publishAgentEvent(
+        db,
+        hub,
+        null,
+        null,
+        "minimaxCli/updated",
+        { status },
+      ).catch(() =>
+        logger.warn("minimax-cli.status.publish.failed", {
+          error: "MINIMAX_CLI_STATUS_PUBLISH_FAILED",
+        }),
+      );
+    });
+    void minimaxCli.status().catch(() =>
+      logger.warn("minimax-cli.status.warmup.failed", {
+        error: "MINIMAX_CLI_STATUS_WARMUP_FAILED",
+      }),
+    );
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => config.githubOAuthClientId,
       getBrokerURL: () => config.githubAuthBrokerURL,
@@ -337,10 +432,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       options.onReviewGitCommand,
       logger,
     );
+    const memoryManager = new MemoryManager({ logger });
+    memoryManager.registerHook("sqlite", () => db.shrinkMemory());
+    memoryManager.registerHook("git_review", () => review.shrink());
     const git = new GitWorkspaceService(db);
     const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
+      modelsDevStore: new ModelsDevCatalogStore(config.modelsDevCatalogCachePath),
       config: () => {
         const snapshot = configService.snapshot();
         const modelCatalog = snapshot.model_catalog as
@@ -358,10 +457,24 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         };
       },
     });
-    const providers = new PiModelCatalogAdapter(piModels);
+    const providers = piModels;
+    const modelHealth = new ModelHealthService(
+      piModels,
+      async (payload) => {
+        await publishAgentEvent(
+          db,
+          hub,
+          null,
+          null,
+          "model/health/updated",
+          payload,
+        );
+      },
+    );
     const apiKeys = new ApiKeyService(
       piModels,
       providerCredentialStore,
+      modelHealth,
     );
     const providerCredentials = new ProviderCredentialService(
       piModels,
@@ -433,6 +546,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const tools = new ToolRegistry();
     tools.register(createTerminalReadDefinition(terminalOutput));
+    tools.register(createThreadReadDefinition(new ThreadReadViewRepository(db)));
     const mcpConfigs = new McpConfigService(
       new McpSettingsRepository(db),
       configService,
@@ -543,6 +657,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         tooling.resolve(id, resolveOptions),
       resolveToolingEnvironment: (required, resolveOptions) =>
         tooling.resolveEnvironment(required, resolveOptions),
+      resolveMiniMaxCliPathEntries: () => minimaxCli.shellPathEntries(),
       resolveShellSecurityLevel: () =>
         normalizeShellSecurityLevel(
           configService.snapshot().shell_security_level,
@@ -563,12 +678,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
     });
-    const questions = new QuestionService(db, hub);
-    const orchestrator = new PiOrchestratorAdapter({
+    const questions = new QuestionService(db, hub, false);
+    const artifacts = yield* Effect.promise(() =>
+      ArtifactService.open(config.dataDir, db),
+    );
+    const orchestrator = new AgentRuntimeService({
       db,
       hub,
       models: piModels.pi,
       toolExecutor,
+      contextCompaction: new ContextCompactionService(db),
+      artifacts,
+      memoryManager,
       observeHarnessEvent: (context, event) =>
         harnessLogs.observe({
           threadId: context.threadID,
@@ -596,17 +717,20 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       scrub: (value) => secretScrubber.scrubText(value),
       extractor: {
         extract: async ({ transcript, projectKey, signal }) => {
-          const currentConfig = configService.snapshot();
-          const modelID = typeof currentConfig.model === "string" ? currentConfig.model : undefined;
-          const providerID = typeof currentConfig.model_provider === "string" ? currentConfig.model_provider : undefined;
-          const ref = modelID && providerID
-            ? { providerID, id: modelID } as Model.Ref
-            : null;
-          if (!ref) return [];
-          const model = await piModels.getPiModel(ref);
+          const projectId = projectKey?.startsWith("project:")
+            ? projectKey.slice("project:".length)
+            : undefined;
+          const selected = await resolveSpecializedPiModel({
+            purpose: "organization",
+            db,
+            models: piModels,
+            configService,
+            ...(projectId ? { projectId } : {}),
+          });
+          if (!selected) return [];
           const object = await generatePiObject({
             models: piModels.pi,
-            model,
+            model: selected.model,
             ...(signal ? { signal } : {}),
             schema: z.object({
               memories: z
@@ -635,10 +759,22 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       {},
       configService,
     );
+    const sideChatEnvironmentCleanup = new SideChatEnvironmentCleanup(
+      db.repositories.sideChats,
+      environmentDeltas,
+    );
+    const localContextPaths = new LocalContextPathService(
+      new LocalContextPathRepository(db),
+    );
     const history = new ThreadHistoryService(
       db,
       hub,
-      (threadID) => review.prepareThreadSnapshotCleanup(threadID),
+      (threadID) => {
+        return sideChatEnvironmentCleanup.prepareSource(
+          threadID,
+          review.prepareThreadSnapshotCleanup(threadID),
+        );
+      },
     );
     const threadTitles = new ThreadTitleService(
       db,
@@ -651,6 +787,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       db,
       config.storage.workspacesRoot,
     );
+    const resumeCheckpoints = new ResumeCheckpointResolver(db, approvals);
     const subagents = new SubagentService(
       db,
       hub,
@@ -665,11 +802,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         userHome: homedir(),
       },
       memory,
-      hooks,
       skills,
       mcpConnections,
       projectSources,
+      resumeCheckpoints,
+      false,
+      localContextPaths,
     );
+    resumeCheckpoints.setResolvedSubagentWait((turnID) => subagents.resolvedWaitCheckpoint(turnID));
     const threads = new ThreadService(
       db,
       hub,
@@ -692,7 +832,142 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       configService,
       projectSources,
       threadTitles,
+      resumeCheckpoints,
+      false,
+      localContextPaths,
+      sessionGroups,
     );
+    const automationStorage = probeAutomationStorageCapabilities(db.sqlite);
+    const automationEnabled = automationStorage.automations && automationStorage.automationRuns;
+    const calendarStorage = probeScheduleCalendarStorageCapabilities(db.sqlite);
+    const calendarEnabled = automationEnabled
+      && calendarStorage.scheduledTasks
+      && calendarStorage.schedulePlanProposals;
+    const automationRepository = db.repositories.automations;
+    const scheduledTaskRepository = db.repositories.scheduledTasks;
+    const automationExecutor = new ThreadAutomationRunExecutor(
+      automationRepository,
+      threads,
+      worktrees,
+      threadExecutions,
+    );
+    const automationRuns = new AutomationRunCoordinator(
+      automationRepository,
+      automationExecutor,
+      {
+        getTurnStatus: (turnId) => {
+          const status = db.repositories.executions.getTurnStatus(turnId);
+          if (status === "completed" || status === "failed" || status === "interrupted") return status;
+          if (status === "queued" || status === "running") return status;
+          return status ? "waiting" : null;
+        },
+        runChanged: (run) => publishAgentEvent(db, hub, null, run.turnId, "automation/runChanged", {
+          automationId: run.automationId,
+          runId: run.id,
+          status: run.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    const scheduledTaskRuns = new ScheduledTaskCoordinator(
+      scheduledTaskRepository,
+      automationExecutor,
+      {
+        getTurnStatus: (turnId) => {
+          const status = db.repositories.executions.getTurnStatus(turnId);
+          if (status === "completed" || status === "failed" || status === "interrupted") return status;
+          if (status === "queued" || status === "running") return status;
+          return status ? "waiting" : null;
+        },
+        taskChanged: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    let automationScheduler: AutomationScheduler | null = null;
+    const automation = new AutomationService(automationRepository, {
+      changed: (value) => publishAgentEvent(db, hub, null, null, "automation/changed", {
+        automationId: value.id,
+        revision: value.revision,
+        status: value.status,
+        changedAt: Date.now(),
+      }).then(() => undefined),
+      claimed: (run) => automationRuns.startRun(run),
+      wakeScheduler: () => automationScheduler?.wake(),
+    });
+    const scheduledTasks = new ScheduledTaskService(
+      scheduledTaskRepository,
+      automationRepository,
+      {
+        claimed: (task) => scheduledTaskRuns.startTask(task),
+        wakeScheduler: () => automationScheduler?.wake(),
+        changed: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    const calendar = new CalendarService(automationRepository, scheduledTaskRepository);
+    const schedulePlans = new SchedulePlanService(
+      db,
+      db.repositories.schedulePlanProposals,
+      scheduledTaskRepository,
+      automationRepository,
+      {
+        wakeScheduler: () => automationScheduler?.wake(),
+        automationChanged: (value) => publishAgentEvent(db, hub, null, null, "automation/changed", {
+          automationId: value.id,
+          revision: value.revision,
+          status: value.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+        scheduledTaskChanged: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+        proposalChanged: (proposal) => publishAgentEvent(db, hub, null, proposal.turnId, "schedule-plan/changed", {
+          proposalId: proposal.id,
+          revision: proposal.revision,
+          status: proposal.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    automationScheduler = new AutomationScheduler(automationRepository, {
+      onClaimed: (runs) => automationRuns.startRuns(runs),
+      ...(calendarEnabled ? {
+        scheduledTasks: {
+          repository: scheduledTaskRepository,
+          onClaimed: (tasks) => scheduledTaskRuns.startTasks(tasks),
+        },
+      } : {}),
+      onError: () => undefined,
+    });
+    if (automationEnabled) {
+      for (const definition of createAutomationDefinitions(automation)) tools.register(definition);
+    }
+    if (calendarEnabled) {
+      tools.register(createSchedulePlanDefinition(schedulePlans, (threadId) => db.threadProjectID(threadId) ?? null));
+    }
+    const unsubscribeAutomationEvents = hub.listen((signal) => {
+      if (!automationEnabled || signal.kind !== "durable" || !signal.event.turnId) return;
+      if (signal.event.method === "turn/started") void automationRuns.handleTurnRunning(signal.event.turnId);
+      else if (signal.event.method === "turn/completed") void automationRuns.handleTurnTerminal(signal.event.turnId, "completed");
+      else if (signal.event.method === "turn/failed") void automationRuns.handleTurnTerminal(signal.event.turnId, "failed", "TURN_FAILED");
+      else if (signal.event.method === "turn/interrupted") void automationRuns.handleTurnTerminal(signal.event.turnId, "interrupted", "TURN_INTERRUPTED");
+      if (!calendarEnabled) return;
+      if (signal.event.method === "turn/started") void scheduledTaskRuns.handleTurnRunning(signal.event.turnId);
+      else if (signal.event.method === "turn/completed") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "completed");
+      else if (signal.event.method === "turn/failed") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "failed", "TURN_FAILED");
+      else if (signal.event.method === "turn/interrupted") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "interrupted", "TURN_INTERRUPTED");
+    });
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
       handoffOperations,
@@ -724,18 +999,46 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       worktreeRepository,
     );
-    yield* Effect.promise(async () => {
-      for (const operationId of handoffOperations.runningOperationIDs()) {
-        await handoff.recover(operationId).catch(() => undefined);
-      }
-      for (const operationId of handoffOperations.pendingFinalizationIDs()) {
-        const operation = handoffOperations.get(operationId);
-        await handoff.acknowledgeClientTransfer(operationId, operation.revision).catch(() => undefined);
-      }
-      for (const operationId of threadForkOperations.runningOperationIDs()) {
-        await threadFork.recover(operationId).catch(() => undefined);
-      }
+    const sideChats = new SideChatService(
+      db.repositories.sideChats,
+      new ConversationHistoryForkRepository(db),
+      new ThreadForkWorkspaceService(
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        environmentDeltas,
+      ),
+      threads,
+      executionBindings,
+      (threadID) => review.prepareThreadSnapshotCleanup(threadID),
+    );
+    const startupRecovery = new StartupRecoveryCoordinator({
+      recoverInterruptedRuns: () => new InterruptedRunRecoveryCoordinator(db).run(),
+      discardRecoveredSideChats: () => sideChats.discardAll(),
+      recoverResumeLeases: () => { resumeCheckpoints.recoverInterruptedLeases() },
+      restoreQuestionTimers: () => questions.restoreAutoResolutions(),
+      recoverSubagents: () => subagents.recoverStartup(),
+      recoverHandoffs: async () => {
+        for (const operationId of handoffOperations.runningOperationIDs()) await handoff.recover(operationId);
+        for (const operationId of handoffOperations.pendingFinalizationIDs()) {
+          const operation = handoffOperations.get(operationId);
+          await handoff.acknowledgeClientTransfer(operationId, operation.revision);
+        }
+      },
+      recoverForks: async () => {
+        for (const operationId of threadForkOperations.runningOperationIDs()) await threadFork.recover(operationId);
+      },
+      recoverAutomations: async () => {
+        if (automationEnabled) await automationRuns.recover();
+        if (calendarEnabled) await scheduledTaskRuns.recover();
+      },
+      startQueues: () => {
+        threads.startRecoveredQueues();
+        if (automationEnabled) automationScheduler?.start();
+      },
     });
+    yield* Effect.promise(() => startupRecovery.run());
+    let disposed = false;
     const app = createApp({
       config,
       configService,
@@ -747,10 +1050,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       questions,
       subagents,
       attachments,
+      artifacts,
+      localContextPaths,
       projectSources,
       providers,
       piModels,
       apiKeys,
+      modelHealth,
       providerCredentials,
       providerCredentialStore,
       authSessions,
@@ -764,6 +1070,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       pets,
       releaseNotes,
       skills,
+      plugins,
+      minimaxCli,
       mcp,
       suggestions,
       usage,
@@ -774,19 +1082,45 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       handoff,
       threadFork,
+      sideChats,
       executionBindings,
       worktreeRepository,
       environmentDeltas,
+      speech,
+      threadExecutions,
+      sessionGroups,
+      automation,
+      calendar,
+      scheduledTasks,
+      schedulePlans,
+      memoryManager,
     });
-    let disposed = false;
+    const initialCatalogRevision = providers.catalogRevision?.() ?? 0;
+    void providers.refresh(false).catch(() => undefined).then(async () => {
+      const nextCatalogRevision = providers.catalogRevision?.() ?? 0;
+      if (disposed || nextCatalogRevision === initialCatalogRevision) return;
+      await publishAgentEvent(db, hub, null, null, "catalog/updated", {
+        catalogVersion: Math.max(1, nextCatalogRevision),
+      });
+    }).catch(() => undefined);
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
+      await speech.dispose();
+      automationScheduler?.dispose();
+      unsubscribeAutomationEvents();
       unsubscribeExecutionLogs();
       unsubscribeTooling();
+      unsubscribeMiniMaxCli();
       unsubscribeConfig();
+      await sideChats.discardAll(true);
+      await orchestrator.dispose();
+      memoryManager.dispose();
       await configService.dispose();
       await mcpConnections.dispose();
+      // Stop background model-health workers before tearing down the provider,
+      // so no batch keeps publishing events after the database is closing.
+      await modelHealth.dispose();
       await providers.dispose();
     };
     return { config, db, app, logger, providers, dispose };

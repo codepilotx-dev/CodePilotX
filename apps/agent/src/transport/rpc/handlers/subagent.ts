@@ -1,53 +1,9 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
+import { optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
-  submitMessage,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
@@ -63,15 +19,15 @@ export const subagentHandlers = {
     "subagent/worktree/discard",
     "subagent/workspace/restore",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
+    const { db, subagents } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "subagent/list":
         return { subagents: subagents.list(stringParam(params, "threadId", "parentThreadId")), nextCursor: null }
       case "subagent/read": {
         const value = subagents.read(stringParam(params, "taskId", "subagentTaskId"))
-        const { approvals, questions } = pendingInteractionCounts(db, value.task.childThreadId)
+        const { approvals, questions } = db.getPendingInteractionCounts(value.task.childThreadId)
         return {
           ...value,
           snapshot: runtime.requiredSnapshot(value.task.childThreadId),
@@ -88,29 +44,8 @@ export const subagentHandlers = {
       }
       case "subagent/stop":
         return subagents.stop(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "operationId"))
-      case "subagent/retry": {
-        const taskId = stringParam(params, "taskId", "subagentTaskId")
-        const retried = await subagents.retry(taskId, stringParam(params, "operationId"))
-        const value = record(retried, "retry")
-        const run = record(value.run, "run")
-        const runId = stringParam(run, "id")
-        const execution = db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runId) as { turn_id: string } | null
-        if (!execution) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent retry admission 尚未建立", 409)
-        const input = db.sqlite.query("SELECT id FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(execution.turn_id) as { id: string } | null
-        if (!input) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent retry input 尚未建立", 409)
-        const childThreadId = subagents.read(taskId).task.childThreadId
-        const sequence = globalEventSequence(db)
-        return {
-          task: value.task,
-          run: value.run,
-          admission: {
-            inputId: input.id,
-            turnId: execution.turn_id,
-            disposition: "accepted",
-            streamPosition: { streamId: childThreadId, sequence },
-          },
-        }
-      }
+      case "subagent/retry":
+        return subagents.retry(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "operationId"))
       case "subagent/worktree/diff": {
         const result = record(await subagents.worktreeDiff(stringParam(params, "taskId", "subagentTaskId")), "diff")
         const diff = typeof result.patch === "string" ? result.patch : typeof result.diff === "string" ? result.diff : ""
@@ -141,12 +76,3 @@ export const subagentHandlers = {
     }
   },
 } as const satisfies RpcHandlerGroup
-
-function pendingInteractionCounts(
-  db: { sqlite: { query: (sql: string) => { get: (...params: string[]) => { count: number } | null | undefined } } },
-  childThreadId: string,
-): { approvals: number; questions: number } {
-  const approvals = db.sqlite.query("SELECT COUNT(*) AS count FROM approval_requests WHERE thread_id = ? AND status = 'pending'").get(childThreadId)
-  const questions = db.sqlite.query("SELECT COUNT(*) AS count FROM question_requests WHERE thread_id = ? AND status = 'pending'").get(childThreadId)
-  return { approvals: Number(approvals?.count ?? 0), questions: Number(questions?.count ?? 0) }
-}

@@ -1,7 +1,7 @@
 {
   "name": "codepilotx",
   "private": true,
-  "version": "0.2.0-beta.4",
+  "version": "0.2.0-beta.5",
   "packageManager": "bun@1.3.14",
   "workspaces": [
     "apps/agent",
@@ -16,9 +16,9 @@
   "scripts": {
     "desktop:css:check": "bun run --cwd apps/desktop/renderer css:check",
     "dev": "bun run scripts/dev.ts",
-    "dev:agent": "bun run --cwd apps/agent dev",
+    "dev:agent": "bun run scripts/dev-agent.ts",
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
-    "dev:desktop": "bun run scripts/dev.ts",
+    "dev:desktop": "bun run scripts/dev-desktop.ts",
     "dev:electron": "bun run --cwd apps/desktop/electron dev",
     "debug:mcp:stdio": "bun apps/agent/scripts/mcp-debug-server.ts --transport=stdio",
     "debug:mcp:http": "bun apps/agent/scripts/mcp-debug-server.ts --transport=http --port=43121",
@@ -28,7 +28,7 @@
     "debug:mcp:config:oauth": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=oauth",
     "test:unit": "bun test --max-concurrency 1",
     "security:audit": "bun scripts/security/security-audit.ts",
-    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
+    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
@@ -50,8 +50,14 @@
   },
   "overrides": {
     "brace-expansion": "5.0.9",
-    "fast-uri": "3.1.5",
+    "browserslist": "4.28.7",
+    "extract-zip": "file:./vendor/extract-zip",
+    "fast-uri": "3.1.6",
     "ip-address": "10.4.0",
+    "js-yaml": "4.3.1",
+    "nanoid": "3.3.18",
+    "tar": "7.5.21",
+    "toml": "4.2.0",
     "undici": "8.10.0"
   },
   "patchedDependencies": {

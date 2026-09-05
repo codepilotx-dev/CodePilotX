@@ -1,56 +1,22 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
   InvalidThreadHistoryCursorError,
-  Model,
-  WorkspaceService,
   globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
+  artifactMetadataView,
   attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
   decodeQueueAdd,
   decodeQueueInput,
   decodeQueueResume,
   decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
   decodeThreadSettings,
   decodeThreadSettingsPatch,
   decodeTurnInterrupt,
   decodeTurnStart,
   decodeTurnSteer,
-  encodeOffsetCursor,
   enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
   submitMessage,
   supportedPermissionConfig,
@@ -69,6 +35,7 @@ export const threadHandlers = {
     "thread/compact",
     "thread/update",
     "thread/mark-read",
+    "thread/mark-unread",
     "thread/title/regenerate",
     "thread/settings/update",
     "thread/delete",
@@ -84,9 +51,10 @@ export const threadHandlers = {
     "queue/resume",
     "attachment/import",
     "attachment/read",
+    "artifact/read",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, apiKeys, memory, review, github, turnPatches } = runtime.dependencies
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
+    const { db, threads, history, attachments, turnPatches } = runtime.dependencies
     const params = optionalRecord(rawParams)
     if (([
       "turn/start",
@@ -130,86 +98,29 @@ export const threadHandlers = {
           ? undefined
           : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
         if (settings) supportedPermissionConfig(settings.permissionConfig)
-        let bindExecution: ((threadID: string) => void) | undefined
-        let copiedEnvironmentBindingId: string | undefined
-        if (workspace.kind === "project" && execution?.kind === "worktree") {
-          const worktree = runtime.dependencies.executionBindings.validateWorktree(
-            workspace.projectID,
-            execution.worktreeId,
-          )
-          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
-          const environment = await runtime.dependencies.environmentDeltas.copy(
-            worktree.id,
-            bindingId,
-            worktree.environmentRevision,
-          )
-          copiedEnvironmentBindingId = bindingId
-          bindExecution = (threadID) => {
-            runtime.dependencies.executionBindings.bindWorktree({
-              threadId: threadID,
-              projectId: workspace.projectID,
-              worktreeId: worktree.id,
-              bindingId,
-              environmentRevision: environment.revision,
-            })
-          }
-        } else if (workspace.kind === "project" && execution?.kind === "local") {
-          const bindingId = runtime.dependencies.executionBindings.allocateBindingId()
-          bindExecution = (threadID) => {
-            const descriptor = db.threadWorkspace(threadID)
-            if (!descriptor || descriptor.kind !== "project") {
-              throw new AgentError("CONFLICT", "项目任务工作区不可用", 409)
-            }
-            runtime.dependencies.executionBindings.bindLocal({
-              threadId: threadID,
-              projectId: workspace.projectID,
-              cwd: descriptor.cwd,
-              bindingId,
-              environmentRevision: 0,
-            })
-          }
-        }
+        const prepared = workspace.kind === "project" && execution
+          ? await runtime.dependencies.threadExecutions.prepare(workspace.projectID, execution)
+          : undefined
         let created: Awaited<ReturnType<typeof threads.create>>
         try {
           created = await threads.create({
+            ...(params.creationSurface === "coding"
+              || params.creationSurface === "working"
+              || params.creationSurface === "chat"
+              ? { creationSurface: params.creationSurface }
+              : {}),
             ...(typeof params.title === "string" ? { title: params.title } : {}),
             ...(settings ? { settings } : {}),
             workspace,
             operationID: stringParam(params, "operationId"),
-            ...(bindExecution ? { bindExecution } : {}),
+            ...(typeof params.sessionGroupId === "string" ? { sessionGroupID: params.sessionGroupId } : {}),
+            ...(prepared ? { bindExecution: prepared.bind } : {}),
           })
         } catch (cause) {
-          if (copiedEnvironmentBindingId) {
-            await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-          }
+          await prepared?.abort()
           throw cause
         }
-        if (workspace.kind === "project" && execution) {
-          const existingBinding = runtime.dependencies.executionBindings.read(created.id)
-          const matches = execution.kind === "local"
-            ? existingBinding?.kind === "local"
-            : existingBinding?.kind === "worktree" && existingBinding.worktreeId === execution.worktreeId
-          if (matches) {
-            if (copiedEnvironmentBindingId && existingBinding?.bindingId !== copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            return runtime.threadSnapshotResult(created.id)
-          }
-          if (existingBinding) {
-            if (copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已绑定其他执行位置", 409)
-          }
-          try {
-            bindExecution?.(created.id)
-          } catch (cause) {
-            if (copiedEnvironmentBindingId) {
-              await runtime.dependencies.environmentDeltas.remove(copiedEnvironmentBindingId)
-            }
-            throw cause
-          }
-        }
+        await prepared?.reconcile(created.id)
         return runtime.threadSnapshotResult(created.id)
       }
       case "thread/read":
@@ -286,15 +197,21 @@ export const threadHandlers = {
         }
         return { thread: history.markRead(threadId, readThroughAt) }
       }
+      case "thread/mark-unread": {
+        const threadId = stringParam(params, "threadId")
+        const unreadAt = params.unreadAt
+        if (typeof unreadAt !== "number" || !Number.isFinite(unreadAt) || unreadAt < 0) {
+          throw new AgentError("INVALID_REQUEST", "unreadAt 参数无效", 400)
+        }
+        return { thread: history.markUnread(threadId, unreadAt) }
+      }
       case "thread/title/regenerate":
         return { thread: await threads.regenerateTitle(stringParam(params, "threadId")) }
       case "thread/settings/update": {
         const threadId = stringParam(params, "threadId")
         const settings = decodeParams(decodeThreadSettingsPatch, params.settings, "thread/settings/update.settings")
         if (settings.permissionConfig) supportedPermissionConfig(settings.permissionConfig)
-        const result = await history.patchSettings(threadId, settings)
-        const version = Number((db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(threadId) as { updated_at: number } | null)?.updated_at ?? Date.now())
-        return { ...result, version }
+        return history.patchSettings(threadId, settings)
       }
       case "thread/delete": {
         const threadId = stringParam(params, "threadId")
@@ -309,6 +226,7 @@ export const threadHandlers = {
           submitMessage(start),
           start.inputId,
           start.attachmentIds ?? [],
+          start.contextReferenceIds ?? [],
         )
         const sequence = globalEventSequence(db)
         return {
@@ -328,7 +246,7 @@ export const threadHandlers = {
           permissionConfig: activeInput.permissionConfig,
           strategy: "guide",
           taskMode: activeInput.taskMode,
-        }, request.inputId, request.attachmentIds ?? [])
+        }, request.inputId, request.attachmentIds ?? [], request.contextReferenceIds ?? [])
         const sequence = globalEventSequence(db)
         return {
           inputId: request.inputId,
@@ -350,7 +268,7 @@ export const threadHandlers = {
       }
       case "queue/update": {
         const request = decodeParams(decodeQueueUpdate, rawParams, "queue/update")
-        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, request.contextReferenceIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
         return runtime.queueStateResult(request.threadId, mutation.event?.id)
       }
       case "queue/add": {
@@ -361,12 +279,12 @@ export const threadHandlers = {
           permissionConfig: request.permissionConfig,
           strategy: "queue",
           taskMode: request.taskMode,
-        }, request.inputId, request.attachmentIds ?? [], {
+        }, request.inputId, request.attachmentIds ?? [], request.contextReferenceIds ?? [], {
           operationID: request.operationId,
           ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }),
         })
         const sequence = globalEventSequence(db)
-        const turn = db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(submitted.turnID) as { status: string } | null
+        const turnStatus = db.getTurnStatus(submitted.turnID)
         return {
           inputId: submitted.inputID,
           turnId: submitted.turnID,
@@ -375,7 +293,7 @@ export const threadHandlers = {
             ? "started"
             : submitted.disposition === "queued"
               ? "queued"
-              : turn?.status === "queued"
+              : turnStatus === "queued"
                 ? "queued"
                 : "started",
           streamPosition: { streamId: request.threadId, sequence },
@@ -420,6 +338,18 @@ export const threadHandlers = {
           data: value.record.kind === "text" ? new TextDecoder().decode(data) : Buffer.from(data).toString("base64"),
           encoding: value.record.kind === "text" ? "utf8" : "base64",
           range: { offset, length: data.byteLength, total: all.byteLength },
+        }
+      }
+      case "artifact/read": {
+        const threadId = stringParam(params, "threadId")
+        const artifactId = stringParam(params, "artifactId")
+        if (!db.getThread(threadId)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+        const value = await runtime.dependencies.artifacts.read(artifactId, threadId)
+        return {
+          artifact: artifactMetadataView(value.artifact),
+          data: Buffer.from(value.data).toString("base64"),
+          encoding: "base64",
+          sizeBytes: value.data.byteLength,
         }
       }
       default:

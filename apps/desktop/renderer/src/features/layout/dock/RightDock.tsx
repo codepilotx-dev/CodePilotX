@@ -1,7 +1,5 @@
 import type React from 'react'
 import {
-  Component,
-  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -13,12 +11,6 @@ import { createPortal } from 'react-dom'
 import {
   Maximize2,
   Minimize2,
-  MoveDown,
-  MoveRight,
-  Pin,
-  Plus,
-  RotateCcw,
-  X,
 } from 'lucide-react'
 import type {
   DesktopBrowserState,
@@ -35,13 +27,8 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
-import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import {
-  PopoverRadioGroup,
-  PopoverRadioItem,
-} from '../../../components/ui/PopoverItem.js'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
 import type {
   MarkdownFileViewMode,
   WorkbenchPanelSnapshot,
@@ -53,10 +40,24 @@ import type {
 import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
+  getWorkbenchLauncherPresentation,
   getWorkbenchTabDefinition,
-  getWorkbenchTabDisplayTitle,
+  type WorkbenchTabAvailability,
   type WorkbenchTabRenderContext,
 } from '../tabs/workbenchTabRegistry.js'
+import {
+  WorkbenchTabStrip,
+  workbenchTabDomId,
+} from '../tabs/WorkbenchTabStrip.js'
+import { WorkbenchDockFrame } from './WorkbenchDockFrame.js'
+import {
+  WorkbenchPanelLauncher,
+  WorkbenchTabErrorBoundary,
+} from '../panels/WorkbenchPanelStates.js'
+import {
+  WorkbenchPanelContent as WorkbenchPanelContentSurface,
+  WorkbenchPanelSurface,
+} from '../panels/WorkbenchPanelSurface.js'
 import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
 import {
   type ResizePhase,
@@ -64,12 +65,13 @@ import {
   SIDEBAR_COLLAPSE_TARGET_SIZE,
   useSidebarResizeCollapseConfirm,
 } from '../useSidebarResizeCollapseConfirm.js'
-import { useWorkbenchPanelResizePreview } from '../panels/WorkbenchPanelPresence.js'
+import { useWorkbenchPanelLiveResize } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
   target: WorkbenchPanelTarget
   state: WorkbenchPanelSnapshot
   tabsById: WorkbenchTabsState['tabsById']
+  browserAvailability: WorkbenchTabAvailability
   browserState: DesktopBrowserState | null
   defaultBranch: string | null
   files: DesktopFileEntry[]
@@ -85,6 +87,7 @@ type Props = {
   selectedFile: DesktopFilePreview | null
   sessionId: string | null
   sessionStatus: DesktopSessionStatus
+  terminalAvailable: boolean
   planContentByEventId: Readonly<Record<string, string>>
   width: number
   height?: number
@@ -133,9 +136,10 @@ type Props = {
   ) => void
   onToggleRightFullWidth?: () => void
   onToggleReviewView: () => void
-  sideChatComposer: React.ReactNode
-  sideChatFocusVersion: number
+  sideChat: Omit<WorkbenchTabRenderContext['sideChat'], 'activeTabId'>
+  onCreateSideChat: () => void
   activeSideTaskId: string | null
+  subagentAvailability: WorkbenchTabAvailability
   sideTaskContent?: React.ReactNode
 }
 
@@ -196,18 +200,19 @@ function WorkbenchPanelResizeController({
   const maxSize = isBottom
     ? (maxHeight ?? minHeight ?? 160)
     : maxWidth
-  const previewSize = useWorkbenchPanelResizePreview(target)
+  const liveResize = useWorkbenchPanelLiveResize(target)
 
   const updateResizePhase = useCallback(
     (phase: ResizePhase): void => {
       const handle = handleRef.current
       if (phase === 'idle') {
         if (handle) delete handle.dataset.resizePhase
-        return
+      } else if (handle) {
+        handle.dataset.resizePhase = phase
       }
-      if (handle) handle.dataset.resizePhase = phase
+      liveResize?.setPhase(phase)
     },
-    [],
+    [liveResize],
   )
 
   const {
@@ -221,6 +226,9 @@ function WorkbenchPanelResizeController({
     startResize,
   } = useSidebarResizeCollapseConfirm({
     collapsed: false,
+    collapseBehavior: isBottom
+      ? { kind: 'hold-target' }
+      : { kind: 'threshold', threshold: minSize / 2 },
     collapseEnabled: !isBottom,
     direction: isBottom ? 'bottom' : 'right',
     maxWidth: maxSize,
@@ -228,7 +236,7 @@ function WorkbenchPanelResizeController({
     onCollapse: onClose,
     onResetSize: isBottom ? onResetHeight : onResetWidth,
     onResizePhaseChange: updateResizePhase,
-    onResizePreview: previewSize ?? undefined,
+    onResizePreview: liveResize?.previewSize,
     onSetWidth: isBottom ? (onSetHeight ?? onSetWidth) : onSetWidth,
     width: size,
   })
@@ -290,6 +298,7 @@ export function WorkbenchPanel({
   target,
   state,
   tabsById,
+  browserAvailability,
   browserState,
   defaultBranch,
   files,
@@ -305,6 +314,7 @@ export function WorkbenchPanel({
   selectedFile,
   sessionId,
   sessionStatus,
+  terminalAvailable,
   planContentByEventId,
   width,
   height,
@@ -337,12 +347,14 @@ export function WorkbenchPanel({
   onSetFileMarkdownViewMode,
   onToggleRightFullWidth,
   onToggleReviewView,
-  sideChatComposer,
-  sideChatFocusVersion,
+  sideChat,
+  onCreateSideChat,
   activeSideTaskId,
+  subagentAvailability,
   sideTaskContent,
 }: Props): React.ReactNode {
   const panelRef = useRef<HTMLElement>(null)
+  const liveResize = useWorkbenchPanelLiveResize(target)
   const contentRef = useRef<HTMLDivElement>(null)
   const [terminalDisplayPathState, setTerminalDisplayPathState] = useState<{
     sessionId: string | null
@@ -410,6 +422,7 @@ export function WorkbenchPanel({
         onToggleReviewView: stableOnToggleReviewView,
       },
       browser: {
+        availability: browserAvailability,
         state: browserState,
         onAppendAnnotation: stableOnAppendBrowserAnnotation,
         onAppendComposerText: stableOnAppendComposerText,
@@ -430,21 +443,30 @@ export function WorkbenchPanel({
       },
       planContentByEventId,
       sideChat: {
-        composer: sideChatComposer,
-        focusVersion: sideChatFocusVersion,
-        available: activeSideTaskId === null,
+        ...sideChat,
+        activeTabId: state.activeTabId,
       },
       sideTask: {
         activeTaskId: activeSideTaskId,
+        availability: subagentAvailability,
         content: sideTaskContent,
       },
       terminal: {
+        availability: terminalAvailable
+          ? { status: 'available' }
+          : sessionId
+            ? {
+                status: 'unavailable',
+                reason: '当前桌面运行环境没有提供集成终端桥接。',
+              }
+            : { status: 'available' },
         threadId: sessionId,
         onDisplayPathChange: handleTerminalDisplayPathChange,
       },
     }),
     [
       browserState,
+      browserAvailability,
       defaultBranch,
       diffMarkerStyle,
       files,
@@ -456,10 +478,11 @@ export function WorkbenchPanel({
       selectedFile,
       sessionId,
       sessionStatus,
-      sideChatComposer,
-      sideChatFocusVersion,
+      terminalAvailable,
+      sideChat,
       activeSideTaskId,
       sideTaskContent,
+      subagentAvailability,
       stableOnAddComposerFiles,
       stableOnAppendBrowserAnnotation,
       stableOnAppendComposerText,
@@ -481,11 +504,19 @@ export function WorkbenchPanel({
   )
 
   return (
-    <aside
+    <WorkbenchDockFrame
       ref={panelRef}
-      aria-label={target === 'right' ? '右侧面板' : '底部面板'}
-      className={`${target === 'right' ? 'right-dock' : 'bottom-panel'} workbench-panel`}
-      data-workbench-panel-target={target}
+      fullWidth={target === 'right' && rightFullWidth}
+      open={state.open}
+      target={target}
+      targetWidth={
+        target === 'right' && liveResize && liveResize.phase !== 'idle'
+          ? liveResize.liveSize
+          : width
+      }
+      visibleWidth={
+        target === 'right' && liveResize ? liveResize.liveSize : width
+      }
     >
       <WorkbenchPanelResizeController
         target={target}
@@ -502,47 +533,60 @@ export function WorkbenchPanel({
         onSetWidth={onSetWidth}
         onSetHeight={onSetHeight}
       />
-        <div className={`${target === 'right' ? 'right-dock-header' : 'bottom-panel-header'} workbench-panel-header`}>
-          <WorkbenchTabsHeader
-            state={state}
-            tabsById={tabsById}
-            target={target}
-            terminalDisplayPath={terminalDisplayPath}
-            onClosePanel={target === 'bottom' ? stableOnClose : undefined}
-            onCloseOtherTabs={onCloseOtherTabs}
-            onCloseTab={onCloseTab}
-            onCloseTabsToRight={onCloseTabsToRight}
-            onMoveTab={onMoveTab}
-            onOpenTab={stableOnOpenTab}
-            onPinTab={onPinTab}
-            onReorderTab={onReorderTab}
-            onSelectTab={onSelectTab}
-          />
-          {target === 'right' && onToggleRightFullWidth ? (
-            <IconButton
-              aria-pressed={rightFullWidth}
-              className="right-dock-full-width"
-              title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
-              variant="plain"
-              onClick={onToggleRightFullWidth}
-            >
-              {rightFullWidth ? (
-                <Minimize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              ) : (
-                <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              )}
-            </IconButton>
-          ) : null}
-        </div>
-      <MemoizedWorkbenchPanelContent
-        contentRef={contentRef}
-        panelContext={panelContext}
-        state={state}
-        tabsById={tabsById}
+      <WorkbenchPanelSurface
         target={target}
-        onOpenTab={stableOnOpenTab}
-      />
-    </aside>
+        header={
+          <>
+            <TabStripButtonProvider>
+              <WorkbenchTabStrip
+                state={state}
+                tabsById={tabsById}
+                target={target}
+                terminalDisplayPath={terminalDisplayPath}
+                onClosePanel={target === 'bottom' ? stableOnClose : undefined}
+                onCloseOtherTabs={onCloseOtherTabs}
+                onCloseTab={onCloseTab}
+                onCloseTabsToRight={onCloseTabsToRight}
+                onMoveTab={onMoveTab}
+                onOpenTab={stableOnOpenTab}
+                onCreateSideChat={onCreateSideChat}
+                sideChatAvailable={sideChat.available}
+                onPinTab={onPinTab}
+                onReorderTab={onReorderTab}
+                onSelectTab={onSelectTab}
+              />
+            </TabStripButtonProvider>
+            {target === 'right' && onToggleRightFullWidth ? (
+              <IconButton
+                aria-pressed={rightFullWidth}
+                className="right-dock-full-width"
+                color="ghostSecondary"
+                size="toolbar"
+                title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
+                onClick={onToggleRightFullWidth}
+              >
+                {rightFullWidth ? (
+                  <Minimize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                ) : (
+                  <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                )}
+              </IconButton>
+            ) : null}
+          </>
+        }
+      >
+        <MemoizedWorkbenchPanelContent
+          contentRef={contentRef}
+          panelContext={panelContext}
+          state={state}
+          tabsById={tabsById}
+          target={target}
+          onCreateSideChat={onCreateSideChat}
+          onOpenTab={stableOnOpenTab}
+          sideChatAvailable={sideChat.available}
+        />
+      </WorkbenchPanelSurface>
+    </WorkbenchDockFrame>
   )
 }
 
@@ -552,22 +596,21 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   state,
   tabsById,
   target,
+  onCreateSideChat,
   onOpenTab,
+  sideChatAvailable,
 }: {
   contentRef: React.RefObject<HTMLDivElement | null>
   panelContext: WorkbenchTabRenderContext
   state: WorkbenchPanelSnapshot
   tabsById: WorkbenchTabsState['tabsById']
   target: WorkbenchPanelTarget
+  onCreateSideChat: () => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  sideChatAvailable: boolean
 }): React.ReactNode {
   return (
-    <div
-      ref={contentRef}
-      className="right-dock-content workbench-panel-content"
-      data-app-shell-tab-panel-controller={target}
-      tabIndex={-1}
-    >
+    <WorkbenchPanelContentSurface ref={contentRef} target={target}>
       {state.tabIds.length > 0 ? (
         state.tabIds.map(tabId => {
           const tab = tabsById[tabId]
@@ -575,460 +618,88 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
           const active = state.activeTabId === tab.id
           const definition = getWorkbenchTabDefinition(tab)
           const shouldMount =
-            active ||
-            (tab.kind !== 'browser' && tab.kind !== 'side-task')
+            active || definition.lifecycle === 'keep-alive-hidden'
           return (
             <div
               key={tab.id}
-              aria-labelledby={`workbench-tab-${target}-${domId(tab.id)}`}
+              aria-labelledby={`workbench-tab-${target}-${workbenchTabDomId(tab.id)}`}
               className="workbench-tab-panel"
               hidden={!active}
-              id={`workbench-panel-${target}-${domId(tab.id)}`}
+              id={`workbench-panel-${target}-${workbenchTabDomId(tab.id)}`}
               role="tabpanel"
               tabIndex={active ? 0 : -1}
             >
               {shouldMount ? (
-                <TabErrorBoundary tabId={tab.id}>
+                <WorkbenchTabErrorBoundary tabId={tab.id}>
                   {definition.render(tab, panelContext)}
-                </TabErrorBoundary>
+                </WorkbenchTabErrorBoundary>
               ) : null}
             </div>
           )
         })
       ) : (
-        <WorkbenchLauncher onOpenTab={onOpenTab} />
+        <WorkbenchLauncher
+          onCreateSideChat={onCreateSideChat}
+          onOpenTab={onOpenTab}
+          panelContext={panelContext}
+          sideChatAvailable={sideChatAvailable}
+        />
       )}
-    </div>
+    </WorkbenchPanelContentSurface>
   )
 })
 
-export function WorkbenchTabsHeader({
-  target,
-  state,
-  tabsById,
-  terminalDisplayPath,
-  onClosePanel,
-  onCloseTab,
-  onCloseOtherTabs,
-  onCloseTabsToRight,
-  onOpenTab,
-  onSelectTab,
-  onMoveTab,
-  onReorderTab,
-  onPinTab,
-}: {
-  target: WorkbenchPanelTarget
-  state: WorkbenchPanelSnapshot
-  tabsById: WorkbenchTabsState['tabsById']
-  terminalDisplayPath: string | null
-  onClosePanel?: () => void
-  onCloseTab: (tabId: WorkbenchTabId) => void
-  onCloseOtherTabs: (tabId: WorkbenchTabId) => void
-  onCloseTabsToRight: (tabId: WorkbenchTabId) => void
-  onOpenTab: (tab: WorkbenchTabDescriptor) => void
-  onSelectTab: (tabId: WorkbenchTabId) => void
-  onMoveTab: Props['onMoveTab']
-  onReorderTab: Props['onReorderTab']
-  onPinTab: (tabId: WorkbenchTabId) => void
-}): React.ReactNode {
-  const tabRefs = useRef(new Map<WorkbenchTabId, HTMLButtonElement>())
-  const [menuOpen, setMenuOpen] = useState(false)
-  const launchers = useMemo(() => getWorkbenchLauncherDefinitions(), [])
-
-  useEffect(() => {
-    const activeTabId = state.activeTabId
-    if (!activeTabId) return
-    tabRefs.current.get(activeTabId)?.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest',
-    })
-  }, [state.activeTabId])
-
-  const focusAt = (index: number): void => {
-    const tabId = state.tabIds[index]
-    if (!tabId) return
-    onSelectTab(tabId)
-    requestAnimationFrame(() => tabRefs.current.get(tabId)?.focus())
-  }
-
-  const handleTabKeyDown = (
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    index: number,
-    tabId: WorkbenchTabId,
-  ): void => {
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault()
-      focusAt((index - 1 + state.tabIds.length) % state.tabIds.length)
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault()
-      focusAt((index + 1) % state.tabIds.length)
-    } else if (event.key === 'Home') {
-      event.preventDefault()
-      focusAt(0)
-    } else if (event.key === 'End') {
-      event.preventDefault()
-      focusAt(state.tabIds.length - 1)
-    } else if (event.key === 'Delete') {
-      event.preventDefault()
-      onCloseTab(tabId)
-    }
-  }
-
-  return (
-    <div
-      className="right-dock-tabs-header"
-    >
-      <div className="right-dock-tabs-viewport">
-        <div
-          aria-label={target === 'right' ? '右侧面板标签' : '底部面板标签'}
-          className="right-dock-tab-list"
-          role="tablist"
-        >
-          {state.tabIds.map((tabId, index) => {
-            const tab = tabsById[tabId]
-            if (!tab) return null
-            const definition = getWorkbenchTabDefinition(tab)
-            const tabIcon = definition.getIcon?.(tab) ?? definition.icon
-            const tabTitle = getWorkbenchTabDisplayTitle(
-              tab,
-              terminalDisplayPath,
-            )
-            const active = state.activeTabId === tab.id
-            const canCloseRight = index < state.tabIds.length - 1
-            const hasDivider =
-              !active &&
-              canCloseRight &&
-              state.tabIds[index + 1] !== state.activeTabId
-            return (
-              <Fragment key={tab.id}>
-                <AppContextMenu
-                  actions={[
-                    ...(tab.kind === 'file-preview' && tab.preview
-                      ? [
-                          {
-                            kind: 'item' as const,
-                            label: '固定预览',
-                            icon: <Pin size={APP_ICON_SIZE} />,
-                            onSelect: () => onPinTab(tab.id),
-                          },
-                        ]
-                      : []),
-                    {
-                      kind: 'item',
-                      label: '关闭',
-                      onSelect: () => onCloseTab(tab.id),
-                    },
-                    {
-                      kind: 'item',
-                      label: '关闭其他标签',
-                      disabled: state.tabIds.length <= 1,
-                      onSelect: () => onCloseOtherTabs(tab.id),
-                    },
-                    {
-                      kind: 'item',
-                      label: '关闭右侧标签',
-                      disabled: !canCloseRight,
-                      onSelect: () => onCloseTabsToRight(tab.id),
-                    },
-                    { kind: 'separator' },
-                    {
-                      kind: 'item',
-                      label: `移到${target === 'right' ? '底部' : '右侧'}面板`,
-                      icon:
-                        target === 'right' ? (
-                          <MoveDown size={APP_ICON_SIZE} />
-                        ) : (
-                          <MoveRight size={APP_ICON_SIZE} />
-                        ),
-                      onSelect: () =>
-                        onMoveTab(
-                          target,
-                          target === 'right' ? 'bottom' : 'right',
-                          tab.id,
-                        ),
-                    },
-                  ]}
-                  layout="grid"
-                  trigger={
-                    <div
-                      className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}
-                      data-panel-tab={tab.id}
-                      draggable
-                      onDragEnd={event =>
-                        event.currentTarget.classList.remove('dragging')
-                      }
-                      onDragOver={event => event.preventDefault()}
-                      onDragStart={event => {
-                        event.currentTarget.classList.add('dragging')
-                        event.dataTransfer.effectAllowed = 'move'
-                        event.dataTransfer.setData(
-                          'application/x-codepilotx-workbench-tab',
-                          JSON.stringify({ source: target, tabId: tab.id }),
-                        )
-                      }}
-                      onDrop={event => {
-                        event.preventDefault()
-                        const payload = readTabDragPayload(event)
-                        if (!payload) return
-                        if (payload.source === target) {
-                          onReorderTab(target, payload.tabId, index)
-                        } else {
-                          onMoveTab(payload.source, target, payload.tabId, index)
-                        }
-                      }}
-                    >
-                      <button
-                        ref={element => {
-                          if (element) tabRefs.current.set(tab.id, element)
-                          else tabRefs.current.delete(tab.id)
-                        }}
-                        aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
-                        aria-selected={active}
-                        className={`right-dock-tab${active ? ' active' : ''}${tab.kind === 'file-preview' && tab.preview ? ' preview' : ''}`}
-                        id={`workbench-tab-${target}-${domId(tab.id)}`}
-                        role="tab"
-                        tabIndex={active ? 0 : -1}
-                        title={tabTitle}
-                        type="button"
-                        onClick={() => onSelectTab(tab.id)}
-                        onDoubleClick={() => {
-                          if (tab.kind === 'file-preview' && tab.preview) {
-                            onPinTab(tab.id)
-                          }
-                        }}
-                        onKeyDown={event =>
-                          handleTabKeyDown(event, index, tab.id)
-                        }
-                        onMouseDown={event => {
-                          if (event.button !== 1) return
-                          event.preventDefault()
-                          event.stopPropagation()
-                          onCloseTab(tab.id)
-                        }}
-                      >
-                        <span className="right-dock-tab-icon">{tabIcon}</span>
-                        <span className="right-dock-tab-title">
-                          {tabTitle}
-                        </span>
-                      </button>
-                      <IconButton
-                        aria-label={`关闭 ${tabTitle}`}
-                        className="right-dock-tab-close"
-                        title={`关闭 ${tabTitle}`}
-                        variant="plain"
-                        onMouseDown={event => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                        }}
-                        onPointerDown={event => event.stopPropagation()}
-                        onClick={event => {
-                          event.stopPropagation()
-                          onCloseTab(tab.id)
-                        }}
-                      >
-                        <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                      </IconButton>
-                    </div>
-                  }
-                  width="auto"
-                />
-              </Fragment>
-            )
-          })}
-          <PopoverMenu
-            align="end"
-            avoidCollisions={false}
-            className="popover-right-dock-add popover-menu--grid"
-            collisionPadding={6}
-            open={menuOpen}
-            side="bottom"
-            sideOffset={4}
-            width={220}
-            trigger={
-              <button
-                aria-label="添加标签"
-                className="right-dock-add-button"
-                title="添加标签"
-                type="button"
-              >
-                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </button>
-            }
-            onOpenChange={setMenuOpen}
-          >
-            <PopoverRadioGroup
-              value={
-                launchers.find(definition =>
-                  createLauncherTab(definition.kind)?.id === state.activeTabId
-                )?.kind ?? ''
-              }
-              onValueChange={kind => {
-                const definition = launchers.find(item => item.kind === kind)
-                if (!definition) return
-                const candidate = createLauncherTab(definition.kind)
-                if (!candidate) return
-                if (state.tabIds.includes(candidate.id)) onSelectTab(candidate.id)
-                else onOpenTab(candidate)
-                setMenuOpen(false)
-              }}
-            >
-              {launchers.map(definition => (
-                <PopoverRadioItem
-                  icon={definition.icon}
-                  key={definition.kind}
-                  shortcut={definition.shortcut}
-                  value={definition.kind}
-                >
-                  {definition.label}
-                </PopoverRadioItem>
-              ))}
-            </PopoverRadioGroup>
-          </PopoverMenu>
-          <span
-            aria-hidden="true"
-            className="right-dock-tab-empty"
-            onDragOver={event => event.preventDefault()}
-            onDrop={event => {
-              event.preventDefault()
-              const payload = readTabDragPayload(event)
-              if (payload && payload.source !== target) {
-                onMoveTab(payload.source, target, payload.tabId)
-              }
-            }}
-          />
-        </div>
-      </div>
-      {target === 'bottom' && onClosePanel ? (
-        <IconButton
-          aria-label="关闭底部面板"
-          className="bottom-panel-close"
-          title="关闭底部面板"
-          variant="plain"
-          onClick={onClosePanel}
-        >
-          <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
-      ) : null}
-    </div>
-  )
-}
+export { WorkbenchTabStrip as WorkbenchTabsHeader }
 
 function WorkbenchLauncher({
+  onCreateSideChat,
   onOpenTab,
+  panelContext,
+  sideChatAvailable,
 }: {
+  onCreateSideChat: () => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
+  panelContext: WorkbenchTabRenderContext
+  sideChatAvailable: boolean
 }): React.ReactNode {
+  const launchers = getWorkbenchLauncherDefinitions().filter(
+    definition => definition.kind !== 'side-chat' || sideChatAvailable,
+  )
+
+  const actions = launchers.flatMap<
+    Parameters<typeof WorkbenchPanelLauncher>[0]['actions'][number]
+  >(definition => {
+    const presentation = getWorkbenchLauncherPresentation(definition)
+    const availability = definition.getAvailability?.(panelContext) ?? {
+      status: 'available' as const,
+    }
+    if (definition.kind === 'side-chat') {
+      return [{
+        disabled: availability.status !== 'available',
+        id: definition.kind,
+        icon: presentation.icon,
+        label: presentation.label,
+        reason: availability.reason,
+        shortcut: presentation.shortcut,
+        onSelect: onCreateSideChat,
+      }]
+    }
+    const tab = createLauncherTab(definition.kind)
+    if (!tab) return []
+    return [{
+      disabled: availability.status !== 'available',
+      id: definition.kind,
+      icon: presentation.icon,
+      label: presentation.label,
+      reason: availability.reason,
+      shortcut: presentation.shortcut,
+      onSelect: () => onOpenTab(tab),
+    }]
+  })
+
   return (
-    <div
-      aria-label="可用面板标签"
-      className="right-panel-tabs-empty-state"
-    >
-      <div className="right-panel-tabs-empty-state__actions">
-        {getWorkbenchLauncherDefinitions().map(definition => {
-          const tab = createLauncherTab(definition.kind)
-          if (!tab) return null
-          return (
-            <button
-              key={definition.kind}
-              className="right-panel-tabs-empty-state__item"
-              type="button"
-              onClick={() => onOpenTab(tab)}
-            >
-              <span className="right-panel-tabs-empty-state__icon">
-                {definition.icon}
-              </span>
-              <strong>{definition.label}</strong>
-              {definition.shortcut ? <kbd>{definition.shortcut}</kbd> : null}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <WorkbenchPanelLauncher
+      actions={actions}
+    />
   )
-}
-
-type TabErrorBoundaryProps = {
-  tabId: WorkbenchTabId
-  children: React.ReactNode
-}
-
-type TabErrorBoundaryState = {
-  error: Error | null
-  retryKey: number
-}
-
-class TabErrorBoundary extends Component<
-  TabErrorBoundaryProps,
-  TabErrorBoundaryState
-> {
-  state: TabErrorBoundaryState = { error: null, retryKey: 0 }
-
-  static getDerivedStateFromError(error: Error): Partial<TabErrorBoundaryState> {
-    return { error }
-  }
-
-  componentDidUpdate(previous: TabErrorBoundaryProps): void {
-    if (previous.tabId !== this.props.tabId && this.state.error) {
-      this.setState({ error: null })
-    }
-  }
-
-  render(): React.ReactNode {
-    if (!this.state.error) {
-      return (
-        <Fragment key={this.state.retryKey}>{this.props.children}</Fragment>
-      )
-    }
-    return (
-      <div className="right-dock-error-card" role="alert">
-        <strong>此标签无法显示</strong>
-        <span>{this.state.error.message}</span>
-        <button
-          type="button"
-          onClick={() =>
-            this.setState(state => ({
-              error: null,
-              retryKey: state.retryKey + 1,
-            }))
-          }
-        >
-          <RotateCcw size={APP_ICON_SIZE} />
-          重试
-        </button>
-      </div>
-    )
-  }
-}
-
-function readTabDragPayload(
-  event: React.DragEvent,
-): {
-  source: WorkbenchPanelTarget
-  tabId: WorkbenchTabId
-} | null {
-  const raw = event.dataTransfer.getData(
-    'application/x-codepilotx-workbench-tab',
-  )
-  try {
-    const value = JSON.parse(raw) as {
-      source?: unknown
-      tabId?: unknown
-    }
-    if (
-      (value.source === 'right' || value.source === 'bottom') &&
-      typeof value.tabId === 'string'
-    ) {
-      return {
-        source: value.source,
-        tabId: value.tabId as WorkbenchTabId,
-      }
-    }
-  } catch {
-    /* Ignore unrelated drag payloads. */
-  }
-  return null
-}
-
-function domId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '-')
 }

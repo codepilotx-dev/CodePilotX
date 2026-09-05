@@ -76,7 +76,9 @@ export class SubagentRepository {
           `工作区：${input.workspaceRoot}`,
           `工作区模式：${input.workspaceMode}`,
           `权限上限：${stringify(input.permissionCeiling)}`,
-          "只返回与你的任务直接相关的结构化结论；不要假设主对话中未显式提供的上下文。",
+          "只返回与任务直接相关的结构化结论，不要假设主对话中未显式提供的上下文。",
+          "任务收尾时必须单独调用 finalize_result 提交结构化结果：summary 非空并说明做了什么与结果如何，没有内容的列表提交空数组。outcome 如实陈述（succeeded/partial/blocked），受阻或部分完成也是合法交付，不得编造验证成功。",
+          "结构化结果包含结论、变更或证据引用、必要验证与未解决事项；长日志留在本任务记录中，不要复制进摘要。",
         ].join("\n\n"),
         model: input.model, permission, taskMode: input.taskMode ?? "chat", sequence: 0, timestamp,
       })
@@ -157,9 +159,18 @@ export class SubagentRepository {
     }
   }
 
+  latestExecution(runID: string): { id: string; turn_id: string; run_sequence: number } | null {
+    return this.db.sqlite.query("SELECT id, turn_id, run_sequence FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string; run_sequence: number } | null
+  }
+
   projectionForThread(threadID: string): SubagentProjection[] {
     const rows = this.db.sqlite.query("SELECT id FROM subagent_tasks WHERE parent_thread_id = ? ORDER BY created_at").all(threadID) as Array<{ id: string }>
     return rows.flatMap(({ id }) => { const task = this.task(id); return task ? [{ task, currentRun: task.currentRun }] : [] })
+  }
+
+  projectionForTask(taskID: string): SubagentProjection | null {
+    const task = this.task(taskID)
+    return task ? { task, currentRun: task.currentRun } : null
   }
 
   queuedRunIDs() {
@@ -176,7 +187,7 @@ export class SubagentRepository {
       if (global.count >= 6) return this.keepQueued(task.id, runID, "global_limit")
       const parent = this.db.sqlite.query(`SELECT COUNT(*) AS count FROM subagent_tasks WHERE parent_agent_id = ? AND status IN (${activeStatuses.map(() => "?").join(",")})`).get(task.parentAgentId, ...activeStatuses) as { count: number }
       if (parent.count >= 4) return this.keepQueued(task.id, runID, "parent_limit")
-      const agentRow = this.db.sqlite.query("SELECT id, turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string } | null
+      const agentRow = this.latestExecution(runID)
       if (!agentRow) throw new Error(`Subagent run ${runID} 没有 AgentExecution`)
       const timestamp = now()
       this.db.sqlite.query("UPDATE subagent_runs SET status = 'running', queue_reason = NULL, started_at = COALESCE(started_at, ?), updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, timestamp, runID)
@@ -223,7 +234,7 @@ export class SubagentRepository {
     const task = this.task(input.taskID)
     if (!task?.currentRun) throw new Error(`Subagent task ${input.taskID} 不存在`)
     const previousRun = task.currentRun
-    const previousAgent = this.db.sqlite.query("SELECT id, turn_id, run_sequence FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(previousRun.id) as { id: string; turn_id: string; run_sequence: number } | null
+    const previousAgent = this.latestExecution(previousRun.id)
     if (!previousAgent) throw new Error(`Subagent run ${previousRun.id} 没有 AgentExecution`)
     const runID = input.sameRun ? previousRun.id : crypto.randomUUID()
     const generation = input.sameRun ? previousRun.generation : previousRun.generation + 1
@@ -276,7 +287,7 @@ export class SubagentRepository {
       this.db.sqlite.query("UPDATE subagent_runs SET status = ?, result = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?").run(status, result ? stringify(result) : null, error, timestamp, timestamp, runID)
       this.db.sqlite.query("UPDATE subagent_tasks SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, task.id)
       this.db.sqlite.query("DELETE FROM workspace_writer_leases WHERE run_id = ?").run(runID)
-      const latestAgent = this.db.sqlite.query("SELECT id, turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string } | null
+      const latestAgent = this.latestExecution(runID)
       if (latestAgent) {
         this.db.updateAgentStatus(latestAgent.id, status === "stopped" ? "interrupted" : status)
         this.db.updateTurnStatus(latestAgent.turn_id, status === "stopped" ? "interrupted" : status)

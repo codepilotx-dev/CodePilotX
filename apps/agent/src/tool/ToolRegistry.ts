@@ -11,7 +11,7 @@ import {
 } from "../workspace/WorkspaceService"
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
-import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
+import type { ToolExecutionMode as PiToolExecutionMode } from "../orchestration/harness/agent-types"
 import type { Tool as PiAiTool } from "@earendil-works/pi-ai"
 import { isAbsolute, relative, resolve } from "node:path"
 import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
@@ -20,6 +20,8 @@ import { applyEditsText } from "./Edit/applyEditText"
 import { applyPatchDefinition } from "./ApplyPatch/definition"
 import type { TurnPatchMutationFile } from "../patch/TurnPatchTypes"
 import { diffLines } from "diff"
+import type { FileAccessProfile } from "../permission/ExecutionPolicy"
+import { fileAccessProfileFromV4 } from "../permission/ExecutionPolicy"
 
 export type ToolCapabilities = {
   filesystem: "none" | "read" | "workspace-write" | "host-write"
@@ -498,8 +500,8 @@ const isShell = (tool: ToolCatalogEntry) => tool.sdkName === "Bash" || tool.sdkN
 export const toolAllowedInTaskMode = (tool: ToolCatalogEntry, mode: TaskMode) =>
   tool.allowedModes.includes(mode)
   && (mode !== "plan" || !toolMayMutate(tool))
-export const toolAllowedInSandbox = (tool: ToolCatalogEntry, mode: SandboxMode) =>
-  mode !== "read-only"
+export const toolAllowedForFileAccess = (tool: ToolCatalogEntry, profile: FileAccessProfile) =>
+  profile !== "read-only"
   || isShell(tool)
   || (tool.capabilities.filesystem !== "workspace-write" && tool.capabilities.filesystem !== "host-write")
 
@@ -525,7 +527,8 @@ export class ToolCatalog {
   }
 
   list(mode?: TaskMode, sandboxMode: SandboxMode = "workspace-write", profile: SubagentProfile = "main") {
-    return [...this.tools.values()].filter((tool) => (!mode || toolAllowedInTaskMode(tool, mode)) && tool.allowedProfiles.includes(profile) && toolAllowedInSandbox(tool, sandboxMode))
+    const fileAccess = fileAccessProfileFromV4(sandboxMode)
+    return [...this.tools.values()].filter((tool) => (!mode || toolAllowedInTaskMode(tool, mode)) && tool.allowedProfiles.includes(profile) && toolAllowedForFileAccess(tool, fileAccess))
   }
 
   deferred(mode?: TaskMode, sandboxMode: SandboxMode = "workspace-write", profile: SubagentProfile = "main") {
@@ -542,7 +545,8 @@ export class ToolCatalog {
     const tool = this.get(name)
     if (!toolAllowedInTaskMode(tool, context.taskMode)) throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", `工具 ${name} 不允许在 ${context.taskMode} 模式执行`, 403)
     if (!tool.allowedProfiles.includes(context.profile ?? "main")) throw new AgentError("TOOL_NOT_ALLOWED_FOR_PROFILE", `工具 ${name} 不允许当前 Agent profile 使用`, 403)
-    if (!toolAllowedInSandbox(tool, context.permissionConfig.sandboxMode)) throw new AgentError("TOOL_NOT_ALLOWED_IN_SANDBOX", `工具 ${name} 不允许在 ${context.permissionConfig.sandboxMode} 沙箱执行`, 403)
+    const fileAccess = fileAccessProfileFromV4(context.permissionConfig.sandboxMode)
+    if (!toolAllowedForFileAccess(tool, fileAccess)) throw new AgentError("TOOL_NOT_ALLOWED_IN_SANDBOX", `工具 ${name} 不允许在 ${fileAccess} 文件访问范围执行`, 403)
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
     const parsed = tool.schema.safeParse(input)
     if (!parsed.success) throw new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)

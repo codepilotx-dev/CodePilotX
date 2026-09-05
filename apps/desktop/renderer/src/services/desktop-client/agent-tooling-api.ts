@@ -66,15 +66,18 @@ export function createAgentToolingApi({
 }: Dependencies): ToolingApi {
   const desktopInstalledSkill = (
     skill: RpcResult<'skill/list'>['skills'][number],
-  ): DesktopInstalledSkill => ({
-    name: skill.name,
-    description: skill.description,
-    path: skill.path,
-    scope: skill.scope === 'workspace' ? 'repo' : 'user',
-    source: skill.scope,
-    format: skill.format,
-    enabled: skill.enabled,
-  })
+  ): DesktopInstalledSkill => {
+    const builtin = skill.path.startsWith('builtin://')
+    return {
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+      scope: builtin ? 'system' : skill.scope === 'workspace' ? 'repo' : 'user',
+      source: builtin ? 'system' : skill.scope,
+      format: skill.format,
+      enabled: skill.enabled,
+    }
+  }
   const isToolingStatus = (value: unknown): value is ToolingStatus => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false
     const status = value as Partial<ToolingStatus>
@@ -140,9 +143,11 @@ export function createAgentToolingApi({
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
         },
-        event => {
-          if (event.type !== 'skill/updated') return
-          callback(event.payload.generation)
+        events => {
+          for (const event of events) {
+            if (event.type !== 'skill/updated') continue
+            callback(event.payload.generation)
+          }
         },
       ),
     onToolingUpdated: callback =>
@@ -150,12 +155,14 @@ export function createAgentToolingApi({
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
         },
-        event => {
-          if (event.type !== 'tooling/updated') return
-          const payload = event.payload
-          if (!payload || typeof payload !== 'object') return
-          const status = (payload as { status?: unknown }).status
-          if (isToolingStatus(status)) callback(status)
+        events => {
+          for (const event of events) {
+            if (event.type !== 'tooling/updated') continue
+            const payload = event.payload
+            if (!payload || typeof payload !== 'object') continue
+            const status = (payload as { status?: unknown }).status
+            if (isToolingStatus(status)) callback(status)
+          }
         },
       ),
     listTooling: async () =>

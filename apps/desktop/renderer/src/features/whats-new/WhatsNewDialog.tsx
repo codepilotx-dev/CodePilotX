@@ -81,9 +81,9 @@ export function WhatsNewDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop whats-new-dialog-backdrop">
-          <Dialog.Content
-            className="whats-new-dialog"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -108,9 +108,10 @@ export function WhatsNewDialog({
               </div>
               <Dialog.Close asChild>
                 <IconButton
+                  color="ghostSecondary"
                   ref={closeButtonRef}
+                  size="toolbar"
                   title="关闭新特性"
-                  variant="plain"
                 >
                   <X
                     aria-hidden="true"
@@ -137,8 +138,7 @@ export function WhatsNewDialog({
                 />
               ) : null}
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -197,7 +197,7 @@ function ReleaseNotesContent({
             <p>
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
-            <Button loading={refreshing} onClick={onRefresh}>
+            <Button className="whats-new-fallback-action" color="primary" loading={refreshing} onClick={onRefresh}>
               {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
@@ -215,7 +215,7 @@ function ReleaseNotesContent({
             return (
               <li key={release.tagName}>
                 <button
-                  aria-pressed={selected}
+                  aria-current={current ? 'true' : undefined}
                   className="whats-new-version-item"
                   data-selected={selected || undefined}
                   type="button"
@@ -298,7 +298,7 @@ function ReleaseDetails({
         )}
         {canOpenRelease ? (
           <div className="whats-new-release-actions">
-            <Button
+            <Button color="secondary"
               onClick={() => {
                 void desktopClient.openExternalURL(release.htmlUrl)
               }}
@@ -364,7 +364,7 @@ function ReleaseNotesError({
     <section aria-live="polite" className="whats-new-state">
       <strong>{message.title}</strong>
       <p>{message.description}</p>
-      <Button onClick={onRetry}>
+      <Button color="secondary" onClick={onRetry}>
         <RefreshCw size={APP_ICON_SIZE} />
         重试
       </Button>

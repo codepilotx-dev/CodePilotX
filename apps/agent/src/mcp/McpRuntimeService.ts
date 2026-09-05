@@ -3,7 +3,6 @@ import type {
   McpScope,
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
-import type { Schema } from "effect"
 import { McpConfigError, McpConfigService, isMcpSettingsConflict } from "./McpConfigService"
 import { McpConnectionManager } from "./McpConnectionManager"
 import { McpOAuthError, McpOAuthService } from "./McpOAuthService"

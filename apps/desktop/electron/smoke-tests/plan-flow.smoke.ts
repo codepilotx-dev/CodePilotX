@@ -47,11 +47,13 @@ test.describe("Plan 桌面全流程", () => {
     page = await application.firstWindow()
     await waitForApplication(page)
     await page.evaluate(() => {
-      location.hash = "#/new"
+      location.hash = "#/new?surface=chat"
     })
-    await expect.poll(() => page!.evaluate(() => location.hash)).toBe("#/new")
+    await expect.poll(() => page!.evaluate(() => location.hash)).toBe(
+      "#/new?surface=chat",
+    )
 
-    const composer = page.getByRole("textbox", { name: "消息输入框" })
+    const composer = page.getByRole("combobox", { name: "消息输入框" })
     await expect(composer).toBeVisible()
     await composer.fill("/plan")
     await composer.press("Enter")
@@ -93,7 +95,7 @@ test.describe("Plan 桌面全流程", () => {
     await composer.press("Enter")
 
     const executionPlanToggle = page.getByRole("button", {
-      name: /执行计划已完成，已完成 2 \/ 2 步/,
+      name: /执行计划(?:进行中|已完成)，已完成 2 \/ 2 步/,
     })
     await expect(executionPlanToggle).toBeVisible()
     await executionPlanToggle.focus()

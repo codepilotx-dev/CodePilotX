@@ -35,6 +35,7 @@ import {
   type EventEnvelope,
   type JsonValue,
   type ProtocolCapability,
+  type PluginSummary,
   type RpcParams,
   type RpcResult,
 } from '@codepilotx/agent-protocol'
@@ -99,7 +100,6 @@ import {
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
 
-import type { DesktopClientEnvironment } from './types.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
@@ -111,16 +111,46 @@ import {
   mockGithubLogin,
   mockModelProvider,
   mockSessionSnapshot,
-  mockThreadHistoryPage,
   mockWorkspace,
-  permissionModeFromDesktopConfig,
+  readBrowserFixtureAttachment,
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
-import type { DesktopRuntimeCapabilityApi } from './types.js'
+import {
+  bridgeWindowMaximized,
+  mockAuthStatus,
+  mockRuntimeStatus,
+} from './fixtureRuntime.js'
+import type {
+  DesktopAttachmentApi,
+  DesktopAutomationApi,
+  DesktopCalendarApi,
+  DesktopClientEnvironment,
+  DesktopLocalContextApi,
+  DesktopModelProviderRefreshApi,
+  DesktopMiniMaxCliApi,
+  DesktopPluginApi,
+  DesktopRuntimeCapabilityApi,
+  DesktopSpeechApi,
+  DesktopSpeechStatus,
+} from './types.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
   'codepilotx.desktop.appearance.v6'
+
+const BROWSER_UNAVAILABLE_SPEECH_STATUS = {
+  state: 'unsupported',
+  provider: 'sensevoice-llamacpp',
+  runtimeVersion: '0.1.9',
+  model: 'sensevoice-small-q8',
+  variant: null,
+  maxDurationMs: 120_000,
+  maxAudioBytes: 4_194_304,
+  error: {
+    code: 'SPEECH_PLATFORM_UNSUPPORTED',
+    message: '浏览器预览环境不支持本地语音听写。',
+  },
+} as const satisfies DesktopSpeechStatus
 
 function noop(): void {}
 
@@ -134,8 +164,23 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(
   storage?: Storage,
-): DesktopApi & DesktopRuntimeCapabilityApi {
+): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
+  & DesktopLocalContextApi & DesktopSpeechApi & DesktopAutomationApi
+  & DesktopCalendarApi
+  & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
+  const visualFixture = createBrowserVisualFixture()
+  const performanceFixture = createBrowserPerformanceFixture()
+  const modelPickerVisualFixture =
+    import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('visualModelPicker') === '1'
+  if (visualFixture || performanceFixture) {
+    settings = { ...settings, providerID: 'mock', model: 'mock' }
+  }
+  if (visualFixture?.item.id === 'visual-scroll-edge') {
+    settings = { ...settings, collapsedSidebarSections: [] }
+  }
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
   }
@@ -145,25 +190,88 @@ export function createBrowserMockDesktopClient(
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
   const sessions = new Map<string, DesktopSessionSnapshot>()
+  const sideChatSessionIds = new Set<string>()
   let activeSessionId: string | null = null
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
-
-  const runtimeStatus: DesktopRuntimeStatus = {
-    runtimeKind: 'rust-sidecar',
-    runtimePreference: 'auto',
-    runtimeSelectionSource: 'default',
-    agentExecutablePath: '',
-    agentExecutableExists: false,
-    configDirectoryPath: '',
-    toolchainEnabled: true,
-    toolchainRoot: null,
-    managedToolchainRoot: '',
-    packagedToolchainRoot: '',
-    toolchainPathEntries: [],
-    toolchainBinaries: [],
+  let mockPluginGeneration = 1
+  let mockTaskPlanningPlugin: PluginSummary = {
+    id: 'task-planning',
+    name: '任务规划',
+    version: '1.0.0',
+    description: '澄清目标、拆解工作并生成可执行的任务规划。',
+    developerName: 'CodePilotX',
+    category: 'Productivity',
+    source: 'bundled',
+    installationPolicy: 'INSTALLED_BY_DEFAULT',
+    installed: true,
+    enabled: true,
+    status: 'ready',
+    capabilities: ['task-planning'],
+    skills: ['task-planning'],
   }
-  const provider = mockModelProvider(settings.providerID)
+  const mockTaskPlanningDetails: RpcResult<'plugin/getDetails'>['details'] = {
+    pluginId: 'task-planning',
+    longDescription: '澄清目标与约束，将复杂工作拆分为里程碑和可执行任务，并梳理依赖、风险与验收标准。',
+    displayCapabilities: ['Planning'],
+    defaultPrompts: [
+      '帮我把这个目标拆解成可执行的任务计划。',
+      '梳理这个项目的里程碑、依赖和主要风险。',
+      '为这项工作补充清晰的验收标准。',
+    ],
+    skills: [{
+      id: 'task-planning',
+      name: '任务规划',
+      description: 'Clarify goals and constraints, then turn complex work into an actionable plan with milestones, dependencies, risks, and acceptance criteria.',
+    }],
+  }
+  let mockMiniMaxCliStatus: RpcResult<'minimaxCli/status'> = {
+    installationStatus: 'not-installed',
+    latestVersion: '1.0.22',
+    updateAvailable: false,
+    nodeVersion: 'v22.22.1',
+    npmVersion: '10.9.4',
+    authStatus: 'not-authenticated',
+    generation: 1,
+    updatedAt: Date.now(),
+  }
+
+  const provider = {
+    ...mockModelProvider(settings.providerID),
+    ...(visualFixture || performanceFixture ? { defaultModels: ['mock'] } : {}),
+    ...(modelPickerVisualFixture
+      ? {
+          apiKeyConfigured: true,
+          modelMetadata: {
+            mock: {
+              id: 'mock',
+              name: 'Browser Mock',
+              reasoning: true,
+            },
+          },
+        }
+      : {}),
+  }
+  const providerCatalogVisualFixture: DesktopModelProviderSummary[] | null =
+    import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('visualProviderCatalog') === 'logos'
+      ? [
+          ['mock', 'Loaded Logo', '/favicon.png'],
+          ['visual-logo-error', 'Fallback Logo', '/missing-provider-logo.svg'],
+          ['visual-logo-3', 'Provider Three', undefined],
+          ['visual-logo-4', 'Provider Four', undefined],
+          ['visual-logo-5', 'Provider Five', undefined],
+          ['visual-logo-6', 'Provider Six', undefined],
+        ].map(([providerID, displayName, logoURL]) => ({
+          ...mockModelProvider(providerID as ModelProviderID),
+          displayName,
+          logoURL,
+          modelCount: 1,
+          providerKind: 'models-dev' as const,
+          catalogOrigin: 'models-dev' as const,
+        }))
+      : null
   const providerState = (): DesktopModelProviderState => ({
     selectedProviderID: settings.providerID,
     provider,
@@ -176,8 +284,6 @@ export function createBrowserMockDesktopClient(
     models: provider.defaultModels,
     modelMetadata: provider.modelMetadata,
   })
-  const visualFixture = createBrowserVisualFixture()
-  const performanceFixture = createBrowserPerformanceFixture()
   const visualSessionReadDelayMs =
     import.meta.env.DEV && typeof window !== 'undefined'
       ? Math.min(
@@ -229,6 +335,36 @@ export function createBrowserMockDesktopClient(
         sessions.set(sessionId, target)
       }
     }
+    if (visualFixture.item.id === 'visual-scroll-edge') {
+      // 26 个会话让“最近”分组超过分组上限，供会话扩展/折叠动画验证。
+      for (let index = 2; index <= 26; index += 1) {
+        const sessionId = `visual-scroll-edge-${String(index).padStart(2, '0')}`
+        const target = mockSessionSnapshot(sessionId, visualFixture.workspace, {
+          workspacePath: visualFixture.workspace.path,
+          sessionName: `滚动边界会话 ${index}`,
+        })
+        const createdAt = new Date(
+          Date.now() - index * 60_000,
+        ).toISOString()
+        target.view.messages = [
+          {
+            id: `${sessionId}-user`,
+            role: 'user',
+            text: `第 ${index} 个会话。`,
+            createdAt,
+          },
+          {
+            id: `${sessionId}-assistant`,
+            role: 'assistant',
+            text: `会话 ${index} 已加载。`,
+            createdAt,
+          },
+        ]
+        target.item.lastMessageAt = createdAt
+        target.updatedAt = createdAt
+        sessions.set(sessionId, target)
+      }
+    }
   }
   if (performanceFixture) {
     for (const snapshot of performanceFixture.sessions) {
@@ -238,49 +374,103 @@ export function createBrowserMockDesktopClient(
   }
 
   return {
+    getSpeechStatus: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    installSpeech: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    transcribeSpeech: async () => {
+      throw new Error('浏览器预览环境不支持本地语音听写。')
+    },
+    cancelSpeech: async () => false,
+    onSpeechStatusUpdated: () => () => {},
+    openMicrophonePrivacySettings: async () => {},
+    readAttachment: async attachmentId =>
+      readBrowserFixtureAttachment(attachmentId),
+    readArtifact: async () => {
+      throw new Error('浏览器模拟环境不支持 artifact 读取。')
+    },
+    readLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
+    listLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
+    saveAttachmentToDownloads: async input => ({ fileName: input.name }),
+    readDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径预览。')
+    },
+    listDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地目录预览。')
+    },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
-    getAuthStatus: async () => ({
-      authenticated: false,
-      method: 'none',
-      email: null,
-      organizationName: null,
+    listAutomations: async () => ({ automations: [] }),
+    listAutomationRuns: async () => ({ runs: [] }),
+    readAutomation: async () => { throw new Error('浏览器模拟环境中不存在该自动化。') },
+    createAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    updateAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    deleteAutomation: async () => { throw new Error('浏览器模拟环境不保存自动化。') },
+    runAutomation: async () => { throw new Error('浏览器模拟环境不执行自动化。') },
+    markAutomationRunRead: async () => { throw new Error('浏览器模拟环境中不存在该运行。') },
+    markAllAutomationRunsRead: async () => ({ updatedCount: 0 }),
+    previewAutomationSchedule: async input => ({
+      canonicalRrule: input.schedule.mode === 'custom'
+        ? input.schedule.rrule
+        : `FREQ=${input.schedule.mode.toUpperCase()}`,
+      summary: '浏览器自动化预览',
+      nextRunAt: [],
     }),
-    getRuntimeStatus: async () => runtimeStatus,
-    diagnoseDesktopToolchain: async () => ({
-      enabled: settings.installCodePilotXDependencies,
-      root: runtimeStatus.toolchainRoot,
-      managedRoot: runtimeStatus.managedToolchainRoot,
-      packagedRoot: runtimeStatus.packagedToolchainRoot,
-      pathEntries: runtimeStatus.toolchainPathEntries,
-      binaries: runtimeStatus.toolchainBinaries,
-    }),
-    reinstallDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
+    listCalendarOccurrences: async () => ({ occurrences: [], truncated: false }),
+    readScheduledTask: async () => { throw new Error('浏览器模拟环境中不存在该计划任务。') },
+    createScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    updateScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    deleteScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    runScheduledTask: async () => { throw new Error('浏览器模拟环境不执行计划任务。') },
+    readSchedulePlan: async () => { throw new Error('浏览器模拟环境中不存在该规划草案。') },
+    commitSchedulePlan: async () => { throw new Error('浏览器模拟环境不保存规划草案。') },
+    getAuthStatus: async () => mockAuthStatus(),
+    getRuntimeStatus: async () => mockRuntimeStatus(),
+    diagnoseDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
         enabled: settings.installCodePilotXDependencies,
         root: runtimeStatus.toolchainRoot,
         managedRoot: runtimeStatus.managedToolchainRoot,
         packagedRoot: runtimeStatus.packagedToolchainRoot,
         pathEntries: runtimeStatus.toolchainPathEntries,
         binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
-    deleteDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
-        enabled: settings.installCodePilotXDependencies,
-        root: null,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: [],
-        binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
+      }
+    },
+    reinstallDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: runtimeStatus.toolchainRoot,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: runtimeStatus.toolchainPathEntries,
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
+    deleteDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: null,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: [],
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
     readConfig: async params => ({
       config: configDocument,
       origins: {},
@@ -444,8 +634,47 @@ export function createBrowserMockDesktopClient(
       browserState = { ...browserState, allowedSites: [], sitePermissions: [] }
       return browserState
     },
-    listBuiltinPlugins: async () => [],
-    setBuiltinPluginEnabled: async (pluginId, enabled) => ({ id: pluginId, enabled }),
+    listPlugins: async () => ({
+      plugins: [mockTaskPlanningPlugin],
+      generation: mockPluginGeneration,
+      updatedAt: Date.now(),
+    }),
+    getPluginDetails: async pluginId =>
+      pluginId === mockTaskPlanningPlugin.id ? mockTaskPlanningDetails : null,
+    setPluginEnabled: async (pluginId, enabled) => {
+      if (pluginId !== mockTaskPlanningPlugin.id) {
+        throw new Error('PLUGIN_NOT_FOUND')
+      }
+      mockPluginGeneration += 1
+      mockTaskPlanningPlugin = { ...mockTaskPlanningPlugin, enabled }
+      return mockTaskPlanningPlugin
+    },
+    onPluginsUpdated: () => () => {},
+    getMiniMaxCliStatus: async () => mockMiniMaxCliStatus,
+    installMiniMaxCli: async () => {
+      mockMiniMaxCliStatus = {
+        ...mockMiniMaxCliStatus,
+        installationStatus: 'installed',
+        installedVersion: mockMiniMaxCliStatus.latestVersion ?? '1.0.22',
+        updateAvailable: false,
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    uninstallMiniMaxCli: async () => {
+      const { installedVersion: _installedVersion, ...remaining } = mockMiniMaxCliStatus
+      mockMiniMaxCliStatus = {
+        ...remaining,
+        installationStatus: 'not-installed',
+        updateAvailable: false,
+        authStatus: 'not-authenticated',
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    onMiniMaxCliUpdated: () => () => {},
     listSkillsCatalog: async options => ({
       skills: [],
       page: options?.page ?? 0,
@@ -482,7 +711,8 @@ export function createBrowserMockDesktopClient(
     openPathWithTarget: async () => {},
     openPathWithDefaultTarget: async () => {},
     revealPathInFolder: async () => {},
-    listModelProviders: async () => [provider],
+    refreshModelProviders: async () => {},
+    listModelProviders: async () => providerCatalogVisualFixture ?? [provider],
     getModelProviderState: async () => providerState(),
     fetchProviderModels: async () => ({ models: provider.defaultModels }),
     saveModelProvider: async options => {
@@ -490,7 +720,6 @@ export function createBrowserMockDesktopClient(
         ...settings,
         providerID: options.providerID,
         model: options.id ?? settings.model,
-        providerBaseURL: options.baseURL ?? settings.providerBaseURL,
       }
       return providerState()
     },
@@ -546,9 +775,6 @@ export function createBrowserMockDesktopClient(
     reorderApiKeys: async () => [],
     testApiKey: async () => ({ ok: true, message: 'API Key 可用。' }),
     deleteProviderCredential: async () => [],
-    copyProviderApiKey: async () => {
-      throw new Error('安全复制仅在桌面应用中可用。')
-    },
     readProviderCredentialStore: async () => ({
       store: 'auth-json',
       portable: true,
@@ -562,7 +788,60 @@ export function createBrowserMockDesktopClient(
       migrationRequired: false,
       migratedCredentials: 1,
     }),
-    testModelProvider: async () => ({ ok: true }),
+    testModelProvider: async (providerID, model) => ({
+      providerId: providerID as RpcParams<'provider/test'>['providerId'],
+      status: 'reachable',
+      testedAt: Date.now(),
+      latencyMs: 12,
+      model: (model ?? {
+        providerID,
+        id: 'mock-model',
+      }) as Extract<
+        RpcResult<'provider/test'>,
+        { status: 'reachable' }
+      >['model'],
+    } as RpcResult<'provider/test'>),
+    previewModelHealth: async () => ({
+      totalRequests: 0,
+      excludedProviders: [],
+    }),
+    startModelHealth: async operationId => ({
+      run: {
+        runId: operationId,
+        status: 'completed',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
+    readModelHealth: async () => ({ run: null }),
+    cancelModelHealth: async () => ({
+      run: {
+        runId: 'mock',
+        status: 'cancelled',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
     createProvider: async () => undefined,
     updateProvider: async () => undefined,
     deleteProvider: async () => undefined,
@@ -623,8 +902,10 @@ export function createBrowserMockDesktopClient(
       ok: false,
       error: '浏览器 mock 模式不会克隆仓库。',
     }),
-    listProjects: async folderPath =>
-      folderPath ? [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }] : [],
+    listProjects: async folderPath => {
+      if (folderPath) return [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }]
+      return []
+    },
     updateProject: async input => ({
       ...mockWorkspace(''),
       projectId: input.projectId,
@@ -745,9 +1026,10 @@ export function createBrowserMockDesktopClient(
     }),
     watchWorkspaceFile: async () => {},
     unwatchWorkspaceFile: async () => {},
+    isComposerFileAttachmentAvailable: async () => false,
     chooseComposerFiles: async () => [],
-    authorizeComposerFilePaths: async () => {},
-    readComposerFiles: async () => [],
+    grantComposerFilePaths: async () => [],
+    getComposerFilePath: () => '',
     getWorkspaceDiff: async () => ({
       patch: '',
     }),
@@ -778,7 +1060,79 @@ export function createBrowserMockDesktopClient(
         standalone: !options.workspacePath,
       }
     },
-    listSessions: async () => [...sessions.values()],
+    createSideChat: async input => {
+      const source = requireMockSession(sessions, input.sourceThreadId)
+      const threadId = `browser-mock-side-chat-${crypto.randomUUID()}`
+      const createdAt = Date.now()
+      const includeVisualTimeline =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get(
+          'visualSideChatSecondMessage',
+        ) === '1' &&
+        sideChatSessionIds.size > 0
+      const sideChatMessages = includeVisualTimeline
+        ? [
+            {
+              id: `${threadId}-user`,
+              role: 'user' as const,
+              text: '帮我检查这个函数的边界条件。',
+              createdAt: new Date(createdAt).toISOString(),
+            },
+            {
+              id: `${threadId}-assistant`,
+              role: 'assistant' as const,
+              text: '已检查：空输入和分页边界都需要单独处理。',
+              createdAt: new Date(createdAt + 1).toISOString(),
+            },
+          ]
+        : []
+      sessions.set(threadId, {
+        ...source,
+        item: {
+          ...source.item,
+          id: threadId,
+          sessionName: '侧边聊天',
+          aiTitle: null,
+          customTitle: null,
+          firstPrompt: null,
+          archivedAt: new Date(-1).toISOString(),
+          status: 'idle',
+          createdAt: new Date(createdAt).toISOString(),
+        },
+        view: {
+          ...source.view,
+          messages: sideChatMessages,
+          toolLog: [],
+          pendingPermissions: [],
+          contextUsage: null,
+        },
+        events: [],
+        workflowEvents: [],
+        queuedFollowUps: [],
+        updatedAt: new Date(createdAt + sideChatMessages.length).toISOString(),
+      })
+      sideChatSessionIds.add(threadId)
+      return {
+        sideChat: {
+          threadId,
+          sourceThreadId: input.sourceThreadId,
+          inheritedThroughTurnId: null,
+          createdAt,
+        },
+      }
+    },
+    discardSideChat: async input => {
+      sessions.delete(input.threadId)
+      sideChatSessionIds.delete(input.threadId)
+      return { ok: true as const }
+    },
+    listSessions: async options => [...sessions.values()].filter(snapshot =>
+      !sideChatSessionIds.has(snapshot.item.id) && (
+        options?.archived === true
+          ? Boolean(snapshot.item.archivedAt)
+          : !snapshot.item.archivedAt
+      ),
+    ),
     getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
     getSession: async sessionId => {
       if (visualSessionReadDelayMs > 0) {
@@ -808,6 +1162,27 @@ export function createBrowserMockDesktopClient(
       const next = {
         ...snapshot,
         item: { ...snapshot.item, unreadAt: null },
+      }
+      sessions.set(sessionId, next)
+      emitSessionStoreChange()
+      return next.item
+    },
+    markSessionUnread: async (sessionId, unreadAt) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
+      const unreadTimestamp = Date.parse(unreadAt)
+      if (!Number.isFinite(unreadTimestamp) || unreadTimestamp < 0) {
+        throw new Error('INVALID_UNREAD_AT')
+      }
+      const currentTimestamp = snapshot.item.unreadAt
+        ? Date.parse(snapshot.item.unreadAt)
+        : 0
+      const nextUnreadAt = new Date(
+        Math.max(currentTimestamp, unreadTimestamp),
+      ).toISOString()
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, unreadAt: nextUnreadAt },
       }
       sessions.set(sessionId, next)
       emitSessionStoreChange()
@@ -899,8 +1274,7 @@ export function createBrowserMockDesktopClient(
     closeWindow: async () => {
       await window.codePilotXDesktop?.close()
     },
-    isWindowMaximized: async () =>
-      (await window.codePilotXDesktop?.isMaximized()) ?? false,
+    isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: async () => {},
     openDevTools: async () => {},
     closeDevTools: async () => {},

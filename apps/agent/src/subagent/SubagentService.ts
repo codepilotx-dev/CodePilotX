@@ -3,22 +3,26 @@ import type { PermissionConfig, SubagentProfile } from "@codepilotx/shared/threa
 import { Effect } from "effect"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError } from "../domain"
-import { SafeBoundaryInterrupt, type PiOrchestratorAdapter, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/PiOrchestratorAdapter"
+import { SafeBoundaryInterrupt, type AgentRuntime, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/AgentRuntimeTypes"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
+import { ResumeCheckpointResolver, toPlanCheckpoint } from "../interaction/ResumeCheckpointResolver"
+import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
+import { globalEventSequence } from "../storage/events/EventPublisher"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
+import type { LocalContextPathService } from "../local-context/LocalContextPathService"
 import { InstructionDiscoveryService, SkillService, createPromptSections, type PromptBundle } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
-import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 import { createMcpInstructionSections } from "../mcp/McpPromptSections"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
+import { secretScrubber } from "../security/SecretScrubber"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -89,6 +93,7 @@ export class SubagentService {
   readonly repository: SubagentRepository
   private readonly controllers = new Map<string, AbortController>()
   private scheduling = false
+  private readonly resumeCheckpoints: ResumeCheckpointResolver
 
   constructor(
     private readonly db: AgentDatabase,
@@ -96,21 +101,26 @@ export class SubagentService {
     private readonly providers: AgentModelCatalog,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
-    private readonly orchestrator: PiOrchestratorAdapter,
+    private readonly orchestrator: AgentRuntime,
     private readonly attachments: AttachmentService,
     private readonly workspaces?: SubagentWorkspaceProvider,
     private readonly promptStorage?: PromptStorageRoots,
     private readonly memory?: MemoryService,
-    private readonly hooks?: HookService,
     private readonly skillManagement?: SkillManagementService,
     private readonly mcp?: McpConnectionManager,
     private readonly projectSources?: ProjectSourceService,
+    resumeCheckpoints?: ResumeCheckpointResolver,
+    recoverOnConstruct = true,
+    private readonly localContextPaths?: LocalContextPathService,
   ) {
+    this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
-    queueMicrotask(() => {
-      void this.recoverLegacyWorktrees()
-    })
+    if (recoverOnConstruct) queueMicrotask(() => { void this.recoverLegacyWorktrees() })
+  }
+
+  recoverStartup() {
+    return this.recoverLegacyWorktrees()
   }
 
   private async recoverLegacyWorktrees() {
@@ -292,20 +302,25 @@ export class SubagentService {
   async checkpointWait(threadID: string, turnID: string, agentID: string, approval: PendingApproval) {
     const runIDs = approval.runIDs ?? []
     const mode = approval.waitMode ?? "all"
-    this.db.saveAgentTurnCheckpoint({
-      agentID, turnID, threadID, state: "waiting_subagents",
-      payload: { state: approval.checkpoint.state, interruption: approval.checkpoint.interruption, runIDs, mode }, version: 1,
+    const checkpoint = this.db.repositories.subagents.checkpointSubagentWait({
+      agentID,
+      turnID,
+      threadID,
+      state: approval.checkpoint.state,
+      interruption: approval.checkpoint.interruption,
+      runIDs,
+      mode,
     })
-    this.db.updateTurnStatus(turnID, "waiting_subagents")
-    const agent = this.db.updateAgentStatus(agentID, "waiting_subagents")
-    await this.emit(threadID, turnID, "agent/upserted", { agent })
-    await this.emit(threadID, turnID, "turn/statusChanged", { turnId: turnID, rootAgentId: agentID, status: "waiting-subagents", runIds: runIDs, mode })
+    await Promise.allSettled(checkpoint.events.map((event) => Effect.runPromise(this.hub.publish(event))))
     void this.schedule()
   }
 
   resolvedWaitCheckpoint(turnID: string): PlanCheckpoint | null {
     const checkpoint = this.db.getAgentTurnCheckpoint(turnID)
-    if (checkpoint?.state !== "waiting_subagents") return null
+    if (!checkpoint) return null
+    const resumable = checkpoint.state === "waiting_subagents"
+      || (checkpoint.state === "ready" && checkpoint.payload.kind === "subagent-wait")
+    if (!resumable) return null
     const runIDs = Array.isArray(checkpoint.payload.runIDs) ? checkpoint.payload.runIDs.filter((value): value is string => typeof value === "string") : []
     const mode = checkpoint.payload.mode === "any" ? "any" : "all"
     if (!this.isWaitSatisfied(runIDs, mode)) return null
@@ -334,11 +349,10 @@ export class SubagentService {
       return response
     }
     if (["queued", "preparing", "waiting-question", "waiting-permission"].includes(run.status)) {
-      const latest = this.db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(run.id) as { turn_id: string } | null
+      const latest = this.repository.latestExecution(run.id)
       if (latest) {
         this.approvals.cancelTurn(latest.turn_id)
         this.questions.cancelTurn(latest.turn_id)
-        this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), latest.turn_id)
       }
       const continued = this.repository.continueTask({ taskID, message, ...(options.model ? { model: options.model } : {}), permission, sameRun: true })
       await this.bindAttachments(continued.agent.turnID, options.attachmentIDs ?? [])
@@ -360,10 +374,23 @@ export class SubagentService {
     if (!task?.currentRun || !["failed", "stopped", "interrupted"].includes(task.currentRun.status)) throw new AgentError("SUBAGENT_NOT_RETRYABLE", "当前子 Agent 状态不能重试", 409)
     this.repository.createControl({ requestID, taskID, runID: task.currentRun.id, action: "retry" })
     const next = this.repository.continueTask({ taskID, message: task.task, sameRun: false })
-    this.repository.completeControl(requestID, next)
+    const input = this.db.getTurnInput(next.agent.turnID)
+    if (!input) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent retry input 尚未建立", 409)
+    const sequence = globalEventSequence(this.db)
+    const result = {
+      task: next.task,
+      run: next.run,
+      admission: {
+        inputId: input.id,
+        turnId: next.agent.turnID,
+        disposition: "accepted" as const,
+        streamPosition: { streamId: next.task.childThreadId, sequence },
+      },
+    }
+    this.repository.completeControl(requestID, result)
     await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: next.task, run: next.run })
     void this.schedule()
-    return next
+    return result
   }
 
   async stop(taskID: string, requestID: string) {
@@ -379,11 +406,10 @@ export class SubagentService {
       return result
     }
     this.controllers.get(run.id)?.abort()
-    const execution = this.db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(run.id) as { turn_id: string } | null
+    const execution = this.repository.latestExecution(run.id)
     if (execution) {
       this.approvals.cancelTurn(execution.turn_id)
       this.questions.cancelTurn(execution.turn_id)
-      this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), execution.turn_id)
     }
     const finished = this.repository.finish(run.id, "stopped", null, "用户停止了子 Agent")
     this.repository.completeControl(requestID, finished)
@@ -420,6 +446,9 @@ export class SubagentService {
     const controller = new AbortController()
     let isolationPrepared = false
     let mcpLease: McpTurnLease | undefined
+    let startupGate: { leaseID: string; requestID: string } | undefined
+    let startupGateSafe = false
+    let acquiredResumeLeaseID: string | undefined
     this.controllers.set(runID, controller)
     await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task, run })
     await this.emit(task.childThreadId, agent.turnID, "agent/upserted", { agent })
@@ -449,25 +478,21 @@ export class SubagentService {
                 }),
           })
         : await WorkspaceService.open(prepared.rootPath)
+      const localContextReferences = this.localContextPaths?.repository.listAuthorized(task.parentThreadId) ?? []
+      workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = run.permissionConfig
+      const executionPolicy = executionPolicyFromV4(permissionConfig)
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
-      const permissionCheckpoint = this.approvals.claimResume(agent.turnID)
-      const permissionResume = permissionCheckpoint?.payload.runState && permissionCheckpoint.payload.interruption !== undefined && permissionCheckpoint.decision
-        ? {
-            state: permissionCheckpoint.payload.runState,
-            interruption: permissionCheckpoint.payload.interruption,
-            answer: permissionCheckpoint.payload.resolution?.feedback ?? null,
-            decision: permissionCheckpoint.decision,
-            toolCallID: permissionCheckpoint.toolCallID,
-            ...(permissionCheckpoint.payload.invocation.authorizationScope
-              ? { authorizationFingerprint: permissionCheckpoint.payload.invocation.authorizationScope.fingerprint }
-              : {}),
-            approvalID: permissionCheckpoint.approvalID,
-          } as const
+      const acquiredResume = this.resumeCheckpoints.acquire(agent.turnID, "subagent", crypto.randomUUID())
+      acquiredResumeLeaseID = acquiredResume?.leaseID
+      startupGate = acquiredResume?.checkpoint.kind === "hook-trust"
+        ? { leaseID: acquiredResume.leaseID, requestID: acquiredResume.checkpoint.requestID }
         : undefined
-      const checkpoint = permissionResume ? null : this.questions.claimResolvedCheckpoint(agent.turnID)
+      const checkpoint = acquiredResume && acquiredResume.checkpoint.kind !== "hook-trust"
+        ? { approval: toPlanCheckpoint({ leaseID: acquiredResume.leaseID, checkpoint: acquiredResume.checkpoint }) }
+        : null
       const parentMode = (this.db.sqlite.query("SELECT mode FROM turns WHERE id = ?").get(task.parentTurnId) as { mode: "chat" | "plan" } | null)?.mode ?? "chat"
       const instructionSources = await new InstructionDiscoveryService().discover(workspace.rootPath)
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
@@ -491,7 +516,7 @@ export class SubagentService {
         subagent: true,
       }) ?? []
       const promptSections = createPromptSections({
-        permissionInstructions: `子 Agent resolved sandbox=${permissionConfig.sandboxMode}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
+        permissionInstructions: `子 Agent resolved file access=${executionPolicy.fileAccess}; Shell environment=${executionPolicy.shellEnvironment}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
         mode: parentMode,
         profile: task.profile,
         environment: `工作区：${workspace.rootPath}`,
@@ -502,6 +527,8 @@ export class SubagentService {
           ? [projectSourceCatalog.content]
           : [],
         externalData: [
+          ...localContextReferences.map((reference) =>
+            `<local_context kind=${JSON.stringify(reference.kind)} path=${JSON.stringify(reference.path)}>${reference.name.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</local_context>`),
           ...invokedSkillData,
         ],
         userMessage: input.content,
@@ -533,7 +560,6 @@ export class SubagentService {
       const piModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)
       const attachments = await this.agentAttachments(input.id)
-      let budgetText = ""
       let composedBundle: PromptBundle | null = null
       let pausedKind: PendingApproval["kind"] | null = null
       const result = await this.orchestrator.run({
@@ -554,11 +580,11 @@ export class SubagentService {
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         attachments,
-        ...(permissionResume ? { resume: permissionResume } : checkpoint ? { resume: checkpoint.approval } : {}),
+        ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
+        ...(checkpoint ? { resume: checkpoint.approval } : {}),
         resolveModel: async () => ({ ref: run.model, model: piModel }),
-        onPromptComposed: async (bundle, context) => {
+        onPromptComposed: async (bundle) => {
           composedBundle = bundle
-          budgetText = context.budgetText
           const timestamp = Date.now()
           const previous = contextManager.state(task.childThreadId)
           const fragments: ContextFragment[] = bundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
@@ -597,6 +623,7 @@ export class SubagentService {
         },
       })
       if (result.status === "paused") {
+        if (acquiredResumeLeaseID) this.resumeCheckpoints.complete(acquiredResumeLeaseID)
         this.repository.setWaiting(runID, pausedSubagentStatus(pausedKind))
         await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: this.repository.task(taskID), run: this.repository.run(runID) })
         return
@@ -607,6 +634,7 @@ export class SubagentService {
         const continued = this.repository.continueTask({ taskID, message: typeof payload.message === "string" ? payload.message : "继续", ...(payload.model ? { model: payload.model } : {}), ...(payload.permissionConfig ? { permission: payload.permissionConfig } : {}), sameRun: true })
         await this.bindAttachments(continued.agent.turnID, payload.attachmentIDs ?? [])
         this.repository.completeControl(steer.id, { agentId: continued.agent.id })
+        startupGateSafe = true
         await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: continued.task, run: continued.run })
         void this.schedule()
         return
@@ -619,6 +647,7 @@ export class SubagentService {
         changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
       }
       const finished = this.repository.finish(runID, "completed", canonicalResult, null)
+      startupGateSafe = true
       if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
       await this.emit(task.childThreadId, agent.turnID, "turn/completed", { turnId: agent.turnID, rootAgentId: agent.id, finishedAt: Date.now() })
     } catch (cause) {
@@ -629,6 +658,7 @@ export class SubagentService {
         const continued = this.repository.continueTask({ taskID, message: typeof payload.message === "string" ? payload.message : "继续", ...(payload.model ? { model: payload.model } : {}), ...(payload.permissionConfig ? { permission: payload.permissionConfig } : {}), sameRun: true })
         await this.bindAttachments(continued.agent.turnID, payload.attachmentIDs ?? [])
         this.repository.completeControl(steer.id, { agentId: continued.agent.id })
+        startupGateSafe = true
         await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: continued.task, run: continued.run })
         void this.schedule()
         return
@@ -637,10 +667,21 @@ export class SubagentService {
         const error = cause instanceof Error ? cause.message : String(cause)
         if (isolationPrepared) await this.workspaces?.finalize(taskID).catch(() => undefined)
         const finished = this.repository.finish(runID, "failed", null, error)
+        startupGateSafe = true
         if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
         await this.emit(task.childThreadId, agent.turnID, "turn/failed", { turnId: agent.turnID, rootAgentId: agent.id, message: error, finishedAt: Date.now() })
       }
     } finally {
+      const durableRun = this.repository.run(runID)
+      const durableTerminal = Boolean(durableRun && terminal.has(durableRun.status))
+      if (acquiredResumeLeaseID && (startupGateSafe || durableTerminal)) this.resumeCheckpoints.complete(acquiredResumeLeaseID)
+      if (startupGate) {
+        const checkpoint = this.db.getAgentTurnCheckpoint(agent.turnID)
+        const stillOwnsGate = checkpoint?.state === "ready"
+          && checkpoint.payload.kind === "hook-trust"
+          && checkpoint.payload.requestID === startupGate.requestID
+        if (startupGateSafe || durableTerminal || !stillOwnsGate) this.resumeCheckpoints.complete(startupGate.leaseID)
+      }
       await mcpLease?.release()
       this.controllers.delete(runID)
       await this.resumeSatisfiedParents()
@@ -662,9 +703,10 @@ export class SubagentService {
     return canonicalSubagentChangedFiles(reported, patches)
   }
 
-  async resumeTurn(threadID: string, turnID: string) {
+  async resumeTurn(_threadID: string, turnID: string) {
     const row = this.db.sqlite.query("SELECT subagent_run_id, id FROM agent_executions WHERE turn_id = ?").get(turnID) as { subagent_run_id: string | null; id: string } | null
     if (!row?.subagent_run_id) return
+    if (this.controllers.has(row.subagent_run_id)) return
     this.db.updateTurnStatus(turnID, "queued")
     this.db.updateAgentStatus(row.id, "queued")
     this.db.run("UPDATE subagent_runs SET status = 'queued', updated_at = ? WHERE id = ?", Date.now(), row.subagent_run_id)
@@ -672,17 +714,9 @@ export class SubagentService {
   }
 
   private async resumeSatisfiedParents() {
-    const rows = this.db.sqlite.query("SELECT agent_id, turn_id, thread_id, payload FROM agent_checkpoints WHERE state = 'waiting_subagents'").all() as Array<{ agent_id: string; turn_id: string; thread_id: string; payload: string }>
-    for (const row of rows) {
-      const payload = JSON.parse(row.payload) as Record<string, unknown>
-      const runIDs = Array.isArray(payload.runIDs) ? payload.runIDs.filter((value): value is string => typeof value === "string") : []
-      const mode = payload.mode === "any" ? "any" : "all"
-      if (!this.isWaitSatisfied(runIDs, mode)) continue
-      this.db.updateTurnStatus(row.turn_id, "queued")
-      const agent = this.db.updateAgentStatus(row.agent_id, "queued")
-      await this.emit(row.thread_id, row.turn_id, "agent/upserted", { agent })
-      await this.emit(row.thread_id, row.turn_id, "turn/statusChanged", { turnId: row.turn_id, status: "queued", resumedFrom: "waiting-subagents" })
-      this.parentResumeHandler?.(row.thread_id, row.turn_id)
+    for (const resumed of this.db.repositories.subagents.resumeSatisfiedSubagentWaits()) {
+      await Promise.allSettled(resumed.events.map((event) => Effect.runPromise(this.hub.publish(event))))
+      this.parentResumeHandler?.(resumed.threadID, resumed.turnID)
     }
   }
 

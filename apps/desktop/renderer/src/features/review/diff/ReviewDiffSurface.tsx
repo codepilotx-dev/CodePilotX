@@ -4,6 +4,7 @@ import {
   MessageSquarePlus,
   Trash2,
 } from "lucide-react";
+import { Button } from "../../../components/ui/Button.js";
 import type {
   DesktopDiffMarkerStyle,
   DesktopReviewComment,
@@ -100,9 +101,8 @@ export type ReviewDiffBodyProps = {
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 };
 
 export type ReviewDiffReadOnlySplitProps = {
@@ -164,7 +164,6 @@ export function ReviewDiffReadOnlySplit({
       onCancelDraft={NOOP}
       onCreateDraft={NOOP_DRAFT}
       onDeleteComment={NOOP}
-      onDraftBodyChange={NOOP}
       onResolveComment={NOOP}
       onSaveDraft={NOOP}
     />
@@ -204,7 +203,6 @@ export function ReviewDiffReadOnlyInline({
       onCancelDraft={NOOP}
       onCreateDraft={NOOP_DRAFT}
       onDeleteComment={NOOP}
-      onDraftBodyChange={NOOP}
       onResolveComment={NOOP}
       onSaveDraft={NOOP}
     />
@@ -226,7 +224,6 @@ export function ReviewDiffInline({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
   readOnly = false,
@@ -261,7 +258,6 @@ export function ReviewDiffInline({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -285,20 +281,18 @@ export function ReviewDiffSplit({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: ReviewDiffBodyProps & {
   ariaLabel?: string;
   readOnly?: boolean;
 }): React.ReactNode {
-  const rootRef = React.useRef<HTMLPreElement>(null);
   const { leftRows, rightRows } = React.useMemo(
     () => buildSplitDiffRows(file),
     [file],
   );
   const syntax = useReviewDiffSyntax(file, syntaxThemeId);
-  useSyncCodexSplitRows(rootRef, !wrapLines, file);
+  const rowSpan = Math.max(leftRows.length, 1);
 
   return (
     <pre
@@ -309,7 +303,9 @@ export function ReviewDiffSplit({
       data-indicators={diffMarkerStyle === "symbol" ? "classic" : "bars"}
       data-overflow={wrapLines ? "wrap" : "scroll"}
       data-review-syntax-state={syntax.state}
-      ref={rootRef}
+      style={{
+        "--review-diff-row-count": rowSpan,
+      } as React.CSSProperties}
     >
       <ReviewDiffCodePane
         attachedComments={attachedComments}
@@ -321,13 +317,11 @@ export function ReviewDiffSplit({
         readOnly={readOnly}
         rows={leftRows}
         scope={scope}
-        syncRows={!wrapLines}
         syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -341,13 +335,11 @@ export function ReviewDiffSplit({
         readOnly={readOnly}
         rows={rightRows}
         scope={scope}
-        syncRows={!wrapLines}
         syntaxByLineId={syntax.byLineId}
         onApplyOperation={onApplyOperation}
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -365,13 +357,11 @@ export function ReviewDiffCodePane({
   readOnly = false,
   rows,
   scope,
-  syncRows = false,
   syntaxByLineId,
   onApplyOperation,
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: Omit<
@@ -381,7 +371,6 @@ export function ReviewDiffCodePane({
   pane: "unified" | "deletions" | "additions";
   readOnly?: boolean;
   rows: CodexDiffPaneRow[];
-  syncRows?: boolean;
   syntaxByLineId: ReviewSyntaxByLineId;
 }): React.ReactNode {
   const rowSpan = Math.max(rows.length, 1);
@@ -410,7 +399,6 @@ export function ReviewDiffCodePane({
             return (
               <div
                 className="review-codex-diff__hunk review-codex-diff__hunk--gutter"
-                data-diff-sync-row={syncRows ? row.id : undefined}
                 data-separator="line-info"
                 key={`gutter-${row.id}`}
               />
@@ -431,7 +419,6 @@ export function ReviewDiffCodePane({
               key={`gutter-${row.id}`}
               lineNumber={cell.number}
               readOnly={readOnly}
-              syncRow={syncRows ? row.id : undefined}
               onCreateDraft={onCreateDraft}
             />
           );
@@ -448,7 +435,6 @@ export function ReviewDiffCodePane({
             return (
               <div
                 className="review-codex-diff__hunk review-codex-diff__hunk--content"
-                data-diff-sync-row={syncRows ? row.id : undefined}
                 data-separator="line-info"
                 key={`content-${row.id}`}
               >
@@ -489,10 +475,8 @@ export function ReviewDiffCodePane({
               draft={readOnly ? null : draft}
               key={`content-${row.id}`}
               readOnly={readOnly}
-              syncRow={syncRows ? row.id : undefined}
               onCancelDraft={onCancelDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             >
@@ -525,21 +509,18 @@ export function ReviewDiffLineNumber({
   cellTone,
   lineNumber,
   readOnly = false,
-  syncRow,
   onCreateDraft,
 }: {
   anchor: CommentAnchor | null;
   cellTone: ReviewCell["tone"];
   lineNumber: number | null;
   readOnly?: boolean;
-  syncRow?: string;
   onCreateDraft: (draft: CommentDraft) => void;
 }): React.ReactNode {
   return (
     <div
       className="review-codex-diff__number"
       data-column-number={lineNumber ?? ""}
-      data-diff-sync-row={syncRow}
       data-line-type={codexDiffLineType(cellTone)}
     >
       {readOnly ? null : (
@@ -561,10 +542,8 @@ export function ReviewDiffLineContent({
   comments,
   draft,
   readOnly = false,
-  syncRow,
   onCancelDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -574,17 +553,14 @@ export function ReviewDiffLineContent({
   comments: DesktopReviewComment[];
   draft: CommentDraft | null;
   readOnly?: boolean;
-  syncRow?: string;
   onCancelDraft: () => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   return (
     <div
       className="review-codex-diff__line"
-      data-diff-sync-row={syncRow}
       data-line=""
       data-line-type={codexDiffLineType(cellTone)}
     >
@@ -596,7 +572,6 @@ export function ReviewDiffLineContent({
           anchor={anchor}
           onCancelDraft={onCancelDraft}
           onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
           onResolveComment={onResolveComment}
           onSaveDraft={onSaveDraft}
         />
@@ -823,70 +798,6 @@ export function codexDiffLineType(cell: ReviewCell["tone"]): string {
   return "context";
 }
 
-export function useSyncCodexSplitRows(
-  rootRef: React.RefObject<HTMLPreElement | null>,
-  enabled: boolean,
-  revision: unknown,
-): void {
-  React.useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root || !enabled || typeof ResizeObserver === "undefined") return;
-
-    let frame = 0;
-    const sync = (): void => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const groups = new Map<string, HTMLElement[]>();
-        for (const node of root.querySelectorAll<HTMLElement>(
-          "[data-diff-sync-row]",
-        )) {
-          node.style.minHeight = "";
-          const key = node.dataset.diffSyncRow;
-          if (!key) continue;
-          const group = groups.get(key) ?? [];
-          group.push(node);
-          groups.set(key, group);
-        }
-        for (const group of groups.values()) {
-          const height = Math.max(
-            ...group.map((node) => node.getBoundingClientRect().height),
-          );
-          for (const node of group) node.style.minHeight = `${height}px`;
-        }
-      });
-    };
-
-    const observedHeights = new WeakMap<Element, number>();
-    const observer = new ResizeObserver((entries) => {
-      let blockSizeChanged = false;
-      for (const entry of entries) {
-        const nextHeight =
-          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-        const previousHeight = observedHeights.get(entry.target);
-        observedHeights.set(entry.target, nextHeight);
-        if (
-          previousHeight === undefined ||
-          Math.abs(previousHeight - nextHeight) > 0.5
-        ) {
-          blockSizeChanged = true;
-        }
-      }
-      if (blockSizeChanged) sync();
-    });
-    observer.observe(root);
-    for (const node of root.querySelectorAll<HTMLElement>(
-      "[data-diff-sync-row]",
-    )) {
-      observer.observe(node);
-    }
-    sync();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [enabled, revision, rootRef]);
-}
-
 export function ReviewHunkActions({
   file,
   hunk,
@@ -907,7 +818,8 @@ export function ReviewHunkActions({
     <div className="review-hunk-actions" role="toolbar" aria-label="Hunk 操作">
       {scope === "unstaged" ? (
         <>
-          <button
+          <Button
+            size="compact"
             disabled={pending}
             type="button"
             onClick={() =>
@@ -919,8 +831,9 @@ export function ReviewHunkActions({
             }
           >
             暂存 hunk
-          </button>
-          <button
+          </Button>
+          <Button
+            size="compact"
             disabled={pending}
             type="button"
             onClick={() =>
@@ -932,10 +845,11 @@ export function ReviewHunkActions({
             }
           >
             还原
-          </button>
+          </Button>
         </>
       ) : (
-        <button
+        <Button
+          size="compact"
           disabled={pending}
           type="button"
           onClick={() =>
@@ -947,7 +861,7 @@ export function ReviewHunkActions({
           }
         >
           取消暂存
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -984,7 +898,6 @@ export function LineComments({
   draft,
   onCancelDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -993,9 +906,8 @@ export function LineComments({
   draft: CommentDraft | null;
   onCancelDraft: () => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const draftMatches =
     anchor && draft ? commentKey(anchor) === commentKey(draft) : false;
@@ -1011,27 +923,48 @@ export function LineComments({
         />
       ))}
       {draftMatches ? (
-        <div className="review-comment draft">
-          <textarea
-            autoFocus
-            placeholder="写下这行的问题或修改建议"
-            value={draft?.body ?? ""}
-            onChange={(event) => onDraftBodyChange(event.target.value)}
-          />
-          <div className="review-comment-actions">
-            <button type="button" onClick={onCancelDraft}>
-              取消
-            </button>
-            <button
-              disabled={!draft?.body.trim()}
-              type="button"
-              onClick={onSaveDraft}
-            >
-              保存
-            </button>
-          </div>
-        </div>
+        <CommentDraftEditor
+          initialBody={draft?.body ?? ""}
+          key={draft ? commentKey(draft) : "draft"}
+          onCancel={onCancelDraft}
+          onSave={onSaveDraft}
+        />
       ) : null}
+    </div>
+  );
+}
+
+function CommentDraftEditor({
+  initialBody,
+  onCancel,
+  onSave,
+}: {
+  initialBody: string;
+  onCancel: () => void;
+  onSave: (body: string) => void;
+}): React.ReactNode {
+  const [body, setBody] = React.useState(initialBody);
+  return (
+    <div className="review-comment draft">
+      <textarea
+        autoFocus
+        placeholder="写下这行的问题或修改建议"
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+      />
+      <div className="review-comment-actions">
+        <Button size="compact" type="button" onClick={onCancel}>
+          取消
+        </Button>
+        <Button
+          size="compact"
+          disabled={!body.trim()}
+          type="button"
+          onClick={() => onSave(body)}
+        >
+          保存
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1058,15 +991,15 @@ export function ReviewComment({
       <div className="review-comment-body">{comment.body}</div>
       <div className="review-comment-actions">
         {comment.status === "open" ? (
-          <button type="button" onClick={onResolve}>
+          <Button size="compact" type="button" onClick={onResolve}>
             <CheckCircle2 size={12} />
             解决
-          </button>
+          </Button>
         ) : null}
-        <button type="button" onClick={onDelete}>
+        <Button size="compact" color="danger" type="button" onClick={onDelete}>
           <Trash2 size={12} />
           删除
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -74,7 +74,7 @@ export function registerPetOverlayIpc(
       ) {
         throw new Error("任务 ID 无效")
       }
-      windows.mainWindow?.webContents.send(
+      windows.focusedWindow?.webContents.send(
         PET_OVERLAY_CHANNELS.openSession,
         sessionId,
       )
@@ -87,7 +87,7 @@ function requireMainSender(
   event: IpcMainInvokeEvent | Electron.IpcMainEvent,
   windows: WindowManager,
 ): void {
-  if (!windows.isMainSender(event.sender)) {
+  if (!windows.isApplicationSender(event.sender)) {
     throw new Error("IPC 调用来源无效")
   }
 }
@@ -106,7 +106,7 @@ function requireKnownSender(
   windows: WindowManager,
   pets: PetOverlayWindowController,
 ): void {
-  if (!windows.isMainSender(event.sender) && !pets.isOverlaySender(event.sender)) {
+  if (!windows.isApplicationSender(event.sender) && !pets.isOverlaySender(event.sender)) {
     throw new Error("IPC 调用来源无效")
   }
 }

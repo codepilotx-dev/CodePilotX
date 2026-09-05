@@ -1,4 +1,7 @@
 import { Model, Provider } from "@codepilotx/model-schema"
+import { AutomationRunStatusSchema, AutomationStatusSchema } from "@codepilotx/shared/automation"
+import { SchedulePlanProposalStatusSchema } from "@codepilotx/shared/schedule-plan"
+import { ScheduledTaskStatusSchema } from "@codepilotx/shared/scheduled-task"
 import {
   AgentExecutionSchema,
   ExecutionPlanItemSchema,
@@ -24,7 +27,9 @@ import {
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
 import { ToolingStatusSchema } from "../methods/tooling"
 import { UsageSourceIdSchema } from "../methods/usage"
-import { AuthSessionSchema } from "../methods/extended"
+import { AuthSessionSchema, ModelHealthCountsSchema, ModelHealthItemSchema } from "../methods/extended"
+import { SpeechStatusSchema } from "../methods/speech"
+import { MiniMaxCliStatusSchema } from "../methods/minimax-cli"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -46,6 +51,58 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "scheduled-task/changed": defineEvent({
+    payload: Schema.Struct({
+      scheduledTaskId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: ScheduledTaskStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "calendar.manage.v1",
+    reconcilesWith: "calendar/range",
+  }),
+  "schedule-plan/changed": defineEvent({
+    payload: Schema.Struct({
+      proposalId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: SchedulePlanProposalStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "calendar.manage.v1",
+    reconcilesWith: "schedule-plan/read",
+  }),
+  "automation/changed": defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: AutomationStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "automation.manage.v1",
+    reconcilesWith: "automation/list",
+  }),
+  "automation/runChanged": defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      runId: OpaqueIDSchema,
+      status: AutomationRunStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "automation.manage.v1",
+    reconcilesWith: "automation/run/list",
+  }),
   "config/updated": defineEvent({
     payload: Schema.Struct({
       version: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
@@ -92,6 +149,28 @@ export const EventManifest = {
     capability: "workspace.editor.v1",
     reconcilesWith: "workspace/file/read",
   }),
+  "session-group/changed": defineEvent({
+    payload: Schema.Struct({
+      groupId: OpaqueIDSchema,
+      reason: Schema.Literals([
+        "created",
+        "updated",
+        "deleted",
+        "membership_changed",
+        "step_changed",
+        "context_changed",
+      ]),
+      threadId: Schema.optional(OpaqueIDSchema),
+      stepId: Schema.optional(OpaqueIDSchema),
+      revision: VersionSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "session-group.v1",
+    reconcilesWith: "session-group/list",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,
@@ -102,6 +181,14 @@ export const EventManifest = {
     capability: "tooling.management.v1",
     reconcilesWith: "tooling/list",
   }),
+  "speech/statusChanged": defineEvent({
+    payload: Schema.Struct({ status: SpeechStatusSchema }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "speech.transcription.v1",
+    reconcilesWith: "speech/status",
+  }),
   "skill/updated": defineEvent({
     payload: Schema.Struct({
       generation: SequenceSchema,
@@ -111,6 +198,24 @@ export const EventManifest = {
     stream: "global",
     capability: "skills.manage.v1",
     reconcilesWith: "skill/list",
+  }),
+  "plugins/updated": defineEvent({
+    payload: Schema.Struct({
+      generation: SequenceSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "plugins.manage.v1",
+    reconcilesWith: "plugin/list",
+  }),
+  "minimaxCli/updated": defineEvent({
+    payload: Schema.Struct({ status: MiniMaxCliStatusSchema }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "integrations.minimax-cli.v1",
+    reconcilesWith: "minimaxCli/status",
   }),
   "mcp/updated": defineEvent({
     payload: Schema.Struct({
@@ -394,10 +499,12 @@ export const EventManifest = {
   "context/compacted": defineEvent({
     payload: Schema.Struct({
       compactionId: OpaqueIDSchema,
+      trigger: Schema.optional(Schema.Literals(["manual", "automatic", "reactive"])),
       beforeCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       beforeTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      afterTokensSource: Schema.optional(Schema.Literals(["compaction-estimate", "measured"])),
       targetTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       baselineVersion: VersionSchema,
       usageSampleId: OpaqueIDSchema,
@@ -495,6 +602,20 @@ export const EventManifest = {
     stream: "global",
     capability: "events.live.v1",
     reconcilesWith: "usage/source/list",
+  }),
+  "model/health/updated": defineEvent({
+    payload: Schema.Struct({
+      runId: OpaqueIDSchema,
+      status: Schema.Literals(["running", "cancelling", "completed", "cancelled"]),
+      counts: ModelHealthCountsSchema,
+      changed: Schema.optional(ModelHealthItemSchema),
+      completedAt: Schema.optional(TimestampSchema),
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "model.health.v1",
+    reconcilesWith: "model/health/read",
   }),
 } as const
 

@@ -20,12 +20,12 @@ import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
-  DesktopGithubUser,
+  DesktopGithubAuthStatus,
   DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../../shared/types.js'
 import { IconButton } from "../../../components/ui/IconButton.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
+import { PopoverItem, PopoverSeparator } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
 import {
@@ -38,7 +38,6 @@ import {
   criticalQuotaWindows,
   formatAmount,
   formatQuotaValue,
-  formatResetTime,
   protocolProviderId,
   sourceForProvider,
   type ProviderUsageSource,
@@ -47,9 +46,9 @@ import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
 type PopoverUsageRow = {
+  id: string;
   label: string;
   usage: string;
-  reset: string;
 };
 
 type ProviderUsageState = {
@@ -87,7 +86,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
-  const [githubUser, setGithubUser] = useState<DesktopGithubUser | null>(null);
+  const [githubAuth, setGithubAuth] = useState<DesktopGithubAuthStatus | null>(null);
   const [petToggleBusy, setPetToggleBusy] = useState(false);
   const settingsActive = location.pathname.startsWith("/settings/");
   const usageAvailable = Boolean(configuredProviderID && model);
@@ -148,25 +147,29 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     void refreshUsage();
   }, [menuOpen, refreshUsage]);
 
+  const refreshGithubAuth = useCallback(async (): Promise<void> => {
+    try {
+      setGithubAuth(await desktopClient.getGithubAuthStatus());
+    } catch {
+      setGithubAuth(null);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!menuOpen) return;
+    void refreshGithubAuth();
+  }, [refreshGithubAuth]);
 
-    let cancelled = false;
-    void desktopClient
-      .getGithubAuthStatus()
-      .then(status => {
-        if (!cancelled) {
-          setGithubUser(status.authenticated ? status.user : null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setGithubUser(null);
-      });
+  useEffect(() => {
+    if (menuOpen) void refreshGithubAuth();
+  }, [menuOpen, refreshGithubAuth]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [menuOpen]);
+  const logoutGithub = useCallback(async (): Promise<void> => {
+    try {
+      setGithubAuth(await desktopClient.logoutGithub());
+    } catch (error) {
+      onReport(error instanceof Error ? error.message : String(error));
+    }
+  }, [onReport]);
 
   const togglePet = useCallback(async (): Promise<void> => {
     if (petToggleBusy) return;
@@ -201,16 +204,20 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     () => buildUsageRows(usage),
     [usage],
   );
+  const githubAuthenticated = githubAuth?.authenticated === true;
+  const githubUser = githubAuthenticated ? githubAuth.user : null;
   const accountName = githubUser?.name || githubUser?.login || "个人资料";
+  const accountTriggerName = githubAuthenticated ? accountName : "设置";
   return (
     <footer
-      className="sidebar-footer tw:mt-2 tw:flex tw:w-full tw:shrink-0 tw:items-center tw:gap-1 tw:px-1.5"
+      className="sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center"
       ref={ref}
     >
       <PopoverMenu
         className="popover-sidebar-footer popover-menu--grid"
         open={menuOpen}
         side="top"
+        sideOffset={8}
         width={Math.max(0, sidebarWidth - 12)}
         maxWidth="calc(100vw - 16px)"
         trigger={
@@ -218,12 +225,26 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             active={settingsActive}
             asChild
             className="sidebar-settings-link"
-            labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
+            labelClassName={cx('sidebar-settings-label', 'u-min-w-0')}
             layout="flex"
-            leading={<Settings2 aria-hidden="true" size={APP_ICON_SIZE} />}
+            leading={
+              <span className="popover-account-avatar" aria-hidden="true">
+                {!githubAuthenticated ? (
+                  <Settings2 size={APP_ICON_SIZE} />
+                ) : githubUser?.avatarUrl ? (
+                  <RemoteImage
+                    alt=""
+                    fallback={<CircleUser size={APP_ICON_SIZE} />}
+                    src={githubUser.avatarUrl}
+                  />
+                ) : (
+                  <CircleUser size={APP_ICON_SIZE} />
+                )}
+              </span>
+            }
           >
             <button className="sidebar-footer-trigger" type="button">
-              设置
+              {accountTriggerName}
             </button>
           </SidebarRow>
         }
@@ -247,14 +268,14 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               }
               onClick={() => {
                 setMenuOpen(false);
-                navigate("/settings/profile");
+                navigate(githubAuthenticated ? "/settings/profile" : "/settings/git");
               }}
             >
               {accountName}
             </PopoverItem>
           </div>
         </div>
-        <DropdownMenu.Separator className="popover-divider" />
+        <PopoverSeparator />
         <div className="popover-section">
           {usageAvailable ? (
             <DropdownMenu.Sub>
@@ -277,6 +298,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
+                  data-theme-component="dropdown-surface"
                   alignOffset={-4}
                   aria-label="剩余用量详情"
                   className="popover-surface popover popover-sub-content popover-usage-submenu"
@@ -306,17 +328,12 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                         role="group"
                       >
                         {usageRows.map(row => (
-                          <div className="popover-usage-row" key={row.label}>
+                          <div className="popover-usage-row" key={row.id}>
                             <span className="popover-usage-label">{row.label}</span>
                             <span className="popover-usage-value">
                               <span className="popover-usage-amount">
                                 {row.usage}
                               </span>
-                              {row.reset ? (
-                                <span className="popover-usage-reset">
-                                  {row.reset}
-                                </span>
-                              ) : null}
                             </span>
                           </div>
                         ))}
@@ -340,7 +357,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                           'popover-usage-action-label',
                           'u-flex-1',
                           'u-min-w-0',
-                          'u-truncate',
                         )}
                       >
                         了解更多
@@ -375,20 +391,22 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           >
             设置
           </PopoverItem>
-          <PopoverItem
-            icon={<LogOut size={APP_ICON_SIZE} />}
-            onClick={() => {
-              setMenuOpen(false);
-              void desktopClient.logOut();
-            }}
-          >
-            退出登录
-          </PopoverItem>
+          {githubAuthenticated ? (
+            <PopoverItem
+              icon={<LogOut size={APP_ICON_SIZE} />}
+              onClick={() => {
+                setMenuOpen(false);
+                void logoutGithub();
+              }}
+            >
+              退出登录
+            </PopoverItem>
+          ) : null}
         </div>
       </PopoverMenu>
       <div className="sidebar-footer-status-slot">
         {updateIndicator.visible ? (
-          <Button
+          <Button color="primary"
             aria-label={updateIndicator.ariaLabel}
             className="sidebar-update-indicator"
             data-phase={updateIndicator.phase}
@@ -420,7 +438,9 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             trigger={
               <IconButton
                 className="sidebar-help-button"
+                color="ghost"
                 ref={helpMenuTriggerRef}
+                size="icon"
                 title="帮助"
               >
                 <HelpCircle size={APP_ICON_SIZE} />
@@ -468,15 +488,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const quotas = criticalQuotaWindows(usage.source, 3)
   if (quotas.length > 0) {
-    return quotas.map(quota => ({
+    return quotas.map((quota, index) => ({
+      id: `${quota.id}-${index}`,
       label: quota.label,
       usage: formatQuotaValue(quota),
-      reset: quota.state === 'unlimited' ? '' : formatResetTime(quota.resetsAt),
     }))
   }
-  return allBalances(usage.source).map(balance => ({
+  return allBalances(usage.source).map((balance, index) => ({
+    id: `${balance.currency}-${index}`,
     label: balance.currency,
     usage: `余额 ${formatAmount(balance.currency, balance.total)}`,
-    reset: '',
   }))
 }

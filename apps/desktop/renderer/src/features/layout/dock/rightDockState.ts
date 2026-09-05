@@ -4,11 +4,59 @@ export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel'
 
 export type MarkdownFileViewMode = 'rich' | 'source'
 
+export type UserAttachmentPreviewSource =
+  | {
+      storage: 'thread'
+      attachmentId: string
+    }
+  | {
+      storage: 'draft'
+      data: string
+      encoding: 'base64' | 'utf8'
+    }
+  | {
+      storage: 'draft-path'
+      grantId: string
+      relativePath?: string
+    }
+  | {
+      storage: 'thread-path'
+      threadId: string
+      referenceId: string
+      relativePath?: string
+    }
+
+export type UserAttachmentPreviewTab = {
+  id: 'user-attachment-preview'
+  kind: 'attachment-preview'
+  attachment: {
+    id: string
+    kind: 'image' | 'text' | 'binary' | 'directory'
+    name: string
+    mediaType: string
+    sizeBytes: number
+  }
+  source: UserAttachmentPreviewSource
+}
+
+/** A process-local, read-only preview for an installed non-builtin SKILL.md. */
+export type SkillPreviewTab = {
+  id: `skill-preview:${string}`
+  kind: 'skill-preview'
+  skill: {
+    name: string
+    path: string
+    workspacePath: string | null
+  }
+}
+
 export type WorkbenchTabKind =
   | 'review'
   | 'browser'
   | 'file-browser'
   | 'file-preview'
+  | 'attachment-preview'
+  | 'skill-preview'
   | 'plan'
   | 'side-chat'
   | 'side-task'
@@ -43,7 +91,16 @@ export type WorkbenchTabDescriptor =
       eventId: string
       title: string
     }
-  | { id: 'side-chat'; kind: 'side-chat' }
+  | {
+      id: `side-chat:${string}`
+      kind: 'side-chat'
+      threadId: string
+      sourceThreadId: string
+      inheritedThroughTurnId: string | null
+      title: string
+    }
+  | UserAttachmentPreviewTab
+  | SkillPreviewTab
   | { id: 'terminal'; kind: 'terminal' }
   | {
       id: `side-task:${string}`
@@ -53,6 +110,36 @@ export type WorkbenchTabDescriptor =
     }
 
 export type WorkbenchTabId = WorkbenchTabDescriptor['id']
+
+export function createSkillPreviewTab(input: {
+  name: string
+  path: string
+  workspacePath: string | null
+}): SkillPreviewTab {
+  return {
+    id: `skill-preview:${skillPreviewFingerprint(input.path)}`,
+    kind: 'skill-preview',
+    skill: input,
+  }
+}
+
+/**
+ * Keeps a tab identity stable without placing a local absolute path in DOM,
+ * UI persistence, logs, or drag payloads. This is an identifier, not a
+ * security primitive: the original path remains only in the in-memory tab.
+ */
+function skillPreviewFingerprint(path: string): string {
+  return `${fnv1a(path).toString(36)}-${fnv1a(`${path}\u0000`).toString(36)}`
+}
+
+function fnv1a(value: string): number {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
 
 export type WorkbenchPanelSnapshot = {
   open: boolean
@@ -82,6 +169,11 @@ export type WorkbenchPanelAction =
       target: WorkbenchPanelTarget
       tab: WorkbenchTabDescriptor
       index?: number
+    }
+  | {
+      type: 'replaceTab'
+      previousTabId: WorkbenchTabId
+      tab: WorkbenchTabDescriptor
     }
   | {
       type: 'selectTab'
@@ -152,7 +244,11 @@ export function applyWorkbenchPanelAction(
 ): WorkbenchTabsState {
   if (action.type === 'focusPanel') {
     const focusArea: WorkbenchFocusArea =
-      action.target === 'main' ? 'main' : `${action.target}-panel`
+      action.target === 'main' ||
+      !state[action.target].open ||
+      !state[action.target].activeTabId
+        ? 'main'
+        : `${action.target}-panel`
     return focusArea === state.focusArea ? state : { ...state, focusArea }
   }
 
@@ -249,6 +345,31 @@ export function applyWorkbenchPanelAction(
     }
   }
 
+  if (action.type === 'replaceTab') {
+    if (!state.tabsById[action.previousTabId]) return state
+    const tabsById = { ...state.tabsById }
+    delete tabsById[action.previousTabId]
+    tabsById[action.tab.id] = action.tab
+    const replaceInPanel = (
+      panel: WorkbenchPanelSnapshot,
+    ): WorkbenchPanelSnapshot => ({
+      ...panel,
+      activeTabId:
+        panel.activeTabId === action.previousTabId
+          ? action.tab.id
+          : panel.activeTabId,
+      tabIds: panel.tabIds.map(tabId =>
+        tabId === action.previousTabId ? action.tab.id : tabId,
+      ),
+    })
+    return {
+      ...state,
+      tabsById,
+      right: replaceInPanel(state.right),
+      bottom: replaceInPanel(state.bottom),
+    }
+  }
+
   if (action.type === 'selectTab') {
     const panel = state[action.target]
     if (!panel.tabIds.includes(action.tabId)) return state
@@ -330,8 +451,12 @@ export function applyWorkbenchPanelAction(
         index: action.index ?? state[action.target].tabIds.length - 1,
       })
     }
-    const source = removeTab(state[action.source], action.tabId)
+    const source = closeEmptyPanel(
+      removeTab(state[action.source], action.tabId),
+    )
     const target = insertTab(state[action.target], action.tabId, action.index)
+    const rightBecameEmpty =
+      action.source === 'right' && source.tabIds.length === 0
     return {
       ...state,
       [action.source]: source,
@@ -340,6 +465,9 @@ export function applyWorkbenchPanelAction(
         open: true,
         activeTabId: action.tabId,
       },
+      rightFullWidth: rightBecameEmpty ? false : state.rightFullWidth,
+      restoreRightFullWidthOnNextOpen:
+        rightBecameEmpty ? false : state.restoreRightFullWidthOnNextOpen,
       focusArea: `${action.target}-panel`,
     }
   }
@@ -469,12 +597,32 @@ function removeTabEverywhere(
 ): WorkbenchTabsState {
   const tabsById = { ...state.tabsById }
   delete tabsById[tabId]
+  const right = closeEmptyPanel(removeTab(state.right, tabId))
+  const bottom = closeEmptyPanel(removeTab(state.bottom, tabId))
+  const rightClosed = state.right.open && !right.open
+  const bottomClosed = state.bottom.open && !bottom.open
   return {
     ...state,
     tabsById,
-    right: removeTab(state.right, tabId),
-    bottom: removeTab(state.bottom, tabId),
+    right,
+    bottom,
+    rightFullWidth: rightClosed ? false : state.rightFullWidth,
+    restoreRightFullWidthOnNextOpen:
+      rightClosed ? false : state.restoreRightFullWidthOnNextOpen,
+    focusArea:
+      (rightClosed && state.focusArea === 'right-panel') ||
+      (bottomClosed && state.focusArea === 'bottom-panel')
+        ? 'main'
+        : state.focusArea,
   }
+}
+
+function closeEmptyPanel(
+  panel: WorkbenchPanelSnapshot,
+): WorkbenchPanelSnapshot {
+  return panel.tabIds.length === 0
+    ? { ...panel, open: false, activeTabId: null }
+    : panel
 }
 
 function removeTabsFromPanel(

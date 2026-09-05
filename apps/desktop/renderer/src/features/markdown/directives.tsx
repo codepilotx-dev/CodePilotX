@@ -1,4 +1,6 @@
 import React from 'react'
+import { ChevronRight } from 'lucide-react'
+import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
 import type {
   MarkdownDirectiveRegistry,
   MarkdownDirectiveRenderer,
@@ -57,17 +59,40 @@ const BUILTIN_DIRECTIVES: ReadonlyArray<
   ],
   [
     'details',
-    ({ argument, children, name }) => (
-      <details
-        className="md-directive md-directive-details"
-        data-md-directive={name}
-      >
-        <summary>{argument || '详情'}</summary>
-        {children}
-      </details>
-    ),
+    (props) => <DetailsDirective {...props} />,
   ],
 ]
+
+function DetailsDirective({
+  argument,
+  children,
+  name,
+}: Parameters<MarkdownDirectiveRenderer>[0]): React.ReactNode {
+  const [expanded, setExpanded] = React.useState(false)
+  const contentId = React.useId()
+
+  return (
+    <section
+      className="md-directive md-directive-details"
+      data-expanded={expanded ? 'true' : 'false'}
+      data-md-directive={name}
+    >
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="md-directive-details__summary"
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        <ChevronRight aria-hidden="true" />
+        {argument || '详情'}
+      </button>
+      <DisclosureContent expanded={expanded} id={contentId} mountPolicy="always">
+        {children}
+      </DisclosureContent>
+    </section>
+  )
+}
 
 export const DEFAULT_MARKDOWN_DIRECTIVES: MarkdownDirectiveRegistry = new Map(
   BUILTIN_DIRECTIVES,

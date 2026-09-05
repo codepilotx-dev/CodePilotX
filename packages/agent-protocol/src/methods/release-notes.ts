@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
+import { NonEmptyStringSchema } from "../wire/primitives"
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const VersionSchema = Schema.String
   .check(Schema.isPattern(/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/))
 

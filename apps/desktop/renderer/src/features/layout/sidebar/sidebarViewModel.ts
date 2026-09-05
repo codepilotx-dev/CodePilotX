@@ -5,6 +5,7 @@ import type {
 } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { sortSessionsByRecency } from '../../session/state/sessionSorting.js'
+import { normalizePathForComparison } from '../../../utils/pathUtils.js'
 
 export type SidebarSessionVisualState =
   | 'needs-input'
@@ -55,6 +56,17 @@ export type SidebarFocusSection = {
   id: SidebarFocusSectionId
   label: string
   sessions: SessionListItem[]
+}
+
+export type SidebarActivityIndicatorState = 'attention' | 'active' | 'idle'
+
+export type SlicedSidebarTimelineModel = {
+  prioritySessions: SessionListItem[]
+  pinnedSessions: SessionListItem[]
+  dateSections: SidebarFocusSection[]
+  totalCount: number
+  visibleCount: number
+  hasMore: boolean
 }
 
 export type SidebarTimelineModel = {
@@ -142,6 +154,138 @@ export function sidebarAttentionUnreadSessions(
 }
 
 /** 安全批量归档集合：仅“已完成但未读”的关注任务，排除等待用户操作或计划审批的任务。 */
+export function filterSidebarActivitySessions(
+  sessions: readonly SessionListItem[],
+  filters: {
+    showWork?: boolean
+    showChat?: boolean
+  } = {},
+): SessionListItem[] {
+  const showWork = filters.showWork ?? true
+  const showChat = filters.showChat ?? true
+  return sessions.filter(session => {
+    if (session.archivedAt) return false
+    const surface = session.creationSurface
+    const isChat = surface === 'chat'
+    const isWork =
+      surface === 'coding' ||
+      surface === 'working' ||
+      surface === undefined ||
+      surface === null
+    if (isChat && showChat) return true
+    if (isWork && showWork) return true
+    return false
+  })
+}
+
+export function deriveSidebarActivityIndicatorState(
+  sessions: readonly SessionListItem[],
+): SidebarActivityIndicatorState {
+  let hasActive = false
+  for (const session of sessions) {
+    if (session.archivedAt) continue
+    const rank = sidebarTimelinePriorityRank(session)
+    if (rank === 0 || rank === 1 || rank === 3) {
+      return 'attention'
+    }
+    if (rank === 2) {
+      hasActive = true
+    }
+  }
+  return hasActive ? 'active' : 'idle'
+}
+
+export function hasSidebarUnreadSessions(
+  sessions: readonly SessionListItem[],
+): boolean {
+  return sessions.some(
+    session => session.archivedAt == null && session.unreadAt != null,
+  )
+}
+
+export function sliceSidebarTimelineModel(
+  model: SidebarTimelineModel,
+  visibleLimit: number,
+): SlicedSidebarTimelineModel {
+  const limit = Math.max(0, visibleLimit)
+  const totalCount =
+    model.prioritySessions.length +
+    model.pinnedSessions.length +
+    model.dateSections.reduce((sum, section) => sum + section.sessions.length, 0)
+
+  let remaining = limit
+  let prioritySessions: SessionListItem[] = []
+  if (remaining > 0 && model.prioritySessions.length > 0) {
+    prioritySessions = model.prioritySessions.slice(0, remaining)
+    remaining -= prioritySessions.length
+  }
+
+  let pinnedSessions: SessionListItem[] = []
+  if (remaining > 0 && model.pinnedSessions.length > 0) {
+    pinnedSessions = model.pinnedSessions.slice(0, remaining)
+    remaining -= pinnedSessions.length
+  }
+
+  const dateSections: SidebarFocusSection[] = []
+  for (const section of model.dateSections) {
+    if (remaining <= 0) break
+    const sliceCount = Math.min(remaining, section.sessions.length)
+    if (sliceCount > 0) {
+      dateSections.push({
+        ...section,
+        sessions: section.sessions.slice(0, sliceCount),
+      })
+      remaining -= sliceCount
+    }
+  }
+
+  return {
+    prioritySessions,
+    pinnedSessions,
+    dateSections,
+    totalCount,
+    visibleCount: limit - remaining,
+    hasMore: totalCount > limit,
+  }
+}
+
+/**
+ * 时间线 visibleLimit 在 total 数据变更时的纯函数状态转换。
+ *
+ * 规则：
+ * - 首次加载（previousTotal 未定义）：保留 currentLimit（组件初始 10）。
+ * - 数据从较大值减小到较小值：clamp 到 nextTotal，避免越界后空白。
+ * - 数据从 0 再次增长（之前被 clamp 到 0）：恢复到 initialLimit，避免永远停在 0。
+ * - 数据增加或持平：保留 currentLimit。
+ *
+ * 筛选切换由组件单独 `setVisibleLimit(initialLimit)` 触发，不走本函数。
+ */
+export function clampTimelineVisibleLimit({
+  previousTotal,
+  nextTotal,
+  currentLimit,
+  initialLimit = 10,
+}: {
+  previousTotal: number | undefined
+  nextTotal: number
+  currentLimit: number
+  initialLimit?: number
+}): number {
+  if (previousTotal === undefined) {
+    return Math.max(0, currentLimit)
+  }
+  if (previousTotal > 0 && nextTotal === 0 && currentLimit > 0) {
+    return 0
+  }
+  if (previousTotal === 0 && nextTotal > 0 && currentLimit === 0) {
+    return initialLimit
+  }
+  if (nextTotal < previousTotal) {
+    return Math.min(Math.max(0, currentLimit), nextTotal)
+  }
+  return Math.max(0, currentLimit)
+}
+
 export function sidebarArchivableAttentionSessions(
   sessions: readonly SessionListItem[],
 ): SessionListItem[] {
@@ -152,7 +296,7 @@ export function sidebarArchivableAttentionSessions(
   )
 }
 
-function sidebarTimelinePriorityRank(
+export function sidebarTimelinePriorityRank(
   session: SessionListItem,
 ): number | null {
   if (
@@ -165,10 +309,14 @@ function sidebarTimelinePriorityRank(
     return 1
   }
   if (
-    session.latestTurnStatus === 'completed' &&
-    session.unreadAt != null
+    session.latestTurnStatus === 'running' ||
+    session.latestTurnStatus === 'waiting-subagents' ||
+    session.latestTurnStatus === 'queued'
   ) {
     return 2
+  }
+  if (session.unreadAt != null) {
+    return 3
   }
   return null
 }
@@ -193,8 +341,8 @@ function sortPrioritySessions(
   priorityRankById: ReadonlyMap<string, number>,
 ): SessionListItem[] {
   return [...sessions].sort((left, right) => {
-    const leftRank = priorityRankById.get(left.id) ?? 3
-    const rightRank = priorityRankById.get(right.id) ?? 3
+    const leftRank = priorityRankById.get(left.id) ?? 4
+    const rightRank = priorityRankById.get(right.id) ?? 4
     return (
       leftRank - rightRank ||
       sessionRecencyMs(right) - sessionRecencyMs(left) ||
@@ -541,7 +689,7 @@ function sessionProjectKey(session: SessionListItem): string {
 }
 
 export function normalizeSidebarPath(value: string): string {
-  return value.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(value)
 }
 
 function normalizePath(value: string): string {

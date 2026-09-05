@@ -3,14 +3,18 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   applyWorkbenchPanelAction,
+  createSkillPreviewTab,
   createDefaultWorkbenchTabsState,
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/dock/rightDockState.js'
 import {
+  getWorkbenchLauncherDefinitions,
+  getWorkbenchLauncherPresentation,
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
 } from '../src/features/layout/tabs/workbenchTabRegistry.js'
 import {
+  createDefaultConversationUiState,
   createDefaultReviewTabUiState,
   isReviewDiffExpanded,
   openPatchReviewTabState,
@@ -20,6 +24,7 @@ import {
 import {
   BOTTOM_PANEL_DEFAULT_HEIGHT,
   BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
+  RIGHT_DOCK_DEFAULT_WIDTH,
   RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
   bottomPanelHeightToRatio,
@@ -33,8 +38,26 @@ import {
   resolveInitialBottomPanelHeightRatio,
   resolveInitialRightDockWidthRatio,
 } from '../src/features/layout/shell/workbenchLayoutStorage.js'
+import {
+  WORKBENCH_LAYOUT_SCHEMA_VERSION,
+  WORKBENCH_LAYOUT_STORAGE_KEY,
+  createDefaultWorkbenchLayoutSnapshot,
+  readWorkbenchLayoutSnapshot,
+  saveWorkbenchLayoutSnapshot,
+} from '../src/features/layout/shell/workbenchLayoutStorage.js'
+import {
+  applyWorkbenchLayoutAction,
+  clampAuxiliaryPanelWidth,
+  clampBottomPanelHeight,
+  createDefaultWorkbenchLayoutState,
+  createDefaultVisibility,
+  type WorkbenchLayoutSnapshot,
+  type WorkbenchLayoutState,
+} from '../src/features/layout/shell/workbenchLayoutState.js'
 import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
 import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
+import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFrame.js'
+import { WorkbenchPanelLauncher } from '../src/features/layout/panels/WorkbenchPanelStates.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -52,12 +75,208 @@ function open(
 }
 
 describe('workbench dynamic tab state', () => {
+  test('launcher rows own their native interactive surface', () => {
+    const markup = renderToStaticMarkup(createElement(WorkbenchPanelLauncher, {
+      actions: [{
+        disabled: true,
+        icon: createElement('span', null, '图'),
+        id: 'review',
+        label: '代码审查',
+        onSelect: () => undefined,
+        reason: '当前不可用',
+        shortcut: 'Ctrl+R',
+      }],
+    }))
+
+    expect(markup).toContain('<button class="right-panel-tabs-empty-state__item" disabled="" title="当前不可用" type="button">')
+    expect(markup).toContain('<strong>代码审查</strong>')
+    expect(markup).toContain('<kbd>Ctrl+R</kbd>')
+    expect(markup).not.toContain('ui-button')
+  })
+
+  test('dock frame leaves live geometry to the panel presence owner', () => {
+    const markup = renderToStaticMarkup(createElement(
+      WorkbenchDockFrame,
+      {
+        target: 'right',
+        open: true,
+        fullWidth: false,
+        targetWidth: 600,
+        visibleWidth: 600,
+      },
+      'content',
+    ))
+
+    expect(markup).toContain('data-app-shell-focus-area="right-panel"')
+    expect(markup).toContain('data-workbench-panel-open="true"')
+    expect(markup).not.toContain('--workbench-panel-animated-width')
+    expect(markup).not.toContain('--workbench-panel-target-width')
+  })
+
+  test('始终复用一个用户附件预览标签并替换 descriptor', () => {
+    const first = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'first',
+        kind: 'text',
+        name: 'first.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'thread', attachmentId: 'first' },
+    } as const
+    const second = {
+      ...first,
+      attachment: { ...first.attachment, id: 'second', name: 'second.txt' },
+      source: { storage: 'thread', attachmentId: 'second' },
+    } as const
+    const state = open(open(createDefaultWorkbenchTabsState(), first), second)
+
+    expect(state.right.tabIds).toEqual(['user-attachment-preview'])
+    expect(state.tabsById['user-attachment-preview']).toEqual(second)
+  })
+
+  test('拒绝从持久化状态恢复用户附件预览', () => {
+    const base = createDefaultConversationUiState()
+    base.workbench.tabsById['user-attachment-preview'] = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'draft',
+        kind: 'text',
+        name: 'draft.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'draft', encoding: 'utf8', data: 'draft' },
+    }
+    base.workbench.right = {
+      open: true,
+      activeTabId: 'user-attachment-preview',
+      tabIds: ['user-attachment-preview'],
+    }
+    const restored = validateConversationUiState(base)
+
+    expect(restored.workbench.tabsById).toEqual({})
+    expect(restored.workbench.right.tabIds).toEqual([])
+  })
+
   test('labels the file browser placeholder as open file', () => {
     const tab = { id: 'file-browser', kind: 'file-browser' } as const
     const definition = getWorkbenchTabDefinition(tab)
 
     expect(definition.label).toBe('打开文件')
     expect(definition.getTitle(tab)).toBe('打开文件')
+  })
+
+  test('将非内置 Skill 打开为右侧临时只读预览标签', () => {
+    const tab = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\workspace',
+    })
+    const state = open(createDefaultWorkbenchTabsState(), tab)
+
+    expect(tab.id).toMatch(/^skill-preview:[a-z0-9]+-[a-z0-9]+$/)
+    expect(tab.id).not.toContain('release-check')
+    expect(tab.id).not.toContain('F:')
+    expect(state.right).toMatchObject({ open: true, activeTabId: tab.id })
+    expect(getWorkbenchTabDefinition(tab).getTitle(tab)).toBe('release-check')
+    expect(getWorkbenchTabDefinition(tab).launcher).toBe(false)
+  })
+
+  test('不会从会话 UI 状态恢复临时 Skill 预览标签', () => {
+    const tab = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\workspace',
+    })
+    const persisted = open(createDefaultWorkbenchTabsState(), tab)
+    const restored = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: persisted,
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(restored.workbench.tabsById).toEqual({})
+    expect(restored.workbench.right.tabIds).toEqual([])
+  })
+
+  test('matches the Codex launcher order and presentation without changing tab titles', () => {
+    const launchers = getWorkbenchLauncherDefinitions()
+    const presentation = launchers.map(definition => ({
+      kind: definition.kind,
+      ...getWorkbenchLauncherPresentation(definition),
+    }))
+
+    expect(presentation.map(item => item.kind)).toEqual([
+      'review',
+      'terminal',
+      'browser',
+      'file-browser',
+      'side-chat',
+    ])
+    expect(presentation.map(item => item.label)).toEqual([
+      '审阅',
+      '终端',
+      '浏览器',
+      '文件',
+      '侧边聊天',
+    ])
+    expect(presentation.map(item => item.shortcut)).toEqual([
+      'Ctrl+Shift+G',
+      undefined,
+      'Ctrl+T',
+      'Ctrl+P',
+      'Ctrl+Alt+S',
+    ])
+    expect(getWorkbenchTabDefinition('file-browser').getTitle({
+      id: 'file-browser',
+      kind: 'file-browser',
+    })).toBe('打开文件')
+  })
+
+  test('hides the add button for an empty header and restores the add menu for side-chat tabs', () => {
+    const baseProps = {
+      target: 'right' as const,
+      terminalDisplayPath: null,
+      onCloseTab: () => undefined,
+      onCloseOtherTabs: () => undefined,
+      onCloseTabsToRight: () => undefined,
+      onOpenTab: () => undefined,
+      onCreateSideChat: () => undefined,
+      sideChatAvailable: true,
+      onSelectTab: () => undefined,
+      onMoveTab: () => undefined,
+      onReorderTab: () => undefined,
+      onPinTab: () => undefined,
+    }
+    const emptyMarkup = renderToStaticMarkup(createElement(WorkbenchTabsHeader, {
+      ...baseProps,
+      state: { open: true, activeTabId: null, tabIds: [] },
+      tabsById: {},
+    }))
+    const sideChat = {
+      id: 'side-chat:thread-side-1',
+      kind: 'side-chat',
+      threadId: 'thread-side-1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
+    const sideChatMarkup = renderToStaticMarkup(createElement(WorkbenchTabsHeader, {
+      ...baseProps,
+      state: { open: true, activeTabId: sideChat.id, tabIds: [sideChat.id] },
+      tabsById: { [sideChat.id]: sideChat },
+    }))
+
+    expect(emptyMarkup).not.toContain('aria-label="添加标签"')
+    expect(emptyMarkup).not.toContain('aria-label="新建侧边聊天"')
+    expect(sideChatMarkup).toContain('aria-label="添加标签"')
+    expect(sideChatMarkup).not.toContain('aria-label="新建侧边聊天"')
   })
 
   test('opening an empty bottom panel does not invent a Terminal tab', () => {
@@ -111,6 +330,8 @@ describe('workbench dynamic tab state', () => {
       onCloseOtherTabs: () => undefined,
       onCloseTabsToRight: () => undefined,
       onOpenTab: () => undefined,
+      onCreateSideChat: () => undefined,
+      sideChatAvailable: true,
       onSelectTab: () => undefined,
       onMoveTab: () => undefined,
       onReorderTab: () => undefined,
@@ -139,6 +360,7 @@ describe('workbench dynamic tab state', () => {
     expect(resolveIntegratedTerminalToggleAction('thread-1', initial)).toBe('open-bottom')
     expect(resolveIntegratedTerminalToggleAction('thread-1', bottom)).toBe('hide-bottom')
     expect(resolveIntegratedTerminalToggleAction('thread-1', right)).toBe('move-to-bottom')
+    expect(resolveIntegratedTerminalToggleAction('thread-1', right, false)).toBe('unavailable')
   })
 
   test('reopening a singleton activates its existing host', () => {
@@ -165,6 +387,37 @@ describe('workbench dynamic tab state', () => {
     expect(closed.right.open).toBe(false)
     expect(closed.right.tabIds).toEqual(['review'])
     expect(reopened.right).toEqual(opened.right)
+  })
+
+  test('closing or moving the last tab closes its empty source panel', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = applyWorkbenchPanelAction(state, {
+      type: 'toggleRightFullWidth',
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closeTab',
+      target: 'right',
+      tabId: 'review',
+    })
+
+    expect(state.right).toEqual({
+      open: false,
+      activeTabId: null,
+      tabIds: [],
+    })
+    expect(state.rightFullWidth).toBe(false)
+    expect(state.focusArea).toBe('main')
+
+    state = open(state, { id: 'terminal', kind: 'terminal' }, 'right')
+    state = applyWorkbenchPanelAction(state, {
+      type: 'moveTab',
+      source: 'right',
+      target: 'bottom',
+      tabId: 'terminal',
+    })
+    expect(state.right.open).toBe(false)
+    expect(state.bottom.open).toBe(true)
+    expect(state.bottom.activeTabId).toBe('terminal')
   })
 
   test('supports multiple plans and side tasks', () => {
@@ -195,8 +448,44 @@ describe('workbench dynamic tab state', () => {
     ])
   })
 
+  test('replaces a loading side-chat tab in place', () => {
+    const loading = {
+      id: 'side-chat:loading:1',
+      kind: 'side-chat',
+      threadId: 'loading:1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
+    const ready = {
+      ...loading,
+      id: 'side-chat:thread-side-1',
+      threadId: 'thread-side-1',
+      inheritedThroughTurnId: 'turn-boundary',
+    } as const
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = open(state, loading)
+    state = applyWorkbenchPanelAction(state, {
+      type: 'replaceTab',
+      previousTabId: loading.id,
+      tab: ready,
+    })
+
+    expect(state.right.tabIds).toEqual(['review', ready.id])
+    expect(state.right.activeTabId).toBe(ready.id)
+    expect(state.tabsById[loading.id]).toBeUndefined()
+    expect(state.tabsById[ready.id]).toEqual(ready)
+  })
+
   test('back/close from a side task removes its tab, closes the panel, and restores main focus', () => {
-    const sideChat = { id: 'side-chat', kind: 'side-chat' } as const
+    const sideChat = {
+      id: 'side-chat:thread-side-1',
+      kind: 'side-chat',
+      threadId: 'thread-side-1',
+      sourceThreadId: 'thread-main',
+      inheritedThroughTurnId: null,
+      title: '侧边聊天',
+    } as const
     let state = open(createDefaultWorkbenchTabsState(), sideChat)
     state = open(state, {
       id: 'side-task:task-1',
@@ -216,12 +505,12 @@ describe('workbench dynamic tab state', () => {
       target: 'right',
     })
 
-    expect(state.right.tabIds).toEqual(['side-chat'])
+    expect(state.right.tabIds).toEqual([sideChat.id])
     expect(state.tabsById['side-task:task-1']).toBeUndefined()
     expect(state.right.open).toBe(false)
     expect(state.focusArea).toBe('main')
     // 普通侧边聊天标签不受影响
-    expect(state.tabsById['side-chat']).toEqual(sideChat)
+    expect(state.tabsById[sideChat.id]).toEqual(sideChat)
     expect(state.bottom.tabIds).toEqual([])
   })
 
@@ -563,14 +852,13 @@ describe('workbench dynamic tab state', () => {
       planTab.id,
     ])
     expect(state.workbench.right.activeTabId).toBe(planTab.id)
-    expect(state.workbench.bottom.tabIds).toEqual([sideChat.id])
-    expect(state.workbench.bottom.activeTabId).toBe(sideChat.id)
+    expect(state.workbench.bottom.tabIds).toEqual([])
+    expect(state.workbench.bottom.activeTabId).toBeNull()
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
     expect(state.workbench.tabsById).toEqual({
       review,
       [fileTab.id]: fileTab,
       [planTab.id]: planTab,
-      [sideChat.id]: sideChat,
     })
     expect(state.workbench.focusArea).toBe('bottom-panel')
     expect(state.schemaVersion).toBe(4)
@@ -736,6 +1024,49 @@ describe('workbench dynamic tab state', () => {
     expect(
       state.workbench.tabsById['file:docs/guide.md'],
     ).not.toHaveProperty('markdownViewMode')
+  })
+
+  test('rebinds restored file tabs to the current project folder identity', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file:README.md': {
+            id: 'file:README.md',
+            kind: 'file-preview',
+            workspacePath: 'F:\\project',
+            projectId: 'stale-project',
+            folderId: 'stale-folder',
+            relativePath: 'README.md',
+            preview: false,
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file:README.md',
+          tabIds: ['file:README.md'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    }, {
+      fileScopes: [{
+        projectId: 'current-project',
+        folderId: 'current-folder',
+        workspacePath: 'F:/project',
+      }],
+    })
+
+    expect(state.workbench.tabsById['file:README.md']).toMatchObject({
+      projectId: 'current-project',
+      folderId: 'current-folder',
+    })
   })
 
   test('reopens the file-browser tab with updated directoryPath', () => {
@@ -911,8 +1242,10 @@ describe('workbench dynamic tab state', () => {
 })
 
 describe('workbench right panel sizing', () => {
-  test('使用 Codex 响应式默认值并按比例适配窗口宽度', () => {
+  test('使用 Codex 动态公式计算默认宽度并按可用工作区夹紧', () => {
+    expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(600)
     expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(1_000)
+    expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(348)
 
     const ratio = rightDockWidthToRatio(700, 1_500)
     expect(rightDockWidthFromRatio(ratio, 1_500)).toBe(700)
@@ -936,23 +1269,23 @@ describe('workbench right panel sizing', () => {
     expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(220)
   })
 
-  test('右栏自动隐藏和恢复使用 672/696 回差', () => {
+  test('右栏按整窗 960px 阈值自动收起，恢复保留 24px 回差', () => {
     let state = createRightDockResponsiveState(800)
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 671,
+      windowWidth: 959,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 680,
+      windowWidth: 970,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 696,
+      windowWidth: 984,
     })
     expect(state).toEqual({ suppressed: false, manualOverride: false })
   })
@@ -961,19 +1294,19 @@ describe('workbench right panel sizing', () => {
     let state = createRightDockResponsiveState(660)
     state = reduceRightDockResponsiveState(state, {
       type: 'manualOpen',
-      workspaceWidth: 660,
+      windowWidth: 660,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: true })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'resize',
-      workspaceWidth: 600,
+      windowWidth: 600,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: true })
 
     state = reduceRightDockResponsiveState(state, {
       type: 'manualClose',
-      workspaceWidth: 600,
+      windowWidth: 600,
     })
     expect(state).toEqual({ suppressed: true, manualOverride: false })
   })
@@ -1027,5 +1360,378 @@ describe('workbench right panel sizing', () => {
       800,
     )
     expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
+  })
+})
+
+describe('workbench layout snapshot v1', () => {
+  const baselineInput = {
+    workspaceWidth: 1_600,
+    workspaceHeight: 900,
+    sidebarCollapsed: false,
+    sidebarWidth: 300,
+    rightDockRatio: 0.4,
+    bottomPanelRatio: 0.25,
+  } as const
+
+  function makeSnapshot(
+    overrides: Partial<WorkbenchLayoutSnapshot> = {},
+  ): WorkbenchLayoutSnapshot {
+    const base = createDefaultWorkbenchLayoutSnapshot(baselineInput)
+    return { ...base, ...overrides }
+  }
+
+  function makeMemoryStorage(): Storage {
+    const map = new Map<string, string>()
+    return {
+      get length() {
+        return map.size
+      },
+      clear() {
+        map.clear()
+      },
+      getItem(key) {
+        return map.get(key) ?? null
+      },
+      key(index) {
+        return Array.from(map.keys())[index] ?? null
+      },
+      removeItem(key) {
+        map.delete(key)
+      },
+      setItem(key, value) {
+        map.set(key, String(value))
+      },
+    } as Storage
+  }
+
+  test('默认可见态下 mainContent 必须为 true', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+
+    expect(state.visibility.mainContent).toBe(true)
+    expect(state.visibility.primarySidebar).toBe(true)
+    expect(state.auxiliaryMaximized).toBe(false)
+    expect(state.beforeAuxiliaryMaximized).toBeNull()
+    expect(state.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('legacy/default 构造以调用方传入的 sidebar 状态覆盖 primarySidebar', () => {
+    const visible = createDefaultWorkbenchLayoutSnapshot(baselineInput)
+    const collapsed = createDefaultWorkbenchLayoutSnapshot({
+      ...baselineInput,
+      sidebarCollapsed: true,
+      sidebarWidth: 480,
+    })
+
+    expect(visible.visibility.primarySidebar).toBe(true)
+    expect(visible.primarySidebarWidth).toBe(300)
+    expect(visible.auxiliaryPanelWidth).toBe(640)
+    expect(visible.bottomPanelHeight).toBe(225)
+    expect(visible.visibility.mainContent).toBe(true)
+
+    expect(collapsed.visibility.primarySidebar).toBe(false)
+    expect(collapsed.primarySidebarWidth).toBe(480)
+  })
+
+  test('合法 v1 解析并返回 clamp 后的快照', () => {
+    const storage = makeMemoryStorage()
+    const oversized: WorkbenchLayoutSnapshot = makeSnapshot({
+      primarySidebarWidth: 9_999,
+      auxiliaryPanelWidth: 9_999,
+      bottomPanelHeight: 9_999,
+    })
+    storage.setItem(WORKBENCH_LAYOUT_STORAGE_KEY, JSON.stringify(oversized))
+
+    const result = readWorkbenchLayoutSnapshot(
+      { ...baselineInput, sidebarCollapsed: true },
+      { storage },
+    )
+
+    expect(result.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(result.primarySidebarWidth).toBeLessThanOrEqual(520)
+    expect(result.primarySidebarWidth).toBeGreaterThanOrEqual(240)
+    expect(result.auxiliaryPanelWidth).toBeLessThanOrEqual(
+      1_600 - 352,
+    )
+    expect(result.auxiliaryPanelWidth).toBeGreaterThanOrEqual(320)
+    expect(result.bottomPanelHeight).toBeGreaterThanOrEqual(160)
+    expect(result.visibility.mainContent).toBe(true)
+  })
+
+  test('非法 v1 字符串回退到调用方输入构造的默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(WORKBENCH_LAYOUT_STORAGE_KEY, '{"schemaVersion":1')
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(result.primarySidebarWidth).toBe(300)
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.auxiliaryMaximized).toBe(false)
+  })
+
+  test('schemaVersion 不匹配时回退到默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 99,
+        visibility: createDefaultVisibility(),
+        primarySidebarWidth: 300,
+        auxiliaryPanelWidth: 500,
+        bottomPanelHeight: 200,
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.primarySidebarWidth).toBe(300)
+  })
+
+  test('缺失关键字段的 v1 回退到默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        visibility: createDefaultVisibility(),
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+  })
+
+  test('visibility 字段非 boolean 时整体回退默认快照', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(
+      WORKBENCH_LAYOUT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        visibility: {
+          primarySidebar: true,
+          mainContent: true,
+          auxiliaryPanel: 'yes',
+          bottomPanel: false,
+        },
+        primarySidebarWidth: 300,
+        auxiliaryPanelWidth: 500,
+        bottomPanelHeight: 200,
+        auxiliaryMaximized: false,
+        beforeAuxiliaryMaximized: null,
+        beforeAuxiliaryMaximizedAuxiliaryWidth: null,
+      }),
+    )
+
+    const result = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(result.auxiliaryPanelWidth).toBe(640)
+    expect(result.bottomPanelHeight).toBe(225)
+    expect(result.visibility.auxiliaryPanel).toBe(true)
+  })
+
+  test('save helper 只写 v1 key，不破坏其他 key', () => {
+    const storage = makeMemoryStorage()
+    storage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, '.5')
+    storage.setItem('codepilotx.legacy.otherKey', 'untouched')
+
+    const snapshot = makeSnapshot({ primarySidebarWidth: 305 })
+    saveWorkbenchLayoutSnapshot(snapshot, { storage })
+
+    expect(storage.getItem(WORKBENCH_LAYOUT_STORAGE_KEY)).not.toBeNull()
+    expect(storage.getItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY)).toBe('.5')
+    expect(storage.getItem('codepilotx.legacy.otherKey')).toBe('untouched')
+    const written = JSON.parse(
+      storage.getItem(WORKBENCH_LAYOUT_STORAGE_KEY) as string,
+    )
+    expect(written.schemaVersion).toBe(WORKBENCH_LAYOUT_SCHEMA_VERSION)
+    expect(written.primarySidebarWidth).toBe(305)
+  })
+
+  test('尺寸 clamp 在 reducer 中统一应用', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+
+    const tooSmall = applyWorkbenchLayoutAction(state, {
+      type: 'commitPrimarySidebarSize',
+      size: 10,
+    })
+    const tooLarge = applyWorkbenchLayoutAction(state, {
+      type: 'commitAuxiliaryPanelSize',
+      size: 9_999,
+      workspaceWidth: 1_600,
+    })
+    const tooTall = applyWorkbenchLayoutAction(state, {
+      type: 'commitBottomPanelSize',
+      size: 9_999,
+      workspaceHeight: 900,
+    })
+
+    expect(tooSmall.primarySidebarWidth).toBe(240)
+    expect(tooLarge.auxiliaryPanelWidth).toBe(1_248)
+    expect(tooTall.bottomPanelHeight).toBeLessThanOrEqual(450)
+    expect(tooTall.bottomPanelHeight).toBeGreaterThanOrEqual(160)
+  })
+
+  test('辅助栏宽度 clamp helper 与 right dock 范围一致', () => {
+    expect(clampAuxiliaryPanelWidth(9_999, 1_600)).toBe(1_248)
+    expect(clampAuxiliaryPanelWidth(0, 1_600)).toBe(320)
+    expect(clampBottomPanelHeight(9_999, 900)).toBeLessThanOrEqual(450)
+    expect(clampBottomPanelHeight(0, 900)).toBe(160)
+  })
+
+  test('隐藏 Part 后再显示保持原始尺寸', () => {
+    const initial = applyWorkbenchLayoutAction(
+      createDefaultWorkbenchLayoutState(1_600, 900),
+      { type: 'commitPrimarySidebarSize', size: 320 },
+    )
+
+    const hidden = applyWorkbenchLayoutAction(initial, {
+      type: 'setVisibility',
+      part: 'primary-sidebar',
+      visible: false,
+    })
+    const shown = applyWorkbenchLayoutAction(hidden, {
+      type: 'setVisibility',
+      part: 'primary-sidebar',
+      visible: true,
+    })
+
+    expect(shown.visibility.primarySidebar).toBe(true)
+    expect(shown.primarySidebarWidth).toBe(initial.primarySidebarWidth)
+  })
+
+  test('进入/退出辅助栏最大化完整恢复可见集合与宽度', () => {
+    const baseline = createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.auxiliaryPanelWidth = 720
+    baseline.visibility.bottomPanel = true
+
+    const entered = applyWorkbenchLayoutAction(baseline, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(entered.auxiliaryMaximized).toBe(true)
+    expect(entered.visibility).toEqual({
+      primarySidebar: false,
+      mainContent: false,
+      auxiliaryPanel: true,
+      bottomPanel: false,
+    })
+    expect(entered.beforeAuxiliaryMaximized).toEqual(baseline.visibility)
+    expect(entered.beforeAuxiliaryMaximizedAuxiliaryWidth).toBe(720)
+    expect(entered.auxiliaryPanelWidth).toBe(720)
+
+    const exited = applyWorkbenchLayoutAction(entered, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(exited.auxiliaryMaximized).toBe(false)
+    expect(exited.visibility).toEqual(baseline.visibility)
+    expect(exited.auxiliaryPanelWidth).toBe(720)
+    expect(exited.beforeAuxiliaryMaximized).toBeNull()
+    expect(exited.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('重复进入或退出最大化是无操作', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+    const entered = applyWorkbenchLayoutAction(state, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    const enteredAgain = applyWorkbenchLayoutAction(entered, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(enteredAgain).toBe(entered)
+
+    const exited = applyWorkbenchLayoutAction(enteredAgain, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    const exitedAgain = applyWorkbenchLayoutAction(exited, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(exitedAgain).toBe(exited)
+  })
+
+  test('普通态下关闭 main-content 是无操作，最大化内部仍由 enter 切换', () => {
+    const state = createDefaultWorkbenchLayoutState(1_600, 900)
+    const rejected = applyWorkbenchLayoutAction(state, {
+      type: 'setVisibility',
+      part: 'main-content',
+      visible: false,
+    })
+    expect(rejected).toBe(state)
+    expect(rejected.visibility.mainContent).toBe(true)
+
+    const maximized = applyWorkbenchLayoutAction(state, {
+      type: 'enterAuxiliaryMaximized',
+    })
+    expect(maximized.visibility.mainContent).toBe(false)
+
+    const restored = applyWorkbenchLayoutAction(maximized, {
+      type: 'exitAuxiliaryMaximized',
+    })
+    expect(restored.visibility.mainContent).toBe(true)
+  })
+
+  test('最大化期间隐藏辅助栏恢复 mainContent 且保留可见集合', () => {
+    const baseline = createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.visibility.mainContent = true
+    baseline.auxiliaryPanelWidth = 700
+
+    const maximized: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      baseline,
+      { type: 'enterAuxiliaryMaximized' },
+    )
+    const restored: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      maximized,
+      { type: 'setVisibility', part: 'auxiliary-panel', visible: false },
+    )
+
+    expect(restored.auxiliaryMaximized).toBe(false)
+    expect(restored.visibility.auxiliaryPanel).toBe(false)
+    expect(restored.visibility.mainContent).toBe(true)
+    expect(restored.visibility.primarySidebar).toBe(
+      maximized.beforeAuxiliaryMaximized?.primarySidebar,
+    )
+    expect(restored.visibility.bottomPanel).toBe(
+      maximized.beforeAuxiliaryMaximized?.bottomPanel,
+    )
+    expect(restored.auxiliaryPanelWidth).toBe(700)
+    expect(restored.beforeAuxiliaryMaximized).toBeNull()
+    expect(restored.beforeAuxiliaryMaximizedAuxiliaryWidth).toBeNull()
+  })
+
+  test('持久化时最大化快照保持 beforeAuxiliaryMaximized 字段以便恢复', () => {
+    const storage = makeMemoryStorage()
+    const baseline: WorkbenchLayoutState =
+      createDefaultWorkbenchLayoutState(1_600, 900)
+    baseline.visibility.bottomPanel = true
+    baseline.auxiliaryPanelWidth = 660
+
+    const snapshot: WorkbenchLayoutSnapshot = {
+      ...applyWorkbenchLayoutAction(baseline, {
+        type: 'enterAuxiliaryMaximized',
+      }),
+      schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
+    }
+    saveWorkbenchLayoutSnapshot(snapshot, { storage })
+
+    const restored = readWorkbenchLayoutSnapshot(baselineInput, { storage })
+
+    expect(restored.auxiliaryMaximized).toBe(true)
+    expect(restored.beforeAuxiliaryMaximized).not.toBeNull()
+    expect(restored.beforeAuxiliaryMaximizedAuxiliaryWidth).toBe(660)
+
+    const exited: WorkbenchLayoutState = applyWorkbenchLayoutAction(
+      restored as WorkbenchLayoutState,
+      { type: 'exitAuxiliaryMaximized' },
+    )
+    expect(exited.visibility).toEqual(baseline.visibility)
+    expect(exited.auxiliaryPanelWidth).toBe(660)
   })
 })

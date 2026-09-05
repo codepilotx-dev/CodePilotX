@@ -5,6 +5,7 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktop,
   agentThreadSnapshotToDesktop,
+  agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
   permissionModeFromPermissionConfig,
 } from '../src/services/agentThreadAdapter.js'
@@ -28,6 +29,12 @@ const projectWorkspace = {
 }
 
 describe('agent thread adapter', () => {
+  test('maps terminal lifecycle states out of the sidebar running state', () => {
+    expect(agentTurnStatusToDesktopStatus('completed')).toBe('done')
+    expect(agentTurnStatusToDesktopStatus('failed')).toBe('error')
+    expect(agentTurnStatusToDesktopStatus('interrupted')).toBe('interrupted')
+  })
+
   test('maps built-in permission modes without widening the default sandbox', () => {
     expect(desktopPermissionModeToPermissionConfig('default')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' })
     expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })
@@ -48,11 +55,33 @@ describe('agent thread adapter', () => {
     const item = agentThreadListItemToDesktop(thread, project)
     expect(item.status).toBe('waiting')
     expect(item.workspacePath).toBe(project.rootPath)
+    expect(item.preview).toBe('预览')
     expect(item.firstPrompt).toBe('第一条消息')
     expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
     expect(item.gitBranch).toBe('codex/hover-card')
     expect(item.unreadAt).toBe('2023-11-14T22:13:20.500Z')
+    expect(item.creationSurface).toBeUndefined()
+  })
+
+  test('maps creationSurface for coding, working, chat, and legacy undefined', () => {
+    const baseThread: ThreadListItem = {
+      id: 'thread-surface-test', projectID: project.id, gitBranch: 'main', workspace: projectWorkspace, title: 'Surface test', preview: 'preview',
+      firstUserMessage: 'hello', messageCount: 1, latestTurnStatus: 'completed',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const itemCoding = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'coding' }, project)
+    expect(itemCoding.creationSurface).toBe('coding')
+
+    const itemWorking = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'working' }, project)
+    expect(itemWorking.creationSurface).toBe('working')
+
+    const itemChat = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'chat' }, project)
+    expect(itemChat.creationSurface).toBe('chat')
+
+    const itemLegacy = agentThreadListItemToDesktop(baseThread, project)
+    expect(itemLegacy.creationSurface).toBeUndefined()
   })
 
   test('maps a projectless thread to a standalone session with its real cwd', () => {
@@ -94,7 +123,7 @@ describe('agent thread adapter', () => {
 
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, archivedAt: 1_700_000_007_000, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
@@ -133,6 +162,7 @@ describe('agent thread adapter', () => {
     expect(desktop.item.model).toBe('deepseek-chat')
     expect(desktop.item.planModeActive).toBe(true)
     expect(desktop.item.permissionMode).toBe('auto-review')
+    expect(desktop.item.archivedAt).toBe('2023-11-14T22:13:27.000Z')
     expect(desktop.view.messages.map(message => message.text)).toContain('实现历史对话')
     expect(desktop.view.messages.map(message => message.text)).toContain('可以开始。')
     expect(desktop.view.toolLog).toHaveLength(2)
@@ -603,5 +633,35 @@ describe('agent thread adapter', () => {
     expect(agentThreadListItemToDesktop(thread, project).latestTurnStatus).toBe(
       agentThreadSnapshotToDesktop(snapshot, project).item.latestTurnStatus,
     )
+  })
+
+  test('maps cancelled turn status to a cancelled session instead of idle', () => {
+    const thread: ThreadListItem = {
+      id: 'thread-cancelled', projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '已取消会话',
+      preview: null, firstUserMessage: null, messageCount: 1, latestTurnStatus: 'cancelled',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const item = agentThreadListItemToDesktop(thread, project)
+    expect(item.status).toBe('cancelled')
+    expect(item.latestTurnStatus).toBe('cancelled')
+
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-cancelled-snap', title: '已取消快照', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+      },
+      turns: [{
+        id: 'turn-cancelled', threadId: 'thread-cancelled-snap', sourceInputID: 'input-cancelled', status: 'cancelled', mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+        rootAgentId: 'agent-cancelled', mergedInputIDs: [], startedAt: 1_700_000_000_000,
+        finishedAt: 1_700_000_001_000, elapsedSeconds: 1, error: null,
+      }],
+      agents: [], inputs: [], messages: [], items: [], approvals: [],
+    }
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.status).toBe('cancelled')
+    expect(desktop.item.latestTurnStatus).toBe('cancelled')
   })
 })

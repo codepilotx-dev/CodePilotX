@@ -1,250 +1,280 @@
+// ============================================================================
+// CodePilotX Design System - Global System Tokens & Semantic Scales
+// Layer: @layer tokens
+// Layer boundary: --cpx-sys-* = public semantic (any consumer). --cpx-comp-*
+// (in codex-semantic-tokens.scss) = private to the matching base component.
+// Selector-scoped locals = declared by the Feature itself, never here.
+// ============================================================================
+
 :root {
-  --workspace-fixed-controls-width: 0px;
-  --contrast: 0;
+  // System Colors (Light Default)
+  --cpx-sys-color-surface-canvas: #f9f9f9;
+  --cpx-sys-color-surface-recessed: #f0f0f0;
+  --cpx-sys-color-surface-panel: #f4f4f4;
+  --cpx-sys-color-surface-control: #fafafa;
+  --cpx-sys-color-surface-raised: #fafafa;
+  --cpx-sys-color-surface-editor: #f5f5f5;
+  --cpx-sys-color-scrim: rgb(0 0 0 / 26%);
 
-  // Theme-provider foundation values. Pages consume --color-token-* instead.
-  --codex-base-accent: #339cff;
-  --codex-base-contrast: 0;
-  --codex-base-ink: #1a1c1f;
-  --codex-base-on-accent: #ffffff;
-  --codex-base-surface: #ffffff;
-  --color-accent-blue: var(--codex-base-accent);
-  --color-accent-purple: #924ff7;
-  --color-decoration-added: #00a240;
-  --color-decoration-deleted: #e02e2a;
-  --color-danger: var(--color-decoration-deleted);
-  --color-warning: #a05a00;
+  // Workbench region surfaces. Keep regions independently addressable while
+  // the panel regions follow the workspace surface by default.
+  --cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-sys-color-workbench-sidebar-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);
 
-  --shadow-resting: none;
-  --shadow-raised: 0 1px 3px -1px rgb(0 0 0 / 14%);
-  --shadow-float:
-    0 8px 20px -8px rgb(0 0 0 / 28%),
-    0 2px 6px -3px rgb(0 0 0 / 18%);
-  --shadow-2: var(--shadow-raised);
+  --cpx-sys-color-fg-primary: #111111;
+  --cpx-sys-color-fg-secondary: #585858;
+  --cpx-sys-color-fg-tertiary: #868686;
+  --cpx-sys-color-fg-disabled: #aaaaaa;
+  --cpx-sys-color-fg-on-accent: #ffffff;
 
-  --radius-button: 8px;
-  --radius-input: 8px;
-  --radius-panel: 12px;
-  --radius-card: 12px;
-  --radius-marquee: 16px;
-  --radius-base: 8px;
-  --layout-page-pad-x: 32px;
-  --layout-page-pad-y: 36px;
-  --layout-page-pad-bottom: 72px;
-  --layout-section-gap: 10px;
-  --layout-card-gap: 14px;
-  --layout-card-pad: 24px;
-  --layout-toolbar-gap: 12px;
-  --layout-composer-bottom: 26px;
-  --layout-composer-safe-pad: 78px;
-  --layout-sidebar-row-pad-y: 5px;
-  --layout-sidebar-row-pad-x: 5px;
-  --layout-sidebar-session-indent: 30px;
-  --layout-sidebar-section-gap: 18px;
-  --layout-content-w: 48rem;
-  --layout-bento-w: 840px;
+  // Static user-authored message surface. This is not an interaction state.
+  --cpx-sys-color-message-user-bg:
+    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 30px;
-  --space-8: 36px;
+  --cpx-sys-color-border-subtle: rgba(17, 17, 17, 0.049);
+  --cpx-sys-color-border-default: rgba(17, 17, 17, 0.078);
+  --cpx-sys-color-border-strong: rgba(17, 17, 17, 0.117);
+  --cpx-sys-color-border-focus: #339cff;
 
-  --font-size-ui: 14px;
-  --font-size-code: 12px;
-  --font-size-11: calc(var(--font-size-ui) - 3px);
-  --font-size-12: calc(var(--font-size-ui) - 2px);
-  --font-size-13: calc(var(--font-size-ui) - 1px);
-  --font-size-14: var(--font-size-ui);
-  --font-size-15: calc(var(--font-size-ui) + 1px);
-  --font-size-16: calc(var(--font-size-ui) + 2px);
-  --font-size-17: calc(var(--font-size-ui) + 3px);
-  --font-size-18: calc(var(--font-size-ui) + 4px);
-  --font-size-20: calc(var(--font-size-ui) + 6px);
-  --font-size-24: calc(var(--font-size-ui) + 10px);
-  --font-size-26: calc(var(--font-size-ui) + 12px);
+  --cpx-sys-color-hover: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-active: rgba(17, 17, 17, 0.05);
+  --cpx-sys-color-selected: rgba(17, 17, 17, 0.05);
 
-  --menu-font-size: var(--interactive-row-font-menu);
-  --menu-line-height: var(--interactive-row-line-menu);
-  --menu-detail-font-size: max(10px, calc(var(--font-size-ui) - 3px));
-  --menu-surface-padding: 4px;
-  --menu-item-padding-block: var(--interactive-row-padding-block-menu);
-  --menu-item-padding-inline: var(--interactive-row-padding-inline);
-  --menu-item-gap: var(--interactive-row-gap);
-  --menu-icon-size: calc(var(--menu-font-size) + 4px);
+  --cpx-sys-color-accent: #339cff;
+  --cpx-sys-color-accent-subtle-bg: #dbeafe;
+  --cpx-sys-color-accent-subtle-border: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
+  --cpx-sys-color-accent-fg: #0058dc;
+  --cpx-sys-color-success: #16a34a;
+  --cpx-sys-color-success-subtle-bg: #f5fbf7;
+  --cpx-sys-color-success-subtle-border: color-mix(in srgb, var(--cpx-sys-color-success) 22%, transparent);
+  --cpx-sys-color-success-fg: #15803d;
+  --cpx-sys-color-warning: #d97706;
+  --cpx-sys-color-warning-subtle-bg: #fffbeb;
+  --cpx-sys-color-warning-subtle-border: color-mix(in srgb, var(--cpx-sys-color-warning) 22%, transparent);
+  --cpx-sys-color-warning-fg: #b45309;
+  --cpx-sys-color-danger: #dc2626;
+  --cpx-sys-color-danger-subtle-bg: #fef2f2;
+  --cpx-sys-color-danger-subtle-border: color-mix(in srgb, var(--cpx-sys-color-danger) 22%, transparent);
+  --cpx-sys-color-danger-fg: #b91c1c;
+  --cpx-sys-color-skill: #9333ea;
+  --cpx-sys-color-skill-subtle-bg: #faf5ff;
+  --cpx-sys-color-skill-subtle-border: color-mix(in srgb, var(--cpx-sys-color-skill) 22%, transparent);
+  --cpx-sys-color-skill-fg: #7e22ce;
+  --cpx-sys-color-info: #0284c7;
+  --cpx-sys-color-info-subtle-bg: #f0f9ff;
+  --cpx-sys-color-info-subtle-border: color-mix(in srgb, var(--cpx-sys-color-info) 22%, transparent);
+  --cpx-sys-color-info-fg: #0369a1;
 
-  // Shared compact interactive-row profiles.
-  --interactive-row-height-nav: 30px;
-  --interactive-row-height-menu: 27px;
-  --interactive-row-height-toolbar: 28px;
-  --interactive-row-height-composer: 28px;
-  --interactive-row-radius: 10px;
-  --interactive-row-radius-pill: 9999px;
-  --interactive-row-padding-block-menu: 5px;
-  --interactive-row-padding-inline: 8px;
-  --interactive-row-padding-inline-composer: 6px;
-  --interactive-row-gap: 6px;
-  --interactive-row-font-nav: 14px;
-  --interactive-row-line-nav: 20px;
-  --interactive-row-font-menu: 12px;
-  --interactive-row-line-menu: 17px;
-  --interactive-row-line-compact: 18px;
-  --interactive-row-background: transparent;
-  --interactive-row-foreground: var(--color-token-foreground);
-  --interactive-row-hover-background: var(
-    --color-token-list-hover-background
-  );
-  --interactive-row-hover-foreground: var(--color-token-foreground);
-  --interactive-row-open-background: var(
-    --interactive-row-hover-background
-  );
-  --interactive-row-open-foreground: var(
-    --interactive-row-hover-foreground
-  );
-  --interactive-row-selected-background: var(
-    --color-token-list-active-selection-background
-  );
-  --interactive-row-selected-foreground: var(
-    --color-token-list-active-selection-foreground
-  );
-  --interactive-row-disabled-foreground: var(
-    --color-token-disabled-foreground
-  );
-  --interactive-row-disabled-opacity: 0.55;
-  --interactive-row-nav-height: var(--interactive-row-height-nav);
-  --interactive-row-nav-radius: var(--interactive-row-radius);
-  --interactive-row-nav-padding-inline: var(--interactive-row-padding-inline);
-  --interactive-row-nav-font-size: var(--interactive-row-font-nav);
-  --interactive-row-nav-line-height: var(--interactive-row-line-nav);
-  --interactive-row-menu-height: var(--interactive-row-height-menu);
-  --interactive-row-menu-radius: var(--interactive-row-radius);
-  --interactive-row-menu-padding-block: var(
-    --interactive-row-padding-block-menu
-  );
-  --interactive-row-menu-padding-inline: var(--interactive-row-padding-inline);
-  --interactive-row-menu-font-size: var(--interactive-row-font-menu);
-  --interactive-row-menu-line-height: var(--interactive-row-line-menu);
-  --interactive-row-toolbar-height: var(--interactive-row-height-toolbar);
-  --interactive-row-toolbar-radius: var(--interactive-row-radius);
-  --interactive-row-toolbar-padding-inline: var(
-    --interactive-row-padding-inline
-  );
-  --interactive-row-toolbar-font-size: 14px;
-  --interactive-row-toolbar-line-height: var(--interactive-row-line-compact);
-  --interactive-row-composer-height: var(--interactive-row-height-composer);
-  --interactive-row-composer-radius: var(--interactive-row-radius-pill);
-  --interactive-row-composer-padding-inline: var(
-    --interactive-row-padding-inline-composer
-  );
-  --interactive-row-composer-gap: var(--interactive-row-gap);
-  --interactive-row-composer-font-size: var(--interactive-row-font-menu);
-  --interactive-row-composer-line-height: var(--interactive-row-line-compact);
-  --interactive-row-adaptive-min-height: var(--interactive-row-height-nav);
-  --interactive-row-adaptive-radius: var(--interactive-row-radius);
-  --interactive-row-adaptive-padding-inline: var(
-    --interactive-row-padding-inline
-  );
+  --cpx-sys-color-diff-added-line: #e7f4ea;
+  --cpx-sys-color-diff-added-text: #c6e8ce;
+  --cpx-sys-color-diff-added-fg: #11652f;
+  --cpx-sys-color-diff-added-indicator: #15803d;
+  --cpx-sys-color-diff-removed-line: #f6e6e6;
+  --cpx-sys-color-diff-removed-text: #edc8c8;
+  --cpx-sys-color-diff-removed-fg: #991b1b;
+  --cpx-sys-color-diff-removed-indicator: #b91c1c;
 
-  --control-line-height: 1.4;
-  --control-padding-block-compact: 0.4em;
-  --control-padding-block: 0.45em;
-  --control-padding-inline-compact: 0.6em;
-  --control-padding-inline: 0.7em;
-  --control-gap-compact: 0.35em;
-  --control-gap: 0.57em;
-  --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
-  --control-size-md: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 6px
-  );
-  --control-size-lg: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 12px
-  );
+  // System Charts Colors
+  --cpx-sys-color-charts-red: var(--cpx-sys-color-danger);
+  --cpx-sys-color-charts-orange: #f97316;
+  --cpx-sys-color-charts-yellow: var(--cpx-sys-color-warning);
+  --cpx-sys-color-charts-green: var(--cpx-sys-color-success);
+  --cpx-sys-color-charts-blue: var(--cpx-sys-color-accent);
+  --cpx-sys-color-charts-purple: var(--cpx-sys-color-skill);
+  --cpx-sys-color-charts-cyan: var(--cpx-sys-color-info);
 
-  --type-body: var(--font-size-ui);
-  --type-control: var(--font-size-ui);
-  --type-message: var(--font-size-ui);
-  --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
-  --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
-  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
+  // System Blur & Glassmorphism
+  --cpx-sys-blur-sm: 8px;
+  --cpx-sys-blur-md: 16px;
+  --cpx-sys-blur-lg: 24px;
+  --cpx-sys-glass-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 85%, transparent);
+  --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
+  --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 
-  --radius-1: 2px;
-  --radius-2: 4px;
-  --radius-3: 6px;
-  --radius-4: 8px;
-  --radius-5: 10px;
-  --radius-6: 12px;
-  --radius-7: 16px;
-  --radius-full: 9999px;
-  --radius-user-message: var(--radius-6);
+  // System Radius (Foundational Scale)
+  --cpx-sys-radius-optical-scale: 1;
+  --cpx-sys-corner-shape: round;
+  --cpx-sys-radius-2xs: calc(2px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-xs: calc(4px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-sm: calc(6px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-md: calc(8px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-lg: calc(10px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-xl: calc(12px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-2xl: calc(16px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-3xl: calc(20px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-4xl: calc(24px * var(--cpx-sys-radius-optical-scale));
+  --cpx-sys-radius-full: 9999px;
 
-  --z-right-dock: 90;
-  --z-composer: 95;
-  --z-modal: 1200;
-  --z-popover: 1300;
-  --z-tooltip: 1400;
-  --z-toast: 10000;
+  // System Radius (Semantic Roles)
+  --cpx-sys-radius-indicator: var(--cpx-sys-radius-2xs);
+  --cpx-sys-radius-compact: var(--cpx-sys-radius-xs);
+  --cpx-sys-radius-control: var(--cpx-sys-radius-md);
+  --cpx-sys-radius-container: var(--cpx-sys-radius-lg);
+  --cpx-sys-radius-floating: var(--cpx-sys-radius-xl);
+  --cpx-sys-radius-prominent: var(--cpx-sys-radius-3xl);
+  --cpx-sys-radius-pill: var(--cpx-sys-radius-full);
 
-  --app-icon-size-sm: var(--font-size-ui);
-  --app-icon-size: calc(var(--font-size-ui) + 2px);
-  --app-icon-size-md: calc(var(--font-size-ui) + 4px);
-  --app-icon-stroke-width: 1.75;
+  // System Typography
+  --cpx-sys-font-family-sans: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cpx-sys-font-family-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
-  --motion-fast: 150ms;
-  --motion-standard: 150ms;
-  --motion-emphasis: 300ms;
-  --motion-hover: var(--motion-fast);
-  --motion-enter: var(--motion-standard);
-  --motion-exit: var(--motion-fast);
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out: ease-out;
-  --ease-in: ease-in;
+  --cpx-sys-font-size-ui: 14px;
+  --cpx-sys-font-size-code: 13px;
+  --cpx-sys-font-size-xs: 12px;
+  --cpx-sys-font-size-sm: 13px;
+  --cpx-sys-font-size-md: 14px;
+  --cpx-sys-font-size-lg: 16px;
+  --cpx-sys-font-size-xl: 18px;
+  --cpx-sys-font-size-2xl: 20px;
+  --cpx-sys-font-size-3xl: 24px;
+  --cpx-sys-font-size-4xl: 28px;
 
-  --composer-width: 48rem;
+  --cpx-sys-line-height-none: 1;
+  --cpx-sys-line-height-caption: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --cpx-sys-line-height-label: calc(var(--cpx-sys-font-size-xs) + 4px);
+  --cpx-sys-line-height-body-sm: calc(var(--cpx-sys-font-size-sm) + 5px);
+  --cpx-sys-line-height-body: calc(var(--cpx-sys-font-size-md) + 6px);
+  --cpx-sys-line-height-body-lg: calc(var(--cpx-sys-font-size-lg) + 8px);
+  --cpx-sys-line-height-heading-sm: calc(var(--cpx-sys-font-size-lg) + 6px);
+  --cpx-sys-line-height-heading-md: calc(var(--cpx-sys-font-size-xl) + 6px);
+  --cpx-sys-line-height-heading-lg: calc(var(--cpx-sys-font-size-2xl) + 8px);
+  --cpx-sys-line-height-heading-xl: calc(var(--cpx-sys-font-size-3xl) + 6px);
+  --cpx-sys-line-height-display: calc(var(--cpx-sys-font-size-4xl) + 6px);
+  --cpx-sys-line-height-tight: var(--cpx-sys-line-height-caption);
+  --cpx-sys-line-height-normal: var(--cpx-sys-line-height-body);
+  --cpx-sys-line-height-relaxed: var(--cpx-sys-line-height-body-lg);
+  --cpx-sys-line-height-reading: calc(var(--cpx-sys-font-size-md) + 10px);
+  --cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) + 7px);
+
+  --cpx-sys-font-weight-regular: 400;
+  --cpx-sys-font-weight-body: 400;
+  --cpx-sys-font-weight-medium: 500;
+  --cpx-sys-font-weight-bold: 600;
+
+  // System Typography Roles (CSS font shorthand, derived from system inputs)
+  --cpx-sys-type-display: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-4xl) / var(--cpx-sys-line-height-display) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-caption: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-caption) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-label: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-xs) / var(--cpx-sys-line-height-label) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body-sm: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-body-lg: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-body-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-reading: var(--cpx-sys-font-weight-body) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-reading) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-row-title: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-control: var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-sm: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-md: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-xl) / var(--cpx-sys-line-height-heading-md) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-lg: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-heading-xl: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-3xl) / var(--cpx-sys-line-height-heading-xl) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-metric: var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-2xl) / var(--cpx-sys-line-height-heading-lg) var(--cpx-sys-font-family-sans);
+  --cpx-sys-type-code: var(--cpx-sys-font-weight-regular) var(--cpx-sys-font-size-code) / var(--cpx-sys-line-height-code) var(--cpx-sys-font-family-mono);
+
+  // System Spacing (4px Grid)
+  --cpx-sys-space-1: 4px;
+  --cpx-sys-space-2: 8px;
+  --cpx-sys-space-3: 12px;
+  --cpx-sys-space-4: 16px;
+  --cpx-sys-space-5: 20px;
+  --cpx-sys-space-6: 24px;
+  --cpx-sys-space-7: 28px;
+  --cpx-sys-space-8: 32px;
+
+  // System Layout (Sys: public cross-feature roles; comp/selector geometry is NOT here)
+  --cpx-sys-layout-content-gutter: var(--cpx-sys-space-8);
+  --cpx-sys-layout-page-padding-inline: var(--cpx-sys-space-8);
+  --cpx-sys-layout-page-padding-block: var(--cpx-sys-space-8);
+  --cpx-sys-layout-page-padding-bottom: calc(var(--cpx-sys-space-8) * 2);
+  --cpx-sys-layout-section-gap: var(--cpx-sys-space-3);
+  --cpx-sys-layout-card-gap: var(--cpx-sys-space-4);
+  --cpx-sys-layout-card-padding: var(--cpx-sys-space-6);
+  --cpx-sys-layout-toolbar-gap: var(--cpx-sys-space-3);
+  --cpx-sys-layout-composer-bottom: var(--cpx-sys-space-7);
+  --cpx-sys-layout-composer-safe-inset: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-4));
+  --cpx-sys-layout-sidebar-row-padding: var(--cpx-sys-space-1);
+  --cpx-sys-layout-sidebar-session-indent: var(--cpx-sys-space-8);
+  --cpx-sys-layout-sidebar-section-gap: var(--cpx-sys-space-5);
+  --cpx-sys-layout-workspace-fixed-controls-width: 90px;
+  --cpx-sys-layout-reading-max-width: 768px;
+  --cpx-sys-layout-content-max-width: 1009px;
+  --cpx-sys-layout-wide-max-width: 1250px;
+
+  // System Shadows
+  --cpx-sys-shadow-resting: none;
+  --cpx-sys-shadow-raised: none;
+  --cpx-sys-shadow-prominent:
+    0 0 0 0.5px var(--cpx-sys-color-border-strong),
+    0 3px 7.5px rgb(0 0 0 / 4%),
+    0 0 20px rgb(0 0 0 / 5%);
+  --cpx-sys-shadow-floating: 0 6px 20px -6px rgb(0 0 0 / 9%), 0 2px 6px -2px rgb(0 0 0 / 4%);
+  --cpx-sys-shadow-control: 0 1px 2px -1px rgb(0 0 0 / 8%);
+
+  // System Motion (Semantic Roles)
+  --cpx-sys-motion-instant: 0ms;
+  --cpx-sys-motion-feedback: 60ms;
+  --cpx-sys-motion-exit: 90ms;
+  --cpx-sys-motion-state: 100ms;
+  --cpx-sys-motion-enter: 120ms;
+  --cpx-sys-motion-panel: 120ms;
+  --cpx-sys-motion-disclosure: 240ms;
+  --cpx-sys-motion-loading: 900ms;
+
+  // Legacy alias
+  --cpx-sys-motion-micro: var(--cpx-sys-motion-feedback);
+  --cpx-sys-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --cpx-sys-ease-disclosure: ease;
+  --cpx-sys-ease-out: ease-out;
+  --cpx-sys-ease-in: ease-in;
+  --cpx-sys-ease-linear: linear;
+
+  // System Z-Index (Semantic Roles, strictly increasing)
+  --cpx-sys-z-local: 10;
+  --cpx-sys-z-sticky: 30;
+  --cpx-sys-z-dock: 60;
+  --cpx-sys-z-composer: 95;
+  --cpx-sys-z-modal: 1200;
+  --cpx-sys-z-popover: 1300;
+  --cpx-sys-z-tooltip: 1400;
+  --cpx-sys-z-toast: 10000;
+
+  // Legacy alias
+  --cpx-sys-z-right-dock: var(--cpx-sys-z-dock);
+
+  // System Syntax Colors
+  --cpx-sys-color-syntax-keyword: #cf222e;
+  --cpx-sys-color-syntax-property: #0550ae;
+  --cpx-sys-color-syntax-string: #0a3069;
+  --cpx-sys-color-syntax-number: #098658;
+  --cpx-sys-color-syntax-comment: #6e7781;
+  --cpx-sys-color-syntax-variable: #953800;
+  --cpx-sys-color-syntax-punctuation: #24292f;
+
+  // Focus Ring
+  --cpx-sys-focus-ring: 0 0 0 3px
+    color-mix(in srgb, var(--cpx-sys-color-border-focus) 24%, transparent);
+  --cpx-sys-focus-ring-soft: 0 0 0 2px
+    color-mix(in srgb, var(--cpx-sys-color-border-focus) 18%, transparent);
+  --cpx-sys-focus-ring-inset: inset 0 0 0 1px var(--cpx-sys-color-border-focus);
+
+  // Button icon and action sizing
+  --button-icon-size-xs: 14px;
+  --button-icon-size-sm: 16px;
+  --button-size-icon-large: 36px;
+
+  // Chrome & workspace sizing
+  --chrome-h: 36px;
+  --application-menubar-height: 36px;
+  --workspace-toolbar-height: 46px;
+  --pane-toolbar-height: 40px;
   --floating-composer-h: 142px;
-  --chrome-h: calc(
-    var(--font-size-ui) + var(--font-size-ui) + 7px
-  );
-  --menubar-h: var(--chrome-h);
-  --shadow-soft: var(--shadow-resting);
-  --shadow-card: var(--shadow-resting);
-  --shadow-card-lg: var(--shadow-raised);
-  --grid-gap: var(--layout-card-gap);
-  --plan-md-base-size: 0.9em;
+  --composer-width: 48rem;
+  --context-menu-item-padding: 6px;
+}
 
-  --syntax-keyword: var(--color-text-accent);
-  --syntax-type: var(--syntax-keyword);
-  --syntax-property: var(--color-text-accent);
-  --syntax-string: var(--color-decoration-added);
-  --syntax-number: var(--color-accent-purple);
-  --syntax-operator: var(--syntax-number);
-  --syntax-comment: var(--color-token-description-foreground);
-  --syntax-variable: var(--color-token-text-tertiary);
-  --syntax-punctuation: var(--color-token-text-secondary);
-
-  --font-family-sans:
-    ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
-  --font-family-mono:
-    "JetBrains Mono", Consolas, monospace;
-  --type-card-title: var(--font-size-ui);
-  --type-section-title: calc(var(--font-size-ui));
-  --type-title-sm: calc(var(--font-size-ui) + 2px);
-  --type-title-md: calc(var(--font-size-ui) + 4px);
-  --type-title-lg: calc(var(--font-size-ui) + 6px);
-  --type-page-title: calc(var(--font-size-ui) + 12px);
-  --type-hero-title: calc(var(--font-size-ui) + 16px);
-  --type-code: var(--font-size-code);
-  --font-weight-body: 400;
-  --font-weight-label: 500;
-  --font-weight-heading: 600;
-  --font-weight-emphasis: 600;
-
-  --focus-ring: 0 0 0 3px
-    color-mix(in srgb, var(--color-token-focus-border) 24%, transparent);
-  --focus-ring-soft: 0 0 0 2px
-    color-mix(in srgb, var(--color-token-focus-border) 18%, transparent);
+@supports (corner-shape: superellipse(1.5)) {
+  :root {
+    --cpx-sys-radius-optical-scale: 1.25;
+    --cpx-sys-corner-shape: superellipse(1.5);
+  }
 }

@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []

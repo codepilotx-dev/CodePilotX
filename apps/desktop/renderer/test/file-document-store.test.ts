@@ -2,9 +2,12 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import type { DesktopFilePreview } from '../shared/types.js'
 import {
   checkFileDocumentForExternalChange,
+  fileDocumentLoadErrorMessage,
   fileDocumentKey,
   prefetchFileDocument,
+  saveAllFileDocuments,
   startFileDocumentExternalChecks,
+  updateFileDocument,
 } from '../src/features/workspace/fileDocumentStore.js'
 import { desktopClient } from '../src/services/desktop-client/index.js'
 
@@ -23,6 +26,21 @@ afterEach(() => {
 })
 
 describe('file document external checks', () => {
+  test('maps safe RPC codes to actionable file errors', () => {
+    expect(
+      fileDocumentLoadErrorMessage('PROJECT_FOLDER_NOT_FOUND', 'raw path'),
+    ).toEqual({
+      code: 'PROJECT_FOLDER_NOT_FOUND',
+      message: '文件所属的项目目录已失效，请重新打开项目后再试。',
+      retryable: true,
+    })
+    expect(fileDocumentLoadErrorMessage('FILE_NOT_TEXT', 'raw path')).toEqual({
+      code: 'FILE_NOT_TEXT',
+      message: '该文件不是受支持的文本文件。',
+      retryable: false,
+    })
+  })
+
   test('uses project and folder identity to isolate identical relative paths', () => {
     const workspacePath = 'C:\\shared'
     const path = 'README.md'
@@ -38,6 +56,36 @@ describe('file document external checks', () => {
       projectId: 'project-a',
       folderId: 'folder-b',
     })).not.toBe(first)
+  })
+
+  test('save all forwards only the stable project and folder scope', async () => {
+    const workspacePath = 'C:\\workspace\\save-all-scope'
+    const path = 'src\\scope.ts'
+    const scope = { projectId: 'project-a', folderId: 'folder-a' }
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { setTimeout: () => 1, clearTimeout: () => undefined },
+    })
+    const read = spyOn(desktopClient, 'readWorkspaceFile').mockResolvedValue(
+      preview(path, 'const value = 1', 1),
+    )
+    const save = spyOn(desktopClient, 'saveWorkspaceFile').mockResolvedValue({
+      outcome: 'saved',
+      revision: { mtimeMs: 2, sha256: 'sha-2' },
+    })
+
+    await prefetchFileDocument(workspacePath, path, scope)
+    updateFileDocument(workspacePath, path, 'const value = 2', scope)
+    await expect(saveAllFileDocuments()).resolves.toBe(true)
+
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({
+      workspacePath,
+      filePath: path,
+      projectId: 'project-a',
+      folderId: 'folder-a',
+    }))
+    read.mockRestore()
+    save.mockRestore()
   })
 
   test('retries a prefetch after the first load promise rejects', async () => {
@@ -156,6 +204,38 @@ describe('file document external checks', () => {
     expect(watch).toHaveBeenCalledWith(workspacePath, path)
     expect(unwatch).toHaveBeenCalledWith(workspacePath, path)
     read.mockRestore()
+    watch.mockRestore()
+    unwatch.mockRestore()
+  })
+
+  test('releases a watcher that finishes installing after cleanup', async () => {
+    const workspacePath = 'C:\\workspace\\delayed-watch'
+    const path = 'src\\watched.ts'
+    let finishWatch!: () => void
+    const pendingWatch = new Promise<void>(resolve => {
+      finishWatch = resolve
+    })
+    const watch = spyOn(
+      desktopClient,
+      'watchWorkspaceFile',
+    ).mockReturnValue(pendingWatch)
+    const unwatch = spyOn(
+      desktopClient,
+      'unwatchWorkspaceFile',
+    ).mockResolvedValue(undefined)
+    installWindowHarness()
+
+    const stop = startFileDocumentExternalChecks(workspacePath, path)
+    stop()
+    stop()
+    expect(unwatch).not.toHaveBeenCalled()
+
+    finishWatch()
+    await pendingWatch
+    await Promise.resolve()
+
+    expect(unwatch).toHaveBeenCalledTimes(1)
+    expect(unwatch).toHaveBeenCalledWith(workspacePath, path)
     watch.mockRestore()
     unwatch.mockRestore()
   })

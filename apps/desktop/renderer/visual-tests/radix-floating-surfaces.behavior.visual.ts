@@ -6,7 +6,7 @@ import {
   waitForVisualPage,
 } from './visual-test-helpers.js'
 
-test('Radix dropdown stays anchored and uses a solid surface', async ({
+test('Radix dropdown stays anchored and uses a readable opaque surface', async ({
   page,
 }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
@@ -19,12 +19,13 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
   await waitForVisualPage(page, 'dark', trigger)
   const triggerBox = await trigger.boundingBox()
   expect(triggerBox).not.toBeNull()
-  await trigger.click()
+  await trigger.focus()
+  await page.keyboard.press('Enter')
 
   const content = page.locator('.popover[data-side]').first()
   await expect(content).toBeVisible()
   await expect(content).toHaveAttribute('data-side', 'bottom')
-  await expectSolidSurface(content)
+  await expectReadableFloatingSurface(content)
 
   const item = content.locator('.popover-item').first()
   const [itemBox, itemStyles, scrollStyles] = await Promise.all([
@@ -48,11 +49,12 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
     }),
   ])
   expect(itemBox).not.toBeNull()
-  expect(itemBox!.height).toBeCloseTo(27, 0)
-  expect(itemStyles.borderRadius).toBeCloseTo(10, 0)
-  expect(itemStyles.fontSize).toBeCloseTo(12, 1)
-  expect(itemStyles.lineHeight).toBeCloseTo(17, 1)
-  expect(itemStyles.paddingBlockStart).toBeCloseTo(5, 0)
+  expect(itemBox!.height).toBeGreaterThanOrEqual(51.5)
+  expect(itemBox!.height).toBeLessThanOrEqual(53)
+  expect(itemStyles.borderRadius).toBeCloseTo(8, 0)
+  expect(itemStyles.fontSize).toBeCloseTo(14, 1)
+  expect(itemStyles.lineHeight).toBeCloseTo(20, 1)
+  expect(itemStyles.paddingBlockStart).toBeCloseTo(6, 0)
   expect(itemStyles.paddingInlineStart).toBeCloseTo(8, 0)
   expect(scrollStyles.paddingBlockStart).toBeCloseTo(4, 1)
   expect(scrollStyles.paddingInlineStart).toBeCloseTo(4, 1)
@@ -64,7 +66,7 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
     selectedItem.evaluate(element => {
       const probe = document.createElement('span')
       probe.style.background =
-        'var(--color-token-list-active-selection-background)'
+        'var(--state-selected-fill)'
       element.append(probe)
       const expected = getComputedStyle(probe).backgroundColor
       probe.remove()
@@ -74,11 +76,15 @@ test('Radix dropdown stays anchored and uses a solid surface', async ({
   await page.keyboard.press('ArrowDown')
   const keyboardFocusedItem = content.locator('.popover-item:focus').first()
   await expect(keyboardFocusedItem).toBeVisible()
-  await expect(
-    keyboardFocusedItem.evaluate(
-      element => getComputedStyle(element).boxShadow,
-    ),
-  ).resolves.not.toBe('none')
+  const keyboardFocusStyle = await keyboardFocusedItem.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {
+      boxShadow: style.boxShadow,
+      outlineStyle: style.outlineStyle,
+    }
+  })
+  expect(keyboardFocusStyle.outlineStyle).toBe('none')
+  expect(keyboardFocusStyle.boxShadow).not.toBe('none')
 
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
@@ -102,7 +108,7 @@ test('Radix popover stays in the viewport and respects reduced motion', async ({
 
   const colorPopover = page.locator('.appearance-color-popover[data-side]')
   await expect(colorPopover).toBeVisible()
-  await expectSolidSurface(colorPopover)
+  await expectReadableFloatingSurface(colorPopover)
   await expectSurfacePadding(colorPopover, 4)
 
   await page.keyboard.press('Escape')
@@ -163,7 +169,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
 
   const content = page.locator('.sidebar-context-menu-content[data-side]')
   await expect(content).toBeVisible()
-  await expectSolidSurface(content)
+  await expectReadableFloatingSurface(content)
   await expect(
     page.locator('.sidebar-context-menu-content[data-state="open"]'),
   ).toHaveCount(1)
@@ -192,10 +198,10 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   expect(contentBox).not.toBeNull()
   expect(contentBox!.width).toBeGreaterThanOrEqual(180)
   expect(firstItemBox).not.toBeNull()
-  expect(firstItemBox!.height).toBeCloseTo(27, 0)
-  expect(firstItemStyles.borderRadius).toBeCloseTo(10, 0)
-  expect(firstItemStyles.fontSize).toBeCloseTo(12, 1)
-  expect(firstItemStyles.lineHeight).toBeCloseTo(17, 1)
+  expect(firstItemBox!.height).toBeCloseTo(32, 0)
+  expect(firstItemStyles.borderRadius).toBeCloseTo(8, 0)
+  expect(firstItemStyles.fontSize).toBeCloseTo(14, 1)
+  expect(firstItemStyles.lineHeight).toBeCloseTo(20, 1)
   expect(firstItemStyles.paddingBlockStart).toBeCloseTo(5, 0)
   expect(firstItemStyles.paddingInlineStart).toBeCloseTo(8, 0)
   await firstItem.hover()
@@ -291,8 +297,33 @@ test('global context menu exposes editor commands and skips blank areas', async 
   const editMenuTrigger = page
     .locator('.menubar-trigger')
     .filter({ hasText: /^编辑$/ })
+  const viewMenuTrigger = page
+    .locator('.menubar-trigger')
+    .filter({ hasText: /^查看$/ })
   await editMenuTrigger.click()
   const editMenu = page.locator('.menubar-content[data-state="open"]')
+  await expect(editMenu).toBeVisible()
+
+  await editMenuTrigger.click()
+  await expect(editMenu).toHaveCount(0)
+
+  await editMenuTrigger.click()
+  await page.locator('.conversation-page').click({ position: { x: 16, y: 16 } })
+  await expect(editMenu).toHaveCount(0)
+
+  await editMenuTrigger.click()
+  await page.keyboard.press('Escape')
+  await expect(editMenu).toHaveCount(0)
+  await expect(editMenuTrigger).toBeFocused()
+
+  await viewMenuTrigger.click()
+  await expect(editMenu).toContainText('切换侧边栏')
+  await editMenuTrigger.hover()
+  await expect(editMenu).toContainText('全选')
+  await expect(page.locator('.menubar-content[data-state="open"]')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await editor.focus()
+  await editMenuTrigger.click()
   await editMenu.getByText('全选', { exact: true }).click()
   await expect(editMenu).toHaveCount(0)
   await editMenuTrigger.focus()
@@ -308,29 +339,68 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(
     page.locator('.sidebar-context-menu-content[data-state="open"]'),
   ).toHaveCount(0)
+  const trigger = (name: string) => page.locator('.menubar-trigger').filter({ hasText: name })
+  const menu = page.locator('.menubar-content[data-state="open"]')
+  await editor.focus()
+  await page.keyboard.press('F10')
+  await expect(trigger('文件')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(editor).toBeFocused()
+  await page.keyboard.press('Alt+h')
+  await expect(menu.getByText('新特性', { exact: true })).toBeVisible()
+  await expect(menu.getByText('启动性能追踪', { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+  await menu.getByText('新特性', { exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Control+,')
+  await expect(page).toHaveURL(/#\/threads\/visual-rich$/)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(trigger('帮助')).toBeFocused()
+  await trigger('查看').click()
+  for (const label of ['查找', '上一个聊天', '下一个聊天', '切换全屏']) {
+    await expect(menu.getByText(label, { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+  }
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await trigger('文件').focus()
+  await trigger('文件').press('ArrowDown')
+  await menu.getByText('设置...', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/general$/)
+  await page.keyboard.press('Control+Shift+Slash')
+  await expect(page).toHaveURL(/#\/settings\/shortcuts$/)
+  await trigger('帮助').click()
+  await menu.getByText('技能', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/plugins\?tab=skills$/)
+  await trigger('帮助').click()
+  await menu.getByText('模型上下文协议', { exact: true }).click()
+  await expect(page).toHaveURL(/#\/settings\/plugins\?tab=mcps$/)
 })
 
-async function expectSolidSurface(content: Locator): Promise<void> {
+
+async function expectReadableFloatingSurface(content: Locator): Promise<void> {
   const [contentBox, styles] = await Promise.all([
     content.boundingBox(),
     content.evaluate(element => {
       const computed = getComputedStyle(element)
+      const alphaToken = computed.backgroundColor.match(
+        /\/\s*([\d.]+%?)/,
+      )?.[1]
+      const legacyChannels = computed.backgroundColor.match(/[\d.]+%?/g)
+      const parsedAlpha = alphaToken
+        ?? (computed.backgroundColor.startsWith('rgba')
+          ? legacyChannels?.[3]
+          : undefined)
+      const backgroundAlpha = parsedAlpha?.endsWith('%')
+        ? Number.parseFloat(parsedAlpha) / 100
+        : Number.parseFloat(parsedAlpha ?? '1')
       return {
         animationName: computed.animationName,
         backdropFilter: computed.backdropFilter,
+        backgroundAlpha,
         backgroundColor: computed.backgroundColor,
         borderRadius: computed.borderRadius,
         borderTopWidth: computed.borderTopWidth,
         boxShadow: computed.boxShadow,
-        shadowColors: Array.from(
-          computed.boxShadow.matchAll(/rgba?\(([^)]+)\)/g),
-          match =>
-            match[1]
-              .split(/[,\s/]+/)
-              .filter(Boolean)
-              .slice(0, 3)
-              .map(Number),
-        ),
         position: computed.position,
       }
     }),
@@ -347,14 +417,11 @@ async function expectSolidSurface(content: Locator): Promise<void> {
   )
   expect(styles.position).not.toBe('absolute')
   expect(styles.backdropFilter).toBe('none')
-  expect(styles.backgroundColor).not.toMatch(/rgba\([^)]*,\s*0(?:\.0+)?\)$/)
-  expect(styles.borderRadius).toBe('12px')
+  expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(styles.backgroundAlpha).toBe(1)
+  expect(styles.borderRadius).toBe('16px')
   expect(styles.borderTopWidth).toBe('1px')
   expect(styles.boxShadow).not.toBe('none')
-  expect(styles.shadowColors.length).toBeGreaterThan(0)
-  for (const color of styles.shadowColors) {
-    expect(color).toEqual([0, 0, 0])
-  }
   expect(styles.animationName).not.toBe('none')
 }
 

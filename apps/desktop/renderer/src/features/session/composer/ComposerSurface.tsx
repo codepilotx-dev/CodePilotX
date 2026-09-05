@@ -17,8 +17,6 @@ export const ComposerFrame = forwardRef<HTMLDivElement, ComposerFrameProps>(
     const classNames = [
       'composer-frame',
       'tw:flex',
-      'tw:w-full',
-      'tw:max-w-[48rem]',
       'tw:flex-col',
       'tw:gap-2.5',
       'tw:pointer-events-auto',

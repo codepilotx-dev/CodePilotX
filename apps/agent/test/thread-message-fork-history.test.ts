@@ -6,7 +6,7 @@ import { removeFixturePaths } from "./fixture-cleanup"
 import { PiEventAdapter } from "../src/orchestration/pi/PiEventAdapter"
 import { ConversationHistoryForkRepository } from "../src/session/fork/ConversationHistoryForkRepository"
 import { ThreadMessageForkRepository } from "../src/session/fork/ThreadMessageForkRepository"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { TurnPiBoundaryRepository } from "../src/storage/repositories/turn-pi-boundary-repository"
 
@@ -149,6 +149,65 @@ const insertSubagent = (db: AgentDatabase, input: {
 }
 
 describe("ConversationHistoryForkRepository", () => {
+  test("侧边聊天从最新完成回复创建隐藏前缀并忽略活动 Turn", async () => {
+    const db = await database()
+    const source = db.createThread("侧边聊天来源")
+    const sessions = new SqlitePiSessionRepo(db)
+    const session = await sessions.create({ id: "side-source", threadID: source.id, agentID: "side-agent-1" })
+    await session.appendMessage({ role: "user", content: "question-side-1", timestamp: 1 })
+    const firstAssistantEntry = await session.appendMessage(assistant("side-answer-1", 2))
+    await session.appendMessage({ role: "user", content: "question-side-active", timestamp: 3 })
+    ;(session.getStorage() as SqlitePiSessionStorage).flush()
+    insertTurn(db, { threadID: source.id, turnID: "side-turn-1", agentID: "side-agent-1", sessionID: "side-source", itemID: "side-item-1", text: "side-answer-1", createdAt: 10 })
+    insertTurn(db, { threadID: source.id, turnID: "side-turn-active", agentID: "side-agent-2", sessionID: "side-source", itemID: "side-item-active", text: "partial", status: "running", createdAt: 20 })
+    new TurnPiBoundaryRepository(db).upsert({ turnID: "side-turn-1", sessionID: "side-source", entryID: firstAssistantEntry })
+
+    let id = 0
+    const history = new ConversationHistoryForkRepository(db, () => `side-id-${++id}`)
+    const created = await history.forkLatestForSideChat(source.id, {
+      operationID: "side-operation",
+      targetThreadID: "side-target",
+      referenceText: "selected reference",
+      targetWorkspace: { cwd: "C:\\repo", roots: "[]", gitBranch: "feature" },
+    }, db.repositories.sideChats)
+
+    expect(created).toMatchObject({
+      threadID: "side-target",
+      sourceThreadID: source.id,
+      referenceText: "selected reference",
+      operationID: "side-operation",
+    })
+    expect(created.inheritedThroughTurnID).not.toBe("side-turn-1")
+    expect(db.sqlite.query("SELECT title, archived_at FROM threads WHERE id = 'side-target'").get()).toEqual({
+      title: "侧边聊天来源",
+      archived_at: -1,
+    })
+    expect(db.sqlite.query("SELECT status FROM turns WHERE thread_id = 'side-target'").all()).toEqual([{ status: "completed" }])
+    expect(db.sqlite.query("SELECT status FROM turns WHERE id = 'side-turn-active'").get()).toEqual({ status: "running" })
+    const copiedSession = db.sqlite.query("SELECT id FROM pi_sessions WHERE thread_id = 'side-target'").get() as { id: string }
+    expect((await sessions.openByID(copiedSession.id)).getEntries()).resolves.toHaveLength(2)
+    await expect(history.forkLatestForSideChat(source.id, {
+      operationID: "side-operation",
+      referenceText: "selected reference",
+      targetWorkspace: { cwd: "C:\\repo", roots: "[]", gitBranch: "feature" },
+    }, db.repositories.sideChats)).resolves.toEqual(created)
+    db.sqlite.query("DELETE FROM threads WHERE id = ?").run(source.id)
+    expect(db.sqlite.query("SELECT id FROM threads WHERE id = 'side-target'").get()).toBeNull()
+  })
+
+  test("无完成回复时创建空侧边聊天", async () => {
+    const db = await database()
+    const source = db.createThread("空侧边聊天来源")
+    const history = new ConversationHistoryForkRepository(db, () => "unused-id")
+    const created = await history.forkLatestForSideChat(source.id, {
+      operationID: "empty-side-operation",
+      targetThreadID: "empty-side-target",
+      targetWorkspace: { cwd: "C:\\repo", roots: "[]", gitBranch: "" },
+    }, db.repositories.sideChats)
+    expect(created.inheritedThroughTurnID).toBeNull()
+    expect(db.sqlite.query("SELECT COUNT(*) AS count FROM turns WHERE thread_id = 'empty-side-target'").get()).toEqual({ count: 0 })
+  })
+
   test("从已完成回复复制精确前缀，保留源后续 active 并按边界 fork Pi session", async () => {
     const db = await database()
     const source = db.createThread("实现普通 Fork")
@@ -161,6 +220,14 @@ describe("ConversationHistoryForkRepository", () => {
     ;(session.getStorage() as SqlitePiSessionStorage).flush()
 
     insertTurn(db, { threadID: source.id, turnID: "turn-1", agentID: "agent-1", sessionID: "source-main", itemID: "item-1", text: "answer-1", createdAt: 10 })
+    db.sqlite.query(`
+      INSERT INTO thread_context_paths (id, thread_id, name, path, path_key, kind, created_at)
+      VALUES ('context-1', ?, 'fixture.txt', 'C:\\outside\\fixture.txt', 'c:\\outside\\fixture.txt', 'file', 10)
+    `).run(source.id)
+    db.sqlite.query(`
+      INSERT INTO input_context_paths (input_id, context_path_id, sort_order, created_at)
+      VALUES ('input-turn-1', 'context-1', 0, 10)
+    `).run()
     insertTurn(db, { threadID: source.id, turnID: "turn-2", agentID: "agent-2", sessionID: "source-main", itemID: "item-2", text: "answer-2", createdAt: 20 })
     insertTurn(db, { threadID: source.id, turnID: "turn-active", agentID: "agent-active", sessionID: "source-main", itemID: "item-active", text: "partial", status: "running", createdAt: 30 })
     new TurnPiBoundaryRepository(db).upsert({ turnID: "turn-1", sessionID: "source-main", entryID: firstAssistantEntry })
@@ -190,6 +257,13 @@ describe("ConversationHistoryForkRepository", () => {
     expect((await sessions.openByID(copiedSession.id)).getEntries()).resolves.toHaveLength(2)
     expect(db.sqlite.query("SELECT entry_id FROM turn_pi_boundaries WHERE turn_id IN (SELECT id FROM turns WHERE thread_id = 'target-1')").get()).toEqual({ entry_id: firstAssistantEntry })
     expect(db.sqlite.query("SELECT id FROM items WHERE thread_id = 'target-1'").get()).not.toEqual({ id: "item-1" })
+    expect(db.sqlite.query(`
+      SELECT context.path, binding.sort_order
+      FROM thread_context_paths AS context
+      JOIN input_context_paths AS binding ON binding.context_path_id = context.id
+      JOIN inputs ON inputs.id = binding.input_id
+      WHERE context.thread_id = 'target-1' AND inputs.thread_id = 'target-1'
+    `).get()).toEqual({ path: "C:\\outside\\fixture.txt", sort_order: 0 })
 
     expect(history.publishTarget("fork-1", "target-1")).toBe(true)
     expect(history.publishTarget("fork-1", "target-1")).toBe(false)

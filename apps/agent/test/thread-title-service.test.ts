@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
 import type { Model } from "@codepilotx/model-schema"
+import { decodeEventEnvelope } from "@codepilotx/agent-protocol"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentLogger } from "../src/observability/AgentLogger"
 import type { PiModelService } from "../src/provider/pi/PiModelService"
@@ -16,6 +17,8 @@ import {
 } from "../src/session/ThreadTitleService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { EventHub } from "../src/storage/events/EventHub"
+import { buildEventNextNotification } from "../src/transport/event-envelope"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -39,12 +42,14 @@ const fixture = async () => {
 const config = {
   snapshot: () => ({
     model_provider: "provider:test",
-    task_models: { small_fast: "small", fast: "fast" },
+    model: "fast",
+    specialized_models: { generation: "provider:test/small" },
   }),
   read: async () => ({
     config: {
       model_provider: "provider:test",
-      task_models: { small_fast: "small", fast: "fast" },
+      model: "fast",
+      specialized_models: { generation: "provider:test/small" },
     },
   }),
 } as never
@@ -64,7 +69,7 @@ const addUserMessage = (db: AgentDatabase, threadID: string, content: string) =>
 }
 
 describe("ThreadTitleService", () => {
-  test("uses the auxiliary-model fallback chain and persists a normalized 20-character title", async () => {
+  test("uses the generation-model fallback chain and persists a normalized 20-character title", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     addUserMessage(db, thread.id, "# 修复设置页下拉框文字消失并统一选项布局")
@@ -101,7 +106,7 @@ describe("ThreadTitleService", () => {
     expect(history.getListItem(thread.id)?.updatedAt).toBe(activityAt)
   })
 
-  test("persists a deterministic fallback when no auxiliary model is configured", async () => {
+  test("persists a deterministic fallback when no generation model is configured", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     const content = "> **修复普通下拉框文字消失并保持现有交互行为**"
@@ -301,7 +306,22 @@ describe("ThreadTitleService", () => {
     expect(receivedSystem).toContain("推送")
     expect(receivedSystem).toContain("不得取代主任务成为标题")
     expect(updated.updatedAt).toBe(activityAt)
-    expect(db.eventsAfter(0).at(-1)?.method).toBe("thread/updated")
+    const lastEvent = db.eventsAfter(0).at(-1)
+    expect(lastEvent?.method).toBe("thread/updated")
+    const envelope = buildEventNextNotification({
+      subscriptionId: "sub-title",
+      streamId: "thread",
+      event: lastEvent!,
+      projection: new ThreadProjection(db),
+    })
+    expect(envelope).not.toBeNull()
+    const decoded = decodeEventEnvelope(envelope!.params.event)
+    expect(decoded.type).toBe("thread/updated")
+    expect(decoded.payload).toMatchObject({
+      thread: { id: thread.id, title: "修复标题主线识别" },
+      version: updated.updatedAt,
+    })
+    expect((decoded.payload as { thread: { title: string } }).thread.title.length).toBeGreaterThan(0)
   })
 
   test("explicit regeneration keeps the current title on fallback and concurrent rename", async () => {

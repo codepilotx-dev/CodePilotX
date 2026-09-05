@@ -4,7 +4,7 @@ import {
   isSidecarFailureCode,
   readSidecarFailureCode,
 } from "../src/sidecar/failure-diagnostics"
-import { resolveDocumentsDirectory } from "../src/sidecar/documents-directory"
+import { resolveDocumentsDirectory } from "../src/sidecar/supervisor"
 
 describe("Sidecar 安全失败诊断", () => {
   test("只接受固定阶段与错误码", () => {

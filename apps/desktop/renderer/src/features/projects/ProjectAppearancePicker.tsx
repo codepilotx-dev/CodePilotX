@@ -1,4 +1,3 @@
-import * as Popover from '@radix-ui/react-popover'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -9,6 +8,7 @@ import type {
   ProjectAppearanceIcon,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { cx } from '../../utils/cx.js'
 import {
   PROJECT_APPEARANCE_COLORS,
@@ -19,12 +19,14 @@ import {
 type Props = {
   appearance: ProjectAppearance
   disabled?: boolean
+  glyphSize?: number
   onChange: (appearance: ProjectAppearance) => void
 }
 
 export function ProjectAppearancePicker({
   appearance,
   disabled = false,
+  glyphSize = 16,
   onChange,
 }: Props): React.ReactNode {
   const [open, setOpen] = useState(false)
@@ -38,26 +40,23 @@ export function ProjectAppearancePicker({
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
+    <AnchoredPopover
+      className="project-appearance-popover"
+      contentLabel="项目图标和颜色"
+      open={open}
+      trigger={(
         <button
           aria-label="选择项目图标和颜色"
           className="project-appearance-trigger"
           disabled={disabled}
           type="button"
         >
-          <ProjectAppearanceGlyph appearance={appearance} size={18} />
+          <ProjectAppearanceGlyph appearance={appearance} size={glyphSize} />
         </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="start"
-          aria-label="项目图标和颜色"
-          className="project-appearance-popover"
-          collisionPadding={6}
-          side="bottom"
-          sideOffset={4}
-        >
+      )}
+      width="auto"
+      onOpenChange={setOpen}
+    >
           <RadioGroup.Root
             aria-label="项目颜色"
             className="project-appearance-colors"
@@ -109,11 +108,9 @@ export function ProjectAppearancePicker({
             ))}
           </RadioGroup.Root>
           <div className="project-appearance-footer">
-            <Button onClick={() => setOpen(false)}>完成</Button>
+            <Button color="primary" onClick={() => setOpen(false)}>完成</Button>
           </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    </AnchoredPopover>
   )
 }
 

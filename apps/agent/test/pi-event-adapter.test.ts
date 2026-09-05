@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test"
-import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import type { AgentHarnessEvent } from "../src/orchestration/harness/types"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
 import {
   finishedPiToolItem,
   mergeTimelineMutationFiles,
-  PiOrchestratorAdapter,
-  piCompactionEventPayload,
+  AgentRuntimeService,
   piItemDeltaPayload,
   piToolItemPayload,
   piToolMutationFiles,
   piToolTimelineInput,
-} from "../src/orchestration/PiOrchestratorAdapter"
+} from "../src/orchestration/AgentRuntimeService"
+import { isProviderContextOverflow } from "../src/orchestration/pi/ContextOverflow"
 import type { PiRuntimeEventSink } from "../src/orchestration/pi/types"
 
 describe("PiEventAdapter", () => {
@@ -47,13 +47,13 @@ describe("PiEventAdapter", () => {
       operation: "write",
       file_path: "src/source.ts",
       contentBytes: Buffer.byteLength("const secret = 'private'", "utf8"),
-      affectedPaths: [{ path: "src/source.ts" }],
+      affectedPaths: [{ path: "src/source.ts", operation: "write" }],
     })
     expect(edit).toEqual({
       operation: "edit",
       path: "src/source.ts",
       editCount: 1,
-      affectedPaths: [{ path: "src/source.ts" }],
+      affectedPaths: [{ path: "src/source.ts", operation: "update" }],
     })
     expect(JSON.stringify(write)).not.toContain("private")
     expect(JSON.stringify(edit)).not.toContain("secret-old")
@@ -127,22 +127,25 @@ describe("PiEventAdapter", () => {
     const db = {
       getItem: () => null,
     }
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
       models: {} as never,
       toolExecutor: {} as never,
+      contextCompaction: {} as never,
     })
     const sink = (orchestrator as unknown as {
       eventSink(
         storage: unknown,
+        session: unknown,
         runtimeModel: { provider: string; id: string; contextWindow: number },
+        sessionID: string,
       ): PiRuntimeEventSink
-    }).eventSink({}, {
+    }).eventSink({}, {}, {
       provider: "openai",
       id: "model",
       contextWindow: 128_000,
-    })
+    }, "session")
 
     await sink.assistantMessageCompleted?.(
       { threadID: "thread", turnID: "turn", agentID: "agent" },
@@ -337,8 +340,113 @@ describe("PiEventAdapter", () => {
         additions: 2,
         deletions: 1,
       },
+      resultBlocks: [{ type: "text", text: "已编辑 src/source.ts（+2 -1）" }],
       isError: false,
     }])
+  })
+
+  test("projects text, citation, JSON and artifact result blocks from a normalized tool result", async () => {
+    const seen: Array<{ toolCallID: string; resultBlocks?: unknown[]; artifactInputs?: unknown[] }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "web_search",
+      result: {
+        content: [
+          { type: "text", text: "结论",
+            citations: [
+              { type: "url_citation", url: "https://example.com/a", title: "示例 A" },
+              { type: "url_citation", url: "https://example.com/b" },
+            ] },
+          { type: "image", data: Buffer.from("png-bytes").toString("base64"), mimeType: "image/png", size: 9 },
+          { type: "unknown_part", payload: "anything" },
+        ],
+        structuredContent: { items: [{ id: 1, ok: true }] },
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    const projected = seen[0]!
+    expect(projected.toolCallID).toBe("call-1")
+    expect(projected.resultBlocks).toEqual([
+      { type: "text", text: "结论" },
+      { type: "citation", title: "示例 A", url: "https://example.com/a" },
+      { type: "citation", url: "https://example.com/b" },
+      { type: "artifact", artifactId: expect.any(String), name: expect.any(String), mimeType: "image/png", size: 9 },
+      { type: "text", text: '{"type":"unknown_part","payload":"anything"}' },
+      { type: "json", value: { items: [{ id: 1, ok: true }] } },
+    ])
+    expect(projected.artifactInputs).toHaveLength(1)
+    expect(projected.artifactInputs![0]).toMatchObject({
+      mimeType: "image/png",
+      data: Buffer.from("png-bytes").toString("base64"),
+    })
+  })
+
+  test("degrades unknown or non-JSON tool parts to bounded text instead of throwing", async () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+    const seen: Array<{ resultBlocks?: unknown[] }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "read_file",
+      result: {
+        content: [{ type: "text", text: "plain" }],
+        structuredContent: circular,
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    expect(seen[0]?.resultBlocks).toEqual([
+      { type: "text", text: "plain" },
+    ])
+  })
+
+  test("projects safe completion metadata and tolerates missing stop reason and usage", async () => {
+    const completed: Array<{ completion?: unknown }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "openai",
+        api: "openai-responses",
+        model: "requested-model",
+        content: [{ type: "text", text: "done" }],
+        stopReason: "stop",
+        usage: { input: 10, output: 4, cacheRead: 20, cacheWrite: 5, reasoning: 2, totalTokens: 14 },
+      },
+    } as unknown as AgentHarnessEvent)
+    expect(completed[0]?.completion).toEqual({
+      stopReason: "stop",
+      inputTokens: 10,
+      outputTokens: 4,
+      totalTokens: 14,
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "anthropic",
+        api: "anthropic-messages",
+        model: "claude-test",
+        content: [{ type: "text", text: "done" }],
+      },
+    } as unknown as AgentHarnessEvent)
+    expect(completed[1]?.completion).toBeUndefined()
   })
 
   test("unwraps semantic progress and shell output instead of displaying AgentToolResult JSON", () => {
@@ -459,11 +567,12 @@ describe("PiEventAdapter", () => {
         createdAt: 200,
       }),
     }
-    const orchestrator = new PiOrchestratorAdapter({
+    const orchestrator = new AgentRuntimeService({
       db: db as never,
       hub: {} as never,
       models: {} as never,
       toolExecutor: {} as never,
+      contextCompaction: {} as never,
     })
     const persist = (orchestrator as unknown as {
       persistFinishedTool(context: unknown, input: unknown): Array<{ method: string }>
@@ -490,6 +599,13 @@ describe("PiEventAdapter", () => {
         { path: "src/added.ts", operation: "create", additions: 2, deletions: 0 },
       ],
     })
+    expect(items.get("call-1")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [
+        { path: "source.ts", operation: "update", additions: 3, deletions: 1 },
+        { path: "added.ts", operation: "create", additions: 2, deletions: 0 },
+      ],
+    })
     expect(items.get("patch:turn")).toMatchObject({
       type: "patch",
       status: "completed",
@@ -508,7 +624,14 @@ describe("PiEventAdapter", () => {
       agentID: "agent",
       type: "tool",
       status: "running",
-      data: { tool: "Edit", input: { path: "src/source.ts" } },
+      data: {
+        tool: "Edit",
+        input: { path: "src/source.ts" },
+        activity: {
+          type: "file_change",
+          changes: [{ path: "src/source.ts", operation: "update" }],
+        },
+      },
       createdAt: 100,
       updatedAt: 100,
     })
@@ -522,6 +645,10 @@ describe("PiEventAdapter", () => {
         isError: true,
       },
     ).map((event) => event.method)).toEqual(["tool/error"])
+    expect(items.get("call-2")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [{ path: "source.ts", operation: "update", additions: 100, deletions: 100 }],
+    })
     expect(items.get("patch:turn")?.data).toMatchObject({
       totalAdditions: 5,
       totalDeletions: 1,
@@ -532,7 +659,14 @@ describe("PiEventAdapter", () => {
       agentID: "agent",
       type: "tool",
       status: "interrupted",
-      data: { tool: "Write", input: { file_path: "src/other.ts" } },
+      data: {
+        tool: "Write",
+        input: { file_path: "src/other.ts" },
+        activity: {
+          type: "file_change",
+          changes: [{ path: "src/other.ts", operation: "create" }],
+        },
+      },
       createdAt: 100,
       updatedAt: 100,
     })
@@ -546,6 +680,10 @@ describe("PiEventAdapter", () => {
         isError: false,
       },
     )).toEqual([])
+    expect(items.get("call-3")?.data.activity).toEqual({
+      type: "file_change",
+      changes: [{ path: "src/other.ts", operation: "create" }],
+    })
     expect(persist({ threadID: "thread", turnID: "turn", agentID: "agent" }, input)).toEqual([])
     expect(transactionCount).toBe(2)
   })
@@ -563,27 +701,6 @@ describe("PiEventAdapter", () => {
     )).toEqual([{ path: "src/source.ts", additions: 4, deletions: 6 }])
   })
 
-  test("maps Pi compaction metadata to the existing protocol payload", () => {
-    const payload = piCompactionEventPayload({
-      compactionID: "compact-1",
-      beforeCount: 12,
-      afterCount: 4,
-      beforeTokens: 8000,
-      afterTokens: 0,
-      targetTokens: 0,
-    })
-
-    expect(() => Schema.decodeUnknownSync(EventManifest["context/compacted"].payload)(payload)).not.toThrow()
-    expect(payload).toMatchObject({
-      compactionId: "compact-1",
-      usageSampleId: "compact-1",
-      beforeTokens: 8000,
-    })
-    expect(payload).not.toHaveProperty("entryID")
-    expect(payload).not.toHaveProperty("summary")
-    expect(payload).not.toHaveProperty("tokensBefore")
-  })
-
   test("carries the pre-compaction branch size into the compacted callback", async () => {
     const seen: unknown[] = []
     const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
@@ -593,7 +710,11 @@ describe("PiEventAdapter", () => {
     await adapter.handle({
       type: "session_before_compact",
       branchEntries: [{}, {}, {}],
-      preparation: {},
+      preparation: {
+        messagesToSummarize: [{}, {}],
+        turnPrefixMessages: [],
+        retainedTail: [{}],
+      },
       signal: new AbortController().signal,
     } as unknown as AgentHarnessEvent)
     await adapter.handle({
@@ -605,9 +726,21 @@ describe("PiEventAdapter", () => {
     expect(seen).toEqual([{
       entryID: "compact-1",
       summary: "summary",
+      firstKeptEntryID: null,
       tokensBefore: 8000,
       beforeCount: 3,
+      trigger: "manual",
+      promptText: "",
     }])
+  })
+
+  test("classifies only provider context-window failures for reactive compaction", () => {
+    expect(isProviderContextOverflow("context_length_exceeded")).toBe(true)
+    expect(isProviderContextOverflow("Maximum context length is 128000 tokens")).toBe(true)
+    expect(isProviderContextOverflow("Input token count exceeds the model limit")).toBe(true)
+    expect(isProviderContextOverflow("context window limit exceeded")).toBe(true)
+    expect(isProviderContextOverflow("attachment too large")).toBe(false)
+    expect(isProviderContextOverflow("tool returned HTTP 413")).toBe(false)
   })
 
   test("uses the existing item delta payload for Pi reasoning and tool output", () => {

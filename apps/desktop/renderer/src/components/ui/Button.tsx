@@ -1,26 +1,71 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
+import { useResolvedButtonSize } from './TabStripButtonContext.js'
+import { Spinner } from './Spinner.js'
 
-export type ButtonTone = 'default' | 'danger'
+export type ButtonColor =
+  | 'accent'
+  | 'accentSubtle'
+  | 'danger'
+  | 'dangerSolid'
+  | 'ghost'
+  | 'ghostSecondary'
+  | 'outlineActive'
+  | 'ghostActive'
+  | 'ghostMuted'
+  | 'ghostTertiary'
+  | 'outline'
+  | 'primary'
+  | 'secondary'
 
-type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export type ButtonContentLayout = 'default' | 'balanced'
+export type ButtonRadius = 'default' | 'large'
+export type ButtonSize =
+  | 'compact'
+  | 'composer'
+  | 'composerSm'
+  | 'composerUtility'
+  | 'default'
+  | 'icon'
+  | 'iconLarge'
+  | 'iconMd'
+  | 'iconSm'
+  | 'large'
+  | 'medium'
+  | 'tabStripAction'
+  | 'toolbar'
+  | 'toolbarLabel'
+
+export type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> & {
+  allowShrink?: boolean
+  color?: ButtonColor
+  contentLayout?: ButtonContentLayout
   loading?: boolean
-  tone?: ButtonTone
+  radius?: ButtonRadius
+  size?: ButtonSize
+  uniform?: boolean
 }
 
-export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
+    allowShrink = false,
     children,
     className,
+    color = 'primary',
+    contentLayout = 'default',
     disabled,
     loading = false,
-    tone = 'default',
+    radius = 'default',
+    size = 'default',
     type = 'button',
+    uniform = false,
     ...buttonProps
   },
   ref,
 ): React.ReactNode {
+  const resolvedSize = useResolvedButtonSize(size)
+
   return (
     <button
       {...buttonProps}
@@ -28,19 +73,19 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       aria-busy={loading || undefined}
       className={cx(
         'ui-button',
-        'u-inline-flex',
-        'u-items-center',
-        'u-justify-center',
-        'u-nowrap',
-        'u-type-control',
         className,
       )}
+      data-allow-shrink={allowShrink || undefined}
+      data-color={color}
+      data-content-layout={contentLayout}
       data-loading={loading || undefined}
-      data-tone={tone}
+      data-radius={radius}
+      data-size={resolvedSize}
+      data-uniform={uniform || undefined}
       disabled={disabled || loading}
       type={type}
     >
-      {loading ? <span aria-hidden="true" className="ui-button-spinner" /> : null}
+      {loading ? <Spinner className="ui-button-spinner" /> : null}
       {children}
     </button>
   )

@@ -17,6 +17,7 @@ import {
   getSchemaMode,
   parseMcpElicitationSchema,
 } from '../mcpElicitation/mcpElicitationUtils.js'
+import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 
 type ApprovalChoice = 'allow' | `remember:${DesktopPermissionRememberOptionId}`
 
@@ -103,6 +104,7 @@ export function InlineApprovalCard({
     React.useState<ApprovalChoice>('allow')
   const [feedback, setFeedback] = React.useState('')
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
+  const commandPreviewId = React.useId()
   const isPermissionGrant =
     request.requestKind === 'permission-grant' || Boolean(request.permissionGrant)
   const scopeOptions = permissionGrantScopeOptions(request)
@@ -119,6 +121,10 @@ export function InlineApprovalCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
+  const commandPreviewTransition = useHeightTransition([
+    isCommandExpanded,
+    command.full,
+  ])
   const approvalTitle = inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
   const reviewSummary = inlineApprovalReviewSummary(request)
@@ -127,7 +133,7 @@ export function InlineApprovalCard({
   if (request.toolName === 'AskUserQuestion') {
     return (
       <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-question tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+        className="inline-approval-card workflow-composer-card workflow-composer-card-question tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text"
         data-variant="question"
         aria-label="回答问题"
       >
@@ -196,7 +202,7 @@ export function InlineApprovalCard({
     const permissionGroups = permissionGrantGroups(request)
     return (
       <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text"
         data-variant="permission-grant"
         aria-label="等待权限授权"
       >
@@ -238,10 +244,10 @@ export function InlineApprovalCard({
         ) : null}
         <div className="inline-approval-fixed-option">
           <div className="inline-approval-actions">
-            <Button onClick={() => onDecide(request, 'deny')}>
+            <Button color="secondary" onClick={() => onDecide(request, 'deny')}>
               跳过
             </Button>
-            <Button onClick={submitPermissionGrant}>
+            <Button color="primary" onClick={submitPermissionGrant}>
               提交
               <CornerDownLeft size={14} />
             </Button>
@@ -272,7 +278,7 @@ export function InlineApprovalCard({
 
   return (
     <section
-      className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
+      className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text"
       data-variant="permission"
       aria-label="等待审批"
     >
@@ -290,15 +296,19 @@ export function InlineApprovalCard({
 
       <div className="inline-approval-summary">
         <div
+          id={commandPreviewId}
+          ref={commandPreviewTransition.ref}
           className={
             isCommandExpanded
               ? 'inline-approval-command-preview expanded'
               : 'inline-approval-command-preview'
           }
+          style={commandPreviewTransition.style}
         >
           <div className="inline-approval-command-preview-header">
             <span>{previewLabel}</span>
             <button
+              aria-controls={commandPreviewId}
               type="button"
               aria-expanded={isCommandExpanded}
               onClick={() => setIsCommandExpanded(value => !value)}
@@ -362,12 +372,12 @@ export function InlineApprovalCard({
         </div>
 
         <div className="inline-approval-actions">
-          <Button
+          <Button color="secondary"
             onClick={() => onDecide(request, 'deny')}
           >
             跳过
           </Button>
-          <Button
+          <Button color="primary"
             onClick={submitChoice}
           >
             提交

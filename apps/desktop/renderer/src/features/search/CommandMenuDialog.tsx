@@ -1,11 +1,10 @@
 import type React from 'react'
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 import {
   FileSearch,
   FolderOpen,
-  LoaderCircle,
   Search,
   SquarePen,
 } from 'lucide-react'
@@ -13,12 +12,19 @@ import type {
   DesktopSessionCatalogStatus,
 } from '../../../shared/types.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import { Spinner } from '../../components/ui/Spinner.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import type { SessionListItem } from '../../uiTypes.js'
 import type { CommandMenuTask } from './commandMenuModel.js'
+import {
+  commandMenuActionStore,
+  filterCommandMenuActions,
+  type CommandMenuActionGroup,
+  type CommandMenuActionSnapshot,
+} from './commandMenuActionStore.js'
 import { useCommandMenuController } from './useCommandMenuController.js'
 
 export type CommandMenuDialogProps = {
@@ -72,11 +78,20 @@ export function CommandMenuDialog({
     pendingPermissionSessionIds,
     onSelectTask,
   })
+  const registeredActions = useSyncExternalStore(
+    commandMenuActionStore.subscribe,
+    commandMenuActionStore.getSnapshot,
+    commandMenuActionStore.getServerSnapshot,
+  )
+  const actions = useMemo(
+    () => filterCommandMenuActions(registeredActions, query),
+    [query, registeredActions],
+  )
   const showRecommendations = query.trim().length === 0
   const recommendations: Recommendation[] = [
     {
       id: 'new-task',
-      label: '新建任务',
+      label: '新建对话',
       shortcut: 'Ctrl+N',
       icon: <SquarePen aria-hidden="true" size={APP_ICON_SIZE} />,
       action: onCreateTask,
@@ -102,11 +117,10 @@ export function CommandMenuDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="command-menu-backdrop">
-            <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop command-menu-backdrop" />
+        <Dialog.Content
               aria-describedby="command-menu-description"
-              className="command-menu-dialog"
+              className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog"
               onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={event => {
                 event.preventDefault()
@@ -154,6 +168,15 @@ export function CommandMenuDialog({
                     tasks={tasks}
                     onSelectTask={onSelectTask}
                   />
+                  <CommandMenuActionGroups
+                    actions={actions}
+                    onSelect={action => {
+                      onOpenChange(false)
+                      queueMicrotask(() => {
+                        void Promise.resolve(action.execute()).catch(reportCommandActionError)
+                      })
+                    }}
+                  />
                   {showRecommendations ? (
                     <Command.Group
                       className="command-menu-group"
@@ -193,12 +216,71 @@ export function CommandMenuDialog({
                   ) : null}
                 </Command.List>
               </Command>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+const commandGroupLabels: Record<CommandMenuActionGroup, string> = {
+  'workspace-actions': '工作区操作',
+  'task-transfer': '任务移交',
+}
+
+function CommandMenuActionGroups({
+  actions,
+  onSelect,
+}: {
+  actions: readonly CommandMenuActionSnapshot[]
+  onSelect: (action: CommandMenuActionSnapshot) => void
+}): React.ReactNode {
+  return (Object.keys(commandGroupLabels) as CommandMenuActionGroup[]).map(group => {
+    const groupActions = actions.filter(action => action.group === group)
+    if (groupActions.length === 0) return null
+    return (
+      <Command.Group
+        className="command-menu-group"
+        heading={commandGroupLabels[group]}
+        key={group}
+      >
+        {groupActions.map(action => {
+          const disabled = action.availability !== 'available'
+          const description = action.disabledReason ?? action.description
+          return (
+            <Command.Item
+              className="command-menu-item command-menu-recommendation"
+              disabled={disabled}
+              key={action.id}
+              onSelect={() => {
+                if (!disabled) onSelect(action)
+              }}
+              value={`action:${action.id}`}
+            >
+              <span className="command-menu-item-status command-menu-item-icon">
+                {action.availability === 'loading' ? (
+                  <Spinner className="command-menu-spinner" />
+                ) : action.icon}
+              </span>
+              <span className="command-menu-item-copy">
+                <span className="command-menu-item-title">{action.label}</span>
+                {description ? (
+                  <span className="command-menu-item-description">
+                    {description}
+                  </span>
+                ) : null}
+              </span>
+            </Command.Item>
+          )
+        })}
+      </Command.Group>
+    )
+  })
+}
+
+function reportCommandActionError(cause: unknown): void {
+  if (typeof window === 'undefined') return
+  const detail = cause instanceof Error ? cause.message : '命令执行失败，请重试。'
+  window.dispatchEvent(new CustomEvent('desktop:error', { detail }))
 }
 
 function CommandMenuTaskGroup({
@@ -262,11 +344,7 @@ function CommandMenuStatus({
       value="command-menu-status"
     >
       {busy ? (
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
+        <Spinner className="command-menu-spinner" />
       ) : null}
       <span>{children}</span>
     </Command.Item>
@@ -292,18 +370,14 @@ function TaskStatus({
         className="command-menu-item-status"
         role="img"
       >
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
+        <Spinner className="command-menu-spinner" />
       </span>
     )
   }
   if (task.visualState === 'unread') {
     return (
       <span
-        aria-label="任务有未读更新"
+        aria-label="任务有待整理更新"
         className="command-menu-item-status"
         role="img"
       >

@@ -7,6 +7,7 @@ import {
   desktopClient,
   WORKSPACE_FILE_CHANGED_EVENT,
 } from '../../services/desktop-client/index.js'
+import { AgentRpcError } from '../../services/agentRpcClient.js'
 
 const AUTOSAVE_DELAY_MS = 3_000
 const EXTERNAL_CHECK_INTERVAL_MS = 4_000
@@ -40,6 +41,7 @@ export type FileDocumentSnapshot = {
   saving: boolean
   saveError: string | null
   loadError: string | null
+  loadErrorCode: string | null
   conflict: FileDocumentConflict | null
   dirty: boolean
 }
@@ -90,6 +92,7 @@ function initialSnapshot(
     saving: false,
     saveError: null,
     loadError: null,
+    loadErrorCode: null,
     conflict: null,
     dirty: false,
   }
@@ -133,6 +136,7 @@ function fromPreview(
     saving: false,
     saveError: null,
     loadError: null,
+    loadErrorCode: null,
     conflict: null,
     dirty: false,
   }
@@ -161,12 +165,15 @@ export function prefetchFileDocument(
     .then(preview => fromPreview(snapshotFor(workspacePath, path, scope), preview))
     .then(publish)
     .catch(error => {
+      const loadError = toError(error)
       const failed = publish({
         ...snapshotFor(workspacePath, path, scope),
         status: 'error',
-        loadError: error instanceof Error ? error.message : String(error),
+        loadError: loadError.message,
+        loadErrorCode:
+          loadError instanceof AgentRpcError ? loadError.errorCode : null,
       })
-      throw error instanceof Error ? error : new Error(String(error))
+      throw loadError
     })
     .finally(() => loadPromises.delete(current.key))
   loadPromises.set(current.key, request)
@@ -199,7 +206,10 @@ function scheduleAutosave(document: FileDocumentSnapshot): void {
   }
   const timer = window.setTimeout(() => {
     autosaveTimers.delete(document.key)
-    void saveFileDocument(document.workspacePath, document.path, document)
+    void saveFileDocument(document.workspacePath, document.path, {
+      projectId: document.projectId,
+      folderId: document.folderId,
+    })
   }, AUTOSAVE_DELAY_MS)
   autosaveTimers.set(document.key, timer)
 }
@@ -412,16 +422,11 @@ export function startFileDocumentExternalChecks(
         scope.projectId,
       )
     : desktopClient.watchWorkspaceFile(workspacePath, path)
-  void watch
-    .catch(() => undefined)
-  const timer = window.setInterval(check, EXTERNAL_CHECK_INTERVAL_MS)
-  window.addEventListener('focus', check)
-  window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
-  return () => {
-    stopped = true
-    window.clearInterval(timer)
-    window.removeEventListener('focus', check)
-    window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+  let watchReady = false
+  let released = false
+  const releaseWatch = (): void => {
+    if (released) return
+    released = true
     const unwatch = scope.projectId || scope.folderId
       ? desktopClient.unwatchWorkspaceFile(
           workspacePath,
@@ -430,8 +435,24 @@ export function startFileDocumentExternalChecks(
           scope.projectId,
         )
       : desktopClient.unwatchWorkspaceFile(workspacePath, path)
-    void unwatch
-      .catch(() => undefined)
+    void unwatch.catch(() => undefined)
+  }
+  void watch.then(
+    () => {
+      watchReady = true
+      if (stopped) releaseWatch()
+    },
+    () => undefined,
+  )
+  const timer = window.setInterval(check, EXTERNAL_CHECK_INTERVAL_MS)
+  window.addEventListener('focus', check)
+  window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+  return () => {
+    stopped = true
+    window.clearInterval(timer)
+    window.removeEventListener('focus', check)
+    window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
+    if (watchReady) releaseWatch()
   }
 }
 
@@ -481,7 +502,10 @@ export async function saveAllFileDocuments(): Promise<boolean> {
   const dirty = [...documents.values()].filter(document => document.dirty)
   const results = await Promise.all(
     dirty.map(document =>
-      saveFileDocument(document.workspacePath, document.path, document),
+      saveFileDocument(document.workspacePath, document.path, {
+        projectId: document.projectId,
+        folderId: document.folderId,
+      }),
     ),
   )
   return results.every(Boolean)
@@ -501,4 +525,27 @@ export function isFileDocumentDirty(
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+export function fileDocumentLoadErrorMessage(
+  errorCode: string | null,
+  fallback: string | null,
+): { code?: string; message: string; retryable: boolean } {
+  const messages: Record<string, string> = {
+    PROJECT_NOT_FOUND: '当前项目已失效，请重新打开项目后再试。',
+    PROJECT_REMOVED: '当前项目已移除，请重新打开项目后再试。',
+    PROJECT_FOLDER_NOT_FOUND: '文件所属的项目目录已失效，请重新打开项目后再试。',
+    FILE_NOT_FOUND: '文件不存在或已被移动。',
+    FILE_TOO_LARGE: '文件过大，无法在内置编辑器中打开。',
+    FILE_NOT_TEXT: '该文件不是受支持的文本文件。',
+    PATH_DENIED: '该路径不在当前项目允许访问的目录中。',
+    PERMISSION_DENIED: '没有读取该文件的权限。',
+    CAPABILITY_REQUIRED: '当前 Agent 不支持读取项目文件。',
+  }
+  const message = errorCode ? messages[errorCode] : undefined
+  return {
+    ...(errorCode ? { code: errorCode } : {}),
+    message: message ?? fallback ?? '读取文件失败，请重试。',
+    retryable: !['FILE_TOO_LARGE', 'FILE_NOT_TEXT'].includes(errorCode ?? ''),
+  }
 }

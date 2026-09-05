@@ -8,6 +8,7 @@ import type {
 } from '@codepilotx/shared/desktop-terminal-ipc'
 import React, { use, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button.js'
+import { getEffectiveReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { loadDesktopTerminalClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
@@ -28,10 +29,22 @@ export type TerminalPanelProps = {
   onDisplayPathChange?: (displayPath: string | null) => void
 }
 
-const terminalClientPromise = loadDesktopTerminalClient()
+let terminalClientResource:
+  | Promise<Awaited<ReturnType<typeof loadDesktopTerminalClient>>>
+  | null = null
+
+function loadTerminalClientResource(): Promise<
+  Awaited<ReturnType<typeof loadDesktopTerminalClient>>
+> {
+  terminalClientResource ??= loadDesktopTerminalClient().catch(error => {
+    terminalClientResource = null
+    throw error
+  })
+  return terminalClientResource
+}
 
 export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelProps): React.ReactNode {
-  const terminalClient = use(terminalClientPromise)
+  const terminalClient = use(loadTerminalClientResource())
   const { draft } = useDesktopSettings()
   const profileId = draft.values.terminalProfileId
   const hostRef = useRef<HTMLDivElement>(null)
@@ -61,14 +74,14 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
     const host = hostRef.current
     if (!host) return
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const initialFont = readTerminalFont(document.documentElement)
     const terminal = new Terminal({
       allowProposedApi: false,
       convertEol: true,
-      cursorBlink: !reducedMotion.matches,
+      cursorBlink: !getEffectiveReducedMotion(),
       fontFamily: initialFont.fontFamily,
       fontSize: initialFont.fontSize,
+      lineHeight: initialFont.lineHeight,
       scrollback: 5_000,
       theme: readTerminalTheme(document.documentElement),
     })
@@ -180,6 +193,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       terminal.options.theme = readTerminalTheme(document.documentElement)
       terminal.options.fontFamily = font.fontFamily
       terminal.options.fontSize = font.fontSize
+      terminal.options.lineHeight = font.lineHeight
       fitAndResize()
     })
     themeObserver.observe(document.documentElement, {
@@ -259,7 +273,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       {status === 'exited' || status === 'failed' ? (
         <div className="integrated-terminal__lifecycle" role="status">
           <span>{error || terminalStatusLabel(status, exitCode)}</span>
-          <Button type="button" onClick={() => void handleRestart()}>
+          <Button color="secondary" type="button" onClick={() => void handleRestart()}>
             重新启动
           </Button>
         </div>

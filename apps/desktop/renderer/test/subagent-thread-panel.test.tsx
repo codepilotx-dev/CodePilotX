@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type {
@@ -13,6 +13,26 @@ import { SubagentThreadPanel } from "../src/features/session/subagents/SubagentT
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+beforeAll(() => {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
+    },
+  });
+});
+
+afterAll(() => {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, "window");
+  }
+});
 
 function TestProviders({
   children,
@@ -326,3 +346,15 @@ describe("subagent thread panel", () => {
     expect(markup).not.toContain('title="返回主对话"');
   });
 });
+
+function memoryStorage(): Storage {
+  const entries = new Map<string, string>();
+  return {
+    get length() { return entries.size; },
+    clear: () => entries.clear(),
+    getItem: key => entries.get(key) ?? null,
+    key: index => [...entries.keys()][index] ?? null,
+    removeItem: key => entries.delete(key),
+    setItem: (key, value) => entries.set(key, value),
+  };
+}

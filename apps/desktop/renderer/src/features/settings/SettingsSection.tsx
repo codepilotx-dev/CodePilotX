@@ -19,6 +19,10 @@ type SlotProps = {
   children: React.ReactNode
 }
 
+type ContentProps = SlotProps & {
+  surface?: 'plain' | 'card'
+}
+
 export function SettingsSectionHeader({
   title,
   description,
@@ -44,8 +48,18 @@ export function SettingsSectionHeader({
 
 export function SettingsSectionContent({
   children,
-}: SlotProps): React.ReactNode {
-  return <div className="settings-section-content settings-card">{children}</div>
+  surface = 'card',
+}: ContentProps): React.ReactNode {
+  return (
+    <div
+      className={surface === 'card'
+        ? 'settings-section-content settings-card'
+        : 'settings-section-content'}
+      data-surface={surface}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function SettingsSectionFooter({ children }: SlotProps): React.ReactNode {

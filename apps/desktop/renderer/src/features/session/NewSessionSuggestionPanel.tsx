@@ -57,7 +57,7 @@ export function NewSessionSuggestions({
         className="new-session-suggestions is-root"
       >
         <div className="new-session-suggestion-grid">
-          {suggestions.map((suggestion, index) => {
+          {suggestions.slice(0, 4).map((suggestion, index) => {
             const category = findNewSessionSuggestionCategory(
               suggestion.categoryId,
             );

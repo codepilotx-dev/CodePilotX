@@ -1,56 +1,8 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
+import { optionalRpcRecord as optionalRecord } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
-  decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
-  stringParam,
-  submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
@@ -59,8 +11,7 @@ export const permissionHandlers = {
   methods: [
     "interaction/respond",
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
     const params = optionalRecord(rawParams)
     switch (method) {
       case "interaction/respond":

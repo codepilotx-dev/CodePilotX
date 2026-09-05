@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { DesktopSystemNotificationSettings } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { TaskNotificationDispatcher } from './taskNotificationDispatcher.js'
+import { AutomationNotificationDispatcher } from './AutomationNotificationDispatcher.js'
 
 export function useSystemNotifications(
   settings: DesktopSystemNotificationSettings | undefined,
@@ -17,6 +18,20 @@ export function useSystemNotifications(
 
   useEffect(() => {
     let disposed = false
+    const automationDispatcher = new AutomationNotificationDispatcher(
+      desktopClient,
+      dispatcher,
+      request => {
+        const bridge = window.codePilotXDesktop
+        if (typeof bridge?.showDesktopNotification !== 'function') return
+        void bridge.showDesktopNotification(request).catch(() => undefined)
+      },
+    )
+    void automationDispatcher.initialize().catch(() => undefined)
+    const unsubscribeAutomation = desktopClient.subscribeAgentEventEnvelopes(
+      { liveEventTypes: [] },
+      events => automationDispatcher.ingest(events),
+    )
     void desktopClient
       .listSessions()
       .then(snapshots => {
@@ -35,6 +50,7 @@ export function useSystemNotifications(
     })
     return () => {
       disposed = true
+      unsubscribeAutomation()
       unsubscribe()
     }
   }, [dispatcher])

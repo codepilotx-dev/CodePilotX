@@ -1,56 +1,12 @@
-import type { RpcMethod } from "@codepilotx/agent-protocol"
+import type { ProtocolCapability, RpcMethod } from "@codepilotx/agent-protocol"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
+import { filterAdvertisedCapabilities, negotiateCapabilities } from "./system-capabilities"
 import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
-  aiReviewModel,
-  aiReviewPrompt,
-  aiReviewTitle,
-  attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
-  decodeReviewAiStart,
-  decodeReviewApply,
-  decodeReviewBranches,
-  decodeReviewCommentID,
-  decodeReviewCommentList,
-  decodeReviewCommentSave,
-  decodeReviewCommit,
-  decodeReviewCommits,
-  decodeReviewFileDiff,
-  decodeReviewStatus,
-  decodeReviewSummary,
   decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
-  modelRefOrNull,
-  parseJsonRecord,
-  positiveIntegerParam,
-  providerFailureCategory,
-  resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
-  resolveProjectWorkspace,
   stringParam,
-  submitMessage,
-  supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
 
@@ -84,13 +40,14 @@ export const systemHandlers = {
     "event/subscribe",
     "event/ack",
     "event/unsubscribe",
+    "system/shrinkMemory",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+    const { db } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
-        db.sqlite.query("SELECT 1").get()
+        db.probeHealth()
         if (!Array.isArray(params.protocols) || !params.protocols.includes("thread-rpc-v4")) {
           throw new AgentError("PROTOCOL_VERSION_UNSUPPORTED", "客户端不支持 thread-rpc-v4", 409)
         }
@@ -109,11 +66,14 @@ export const systemHandlers = {
         }
         const connectionId = crypto.randomUUID()
         const createdAt = runtime.now()
+        const serverAvailable = filterAdvertisedCapabilities(db)
+        const clientRequested = params.capabilities as readonly ProtocolCapability[]
+        const negotiated = negotiateCapabilities(clientRequested, serverAvailable)
         runtime.connections.set(connectionId, {
           initialized: false,
           createdAt,
           lastSeenAt: createdAt,
-          capabilities: new Set(params.capabilities as string[]),
+          capabilities: negotiated,
           ...(context.transportAuthority ? { transportAuthority: context.transportAuthority } : {}),
           ...(requestedAuthority === "desktop-host"
             ? { authority: "desktop-host" as const }
@@ -122,7 +82,7 @@ export const systemHandlers = {
         return {
           protocol: "thread-rpc-v4",
           serverInfo: { name: "codepilotx-agent", version: "0.1.0" },
-          capabilities: [...Capabilities],
+          capabilities: [...negotiated],
           limits: {
             maxFrameBytes: 16 * 1024 * 1024,
             maxSubscriptions: 16,
@@ -144,12 +104,39 @@ export const systemHandlers = {
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)
         return { ok: true, acceptedAt: Date.now() }
-      case "event/subscribe":
-        return runtime.subscriptions.subscribe(runtime.requireConnection(context), params as never)
+      case "event/subscribe": {
+        const connectionId = runtime.requireConnection(context)
+        const connection = runtime.connections.get(connectionId)
+        return runtime.subscriptions.subscribe(
+          connectionId,
+          params as never,
+          connection?.capabilities ?? new Set(),
+        )
+      }
       case "event/ack":
         return runtime.subscriptions.ack(runtime.requireConnection(context), params as never)
       case "event/unsubscribe":
         return runtime.subscriptions.unsubscribe(runtime.requireConnection(context), stringParam(params, "subscriptionId"))
+      case "system/shrinkMemory": {
+        const memoryManager = runtime.dependencies.memoryManager
+        const reason = typeof params.reason === "string" && (params.reason === "turn_end" || params.reason === "idle" || params.reason === "manual")
+          ? params.reason
+          : "manual"
+        if (!memoryManager) {
+          const stats = process.memoryUsage()
+          return {
+            success: true,
+            stats: {
+              rss: stats.rss,
+              heapTotal: stats.heapTotal,
+              heapUsed: stats.heapUsed,
+              external: stats.external,
+              arrayBuffers: stats.arrayBuffers,
+            },
+          }
+        }
+        return memoryManager.shrink(reason)
+      }
       default:
         throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
     }

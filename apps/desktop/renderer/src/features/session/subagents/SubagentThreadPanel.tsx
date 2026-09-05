@@ -24,6 +24,7 @@ import {
   selectRenderTurnEntries,
   selectVisibleTurnEntries,
 } from '@codepilotx/session-view'
+import type { VirtualizerHandle } from 'virtua'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -38,6 +39,7 @@ import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
 } from '../timeline/CanonicalThreadView.js'
+import { SessionTimelineView } from '../timeline/SessionTimelineView.js'
 import { normalizePatchActionError } from '../timeline/patchActionError.js'
 import { subagentStatusLabel } from './subagentStatusLabel.js'
 
@@ -93,6 +95,7 @@ export function SubagentThreadPanel({
   onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const listRef = React.useRef<VirtualizerHandle | null>(null)
   const disclosureState = useTimelineDisclosureState(task.childThreadId)
   const canonicalState = React.useMemo(
     () => createCanonicalThreadState(pageFromThreadSnapshot(snapshot)),
@@ -126,20 +129,56 @@ export function SubagentThreadPanel({
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
-
-  React.useEffect(() => {
-    const element = scrollRef.current
-    if (!element) return
-    const key = `codepilotx.subagent.scroll.${task.childThreadId}`
-    const stored = Number(window.sessionStorage.getItem(key) ?? 0)
-    if (Number.isFinite(stored)) element.scrollTop = stored
-    const persist = () => window.sessionStorage.setItem(key, String(element.scrollTop))
-    element.addEventListener('scroll', persist, { passive: true })
-    return () => {
-      persist()
-      element.removeEventListener('scroll', persist)
+  const scrollStorageKey = `codepilotx.subagent.scroll.${task.childThreadId}`
+  const initialScrollOffset = React.useMemo(() => {
+    try {
+      const stored = Number(window.sessionStorage.getItem(scrollStorageKey) ?? 0)
+      return Number.isFinite(stored) ? stored : 0
+    } catch {
+      return 0
     }
-  }, [task.childThreadId])
+  }, [scrollStorageKey])
+  const persistScroll = React.useCallback((scrollTop: number): void => {
+    try {
+      window.sessionStorage.setItem(scrollStorageKey, String(scrollTop))
+    } catch {
+      // Session storage can be unavailable; scrolling remains functional.
+    }
+  }, [scrollStorageKey])
+  const renderTurn = React.useCallback((turn: (typeof canonicalTurns)[number]) => (
+    <div
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
+      data-component="conversation-turn"
+      key={turn.id}
+    >
+      <CanonicalConversationTurn
+        disclosureState={disclosureState}
+        entry={turn}
+        onApplyPatch={async (itemId, action, expectedVersion) => {
+          try {
+            await desktopClient.applyThreadPatch({
+              threadId: task.childThreadId,
+              itemId,
+              action,
+              expectedVersion,
+            })
+            await callbacks.onPatchApplied?.()
+          } catch (error) {
+            throw normalizePatchActionError(error, action)
+          }
+        }}
+        onOpenPatchReview={callbacks.onOpenPatchReview}
+        onOpenPlanInRightDock={() => undefined}
+        onOpenSubagent={(taskId) => {
+          const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
+          if (item) callbacks.onOpenSubagent?.(item)
+        }}
+        rightDockPlanEventId={null}
+        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+        threadId={task.childThreadId}
+      />
+    </div>
+  ), [callbacks, disclosureState, snapshot.items, task.childThreadId])
 
   return (
     <section
@@ -153,8 +192,9 @@ export function SubagentThreadPanel({
           {onBackToParent ? (
             <IconButton
               className="subagent-thread-panel__back"
+              color="ghostSecondary"
+              size="toolbar"
               title="返回主对话"
-              variant="plain"
               onClick={onBackToParent}
             >
               <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -170,41 +210,41 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <button aria-label="应用子智能体变更" className="subagent-thread-panel__icon-button" title="应用变更" type="button" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
+            <IconButton aria-label="应用子智能体变更" color="ghostSecondary" size="toolbar" title="应用子智能体变更" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <button aria-label="丢弃子智能体工作树" className="subagent-thread-panel__icon-button is-danger" title="丢弃工作树" type="button" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
+            <IconButton aria-label="丢弃子智能体工作树" color="danger" size="toolbar" title="丢弃子智能体工作树" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
               <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <button aria-label="恢复子智能体共享变更" className="subagent-thread-panel__icon-button" title="恢复共享变更" type="button" onClick={() => callbacks.onRestoreWorkspace?.(task, run)}>
+            <IconButton aria-label="恢复子智能体共享变更" color="ghostSecondary" size="toolbar" title="恢复共享变更" onClick={() => callbacks.onRestoreWorkspace?.(task, run)}>
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {canRetry ? (
-            <button
+            <IconButton
               aria-label="重试子智能体"
-              className="subagent-thread-panel__icon-button"
+              color="ghostSecondary"
+              size="toolbar"
               title="重试"
-              type="button"
               onClick={() => callbacks.onRetry?.(task, run)}
             >
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {canStop ? (
-            <button
+            <IconButton
               aria-label="停止子智能体"
-              className="subagent-thread-panel__icon-button is-danger"
+              color="danger"
+              size="toolbar"
               title="停止"
-              type="button"
               onClick={() => callbacks.onStop?.(task, run)}
             >
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
         </div>
       </header>
@@ -220,35 +260,21 @@ export function SubagentThreadPanel({
 
           {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
-              {canonicalTurns.map((turn) => (
-                 <CanonicalConversationTurn
-                   disclosureState={disclosureState}
-                   entry={turn}
-                  key={turn.id}
-                  onApplyPatch={async (itemId, action, expectedVersion) => {
-                    try {
-                      await desktopClient.applyThreadPatch({
-                        threadId: task.childThreadId,
-                        itemId,
-                        action,
-                        expectedVersion,
-                      })
-                      await callbacks.onPatchApplied?.()
-                    } catch (error) {
-                      throw normalizePatchActionError(error, action)
-                    }
-                  }}
-                  onOpenPatchReview={callbacks.onOpenPatchReview}
-                  onOpenPlanInRightDock={() => undefined}
-                  onOpenSubagent={(taskId) => {
-                    const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
-                    if (item) callbacks.onOpenSubagent?.(item)
-                  }}
-                  rightDockPlanEventId={null}
-                  readThreadPatchDiff={desktopClient.readThreadPatchDiff}
-                  threadId={task.childThreadId}
-                />
-              ))}
+              {typeof document === 'undefined'
+                ? canonicalTurns.map(renderTurn)
+                : (
+                  <SessionTimelineView
+                    count={canonicalTurns.length}
+                    initialScrollOffset={initialScrollOffset}
+                    items={canonicalTurns}
+                    listRef={listRef}
+                    onScroll={persistScroll}
+                    renderItem={renderTurn}
+                    scrollRef={scrollRef}
+                    scrollToBottom={isActiveRun(run)}
+                    sessionKey={task.childThreadId}
+                  />
+                )}
             </div>
           ) : (
             <div className="subagent-thread-panel__empty" role="status">
@@ -362,13 +388,13 @@ function QuestionRow({
         onChange={(event) => setCustom(event.target.value)}
       />
       <div className="subagent-thread-row__actions">
-        <Button
+        <Button color="secondary"
           disabled={!enabled || !onRespond}
           onClick={() => onRespond?.(item, { answer: null, ignored: true })}
         >
           跳过
         </Button>
-        <Button
+        <Button color="primary"
           disabled={!enabled || !onRespond || !answer}
           onClick={() => onRespond?.(item, { answer, ignored: false })}
         >
@@ -404,12 +430,12 @@ function ApprovalCard({
       <div className="subagent-thread-row__actions">
         <Button
           disabled={!enabled || !onRespond}
-          tone="danger"
+          color="danger"
           onClick={() => onRespond?.(approval, 'deny')}
         >
           拒绝
         </Button>
-        <Button
+        <Button color="primary"
           disabled={!enabled || !onRespond}
           onClick={() => onRespond?.(approval, 'allow-once')}
         >

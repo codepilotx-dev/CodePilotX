@@ -5,24 +5,63 @@
   appearance: none;
   display: inline-flex;
   width: auto;
+  min-height: var(--cpx-comp-row-height-composer);
   align-items: center;
-  padding: 0 var(--interactive-row-composer-padding-inline);
+  gap: var(--cpx-comp-row-gap);
+  padding: 0 var(--cpx-comp-row-padding-inline);
   border: 0;
-  color: var(--color-token-text-link-foreground);
+  border-radius: var(--cpx-sys-radius-full);
+  background: transparent;
+  box-shadow: none;
+  color: var(--cpx-sys-color-accent);
+  font: var(--cpx-sys-type-control);
+  cursor: pointer;
+  outline: none;
 
   &.subtle {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
+    cursor: default;
+    opacity: 0.55;
   }
 }
 
 /* --- Meta Chip --- */
 .meta-chip {
+  appearance: none;
   display: inline-flex;
   width: auto;
+  min-height: var(--cpx-comp-row-height-composer);
   align-items: center;
+  gap: var(--cpx-comp-row-gap);
   max-width: 220px;
-  padding: 0 var(--interactive-row-composer-padding-inline);
-  color: var(--color-token-description-foreground);
+  padding: 0 var(--cpx-comp-row-padding-inline);
+  border: 0;
+  border-radius: var(--cpx-sys-radius-full);
+  background: transparent;
+  box-shadow: none;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+  cursor: pointer;
+  outline: none;
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
+  }
 
   span {
     min-width: 0;
@@ -31,25 +70,47 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
+
+  &:hover:not(:disabled) {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:active:not(:disabled),
+  &[aria-expanded='true'] {
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: var(--cpx-sys-color-fg-disabled);
+    cursor: default;
+    opacity: 0.55;
+  }
 }
 
 /* --- Chip & Meta-chip Hover / Active --- */
-.composer .icon-button:hover,
-.message-action:hover:not([aria-disabled="true"]),
-.message-action[data-state="open"],
-.icon-button[data-variant="toolbar"]:hover,
-.menubar-trigger:hover,
-.menubar-trigger[data-state="open"],
-.menubar-trigger[data-highlighted] {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
+.composer .chip-button:hover:not(:disabled),
+.menubar-trigger:hover:not(:where(:disabled, [data-disabled])),
+.menubar-trigger[data-highlighted]:not(:where(:disabled, [data-disabled])) {
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
-.message-action[data-state="open"],
-.menubar-trigger[data-state="open"],
-.menubar-trigger[data-highlighted] {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
+.composer .chip-button:active:not(:disabled),
+.menubar-trigger:active:not(:where(:disabled, [data-disabled])) {
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
+}
+
+.menubar-trigger[data-state="open"] {
+  background: var(--cpx-sys-color-selected);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 /* --- Accent-colored chips --- */
@@ -60,5 +121,57 @@
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
-  color: var(--color-token-text-link-foreground);
+  color: var(--cpx-sys-color-accent);
+}
+
+/* --- Semantic Tinted Chips & Badges --- */
+.chip-semantic {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  padding: 2px var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-full);
+  font: var(--cpx-sys-type-label);
+  border: 1px solid transparent;
+
+  > svg {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  &.success {
+    background: var(--cpx-comp-chip-success-bg);
+    border-color: var(--cpx-comp-chip-success-border);
+    color: var(--cpx-comp-chip-success-fg);
+  }
+
+  &.danger {
+    background: var(--cpx-comp-chip-danger-bg);
+    border-color: var(--cpx-comp-chip-danger-border);
+    color: var(--cpx-comp-chip-danger-fg);
+  }
+
+  &.warning {
+    background: var(--cpx-comp-chip-warning-bg);
+    border-color: var(--cpx-comp-chip-warning-border);
+    color: var(--cpx-comp-chip-warning-fg);
+  }
+
+  &.skill {
+    background: var(--cpx-comp-chip-skill-bg);
+    border-color: var(--cpx-comp-chip-skill-border);
+    color: var(--cpx-comp-chip-skill-fg);
+  }
+
+  &.info {
+    background: var(--cpx-comp-chip-info-bg);
+    border-color: var(--cpx-comp-chip-info-border);
+    color: var(--cpx-comp-chip-info-fg);
+  }
+
+  &.accent {
+    background: var(--cpx-comp-chip-accent-bg);
+    border-color: var(--cpx-comp-chip-accent-border);
+    color: var(--cpx-comp-chip-accent-fg);
+  }
 }

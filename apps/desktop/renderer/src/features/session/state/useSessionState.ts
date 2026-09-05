@@ -1,7 +1,7 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
-  DesktopAgentEvent,
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopSessionCatalogStatus,
@@ -36,7 +36,6 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   renameSessionAction,
-  markSessionReadThrough,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
   setSessionPlanModeActiveAction,
@@ -47,7 +46,6 @@ import {
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
-import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
   appendUniqueWorkflowEvent,
   dedupeWorkflowEvents,
@@ -56,11 +54,9 @@ import { mergeSessionStoreSnapshotView } from './sessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from '../workflow/workflowViewPatch.js'
 import {
   applySessionView,
-  addToolLogEntry as addToolLogEntryToView,
   createEmptySessionView,
   setSessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
-  type AddToolLogEntry,
   type SessionViewRefs,
   type SessionViewStateSetters,
   type UpdateSessionView,
@@ -70,6 +66,10 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../composer/composerTypes.js'
+import {
+  composerDraftStore,
+  resolveActivatedSessionComposerInput,
+} from '../composer/composerDraftStore.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -79,12 +79,6 @@ export type UseSessionStateOptions = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -204,12 +198,6 @@ export function useSessionState(
     providerID,
     providerBaseURL,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -219,8 +207,6 @@ export function useSessionState(
     enableMemory,
     rustSearchAndDiffKernels,
     onError,
-    onDiffForActive,
-    onRefreshActiveWorkspace,
     onOpenDrawerPermissions,
   } = options
 
@@ -280,10 +266,6 @@ export function useSessionState(
   }>>({})
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
-  const onDiffForActiveRef = useRef(onDiffForActive)
-  onDiffForActiveRef.current = onDiffForActive
-  const onRefreshActiveWorkspaceRef = useRef(onRefreshActiveWorkspace)
-  onRefreshActiveWorkspaceRef.current = onRefreshActiveWorkspace
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
@@ -451,48 +433,11 @@ export function useSessionState(
     [syncPendingPermissionSessionIds, viewRefs, viewSetters],
   )
 
-  const addToolLogEntry = useCallback<AddToolLogEntry>(
-    (targetSessionId, entry) => {
-      addToolLogEntryToView(updateSessionView, targetSessionId, entry)
-    },
-    [updateSessionView],
-  )
-
   const toggleToolLogEntry = useCallback(
     (entryId: string): void => {
       toggleToolLogEntryInView(viewRefs, updateSessionView, entryId)
     },
     [updateSessionView, viewRefs],
-  )
-
-  const applyAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      handleSessionAgentEvent(event, {
-        activeSessionIdRef,
-        setSessions,
-        setSessionStatus,
-        updateSessionView,
-        addToolLogEntry,
-        onErrorRef,
-        onDiffForActiveRef,
-        onRefreshActiveWorkspaceRef,
-        onOpenDrawerPermissionsRef,
-        markSessionReadThrough: (targetSessionId, readThroughAt) => {
-          markSessionReadThrough(
-            actionContext,
-            targetSessionId,
-            readThroughAt,
-          )
-        },
-      })
-    },
-    [actionContext, addToolLogEntry, updateSessionView],
-  )
-  const handleAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      applyAgentEvent(event)
-    },
-    [applyAgentEvent],
   )
 
   const handleWorkflowEvent = useCallback(
@@ -519,13 +464,6 @@ export function useSessionState(
     },
     [updateSessionView],
   )
-
-  useEffect(() => {
-    const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
-    return () => {
-      unsubscribeAgent()
-    }
-  }, [handleAgentEvent])
 
   useEffect(() => {
     const unsubscribeWorkflow =
@@ -582,7 +520,11 @@ export function useSessionState(
       sessionWorkspacesRef.current = nextWorkspaces
       queueStateBySessionRef.current = nextQueueStates
       sessionsRef.current = nextSessions
-      setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
+      setPendingPermissionSessionIds(
+        change.pendingInteractionThreadIds
+          ? new Set(change.pendingInteractionThreadIds)
+          : buildPendingPermissionSessionIds(nextViews),
+      )
       setSessions(nextSessions)
       setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
@@ -701,12 +643,6 @@ export function useSessionState(
       providerID,
       providerBaseURL,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -722,11 +658,7 @@ export function useSessionState(
       installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
-      fastModel,
-      planExecutionModel,
       model,
-      reviewModel,
-      deepModel,
       effectiveLocalRouterMode,
       effectivePermissionMode,
       permissionConfig,
@@ -734,8 +666,6 @@ export function useSessionState(
       providerBaseURL,
       providerID,
       sessionName,
-      smallFastModel,
-      defaultModel,
       systemPrompt,
       thinkingMode,
     ],
@@ -746,10 +676,14 @@ export function useSessionState(
       target: DesktopWorkspace | null,
       initialSessionName?: string,
       projectlessPrompt?: string,
+      creationSurface?: ThreadCreationSurface,
     ): Promise<string | null> => {
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
-        settingsSnapshot,
+        {
+          ...settingsSnapshot,
+          ...(creationSurface ? { creationSurface } : {}),
+        },
         target,
         initialSessionName,
         projectlessPrompt,
@@ -810,7 +744,18 @@ export function useSessionState(
         sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
         viewSetters,
       )
-      setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      const currentInput = inputBySessionRef.current[targetSessionId]
+      const nextInput = resolveActivatedSessionComposerInput(
+        currentInput,
+        composerDraftStore.peek(`session:${targetSessionId}`)?.document.text,
+      )
+      if (nextInput !== currentInput) {
+        inputBySessionRef.current = {
+          ...inputBySessionRef.current,
+          [targetSessionId]: nextInput,
+        }
+      }
+      setInput(nextInput)
       setComposerAttachments(
         attachmentsBySessionRef.current[targetSessionId] ?? [],
       )

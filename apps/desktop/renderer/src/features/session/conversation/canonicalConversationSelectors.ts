@@ -4,8 +4,12 @@ import type { Item } from '@codepilotx/shared/thread'
 import type {
   DesktopContextUsage,
   DesktopPermissionRequest,
+  DesktopQueuedFollowUp,
+  DesktopQueuePauseReason,
+  DesktopSessionStatus,
 } from '../../../../shared/types.js'
 import {
+  agentTurnStatusToDesktopStatus,
   approvalToRequest,
   latestItemContextUsage,
   questionToRequest,
@@ -22,11 +26,34 @@ export type CanonicalConversationAuxiliaryState = {
   hasConversationMessages: boolean
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
+  queuedFollowUps: DesktopQueuedFollowUp[]
+  queuePauseReason: DesktopQueuePauseReason | null
+  sessionStatus: DesktopSessionStatus | null
   sourceLinks: SourceLink[]
   fallbackTitle: string | null
 }
 
 const completedResultSourceLinks = new WeakMap<object, SourceLink[]>()
+
+export function selectCanonicalSessionStatus(
+  state: CanonicalThreadState | null,
+): DesktopSessionStatus | null {
+  if (!state) return null
+  const queueTurnIds = new Set(state.queue.turnIds)
+  const activeTurn = [...state.turnsById.values()]
+    .filter(
+      turn =>
+        !queueTurnIds.has(turn.id) &&
+        (turn.status === 'running' || turn.status.startsWith('waiting-')),
+    )
+    .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
+  if (activeTurn) return agentTurnStatusToDesktopStatus(activeTurn.status)
+  const latestTurn = [...state.turnOrder]
+    .reverse()
+    .map(id => state.turnsById.get(id))
+    .find(turn => turn && !queueTurnIds.has(turn.id))
+  return agentTurnStatusToDesktopStatus(latestTurn?.status)
+}
 
 export function selectCanonicalConversationAuxiliaryState(
   state: CanonicalThreadState | null,
@@ -36,6 +63,9 @@ export function selectCanonicalConversationAuxiliaryState(
       hasConversationMessages: false,
       pendingPermissions: [],
       contextUsage: null,
+      queuedFollowUps: [],
+      queuePauseReason: null,
+      sessionStatus: null,
       sourceLinks: [],
       fallbackTitle: null,
     }
@@ -49,9 +79,40 @@ export function selectCanonicalConversationAuxiliaryState(
       items.some(item => item.type === 'text' && item.text.trim().length > 0),
     pendingPermissions: selectPendingPermissions(state),
     contextUsage: latestItemContextUsage(items),
+    queuedFollowUps: selectQueuedFollowUps(state),
+    queuePauseReason: state.queue.pauseReason,
+    sessionStatus: selectCanonicalSessionStatus(state),
     sourceLinks: extractCanonicalSourceLinks(items),
     fallbackTitle: fallbackTitleFromInput(inputs[0]?.content),
   }
+}
+
+function selectQueuedFollowUps(
+  state: CanonicalThreadState,
+): DesktopQueuedFollowUp[] {
+  const orderedInputIds: string[] = []
+  const seen = new Set<string>()
+  for (const turnId of state.queue.turnIds) {
+    const sourceInputId = state.turnsById.get(turnId)?.sourceInputID
+    if (!sourceInputId || seen.has(sourceInputId)) continue
+    seen.add(sourceInputId)
+    orderedInputIds.push(sourceInputId)
+  }
+  for (const inputId of state.queue.inputIds) {
+    if (seen.has(inputId)) continue
+    seen.add(inputId)
+    orderedInputIds.push(inputId)
+  }
+  return orderedInputIds.flatMap(inputId => {
+    const input = state.inputsById.get(inputId)
+    if (!input) return []
+    return [{
+      id: input.id,
+      input: { text: input.content },
+      previewText: input.content,
+      createdAt: new Date(input.createdAt).toISOString(),
+    }]
+  })
 }
 
 function selectPendingPermissions(
@@ -84,6 +145,20 @@ function selectPendingPermissions(
     if (approval.status === 'pending') {
       add(approvalToRequest(approval), approval.createdAt, 3)
     }
+  }
+  for (const interaction of state.hookTrustsById.values()) {
+    add({
+      requestId: interaction.interactionId,
+      toolName: 'HookTrust',
+      toolUseId: interaction.interactionId,
+      input: {
+        configPath: interaction.configPath,
+        configSha256: interaction.sha256,
+        hook: interaction.hook,
+      },
+      description: `项目 Hook“${interaction.hook.name}”请求信任，是否允许？`,
+      requestKind: 'tool',
+    }, interaction.createdAt, 4)
   }
 
   return [...requests.values()]

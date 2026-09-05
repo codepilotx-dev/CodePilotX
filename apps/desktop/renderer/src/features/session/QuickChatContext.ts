@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
+  DesktopUserMessageInput,
   DesktopGitStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -15,6 +17,7 @@ import type {
 } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 
 export type ProviderModelOption = {
   providerID: string
@@ -37,6 +40,7 @@ export type QuickChatContextValue = {
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
   editableSessionTitle: string | null
+  projectDetailsTrigger?: ReactNode
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
@@ -60,15 +64,19 @@ export type QuickChatContextValue = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void
+  onOpenAttachment: (attachment: Attachment) => void
+  onOpenLocalContext: (reference: LocalContextReference) => void
   canCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => boolean
   onCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => void | Promise<void>
-  onSubmitEditedUserMessage: (text: string) => Promise<void>
+  onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
+  onOpenSideChat: () => void
+  sideChatAvailable: boolean
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
@@ -97,6 +105,7 @@ export type QuickChatContextValue = {
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
+  layoutResizeActive: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null
 }

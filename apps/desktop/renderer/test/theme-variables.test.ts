@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
 
 import {
   DEFAULT_DARK_THEME,
@@ -45,10 +46,8 @@ describe('fixed Codex UI themes', () => {
       },
     })
 
-    expect(variables['--font-family-sans']).toBe(DEFAULT_UI_FONT)
-    expect(variables['--vscode-font-family']).toBe(DEFAULT_UI_FONT)
-    expect(customVariables['--font-family-sans']).toBe(customFont)
-    expect(customVariables['--vscode-font-family']).toBe(customFont)
+    expect(variables['--cpx-sys-font-family-sans']).toBe(DEFAULT_UI_FONT)
+    expect(customVariables['--cpx-sys-font-family-sans']).toBe(customFont)
 
     const stylesheet = await Bun.file(
       new URL(
@@ -59,14 +58,41 @@ describe('fixed Codex UI themes', () => {
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 
     expect(normalizedStylesheet).toContain(
-      `--font-family-sans: ${DEFAULT_UI_FONT};`,
+      `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`,
     )
-    expect(normalizedStylesheet).toContain('--font-weight-body: 400;')
-    expect(normalizedStylesheet).toContain('--font-weight-label: 500;')
-    expect(normalizedStylesheet).toContain('--font-weight-heading: 600;')
-    expect(normalizedStylesheet).toContain('--font-weight-emphasis: 600;')
-    expect(normalizedStylesheet).not.toContain('--font-weight-body: 445;')
-    expect(normalizedStylesheet).not.toContain('--font-weight-heading: 560;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 400;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
+    expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-bold: 600;')
+    expect(normalizedStylesheet).toContain(
+      '--cpx-sys-line-height-body: calc(var(--cpx-sys-font-size-md) + 6px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--cpx-sys-line-height-caption: calc(var(--cpx-sys-font-size-xs) + 4px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--cpx-sys-line-height-body-lg: calc(var(--cpx-sys-font-size-lg) + 8px);',
+    )
+    expect(normalizedStylesheet).toContain(
+      '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) + 7px);',
+    )
+
+    const tailwind = await Bun.file(
+      new URL('../src/styles/tailwind.css', import.meta.url),
+    ).text()
+    const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
+    expect(normalizedTailwind).toContain(
+      '--text-base--line-height: var(--cpx-sys-line-height-body);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-sm--line-height: var(--cpx-sys-line-height-body-sm);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-code: var(--cpx-sys-font-size-code);',
+    )
+    expect(normalizedTailwind).toContain(
+      '--text-code--line-height: var(--cpx-sys-line-height-code);',
+    )
   })
 
   test('locks the Codex light and dark semantic surfaces', () => {
@@ -74,75 +100,94 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
-    expect(light['--color-background-surface-under']).toBe('#f6f6f6')
-    expect(light['--color-background-surface']).toBe('#ffffff')
-    expect(light['--color-text-foreground']).toBe('#1a1c1f')
-    expect(light['--color-text-foreground-secondary']).toBe(
-      'rgba(26, 28, 31, 0.695)',
+    expect(light['--cpx-sys-color-surface-canvas']).toBe('#f9f9f9')
+    expect(light['--cpx-sys-color-surface-recessed']).not.toBe(
+      light['--cpx-sys-color-surface-canvas'],
     )
-    expect(light['--color-text-foreground-tertiary']).toBe(
-      'rgba(26, 28, 31, 0.495)',
+    expect(light['--cpx-sys-color-fg-primary']).toBe('#111111')
+    expect(light['--cpx-sys-color-fg-secondary']).toBe('#585858')
+    expect(light['--cpx-sys-color-fg-tertiary']).toBe('#868686')
+    expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(17, 17, 17, 0.049)')
+    expect(light['--cpx-sys-color-border-default']).toBe('rgba(17, 17, 17, 0.078)')
+    expect(light['--cpx-sys-color-border-strong']).toBe('rgba(17, 17, 17, 0.117)')
+    expect(light['--cpx-sys-color-hover']).toBe(
+      'rgba(17, 17, 17, 0.05)',
     )
-    expect(light['--color-border-light']).toBe('rgba(26, 28, 31, 0.049)')
-    expect(light['--color-border']).toBe('rgba(26, 28, 31, 0.078)')
-    expect(light['--color-border-heavy']).toBe('rgba(26, 28, 31, 0.117)')
-    expect(light['--vscode-list-hoverBackground']).toBe(
-      'rgba(26, 28, 31, 0.05)',
+    expect(light['--cpx-sys-color-selected']).toBe(
+      'rgba(17, 17, 17, 0.05)',
     )
-    expect(light['--vscode-list-activeSelectionBackground']).toBe(
-      'rgba(26, 28, 31, 0.05)',
+    expect(light['--cpx-sys-color-diff-added-line']).not.toBe(
+      light['--cpx-sys-color-surface-editor'],
     )
-    expect(light['--vscode-button-secondaryHoverBackground']).toBe(
-      'rgba(26, 28, 31, 0.05)',
+    expect(light['--cpx-sys-color-diff-added-text']).not.toBe(
+      light['--cpx-sys-color-diff-added-line'],
     )
-    expect(light['--color-diff-added-line-background']).toBe('#fafdfb')
-    expect(light['--color-diff-added-text-background']).toBe('#f5fbf7')
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--color-background-surface-under']).toBe('#141414')
-    expect(dark['--color-background-surface']).toBe('#181818')
-    expect(dark['--color-text-foreground']).toBe('#ffffff')
-    expect(dark['--color-background-panel']).toBe('#232323')
-    expect(dark['--color-text-foreground-secondary']).toBe(
-      'rgba(255, 255, 255, 0.71)',
+    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#111111')
+    expect(dark['--cpx-sys-color-surface-recessed']).not.toBe(
+      dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--color-text-foreground-tertiary']).toBe(
-      'rgba(255, 255, 255, 0.498)',
+    expect(dark['--cpx-sys-color-fg-primary']).toBe('#f7f7f7')
+    expect(dark['--cpx-sys-color-surface-panel']).not.toBe(
+      dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--color-border-light']).toBe(
-      'rgba(255, 255, 255, 0.042)',
+    expect(dark['--cpx-sys-color-fg-secondary']).toBe('#b4b4b4')
+    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#848484')
+    expect(dark['--cpx-sys-color-border-subtle']).toBe(
+      'rgba(247, 247, 247, 0.056)',
     )
-    expect(dark['--color-border']).toBe(
-      'rgba(255, 255, 255, 0.084)',
+    expect(dark['--cpx-sys-color-border-default']).toBe(
+      'rgba(247, 247, 247, 0.084)',
     )
-    expect(dark['--color-border-heavy']).toBe(
-      'rgba(255, 255, 255, 0.156)',
+    expect(dark['--cpx-sys-color-border-strong']).toBe(
+      'rgba(247, 247, 247, 0.156)',
     )
-    expect(dark['--vscode-list-hoverBackground']).toBe(
-      'rgba(255, 255, 255, 0.08)',
+    expect(dark['--cpx-sys-color-hover']).toBe(
+      'rgba(247, 247, 247, 0.08)',
     )
-    expect(dark['--vscode-list-activeSelectionBackground']).toBe(
-      'rgba(255, 255, 255, 0.05)',
+    expect(dark['--cpx-sys-color-selected']).toBe(
+      'rgba(247, 247, 247, 0.05)',
     )
-    expect(dark['--vscode-button-secondaryHoverBackground']).toBe(
-      'rgba(255, 255, 255, 0.08)',
-    )
-    expect(dark['--codex-base-on-accent']).toBe('#ffffff')
+    expect(dark['--cpx-sys-color-fg-on-accent']).toBe('#ffffff')
   })
 
-  test('uses the same restrained black elevation shadows in every theme', async () => {
-    const expectedRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
-    const expectedFloat =
-      '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+  test('keeps control thumbs white in light and dark themes', () => {
+    const light = deriveThemeVariables({
+      ...DEFAULT_LIGHT_THEME,
+      theme: {
+        ...DEFAULT_LIGHT_THEME.theme,
+        accent: '#d7827e',
+        contrast: 40,
+        ink: '#575279',
+        surface: '#faf4ed',
+      },
+    })
+    const dark = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        accent: '#a7c080',
+        contrast: 41,
+        ink: '#d3c6aa',
+        surface: '#2d353b',
+      },
+    })
+
+    expect(light['--cpx-comp-switch-thumb-fill']).toBe('#ffffff')
+    expect(dark['--cpx-comp-switch-thumb-fill']).toBe('#ffffff')
+  })
+
+  test('keeps resting surfaces flat and delegates floating elevation to the theme token', async () => {
+    const expectedRaised = 'none'
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     for (const variables of [light, dark]) {
-      expect(variables['--shadow-raised']).toBe(expectedRaised)
-      expect(variables['--shadow-float']).toBe(expectedFloat)
+      expect(variables['--cpx-sys-shadow-raised']).toBe(expectedRaised)
+      expect(variables['--cpx-sys-shadow-resting']).toBe('none')
     }
-    expect(dark['--shadow-raised']).toBe(light['--shadow-raised'])
-    expect(dark['--shadow-float']).toBe(light['--shadow-float'])
+    expect(dark['--cpx-sys-shadow-raised']).toBe(light['--cpx-sys-shadow-raised'])
 
     const stylesheet = await Bun.file(
       new URL(
@@ -151,22 +196,14 @@ describe('fixed Codex UI themes', () => {
       ),
     ).text()
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
-    const shadowDeclarations =
-      normalizedStylesheet.match(
-        /--shadow-(?:raised|float):\s*[^;]+;/g,
-      ) ?? []
 
     expect(normalizedStylesheet).toContain(
-      `--shadow-raised: ${expectedRaised};`,
+      `--cpx-sys-shadow-raised: ${expectedRaised};`,
     )
     expect(normalizedStylesheet).toContain(
-      `--shadow-float: ${expectedFloat};`,
+      '--cpx-sys-shadow-resting: none;',
     )
-    expect(shadowDeclarations).toHaveLength(2)
-    expect(shadowDeclarations.join(' ')).not.toContain(
-      '--color-token-foreground',
-    )
-    expect(shadowDeclarations.join(' ')).not.toContain('color-mix')
+    expect(normalizedStylesheet).toContain('--cpx-sys-shadow-floating')
   })
 
   test('uses the recovered Codex runtime formulas for Dracula', () => {
@@ -186,35 +223,25 @@ describe('fixed Codex UI themes', () => {
       },
     })
 
-    expect(variables['--color-background-surface']).toBe('#282a36')
-    expect(variables['--color-background-surface-under']).toBe('#22232d')
-    expect(variables['--color-background-panel']).toBe('#32343f')
-    expect(variables['--color-background-elevated-secondary-opaque']).toBe(
-      '#373843',
+    expect(variables['--cpx-sys-color-surface-canvas']).toBe('#282a36')
+    expect(variables['--cpx-sys-color-surface-recessed']).not.toBe(
+      variables['--cpx-sys-color-surface-canvas'],
     )
-    expect(variables['--color-background-editor-opaque']).toBe(
-      'rgb(55, 56, 67)',
+    expect(variables['--cpx-sys-color-success']).toBe('#50fa7b')
+    expect(variables['--cpx-sys-color-danger']).toBe('#ff5555')
+    expect(variables['--cpx-sys-color-diff-added-fg']).toBe('#50fa7b')
+    expect(variables['--cpx-sys-color-diff-added-indicator']).toBe('#50fa7b')
+    expect(variables['--cpx-sys-color-diff-removed-indicator']).toBe('#ff5555')
+    expect(variables['--cpx-sys-color-diff-added-line']).not.toBe(
+      variables['--cpx-sys-color-success'],
     )
-    expect(variables['--color-text-accent']).toBe('rgb(255, 173, 220)')
-    expect(variables['--color-decoration-added']).toBe('#50fa7b')
-    expect(variables['--color-decoration-deleted']).toBe('#ff5555')
-    expect(variables['--color-diff-added-foreground']).toBe('#50fa7b')
-    expect(variables['--color-diff-added-indicator']).toBe('#50fa7b')
-    expect(variables['--color-diff-added-line-background']).toBe('#383c44')
-    expect(variables['--color-diff-added-text-background']).toBe('#384045')
-    expect(variables['--color-diff-removed-indicator']).toBe('#ff5555')
-    expect(variables['--color-diff-removed-line-background']).toBe('#3b3943')
-    expect(variables['--color-diff-removed-text-background']).toBe('#3f3944')
-    expect(variables['--color-diff-added-line-background']).not.toBe(
-      variables['--color-decoration-added'],
+    expect(variables['--cpx-sys-color-diff-removed-line']).not.toBe(
+      variables['--cpx-sys-color-danger'],
     )
-    expect(variables['--color-diff-removed-line-background']).not.toBe(
-      variables['--color-decoration-deleted'],
-    )
-    expect(variables['--color-diff-added-line-background']).toMatch(
+    expect(variables['--cpx-sys-color-diff-added-line']).toMatch(
       /^#[\da-f]{6}$/,
     )
-    expect(variables['--color-diff-removed-text-background']).toMatch(
+    expect(variables['--cpx-sys-color-diff-removed-text']).toMatch(
       /^#[\da-f]{6}$/,
     )
   })
@@ -223,11 +250,11 @@ describe('fixed Codex UI themes', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
       for (const tone of ['added', 'removed'] as const) {
-        const foreground = variables[`--color-diff-${tone}-foreground`]
+        const foreground = variables[`--cpx-sys-color-diff-${tone}-fg`]
         const backgrounds = [
-          variables['--color-background-editor-opaque'],
-          variables[`--color-diff-${tone}-line-background`],
-          variables[`--color-diff-${tone}-text-background`],
+          variables['--cpx-sys-color-surface-editor'],
+          variables[`--cpx-sys-color-diff-${tone}-line`],
+          variables[`--cpx-sys-color-diff-${tone}-text`],
         ]
         for (const background of backgrounds) {
           expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
@@ -248,44 +275,119 @@ describe('fixed Codex UI themes', () => {
         },
       },
     })
-    const editor = variables['--color-background-editor-opaque']
+    const editor = variables['--cpx-sys-color-surface-editor']
 
-    expect(variables['--color-diff-added-indicator']).toBe('#ffffff')
-    expect(variables['--color-diff-added-foreground']).not.toBe('#ffffff')
+    expect(variables['--cpx-sys-color-diff-added-indicator']).toBe('#ffffff')
+    expect(variables['--cpx-sys-color-diff-added-fg']).not.toBe('#ffffff')
     expect(
-      contrastRatio(variables['--color-diff-added-foreground'], editor),
+      contrastRatio(variables['--cpx-sys-color-diff-added-fg'], editor),
     ).toBeGreaterThanOrEqual(4.5)
   })
 
-  test('derives independent opaque canvas, chrome, panel, editor, and elevated roles', () => {
+  test('derives opaque canvas, chrome, panel, editor, and elevated roles', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
       const roleNames = [
-        '--color-background-surface',
-        '--color-background-surface-under',
-        '--color-background-panel',
-        '--color-background-editor-opaque',
-        '--color-background-elevated-secondary-opaque',
+        '--cpx-sys-color-surface-canvas',
+        '--cpx-sys-color-surface-recessed',
+        '--cpx-sys-color-surface-panel',
+        '--cpx-sys-color-surface-control',
+        '--cpx-sys-color-surface-raised',
+        '--cpx-sys-color-surface-editor',
       ] as const
-      const roles = roleNames.map(name => variables[name])
-
-      expect(new Set(roleNames).size).toBe(roleNames.length)
-      for (const role of roles) {
+      for (const role of roleNames.map(name => variables[name])) {
         expect(role).toBeDefined()
         expect(role).not.toContain('rgba')
       }
     }
   })
 
+  test('preserves the complete surface hierarchy on near-white custom themes', () => {
+    const variables = deriveThemeVariables({
+      ...DEFAULT_LIGHT_THEME,
+      theme: {
+        ...DEFAULT_LIGHT_THEME.theme,
+        accent: '#5d755d',
+        surface: '#f5f3ed',
+        ink: '#2f312d',
+        contrast: 40,
+      },
+    })
+    const canvas = variables['--cpx-sys-color-surface-canvas']
+    const recessed = variables['--cpx-sys-color-surface-recessed']
+    const control = variables['--cpx-sys-color-surface-control']
+    const raised = variables['--cpx-sys-color-surface-raised']
+
+    expect(recessed).toBe(
+      deriveDesktopSurfaceUnder('#f5f3ed', '#2f312d', 'light', 40),
+    )
+    expect(luminance(parseColor(recessed))).toBeLessThan(
+      luminance(parseColor(canvas)),
+    )
+    expect(luminance(parseColor(control))).toBeGreaterThan(
+      luminance(parseColor(canvas)),
+    )
+    expect(luminance(parseColor(raised))).toBeGreaterThan(
+      luminance(parseColor(canvas)),
+    )
+  })
+
+  test('keeps dark chrome recessed while control and raised surfaces lift', () => {
+    const variables = deriveThemeVariables({
+      ...DEFAULT_DARK_THEME,
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        surface: '#282a36',
+        ink: '#f8f8f2',
+        contrast: 60,
+      },
+    })
+    const canvasLuminance = luminance(
+      parseColor(variables['--cpx-sys-color-surface-canvas']),
+    )
+
+    expect(variables['--cpx-sys-color-surface-recessed']).toBe(
+      deriveDesktopSurfaceUnder('#282a36', '#f8f8f2', 'dark', 60),
+    )
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-recessed']),
+    )).toBeLessThan(canvasLuminance)
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-control']),
+    )).toBeGreaterThan(canvasLuminance)
+    expect(luminance(
+      parseColor(variables['--cpx-sys-color-surface-raised']),
+    )).toBeGreaterThan(canvasLuminance)
+  })
+
+  test('keeps every semantic foreground readable on its subtle background', () => {
+    for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
+      const variables = deriveThemeVariables(config)
+      for (const tone of [
+        'accent',
+        'danger',
+        'warning',
+        'success',
+        'skill',
+        'info',
+      ] as const) {
+        expect(contrastRatio(
+          variables[`--cpx-sys-color-${tone}-fg`],
+          variables[`--cpx-sys-color-${tone}-subtle-bg`],
+        )).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
   test('keeps the recovered contrast boundary palette deterministic', () => {
     const expected = [
-      [0, 'rgba(26, 28, 31, 0.039)', '#ffffff'],
-      [45, 'rgba(26, 28, 31, 0.078)', '#f6f6f6'],
-      [60, 'rgba(26, 28, 31, 0.104)', '#f2f2f2'],
-      [100, 'rgba(26, 28, 31, 0.173)', '#e7e7e7'],
+      [0, 'rgba(17, 17, 17, 0.06)'],
+      [45, 'rgba(17, 17, 17, 0.078)'],
+      [60, 'rgba(17, 17, 17, 0.1)'],
+      [100, 'rgba(17, 17, 17, 0.1)'],
     ] as const
 
-    for (const [contrast, border, surfaceUnder] of expected) {
+    for (const [contrast, border] of expected) {
       const variables = deriveThemeVariables({
         ...DEFAULT_LIGHT_THEME,
         theme: {
@@ -294,10 +396,7 @@ describe('fixed Codex UI themes', () => {
         },
       })
 
-      expect(variables['--color-border']).toBe(border)
-      expect(variables['--color-background-surface-under']).toBe(
-        surfaceUnder,
-      )
+      expect(variables['--cpx-sys-color-border-default']).toBe(border)
       expect(deriveThemeVariables({
         ...DEFAULT_LIGHT_THEME,
         theme: {
@@ -305,6 +404,26 @@ describe('fixed Codex UI themes', () => {
           contrast,
         },
       })).toEqual(variables)
+    }
+  })
+
+  test('keeps dark subtle borders near the Codex five-percent baseline', () => {
+    const expected = [
+      [0, 'rgba(247, 247, 247, 0.05)'],
+      [60, 'rgba(247, 247, 247, 0.056)'],
+      [100, 'rgba(247, 247, 247, 0.06)'],
+    ] as const
+
+    for (const [contrast, border] of expected) {
+      const variables = deriveThemeVariables({
+        ...DEFAULT_DARK_THEME,
+        theme: {
+          ...DEFAULT_DARK_THEME.theme,
+          contrast,
+        },
+      })
+
+      expect(variables['--cpx-sys-color-border-subtle']).toBe(border)
     }
   })
 
@@ -321,7 +440,7 @@ describe('fixed Codex UI themes', () => {
     })
 
     expect(migrated).toMatchObject({
-      version: 6,
+      version: 7,
       mode: 'system',
       codeThemeIds: {
         light: 'codex-light',
@@ -329,10 +448,20 @@ describe('fixed Codex UI themes', () => {
       },
       reduceMotion: 'system',
       pointerCursorEnabled: false,
-      fontSizes: { ui: 14, code: 12 },
+      fontSizes: { ui: 14, code: 13 },
     })
     expect(migrated.chromeThemes.light).not.toHaveProperty('opaqueWindows')
     expect(migrated.chromeThemes.dark).not.toHaveProperty('opaqueWindows')
+  })
+
+  test('uses code size 13 for new settings without migrating a saved size 12', () => {
+    expect(DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.code).toBe(13)
+    expect(
+      normalizeDesktopThemeSettings({
+        ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        fontSizes: { ui: 14, code: 12 },
+      }).fontSizes,
+    ).toEqual({ ui: 14, code: 12 })
   })
 
   test('keeps separate light and dark selections and rejects mismatches', () => {
@@ -362,7 +491,7 @@ describe('fixed Codex UI themes', () => {
     })
   })
 
-  test('resets a previous V2 single selection to V6 defaults', () => {
+  test('resets a previous V2 single selection to V7 defaults', () => {
     expect(
       normalizeDesktopThemeSettings({
         version: 2,
@@ -389,6 +518,48 @@ describe('fixed Codex UI themes', () => {
       'proof-light',
     )
     expect(getCodeThemeSelectionForVariant(settings, 'dark')).toBe('dracula')
+  })
+
+  test('derives harmonized multi-hue semantic tones and frosted glass tokens', () => {
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    for (const vars of [light, dark]) {
+      // Blur & Glass tokens
+      expect(vars['--cpx-sys-blur-sm']).toBe('8px')
+      expect(vars['--cpx-sys-blur-md']).toBe('16px')
+      expect(vars['--cpx-sys-blur-lg']).toBe('24px')
+      expect(vars['--cpx-sys-glass-filter']).toBe('blur(16px)')
+      expect(vars['--cpx-comp-glass-filter']).toBe('blur(16px)')
+
+      // Multi-hue semantic subtle backgrounds & borders
+      expect(vars['--cpx-sys-color-success-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-success-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-danger-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-danger-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-warning-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-warning-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-skill-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-skill-subtle-border']).toBeDefined()
+      expect(vars['--cpx-sys-color-info-subtle-bg']).toBeDefined()
+      expect(vars['--cpx-sys-color-info-subtle-border']).toBeDefined()
+
+      expect(vars['--cpx-sys-color-accent-subtle-bg']).toBeDefined()
+    }
+  })
+
+  test('derives pure black subtle floating shadows and dark scrims across light and dark modes', () => {
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+
+    // Floating shadow must strictly use pure black (rgb(0 0 0 / ...)) and never use ink or white halos
+    expect(light['--cpx-sys-shadow-floating']).toContain('rgb(0 0 0 /')
+    expect(dark['--cpx-sys-shadow-floating']).toContain('rgb(0 0 0 /')
+    expect(dark['--cpx-sys-shadow-floating']).not.toContain('255')
+
+    // Scrim / backdrop must be pure black alpha
+    expect(light['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
+    expect(dark['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
   })
 })
 

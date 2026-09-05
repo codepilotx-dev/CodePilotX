@@ -195,8 +195,19 @@ describe("核心工具面", () => {
     expect(() => executor.definition("shell")).toThrow()
     const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
     expect(defaultPlan.eager).toContain("Edit")
+    expect(defaultPlan.exposed).toContain("spawn_agents")
     expect(defaultPlan.eager).not.toContain("apply_patch")
     expect(defaultPlan.deferred).toContain("apply_patch")
+    const sideChatPlan = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+      delegationEnabled: false,
+    })
+    expect(sideChatPlan.exposed).not.toContain("spawn_agents")
+    expect(sideChatPlan.exposed).not.toContain("wait_agents")
+    expect(sideChatPlan.exposed).not.toContain("send_agent")
+    expect(sideChatPlan.exposed).not.toContain("stop_agent")
     const editSkillPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
@@ -228,9 +239,28 @@ describe("核心工具面", () => {
       executionMode: "parallel",
       execute: async () => ({ ok: true }),
     })
+    registry.register({
+      sdkName: "new_deferred_example",
+      description: "组合冻结后新增的延迟工具",
+      schema: z.object({}).strict(),
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      capabilities: { filesystem: "none", network: "none", process: false, externalState: false, userInteraction: false },
+      allowedModes: ["chat", "plan"],
+      allowedProfiles: ["main", "default", "explorer", "worker"],
+      approvalStrategy: "never-review",
+      visibility: "deferred",
+      executionMode: "parallel",
+      execute: async () => ({ ok: true }),
+    })
     const searchable = new ToolExecutor(registry)
-    const result = await searchable.execute<any>("ToolSearch", { query: "select:deferred_example" }, context)
+    const frozenContext = { ...context, frozenDeferredToolNames: ["deferred_example"] }
+    const result = await searchable.execute<any>("ToolSearch", { query: "select:deferred_example" }, frozenContext)
     expect(result.addedToolNames).toEqual(["deferred_example"])
+    await expect(searchable.execute(
+      "ToolSearch",
+      { query: "select:new_deferred_example" },
+      frozenContext,
+    )).rejects.toMatchObject({ code: "DEFERRED_TOOL_NOT_FOUND" })
 
     const progress: unknown[] = []
     await Bun.write(join(context.workspace.rootPath, "progress.txt"), "ok")

@@ -2,7 +2,6 @@ import type React from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Bot, History } from "lucide-react";
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import type { Transition } from 'motion/react'
 import {
   animate,
   motion,
@@ -11,6 +10,7 @@ import {
 } from "motion/react";
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import {
+  layoutTween,
   motionTransition,
 } from '../motion/motionTransitions.js'
 import {
@@ -43,12 +43,6 @@ type Props = {
   onSetWidth: (width: number) => void;
   shell: SidebarShellController;
 };
-
-const sidebarSpring = {
-  type: 'spring',
-  duration: 0.5,
-  bounce: 0.1,
-} satisfies Transition
 
 export function SidebarFrame({
   children,
@@ -115,7 +109,7 @@ export function SidebarFrame({
       docked ? liveWidth.get() : 0,
       motionTransition(
         reducedMotion,
-        sidebarSpring,
+        layoutTween,
       ),
     )
     allocatedWidthAnimationRef.current = animation
@@ -149,47 +143,6 @@ export function SidebarFrame({
       if (active) shell.onFloatingResizeChange(false)
     }
   }, [floating, resizing, shell.onFloatingResizeChange])
-
-  useLayoutEffect(() => {
-    const roots = [sidebarRef.current].filter(
-      (root): root is HTMLElement => root !== null,
-    );
-    if (roots.length === 0) return;
-
-    const footerEntries = roots
-      .map(root => ({
-        footer: root.querySelector<HTMLElement>(".sidebar-footer"),
-        root,
-      }))
-      .filter(
-        (entry): entry is { footer: HTMLElement; root: HTMLElement } =>
-          entry.footer !== null,
-      );
-
-    function updateFooterHeight(entry: {
-      footer: HTMLElement;
-      root: HTMLElement;
-    }): void {
-      const footerStyle = window.getComputedStyle(entry.footer);
-      const height = Math.ceil(
-        entry.footer.getBoundingClientRect().height +
-          Number.parseFloat(footerStyle.marginTop || "0") +
-          Number.parseFloat(footerStyle.marginBottom || "0"),
-      );
-      entry.root.style.setProperty("--sidebar-footer-height", `${height}px`);
-    }
-
-    footerEntries.forEach(updateFooterHeight);
-    const observer = new ResizeObserver(entries => {
-      for (const resizeEntry of entries) {
-        const match = footerEntries.find(entry => entry.footer === resizeEntry.target);
-        if (match) updateFooterHeight(match);
-      }
-    });
-    footerEntries.forEach(entry => observer.observe(entry.footer));
-
-    return () => observer.disconnect();
-  }, [shell.mode]);
 
   return (
     <>
@@ -236,7 +189,7 @@ export function SidebarFrame({
         }
         transition={motionTransition(
           reducedMotion,
-          sidebarSpring,
+          layoutTween,
         )}
       >
         {children}

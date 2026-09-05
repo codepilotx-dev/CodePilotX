@@ -1,160 +1,126 @@
 import { describe, expect, test } from 'bun:test'
+import type { MiniMaxCliStatus, PluginSummary } from '@codepilotx/agent-protocol'
 import {
   PLUGIN_CATALOG_DESCRIPTORS,
   filterPluginCatalog,
   groupPluginCatalogBySource,
-  mergeBuiltinPluginState,
+  mergePluginCatalog,
   pluginPrimaryAction,
   pluginStatusLabel,
-  selectIncludedPluginOverview,
+  selectInstalledPluginOverview,
 } from '../src/features/plugins/pluginCatalog.js'
 import { groupSkillsForDisplay } from '../src/features/plugins/skillCatalog.js'
 import type { DesktopSkillCatalogItem } from '../shared/types.js'
 
-function catalog(
-  plugins: { id: string; enabled: boolean }[] | undefined = [],
-  error: unknown = null,
-) {
-  return mergeBuiltinPluginState(
-    PLUGIN_CATALOG_DESCRIPTORS,
-    plugins,
-    error,
-  )
+function taskPlanning(enabled: boolean): PluginSummary {
+  return {
+    id: 'task-planning',
+    name: '任务规划',
+    version: '1.0.0',
+    description: '澄清目标并生成可执行的任务规划。',
+    developerName: 'CodePilotX',
+    category: 'Productivity',
+    source: 'bundled',
+    installationPolicy: 'INSTALLED_BY_DEFAULT',
+    installed: true,
+    enabled,
+    status: 'ready',
+    capabilities: ['task-planning'],
+    skills: ['task-planning'],
+  }
+}
+
+function catalog(plugins: PluginSummary[] | undefined = [taskPlanning(true)], error: unknown = null) {
+  return mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, error)
+}
+
+const miniMaxInstalled: MiniMaxCliStatus = {
+  installationStatus: 'installed',
+  installedVersion: '1.2.3',
+  latestVersion: '1.2.3',
+  updateAvailable: false,
+  nodeVersion: 'v22.0.0',
+  npmVersion: '10.0.0',
+  authStatus: 'coding-plan-synced',
+  credentialSource: {
+    providerId: 'minimax-cn-coding-plan',
+    credentialId: 'credential:cn',
+    label: 'MiniMax CN Coding Plan',
+    maskedValue: 'sk-****plan',
+    region: 'cn',
+  },
+  generation: 2,
+  updatedAt: 2,
 }
 
 describe('plugin catalog state', () => {
-  test('maps the builtin Browser response to enabled and disabled states', () => {
-    const enabled = catalog([{ id: 'browser@builtin', enabled: true }])
-    const disabled = catalog([{ id: 'browser@builtin', enabled: false }])
-
-    expect(enabled.find(item => item.id === 'browser')?.status).toBe('enabled')
-    expect(disabled.find(item => item.id === 'browser')?.status).toBe('disabled')
+  test('maps the real task planning plugin to enabled and disabled states', () => {
+    expect(catalog([taskPlanning(true)]).find(item => item.id === 'task-planning')?.status).toBe('enabled')
+    expect(catalog([taskPlanning(false)]).find(item => item.id === 'task-planning')?.status).toBe('disabled')
   })
 
-  test('keeps Browser unavailable when the builtin API returns no matching item', () => {
-    const browser = catalog().find(item => item.id === 'browser')
-
-    expect(browser?.status).toBe('unavailable')
-    expect(browser && pluginPrimaryAction(browser)).toEqual({
-      kind: 'toggle-builtin',
-      label: '当前不可用',
-      disabled: true,
-    })
+  test('keeps all six Featured plugins unavailable with disabled install actions', () => {
+    const featured = catalog().filter(item => item.category === 'included')
+    expect(featured.map(item => item.id)).toEqual([
+      'computer-use', 'browser', 'chrome', 'spreadsheets', 'presentations', 'github',
+    ])
+    for (const item of featured) {
+      expect(item.status).toBe('unavailable')
+      expect(pluginStatusLabel(item)).toBe('即将推出')
+      expect(pluginPrimaryAction(item)).toEqual({ kind: 'install', label: '安装', disabled: true })
+    }
   })
 
-  test('keeps the static catalog and marks Browser when loading fails', () => {
-    const items = catalog([], new Error('IPC failed'))
-    const browser = items.find(item => item.id === 'browser')
-
+  test('keeps static entries visible when the real plugin request fails', () => {
+    const items = catalog([], new Error('RPC failed'))
     expect(items).toHaveLength(7)
-    expect(browser?.status).toBe('error')
-    expect(browser && pluginStatusLabel(browser)).toBe('状态读取失败')
-    expect(items.find(item => item.id === 'github')?.status).toBe('included')
-    expect(items.find(item => item.id === 'minimax')?.status).toBe('included')
-  })
-
-  test('uses a disabled pending action before the builtin response arrives', () => {
-    const browser = mergeBuiltinPluginState(
-      PLUGIN_CATALOG_DESCRIPTORS,
-      undefined,
-    ).find(item => item.id === 'browser')
-
-    expect(browser?.status).toBe('loading')
-    expect(browser && pluginPrimaryAction(browser)).toEqual({
-      kind: 'toggle-builtin',
-      label: '正在检查',
-      disabled: true,
-    })
+    expect(items.some(item => item.id === 'task-planning')).toBe(false)
+    expect(items.find(item => item.id === 'browser')?.status).toBe('unavailable')
   })
 })
 
 describe('plugin catalog filtering and actions', () => {
-  const items = catalog([{ id: 'browser@builtin', enabled: true }])
+  const items = catalog()
 
   test('matches trimmed, case-insensitive name and description queries', () => {
-    expect(filterPluginCatalog(items, '  GITHUB  ', 'all', 'all').map(item => item.id)).toEqual([
-      'github',
-    ])
-    expect(filterPluginCatalog(items, '电子表格', 'all', 'all').map(item => item.id)).toEqual([
-      'spreadsheets',
-    ])
+    expect(filterPluginCatalog(items, ' GITHUB ', 'all', 'all').map(item => item.id)).toEqual(['github'])
+    expect(filterPluginCatalog(items, '任务规划', 'all', 'all').map(item => item.id)).toEqual(['task-planning'])
   })
 
-  test('combines category and status filters and can return no results', () => {
-    expect(filterPluginCatalog(items, '', 'manageable', 'enabled').map(item => item.id)).toEqual([
-      'browser',
-    ])
+  test('combines category and status filters', () => {
+    expect(filterPluginCatalog(items, '', 'manageable', 'enabled').map(item => item.id)).toEqual(['task-planning'])
     expect(filterPluginCatalog(items, '', 'included', 'disabled')).toEqual([])
   })
 
-  test('does not expose actions for included plugins', () => {
-    const included = items.find(item => item.id === 'computer-use')
-
-    expect(included && pluginPrimaryAction(included)).toBeNull()
-    expect(included && pluginStatusLabel(included)).toBe('内置')
+  test('keeps the official link fallback when the connected Agent lacks MiniMax CLI support', () => {
+    const minimax = items.find(item => item.id === 'minimax')!
+    expect(pluginPrimaryAction(minimax)).toEqual({ kind: 'open-external', label: '查看安装说明', disabled: false })
+    expect(pluginStatusLabel(minimax)).toBe('外部工具')
   })
 
-  test('exposes MiniMax only as an external documentation action', () => {
-    const minimax = items.find(item => item.id === 'minimax')
+  test('maps MiniMax CLI installation, update, and Coding Plan authentication state', () => {
+    const installed = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, { status: miniMaxInstalled })
+      .find(item => item.id === 'minimax')!
+    expect(pluginPrimaryAction(installed)).toEqual({ kind: 'install-minimax', label: '已安装', disabled: true })
+    expect(pluginStatusLabel(installed)).toBe('已安装 · 已连接 Coding Plan')
 
-    expect(minimax && pluginPrimaryAction(minimax)).toEqual({
-      kind: 'open-external',
-      label: '查看安装说明',
-      disabled: false,
-    })
-    expect(minimax && pluginStatusLabel(minimax)).toBe('外部工具')
+    const update = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, {
+      status: { ...miniMaxInstalled, latestVersion: '1.3.0', updateAvailable: true },
+    }).find(item => item.id === 'minimax')!
+    expect(pluginPrimaryAction(update)).toEqual({ kind: 'update-minimax', label: '更新', disabled: false })
   })
 })
 
 describe('plugin catalog presentation selectors', () => {
-  const items = catalog([{ id: 'browser@builtin', enabled: false }])
-
-  test('groups sources in a fixed order without empty groups', () => {
-    const shuffled = [
-      items.find(item => item.id === 'minimax'),
-      items.find(item => item.id === 'github'),
-      items.find(item => item.id === 'browser'),
-    ].filter(item => item !== undefined)
-
-    expect(groupPluginCatalogBySource(shuffled).map(group => group.category)).toEqual([
-      'included',
-      'manageable',
-      'external',
+  test('groups categories in their fixed order', () => {
+    expect(groupPluginCatalogBySource(catalog()).map(group => group.category)).toEqual([
+      'included', 'manageable', 'external',
     ])
-    expect(
-      groupPluginCatalogBySource(
-        shuffled.filter(item => item.category !== 'included'),
-      ).map(group => group.category),
-    ).toEqual(['manageable', 'external'])
   })
 
-  test('selects only the five static included plugins for the overview', () => {
-    const overview = selectIncludedPluginOverview(items)
-
-    expect(overview.map(item => item.id)).toEqual([
-      'computer-use',
-      'chrome',
-      'spreadsheets',
-      'presentations',
-      'github',
-    ])
-    expect(overview.some(item => item.id === 'browser')).toBe(false)
-    expect(overview.some(item => item.id === 'minimax')).toBe(false)
-  })
-
-  test('preserves runtime state mapping inside source groups', () => {
-    const groups = groupPluginCatalogBySource(items)
-    const browser = groups
-      .find(group => group.category === 'manageable')
-      ?.items.find(item => item.id === 'browser')
-
-    expect(browser?.status).toBe('disabled')
-    expect(pluginPrimaryAction(browser!)).toEqual({
-      kind: 'toggle-builtin',
-      label: '启用',
-      disabled: false,
-      pressed: false,
-    })
+  test('puts only installed and enabled real plugins on the shelf', () => {
+    expect(selectInstalledPluginOverview(catalog([taskPlanning(true)])).map(item => item.id)).toEqual(['task-planning'])
+    expect(selectInstalledPluginOverview(catalog([taskPlanning(false)]))).toEqual([])
   })
 })
 
@@ -162,25 +128,11 @@ describe('skill catalog presentation selectors', () => {
   const skills = [
     { id: 'one', name: 'One', installed: false },
     { id: 'two', name: 'Two', installed: true },
-    { id: 'three', name: 'Three', installed: false },
-    { id: 'four', name: 'Four', installed: true },
   ] as DesktopSkillCatalogItem[]
 
-  test('splits installed and recommended skills without changing their order', () => {
+  test('splits installed and recommended skills', () => {
     const groups = groupSkillsForDisplay(skills)
-
-    expect(groups.installed.map(skill => skill.id)).toEqual(['two', 'four'])
-    expect(groups.recommended.map(skill => skill.id)).toEqual(['one', 'three'])
-    expect([
-      ...groups.installed.map(skill => skill.id),
-      ...groups.recommended.map(skill => skill.id),
-    ].sort()).toEqual(['four', 'one', 'three', 'two'])
-  })
-
-  test('returns empty groups without inventing catalog entries', () => {
-    expect(groupSkillsForDisplay([])).toEqual({
-      installed: [],
-      recommended: [],
-    })
+    expect(groups.installed.map(skill => skill.id)).toEqual(['two'])
+    expect(groups.recommended.map(skill => skill.id)).toEqual(['one'])
   })
 })

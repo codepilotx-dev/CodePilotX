@@ -1,16 +1,21 @@
 import React from "react";
 import {
-  ChevronDown,
   ChevronRight,
   CircleAlert,
   LoaderCircle,
   RotateCcw,
-  SquareTerminal,
+  type LucideIcon,
 } from "lucide-react";
 import type { RenderBlocker, RenderTurnEntry } from "@codepilotx/session-view";
 import type { Item } from "@codepilotx/shared/thread";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type { VirtualizerHandle } from "virtua";
+import { FullScreenWhaleLoading } from "../../../components/ui/FullScreenWhaleLoading.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import {
+  type KeyedDisclosureStore,
+  useDisclosureExpanded,
+} from "../../../components/ui/keyedDisclosureStore.js";
 
 import {
   CanonicalItemRenderer,
@@ -25,38 +30,57 @@ import {
   type PatchAction,
   type ReadThreadPatchDiff,
 } from "./CanonicalItemRenderer.js";
+import {
+  isExplorationToolActivity,
+  toolSemanticIcon,
+} from "./ToolActivityPresentation.js";
 import { ConversationTurnErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
 import {
   SessionTimelineView,
   type ThreadTimelineNavigationHandle,
 } from "./SessionTimelineView.js";
 import {
-  summarizeCommandItems,
+  isProcessItemActive,
+  processItemPathState,
   summarizeTurnProcessItems,
+  summarizeTurnWork,
   type ProcessSummary,
+  type ProcessSemanticKind,
+  type TurnWorkSummary,
 } from "./summarizeProcessItems.js";
 import {
-  loadTimelineDisclosureState,
-  setTimelineDisclosureExpanded,
+  getTimelineDisclosureStore,
+  releaseTimelineDisclosureStore,
+  retainTimelineDisclosureStore,
 } from "./timelineDisclosureState.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
+import { useScrollEdgeState } from "../../../hooks/useScrollEdgeState.js";
 
-type ToolItem = Extract<Item, { type: "tool" }>;
-type NonToolProcessItem = Exclude<Item, { type: "tool" }>;
+export type ProcessActivityProjection =
+  | { kind: "groupable"; item: Item }
+  | { kind: "standalone"; item: Item }
+  | { kind: "summary-only"; item: Extract<Item, { type: "reasoning" }> };
 
-export type ProcessSegment =
-  | { kind: "commands"; id: string; items: ToolItem[] }
-  | { kind: "file-mutation"; id: string; item: ToolItem }
-  | { kind: "lifecycle-tool"; id: string; item: ToolItem }
-  | { kind: "item"; id: string; item: NonToolProcessItem };
+export type ProcessUnit =
+  | { kind: "group"; key: string; items: Item[] }
+  | { kind: "activity"; key: string; item: Item }
+  | { kind: "standalone"; key: string; item: Item };
+
+export type ProcessActivityModel = {
+  activeGroupKey: string | null;
+  showThinkingFallback: boolean;
+  units: ProcessUnit[];
+};
+
+type RawProcessUnit =
+  | { kind: "group"; key: string; items: Item[] }
+  | { kind: "standalone"; key: string; item: Item };
 
 export type TimelineDisclosureProps = ProcessSummary & {
-  children: React.ReactNode;
-  disclosureId: string;
-  expanded: boolean;
-  onExpandedChange: (id: string, expanded: boolean) => void;
-  variant: "turn" | "commands";
+  canExpand?: boolean;
+  children?: React.ReactNode;
+  defaultExpanded?: boolean;
 };
 
 export type CanonicalThreadViewProps = {
@@ -68,6 +92,7 @@ export type CanonicalThreadViewProps = {
   hasOlder: boolean;
   error: string | null;
   initialScrollOffset?: number;
+  layoutResizeActive?: boolean;
   listRef: React.RefObject<VirtualizerHandle | null>;
   navigationRef: React.Ref<ThreadTimelineNavigationHandle>;
   scrollRef: React.RefObject<HTMLElement | null>;
@@ -89,149 +114,398 @@ export type CanonicalThreadViewProps = {
   readThreadPatchDiff?: ReadThreadPatchDiff;
 };
 
-/**
- * Controlled disclosure shared by the outer turn process and nested command
- * groups. Active groups stay open without writing that forced state to storage.
- */
+const PROCESS_SUMMARY_DEFER_MS = 1_000;
+
 export function CanonicalProcessGroup({
   active,
-  failed,
-  label,
+  canExpand = true,
   children,
-  disclosureId,
-  expanded: persistedExpanded,
-  onExpandedChange,
-  variant,
+  defaultExpanded = false,
+  failed,
+  kind,
+  label,
+  summaryKey,
 }: TimelineDisclosureProps): React.ReactNode {
-  const forcedOpen = active;
-  const expanded = forcedOpen || persistedExpanded;
-  const datastate = active ? "active" : failed ? "failed" : "completed";
-
-  return (
-    <details
-      className={`canonical-process-group canonical-process-group--${variant}`}
-      data-state={datastate}
-      data-disclosure-id={disclosureId}
-      onToggle={(event) => {
-        if (forcedOpen) {
-          if (!event.currentTarget.open) event.currentTarget.open = true;
-          return;
-        }
-        onExpandedChange(disclosureId, event.currentTarget.open);
-      }}
-      open={expanded}
-    >
-      <summary aria-label={label || (variant === "commands" ? "命令" : "处理过程")}>
-        {active ? (
-          <LoaderCircle className="canonical-spin" aria-hidden="true" />
-        ) : failed ? (
-          <CircleAlert aria-hidden="true" />
-        ) : variant === "commands" ? (
-          <SquareTerminal aria-hidden="true" />
-        ) : null}
-        <span>{label}</span>
-        {expanded ? (
-          <ChevronDown className="canonical-process-group__chevron" aria-hidden="true" />
-        ) : (
-          <ChevronRight className="canonical-process-group__chevron" aria-hidden="true" />
-        )}
-      </summary>
-      {expanded ? (
-        <div className="canonical-process-group__items">
-          {children}
-        </div>
-      ) : null}
-    </details>
-  );
-}
-
-export function segmentProcessItems(items: readonly Item[]): ProcessSegment[] {
-  const segments: ProcessSegment[] = [];
-
-  for (const item of items) {
-    if (item.type !== "tool") {
-      segments.push({ kind: "item", id: `item:${item.id}`, item });
-      continue;
-    }
-    if (isStandaloneLifecycleTool(item)) {
-      segments.push({
-        kind: "lifecycle-tool",
-        id: `lifecycle-tool:${item.id}`,
-        item,
-      });
-      continue;
-    }
-    if (isFileMutationTool(item)) {
-      segments.push({
-        kind: "file-mutation",
-        id: `file-mutation:${item.id}`,
-        item,
-      });
-      continue;
-    }
-
-    const previous = segments.at(-1);
-    if (previous?.kind === "commands") {
-      previous.items.push(item);
-      continue;
-    }
-    segments.push({
-      kind: "commands",
-      id: `commands:${item.id}`,
-      items: [item],
-    });
-  }
-
-  return segments;
-}
-
-export function findActiveCommandSegmentIndex(
-  segments: readonly ProcessSegment[],
-  turnActive: boolean,
-): number {
-  if (!turnActive) return -1;
-  return segments.findLastIndex(
-    (segment) => segment.kind === "commands"
-      && segment.items.some(
-        (item) => item.state === "pending"
-          || item.state === "waiting-permission"
-          || item.state === "running",
-      ),
-  );
-}
-
-export function useTimelineDisclosureState(threadId: string): {
-  expandedIds: ReadonlySet<string>;
-  onExpandedChange: (id: string, expanded: boolean) => void;
-} {
-  const [state, setState] = React.useState<{
-    threadId: string;
-    expandedIds: Set<string>;
-  }>(() => ({
-    threadId,
-    expandedIds: loadTimelineDisclosureState(threadId),
-  }));
-  const expandedIds = state.threadId === threadId
-    ? state.expandedIds
-    : loadTimelineDisclosureState(threadId);
+  const [expanded, setExpanded] = React.useState(defaultExpanded || active);
+  const previousActive = React.useRef(active);
 
   React.useEffect(() => {
-    if (state.threadId === threadId) return;
-    setState({ threadId, expandedIds });
-  }, [expandedIds, state.threadId, threadId]);
-
-  const onExpandedChange = React.useCallback(
-    (id: string, expanded: boolean): void => {
-      const next = setTimelineDisclosureExpanded(threadId, id, expanded);
-      setState({ threadId, expandedIds: next });
-    },
-    [threadId],
+    if (previousActive.current !== active) {
+      setExpanded(active);
+      previousActive.current = active;
+    }
+  }, [active]);
+  const contentId = React.useId();
+  const itemsRef = React.useRef<HTMLDivElement | null>(null);
+  const itemsContentRef = React.useRef<HTMLDivElement | null>(null);
+  const edge = useScrollEdgeState(itemsRef, {
+    contentRef: itemsContentRef,
+    version: expanded ? children : undefined,
+  });
+  const visibleLabel = useDeferredProcessSummary(label, summaryKey, active);
+  const datastate = active ? "active" : failed ? "failed" : "completed";
+  const SummaryIcon = processSummaryIcon(active ? "thinking" : failed ? "failed" : kind);
+  const summaryContent = (
+    <>
+      {active ? (
+        <LoaderCircle className="canonical-spin" aria-hidden="true" />
+      ) : failed ? (
+        <CircleAlert aria-hidden="true" />
+      ) : (
+        <SummaryIcon aria-hidden="true" />
+      )}
+      <span className="cpx-agent-activity__summary">{visibleLabel}</span>
+      {canExpand ? (
+        <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
+      ) : null}
+    </>
   );
 
-  return React.useMemo(
-    () => ({ expandedIds, onExpandedChange }),
-    [expandedIds, onExpandedChange],
+  return (
+    <div
+      className="cpx-agent-activity"
+      data-expandable={canExpand ? "true" : "false"}
+      data-expanded={expanded ? "true" : "false"}
+      data-state={datastate}
+    >
+      {canExpand ? (
+        <button
+          aria-controls={contentId}
+          aria-expanded={expanded}
+          aria-label={visibleLabel || "处理过程"}
+          className="cpx-agent-activity__header"
+          onClick={() => setExpanded((current) => !current)}
+          type="button"
+        >
+          {summaryContent}
+        </button>
+      ) : (
+        <div
+          aria-live={active ? "polite" : undefined}
+          className="cpx-agent-activity__header"
+          role={active ? "status" : undefined}
+        >
+          {summaryContent}
+        </div>
+      )}
+      <DisclosureContent
+        contentClassName="cpx-agent-activity__content"
+        expanded={canExpand && expanded}
+        id={contentId}
+        mountPolicy="until-exit"
+      >
+        <div
+          className="cpx-agent-activity__edge-fade"
+          data-at-end={edge.atEnd}
+          data-at-start={edge.atStart}
+          data-scrollable={edge.scrollable}
+        >
+          <div className="cpx-agent-activity__list" ref={itemsRef}>
+            <div className="cpx-agent-activity__list-content" ref={itemsContentRef}>
+              {children}
+            </div>
+          </div>
+        </div>
+      </DisclosureContent>
+    </div>
   );
+}
+
+function processSummaryIcon(kind: ProcessSemanticKind): LucideIcon {
+  if (kind === "thinking") return LoaderCircle;
+  if (kind === "failed") return CircleAlert;
+  return toolSemanticIcon(kind);
+}
+
+function useDeferredProcessSummary(
+  label: string,
+  summaryKey: string,
+  defer: boolean,
+): string {
+  const [visible, setVisible] = React.useState(() => ({ label, summaryKey }));
+  const lastCommitAt = React.useRef(Date.now());
+
+  React.useEffect(() => {
+    if (visible.summaryKey === summaryKey) return;
+    const commit = (): void => {
+      lastCommitAt.current = Date.now();
+      setVisible({ label, summaryKey });
+    };
+    if (!defer) {
+      commit();
+      return;
+    }
+    const remaining = PROCESS_SUMMARY_DEFER_MS - (Date.now() - lastCommitAt.current);
+    if (remaining <= 0) {
+      commit();
+      return;
+    }
+    const timeout = window.setTimeout(commit, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [defer, label, summaryKey, visible.summaryKey]);
+
+  return defer && visible.summaryKey !== summaryKey ? visible.label : label;
+}
+
+function groupProcessItems(
+  items: readonly Item[],
+): RawProcessUnit[] {
+  const units: RawProcessUnit[] = [];
+  let pendingItems: Item[] = [];
+  const flush = (): void => {
+    const [single] = pendingItems;
+    if (!single) return;
+    units.push({
+      kind: "group",
+      key: `process-group:${single.id}`,
+      items: pendingItems,
+    });
+    pendingItems = [];
+  };
+
+  for (const item of items) {
+    const projection = projectProcessItem(item);
+    switch (projection.kind) {
+      case "groupable":
+        pendingItems.push(projection.item);
+        break;
+      case "summary-only":
+        if (pendingItems.some((pending) =>
+          pending.type === "tool" && isExplorationToolActivity(pending))) {
+          pendingItems.push(projection.item);
+        }
+        break;
+      case "standalone":
+        flush();
+        units.push({
+          kind: "standalone",
+          key: `process-standalone:${projection.item.id}`,
+          item: projection.item,
+        });
+        break;
+    }
+  }
+  flush();
+  return units;
+}
+
+export function buildProcessActivityModel(
+  items: readonly Item[],
+  {
+    activitySliceClosed,
+    hasBlockingRequest = false,
+    turnActive,
+  }: {
+    activitySliceClosed: boolean;
+    hasBlockingRequest?: boolean;
+    turnActive: boolean;
+  },
+): ProcessActivityModel {
+  const rawUnits = groupProcessItems(items);
+  const lastUnitIndex = rawUnits.length - 1;
+  const sliceActive = turnActive && !activitySliceClosed;
+  let activeGroupKey: string | null = null;
+
+  const units = rawUnits.map((unit, unitIndex): ProcessUnit => {
+    if (unit.kind === "standalone") return unit;
+    const [single] = unit.items;
+    const isLatestActiveUnit = sliceActive && unitIndex === lastUnitIndex;
+    const containsActiveItem = unit.items.some(isProcessItemActive);
+    if (isLatestActiveUnit) activeGroupKey = unit.key;
+    if (
+      single
+      && unit.items.length === 1
+      && !containsActiveItem
+      && !isLatestActiveUnit
+    ) {
+      return {
+        kind: "activity",
+        key: `process-item:${single.id}`,
+        item: single,
+      };
+    }
+    return unit;
+  });
+
+  const lastUnit = rawUnits.at(-1);
+  const showThinkingFallback = sliceActive && !hasBlockingRequest && (
+    !lastUnit
+    || (lastUnit.kind === "standalone" && !isProcessItemActive(lastUnit.item))
+  );
+
+  return { activeGroupKey, showThinkingFallback, units };
+}
+
+export function projectProcessItem(item: Item): ProcessActivityProjection {
+  if (item.type === "reasoning") return { kind: "summary-only", item };
+  if (item.type === "text") return { kind: "standalone", item };
+  if (item.type === "activity" && item.activity === "context-compression") {
+    return { kind: "standalone", item };
+  }
+  if (item.type === "tool" && isStandaloneLifecycleTool(item)) {
+    return { kind: "standalone", item };
+  }
+  if (
+    item.type === "plan"
+    || item.type === "execution-plan"
+    || item.type === "question"
+    || item.type === "patch"
+  ) {
+    return { kind: "standalone", item };
+  }
+  return { kind: "groupable", item };
+}
+
+export function CanonicalTurnActivity({
+  canCollapse,
+  children,
+  expanded,
+  onExpandedChange,
+  summary,
+}: {
+  canCollapse: boolean;
+  children?: React.ReactNode;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  summary: TurnWorkSummary | null;
+}): React.ReactNode {
+  const contentId = React.useId();
+  const hasContent = children != null;
+  const disclosureEnabled = canCollapse && hasContent && summary != null;
+  const contentVisible = hasContent && (!disclosureEnabled || expanded);
+  const content = hasContent ? (
+    <div className="canonical-turn-activity__content">{children}</div>
+  ) : null;
+
+  if (!summary) {
+    return content;
+  }
+
+  const summaryContent = (
+    <>
+      <span>{summary.label}</span>
+      {disclosureEnabled ? (
+        <ChevronRight
+          aria-hidden="true"
+          className="canonical-turn-activity__chevron"
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <section
+      className="canonical-turn-activity"
+      data-expandable={disclosureEnabled ? "true" : "false"}
+      data-expanded={contentVisible ? "true" : "false"}
+      data-state={summary.kind}
+    >
+      {disclosureEnabled ? (
+        <button
+          aria-controls={contentId}
+          aria-expanded={expanded}
+          aria-label={`${expanded ? "收起" : "展开"}处理过程：${summary.label}`}
+          className="canonical-turn-activity__summary"
+          onClick={() => onExpandedChange(!expanded)}
+          type="button"
+        >
+          {summaryContent}
+        </button>
+      ) : (
+        <div className="canonical-turn-activity__summary">
+          {summaryContent}
+        </div>
+      )}
+      <div aria-hidden="true" className="canonical-turn-activity__divider" />
+      <DisclosureContent
+        contentClassName="canonical-turn-activity__content"
+        expanded={contentVisible}
+        id={contentId}
+        mountPolicy="until-exit"
+      >
+        {children}
+      </DisclosureContent>
+    </section>
+  );
+}
+
+export function useTurnElapsedSeconds(
+  turn: RenderTurnEntry["turn"],
+  active: boolean,
+): number {
+  const [now, setNow] = React.useState(Date.now);
+
+  React.useEffect(() => {
+    setNow(Date.now());
+    if (!active || turn.startedAt == null) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [active, turn.id, turn.startedAt]);
+
+  return resolveTurnElapsedSeconds(turn, active, now);
+}
+
+export function resolveTurnElapsedSeconds(
+  turn: RenderTurnEntry["turn"],
+  active: boolean,
+  now: number,
+): number {
+  if (turn.startedAt == null) return turn.elapsedSeconds;
+  if (!active) {
+    const terminalElapsed = turn.finishedAt == null
+      ? 0
+      : Math.floor(Math.max(0, turn.finishedAt - turn.startedAt) / 1_000);
+    return Math.max(turn.elapsedSeconds, terminalElapsed);
+  }
+  return Math.max(turn.elapsedSeconds, Math.floor(
+    Math.max(0, now - turn.startedAt) / 1_000,
+  ));
+}
+
+const CanonicalTurnActivityController = React.memo(
+  function CanonicalTurnActivityController({
+    active,
+    canCollapse,
+    children,
+    disclosureId,
+    hasWork,
+    store,
+    turn,
+  }: {
+    active: boolean;
+    canCollapse: boolean;
+    children?: React.ReactNode;
+    disclosureId: string;
+    hasWork: boolean;
+    store: KeyedDisclosureStore;
+    turn: RenderTurnEntry["turn"];
+  }): React.ReactNode {
+    const storedExpanded = useDisclosureExpanded(store, disclosureId);
+    const elapsedSeconds = useTurnElapsedSeconds(turn, active);
+    const summary = hasWork
+      ? summarizeTurnWork(turn.status, elapsedSeconds)
+      : null;
+
+    return (
+      <CanonicalTurnActivity
+        canCollapse={canCollapse}
+        expanded={!canCollapse || storedExpanded}
+        onExpandedChange={(expanded) => store.setExpanded(disclosureId, expanded)}
+        summary={summary}
+      >
+        {children}
+      </CanonicalTurnActivity>
+    );
+  },
+);
+
+export function useTimelineDisclosureState(threadId: string): KeyedDisclosureStore {
+  const store = React.useMemo(() => getTimelineDisclosureStore(threadId), [threadId]);
+  React.useEffect(() => {
+    const retainedStore = retainTimelineDisclosureStore(threadId);
+    return () => releaseTimelineDisclosureStore(retainedStore);
+  }, [store, threadId]);
+  return store;
 }
 
 function CanonicalThreadViewComponent({
@@ -243,6 +517,7 @@ function CanonicalThreadViewComponent({
   hasOlder,
   error,
   initialScrollOffset,
+  layoutResizeActive,
   listRef,
   navigationRef,
   scrollRef,
@@ -307,10 +582,10 @@ function CanonicalThreadViewComponent({
 
   if (loading && turns.length === 0) {
     return (
-      <div className="canonical-thread-state" role="status" aria-live="polite">
-        <LoaderCircle className="canonical-spin" aria-hidden="true" />
-        <span>正在加载会话</span>
-      </div>
+      <FullScreenWhaleLoading
+        label="正在加载会话内容…"
+        variant="contained"
+      />
     );
   }
 
@@ -330,6 +605,7 @@ function CanonicalThreadViewComponent({
     <div
       className="canonical-thread-view"
       data-canonical-thread-id={threadId}
+      data-canonical-turn-count={turns.length}
     >
       {hasOlder ? (
         <div className="canonical-history-control">
@@ -347,6 +623,7 @@ function CanonicalThreadViewComponent({
         key={threadId}
         count={turns.length}
         initialScrollOffset={initialScrollOffset}
+        layoutResizeActive={layoutResizeActive}
         items={turns}
         listRef={listRef}
         navigationRef={navigationRef}
@@ -376,10 +653,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   readThreadPatchDiff,
   threadId,
 }: {
-  disclosureState: {
-    expandedIds: ReadonlySet<string>;
-    onExpandedChange: (id: string, expanded: boolean) => void;
-  };
+  disclosureState: KeyedDisclosureStore;
   entry: RenderTurnEntry;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
@@ -401,7 +675,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   return (
     <div
       ref={rowRef}
-      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
       data-component="conversation-turn"
       data-turn-navigation-id={entry.id}
     >
@@ -435,10 +709,7 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff,
   threadId,
 }: {
-  disclosureState: {
-    expandedIds: ReadonlySet<string>;
-    onExpandedChange: (id: string, expanded: boolean) => void;
-  };
+  disclosureState: KeyedDisclosureStore;
   entry: RenderTurnEntry;
   diffMarkerStyle?: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
@@ -449,11 +720,7 @@ function CanonicalConversationTurnComponent({
   readThreadPatchDiff?: ReadThreadPatchDiff;
   threadId?: string;
 }): React.ReactNode {
-  const disclosure = (id: string) => ({
-    id,
-    expanded: disclosureState.expandedIds.has(id),
-    onExpandedChange: disclosureState.onExpandedChange,
-  });
+  const disclosure = (id: string) => ({ id, store: disclosureState });
   const renderItem = (
     item: RenderTurnEntry["items"][number],
     options: {
@@ -473,21 +740,97 @@ function CanonicalConversationTurnComponent({
       presentation={options.presentation}
       rightDockPlanEventId={rightDockPlanEventId}
       showAssistantActions={options.showAssistantActions}
+      threadId={threadId}
     />
   );
+  const renderProcessItem = (
+    item: RenderTurnEntry["processItems"][number],
+    presentation: NonNullable<CanonicalItemRendererProps["presentation"]>,
+  ): React.ReactNode => {
+    if (item.type === "tool" && isFileMutationTool(item)) {
+      return (
+        <FileMutationItemView
+          diffMarkerStyle={diffMarkerStyle}
+          disclosureStore={disclosureState}
+          item={item}
+          key={item.id}
+          readThreadPatchDiff={readThreadPatchDiff}
+          threadId={threadId}
+        />
+      );
+    }
+    if (item.type === "tool" && isStandaloneLifecycleTool(item)) {
+      return <LifecycleToolItemView item={item} key={item.id} />;
+    }
+    return renderItem(item, {
+      disclosureId: `process-item:${item.id}`,
+      presentation,
+    });
+  };
   const active = isActiveTurn(entry.turn.status);
-  const hasAssistantResult = entry.assistantResultItems.some((item) => item.text.trim());
-  const segments = segmentProcessItems(entry.processItems);
-  const activeCommandSegmentIndex = findActiveCommandSegmentIndex(segments, active);
-  const turnProcessId = `turn-process:${entry.turn.id}`;
-  const turnProcessSummary = summarizeTurnProcessItems(
-    entry.processItems,
-    entry.turn.status,
-    entry.turn.elapsedSeconds,
-  );
+  const hasAssistantResult = entry.assistantResultItems.length > 0;
+  const activitySliceClosed = hasAssistantResult;
+  const processActivity = buildProcessActivityModel(entry.processItems, {
+    activitySliceClosed,
+    hasBlockingRequest: entry.blockers.length > 0,
+    turnActive: active,
+  });
+  const hasVisibleActivityContent = processActivity.units.length > 0
+    || processActivity.showThinkingFallback;
+  const turnActivityDisclosureId = `turn-activity:${entry.turn.id}`;
+  const canCollapseTurnActivity = activitySliceClosed && hasVisibleActivityContent;
   const syntheticPatch = !active && entry.patchItems.length === 0
     ? syntheticPatchDisplay(entry.processItems)
     : null;
+  const activityContent = hasVisibleActivityContent ? (
+    <section className="canonical-turn__process" aria-label="处理过程">
+      {processActivity.units.map((unit) => {
+        if (unit.kind === "activity") {
+          return (
+            <React.Fragment key={unit.key}>
+              {renderProcessItem(unit.item, "grouped")}
+            </React.Fragment>
+          );
+        }
+        if (unit.kind === "standalone") {
+          return (
+            <React.Fragment key={unit.key}>
+              {renderProcessItem(unit.item, "standalone")}
+            </React.Fragment>
+          );
+        }
+        const summary = summarizeTurnProcessItems(
+          unit.items,
+          unit.key === processActivity.activeGroupKey
+            ? entry.turn.status
+            : "completed",
+        );
+        return (
+          <CanonicalProcessGroup
+            {...summary}
+            canExpand={unit.items.length > 0}
+            key={unit.key}
+          >
+            {unit.items.map((item) => (
+              <div
+                className="cpx-agent-activity__path-step"
+                data-state={processItemPathState(item)}
+                key={item.id}
+              >
+                {renderProcessItem(item, "grouped")}
+              </div>
+            ))}
+          </CanonicalProcessGroup>
+        );
+      })}
+      {processActivity.showThinkingFallback ? (
+        <div className="canonical-turn__thinking" role="status" aria-live="polite">
+          <LoaderCircle className="canonical-spin" aria-hidden="true" />
+          <span>正在思考</span>
+        </div>
+      ) : null}
+    </section>
+  ) : null;
 
   return (
     <article className="canonical-turn" data-status={entry.turn.status}>
@@ -496,80 +839,30 @@ function CanonicalConversationTurnComponent({
           {entry.userItems.map((input) => (
             <CanonicalUserInput
               attachments={entry.attachments.filter((attachment) => input.attachmentIds?.includes(attachment.id))}
+              contextReferences={entry.contextReferences.filter(reference =>
+                input.contextReferenceIds?.includes(reference.id),
+              )}
               input={input}
               key={input.id}
             />
           ))}
         </section>
       ) : null}
-      {entry.processItems.length > 0 ? (
-        <section className="canonical-turn__process" aria-label="处理过程">
-          <CanonicalProcessGroup
-            {...turnProcessSummary}
-            disclosureId={turnProcessId}
-            expanded={disclosureState.expandedIds.has(turnProcessId)}
-            onExpandedChange={disclosureState.onExpandedChange}
-            variant="turn"
-          >
-            {segments.map((segment, segmentIndex) => {
-              if (segment.kind === "item") {
-                return renderItem(segment.item, { presentation: "grouped" });
-              }
-              if (segment.kind === "file-mutation") {
-                return (
-                  <FileMutationItemView
-                    diffMarkerStyle={diffMarkerStyle}
-                    disclosureState={disclosureState}
-                    item={segment.item}
-                    key={segment.id}
-                    readThreadPatchDiff={readThreadPatchDiff}
-                    threadId={threadId}
-                  />
-                );
-              }
-              if (segment.kind === "lifecycle-tool") {
-                return (
-                  <LifecycleToolItemView
-                    item={segment.item}
-                    key={segment.id}
-                  />
-                );
-              }
-              const [singleCommand] = segment.items;
-              if (segment.items.length === 1 && singleCommand) {
-                return renderItem(singleCommand, {
-                  disclosureId: `tool:${entry.turn.id}:${singleCommand.id}`,
-                  presentation: "grouped",
-                });
-              }
-              const commandGroupId = `command-group:${entry.turn.id}:${segment.items[0].id}`;
-              const summary = summarizeCommandItems(
-                segment.items,
-                segmentIndex === activeCommandSegmentIndex
-                  ? entry.turn.status
-                  : "completed",
-              );
-              return (
-                <CanonicalProcessGroup
-                  {...summary}
-                  disclosureId={commandGroupId}
-                  expanded={disclosureState.expandedIds.has(commandGroupId)}
-                  key={segment.id}
-                  onExpandedChange={disclosureState.onExpandedChange}
-                  variant="commands"
-                >
-                  {segment.items.map((item) => renderItem(item, {
-                    disclosureId: `tool:${entry.turn.id}:${item.id}`,
-                    presentation: "grouped",
-                  }))}
-                </CanonicalProcessGroup>
-              );
-            })}
-          </CanonicalProcessGroup>
-        </section>
-      ) : null}
+      <CanonicalTurnActivityController
+        active={active}
+        canCollapse={canCollapseTurnActivity}
+        disclosureId={turnActivityDisclosureId}
+        hasWork={entry.turn.startedAt != null || entry.processItems.length > 0 || hasAssistantResult}
+        store={disclosureState}
+        turn={entry.turn}
+      >
+        {activityContent}
+      </CanonicalTurnActivityController>
       {entry.blockers.length ? (
-        <section className="canonical-turn__blockers" aria-label="等待处理">
+        <section
+          className="canonical-turn__blockers"
+          aria-label="等待处理"
+        >
           {entry.blockers.map((blocker) => (
             <CanonicalBlocker
               blocker={blocker}
@@ -580,24 +873,35 @@ function CanonicalConversationTurnComponent({
         </section>
       ) : null}
       {entry.planItem ? (
-        <section className="canonical-turn__plan">
+        <section
+          className="canonical-turn__plan"
+        >
           {renderItem(entry.planItem)}
         </section>
       ) : null}
       {entry.assistantResultItems.length > 0 ? (
-        <section className="canonical-turn__result" aria-label="助手回复">
+        <section
+          className="canonical-turn__result"
+          aria-label="助手回复"
+        >
           {entry.assistantResultItems.map((item) => renderItem(item, {
             showAssistantActions: true,
           }))}
         </section>
       ) : null}
       {!active && entry.patchItems.length > 0 ? (
-        <section className="canonical-turn__post" aria-label="文件更改">
+        <section
+          className="canonical-turn__post"
+          aria-label="文件更改"
+        >
           {entry.patchItems.map((item) => renderItem(item))}
         </section>
       ) : null}
       {syntheticPatch ? (
-        <section className="canonical-turn__post" aria-label="文件更改">
+        <section
+          className="canonical-turn__post"
+          aria-label="文件更改"
+        >
           <PatchSummaryView
             onOpenReview={onOpenPatchReview}
             patch={syntheticPatch}
@@ -605,19 +909,16 @@ function CanonicalConversationTurnComponent({
         </section>
       ) : null}
       {entry.postAssistantItems.length > 0 ? (
-        <section className="canonical-turn__post">
+        <section
+          className="canonical-turn__post"
+        >
           {entry.postAssistantItems.map((item) => renderItem(item))}
         </section>
       ) : null}
-      {/* Only show fallback thinking when there are no process items to display it on */}
-      {active && !hasAssistantResult && entry.processItems.length === 0 ? (
-        <div className="canonical-turn__thinking" role="status" aria-live="polite">
-          <LoaderCircle className="canonical-spin" aria-hidden="true" />
-          <span>正在处理</span>
-        </div>
-      ) : null}
       {entry.turn.error ? (
-        <div className="canonical-turn__status canonical-turn__status--error">
+        <div
+          className="canonical-turn__status canonical-turn__status--error"
+        >
           <CircleAlert aria-hidden="true" />
           <span>{entry.turn.error}</span>
         </div>

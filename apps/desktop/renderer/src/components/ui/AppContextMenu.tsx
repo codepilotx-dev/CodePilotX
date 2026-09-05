@@ -97,7 +97,6 @@ export function AppContextMenu({
   return (
     <ContextMenu.Root
       onOpenChange={open => {
-        if (!open) setEditContext(null)
         onOpenChange?.(open)
       }}
     >
@@ -110,6 +109,7 @@ export function AppContextMenu({
           collisionPadding={6}
           data-size={size}
           data-variant={variant}
+          onCloseAutoFocus={() => setEditContext(null)}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
           {mergedActions.map((action, index) =>

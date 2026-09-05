@@ -69,10 +69,12 @@ test.describe('packaged Electron desktop performance', () => {
       let page = await application.firstWindow()
       await setPerformanceWindowSize(application)
       attachPageFatalEventCapture(page, fatalEvents)
+      await installNewRouteReadinessProbe(page)
       await waitForApplication(page)
       await record('cold-start', sample, {
         readyMs: performance.now() - coldStartedAt,
       })
+      await record('new-route-ready', sample, await measureNewRouteReadiness(page))
 
       fatalEvents.push(...await readFatalEvents(application))
       await application.close()
@@ -220,7 +222,157 @@ async function waitForApplication(page: Page): Promise<void> {
     timeout: 60_000,
   })
   await expect(page.locator('html')).toHaveAttribute('data-window-type', 'electron')
-  await page.locator('.composer-editor-content').waitFor()
+  // 真实 ProseMirror 编辑器才可输入；Suspense fallback 也带
+  // .composer-editor-content 但不能输入。Agent sidecar 冷启动可能较慢，
+  // 给真实编辑器出现留出与 waitForURL 一致的等待窗口。
+  await page
+    .locator('.composer-editor-content[contenteditable="true"][role="combobox"]')
+    .waitFor({ timeout: 60_000 })
+}
+
+type NewRouteReadinessProbe = {
+  composerReadyAt: number | null
+  completeAt: number | null
+  jsDecodedBytes: number
+  jsResourceCount: number
+  cssDecodedBytes: number
+}
+
+// 在同一次 cold start 中观测 /new 真实可交互时间：composerReadyMs 是
+// Renderer navigationStart 到真实 ProseMirror 编辑器可输入；completeReadyMs
+// 再等待当前 coding/working/chat surface 的根内容、字体与连续两个
+// animation frame；jsDecodedBytes/jsResourceCount/cssDecodedBytes
+// 在 complete checkpoint 时采样同源资源。本轮仅观测，不设硬预算。
+async function installNewRouteReadinessProbe(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const target = globalThis as typeof globalThis & {
+      __codePilotXNewRouteReadiness?: {
+        composerReadyAt: number | null
+        completeAt: number | null
+        jsDecodedBytes: number
+        jsResourceCount: number
+        cssDecodedBytes: number
+      }
+    }
+    if (target.__codePilotXNewRouteReadiness) return
+    const probe = {
+      composerReadyAt: null as number | null,
+      completeAt: null as number | null,
+      jsDecodedBytes: 0,
+      jsResourceCount: 0,
+      cssDecodedBytes: 0,
+    }
+    target.__codePilotXNewRouteReadiness = probe
+
+    const composerSelector =
+      '.composer-editor-content[contenteditable="true"][role="combobox"]'
+    const surfaceReadySelector = [
+      '.new-session-suggestions.is-root',
+      '.working-suggestions',
+      '.chat-home-view',
+    ].join(',')
+    let completeTimer: ReturnType<typeof setInterval> | null = null
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+    let observer: MutationObserver | null = null
+    const complete = (): void => {
+      if (probe.completeAt !== null) return
+      if (completeTimer !== null) clearInterval(completeTimer)
+      if (fallbackTimer !== null) clearTimeout(fallbackTimer)
+      observer?.disconnect()
+      probe.completeAt = performance.now()
+      const sameOrigin = (entry: PerformanceResourceTiming): boolean => {
+        try {
+          return new URL(entry.name, location.href).origin === location.origin
+        } catch {
+          return false
+        }
+      }
+      const resources = performance.getEntriesByType(
+        'resource',
+      ) as PerformanceResourceTiming[]
+      const resourcePath = (entry: PerformanceResourceTiming): string => {
+        try {
+          return new URL(entry.name, location.href).pathname.toLowerCase()
+        } catch {
+          return ''
+        }
+      }
+      // ES module/dynamic-import initiatorType differs between Chromium
+      // versions. Classify same-origin built assets by pathname instead.
+      const scripts = resources.filter(entry =>
+        sameOrigin(entry) && resourcePath(entry).endsWith('.js'),
+      )
+      const stylesheets = resources.filter(entry =>
+        sameOrigin(entry) && resourcePath(entry).endsWith('.css'),
+      )
+      probe.jsDecodedBytes = scripts.reduce(
+        (total, entry) => total + entry.decodedBodySize,
+        0,
+      )
+      probe.jsResourceCount = scripts.length
+      probe.cssDecodedBytes = stylesheets.reduce(
+        (total, entry) => total + entry.decodedBodySize,
+        0,
+      )
+    }
+    const waitForComplete = (): void => {
+      if (completeTimer !== null) return
+      const check = (): void => {
+        if (!document.querySelector(surfaceReadySelector)) return
+        void document.fonts.ready.then(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => complete())
+          })
+        })
+      }
+      completeTimer = window.setInterval(check, 50)
+      // 兜底：composer 就绪后 5s 内必须完成，避免字体等异常阻塞样本
+      fallbackTimer = window.setTimeout(() => complete(), 5_000)
+      check()
+    }
+    const markComposerReady = (): void => {
+      if (probe.composerReadyAt !== null) return
+      probe.composerReadyAt = performance.now()
+      waitForComplete()
+    }
+    observer = new MutationObserver(() => {
+      if (document.querySelector(composerSelector)) markComposerReady()
+    })
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    })
+    if (document.querySelector(composerSelector)) markComposerReady()
+  })
+}
+
+async function measureNewRouteReadiness(
+  page: Page,
+): Promise<Record<string, number>> {
+  return page.evaluate(() => {
+    const probe = (globalThis as typeof globalThis & {
+      __codePilotXNewRouteReadiness?: NewRouteReadinessProbe
+    }).__codePilotXNewRouteReadiness
+    if (!probe) {
+      throw new Error('Missing /new readiness probe in renderer navigation.')
+    }
+    return new Promise(resolve => {
+      const poll = (): void => {
+        if (probe.completeAt !== null) {
+          resolve({
+            composerReadyMs: probe.composerReadyAt ?? -1,
+            completeReadyMs: probe.completeAt,
+            jsDecodedBytes: probe.jsDecodedBytes,
+            jsResourceCount: probe.jsResourceCount,
+            cssDecodedBytes: probe.cssDecodedBytes,
+          })
+          return
+        }
+        window.setTimeout(poll, 50)
+      }
+      poll()
+    })
+  })
 }
 
 async function waitForThreadCatalog(

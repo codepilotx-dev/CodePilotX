@@ -30,6 +30,15 @@ type EditorThemeRegistration = {
 
 const themeExtensionCache = new Map<string, Promise<Extension>>()
 
+/**
+ * Code editor line box in pixels. The explicit pixel value lets CodeMirror
+ * compute cursor, scrolling and syntax-line geometry; the seven-pixel leading
+ * matches the shared `--cpx-sys-line-height-code` token.
+ */
+export function codeEditorLineHeight(fontSize: number): number {
+  return fontSize + 7
+}
+
 export function loadCodeMirrorTheme(
   options: CodeMirrorThemeOptions,
 ): Promise<Extension> {
@@ -202,7 +211,7 @@ function createThemeExtension(
     'diffEditorGutter.removedLineBackground',
     dark ? '#f85149' : '#cf222e',
   )
-  const lineHeight = Math.round(options.fontSize * 1.8)
+  const lineHeight = codeEditorLineHeight(options.fontSize)
 
   return [
     EditorView.theme(
@@ -277,8 +286,8 @@ function createThemeExtension(
           color: widgetForeground,
           backgroundColor: widgetBackground,
           border: `1px solid ${widgetBorder}`,
-          borderRadius: 'var(--radius-3)',
-          boxShadow: 'var(--shadow-raised)',
+          borderRadius: 'var(--cpx-sys-radius-xl)',
+          boxShadow: 'var(--cpx-sys-shadow-raised)',
         },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
           color: themeColor(

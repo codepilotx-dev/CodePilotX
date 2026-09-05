@@ -1,256 +1,289 @@
-// Generated from the analyzed Codex token contract. Keep names stable.
 :root {
-  // VS Code compatibility bridge for Electron and browser Mock.
-  --vscode-activityBarBadge-background: var(--color-background-surface-under);
-  --vscode-activityBarBadge-foreground: var(--color-text-foreground);
-  --vscode-badge-background: var(--color-background-surface);
-  --vscode-badge-foreground: var(--color-text-foreground);
-  --vscode-button-background: var(--color-background-button-secondary);
-  --vscode-button-border: var(--color-border-light);
-  --vscode-button-foreground: var(--color-text-foreground);
-  --vscode-button-secondaryHoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 5%,
-    transparent
-  );
-  --vscode-charts-blue: var(--color-accent-blue);
-  --vscode-charts-green: var(--color-decoration-added);
-  --vscode-charts-orange: var(--color-warning);
-  --vscode-charts-purple: var(--color-accent-purple);
-  --vscode-charts-red: var(--color-decoration-deleted);
-  --vscode-charts-yellow: color-mix(in srgb, var(--color-warning) 74%, white);
-  --vscode-checkbox-background: var(--color-background-surface);
-  --vscode-checkbox-border: var(--color-border);
-  --vscode-checkbox-foreground: var(--color-text-foreground);
-  --vscode-descriptionForeground: var(--color-text-foreground-secondary);
-  --vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background);
-  --vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background);
-  --vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background);
-  --vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background);
-  --vscode-disabledForeground: var(--color-text-foreground-tertiary);
-  --vscode-dropdown-background: var(--color-background-control-opaque);
-  --vscode-dropdown-foreground: var(--color-text-foreground);
-  --vscode-editor-background: var(--color-background-editor-opaque);
-  --vscode-editor-findMatchBackground: var(--color-background-surface);
-  --vscode-editor-findMatchHighlightBackground: var(--color-background-surface);
-  --vscode-editor-foreground: var(--color-text-foreground);
-  --vscode-editor-selectionBackground: var(--color-background-surface);
-  --vscode-editorError-foreground: var(--color-danger);
-  --vscode-editorGroup-dropBackground: var(--color-background-surface);
-  --vscode-editorGroup-dropIntoPromptBackground: var(--color-background-surface);
-  --vscode-editorGroup-dropIntoPromptForeground: var(--color-text-foreground);
-  --vscode-editorWarning-foreground: var(--color-warning);
-  --vscode-editorWidget-background: var(--color-background-elevated-secondary-opaque);
-  --vscode-errorForeground: var(--color-danger);
-  --vscode-focusBorder: var(--color-border);
-  --vscode-foreground: var(--color-text-foreground);
-  --vscode-gitDecoration-addedResourceForeground: var(--color-diff-added-foreground);
-  --vscode-gitDecoration-deletedResourceForeground: var(--color-diff-removed-foreground);
-  --vscode-gitDecoration-ignoredResourceForeground: var(--color-text-foreground);
-  --vscode-gitDecoration-modifiedResourceForeground: var(--color-text-foreground);
-  --vscode-gitDecoration-renamedResourceForeground: var(--color-text-foreground);
-  --vscode-gitDecoration-untrackedResourceForeground: var(--color-decoration-added);
-  --vscode-icon-foreground: var(--color-icon-primary);
-  --vscode-input-background: var(--color-background-control-opaque);
-  --vscode-input-border: var(--color-border);
-  --vscode-input-foreground: var(--color-text-foreground);
-  --vscode-input-placeholderForeground: var(--color-text-foreground-tertiary);
-  --vscode-inputValidation-errorBackground: var(--color-danger);
-  --vscode-inputValidation-errorBorder: var(--color-danger);
-  --vscode-inputValidation-infoBackground: var(--color-background-surface);
-  --vscode-inputValidation-warningBackground: var(--color-warning);
-  --vscode-inputValidation-warningBorder: var(--color-warning);
-  --vscode-list-activeSelectionBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 5%,
-    transparent
-  );
-  --vscode-list-activeSelectionForeground: var(--color-text-foreground);
-  --vscode-list-activeSelectionIconForeground: var(--color-icon-primary);
-  --vscode-list-focusOutline: var(--color-border);
-  --vscode-list-hoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 5%,
-    transparent
-  );
-  --vscode-menu-background: var(--color-background-elevated-secondary-opaque);
-  --vscode-menu-border: var(--color-border);
-  --vscode-menubar-selectionBackground: var(--color-background-elevated-secondary-opaque);
-  --vscode-menubar-selectionForeground: var(--color-text-foreground);
-  --vscode-progressBar-background: var(--color-background-surface);
-  --vscode-radio-activeForeground: var(--color-text-foreground);
-  --vscode-radio-inactiveBorder: var(--color-border);
-  --vscode-scrollbarSlider-activeBackground: color-mix(in srgb, var(--color-text-foreground) 42%, transparent);
-  --vscode-scrollbarSlider-background: color-mix(in srgb, var(--color-text-foreground) 22%, transparent);
-  --vscode-scrollbarSlider-hoverBackground: color-mix(in srgb, var(--color-text-foreground) 32%, transparent);
-  --vscode-sideBar-background: var(--color-background-surface-under);
-  --vscode-terminal-ansiBlack: var(--color-background-surface-under);
-  --vscode-terminal-ansiBlue: var(--color-accent-blue);
-  --vscode-terminal-ansiBrightBlack: var(--color-text-foreground-tertiary);
-  --vscode-terminal-ansiBrightBlue: color-mix(in srgb, var(--color-accent-blue) 76%, white);
-  --vscode-terminal-ansiBrightCyan: color-mix(in srgb, var(--color-accent-blue) 58%, white);
-  --vscode-terminal-ansiBrightGreen: color-mix(in srgb, var(--color-decoration-added) 72%, white);
-  --vscode-terminal-ansiBrightMagenta: color-mix(in srgb, var(--color-accent-purple) 72%, white);
-  --vscode-terminal-ansiBrightRed: color-mix(in srgb, var(--color-decoration-deleted) 72%, white);
-  --vscode-terminal-ansiBrightWhite: var(--color-text-foreground);
-  --vscode-terminal-ansiBrightYellow: color-mix(in srgb, var(--color-warning) 68%, white);
-  --vscode-terminal-ansiCyan: color-mix(in srgb, var(--color-accent-blue) 70%, var(--color-decoration-added));
-  --vscode-terminal-ansiGreen: var(--color-decoration-added);
-  --vscode-terminal-ansiMagenta: var(--color-accent-purple);
-  --vscode-terminal-ansiRed: var(--color-decoration-deleted);
-  --vscode-terminal-ansiWhite: var(--color-text-foreground-secondary);
-  --vscode-terminal-ansiYellow: var(--color-warning);
-  --vscode-terminal-border: var(--color-border);
-  --vscode-terminal-foreground: var(--color-text-foreground);
-  --vscode-textCodeBlock-background: var(--color-background-editor-opaque);
-  --vscode-textLink-activeForeground: var(--color-text-accent);
-  --vscode-textLink-foreground: var(--color-text-accent);
-  --vscode-textPreformat-background: var(--color-background-surface);
-  --vscode-textPreformat-foreground: var(--color-text-foreground);
-  --vscode-toolbar-hoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 5%,
-    transparent
-  );
+  // 1. Dropdown / Popover Component
+  --cpx-comp-dropdown-trigger-bg: var(--cpx-sys-color-surface-control);
+  --cpx-comp-dropdown-trigger-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-dropdown-trigger-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-dropdown-trigger-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-dropdown-trigger-open-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-dropdown-trigger-disabled-fg: var(--cpx-sys-color-fg-disabled);
+  --cpx-comp-dropdown-menu-bg: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-dropdown-menu-backdrop-filter: none;
+  --cpx-comp-dropdown-menu-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default);
+  --cpx-comp-dropdown-item-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-dropdown-item-selected-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-dropdown-item-pressed-bg: var(--cpx-sys-color-active);
+  --cpx-comp-dropdown-item-disabled-fg: var(--cpx-sys-color-fg-disabled);
+  --cpx-comp-dropdown-focus-border: var(--cpx-sys-color-border-focus);
+  --cpx-comp-dropdown-menu-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-dropdown-menu-shadow: var(--cpx-sys-shadow-floating);
 
-  // Product semantic token contract.
-  --color-token-activity-bar-badge-background: var(--vscode-activityBarBadge-background);
-  --color-token-activity-bar-badge-foreground: var(--vscode-activityBarBadge-foreground);
-  --color-token-badge-background: var(--vscode-badge-background);
-  --color-token-badge-foreground: var(--vscode-badge-foreground);
-  --color-token-bg-appshot: color-mix(in srgb, var(--color-token-bg-primary) 75%, transparent);
-  --color-token-bg-fog: color-mix(in oklab, var(--color-token-foreground) 2.5%, transparent);
-  --color-token-bg-primary: var(--color-token-side-bar-background);
-  --color-token-bg-secondary: color-mix(in srgb, var(--color-token-bg-primary) 92%, transparent);
-  --color-token-bg-tertiary: color-mix(in srgb, var(--color-token-bg-primary) 85%, transparent);
-  --color-token-border: var(--color-border,color-mix(in oklab, var(--vscode-foreground) 8%, transparent));
-  --color-token-border-default: var(--color-border,color-mix(in oklab, var(--vscode-foreground) 8%, transparent));
-  --color-token-border-heavy: var(--color-border-heavy,color-mix(in oklab, var(--vscode-foreground) 12%, transparent));
-  --color-token-border-light: var(--color-border-light,color-mix(in oklab, var(--vscode-foreground) 5%, transparent));
-  --color-token-button-background: var(--vscode-button-background);
-  --color-token-button-border: var(--vscode-button-border);
-  --color-token-button-foreground: var(--vscode-button-foreground);
-  --color-token-button-secondary-hover-background: var(--vscode-button-secondaryHoverBackground);
-  --color-token-charts-blue: var(--vscode-charts-blue);
-  --color-token-charts-green: var(--vscode-charts-green);
-  --color-token-charts-orange: var(--vscode-charts-orange);
-  --color-token-charts-purple: var(--vscode-charts-purple);
-  --color-token-charts-red: var(--vscode-charts-red);
-  --color-token-charts-yellow: var(--vscode-charts-yellow);
-  --color-token-checkbox-background: var(--vscode-checkbox-background);
-  --color-token-checkbox-border: var(--vscode-checkbox-border);
-  --color-token-checkbox-foreground: var(--vscode-checkbox-foreground);
-  --color-token-conversation-body: color-mix(in oklab, var(--color-token-foreground) 60%, transparent);
-  --color-token-conversation-header: color-mix(in oklab, var(--color-token-foreground) 30%, transparent);
-  --color-token-conversation-summary-leading: color-mix(in oklab, var(--color-token-description-foreground) 90%, transparent);
-  --color-token-conversation-summary-trailing: color-mix(in oklab, var(--color-token-foreground) 40%, transparent);
-  --color-token-description-foreground: var(--vscode-descriptionForeground);
-  --color-token-diff-editor-inserted-line-background: var(--vscode-diffEditor-insertedLineBackground);
-  --color-token-diff-editor-inserted-text-background: var(--vscode-diffEditor-insertedTextBackground);
-  --color-token-diff-editor-removed-line-background: var(--vscode-diffEditor-removedLineBackground);
-  --color-token-diff-editor-removed-text-background: var(--vscode-diffEditor-removedTextBackground);
-  --color-token-diff-surface: color-mix(in srgb, var(--color-token-main-surface-primary) 94%, var(--color-token-foreground));
-  --color-token-disabled-foreground: var(--vscode-disabledForeground);
-  --color-token-dropdown-background: var(--vscode-dropdown-background);
-  --color-token-dropdown-foreground: var(--vscode-dropdown-foreground);
-  --color-token-editor-background: var(--color-background-editor-opaque);
-  --color-token-editor-error-foreground: var(--vscode-editorError-foreground);
-  --color-token-editor-find-match-background: var(--vscode-editor-findMatchBackground);
-  --color-token-editor-find-match-highlight-background: var(--vscode-editor-findMatchHighlightBackground);
-  --color-token-editor-foreground: var(--vscode-editor-foreground);
-  --color-token-editor-group-drop-background: var(--vscode-editorGroup-dropBackground);
-  --color-token-editor-group-drop-into-prompt-background: var(--vscode-editorGroup-dropIntoPromptBackground);
-  --color-token-editor-group-drop-into-prompt-foreground: var(--vscode-editorGroup-dropIntoPromptForeground);
-  --color-token-editor-selection-background: var(--vscode-editor-selectionBackground);
-  --color-token-editor-warning-foreground: var(--vscode-editorWarning-foreground);
-  --color-token-editor-widget-background: var(--vscode-editorWidget-background);
-  --color-token-error-foreground: var(--vscode-errorForeground);
-  --color-token-focus-border: var(--vscode-focusBorder);
-  --color-token-foreground: var(--vscode-foreground);
-  --color-token-git-decoration-added-resource-foreground: var(--vscode-gitDecoration-addedResourceForeground);
-  --color-token-git-decoration-deleted-resource-foreground: var(--vscode-gitDecoration-deletedResourceForeground);
-  --color-token-git-decoration-ignored-resource-foreground: var(--vscode-gitDecoration-ignoredResourceForeground);
-  --color-token-git-decoration-modified-resource-foreground: var(--vscode-gitDecoration-modifiedResourceForeground);
-  --color-token-git-decoration-renamed-resource-foreground: var(--vscode-gitDecoration-renamedResourceForeground);
-  --color-token-git-decoration-untracked-resource-foreground: var(--vscode-gitDecoration-untrackedResourceForeground);
-  --color-token-icon-foreground: var(--vscode-icon-foreground);
-  --color-token-input-background: var(--vscode-input-background);
-  --color-token-input-border: var(--vscode-input-border,transparent);
-  --color-token-input-foreground: var(--vscode-input-foreground);
-  --color-token-input-placeholder-foreground: var(--vscode-input-placeholderForeground);
-  --color-token-input-validation-error-background: var(--vscode-inputValidation-errorBackground);
-  --color-token-input-validation-error-border: var(--vscode-inputValidation-errorBorder);
-  --color-token-input-validation-info-background: var(--vscode-inputValidation-infoBackground);
-  --color-token-input-validation-warning-background: var(--vscode-inputValidation-warningBackground);
-  --color-token-input-validation-warning-border: var(--vscode-inputValidation-warningBorder);
-  --color-token-link: var(--color-token-text-link-foreground);
-  --color-token-list-active-selection-background: var(--vscode-list-activeSelectionBackground);
-  --color-token-list-active-selection-foreground: var(--vscode-list-activeSelectionForeground);
-  --color-token-list-active-selection-icon-foreground: var(--vscode-list-activeSelectionIconForeground);
-  --color-token-list-focus-outline: var(--vscode-list-focusOutline);
-  --color-token-list-hover-background: var(--vscode-list-hoverBackground);
-  --color-token-main-surface-primary: var(--color-background-surface);
-  --color-token-panel-background: var(--color-background-panel);
-  --color-token-control-background: var(--color-background-control-opaque);
-  --color-token-elevated-background: var(--color-background-elevated-secondary-opaque);
-  --color-token-menu-background: var(--vscode-menu-background);
-  --color-token-menu-border: var(--vscode-menu-border);
-  --color-token-menubar-selection-background: var(--vscode-menubar-selectionBackground);
-  --color-token-menubar-selection-foreground: var(--vscode-menubar-selectionForeground);
-  --color-token-non-assistant-body-descendant: color-mix(in oklab, var(--color-token-foreground) 50%, transparent);
-  --color-token-on-accent: var(--codex-base-on-accent,var(--vscode-button-foreground));
-  --color-token-primary: var(--color-token-text-link-foreground);
-  --color-token-progress-bar-background: var(--vscode-progressBar-background);
-  --color-token-radio-active-foreground: var(--vscode-radio-activeForeground);
-  --color-token-radio-inactive-border: var(--vscode-radio-inactiveBorder);
-  --color-token-scrollbar-slider-active-background: var(--vscode-scrollbarSlider-activeBackground);
-  --color-token-scrollbar-slider-background: var(--vscode-scrollbarSlider-background);
-  --color-token-scrollbar-slider-hover-background: var(--vscode-scrollbarSlider-hoverBackground);
-  --color-token-side-bar-background: var(--vscode-sideBar-background);
-  --color-token-terminal-ansi-black: var(--vscode-terminal-ansiBlack);
-  --color-token-terminal-ansi-blue: var(--vscode-terminal-ansiBlue);
-  --color-token-terminal-ansi-bright-black: var(--vscode-terminal-ansiBrightBlack);
-  --color-token-terminal-ansi-bright-blue: var(--vscode-terminal-ansiBrightBlue);
-  --color-token-terminal-ansi-bright-cyan: var(--vscode-terminal-ansiBrightCyan);
-  --color-token-terminal-ansi-bright-green: var(--vscode-terminal-ansiBrightGreen);
-  --color-token-terminal-ansi-bright-magenta: var(--vscode-terminal-ansiBrightMagenta);
-  --color-token-terminal-ansi-bright-red: var(--vscode-terminal-ansiBrightRed);
-  --color-token-terminal-ansi-bright-white: var(--vscode-terminal-ansiBrightWhite);
-  --color-token-terminal-ansi-bright-yellow: var(--vscode-terminal-ansiBrightYellow);
-  --color-token-terminal-ansi-cyan: var(--vscode-terminal-ansiCyan);
-  --color-token-terminal-ansi-green: var(--vscode-terminal-ansiGreen);
-  --color-token-terminal-ansi-magenta: var(--vscode-terminal-ansiMagenta);
-  --color-token-terminal-ansi-red: var(--vscode-terminal-ansiRed);
-  --color-token-terminal-ansi-white: var(--vscode-terminal-ansiWhite);
-  --color-token-terminal-ansi-yellow: var(--vscode-terminal-ansiYellow);
-  --color-token-terminal-background: var(--color-token-main-surface-primary);
-  --color-token-terminal-border: var(--vscode-terminal-border);
-  --color-token-terminal-foreground: var(--vscode-terminal-foreground);
-  --color-token-text-code-block-background: var(--vscode-textCodeBlock-background);
-  --color-token-text-link-active-foreground: var(--vscode-textLink-activeForeground);
-  --color-token-text-link-foreground: var(--vscode-textLink-foreground);
-  --color-token-text-preformat-background: var(--vscode-textPreformat-background);
-  --color-token-text-preformat-foreground: var(--vscode-textPreformat-foreground);
-  --color-token-text-primary: var(--color-token-foreground);
-  --color-token-text-secondary: color-mix(in srgb, var(--color-token-foreground) 65%, transparent);
-  --color-token-text-tertiary: var(--color-token-description-foreground);
-  --color-token-toolbar-hover-background: var(--vscode-toolbar-hoverBackground);
-}
+  // 2. Button / IconButton Component
+  --cpx-comp-button-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
+  --cpx-comp-button-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-button-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-button-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-button-active-bg: var(--cpx-sys-color-active);
+  --cpx-comp-button-pressed: var(--cpx-sys-color-active);
+  --cpx-comp-button-radius-md: var(--cpx-sys-radius-md);
+  --cpx-comp-button-radius-lg: var(--cpx-sys-radius-lg);
+  --cpx-comp-button-radius-xl: var(--cpx-sys-radius-xl);
+  --cpx-comp-button-radius-2xl: var(--cpx-sys-radius-2xl);
+  --cpx-comp-button-size-compact: 24px;
+  --cpx-comp-button-size-toolbar: 28px;
+  --cpx-comp-button-size-medium: 32px;
+  --cpx-comp-button-size-large: 36px;
+  --cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-button-primary-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 85%, transparent);
+  --cpx-comp-button-primary-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 75%, transparent);
+  --cpx-comp-button-primary-disabled-bg: var(--cpx-sys-color-fg-disabled);
 
-.electron-dark {
-  --vscode-button-secondaryHoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 8%,
-    transparent
-  );
-  --vscode-list-hoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 8%,
-    transparent
-  );
-  --vscode-toolbar-hoverBackground: color-mix(
-    in srgb,
-    var(--color-text-foreground) 8%,
-    transparent
-  );
+  // 3. Input / SearchInput Component
+  --cpx-comp-input-bg: var(--cpx-sys-color-surface-control);
+  --cpx-comp-input-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-input-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-input-placeholder-fg: var(--cpx-sys-color-fg-tertiary);
+  --cpx-comp-input-focus-border: var(--cpx-sys-color-border-focus);
+  --cpx-comp-input-radius: var(--cpx-sys-radius-md);
+  --cpx-comp-input-disabled-bg: var(--cpx-sys-color-surface-control);
+  --cpx-comp-input-disabled-fg: var(--cpx-sys-color-fg-disabled);
+  --cpx-comp-input-validation-error-bg: var(--cpx-sys-color-danger);
+  --cpx-comp-input-validation-error-border: var(--cpx-sys-color-danger);
+  --cpx-comp-input-validation-warning-bg: var(--cpx-sys-color-warning);
+  --cpx-comp-input-validation-warning-border: var(--cpx-sys-color-warning);
+
+  // 4. Switch & SegmentedControl Component
+  --cpx-comp-switch-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-switch-border: var(--cpx-sys-color-border-default);
+  --cpx-comp-switch-checked-bg: var(--cpx-sys-color-accent);
+  --cpx-comp-switch-radius: var(--cpx-sys-radius-full);
+  --cpx-comp-switch-thumb-shadow: var(--cpx-sys-shadow-control);
+  --cpx-comp-switch-thumb-fill: #ffffff;
+  --cpx-comp-segmented-bg: var(--cpx-sys-color-surface-recessed);
+  --cpx-comp-segmented-border: var(--cpx-sys-color-border-default);
+  --cpx-comp-segmented-item-selected-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-segmented-item-selected-fg: var(--cpx-sys-color-fg-primary);
+
+  // 5. Tooltip, ScrollArea & MetaChip Component
+  --cpx-comp-tooltip-bg: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-tooltip-backdrop-filter: none;
+  --cpx-comp-tooltip-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
+  --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating);
+  --cpx-comp-tooltip-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-scrollbar-slider-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 22%, transparent);
+  --cpx-comp-scrollbar-slider-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 32%, transparent);
+  --cpx-comp-scrollbar-slider-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 42%, transparent);
+  --cpx-comp-chip-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-chip-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-chip-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-chip-success-bg: var(--cpx-sys-color-success-subtle-bg);
+  --cpx-comp-chip-success-fg: var(--cpx-sys-color-success-fg);
+  --cpx-comp-chip-success-border: var(--cpx-sys-color-success-subtle-border);
+  --cpx-comp-chip-danger-bg: var(--cpx-sys-color-danger-subtle-bg);
+  --cpx-comp-chip-danger-fg: var(--cpx-sys-color-danger-fg);
+  --cpx-comp-chip-danger-border: var(--cpx-sys-color-danger-subtle-border);
+  --cpx-comp-chip-warning-bg: var(--cpx-sys-color-warning-subtle-bg);
+  --cpx-comp-chip-warning-fg: var(--cpx-sys-color-warning-fg);
+  --cpx-comp-chip-warning-border: var(--cpx-sys-color-warning-subtle-border);
+  --cpx-comp-chip-skill-bg: var(--cpx-sys-color-skill-subtle-bg);
+  --cpx-comp-chip-skill-fg: var(--cpx-sys-color-skill-fg);
+  --cpx-comp-chip-skill-border: var(--cpx-sys-color-skill-subtle-border);
+  --cpx-comp-chip-info-bg: var(--cpx-sys-color-info-subtle-bg);
+  --cpx-comp-chip-info-fg: var(--cpx-sys-color-info-fg);
+  --cpx-comp-chip-info-border: var(--cpx-sys-color-info-subtle-border);
+  --cpx-comp-chip-accent-bg: var(--cpx-sys-color-accent-subtle-bg);
+  --cpx-comp-chip-accent-fg: var(--cpx-sys-color-accent-fg);
+  --cpx-comp-chip-accent-border: var(--cpx-sys-color-accent-subtle-border);
+
+  // 6. Surfaces & Containers Component
+  --cpx-comp-surface-underlay: var(--cpx-sys-color-surface-recessed);
+  --cpx-comp-surface-canvas: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-surface-panel: var(--cpx-sys-color-surface-panel);
+  --cpx-comp-surface-raised: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-surface-floating: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-surface-edge: 1px solid var(--cpx-sys-color-border-subtle);
+  --cpx-comp-surface-edge-strong: 1px solid var(--cpx-sys-color-border-default);
+  --cpx-comp-surface-card-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-surface-panel-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-surface-shadow-floating: var(--cpx-sys-shadow-floating);
+  --cpx-comp-surface-shadow-raised: var(--cpx-sys-shadow-raised);
+  --cpx-comp-surface-fog: color-mix(in oklab, var(--cpx-sys-color-fg-primary) 2.5%, transparent);
+
+  // Glass Container Component Slot
+  --cpx-comp-glass-bg: var(--cpx-sys-glass-bg);
+  --cpx-comp-glass-border: var(--cpx-sys-glass-border);
+  --cpx-comp-glass-shadow: var(--cpx-sys-glass-shadow);
+  --cpx-comp-glass-filter: var(--cpx-sys-glass-filter);
+
+  // 7. Modal & Dialog Component
+  --cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);
+  --cpx-comp-modal-backdrop-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
+  --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
+  --cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);
+  --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface-editor);
+  --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
+
+  // 8. Sidebar & RightDock Component
+  --cpx-comp-sidebar-bg: var(--cpx-sys-color-workbench-sidebar-bg);
+  --cpx-comp-sidebar-border: 0;
+  --cpx-comp-sidebar-item-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-sidebar-item-active-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);
+  --cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);
+  --cpx-comp-dock-tab-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-dock-tab-active-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-dock-tab-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-dock-tab-height: 46px;
+
+  // 9. Workbench Component
+  --cpx-comp-workbench-panel-bg: var(--cpx-sys-color-workbench-panel-bg);
+  --cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-workbench-main-bg);
+  --cpx-comp-workbench-tab-active-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-workbench-tab-height: 46px;
+  --cpx-comp-workbench-tab-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-workbench-tab-border: var(--cpx-sys-color-border-subtle);
+
+  // 10. MenuBar Component
+  --cpx-comp-menubar-height: 36px;
+  --cpx-comp-menubar-selection-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-menubar-selection-fg: var(--cpx-sys-color-fg-primary);
+
+  // 11. Composer Component
+  --cpx-comp-composer-bg: var(--cpx-sys-color-surface-control);
+  --cpx-comp-composer-backdrop-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-comp-composer-toolbar-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-composer-floating-height: 142px;
+  --cpx-comp-composer-safe-pad: 78px;
+  --cpx-comp-composer-border: var(--cpx-sys-color-border-default);
+  --cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);
+  --cpx-comp-composer-radius: var(--cpx-sys-radius-3xl);
+
+  // 12. Terminal Component
+  --cpx-comp-terminal-bg: var(--cpx-sys-color-surface-editor);
+  --cpx-comp-terminal-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-terminal-border: var(--cpx-sys-color-border-default);
+  --cpx-comp-terminal-ansi-blue: var(--cpx-sys-color-accent);
+  --cpx-comp-terminal-ansi-green: var(--cpx-sys-color-success);
+  --cpx-comp-terminal-ansi-red: var(--cpx-sys-color-danger);
+  --cpx-comp-terminal-ansi-yellow: var(--cpx-sys-color-warning);
+  --cpx-comp-terminal-ansi-magenta: var(--cpx-sys-color-skill);
+  --cpx-comp-terminal-ansi-cyan: color-mix(in srgb, var(--cpx-sys-color-accent) 70%, var(--cpx-sys-color-success));
+  --cpx-comp-terminal-ansi-white: var(--cpx-sys-color-fg-secondary);
+  --cpx-comp-terminal-ansi-black: var(--cpx-sys-color-surface-recessed);
+  --cpx-comp-terminal-ansi-bright-black: var(--cpx-sys-color-fg-tertiary);
+  --cpx-comp-terminal-ansi-bright-red: var(--cpx-sys-color-danger);
+  --cpx-comp-terminal-ansi-bright-green: var(--cpx-sys-color-success);
+  --cpx-comp-terminal-ansi-bright-yellow: var(--cpx-sys-color-warning);
+  --cpx-comp-terminal-ansi-bright-blue: var(--cpx-sys-color-accent);
+  --cpx-comp-terminal-ansi-bright-magenta: var(--cpx-sys-color-skill);
+  --cpx-comp-terminal-ansi-bright-cyan: var(--cpx-sys-color-info);
+  --cpx-comp-terminal-ansi-bright-white: var(--cpx-sys-color-fg-secondary);
+
+  // 13. Review Diff Component
+  --cpx-comp-diff-surface: var(--cpx-sys-color-surface-editor);
+  --cpx-comp-diff-inserted-line-bg: var(--cpx-sys-color-diff-added-line);
+  --cpx-comp-diff-inserted-text-bg: var(--cpx-sys-color-diff-added-text);
+  --cpx-comp-diff-removed-line-bg: var(--cpx-sys-color-diff-removed-line);
+  --cpx-comp-diff-removed-text-bg: var(--cpx-sys-color-diff-removed-text);
+  --cpx-comp-diff-added-fg: var(--cpx-sys-color-diff-added-fg);
+  --cpx-comp-diff-removed-fg: var(--cpx-sys-color-diff-removed-fg);
+
+  // Interactive Row Profiles
+  --cpx-comp-row-bg: transparent;
+  --cpx-comp-row-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-row-height-nav: calc(var(--cpx-sys-font-size-md) + 16px);
+  --cpx-comp-row-height-menu: calc(var(--cpx-sys-font-size-md) + 18px);
+  --cpx-comp-row-height-menu-rich: 44px;
+  --cpx-comp-row-height-toolbar: 28px;
+  --cpx-comp-row-height-composer: 28px;
+  --cpx-comp-row-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-row-padding-inline: 8px;
+  --cpx-comp-row-padding-block: 5px;
+  --cpx-comp-row-padding-block-rich: 6px;
+  --cpx-comp-row-gap: 6px;
+  --cpx-comp-row-gap-y: 2px;
+  --cpx-comp-row-hover-bg: var(--cpx-sys-color-hover);
+  --cpx-comp-row-hover-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-row-pressed-bg: var(--cpx-sys-color-active);
+  --cpx-comp-row-open-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-row-selected-bg: var(--cpx-sys-color-selected);
+  --cpx-comp-row-selected-fg: var(--cpx-sys-color-fg-primary);
+  --cpx-comp-row-focus-border: var(--cpx-sys-color-border-focus);
+  --cpx-comp-row-disabled-fg: var(--cpx-sys-color-fg-disabled);
+  --cpx-comp-row-disabled-opacity: 0.55;
+
+  // ---------------------------------------------------------------------------
+  // Component Geometry (Comp: private to the matching base component only).
+  // Reuses the pre-2A size semantics/values; cross-feature layout roles live
+  // in --cpx-sys-layout-*; selector-scoped locals stay inside Feature styles.
+  // ---------------------------------------------------------------------------
+
+  // Button / IconButton
+  --cpx-comp-button-padding-block: 5px;
+  --cpx-comp-button-padding-inline: 8px;
+  --cpx-comp-button-gap: 6px;
+  --cpx-comp-button-padding-block-compact: 3px;
+  --cpx-comp-button-padding-inline-compact: 6px;
+  --cpx-comp-button-gap-compact: 4px;
+  --cpx-comp-button-font: var(--cpx-sys-type-body);
+
+  // Input / SearchInput
+  --cpx-comp-input-height-sm: 24px;
+  --cpx-comp-input-height-md: 28px;
+  --cpx-comp-input-height-lg: 32px;
+  --cpx-comp-input-padding-block: 5px;
+  --cpx-comp-input-padding-inline: 8px;
+  --cpx-comp-input-gap: 6px;
+  --cpx-comp-input-font: var(--cpx-sys-type-body);
+
+  // Menu
+  --cpx-comp-menu-surface-padding: 4px;
+  --cpx-comp-menu-item-padding-block: 5px;
+  --cpx-comp-menu-item-padding-inline: 8px;
+  --cpx-comp-menu-item-gap: 6px;
+  --cpx-comp-menu-item-gap-y: 2px;
+  --cpx-comp-menu-rich-item-height: 44px;
+  --cpx-comp-menu-rich-item-padding-block: 6px;
+  --cpx-comp-menu-icon-size: 16px;
+  --cpx-comp-menu-font: var(--cpx-sys-type-body);
+  --cpx-comp-menu-detail-font: var(--cpx-sys-type-body-sm);
+
+  // Dropdown (trigger + menu surface)
+  --cpx-comp-dropdown-menu-padding: 4px;
+  --cpx-comp-dropdown-item-padding-block: 5px;
+  --cpx-comp-dropdown-item-padding-inline: 8px;
+  --cpx-comp-dropdown-item-gap: 6px;
+  --cpx-comp-dropdown-item-gap-y: 2px;
+  --cpx-comp-dropdown-rich-item-height: 44px;
+  --cpx-comp-dropdown-rich-item-padding-block: 6px;
+  --cpx-comp-dropdown-icon-size: 16px;
+
+  // Icon
+  --cpx-comp-icon-size-sm: 14px;
+  --cpx-comp-icon-size-md: 16px;
+  --cpx-comp-icon-size-lg: 18px;
+  --cpx-comp-icon-stroke-width: 1.75;
+
+  // Navigation row
+  --cpx-comp-nav-row-height: calc(var(--cpx-sys-font-size-md) + 16px);
+  --cpx-comp-nav-row-padding-block: 5px;
+  --cpx-comp-nav-row-padding-inline: 5px;
+  --cpx-comp-nav-section-gap: 18px;
+  --cpx-comp-nav-session-indent: 30px;
+
+  // Switch
+  --cpx-comp-switch-width: 32px;
+  --cpx-comp-switch-height: 18px;
+  --cpx-comp-switch-thumb-size: 14px;
+  --cpx-comp-switch-thumb-gap: 2px;
+
+  // Card
+  --cpx-comp-card-padding: var(--cpx-sys-layout-card-padding);
+  --cpx-comp-card-gap: var(--cpx-sys-layout-card-gap);
+  --cpx-comp-card-radius: var(--cpx-sys-radius-container);
+
 }

@@ -25,18 +25,7 @@ if (samples.length === 0) {
   throw new Error(`没有找到 ${suite} 性能样本：${rawDirectory}`)
 }
 
-const baseline = await readBaseline(suite)
-const budgetResults = evaluateBudgets(samples, budgets).map(result => {
-  const baselineActual = baseline?.[result.scenario]?.[result.metric] ?? null
-  return {
-    ...result,
-    baselineActual,
-    baselineDelta:
-      result.actual === null || baselineActual === null
-        ? null
-        : result.actual - baselineActual,
-  }
-})
+const budgetResults = evaluateBudgets(samples, budgets)
 const scenarios = Object.fromEntries(
   [...new Set(samples.map(sample => sample.scenario))].sort().map(scenario => {
     const scenarioSamples = samples.filter(sample => sample.scenario === scenario)
@@ -118,32 +107,18 @@ async function readSamples(directory: string): Promise<PerformanceSample[]> {
   )
 }
 
-async function readBaseline(
-  targetSuite: 'electron' | 'renderer',
-): Promise<Record<string, Record<string, number>> | null> {
-  const path = resolve(
-    repositoryRoot,
-    'performance',
-    'baselines',
-    `${targetSuite}.json`,
-  )
-  return readFile(path, 'utf8')
-    .then(value => JSON.parse(value) as Record<string, Record<string, number>>)
-    .catch(() => null)
-}
-
 function renderMarkdown(reportValue: typeof report): string {
   const lines = [
     `# ${reportValue.suite} performance report`,
     '',
     `Generated: ${reportValue.generatedAt}`,
     '',
-    '| Scenario | Metric | p95 | Baseline | Delta | Budget | Status |',
-    '| --- | --- | ---: | ---: | ---: | ---: | --- |',
+    '| Scenario | Metric | p95 | Budget | Status |',
+    '| --- | --- | ---: | ---: | --- |',
   ]
   for (const budget of reportValue.budgets) {
     lines.push(
-      `| ${budget.scenario} | ${budget.metric} | ${format(budget.actual)} | ${format(budget.baselineActual)} | ${format(budget.baselineDelta)} | ${budget.min === undefined ? `≤ ${budget.max}` : `${budget.min}–${budget.max}`} | ${budget.passed ? 'PASS' : 'FAIL'} |`,
+      `| ${budget.scenario} | ${budget.metric} | ${format(budget.actual)} | ${budget.min === undefined ? `≤ ${budget.max}` : `${budget.min}–${budget.max}`} | ${budget.passed ? 'PASS' : 'FAIL'} |`,
     )
   }
   lines.push('')

@@ -1,16 +1,20 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
-import { randomUUID } from "node:crypto"
+import { readFile, rm } from "node:fs/promises"
+import { join } from "node:path"
 import type {
   DesktopChromeTheme,
   DesktopHexColor,
-  DesktopThemeSettingsV6,
+  DesktopThemeFontFace,
+  DesktopThemeSettingsV7,
   DesktopThemeVariant,
 } from "@codepilotx/shared/desktop-theme"
+import {
+  desktopThemeFontFaceMatchesFamily,
+} from "@codepilotx/shared/desktop-theme"
+import { writeJsonAtomically } from "../windows/debounced-atomic-json-writer.js"
 
 export type {
   DesktopChromeTheme,
-  DesktopThemeSettingsV6,
+  DesktopThemeSettingsV7,
 } from "@codepilotx/shared/desktop-theme"
 
 type HexColor = DesktopHexColor
@@ -19,10 +23,10 @@ type AppearanceVariant = DesktopThemeVariant
 const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   light: {
     accent: "#339cff",
-    surface: "#ffffff",
-    ink: "#1a1c1f",
+    surface: "#f9f9f9",
+    ink: "#111111",
     contrast: 45,
-    fonts: { ui: null, code: null },
+    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
       diffAdded: "#00a240",
       diffRemoved: "#ba2623",
@@ -31,10 +35,10 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
   dark: {
     accent: "#339cff",
-    surface: "#181818",
-    ink: "#ffffff",
+    surface: "#111111",
+    ink: "#f7f7f7",
     contrast: 60,
-    fonts: { ui: null, code: null },
+    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
     semanticColors: {
       diffAdded: "#40c977",
       diffRemoved: "#fa423e",
@@ -43,19 +47,19 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
 }
 
-export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV6 = {
-  version: 6,
+export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV7 = {
+  version: 7,
   mode: "system",
   chromeThemes: DEFAULT_CHROME_THEMES,
   codeThemeIds: { light: "codex-light", dark: "codex-dark" },
   pointerCursorEnabled: false,
   reduceMotion: "system",
   fontSmoothingEnabled: true,
-  fontSizes: { ui: 14, code: 12 },
+  fontSizes: { ui: 14, code: 13 },
 }
 
 type RecordValue = Record<string, unknown>
-const CURRENT_APPEARANCE_SETTINGS_VERSION = 6
+const CURRENT_APPEARANCE_SETTINGS_VERSION = 7
 
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -83,6 +87,22 @@ function fontOr(value: unknown): string | null {
   return trimmed.length > 0 && trimmed.length <= 200 ? trimmed : null
 }
 
+function faceFieldOr(value: unknown, maximumLength: number): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
+}
+
+function fontFaceOr(value: unknown): DesktopThemeFontFace | null {
+  if (value === null) return null
+  if (!isRecord(value)) return null
+  const family = faceFieldOr(value.family, 200)
+  const fullName = faceFieldOr(value.fullName, 200)
+  const postscriptName = faceFieldOr(value.postscriptName, 200)
+  if (!family || !fullName || !postscriptName) return null
+  return { family, fullName, postscriptName }
+}
+
 function codeThemeIdOr(value: unknown, fallback: string): string {
   if (value === "auto") return fallback
   return typeof value === "string" && /^[a-z0-9][a-z0-9-]{0,99}$/i.test(value)
@@ -94,14 +114,22 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   const source = isRecord(value) ? value : {}
   const fonts = isRecord(source.fonts) ? source.fonts : {}
   const semanticColors = isRecord(source.semanticColors) ? source.semanticColors : {}
+  const ui = fontOr(fonts.ui)
+  const code = fontOr(fonts.code)
+  const uiFace = fontFaceOr(fonts.uiFace)
+  const codeFace = fontFaceOr(fonts.codeFace)
   return {
     accent: colorOr(source.accent, fallback.accent),
     surface: colorOr(source.surface, fallback.surface),
     ink: colorOr(source.ink, fallback.ink),
     contrast: numberInRange(source.contrast, fallback.contrast, 0, 100),
+    // Face keys are always persisted explicitly: clearing a face writes
+    // `null` so Agent key-path edits can never leave stale face subkeys.
     fonts: {
-      ui: fontOr(fonts.ui),
-      code: fontOr(fonts.code),
+      ui,
+      uiFace: desktopThemeFontFaceMatchesFamily(ui, uiFace) ? uiFace : null,
+      code,
+      codeFace: desktopThemeFontFaceMatchesFamily(code, codeFace) ? codeFace : null,
     },
     semanticColors: {
       diffAdded: colorOr(semanticColors.diffAdded, fallback.semanticColors.diffAdded),
@@ -111,7 +139,7 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   }
 }
 
-export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV6 {
+export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV7 {
   const source = isRecord(value) ? value : {}
   const mode = source.mode === "light" || source.mode === "dark" || source.mode === "system"
     ? source.mode
@@ -120,7 +148,7 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   const chromeThemes = isRecord(source.chromeThemes) ? source.chromeThemes : {}
   const fontSizes = isRecord(source.fontSizes) ? source.fontSizes : {}
   return {
-    version: 6,
+    version: 7,
     mode,
     chromeThemes: {
       light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light),
@@ -149,11 +177,16 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
 }
 
 /**
- * V6 is an intentional solid-surface reset. Known V1-V5 documents are replaced
- * with the new defaults instead of carrying old palette choices into the new
- * semantic-token contract. Future documents remain protected from downgrade.
+ * V7 is a preserve-style upgrade over V6: every existing mode, theme color,
+ * code theme, cursor, motion, font-size, and font-smoothing value survives,
+ * and only the nullable `uiFace`/`codeFace` keys plus `version: 7` are added.
+ *
+ * V6 was an intentional solid-surface reset. Known V1-V5 documents are still
+ * replaced with the new defaults instead of carrying old palette choices into
+ * the semantic-token contract. Future documents remain protected from
+ * downgrade.
  */
-export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV6 {
+export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV7 {
   if (!isRecord(value)) {
     throw new UnsupportedAppearanceSettingsVersionError(value)
   }
@@ -170,7 +203,7 @@ export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV
     throw new NewerAppearanceSettingsVersionError(originalVersion)
   }
 
-  if (originalVersion < CURRENT_APPEARANCE_SETTINGS_VERSION) {
+  if (originalVersion < 6) {
     return normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
   }
   return normalizeAppearanceSettings(value)
@@ -194,6 +227,7 @@ export class AppearanceSettingsStore {
   readonly #filePath: string
   readonly #logger: AppearanceSettingsLogger | undefined
   #writeQueue: Promise<void> = Promise.resolve()
+  #existingVersionChecked = false
 
   constructor(
     userDataDirectory: string,
@@ -208,7 +242,7 @@ export class AppearanceSettingsStore {
     return this.#filePath
   }
 
-  async load(): Promise<DesktopThemeSettingsV6> {
+  async load(): Promise<DesktopThemeSettingsV7> {
     try {
       const source = await readFile(this.#filePath, "utf8")
       let parsed: unknown
@@ -232,13 +266,33 @@ export class AppearanceSettingsStore {
   }
 
   save(value: unknown): Promise<void> {
-    const normalized = normalizeAppearanceSettings(value)
-    const write = this.#writeQueue.then(() => this.#writeAtomically(normalized))
+    const normalized = migrateAppearanceSettings(value)
+    const write = this.#writeQueue.then(async () => {
+      await this.#assertExistingVersionWritable()
+      await this.#writeAtomically(normalized)
+    })
     this.#writeQueue = write.catch(() => undefined)
     return write
   }
 
-  async #removeCorruptAndReset(): Promise<DesktopThemeSettingsV6> {
+  async #assertExistingVersionWritable(): Promise<void> {
+    if (this.#existingVersionChecked) return
+    try {
+      const existing = JSON.parse(await readFile(this.#filePath, "utf8"))
+      if (
+        isRecord(existing)
+        && typeof existing.version === "number"
+        && existing.version > CURRENT_APPEARANCE_SETTINGS_VERSION
+      ) {
+        throw new NewerAppearanceSettingsVersionError(existing.version)
+      }
+    } catch (error) {
+      if (!isMissingFileError(error) && !(error instanceof SyntaxError)) throw error
+    }
+    this.#existingVersionChecked = true
+  }
+
+  async #removeCorruptAndReset(): Promise<DesktopThemeSettingsV7> {
     await rm(this.#filePath, { force: true })
     this.#logger?.info("appearance-settings.corrupt-reset", { reason: "invalid-json" })
     const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
@@ -246,19 +300,8 @@ export class AppearanceSettingsStore {
     return fallback
   }
 
-  async #writeAtomically(settings: DesktopThemeSettingsV6): Promise<void> {
-    const directory = dirname(this.#filePath)
-    const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
-    await mkdir(directory, { recursive: true })
-    try {
-      await writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o600,
-      })
-      await rename(temporaryPath, this.#filePath)
-    } finally {
-      await rm(temporaryPath, { force: true }).catch(() => undefined)
-    }
+  async #writeAtomically(settings: DesktopThemeSettingsV7): Promise<void> {
+    await writeJsonAtomically(this.#filePath, settings)
   }
 }
 

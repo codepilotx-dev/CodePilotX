@@ -4,6 +4,13 @@ export type NewSessionSuggestionCategoryId =
   | "codex-review"
   | "codex-fix";
 
+export type WorkingContextualSuggestionCategoryId =
+  | "create"
+  | "research"
+  | "automate";
+
+export type ContextualTaskSuggestionSurface = "coding" | "working";
+
 export type NewSessionSuggestionTone =
   | "blue"
   | "purple"
@@ -20,6 +27,10 @@ export type NewSessionTaskSuggestion = NewSessionSuggestionTask & {
   categoryId: NewSessionSuggestionCategoryId;
 };
 
+export type WorkingContextualTaskSuggestion = NewSessionSuggestionTask & {
+  categoryId: WorkingContextualSuggestionCategoryId;
+};
+
 export type NewSessionRecentTask = {
   id: string;
   title: string;
@@ -31,7 +42,8 @@ export type NewSessionRecentTask = {
     | "running"
     | "done"
     | "error"
-    | "interrupted";
+    | "interrupted"
+    | "cancelled";
   updatedAt: number;
 };
 
@@ -199,16 +211,34 @@ const inferCategoryId = (value: string): NewSessionSuggestionCategoryId => {
   return "codex-create";
 };
 
-const staticFallbacks = (): NewSessionTaskSuggestion[] =>
-  NEW_SESSION_SUGGESTIONS.map(category => ({
-    ...category.tasks[0],
-    categoryId: category.id,
-  }));
+const staticFallbacks = (hasWorkspace = true): NewSessionTaskSuggestion[] =>
+  NEW_SESSION_SUGGESTIONS.map(category => {
+    const task = category.tasks[0]!;
+    if (hasWorkspace) {
+      return {
+        ...task,
+        categoryId: category.id,
+      };
+    }
+    const genericPromptMap: Record<NewSessionSuggestionCategoryId, string> = {
+      "codex-explore": "Explore how a feature or concept works",
+      "codex-create": "Build a new application, feature, or script",
+      "codex-review": "Review code or text and suggest improvements",
+      "codex-fix": "Fix a bug, error, or failing logic",
+    };
+    return {
+      ...task,
+      categoryId: category.id,
+      prompt: genericPromptMap[category.id] ?? task.prompt,
+    };
+  });
 
 export function buildContextualTaskSuggestions(input: {
   recentTasks: readonly NewSessionRecentTask[];
   git: NewSessionSuggestionGitContext | null;
+  hasWorkspace?: boolean;
 }): NewSessionTaskSuggestion[] {
+  const hasWorkspace = input.hasWorkspace ?? true;
   const candidates: NewSessionTaskSuggestion[] = [];
   const recentTasks = [...input.recentTasks]
     .sort((left, right) => right.updatedAt - left.updatedAt)
@@ -266,7 +296,7 @@ export function buildContextualTaskSuggestions(input: {
     });
   }
 
-  candidates.push(...staticFallbacks());
+  candidates.push(...staticFallbacks(hasWorkspace));
   const seen = new Set<string>();
   return candidates.flatMap(candidate => {
     const key = normalizedPrompt(candidate.prompt);

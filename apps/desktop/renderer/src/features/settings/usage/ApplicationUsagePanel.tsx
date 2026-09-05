@@ -52,7 +52,7 @@ export function ApplicationUsagePanel({
       <div className="usage-empty-state" role="status">
         <h3>暂时无法读取应用用量</h3>
         <p>{error ?? '本机还没有可归属到模型的调用记录。'}</p>
-        <Button onClick={onRefresh}>重新读取</Button>
+        <Button color="secondary" onClick={onRefresh}>重新读取</Button>
       </div>
     )
   }
@@ -110,7 +110,7 @@ export function ApplicationUsagePanel({
             options={RANGE_OPTIONS}
             value={range}
           />
-          <Button loading={loading} onClick={onRefresh}>刷新</Button>
+          <Button color="secondary" loading={loading} onClick={onRefresh}>刷新</Button>
         </div>
       </div>
 
@@ -358,7 +358,7 @@ function ModelDistribution({
             <span>
               <Link
                 className="usage-provider-link"
-                to={`/models?view=providers&provider=${encodeURIComponent(String(model.providerId))}&section=models`}
+                to={`/settings/providers?provider=${encodeURIComponent(String(model.providerId))}&section=models`}
               >
                 {model.displayName}
               </Link>

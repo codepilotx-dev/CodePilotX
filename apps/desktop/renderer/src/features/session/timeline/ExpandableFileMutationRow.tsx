@@ -1,12 +1,10 @@
 import React from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Pencil,
-} from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 import type { Item } from "@codepilotx/shared/thread";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
+import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
+import { useDisclosureExpanded } from "../../../components/ui/keyedDisclosureStore.js";
 
 import type {
   CanonicalItemDisclosure,
@@ -81,6 +79,7 @@ export function ExpandableFileMutationRow({
   readThreadPatchDiff: ReadThreadPatchDiff;
   threadId: string;
 }): React.ReactNode {
+  const expanded = useDisclosureExpanded(disclosure.store, disclosure.id);
   const [attempt, setAttempt] = React.useState(0);
   const [loadState, setLoadState] = React.useState<DiffLoadState>({
     status: "loading",
@@ -90,29 +89,33 @@ export function ExpandableFileMutationRow({
     [readThreadPatchDiff],
   );
   const requestKey = `${threadId}:${item.callID}:${file.path}`;
+  const contentId = React.useId();
 
   React.useEffect(() => {
-    if (!disclosure.expanded) return;
+    if (!expanded) return;
     return loader.request(
       requestKey,
       { threadId, toolCallId: item.callID, path: file.path },
       setLoadState,
     );
-  }, [attempt, disclosure.expanded, file.path, item.callID, loader, requestKey, threadId]);
+  }, [attempt, expanded, file.path, item.callID, loader, requestKey, threadId]);
 
   return (
-    <details
-      className="canonical-file-mutation__item"
+    <div
+      className="cpx-agent-activity__item"
       data-expandable="true"
-      onToggle={(event) => {
-        disclosure.onExpandedChange(disclosure.id, event.currentTarget.open);
-      }}
-      open={disclosure.expanded}
+      data-expanded={expanded ? "true" : "false"}
     >
-      <summary>
-        <Pencil aria-hidden="true" />
-        <span title={file.path}>{fileMutationLabel(item.state, file.path)}</span>
-        <span className="canonical-file-mutation__stats">
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="cpx-agent-activity__item-header"
+        onClick={() => disclosure.store.setExpanded(disclosure.id, !expanded)}
+        type="button"
+      >
+        <Pencil className="cpx-agent-activity__icon" aria-hidden="true" />
+        <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
+        <span className="cpx-agent-activity__review-indicator">
           {file.additions !== null ? (
             <small className="canonical-diff-add">+{file.additions}</small>
           ) : null}
@@ -120,14 +123,14 @@ export function ExpandableFileMutationRow({
             <small className="canonical-diff-remove">-{file.deletions}</small>
           ) : null}
         </span>
-        {disclosure.expanded ? (
-          <ChevronDown className="canonical-file-mutation__chevron" aria-hidden="true" />
-        ) : (
-          <ChevronRight className="canonical-file-mutation__chevron" aria-hidden="true" />
-        )}
-      </summary>
-      {disclosure.expanded ? (
-        <div className="canonical-file-mutation__diff">
+        <ChevronRight className="cpx-agent-activity__chevron" aria-hidden="true" />
+      </button>
+      <DisclosureContent
+        contentClassName="cpx-agent-activity__details cpx-agent-activity__details--diff"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="until-exit"
+      >
           {loadState.status === "loaded" ? (
             <FileMutationDiffBody diff={loadState.diff} diffMarkerStyle={diffMarkerStyle} />
           ) : loadState.status === "error" ? (
@@ -140,8 +143,7 @@ export function ExpandableFileMutationRow({
           ) : (
             <FileMutationDiffLoading />
           )}
-        </div>
-      ) : null}
-    </details>
+      </DisclosureContent>
+    </div>
   );
 }

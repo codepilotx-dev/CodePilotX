@@ -57,7 +57,7 @@ export function SessionFollowUpDock({
       {pauseReason ? (
         <div className="session-follow-up-header">
           <span>已排队 {items.length} 条</span>
-          <Button
+          <Button color="primary"
             className="session-follow-up-resume"
             onClick={onResume}
           >
@@ -110,8 +110,10 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="保存编辑"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       disabled={!editingText.trim()}
                       onClick={() => finishEdit(item)}
+                      size="iconMd"
                       title="保存编辑"
                     >
                       <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -119,7 +121,9 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="取消编辑"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => setEditingId(null)}
+                      size="iconMd"
                       title="取消编辑"
                     >
                       <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -130,7 +134,9 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="移除排队消息"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => onRemove(item.id)}
+                      size="iconMd"
                       title="移除"
                     >
                       <Trash2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -138,7 +144,9 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="编辑排队消息"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => beginEdit(item)}
+                      size="iconMd"
                       title="更多：编辑消息"
                     >
                       <MoreHorizontal

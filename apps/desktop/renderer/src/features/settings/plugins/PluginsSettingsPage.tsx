@@ -7,7 +7,7 @@ import {
   Server,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   DesktopInstalledSkill,
   DesktopMcpServerListItem,
@@ -16,6 +16,7 @@ import type {
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -24,20 +25,29 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import {
-  PLUGIN_CATALOG_DESCRIPTORS,
-  mergeBuiltinPluginState,
+  mergePluginCatalog,
   pluginStatusLabel,
   type PluginCatalogItem,
 } from '../../plugins/pluginCatalog.js'
 import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
-import { useBuiltinPluginCatalog } from '../../plugins/useBuiltinPluginCatalog.js'
+import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
+import {
+  BuiltinSkillIcon,
+  getBuiltinSkillPresentation,
+  isBuiltinSkill,
+  skillScopeLabel,
+} from '../../plugins/builtinSkillPresentation.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { ExtensionManagementRow } from './ExtensionManagementRow.js'
 import { McpEditorDialog } from './McpEditorDialog.js'
-import { SkillDetailsDialog, skillScopeLabel } from './SkillDetailsDialog.js'
+import {
+  clearPluginDetailsDeepLink,
+  resolvePluginDetailsDeepLink,
+} from './pluginDetailsDeepLink.js'
+import { SkillDetailsDialog } from './SkillDetailsDialog.js'
 import {
   listRuntimeSkills,
   setRuntimeSkillEnabled,
@@ -56,10 +66,6 @@ type McpOAuthAttempt = {
   expiresAt: number
 }
 
-const MANAGED_PLUGIN_DESCRIPTORS = PLUGIN_CATALOG_DESCRIPTORS.filter(
-  descriptor => descriptor.category !== 'external',
-)
-
 const VALID_TABS = new Set<Tab>(['plugins', 'mcps', 'skills'])
 
 export function PluginsSettingsPage({
@@ -69,17 +75,18 @@ export function PluginsSettingsPage({
   onNotice,
 }: PluginsSettingsPageProps): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const requestedTab = parseTab(searchParams.get('tab'))
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   const {
-    plugins: builtinPlugins,
+    plugins,
     error: pluginLoadError,
     loading: pluginsLoading,
     refresh: refreshPlugins,
-    setEnabled: setBuiltinPluginEnabled,
-  } = useBuiltinPluginCatalog()
+    setEnabled: setPluginEnabled,
+  } = usePluginCatalog(workspacePath)
   const [optimisticPluginEnabled, setOptimisticPluginEnabled] =
     useState<Record<string, boolean>>({})
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(
@@ -120,15 +127,15 @@ export function PluginsSettingsPage({
 
   const pluginItems = useMemo(
     () =>
-      mergeBuiltinPluginState(
-        MANAGED_PLUGIN_DESCRIPTORS,
-        builtinPlugins?.map(plugin => ({
+      mergePluginCatalog(
+        [],
+        plugins?.filter(plugin => plugin.installed).map(plugin => ({
           ...plugin,
           enabled: optimisticPluginEnabled[plugin.id] ?? plugin.enabled,
         })),
         pluginLoadError,
       ),
-    [builtinPlugins, optimisticPluginEnabled, pluginLoadError],
+    [plugins, optimisticPluginEnabled, pluginLoadError],
   )
 
   const tabOptions = useMemo(() => {
@@ -159,6 +166,43 @@ export function PluginsSettingsPage({
   const tab = availableTabs.has(requestedTab)
     ? requestedTab
     : (tabOptions[0]?.value ?? 'mcps')
+  const requestedPluginId = searchParams.get('plugin')
+  const requestedSkillPath = searchParams.get('skill')
+  const detailDeepLink = useMemo(
+    () => resolvePluginDetailsDeepLink(searchParams, pluginItems, skills ?? []),
+    [pluginItems, searchParams, skills],
+  )
+
+  function clearDetailsDeepLink(): void {
+    setSearchParams(
+      current => clearPluginDetailsDeepLink(current),
+      { replace: true },
+    )
+  }
+
+  function closeDeepLinkedDetails(kind: 'plugin' | 'skill'): void {
+    const activeLink = resolvePluginDetailsDeepLink(
+      searchParams,
+      pluginItems,
+      skills ?? [],
+    )
+    if (activeLink?.kind !== kind) return
+    if (activeLink.from) {
+      navigate(activeLink.from)
+      return
+    }
+    clearDetailsDeepLink()
+  }
+
+  function handlePluginDialogOpenChange(open: boolean): void {
+    setPluginDialogOpen(open)
+    if (!open) closeDeepLinkedDetails('plugin')
+  }
+
+  function handleSkillDialogOpenChange(open: boolean): void {
+    setSkillDialogOpen(open)
+    if (!open) closeDeepLinkedDetails('skill')
+  }
 
   useEffect(() => {
     if (tab === requestedTab && searchParams.get('tab') === requestedTab) return
@@ -168,6 +212,45 @@ export function PluginsSettingsPage({
       return next
     }, { replace: true })
   }, [requestedTab, searchParams, setSearchParams, tab])
+
+  useEffect(() => {
+    if (!requestedPluginId && !requestedSkillPath) return
+    if (requestedPluginId && requestedSkillPath) {
+      clearDetailsDeepLink()
+      return
+    }
+
+    const targetTab: Tab = requestedPluginId ? 'plugins' : 'skills'
+    if (tab !== targetTab) {
+      clearDetailsDeepLink()
+      return
+    }
+    const catalogReady = requestedPluginId
+      ? !pluginsLoading
+      : skills !== undefined
+    if (!catalogReady) return
+    if (!detailDeepLink) {
+      clearDetailsDeepLink()
+      return
+    }
+
+    if (detailDeepLink.kind === 'plugin') {
+      setSelectedPluginId(detailDeepLink.item.id)
+      setPluginDialogTrigger(null)
+      setPluginDialogOpen(true)
+      return
+    }
+    setSelectedSkill(detailDeepLink.skill)
+    setSkillDialogTrigger(null)
+    setSkillDialogOpen(true)
+  }, [
+    detailDeepLink,
+    pluginsLoading,
+    requestedPluginId,
+    requestedSkillPath,
+    skills,
+    tab,
+  ])
 
   useEffect(() => {
     setMcpOAuthAttempts({})
@@ -180,8 +263,8 @@ export function PluginsSettingsPage({
   useEffect(() => {
     return desktopClient.subscribeAgentEventEnvelopes({
       liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
-    }, event => {
-      if (event.type === 'mcp/updated') void loadServers()
+    }, async events => {
+      if (events.some(event => event.type === 'mcp/updated')) await loadServers()
     })
     // Reconcile the currently selected workspace whenever the Agent catalog changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,18 +391,15 @@ export function PluginsSettingsPage({
     item: PluginCatalogItem,
     enabled: boolean,
   ): Promise<void> {
-    if (!item.builtinPluginId || busyPluginIds.has(item.id)) return
+    if (!item.installed || busyPluginIds.has(item.id)) return
     setBusyPluginIds(current => new Set(current).add(item.id))
     setPluginErrors(current => ({ ...current, [item.id]: '' }))
     setOptimisticPluginEnabled(current => ({
       ...current,
-      [item.builtinPluginId!]: enabled,
+      [item.id]: enabled,
     }))
     try {
-      await setBuiltinPluginEnabled(
-        item.builtinPluginId,
-        enabled,
-      )
+      await setPluginEnabled(item.id, enabled)
       onNotice?.(`${item.name} 已${enabled ? '启用' : '禁用'}。`)
     } catch (error) {
       const message = errorMessageOf(error, `${item.name} 状态更新失败。`)
@@ -328,7 +408,7 @@ export function PluginsSettingsPage({
     } finally {
       setOptimisticPluginEnabled(current => {
         const next = { ...current }
-        delete next[item.builtinPluginId!]
+        delete next[item.id]
         return next
       })
       setBusyPluginIds(current => without(current, item.id))
@@ -552,17 +632,17 @@ export function PluginsSettingsPage({
 
   return (
     <SettingsContentArea className="plugins-settings-page">
-      <div className="tw:mx-auto tw:flex tw:w-full tw:max-w-[60rem] tw:flex-col tw:px-8 tw:py-16 tw:max-[1023px]:px-5 tw:max-[1023px]:py-10">
-        <header className="tw:mb-8">
-          <h2 className="tw:m-0 tw:text-2xl tw:font-[var(--font-weight-heading)] tw:text-app-text">
+      <div className="settings-content-inner plugins-settings-content">
+        <header className="settings-page-header">
+          <h2 className="settings-page-title">
             插件
           </h2>
-          <p className="tw:mt-1 tw:mb-0 tw:text-base tw:text-app-text-soft">
+          <p className="settings-page-desc">
             管理插件、技能和 MCP
           </p>
         </header>
 
-        <div className="tw:mb-7 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-5 tw:max-[1023px]:flex-col tw:max-[1023px]:items-stretch">
+        <div className="settings-management-toolbar plugins-settings-toolbar">
           <SegmentedControl
             ariaLabel="管理扩展"
             value={tab}
@@ -572,7 +652,7 @@ export function PluginsSettingsPage({
             getTabId={value => `plugins-settings-tab-${value}`}
             getPanelId={value => `plugins-settings-panel-${value}`}
           />
-          <div className="tw:flex tw:min-w-0 tw:items-center tw:justify-end tw:gap-2 tw:max-[1023px]:w-full">
+          <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions">
             <SearchInput
               ref={searchRef}
               aria-label={searchPlaceholder(tab)}
@@ -581,8 +661,9 @@ export function PluginsSettingsPage({
               value={query}
               onChange={setQuery}
             />
-            <Button
-              aria-label={`刷新${tabLabel(tab)}`}
+            <IconButton
+              color="ghostSecondary"
+              size="toolbar"
               title={`刷新${tabLabel(tab)}`}
               onClick={() => void refreshCurrentTab()}
             >
@@ -591,9 +672,9 @@ export function PluginsSettingsPage({
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </Button>
+            </IconButton>
             {tab === 'mcps' ? (
-              <Button
+              <Button color="primary"
                 onClick={event => {
                   setSelectedServer(null)
                   setMcpDialogTrigger(event.currentTarget)
@@ -613,22 +694,22 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
+            className="u-type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
-            <Button onClick={() => void refreshCurrentTab()}>重试</Button>
+            <Button color="secondary" onClick={() => void refreshCurrentTab()}>重试</Button>
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
-          <p className="tw:mt-0 tw:mb-4 tw:text-sm tw:text-app-text-soft" role="status">
+          <p className="u-type-body-sm tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
             {mcpStatus}
           </p>
         ) : null}
 
         <section
           aria-labelledby={`plugins-settings-tab-${tab}`}
-          className="tw:min-w-0"
+          className="settings-management-list plugins-settings-list"
           id={`plugins-settings-panel-${tab}`}
           role="tabpanel"
         >
@@ -641,7 +722,13 @@ export function PluginsSettingsPage({
                   key={item.id}
                   title={item.name}
                   description={pluginErrors[item.id] || item.description}
-                  icon={<PluginIcon name={item.iconName} />}
+                  icon={(
+                    <PluginIcon
+                      logoDarkSource={item.logoDarkSource}
+                      logoSource={item.logoSource}
+                      name={item.iconName}
+                    />
+                  )}
                   metadata={pluginStatusLabel(item)}
                   dimmed={item.status === 'disabled'}
                   onActivate={trigger => {
@@ -658,7 +745,7 @@ export function PluginsSettingsPage({
                         onChange={enabled => void togglePlugin(item, enabled)}
                       />
                     ) : item.category === 'manageable' ? (
-                      <Button onClick={refreshPlugins}>重试</Button>
+                      <Button color="secondary" onClick={refreshPlugins}>重试</Button>
                     ) : null
                   }
                 />
@@ -674,10 +761,14 @@ export function PluginsSettingsPage({
                   title={skill.name}
                   description={skill.shortDescription || skill.description || '未提供技能说明。'}
                   icon={
-                    <FileCode2
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
+                    getBuiltinSkillPresentation(skill) ? (
+                      <BuiltinSkillIcon skill={skill} />
+                    ) : (
+                      <FileCode2
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    )
                   }
                   metadata={skillScopeLabel(skill.scope)}
                   dimmed={!skill.enabled}
@@ -746,11 +837,17 @@ export function PluginsSettingsPage({
         busy={selectedPlugin ? busyPluginIds.has(selectedPlugin.id) : false}
         error={selectedPlugin ? pluginErrors[selectedPlugin.id] : null}
         restoreFocusElement={pluginDialogTrigger}
-        onOpenChange={setPluginDialogOpen}
-        onPrimaryAction={(item, trigger) => {
-          setPluginDialogTrigger(trigger)
-          if (item.status === 'enabled' || item.status === 'disabled') {
-            void togglePlugin(item, item.status !== 'enabled')
+        onOpenChange={handlePluginDialogOpenChange}
+        onPrimaryAction={(item, trigger, checked) => {
+          if (
+            checked !== undefined
+            && (item.status === 'enabled' || item.status === 'disabled')
+          ) {
+            void togglePlugin(item, checked).finally(() => {
+              window.requestAnimationFrame(() => {
+                if (trigger.isConnected) trigger.focus()
+              })
+            })
           }
         }}
       />
@@ -759,8 +856,9 @@ export function PluginsSettingsPage({
         skill={selectedSkill}
         open={skillDialogOpen}
         restoreFocusElement={skillDialogTrigger}
-        onOpenChange={setSkillDialogOpen}
+        onOpenChange={handleSkillDialogOpenChange}
         onOpenSkill={skill => {
+          if (isBuiltinSkill(skill)) return
           void desktopClient.openPathWithDefaultTarget(skill.path).catch(error => {
             onError(errorMessageOf(error, '无法打开技能文件。'))
           })
@@ -823,11 +921,11 @@ export function PluginsSettingsPage({
 
 function LoadingRows(): React.ReactNode {
   return (
-    <div aria-label="正在加载" className="tw:grid tw:gap-1" role="status">
+    <div aria-label="正在加载" className="settings-management-loading" role="status">
       {[0, 1, 2, 3].map(index => (
         <div
           aria-hidden="true"
-          className="tw:h-20 tw:animate-pulse tw:rounded-xl tw:bg-app-panel tw:motion-reduce:animate-none"
+          className="settings-management-loading-row tw:animate-pulse tw:motion-reduce:animate-none"
           key={index}
         />
       ))}
@@ -837,7 +935,7 @@ function LoadingRows(): React.ReactNode {
 
 function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
-    <div className="tw:grid tw:min-h-48 tw:place-items-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border tw:px-6 tw:text-center tw:text-sm tw:text-app-text-soft">
+    <div className="settings-management-empty">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
         <Package
           aria-hidden="true"
@@ -951,7 +1049,7 @@ function AuthSourceBadge({
   source: 'environment' | 'oauth'
 }): React.ReactNode {
   return (
-    <span className="tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-xs tw:text-app-text-soft">
+    <span className="u-type-caption tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
     </span>
   )
@@ -965,13 +1063,13 @@ function mcpAuthAction(
 ): React.ReactNode {
   if (!server.effective || !server.enabled || !server.runtime) return null
   if (attempt) {
-    return <Button disabled loading title="等待 OAuth 授权">等待授权</Button>
+    return <Button color="primary" disabled loading title="等待 OAuth 授权">等待授权</Button>
   }
   if (server.runtime.auth.canLogout) {
-    return <Button disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
+    return <Button color="danger" disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
   }
   if (server.runtime.auth.canLogin) {
-    return <Button disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
+    return <Button color="primary" disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
   }
   return null
 }
@@ -986,7 +1084,7 @@ function withoutRecordKey<T>(
 
 function DiagnosticContextBadge(): React.ReactNode {
   return (
-    <span className="tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-xs tw:text-app-text-soft">
+    <span className="u-type-caption tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       会话诊断
     </span>
   )
@@ -1005,7 +1103,7 @@ function StatusBadge({
       ? 'tw:bg-app-danger/15 tw:text-app-danger'
       : 'tw:bg-app-panel tw:text-app-text-soft'
   return (
-    <span className={`tw:inline-flex tw:rounded-full tw:px-2 tw:py-0.5 tw:text-xs ${tone}`}>
+    <span className={`u-type-caption tw:inline-flex tw:rounded-full tw:px-2 tw:py-0.5 ${tone}`}>
       {label}
     </span>
   )

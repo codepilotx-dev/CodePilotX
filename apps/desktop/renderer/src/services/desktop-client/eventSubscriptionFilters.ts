@@ -14,9 +14,20 @@ export const AGENT_LIVE_EVENT_FILTERS = {
     'provider/credential/updated',
     'usage/source/updated',
   ],
+  /** Health workspace subscription: batch events plus the catalog/credential
+   * changes that invalidate existing results. */
+  modelHealth: [
+    'model/health/updated',
+    'catalog/updated',
+    'provider/credential/updated',
+  ],
   skills: ['skill/updated'],
+  plugins: ['plugins/updated'],
+  minimaxCli: ['minimaxCli/updated'],
   tooling: ['tooling/updated'],
   mcp: ['mcp/updated'],
+  // session-group/changed is durable and arrives outside the live-only filter.
+  sessionGroups: [],
   global: [
     'catalog/updated',
     'provider/credential/updated',
@@ -26,7 +37,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   ],
 } as const satisfies Readonly<
   Record<
-    'canonical' | 'provider' | 'skills' | 'tooling' | 'mcp' | 'global',
+    'canonical' | 'provider' | 'modelHealth' | 'skills' | 'plugins' | 'minimaxCli' | 'tooling' | 'mcp' | 'sessionGroups' | 'global',
     readonly LiveEventType[]
   >
 >

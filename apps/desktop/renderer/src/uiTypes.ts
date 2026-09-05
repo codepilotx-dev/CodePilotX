@@ -11,13 +11,12 @@ import type {
 
 export type AppView =
   | 'new'
+  | 'sessionGroups'
   | 'projects'
   | 'search'
-  | 'models'
   | 'plugins'
   | 'pullRequests'
   | 'automations'
-  | 'labs'
 
 export type DrawerTab =
   | 'files'

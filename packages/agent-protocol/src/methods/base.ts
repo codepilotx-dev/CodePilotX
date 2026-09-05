@@ -4,13 +4,16 @@ import { ExtendedRpcMethods } from "./extended"
 import { GitRpcMethods } from "./git"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
+import { MiniMaxCliRpcMethods } from "./minimax-cli"
 import { PetRpcMethods } from "./pet"
+import { PluginRpcMethods } from "./plugins"
 import { ReleaseNotesRpcMethods } from "./release-notes"
 import { ReviewRpcMethods } from "./review"
 import { SkillRpcMethods } from "./skills"
 import { SuggestionRpcMethods } from "./suggestions"
 import { ToolingRpcMethods } from "./tooling"
 import { UsageRpcMethods } from "./usage"
+import { SpeechRpcMethods } from "./speech"
 
 /**
  * Public methods required by the always-loaded desktop session client. Optional
@@ -23,11 +26,14 @@ export const BaseRpcMethods = {
   ...GitRpcMethods,
   ...GithubRpcMethods,
   ...McpRpcMethods,
+  ...MiniMaxCliRpcMethods,
   ...PetRpcMethods,
+  ...PluginRpcMethods,
   ...ReleaseNotesRpcMethods,
   ...ReviewRpcMethods,
   ...SkillRpcMethods,
   ...SuggestionRpcMethods,
   ...ToolingRpcMethods,
   ...UsageRpcMethods,
+  ...SpeechRpcMethods,
 } as const

@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { DEFAULT_APPEARANCE_SETTINGS } from "../src/settings/appearance-settings-store.js"
 import {
+  createRendererApplicationUrl,
+  RENDERER_STARTUP_THEME_QUERY_PARAM,
   renderStartupPage,
   resolveStartupPageTheme,
 } from "../src/windows/startup-page.js"
@@ -48,6 +50,45 @@ describe("startup page", () => {
     expect(html).toContain("quitDuringStartup()")
   })
 
+  test("shows a single-line status window below the whale at all times", () => {
+    const html = renderStartupPage(LIGHT_OPTIONS)
+
+    expect(html).toContain('class="startup-status-window"')
+    expect(html).toContain('<p id="status" class="startup-status">正在启动…</p>')
+    expect(html).toContain("height: 21px")
+    expect(html).toContain("overflow: hidden")
+    expect(html).toContain("white-space: nowrap")
+    expect(html).toContain("text-overflow: ellipsis")
+  })
+
+  test("status updates swap text vertically instead of a timed carousel", () => {
+    const html = renderStartupPage(LIGHT_OPTIONS)
+
+    expect(html).toContain("duration: 180")
+    expect(html).toContain("duration: 280")
+    expect(html).toContain("cubic-bezier(0.23, 1, 0.32, 1)")
+    expect(html).toContain("translateY(-4px)")
+    expect(html).toContain("translateY(4px)")
+    expect(html).not.toContain("setInterval")
+  })
+
+  test("progress keeps busy; terminal errors clear busy and reveal diagnostics", () => {
+    const html = renderStartupPage(LIGHT_OPTIONS)
+
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain(
+      'loaderElement?.setAttribute("aria-busy", "false")',
+    )
+    expect(html).toContain("(prefers-reduced-motion: reduce)")
+    // busy 清除只发生在 terminal-error 分支内，普通 progress 保持 busy。
+    const errorBranch = html.indexOf('kind === "terminal-error"')
+    const busyClear = html.indexOf(
+      'loaderElement?.setAttribute("aria-busy", "false")',
+    )
+    expect(errorBranch).toBeGreaterThan(-1)
+    expect(busyClear).toBeGreaterThan(errorBranch)
+  })
+
   test("uses the resolved light theme", () => {
     const html = renderStartupPage(LIGHT_OPTIONS)
 
@@ -84,7 +125,7 @@ describe("startup page", () => {
     expect(html).toContain("outline: 2px solid var(--startup-accent)")
   })
 
-  test("resolves explicit and system V6 theme variants", () => {
+  test("resolves explicit and system V7 theme variants", () => {
     expect(
       resolveStartupPageTheme(
         { ...DEFAULT_APPEARANCE_SETTINGS, mode: "light" },
@@ -93,9 +134,10 @@ describe("startup page", () => {
     ).toEqual({
       variant: "light",
       theme: {
-        surface: "#ffffff",
-        ink: "#1a1c1f",
+        surface: "#f9f9f9",
+        ink: "#111111",
         accent: "#339cff",
+        surfaceUnder: "#f0f0f0",
       },
     })
     expect(
@@ -103,10 +145,37 @@ describe("startup page", () => {
     ).toEqual({
       variant: "dark",
       theme: {
-        surface: "#181818",
-        ink: "#ffffff",
+        surface: "#111111",
+        ink: "#f7f7f7",
         accent: "#339cff",
+        surfaceUnder: "#0e0e0e",
       },
+    })
+  })
+
+  test("carries the resolved startup theme into the renderer URL", () => {
+    const target = new URL(createRendererApplicationUrl(
+      "http://127.0.0.1:4210/?existing=kept",
+      {
+        variant: "dark",
+        theme: {
+          surface: "#121725",
+          ink: "#f4f6ff",
+          accent: "#8db8ff",
+          surfaceUnder: "#0f1420",
+        },
+      },
+    ))
+
+    expect(target.origin).toBe("http://127.0.0.1:4210")
+    expect(target.searchParams.get("existing")).toBe("kept")
+    expect(JSON.parse(
+      target.searchParams.get(RENDERER_STARTUP_THEME_QUERY_PARAM) ?? "null",
+    )).toEqual({
+      version: 1,
+      variant: "dark",
+      surface: "#121725",
+      ink: "#f4f6ff",
     })
   })
 

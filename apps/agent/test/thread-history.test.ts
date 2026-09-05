@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 import { EventHub } from "../src/storage/events/EventHub"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { ApprovalService } from "../src/permission/ApprovalService"
@@ -70,6 +70,13 @@ describe("Thread 历史", () => {
     expect(stale.unreadAt).toBe(100)
     const read = history.markRead(thread.id, 100)
     expect(read.unreadAt).toBeNull()
+
+    const unread = history.markUnread(thread.id, 120)
+    expect(unread.unreadAt).toBe(120)
+    expect(history.markUnread(thread.id, 110).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 119).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 120).unreadAt).toBeNull()
+    expect(() => history.markUnread("missing-thread", 130)).toThrow("Thread 不存在")
   })
 
   test("支持重命名、归档、取消归档和删除", async () => {
@@ -82,9 +89,11 @@ describe("Thread 历史", () => {
     expect(typeof renamed.archivedAt).toBe("number")
     expect(projection.list({ projectID: project.id, archived: false })).toEqual([])
     expect(projection.list({ projectID: project.id, archived: true }).map((item) => item.id)).toEqual([thread.id])
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBe(renamed.archivedAt)
 
     const active = await history.patch(thread.id, { archived: false })
     expect(active.archivedAt).toBeNull()
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBeNull()
     db.createTurn(thread.id, input("# 这是一个用于验证重置行为的非常长的首条用户消息"))
     const reset = await history.patch(thread.id, { title: null })
     expect(reset.title).toBe("这是一个用于验证重置行为的非常长的首条…")
@@ -224,13 +233,16 @@ describe("Thread 历史", () => {
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
     } as const
 
-    await history.patchSettings(thread.id, settings)
+    const changed = await history.patchSettings(thread.id, settings)
+    expect(changed.version).toBe(updatedAt)
     expect(db.getThreadSettings(thread.id)).toEqual(settings)
     expect(db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(thread.id)).toEqual({ updated_at: updatedAt })
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
-    await history.patchSettings(thread.id, {})
-    await history.patchSettings(thread.id, settings)
+    const unchanged = await history.patchSettings(thread.id, {})
+    const repeated = await history.patchSettings(thread.id, settings)
+    expect(unchanged.version).toBe(updatedAt)
+    expect(repeated.version).toBe(updatedAt)
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
     db.close()

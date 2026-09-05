@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2, X } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useId, useRef, useState } from 'react'
 import type {
   DesktopEditableMcpScope,
   DesktopMcpServerConfig,
@@ -14,11 +14,13 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
+import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { SettingsDropdown } from '../SettingsDropdown.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 type TransportType = DesktopMcpServerConfig['type']
 
@@ -120,7 +122,7 @@ const STATIC_SECRET_HEADERS = new Set([
 
 export function McpEditorDialog({
   open,
-  server,
+  server: currentServer,
   busy,
   workspaceAvailable,
   restoreFocusElement,
@@ -129,11 +131,13 @@ export function McpEditorDialog({
   onRemove,
   onOpenDocumentation,
 }: Props): React.ReactNode {
+  const retainedServer = useLastNonNull(currentServer)
+  const server = open ? currentServer : retainedServer
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const visitedTransportTypes = useRef<Set<TransportType>>(new Set())
   const stdioDiagnosticContext = useRef(false)
   const [form, setForm] = useState<FormState>(() => formForServer(null))
-  const [advanced, setAdvanced] = useState(false)
+  const advancedRef = useRef(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -143,7 +147,7 @@ export function McpEditorDialog({
       server?.transport.type ?? 'stdio',
     ])
     stdioDiagnosticContext.current = server?.diagnosticContext ?? false
-    setAdvanced(false)
+    advancedRef.current = false
     setValidationError(null)
   }, [open, server])
 
@@ -221,7 +225,7 @@ export function McpEditorDialog({
 
   async function save(): Promise<void> {
     let candidate = form
-    if (advanced) {
+    if (advancedRef.current) {
       try {
         candidate = formFromEditorConfig(
           parseMcpServerJson(form.configText),
@@ -306,9 +310,9 @@ export function McpEditorDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
-            className="permission-modal tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:max-h-[min(48rem,calc(100vh-3rem))] tw:w-[min(44rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -319,15 +323,15 @@ export function McpEditorDialog({
               closeRef.current?.focus()
             }}
           >
-            <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
-              <span className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--font-weight-heading)]">
+            <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
+              <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
+                <Dialog.Title className="u-type-title-sm tw:m-0">
                   {server ? `MCP：${server.name}` : '新增 MCP server'}
                 </Dialog.Title>
-                <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:text-app-text-soft">
+                <Dialog.Description className="u-type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                   使用结构化字段配置 stdio 或 Streamable HTTP；HTTP 会在协议不兼容时自动回退 SSE。
                 </Dialog.Description>
-                <Button
+                <Button color="secondary"
                   className="tw:mt-1"
                   onClick={onOpenDocumentation}
                 >
@@ -336,21 +340,21 @@ export function McpEditorDialog({
                 </Button>
               </span>
               <Dialog.Close asChild>
-                <IconButton ref={closeRef} title="关闭 MCP 编辑器" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭 MCP 编辑器">
                   <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </IconButton>
               </Dialog.Close>
             </header>
 
-            <div className="tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto tw:px-5 tw:py-4">
+            <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
               {runtimeError || needsAuth ? (
-                <div className="tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text-soft">
+                <div className="u-type-body-sm tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
                   {runtimeError ?? '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
                 </div>
               ) : null}
               {validationError ? (
                 <div
-                  className="tw:rounded-lg tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-sm tw:text-app-danger"
+                  className="u-type-body-sm tw:rounded-md tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
                   role="alert"
                 >
                   {validationError}
@@ -369,7 +373,7 @@ export function McpEditorDialog({
                 <FormRow label="类型">
                   <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
                     {server ? (
-                      <span className="tw:text-xs tw:text-app-text-soft">
+                      <span className="u-type-caption tw:text-app-text-soft">
                         已有配置的 transport 不可修改。
                       </span>
                     ) : <span />}
@@ -465,90 +469,89 @@ export function McpEditorDialog({
                 </FormCard>
               )}
 
-              <Button
-                aria-controls="mcp-advanced-options"
-                aria-expanded={advanced}
-                onClick={() => setAdvanced(current => !current)}
-              >
-                {advanced ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
-                高级选项
-              </Button>
-              {advanced ? (
-                <div id="mcp-advanced-options" className="tw:grid tw:gap-4">
-                  <FormCard>
-                    <FormRow label="配置范围">
-                      <SettingsDropdown
-                        value={form.scope}
-                        width={260}
-                        disabled={Boolean(server)}
-                        options={SCOPE_OPTIONS.map(option => ({
-                          ...option,
-                          disabled: option.value === 'local' && !workspaceAvailable,
-                        }))}
-                        onChange={value => update(current => ({
-                          ...current,
-                          scope: value as DesktopEditableMcpScope,
-                        }))}
-                        ariaLabel="MCP scope"
-                      />
-                    </FormRow>
-                    <FormRow label="启用">
-                      <ToggleSwitch
-                        ariaLabel="MCP server"
-                        checked={form.enabled}
-                        onChange={enabled => update(current => ({ ...current, enabled }))}
-                      />
-                    </FormRow>
-                    <FormRow label="必需 Server">
+              <FormCard>
+                <FormRow label="配置范围">
+                  <SettingsDropdown
+                    value={form.scope}
+                    width={260}
+                    disabled={Boolean(server)}
+                    options={SCOPE_OPTIONS.map(option => ({
+                      ...option,
+                      disabled: option.value === 'local' && !workspaceAvailable,
+                    }))}
+                    onChange={value => update(current => ({
+                      ...current,
+                      scope: value as DesktopEditableMcpScope,
+                    }))}
+                    ariaLabel="MCP scope"
+                  />
+                </FormRow>
+                <FormRow label="启用">
+                  <ToggleSwitch
+                    ariaLabel="MCP server"
+                    checked={form.enabled}
+                    onChange={enabled => update(current => ({ ...current, enabled }))}
+                  />
+                </FormRow>
+                <FormRow label="必需 Server">
+                  <span className="tw:flex tw:items-center tw:gap-2">
+                    <ToggleSwitch
+                      ariaLabel="必需 Server"
+                      checked={form.required}
+                      onChange={required => update(current => ({ ...current, required }))}
+                    />
+                    <span className="u-type-caption tw:text-app-text-soft">
+                      开启后，连接失败会阻止任务开始。
+                    </span>
+                  </span>
+                </FormRow>
+                {form.type === 'http' ? (
+                  <>
+                    <FormRow label="OAuth">
                       <span className="tw:flex tw:items-center tw:gap-2">
                         <ToggleSwitch
-                          ariaLabel="必需 Server"
-                          checked={form.required}
-                          onChange={required => update(current => ({ ...current, required }))}
+                          ariaLabel="OAuth"
+                          checked={form.httpAuth === 'oauth'}
+                          onChange={enabled => update(current => ({
+                            ...current,
+                            httpAuth: enabled ? 'oauth' : 'none',
+                          }))}
                         />
-                        <span className="tw:text-xs tw:leading-5 tw:text-app-text-soft">
-                          开启后，连接失败会阻止任务开始。
+                        <span className="u-type-body-sm tw:text-app-text-soft">
+                          {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
                         </span>
                       </span>
                     </FormRow>
-                    {form.type === 'http' ? (
+                    {form.httpAuth === 'oauth' ? (
                       <>
-                        <FormRow label="OAuth">
-                          <span className="tw:flex tw:items-center tw:gap-2">
-                            <ToggleSwitch
-                              ariaLabel="OAuth"
-                              checked={form.httpAuth === 'oauth'}
-                              onChange={enabled => update(current => ({
-                                ...current,
-                                httpAuth: enabled ? 'oauth' : 'none',
-                              }))}
-                            />
-                            <span className="tw:text-sm tw:text-app-text-soft">
-                              {form.httpAuth === 'oauth' ? '使用 OAuth 登录' : '不使用 OAuth'}
-                            </span>
-                          </span>
+                        <ValueListField
+                          addLabel="添加 Scope"
+                          label="OAuth Scopes"
+                          placeholder="scope"
+                          rows={form.scopes}
+                          onChange={scopes => update(current => ({ ...current, scopes }))}
+                        />
+                        <FormRow label="OAuth Resource">
+                          <Input
+                            aria-label="OAuth Resource"
+                            value={form.oauthResource}
+                            placeholder="https://mcp.example.com"
+                            onChange={event => update(current => ({ ...current, oauthResource: event.target.value }))}
+                          />
                         </FormRow>
-                        {form.httpAuth === 'oauth' ? (
-                          <>
-                            <ValueListField
-                              addLabel="添加 Scope"
-                              label="OAuth Scopes"
-                              placeholder="scope"
-                              rows={form.scopes}
-                              onChange={scopes => update(current => ({ ...current, scopes }))}
-                            />
-                            <FormRow label="OAuth Resource">
-                              <Input
-                                aria-label="OAuth Resource"
-                                value={form.oauthResource}
-                                placeholder="https://mcp.example.com"
-                                onChange={event => update(current => ({ ...current, oauthResource: event.target.value }))}
-                              />
-                            </FormRow>
-                          </>
-                        ) : null}
                       </>
                     ) : null}
+                  </>
+                ) : null}
+              </FormCard>
+
+              <McpAdvancedDisclosure
+                open={open}
+                onExpandedChange={expanded => {
+                  advancedRef.current = expanded
+                }}
+              >
+                  <FormCard>
                     <ValueListField
                       addLabel="添加启用工具"
                       label="仅启用这些工具"
@@ -593,7 +596,7 @@ export function McpEditorDialog({
                             diagnosticContext,
                           }))}
                         />
-                        <span className="tw:text-xs tw:leading-5 tw:text-app-text-soft">
+                        <span className="u-type-caption tw:text-app-text-soft">
                           仅向本地进程传递最近的可见消息和工具状态摘要，不包含系统提示词、推理内容、路径或工具原始参数。
                         </span>
                       </FormRow>
@@ -633,32 +636,80 @@ export function McpEditorDialog({
                       }}
                     />
                   </Field>
-                </div>
-              ) : null}
+              </McpAdvancedDisclosure>
             </div>
 
-            <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
+            <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2">
               <span>
                 {server?.removable ? (
-                  <Button disabled={busy} tone="danger" onClick={() => onRemove(server)}>
+                  <Button color="danger" disabled={busy} onClick={() => onRemove(server)}>
                     <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     删除
                   </Button>
                 ) : null}
               </span>
               <span className="tw:flex tw:items-center tw:gap-2">
-                <Dialog.Close asChild><Button>关闭</Button></Dialog.Close>
-                <Button disabled={busy} loading={busy} onClick={() => void save()}>
+                <Dialog.Close asChild><Button color="secondary">关闭</Button></Dialog.Close>
+                <Button color="primary" disabled={busy} loading={busy} onClick={() => void save()}>
                   保存
                 </Button>
               </span>
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
 }
+
+const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
+  children,
+  open,
+  onExpandedChange,
+}: {
+  children: React.ReactNode
+  open: boolean
+  onExpandedChange: (expanded: boolean) => void
+}): React.ReactNode {
+  const [expanded, setExpanded] = useState(false)
+  const contentId = useId()
+
+  useEffect(() => {
+    if (open) return
+    setExpanded(false)
+    onExpandedChange(false)
+  }, [onExpandedChange, open])
+
+  const toggle = (): void => {
+    setExpanded(current => {
+      const next = !current
+      onExpandedChange(next)
+      return next
+    })
+  }
+
+  return (
+    <>
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="mcp-editor-advanced-disclosure"
+        type="button"
+        onClick={toggle}
+      >
+        {expanded ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
+        高级选项
+      </button>
+      <DisclosureContent
+        contentClassName="tw:grid tw:gap-4"
+        expanded={expanded}
+        id={contentId}
+        mountPolicy="always"
+      >
+        {children}
+      </DisclosureContent>
+    </>
+  )
+})
 
 function Field({
   label,
@@ -669,7 +720,7 @@ function Field({
 }): React.ReactNode {
   return (
     <label className="tw:grid tw:gap-1.5">
-      <span className="tw:text-sm tw:font-[var(--font-weight-label)]">{label}</span>
+      <span className="u-type-control">{label}</span>
       {children}
     </label>
   )
@@ -677,7 +728,7 @@ function Field({
 
 function FormCard({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <section className="tw:grid tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border tw:bg-app-panel">
+    <section className="settings-management-dialog-card tw:grid tw:overflow-hidden">
       {children}
     </section>
   )
@@ -691,9 +742,9 @@ function FormRow({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="tw:grid tw:gap-2 tw:border-b tw:border-app-border tw:px-4 tw:py-3 last:tw:border-b-0">
-      <span className="tw:text-sm tw:font-[var(--font-weight-label)]">{label}</span>
-      {children}
+    <div className="settings-management-dialog-row">
+      <span className="settings-management-dialog-row-label">{label}</span>
+      <div className="settings-management-dialog-row-control">{children}</div>
     </div>
   )
 }
@@ -727,15 +778,16 @@ function ValueListField({
             <IconButton
               aria-label={`删除${label} ${index + 1}`}
               disabled={rows.length === 1 && !row.value}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除${label}`}
-              variant="plain"
               onClick={() => onChange(removeValueRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createValueRow()])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createValueRow()])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
@@ -781,15 +833,16 @@ function MapListField({
               aria-label={`删除${label} ${index + 1}`}
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key && !row.value}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除${label}`}
-              variant="plain"
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow()])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow()])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           {addLabel}
         </Button>
@@ -828,15 +881,16 @@ function ToolApprovalListField({
             <IconButton
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key}
+              color="ghostSecondary"
+              size="iconMd"
               title={`删除工具审批覆盖 ${index + 1}`}
-              variant="plain"
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
               <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
-        <Button className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow('', 'auto')])}>
+        <Button color="primary" className="tw:w-full tw:justify-center" onClick={() => onChange([...rows, createMapRow('', 'auto')])}>
           <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           添加工具覆盖
         </Button>

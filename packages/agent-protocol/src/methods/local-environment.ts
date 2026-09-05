@@ -1,8 +1,7 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { JsonValueSchema, OpaqueIDSchema } from "../wire/primitives"
+import { JsonValueSchema, NonEmptyStringSchema, OpaqueIDSchema } from "../wire/primitives"
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
 const EnvironmentRevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 const ConfigKeyPathSchema = Schema.Array(

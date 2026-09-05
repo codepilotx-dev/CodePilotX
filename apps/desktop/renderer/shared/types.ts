@@ -22,6 +22,7 @@ import type {
   SubagentProjection,
   SubagentRun,
   SubagentTask,
+  ThreadCreationSurface,
   ThreadListItem,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
@@ -32,6 +33,11 @@ import type {
 } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+export type { ThreadCreationSurface } from '@codepilotx/shared/thread'
+import type {
+  DesktopBrowserBounds as SharedDesktopBrowserBounds,
+  DesktopBrowserSitePermission as SharedDesktopBrowserSitePermission,
+} from '@codepilotx/shared/desktop-browser-ipc'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
@@ -145,6 +151,8 @@ export type DesktopFilePreview = {
 export type DesktopFileRevision = {
   mtimeMs: number
   sha256: string
+  rawSha256?: string
+  utf8Bom?: boolean
 }
 
 export type DesktopFileSaveResult =
@@ -177,6 +185,10 @@ export type DesktopComposerAttachmentKind =
 
 export type DesktopComposerAttachmentStatus = 'ready' | 'error'
 
+export type DesktopComposerAttachmentStorage = 'managed' | 'local-path'
+
+export type DesktopComposerPathKind = 'file' | 'directory'
+
 export type DesktopComposerAttachment = {
   id: string
   name: string
@@ -185,6 +197,10 @@ export type DesktopComposerAttachment = {
   sizeBytes: number
   kind: DesktopComposerAttachmentKind
   status: DesktopComposerAttachmentStatus
+  storage?: DesktopComposerAttachmentStorage
+  pathKind?: DesktopComposerPathKind
+  localGrantId?: string
+  contextReferenceId?: string
   error?: string
   contentBase64?: string
   previewDataUrl?: string
@@ -195,6 +211,8 @@ export type DesktopComposerAttachment = {
 export type DesktopUserMessageInput = {
   text: string
   attachments?: DesktopComposerAttachment[]
+  retainedAttachmentIds?: string[]
+  retainedContextReferenceIds?: string[]
   skillInvocation?: {
     name: string
     args?: string
@@ -359,24 +377,28 @@ export type DesktopGitStatusResult =
   | { ok: false; error: string }
 
 export type CreateBranchInput = {
+  projectId?: string
   workspacePath: string
   branchName: string
   startPoint?: string
 }
 
 export type CommitChangesInput = {
+  projectId?: string
   workspacePath: string
   message: string
   paths: string[]
 }
 
 export type PushBranchInput = {
+  projectId?: string
   workspacePath: string
   setUpstream?: boolean
   forceWithLease?: boolean
 }
 
 export type CreatePullRequestInput = {
+  projectId?: string
   workspacePath: string
   title: string
   body?: string
@@ -462,12 +484,7 @@ export type DesktopToolchainInstallResult =
     }
   | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
 
-export type DesktopBrowserBounds = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
 export type DesktopBrowserState = {
   open: boolean
@@ -481,11 +498,7 @@ export type DesktopBrowserState = {
   sitePermissions: DesktopBrowserSitePermission[]
 }
 
-export type DesktopBrowserSitePermission = {
-  origin: string
-  decision: 'allow' | 'deny'
-  updatedAt: string
-}
+export type DesktopBrowserSitePermission = SharedDesktopBrowserSitePermission
 
 export type DesktopOpenTargetKind =
   | 'file-explorer'
@@ -558,12 +571,38 @@ export type DesktopModelMetadata = ModelMetadata & {
   providerApi?: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 }
 
+export type DesktopProviderAvailability =
+  | { status: 'ready' }
+  | {
+      status: 'unavailable'
+      reason:
+        | 'unsupported-protocol'
+        | 'missing-api'
+        | 'unsafe-endpoint'
+        | 'unresolved-endpoint'
+        | 'no-compatible-models'
+    }
+
+export type DesktopCatalogSourceStatus = {
+  source: 'models-dev'
+  mode: 'live' | 'cache' | 'pi-bundled'
+  stale: boolean
+  refreshedAt?: number
+  issue?: 'offline' | 'invalid-response' | 'cache-unsupported'
+}
+
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
-  providerKind?: 'builtin' | 'custom'
+  modelCount?: number
+  providerKind?: 'builtin' | 'custom' | 'models-dev'
+  catalogOrigin?: 'models-dev' | 'user' | 'pi-bundled'
+  availability?: DesktopProviderAvailability
+  catalogSource?: DesktopCatalogSourceStatus
+  readOnly?: boolean
+  protocol?: 'pi-native' | 'openai-compatible' | 'unsupported'
   enabled?: boolean
   authMethods?: readonly ('api-key' | 'oauth')[]
   providerApis?: readonly ('openai-completions' | 'openai-responses' | 'anthropic-messages')[]
-  config?: DesktopProviderDefinition
+  config?: DesktopListedProviderDefinition
   unresolvedMigrationIssues?: readonly string[]
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
@@ -792,10 +831,11 @@ export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   id?: string
   variant?: string
-  baseURL?: string
 }
 
 export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
+export type DesktopListedProviderDefinition =
+  RpcResult<'provider/list'>['providers'][number]['config']
 export type DesktopCustomProviderDefinition =
   RpcParams<'provider/create'>['definition']
 export type DesktopProviderModelDefinition =
@@ -941,12 +981,22 @@ export type DesktopStoredSettings = {
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionMode?: DesktopPermissionMode
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
+  generationModel: string
+  organizationModel: string
+  codingModel: string
+  securityModel: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  planExecutionModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  reviewModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  smallFastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  fastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  defaultModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  deepModel?: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -976,6 +1026,8 @@ gitBranchPrefix: string
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  firstUseSetupCompleted?: 0 | 1
+  'desktop.voice.preferredInputDeviceId': string
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -985,6 +1037,7 @@ gitBranchPrefix: string
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   reviewDelivery: DesktopReviewDelivery
+  conversationWidth: 'default' | 'narrow' | 'wide'
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
@@ -996,6 +1049,10 @@ gitBranchPrefix: string
   sidebarPriorityFilterEnabled?: boolean
   sidebarTimelineEnabled: boolean
   sidebarTimelinePriorityEnabled: boolean
+  sidebarActivityShowWork?: boolean
+  sidebarActivityShowChat?: boolean
+  sidebarActivityShowPinned?: boolean
+  sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -1070,12 +1127,16 @@ export type SaveDesktopMcpServerOptions = {
 
 export type {
   DesktopChromeTheme,
+  DesktopSystemFontFace,
+  DesktopSystemFontsResult,
+  DesktopThemeFontFace,
   DesktopThemeMode,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 import type {
   DesktopChromeTheme,
   DesktopThemeSettingsV6 as SharedDesktopThemeSettingsV6,
+  DesktopThemeSettingsV7 as SharedDesktopThemeSettingsV7,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 
@@ -1088,7 +1149,10 @@ export type DesktopThemeConfigV1 = {
 export type DesktopThemeSettingsV6 =
   SharedDesktopThemeSettingsV6<CodexHighlightThemeSlug>
 
-export type DesktopThemeSettings = DesktopThemeSettingsV6
+export type DesktopThemeSettingsV7 =
+  SharedDesktopThemeSettingsV7<CodexHighlightThemeSlug>
+
+export type DesktopThemeSettings = DesktopThemeSettingsV7
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 
@@ -1129,6 +1193,7 @@ export type DesktopContextUsage = AgentContextUsage
 export type DesktopSessionListItem = {
   id: string
   projectId?: string | null
+  sessionGroupId?: string | null
   appServerThreadId?: string | null
   sessionName: string | null
   aiTitle: string | null
@@ -1136,6 +1201,7 @@ export type DesktopSessionListItem = {
   customTitle?: string | null
   tag?: string | null
   summary?: string | null
+  preview?: string | null
   gitBranch?: string | null
   firstPrompt?: string | null
   prNumber?: number | null
@@ -1173,6 +1239,7 @@ export type DesktopSessionListItem = {
   unreadAt?: string | null
   latestTurnStatus?: ThreadListItem["latestTurnStatus"]
   pendingPlanApproval?: boolean
+  creationSurface?: ThreadCreationSurface
   lastMessageAt?: string | null
   createdAt: string
 }
@@ -1187,12 +1254,6 @@ export type DesktopSessionSettingsSnapshot = {
   model?: string
   effort?: string | null
   personality?: DesktopPersonality
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -1260,6 +1321,8 @@ export type DesktopSubagentRead = {
 export type DesktopSessionStoreChange = {
   activeSessionId: string | null
   sessions: DesktopSessionSnapshot[]
+  /** List-level interaction metadata; no interaction payloads or thread content. */
+  pendingInteractionThreadIds?: readonly string[]
 }
 
 export type DesktopSessionCatalogStatus = {
@@ -1280,10 +1343,13 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
+  creationSurface?: ThreadCreationSurface
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   projectId?: string
   workspacePath?: string
+  /** Optional cross-project context group for the new thread. */
+  sessionGroupId?: string
   /** First submitted text used to name/materialize a projectless workspace. */
   projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig
@@ -1292,12 +1358,6 @@ export type CreateDesktopSessionOptions = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
@@ -1418,11 +1478,6 @@ export type DesktopModelSelection = {
   model?: string
   variant?: string
   localRouterMode?: LocalRouterMode
-}
-
-export type DesktopBuiltinPlugin = {
-  id: string
-  enabled: boolean
 }
 
 export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
@@ -1575,6 +1630,7 @@ export type DesktopTaskSuggestion =
   RpcResult<'task-suggestion/generate'>['suggestions'][number]
 
 export type GenerateDesktopTaskSuggestionsInput = {
+  surface?: 'coding' | 'working'
   workspacePath: string | null
   context: RpcParams<'task-suggestion/generate'>['context']
 }
@@ -1695,11 +1751,6 @@ export type DesktopApi = {
   closeBrowser(): Promise<DesktopBrowserState>
   setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
   clearBrowserAllowedSites(): Promise<DesktopBrowserState>
-  listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
-  setBuiltinPluginEnabled(
-    pluginId: string,
-    enabled: boolean,
-  ): Promise<DesktopBuiltinPlugin>
   listSkillsCatalog(
     options?: DesktopSkillCatalogOptions,
   ): Promise<DesktopSkillCatalogResult>
@@ -1725,10 +1776,10 @@ export type DesktopApi = {
   fetchProviderModels(options: {
     providerID: ModelProviderID
     apiKey?: string
-    baseURL?: string
     query?: string
     cursor?: string
     limit?: number
+    all?: boolean
   }): Promise<DesktopProviderModelListResult>
   saveModelProvider(
     options: SaveDesktopModelProviderOptions,
@@ -1769,8 +1820,19 @@ export type DesktopApi = {
   ): Promise<DesktopProviderCredential[]>
   testApiKey(credentialId: string): Promise<ProviderTestResponse>
   deleteProviderCredential(credentialId: string): Promise<DesktopProviderCredential[]>
-  copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
-  testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
+  testModelProvider(
+    providerID: ModelProviderID,
+    model?: DesktopModelRef,
+  ): Promise<RpcResult<'provider/test'>>
+  previewModelHealth(): Promise<RpcResult<'model/health/preview'>>
+  startModelHealth(
+    operationId: string,
+  ): Promise<RpcResult<'model/health/start'>>
+  readModelHealth(runId: string): Promise<RpcResult<'model/health/read'>>
+  cancelModelHealth(
+    runId: string,
+    operationId: string,
+  ): Promise<RpcResult<'model/health/cancel'>>
   createProvider(definition: DesktopCustomProviderDefinition): Promise<void>
   updateProvider(
     providerId: ModelProviderID,
@@ -1847,12 +1909,19 @@ export type DesktopApi = {
   chooseProjectFolder(): Promise<string | null>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
-  getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
+  getWorkspaceContext(
+    workspacePath: string,
+    projectId?: string,
+  ): Promise<DesktopWorkspace>
   checkoutWorkspaceBranch(
     workspacePath: string,
     branchName: string,
+    projectId?: string,
   ): Promise<DesktopWorkspace>
-  getWorkspaceGitStatus(workspacePath: string): Promise<DesktopGitStatusResult>
+  getWorkspaceGitStatus(
+    workspacePath: string,
+    projectId?: string,
+  ): Promise<DesktopGitStatusResult>
   createWorkspaceBranch(
     input: CreateBranchInput,
   ): Promise<DesktopGitWorkspaceResult>
@@ -1888,13 +1957,17 @@ export type DesktopApi = {
   saveWorkspaceFile(input: DesktopFileSaveInput): Promise<DesktopFileSaveResult>
   watchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
   unwatchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
-  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
-  authorizeComposerFilePaths(filePaths: string[]): Promise<void>
-  readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
+  createSideChat(input: {
+    sourceThreadId: string
+    referenceText?: string
+  }): Promise<RpcResult<'thread/side-chat/create'>>
+  discardSideChat(input: {
+    threadId: string
+  }): Promise<RpcResult<'thread/side-chat/discard'>>
   listSessions(options?: { archived?: boolean }): Promise<DesktopSessionSnapshot[]>
   getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus>
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
@@ -1903,6 +1976,10 @@ export type DesktopApi = {
   markSessionRead(
     sessionId: string,
     readThroughAt: string,
+  ): Promise<DesktopSessionListItem>
+  markSessionUnread(
+    sessionId: string,
+    unreadAt: string,
   ): Promise<DesktopSessionListItem>
   updateSessionMetadata(
     sessionId: string,

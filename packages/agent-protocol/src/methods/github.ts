@@ -1,11 +1,13 @@
 import { AgentThread } from "@codepilotx/shared"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { EmptyParamsSchema, OpaqueIDSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
-const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
+import {
+  EmptyParamsSchema,
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
+  OpaqueIDSchema,
+  PositiveIntSchema,
+} from "../wire/primitives"
 
 export const GithubUserSchema = Schema.Struct({
   login: NonEmptyStringSchema,

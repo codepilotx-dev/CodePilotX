@@ -71,3 +71,11 @@ export type MarkdownParseResult = {
   stableText: string
   pendingText: string
 }
+
+export type MarkdownRenderBlock = {
+  id: string
+  raw: string
+  tokens: MarkdownToken[]
+  state: 'stable' | 'pending'
+  visibleText: string
+}

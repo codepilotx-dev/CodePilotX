@@ -1,6 +1,7 @@
-import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import type { AgentHarnessEvent } from "../harness/types"
+import type { ToolResultBlock } from "@codepilotx/shared/thread"
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
-import type { PiRuntimeEventContext, PiRuntimeEventSink } from "./types"
+import type { PiRuntimeEventContext, PiRuntimeEventSink, PiToolArtifactInput, RuntimeCompactionTrigger } from "./types"
 
 type ToolResultLike = {
   content?: unknown
@@ -25,6 +26,121 @@ const detailText = (details: unknown, key: string): string => {
 const resultDetails = (value: unknown): unknown => value && typeof value === "object"
   ? (value as ToolResultLike).details
   : undefined
+
+const MAX_BLOCK_TEXT_CHARS = 100_000
+
+/** Safe JSON round-trip used to avoid leaking non-JSON values into blocks. */
+const safeJsonValue = (value: unknown): unknown => {
+  if (value === undefined) return undefined
+  try {
+    const text = JSON.stringify(value)
+    if (typeof text !== "string" || text.length > 1_000_000) return undefined
+    return JSON.parse(text) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+const citationBlocks = (value: unknown): ToolResultBlock[] => {
+  if (!Array.isArray(value)) return []
+  const blocks: ToolResultBlock[] = []
+  for (const citation of value) {
+    if (!citation || typeof citation !== "object" || Array.isArray(citation)) continue
+    const record = citation as Record<string, unknown>
+    const url = typeof record.url === "string" ? record.url.trim() : ""
+    if (!url) continue
+    const title = typeof record.title === "string" && record.title.trim()
+      ? record.title.trim()
+      : typeof record.name === "string" && record.name.trim()
+        ? record.name.trim()
+        : undefined
+    blocks.push({ type: "citation", ...(title ? { title } : {}), url })
+  }
+  return blocks
+}
+
+const clampTextBlock = (text: string): string => text.length > MAX_BLOCK_TEXT_CHARS
+  ? text.slice(0, MAX_BLOCK_TEXT_CHARS)
+  : text
+
+const jsonBlock = (value: unknown): ToolResultBlock | null => {
+  const safe = safeJsonValue(value)
+  if (safe === undefined) return null
+  return { type: "json", value: safe as ToolResultBlock extends { type: "json" } ? ToolResultBlock["value"] : never }
+}
+
+const fallbackTextBlock = (value: unknown): ToolResultBlock | null => {
+  if (typeof value === "string") return { type: "text", text: clampTextBlock(value) }
+  const safe = safeJsonValue(value)
+  if (safe === undefined) return null
+  return { type: "text", text: clampTextBlock(typeof safe === "string" ? safe : JSON.stringify(safe)) }
+}
+
+/**
+ * Projects Pi's normalized tool result into canonical rich result blocks.
+ * Unknown or non-serializable parts degrade to a bounded text block (or are
+ * dropped) instead of throwing. Image content becomes an artifact block and a
+ * base64 artifact input for the sink to persist under a controlled store.
+ */
+export const piToolResultBlocks = (
+  value: unknown,
+): { blocks: ToolResultBlock[]; artifacts: PiToolArtifactInput[] } => {
+  const blocks: ToolResultBlock[] = []
+  const artifacts: PiToolArtifactInput[] = []
+  if (typeof value === "string") {
+    return { blocks: [{ type: "text", text: clampTextBlock(value) }], artifacts }
+  }
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    const fallback = fallbackTextBlock(value)
+    return { blocks: fallback ? [fallback] : [], artifacts }
+  }
+  const result = value as ToolResultLike
+  const content = Array.isArray(result.content) ? result.content : []
+  for (const part of content) {
+    if (!part || typeof part !== "object" || Array.isArray(part)) continue
+    const record = part as Record<string, unknown>
+    const kind = record.type
+    if (kind === "text" && typeof record.text === "string") {
+      blocks.push({ type: "text", text: clampTextBlock(record.text) })
+      const citations = citationBlocks(record.citations)
+      if (citations.length) blocks.push(...citations)
+      continue
+    }
+    if (kind === "image") {
+      const mimeType = typeof record.mimeType === "string" && record.mimeType.trim()
+        ? record.mimeType.trim()
+        : "application/octet-stream"
+      const data = typeof record.data === "string" ? record.data : ""
+      if (!data) continue
+      const artifactId = crypto.randomUUID()
+      blocks.push({
+        type: "artifact",
+        artifactId,
+        name: typeof record.name === "string" && record.name.trim()
+          ? record.name.trim()
+          : `artifact-${artifactId.slice(0, 8)}`,
+        mimeType,
+        ...(typeof record.size === "number" && Number.isFinite(record.size) && record.size >= 0
+          ? { size: Math.trunc(record.size) }
+          : {}),
+      })
+      artifacts.push({ artifactId, name: `${mimeType.split("/")[0] ?? "artifact"}-artifact`, mimeType, data })
+      continue
+    }
+    // Unknown part types degrade safely instead of throwing.
+    const fallback = fallbackTextBlock(record)
+    if (fallback) blocks.push(fallback)
+  }
+  // MCP-style structured results are projected as JSON blocks. Mutation
+  // `details` stays on the tool item for the existing patch timeline, so it is
+  // never duplicated as a JSON block here.
+  const structured = (result as unknown as { structuredContent?: unknown }).structuredContent
+  if (structured !== undefined) {
+    const block = jsonBlock(structured)
+    if (block) blocks.push(block)
+  }
+  return { blocks, artifacts }
+}
 
 const usageNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value)
@@ -78,6 +194,10 @@ export class PiEventAdapter {
     private readonly options: {
       parseProposedPlan?: boolean
       resolveSessionEntryID?: () => string | null | Promise<string | null>
+      resolveCompactionContext?: () => {
+        trigger: RuntimeCompactionTrigger
+        promptText: string
+      }
     } = {},
   ) {}
 
@@ -147,6 +267,29 @@ export class PiEventAdapter {
     return this.options.parseProposedPlan ? this.completedText : textContent(content)
   }
 
+  private completionMetadata(message: unknown) {
+    if (!message || typeof message !== "object") return undefined
+    const record = message as Record<string, unknown>
+    const stopReason = typeof record.stopReason === "string" && record.stopReason
+      ? record.stopReason
+      : undefined
+    if (!stopReason && record.usage == null) return undefined
+    const usage = record.usage && typeof record.usage === "object"
+      ? record.usage as unknown as Record<string, unknown>
+      : {}
+    const input = usageNumber(usage.input)
+    const output = usageNumber(usage.output)
+    const total = typeof usage.totalTokens === "number" && Number.isFinite(usage.totalTokens) && usage.totalTokens >= 0
+      ? Math.trunc(usage.totalTokens)
+      : input + output
+    return {
+      ...(stopReason ? { stopReason } : {}),
+      ...(input > 0 ? { inputTokens: input } : {}),
+      ...(output > 0 ? { outputTokens: output } : {}),
+      ...(total > 0 ? { totalTokens: total } : {}),
+    }
+  }
+
   async handle(event: AgentHarnessEvent) {
     await this.sink.event?.(this.context, event)
     switch (event.type) {
@@ -157,7 +300,10 @@ export class PiEventAdapter {
         }
         break
       case "session_before_compact":
-        this.beforeCompactionCount = event.branchEntries.length
+        this.beforeCompactionCount = event.preparation.messagesToSummarize.length
+          + event.preparation.turnPrefixMessages.length
+          + event.preparation.retainedTail.length
+          + (event.preparation.previousSummary ? 1 : 0)
         break
       case "message_update": {
         const update = event.assistantMessageEvent
@@ -193,6 +339,7 @@ export class PiEventAdapter {
               reasoning: usageNumber(usage.reasoning),
             },
           }
+          const safeCompletion = this.completionMetadata(event.message)
           const resolvedEntryID = completion.placement === "result"
             ? await this.options.resolveSessionEntryID?.()
             : null
@@ -209,6 +356,7 @@ export class PiEventAdapter {
               content: event.message.content,
               text: parsed.text,
               plan: parsed.plan,
+              ...(safeCompletion ? { completion: safeCompletion } : {}),
               ...sessionEntry,
               ...completion,
             })
@@ -217,6 +365,7 @@ export class PiEventAdapter {
             await this.sink.assistantMessageCompleted?.(this.context, {
               ...items,
               content: event.message.content,
+              ...(safeCompletion ? { completion: safeCompletion } : {}),
               ...sessionEntry,
               ...completion,
             })
@@ -236,14 +385,19 @@ export class PiEventAdapter {
         })
         break
       case "tool_execution_end":
+      {
+        const { blocks, artifacts } = piToolResultBlocks(event.result)
         await this.sink.toolFinished?.(this.context, {
           toolCallID: event.toolCallId,
           tool: event.toolName,
           result: piToolResultText(event.result, { tool: event.toolName }),
           details: resultDetails(event.result),
           isError: event.isError,
+          ...(blocks.length ? { resultBlocks: blocks } : {}),
+          ...(artifacts.length ? { artifactInputs: artifacts } : {}),
         })
         break
+      }
       case "queue_update":
         await this.sink.queueUpdated?.(this.context, { steer: event.steer.length, followUp: event.followUp.length, nextTurn: event.nextTurn.length })
         break
@@ -251,14 +405,23 @@ export class PiEventAdapter {
         await this.sink.queueConsumed?.(this.context, { delivery: event.delivery, inputIDs: event.inputIds })
         break
       case "session_compact":
+      {
+        const compaction = this.options.resolveCompactionContext?.() ?? {
+          trigger: "manual" as const,
+          promptText: "",
+        }
         await this.sink.compacted?.(this.context, {
           entryID: event.compactionEntry.id,
           summary: event.compactionEntry.summary,
+          firstKeptEntryID: event.compactionEntry.firstKeptEntryId ?? null,
           tokensBefore: event.compactionEntry.tokensBefore,
           beforeCount: this.beforeCompactionCount ?? 0,
+          trigger: compaction.trigger,
+          promptText: compaction.promptText,
         })
         this.beforeCompactionCount = undefined
         break
+      }
       case "save_point":
         await this.sink.savePoint?.(this.context, { hadPendingMutations: event.hadPendingMutations })
         break

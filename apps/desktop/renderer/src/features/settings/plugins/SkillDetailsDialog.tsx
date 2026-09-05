@@ -10,6 +10,13 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
 import { readRuntimeSkill } from './skillClientAdapter.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import {
+  BuiltinSkillIcon,
+  getBuiltinSkillPresentation,
+  isBuiltinSkill,
+  skillScopeLabel,
+} from '../../plugins/builtinSkillPresentation.js'
 
 type Props = {
   workspacePath: string | null
@@ -24,7 +31,7 @@ type Props = {
 
 export function SkillDetailsDialog({
   workspacePath,
-  skill,
+  skill: currentSkill,
   open,
   restoreFocusElement,
   onOpenChange,
@@ -32,6 +39,8 @@ export function SkillDetailsDialog({
   onUseSkill,
   onError,
 }: Props): React.ReactNode {
+  const retainedSkill = useLastNonNull(currentSkill)
+  const skill = open ? currentSkill : retainedSkill
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const onErrorRef = useRef(onError)
   const [content, setContent] = useState('')
@@ -67,13 +76,16 @@ export function SkillDetailsDialog({
   }, [open, skill, workspacePath])
 
   if (!skill) return null
+  const presentation = getBuiltinSkillPresentation(skill)
+  const builtin = isBuiltinSkill(skill)
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
-            className="permission-modal tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:rounded-xl tw:p-0 tw:text-app-text"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog tw:flex tw:max-h-[min(42rem,calc(100vh-3rem))] tw:w-[min(48rem,calc(100vw-3rem))] tw:flex-col tw:overflow-hidden tw:p-0 tw:text-app-text"
+            data-dialog-size="detail"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -84,26 +96,34 @@ export function SkillDetailsDialog({
               closeRef.current?.focus()
             }}
           >
-            <header className="tw:flex tw:items-start tw:gap-3 tw:border-b tw:border-app-border tw:px-5 tw:py-4">
+            <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
               <span
                 aria-hidden="true"
                 className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
               >
-                <FileCode2
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                {presentation ? (
+                  <BuiltinSkillIcon
+                    className="tw:size-7 tw:rounded-md"
+                    size={28}
+                    skill={skill}
+                  />
+                ) : (
+                  <FileCode2
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                )}
               </span>
-              <span className="tw:min-w-0 tw:flex-1">
-                <Dialog.Title className="tw:m-0 tw:text-lg tw:font-[var(--font-weight-heading)]">
+              <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
+                <Dialog.Title className="u-type-title-sm tw:m-0">
                   {skill.name}
                 </Dialog.Title>
-                <Dialog.Description className="tw:mt-1 tw:mb-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">
+                <Dialog.Description className="u-type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                   {skill.description || '未提供技能说明。'}
                 </Dialog.Description>
               </span>
               <Dialog.Close asChild>
-                <IconButton ref={closeRef} title="关闭技能详情" variant="plain">
+                <IconButton color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭技能详情">
                   <X
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
@@ -113,41 +133,43 @@ export function SkillDetailsDialog({
               </Dialog.Close>
             </header>
 
-            <div className="tw:min-h-0 tw:flex-1 tw:overflow-auto tw:px-5 tw:py-4">
-              <dl className="tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2 tw:text-sm">
+            <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-auto">
+              <dl className="u-type-body-sm tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2">
                 <dt className="tw:text-app-text-soft">来源</dt>
                 <dd className="tw:m-0">{skillScopeLabel(skill.scope)}</dd>
                 <dt className="tw:text-app-text-soft">状态</dt>
                 <dd className="tw:m-0">{skill.enabled ? '已启用' : '已禁用'}</dd>
               </dl>
               {loading ? (
-                <p className="tw:m-0 tw:text-sm tw:text-app-text-soft" role="status">
+                <p className="u-type-body-sm tw:m-0 tw:text-app-text-soft" role="status">
                   正在读取 SKILL.md…
                 </p>
               ) : error ? (
                 <div
-                  className="tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-sm tw:text-app-danger"
+                  className="u-type-body-sm tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
                   role="alert"
                 >
                   {error}
                 </div>
               ) : (
-                <pre className="tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:font-mono tw:text-sm tw:leading-6 tw:text-app-text">
+                <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text">
                   {content}
                 </pre>
               )}
             </div>
 
-            <footer className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border tw:px-5 tw:py-4">
-              <Button onClick={() => onOpenSkill(skill)}>
-                <FolderOpen
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-                打开
-              </Button>
-              <Button
+            <footer className="settings-management-dialog-footer tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2">
+              {!builtin ? (
+                <Button color="secondary" onClick={() => onOpenSkill(skill)}>
+                  <FolderOpen
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                    strokeWidth={APP_ICON_STROKE_WIDTH}
+                  />
+                  打开
+                </Button>
+              ) : null}
+              <Button color="primary"
                 disabled={!skill.enabled}
                 onClick={() => onUseSkill(skill)}
               >
@@ -159,26 +181,10 @@ export function SkillDetailsDialog({
                 立即使用
               </Button>
             </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
-}
-
-export function skillScopeLabel(
-  scope: DesktopInstalledSkill['scope'],
-): string {
-  switch (scope) {
-    case 'repo':
-      return '团队'
-    case 'user':
-      return '个人'
-    case 'system':
-      return '系统'
-    case 'admin':
-      return '管理员安装'
-  }
 }
 
 function errorMessageOf(error: unknown, fallback: string): string {

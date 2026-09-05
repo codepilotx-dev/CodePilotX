@@ -157,7 +157,12 @@ async function generateFiles(
   const generated: GeneratedFile[] = []
   const shardDefinitions = Array.from(
     { length: iconShardCount },
-    () => [] as Array<{ iconName: string; componentName: string }>,
+    () => [] as Array<{
+      iconName: string
+      componentName: string
+      viewBox: string
+      body: string
+    }>,
   )
 
   for (const [iconName, definition] of definitions) {
@@ -169,12 +174,12 @@ async function generateFiles(
     const rawSvg = await readFile(sourcePath, "utf8")
     const { viewBox, body } = monochromeSvg(rawSvg)
     const componentName = toComponentName(iconName)
-    const relativePath = join("src", "icons", `${iconName}.tsx`)
-    generated.push({
-      path: relativePath,
-      content: generatedIconFile(componentName, viewBox, body),
+    shardDefinitions[iconShard(iconName)].push({
+      iconName,
+      componentName,
+      viewBox,
+      body,
     })
-    shardDefinitions[iconShard(iconName)].push({ iconName, componentName })
   }
 
   generated.push({
@@ -193,17 +198,13 @@ export type IconName = (typeof iconNames)[number]
 `,
   })
   for (const [shardIndex, shard] of shardDefinitions.entries()) {
-    const imports = shard.map(
-      ({ iconName, componentName }) =>
-        `import ${componentName} from "./${iconName}"`,
-    )
     const entries = shard.map(
-      ({ iconName, componentName }) =>
-        `  ${JSON.stringify(iconName)}: ${componentName},`,
+      ({ iconName, componentName, viewBox, body }) =>
+        `  ${JSON.stringify(iconName)}: createMaterialIcon(\n    ${JSON.stringify(componentName)},\n    ${JSON.stringify(viewBox)},\n    ${JSON.stringify(body)},\n  ),`,
     )
     generated.push({
       path: join("src", "icons", `shard-${shardIndex.toString(16)}.ts`),
-      content: `${generatedHeader()}${imports.join("\n")}
+      content: `${generatedHeader()}import { createMaterialIcon } from "./create-icon"
 
 export const iconComponents = {
 ${entries.join("\n")}
@@ -270,6 +271,8 @@ function monochromeSvg(rawSvg: string): { viewBox: string; body: string } {
   const viewBox =
     match[1].match(/\bviewBox=(["'])(.*?)\1/i)?.[2] ?? "0 0 32 32"
   const body = match[2]
+    .replace(/<path\b[^>]*\bfill=(["'])(?:none|transparent)\1[^>]*\/?>/gi, "")
+    .replace(/<path\b[^>]*\bd=(["'])M0\s*0h\d+v\d+H0z?\1[^>]*\/?>/gi, "")
     .replace(
       /\b(fill|stroke|color|stop-color|flood-color|lighting-color)=(["'])(?!none\b|transparent\b)[^"']*\2/gi,
       (_attribute, name: string, quote: string) =>
@@ -280,23 +283,6 @@ function monochromeSvg(rawSvg: string): { viewBox: string; body: string } {
       "$1:currentColor",
     )
   return { viewBox, body }
-}
-
-function generatedIconFile(
-  componentName: string,
-  viewBox: string,
-  body: string,
-): string {
-  return `${generatedHeader()}import { createMaterialIcon } from "./create-icon"
-
-export const ${componentName} = createMaterialIcon(
-  ${JSON.stringify(componentName)},
-  ${JSON.stringify(viewBox)},
-  ${JSON.stringify(body)},
-)
-
-export default ${componentName}
-`
 }
 
 function generatedManifest(manifest: UpstreamManifest): string {

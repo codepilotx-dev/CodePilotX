@@ -4,7 +4,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
-import { MarkdownMessage } from "../MarkdownMessage.js";
+import { MarkdownMessage } from "../../markdown/index.js";
 
 export type OpenPlanInDockRequest = {
   eventId: string;

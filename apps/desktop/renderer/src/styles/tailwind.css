@@ -6,41 +6,75 @@
   --*: initial;
   --spacing: 0.25rem;
 
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 28px;
+  --text-xs: var(--cpx-sys-font-size-xs);
+  --text-xs--line-height: var(--cpx-sys-line-height-caption);
+  --text-sm: var(--cpx-sys-font-size-sm);
+  --text-sm--line-height: var(--cpx-sys-line-height-body-sm);
+  --text-base: var(--cpx-sys-font-size-md);
+  --text-base--line-height: var(--cpx-sys-line-height-body);
+  --text-lg: var(--cpx-sys-font-size-lg);
+  --text-lg--line-height: var(--cpx-sys-line-height-body-lg);
+  --text-xl: var(--cpx-sys-font-size-xl);
+  --text-xl--line-height: var(--cpx-sys-line-height-heading-md);
+  --text-2xl: var(--cpx-sys-font-size-2xl);
+  --text-2xl--line-height: var(--cpx-sys-line-height-heading-lg);
+  --text-3xl: var(--cpx-sys-font-size-3xl);
+  --text-3xl--line-height: var(--cpx-sys-line-height-heading-xl);
+  --text-4xl: var(--cpx-sys-font-size-4xl);
+  --text-4xl--line-height: var(--cpx-sys-line-height-display);
+  --text-code: var(--cpx-sys-font-size-code);
+  --text-code--line-height: var(--cpx-sys-line-height-code);
 
-  --radius-2xs: 0.125rem;
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
+  --radius-2xs: var(--cpx-sys-radius-2xs);
+  --radius-xs: var(--cpx-sys-radius-xs);
+  --radius-sm: var(--cpx-sys-radius-sm);
+  --radius-md: var(--cpx-sys-radius-md);
+  --radius-lg: var(--cpx-sys-radius-lg);
+  --radius-xl: var(--cpx-sys-radius-xl);
+  --radius-2xl: var(--cpx-sys-radius-2xl);
+  --radius-3xl: var(--cpx-sys-radius-3xl);
+  --radius-4xl: var(--cpx-sys-radius-4xl);
+  --radius-full: var(--cpx-sys-radius-full);
 
-  --shadow-sm: 0 1px 2px -1px #00000014;
-  --shadow-md: 0 2px 4px -1px #00000014;
-  --shadow-lg: 0 4px 8px -2px #0000001a;
+  --shadow-sm: var(--cpx-sys-shadow-resting);
+  --shadow-md: var(--cpx-sys-shadow-raised);
+  --shadow-lg: var(--cpx-sys-shadow-floating);
+
+  --ease-standard: var(--cpx-sys-ease-standard);
+  --ease-in: var(--cpx-sys-ease-in);
+  --ease-out: var(--cpx-sys-ease-out);
+  --ease-linear: var(--cpx-sys-ease-linear);
 }
 
 @theme inline {
-  --font-sans: var(--font-family-sans);
-  --font-mono: var(--font-family-mono);
-  --color-app-canvas: var(--color-token-main-surface-primary);
-  --color-app-underlay: var(--color-token-bg-primary);
-  --color-app-chrome: var(--color-token-side-bar-background);
-  --color-app-panel: var(--color-token-bg-secondary);
-  --color-app-raised: var(--color-token-editor-widget-background);
-  --color-app-text: var(--color-token-foreground);
-  --color-app-text-soft: var(--color-token-text-secondary);
-  --color-app-border: var(--color-token-border);
-  --color-app-accent: var(--color-token-text-link-foreground);
-  --color-app-primary-action: var(--color-token-button-background);
-  --color-app-primary-action-foreground: var(--color-token-button-foreground);
-  --color-app-border-subtle: var(--color-token-border-light);
-  --color-app-border-strong: var(--color-token-border-heavy);
-  --color-app-danger: var(--color-token-error-foreground);
-  --color-app-success: var(--color-token-git-decoration-added-resource-foreground);
+  --font-sans: var(--cpx-sys-font-family-sans);
+  --font-mono: var(--cpx-sys-font-family-mono);
+  --color-app-canvas: var(--cpx-sys-color-surface-canvas);
+  --color-app-underlay: var(--cpx-sys-color-surface-recessed);
+  --color-app-chrome: var(--cpx-sys-color-surface-recessed);
+  --color-app-panel: var(--cpx-sys-color-surface-panel);
+  --color-app-raised: var(--cpx-sys-color-surface-raised);
+  --color-app-text: var(--cpx-sys-color-fg-primary);
+  --color-app-text-soft: var(--cpx-sys-color-fg-secondary);
+  --color-app-border: var(--cpx-sys-color-border-default);
+  --color-app-accent: var(--cpx-sys-color-accent);
+  --color-app-primary-action: var(--cpx-comp-button-primary-bg);
+  --color-app-primary-action-foreground: var(--cpx-comp-button-primary-fg);
+  --color-app-border-subtle: var(--cpx-sys-color-border-subtle);
+  --color-app-border-strong: var(--cpx-sys-color-border-strong);
+  --color-app-danger: var(--cpx-sys-color-danger);
+  --color-app-success: var(--cpx-sys-color-success);
+}
+
+@supports (corner-shape: superellipse(1.5)) {
+  :where(
+    .tw\:rounded-md,
+    .tw\:rounded-lg,
+    .tw\:rounded-xl,
+    .tw\:rounded-2xl,
+    .tw\:rounded-3xl,
+    .tw\:rounded-4xl
+  ) {
+    corner-shape: var(--cpx-sys-corner-shape);
+  }
 }

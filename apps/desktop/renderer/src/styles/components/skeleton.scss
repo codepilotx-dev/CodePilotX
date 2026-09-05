@@ -5,26 +5,32 @@
 .ui-skeleton-block {
   --ui-skeleton-highlight: color-mix(
     in srgb,
-    var(--color-token-foreground) 12%,
+    var(--cpx-sys-color-fg-primary) 12%,
     transparent
   );
+  position: relative;
   display: block;
+  overflow: hidden;
   background-color: color-mix(
     in srgb,
-    var(--color-token-text-secondary) 7%,
-    var(--color-token-main-surface-primary)
+    var(--cpx-sys-color-fg-secondary) 7%,
+    var(--cpx-comp-surface-panel)
   );
-  background-image: linear-gradient(
-    90deg,
-    transparent 34%,
-    var(--ui-skeleton-highlight) 50%,
-    transparent 66%
-  );
-  background-position: -100vw 0;
-  background-repeat: no-repeat;
-  background-size: 100vw 100vh;
-  background-attachment: fixed;
-  animation: ui-skeleton-page-sweep 2.6s steps(48, end) infinite;
+  box-shadow: none;
+
+  /* 局部渐变扫光走 compositor 的 translateX，避免逐帧重绘背景。 */
+  &::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 34%,
+      var(--ui-skeleton-highlight) 50%,
+      transparent 66%
+    );
+    content: "";
+    animation: ui-skeleton-sweep var(--cpx-sys-motion-loading) steps(24, end) infinite;
+  }
 }
 
 .ui-remote-image {
@@ -49,7 +55,7 @@
 
 .ui-remote-image-content {
   opacity: 0;
-  transition: opacity var(--motion-fast) var(--ease-standard);
+  transition: opacity var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 }
 
 .ui-remote-image[data-state='ready'] .ui-remote-image-content {
@@ -66,31 +72,24 @@
 .electron-dark .ui-skeleton-block {
   --ui-skeleton-highlight: color-mix(
     in srgb,
-    var(--color-token-text-secondary) 13%,
-    var(--color-token-main-surface-primary)
+    var(--cpx-sys-color-fg-secondary) 13%,
+    var(--cpx-comp-surface-panel)
   );
 }
 
-@keyframes ui-skeleton-page-sweep {
+@keyframes ui-skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
   to {
-    background-position: 100vw 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-skeleton-block {
-    background-image: none;
-    animation: none;
-  }
-
-  .ui-remote-image-content {
-    transition: none;
+    transform: translateX(100%);
   }
 }
 
 :root[data-reduce-motion='on'] {
-  .ui-skeleton-block {
-    background-image: none;
+  .ui-skeleton-block::after {
+    background: none;
+    content: none;
     animation: none;
   }
 

@@ -1,5 +1,6 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopPermissionDecision,
   LocalRouterMode,
@@ -26,6 +27,7 @@ import {
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { canonicalThreadCache } from './canonicalThreadCache.js'
+import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -35,12 +37,6 @@ export type SessionSettingsSnapshot = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -49,6 +45,7 @@ export type SessionSettingsSnapshot = {
   installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
+  creationSurface?: ThreadCreationSurface
 }
 
 export type SessionActionContext = {
@@ -136,9 +133,18 @@ export async function createSessionForWorkspaceAction(
   options?: { propagateError?: boolean },
 ): Promise<string | null> {
   try {
+    const preferredSessionGroupId = readPreferredSessionGroupId()
+    let sessionGroupId: string | undefined
+    if (preferredSessionGroupId) {
+      const groups = await desktopClient.listSessionGroups().catch(() => [])
+      if (groups.some(group => group.id === preferredSessionGroupId)) sessionGroupId = preferredSessionGroupId
+    }
+    if (preferredSessionGroupId && !sessionGroupId) writePreferredSessionGroupId(null)
     const session = await desktopClient.createSession({
       projectId: target?.projectId,
       workspacePath: target?.path,
+      sessionGroupId,
+      creationSurface: settings.creationSurface,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,
       permissionConfig: settings.permissionConfig,
@@ -146,12 +152,6 @@ export async function createSessionForWorkspaceAction(
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
       model: normalizeOptionalText(settings.model),
-      planExecutionModel: normalizeOptionalText(settings.planExecutionModel),
-      reviewModel: normalizeOptionalText(settings.reviewModel),
-      smallFastModel: normalizeOptionalText(settings.smallFastModel),
-      fastModel: normalizeOptionalText(settings.fastModel),
-      defaultModel: normalizeOptionalText(settings.defaultModel),
-      deepModel: normalizeOptionalText(settings.deepModel),
       sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
@@ -191,7 +191,6 @@ export async function createSessionForWorkspaceAction(
         planModeActive: settings.planModeActive,
         localRouterMode: settings.localRouterMode,
         model: normalizeOptionalText(settings.model) ?? null,
-        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(

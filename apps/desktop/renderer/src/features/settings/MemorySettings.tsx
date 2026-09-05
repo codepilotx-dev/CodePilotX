@@ -221,7 +221,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
           title="项目记忆"
           actions={
             <div className="settings-inline-actions">
-              <Button
+              <Button color="secondary"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void refresh()}
                 type="button"
@@ -229,14 +229,14 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 <RefreshCw size={APP_ICON_SIZE} />
                 刷新
               </Button>
-              <Button
+              <Button color="danger"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(false)}
                 type="button"
               >
                 重置记忆
               </Button>
-              <Button
+              <Button color="danger"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(true)}
                 type="button"
@@ -318,7 +318,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     </span>
                     {selectedMemory ? (
                       <div className="memory-settings-editor-actions">
-                        <Button
+                        <Button color="primary"
                           disabled={busy}
                           onClick={() => void saveSelected()}
                           type="button"
@@ -327,7 +327,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           保存
                         </Button>
                         <Button
-                          tone="danger"
+                          color="danger"
                           disabled={busy}
                           onClick={() => void deleteSelected()}
                           type="button"

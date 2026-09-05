@@ -42,6 +42,7 @@ type Dependencies = {
   environment: DesktopClientEnvironment
   ensureDesktopProjectTrusted: (project: Project) => Promise<Project>
   invalidateProjectCache: () => void
+  loadProjectById: (projectId: string) => Promise<Project>
   loadProjectForPath: (workspacePath: string) => Promise<Project>
   operationError: (error: unknown) => string
   requireAgentCapability: (name: Extract<
@@ -59,12 +60,16 @@ export function createAgentGitApi({
   environment,
   ensureDesktopProjectTrusted,
   invalidateProjectCache,
+  loadProjectById,
   loadProjectForPath,
   operationError,
   requireAgentCapability,
   rpc,
   withRequiredAgent,
 }: Dependencies): GitApi {
+  const loadProject = (workspacePath: string, projectId?: string) =>
+    projectId ? loadProjectById(projectId) : loadProjectForPath(workspacePath)
+
   let activeGithubLoginId: string | null = null
   let activeGithubLoginMode: Parameters<GitApi['startGithubLogin']>[0]['mode'] =
     'browser'
@@ -232,7 +237,7 @@ export function createAgentGitApi({
         return await withRequiredAgent(
           async (): Promise<DesktopGitOperationResult> => {
             requireAgentCapability('github.pullRequests.v1')
-            const project = await loadProjectForPath(input.workspacePath)
+            const project = await loadProject(input.workspacePath, input.projectId)
             const result = await rpc.call<{
               repositoryUrl: string
               status: Extract<
@@ -260,7 +265,7 @@ export function createAgentGitApi({
         return await withRequiredAgent(
           async (): Promise<DesktopPullRequestResult> => {
             requireAgentCapability('github.pullRequests.v1')
-            const project = await loadProjectForPath(input.workspacePath)
+            const project = await loadProject(input.workspacePath, input.projectId)
             const result = await rpc.call<{
               pullRequest: { htmlUrl: string; number: number }
             }>('github/pullRequest/createForProject', {
@@ -280,11 +285,11 @@ export function createAgentGitApi({
         return { ok: false, error: operationError(error) }
       }
     },
-    getWorkspaceGitStatus: async workspacePath => {
+    getWorkspaceGitStatus: async (workspacePath, projectId) => {
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('git.review.v1')
-          const project = await loadProjectForPath(workspacePath)
+          const project = await loadProject(workspacePath, projectId)
           const result = await rpc.call<{ status: ReviewAgentGitStatus }>(
             'review/status',
             { projectId: project.id },
@@ -295,10 +300,10 @@ export function createAgentGitApi({
         return { ok: false as const, error: operationError(error) }
       }
     },
-    checkoutWorkspaceBranch: async (workspacePath, branchName) =>
+    checkoutWorkspaceBranch: async (workspacePath, branchName, projectId) =>
       withRequiredAgent(async () => {
         requireAgentCapability('git.workspace.v1')
-        const project = await loadProjectForPath(workspacePath)
+        const project = await loadProject(workspacePath, projectId)
         const result = await rpc.call('git/branch/checkout', {
           projectId: project.id,
           branchName,
@@ -313,7 +318,7 @@ export function createAgentGitApi({
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('git.workspace.v1')
-          const project = await loadProjectForPath(input.workspacePath)
+          const project = await loadProject(input.workspacePath, input.projectId)
           const result = await rpc.call('git/branch/create', {
             projectId: project.id,
             branchName: input.branchName,
@@ -340,7 +345,7 @@ export function createAgentGitApi({
         return await withRequiredAgent(
           async (): Promise<DesktopGitOperationResult> => {
             requireAgentCapability('git.review.v1')
-            const project = await loadProjectForPath(input.workspacePath)
+            const project = await loadProject(input.workspacePath, input.projectId)
             const result = await rpc.call<{
               output: string
               status: ReviewAgentGitStatus

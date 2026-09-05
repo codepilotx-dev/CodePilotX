@@ -2,8 +2,10 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
-import { createDesktopLogger } from "../src/logging/desktop-logger"
-import { resolveDesktopLogDirectory } from "../src/logging/log-directory"
+import {
+  createDesktopLogger,
+  resolveDesktopLogDirectory,
+} from "../src/logging/desktop-logger"
 import { rendererConsoleRecord } from "../src/logging/renderer-console"
 
 const roots: string[] = []

@@ -13,15 +13,14 @@ import {
   AdmissionSchema,
   CursorSchema,
   JsonValueSchema,
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
   OpaqueIDSchema,
   OperationParamsSchema,
   SequenceSchema,
   StreamPositionSchema,
   TimestampSchema,
 } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 const SubagentCapabilitiesSchema = Schema.Struct({
   canStop: Schema.Boolean,
@@ -54,6 +53,7 @@ const workspaceMutationResult = <const Action extends "apply" | "discard" | "res
 const CatalogResultSchema = Schema.Struct({
   ...ModelCatalogSchema.fields,
   catalogVersion: SequenceSchema,
+  catalogSource: Schema.optional(Provider.CatalogSourceStatus),
   total: Schema.optional(NonNegativeIntSchema),
   nextCursor: Schema.optional(CursorSchema),
 })
@@ -143,15 +143,29 @@ export const CustomProviderDefinitionSchema = Schema.Struct({
   ),
 })
 
+export const ModelsDevProviderDefinitionSchema = Schema.Struct({
+  kind: Schema.Literal("models-dev"),
+  id: Provider.ID,
+  protocol: Schema.Literals(["pi-native", "openai-compatible", "unsupported"]),
+  readOnly: Schema.Literal(true),
+})
+
+export const ConfigurableProviderDefinitionSchema = Schema.Union([
+  BuiltinProviderDefinitionSchema,
+  CustomProviderDefinitionSchema,
+]).pipe(Schema.toTaggedUnion("kind"))
+
 export const ProviderDefinitionSchema = Schema.Union([
   BuiltinProviderDefinitionSchema,
   CustomProviderDefinitionSchema,
+  ModelsDevProviderDefinitionSchema,
 ]).pipe(Schema.toTaggedUnion("kind"))
 
 const ProviderListEntrySchema = Schema.Struct({
   ...Provider.Info.fields,
   authConfigured: Schema.Boolean,
   config: ProviderDefinitionSchema,
+  modelCount: Schema.optional(NonNegativeIntSchema),
 })
 
 const ProviderConfigIssueSchema = Schema.Struct({
@@ -173,6 +187,7 @@ const ProviderListResultSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
   reviewerModel: Schema.NullOr(Model.Ref),
   catalogVersion: SequenceSchema,
+  catalogSource: Schema.optional(Provider.CatalogSourceStatus),
 })
 
 export const ProviderCredentialHealthSchema = Schema.Struct({
@@ -264,15 +279,17 @@ export const AuthSessionSchema = Schema.Struct({
   expiresAt: TimestampSchema,
 })
 
-const ProviderTestResultSchema = Schema.Union([
+export const ProviderTestResultSchema = Schema.Union([
   Schema.Struct({
     providerId: Provider.ID,
+    model: Schema.optional(Model.Ref),
     status: Schema.Literal("reachable"),
     testedAt: TimestampSchema,
     latencyMs: NonNegativeIntSchema,
   }),
   Schema.Struct({
     providerId: Provider.ID,
+    model: Schema.optional(Model.Ref),
     status: Schema.Literal("unavailable"),
     testedAt: TimestampSchema,
     category: Schema.Literals(["authentication", "configuration", "network", "rate-limit", "unknown"]),
@@ -280,11 +297,102 @@ const ProviderTestResultSchema = Schema.Union([
   }),
 ])
 
+const ModelHealthFailureCategorySchema = Schema.Literals([
+  "authentication",
+  "configuration",
+  "network",
+  "rate-limit",
+  "timeout",
+  "provider",
+  "unknown",
+])
+
+export const ModelHealthItemSchema = Schema.Union([
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("queued"),
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("running"),
+    startedAt: TimestampSchema,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("healthy"),
+    startedAt: TimestampSchema,
+    completedAt: TimestampSchema,
+    latencyMs: NonNegativeIntSchema,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("failed"),
+    startedAt: TimestampSchema,
+    completedAt: TimestampSchema,
+    category: ModelHealthFailureCategorySchema,
+    message: Schema.String,
+  }),
+  Schema.Struct({
+    model: Model.Ref,
+    status: Schema.Literal("cancelled"),
+    completedAt: TimestampSchema,
+  }),
+]).pipe(Schema.toTaggedUnion("status"))
+
+export const ModelHealthExcludedProviderSchema = Schema.Struct({
+  providerId: Provider.ID,
+  reason: Schema.Literals(["provider-disabled", "provider-unconfigured", "no-eligible-models"]),
+  modelCount: NonNegativeIntSchema,
+})
+
+export const ModelHealthCountsSchema = Schema.Struct({
+  total: NonNegativeIntSchema,
+  queued: NonNegativeIntSchema,
+  running: NonNegativeIntSchema,
+  healthy: NonNegativeIntSchema,
+  failed: NonNegativeIntSchema,
+  cancelled: NonNegativeIntSchema,
+})
+
+export const ModelHealthRunSchema = Schema.Struct({
+  runId: OpaqueIDSchema,
+  status: Schema.Literals(["running", "cancelling", "completed", "cancelled"]),
+  startedAt: TimestampSchema,
+  completedAt: Schema.optional(TimestampSchema),
+  counts: ModelHealthCountsSchema,
+  excludedProviders: Schema.Array(ModelHealthExcludedProviderSchema),
+  items: Schema.Array(ModelHealthItemSchema),
+})
+
 const ApiKeyTestResultSchema = Schema.Struct({
   credential: ProviderCredentialSummarySchema,
   ok: Schema.Boolean,
   message: Schema.String,
 })
+
+export const SystemShrinkReasonSchema = Schema.Literals(["turn_end", "idle", "manual"])
+export type SystemShrinkReason = typeof SystemShrinkReasonSchema.Type
+
+export const SystemShrinkMemoryParamsSchema = Schema.Struct({
+  reason: Schema.optional(SystemShrinkReasonSchema),
+})
+export type SystemShrinkMemoryParams = typeof SystemShrinkMemoryParamsSchema.Type
+
+export const MemoryStatsSchema = Schema.Struct({
+  rss: NonNegativeIntSchema,
+  heapTotal: NonNegativeIntSchema,
+  heapUsed: NonNegativeIntSchema,
+  external: NonNegativeIntSchema,
+  arrayBuffers: Schema.optional(NonNegativeIntSchema),
+})
+export type MemoryStats = typeof MemoryStatsSchema.Type
+
+export const SystemShrinkMemoryResultSchema = Schema.Struct({
+  success: Schema.Boolean,
+  stats: MemoryStatsSchema,
+  freedRssBytes: Schema.optional(Schema.Int),
+})
+export type SystemShrinkMemoryResult = typeof SystemShrinkMemoryResultSchema.Type
 
 const SUBAGENT_CAPABILITY = "subagents.v1"
 
@@ -470,11 +578,52 @@ export const ExtendedRpcMethods = {
   }),
 
   "provider/test": defineMethod({
-    params: Schema.Struct({ providerId: Provider.ID }),
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      model: Schema.optional(Model.Ref),
+    }),
     result: ProviderTestResultSchema,
-    errors: ["PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    errors: ["PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INVALID_REQUEST", "INTERNAL_ERROR"] as const,
     capability: null,
     mutation: false,
+  }),
+
+  "model/health/preview": defineMethod({
+    params: Schema.Struct({}),
+    result: Schema.Struct({
+      totalRequests: NonNegativeIntSchema,
+      excludedProviders: Schema.Array(ModelHealthExcludedProviderSchema),
+    }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: false,
+  }),
+
+  "model/health/start": defineMethod({
+    params: Schema.Struct({ operationId: OpaqueIDSchema }),
+    result: Schema.Struct({ run: ModelHealthRunSchema }),
+    errors: ["CONFLICT", "MODEL_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: true,
+  }),
+
+  "model/health/read": defineMethod({
+    params: Schema.Struct({ runId: OpaqueIDSchema }),
+    result: Schema.Struct({ run: Schema.NullOr(ModelHealthRunSchema) }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: false,
+  }),
+
+  "model/health/cancel": defineMethod({
+    params: Schema.Struct({
+      runId: OpaqueIDSchema,
+      operationId: OpaqueIDSchema,
+    }),
+    result: Schema.Struct({ run: ModelHealthRunSchema }),
+    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.health.v1",
+    mutation: true,
   }),
 
   "provider/create": defineMethod({
@@ -496,7 +645,7 @@ export const ExtendedRpcMethods = {
   "provider/update": defineMethod({
     params: Schema.Struct({
       providerId: Provider.ID,
-      definition: ProviderDefinitionSchema,
+      definition: ConfigurableProviderDefinitionSchema,
       ...OperationParamsSchema.fields,
     }),
     result: Schema.Struct({
@@ -743,6 +892,16 @@ export const ExtendedRpcMethods = {
     result: Schema.Struct({ session: AuthSessionSchema }),
     errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
     capability: "provider.auth.pi.v1",
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "system/shrinkMemory": defineMethod({
+    params: SystemShrinkMemoryParamsSchema,
+    result: SystemShrinkMemoryResultSchema,
+    errors: ["INTERNAL_ERROR"] as const,
+    capability: "system.memory.v1",
     exactParams: true,
     exactResult: true,
     mutation: true,

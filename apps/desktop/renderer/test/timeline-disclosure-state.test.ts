@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import {
   loadTimelineDisclosureState,
+  releaseTimelineDisclosureStore,
+  retainTimelineDisclosureStore,
   setTimelineDisclosureExpanded,
 } from '../src/features/session/timeline/timelineDisclosureState.js'
 
@@ -53,19 +55,51 @@ afterEach(() => {
 })
 
 describe('timeline disclosure state', () => {
-  test('persists all disclosure levels independently for each thread', () => {
+  test('shares a store until the final consumer releases it', async () => {
+    const first = retainTimelineDisclosureStore('thread-shared')
+    const second = retainTimelineDisclosureStore('thread-shared')
+    expect(second).toBe(first)
+
+    first.setExpanded('turn-activity:turn-1', true)
+    releaseTimelineDisclosureStore(first)
+    await nextTask()
+    expect(retainTimelineDisclosureStore('thread-shared')).toBe(first)
+
+    releaseTimelineDisclosureStore(first)
+    releaseTimelineDisclosureStore(first)
+    await nextTask()
+
+    const restored = retainTimelineDisclosureStore('thread-shared')
+    expect(restored).not.toBe(first)
+    expect(restored.getSnapshot('turn-activity:turn-1')).toBe(true)
+    releaseTimelineDisclosureStore(restored)
+  })
+
+  test('cancels deferred cleanup when a consumer immediately returns', async () => {
+    const first = retainTimelineDisclosureStore('thread-reacquire')
+    releaseTimelineDisclosureStore(first)
+    const reacquired = retainTimelineDisclosureStore('thread-reacquire')
+
+    await nextTask()
+    expect(reacquired).toBe(first)
+    reacquired.setExpanded('tool:1', true)
+    expect(reacquired.getSnapshot('tool:1')).toBe(true)
+    releaseTimelineDisclosureStore(reacquired)
+  })
+
+  test('persists turn activity alongside file diffs and legacy records', () => {
+    setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true)
+    setTimelineDisclosureExpanded('thread-1', 'file-mutation:tool-1:0', true)
     setTimelineDisclosureExpanded('thread-1', 'turn-process:turn-1', true)
-    setTimelineDisclosureExpanded('thread-1', 'command-group:turn-1:tool-1', true)
-    setTimelineDisclosureExpanded('thread-1', 'tool:turn-1:tool-1', true)
-    setTimelineDisclosureExpanded('thread-2', 'turn-process:turn-2', true)
+    setTimelineDisclosureExpanded('thread-2', 'turn-activity:turn-2', true)
 
     expect([...loadTimelineDisclosureState('thread-1')]).toEqual([
+      'turn-activity:turn-1',
+      'file-mutation:tool-1:0',
       'turn-process:turn-1',
-      'command-group:turn-1:tool-1',
-      'tool:turn-1:tool-1',
     ])
     expect([...loadTimelineDisclosureState('thread-2')]).toEqual([
-      'turn-process:turn-2',
+      'turn-activity:turn-2',
     ])
   })
 
@@ -144,8 +178,8 @@ describe('timeline disclosure state', () => {
 
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
     expect(
-      setTimelineDisclosureExpanded('thread-1', 'turn-process:turn-1', true),
-    ).toEqual(new Set(['turn-process:turn-1']))
+      setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true),
+    ).toEqual(new Set(['turn-activity:turn-1']))
   })
 })
 
@@ -158,4 +192,8 @@ function installStorage(localStorage: Storage): void {
     configurable: true,
     value: { localStorage },
   })
+}
+
+function nextTask(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
 }

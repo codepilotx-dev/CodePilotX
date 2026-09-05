@@ -284,7 +284,7 @@ describe("UsageService", () => {
       key: "mgmt-super-secret",
       metadata: { teamId: "team-super-secret" },
     }))
-    const apiKeys = new ApiKeyService(catalog as never, credentials)
+    const apiKeys = new ApiKeyService(catalog as never, credentials, {} as never)
     expect(await apiKeys.list()).toEqual([])
     await expect(apiKeys.copyMaterial(String(connected.connection.credentialId))).rejects.toThrow("未找到 API Key")
     await expect(apiKeys.setEnabled(String(connected.connection.credentialId), false)).rejects.toThrow("未找到 API Key")

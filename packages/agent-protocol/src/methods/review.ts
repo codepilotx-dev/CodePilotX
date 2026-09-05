@@ -1,10 +1,13 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, OkResultSchema, TimestampSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
-const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
+import {
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
+  OpaqueIDSchema,
+  OkResultSchema,
+  PositiveIntSchema,
+  TimestampSchema,
+} from "../wire/primitives"
 
 export const ReviewSourceSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("unstaged") }),

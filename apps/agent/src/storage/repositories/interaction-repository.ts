@@ -1,26 +1,27 @@
-import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import type { ThreadSettings } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment, ServerRequestResponse } from "@codepilotx/agent-protocol"
+import type { ServerRequestResponse } from "@codepilotx/agent-protocol"
 import type {
   EventEnvelope,
-  AgentExecution,
-  Item,
   ModelRef,
   PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
-  TaskMode,
-  ThreadSnapshot,
   ToolInvocation,
-  TurnStatus,
 } from "../../domain"
 import {
   approvalCancelledPayload,
   interactionResolvedPayload,
 } from "../events/interaction-event-payloads"
+import type {
+  RecoveryLeaseSummary,
+  ResolvedResumeCheckpoint,
+  ResumeCheckpointConsumer,
+  ResumeCheckpointKind,
+  ResumeCheckpointLeaseStatus,
+} from "../../interaction/types"
+import {
+  hookTrustRequestedPayload,
+  hookTrustResolvedPayload,
+} from "../../interaction/hook-trust-payloads"
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
@@ -150,7 +151,6 @@ export type HookTrustRequest = {
   resolvedAt: number | null
 }
 
-type SqlValue = string | number | boolean | Uint8Array | null
 
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
@@ -234,11 +234,6 @@ const questionInteractionResult = (
     }],
   }
 }
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-const containedPath = (root: string, candidate: string) => {
-  const path = relative(root, candidate)
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
-}
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 export type InteractionOperationInput = {
@@ -274,35 +269,458 @@ export type CreatedThreadRecord = {
   event: EventEnvelope
 }
 
-type PermissionColumns = {
-  sandbox_mode: PermissionConfig["sandboxMode"]
-  approval_policy: string
-  approvals_reviewer: PermissionConfig["approvalsReviewer"]
-}
 
-type ThreadSettingsColumns = PermissionColumns & {
-  task_mode: TaskMode
-}
 
-const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
-  sandboxMode: row.sandbox_mode,
-  approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-  approvalsReviewer: row.approvals_reviewer,
-})
 
-const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
-  taskMode: row.task_mode,
-  permissionConfig: permissionConfigFromRow(row),
-})
-
-const defaultThreadSettings = (): ThreadSettings => ({
-  taskMode: "chat",
-  permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
-})
 
 import { ExecutionRepositoryDatabase } from "./execution-repository"
 
 export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryDatabase {
+  recoverInterruptedInteractions(timestamp: number) {
+    const invalidApprovals = this.sqlite.query(`
+      SELECT r.id, r.thread_id, r.turn_id
+      FROM approval_requests AS r
+      LEFT JOIN approval_checkpoints AS c ON c.approval_id = r.id
+      WHERE r.status = 'preparing' OR (r.status = 'pending'
+        AND (c.approval_id IS NULL OR c.version <> 1
+          OR json_type(c.payload, '$.runState') <> 'text'
+          OR json_type(c.payload, '$.interruption') IS NULL))
+    `).all() as Array<{ id: string; thread_id: string; turn_id: string }>
+    const recoverable = this.sqlite.query(`
+      SELECT r.id, r.thread_id, r.turn_id, r.agent_id
+      FROM approval_requests AS r
+      JOIN turns AS t ON t.id = r.turn_id AND t.status = 'running'
+      WHERE r.status IN ('resolved', 'claimed') AND (
+        r.reply = 'deny'
+        OR EXISTS (SELECT 1 FROM tool_calls AS tc WHERE tc.id = r.tool_call_id AND tc.status = 'completed')
+        OR NOT EXISTS (SELECT 1 FROM tool_calls AS tc WHERE tc.id = r.tool_call_id)
+      )
+    `).all() as Array<{ id: string; thread_id: string; turn_id: string; agent_id: string }>
+    for (const approval of recoverable) {
+      this.sqlite.query("UPDATE approval_requests SET status = 'resolved' WHERE id = ? AND status = 'claimed'").run(approval.id)
+      this.sqlite.query("UPDATE turns SET status = 'queued', finished_at = NULL, updated_at = ? WHERE id = ? AND status = 'running'").run(timestamp, approval.turn_id)
+      this.sqlite.query("UPDATE agent_executions SET status = 'queued', error = NULL, updated_at = ? WHERE id = ? AND status = 'running'").run(timestamp, approval.agent_id)
+      this.insertEvent(approval.thread_id, approval.turn_id, "agent/upserted", { agent: this.getAgentExecution(approval.agent_id) })
+    }
+    const ambiguous = this.sqlite.query(`
+      SELECT r.id, r.thread_id, r.turn_id
+      FROM approval_requests AS r
+      JOIN tool_calls AS tc ON tc.id = r.tool_call_id
+      JOIN turns AS t ON t.id = r.turn_id AND t.status = 'running'
+      WHERE r.status = 'claimed' AND r.reply = 'allow' AND tc.status IN ('running', 'error', 'interrupted')
+    `).all() as Array<{ id: string; thread_id: string; turn_id: string }>
+    for (const approval of ambiguous) {
+      this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE id = ?").run(timestamp, approval.id)
+      this.insertEvent(approval.thread_id, approval.turn_id, "approval/cancelled", approvalCancelledPayload(approval.id, "审批后的工具执行结果不确定，已按 fail-closed 中断", timestamp))
+    }
+    const questions = this.sqlite.query(`
+      SELECT q.id, q.thread_id, q.turn_id, q.agent_id
+      FROM question_requests AS q
+      JOIN turns AS t ON t.id = q.turn_id AND t.status = 'running'
+      WHERE q.status IN ('resolved', 'resuming')
+    `).all() as Array<{ id: string; thread_id: string; turn_id: string; agent_id: string }>
+    for (const question of questions) {
+      this.sqlite.query("UPDATE question_requests SET status = 'resolved' WHERE id = ? AND status = 'resuming'").run(question.id)
+      this.sqlite.query("UPDATE turns SET status = 'queued', finished_at = NULL, updated_at = ? WHERE id = ? AND status = 'running'").run(timestamp, question.turn_id)
+      this.sqlite.query("UPDATE agent_executions SET status = 'queued', error = NULL, updated_at = ? WHERE id = ? AND status = 'running'").run(timestamp, question.agent_id)
+      this.insertEvent(question.thread_id, question.turn_id, "agent/upserted", { agent: this.getAgentExecution(question.agent_id) })
+    }
+    for (const approval of invalidApprovals) {
+      this.insertEvent(approval.thread_id, approval.turn_id, "approval/cancelled", approvalCancelledPayload(approval.id, "审批缺少完整且可恢复的 SDK checkpoint，已安全取消", timestamp))
+    }
+    this.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'preparing' OR id IN (
+      SELECT r.id FROM approval_requests AS r LEFT JOIN approval_checkpoints AS c ON c.approval_id = r.id
+      WHERE r.status = 'pending' AND (c.approval_id IS NULL OR c.version <> 1 OR json_type(c.payload, '$.runState') <> 'text' OR json_type(c.payload, '$.interruption') IS NULL)
+    )`).run(timestamp)
+    this.sqlite.query("UPDATE sandbox_escalations SET status = 'cancelled', completed_at = ? WHERE status = 'claimed'").run(timestamp)
+  }
+
+  finalizeInterruptedQuestions(timestamp: number) {
+    this.sqlite.query("UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending' AND turn_id IN (SELECT id FROM turns WHERE status <> 'waiting_question')").run(timestamp)
+  }
+
+  acquiredResumeCheckpointLease(turnID: string, leaseID: string) {
+    const row = this.sqlite.query(`
+      SELECT checkpoint_payload FROM resume_checkpoint_leases
+      WHERE turn_id = ? AND lease_id = ? AND status = 'acquired'
+    `).get(turnID, leaseID) as { checkpoint_payload: string } | null
+    return row
+      ? { leaseID, checkpoint: parse<ResolvedResumeCheckpoint>(row.checkpoint_payload) }
+      : null
+  }
+
+  resolvedApprovalForResume(turnID: string) {
+    return this.sqlite.query(`
+      SELECT id FROM approval_requests
+      WHERE turn_id = ? AND status = 'resolved'
+      ORDER BY resolved_at, created_at LIMIT 1
+    `).get(turnID) as { id: string } | null
+  }
+
+  resolvedQuestionForResume(turnID: string) {
+    const row = this.sqlite.query(`
+      SELECT id, agent_id, tool_call_id, payload, answer
+      FROM question_requests
+      WHERE turn_id = ? AND status = 'resolved'
+      ORDER BY resolved_at, created_at LIMIT 1
+    `).get(turnID) as {
+      id: string
+      agent_id: string
+      tool_call_id: string | null
+      payload: string
+      answer: string | null
+    } | null
+    return row ? {
+      id: row.id,
+      agentID: row.agent_id,
+      toolCallID: row.tool_call_id,
+      payload: parse<Record<string, unknown>>(row.payload),
+      answer: row.answer ? parse<Record<string, unknown>>(row.answer) : {},
+    } : null
+  }
+
+  claimResolvedQuestionLegacy(turnID: string) {
+    return this.transaction(() => {
+      const row = this.sqlite.query(`
+        SELECT id, payload, answer FROM question_requests
+        WHERE turn_id = ? AND status = 'resolved'
+        ORDER BY resolved_at LIMIT 1
+      `).get(turnID) as { id: string; payload: string; answer: string | null } | null
+      if (!row) return null
+      const updated = this.sqlite.query("UPDATE question_requests SET status = 'resuming' WHERE id = ? AND status = 'resolved'").run(row.id)
+      return updated.changes === 1 ? {
+        id: row.id,
+        payload: parse<Record<string, unknown>>(row.payload),
+        answer: row.answer ? parse<Record<string, unknown>>(row.answer) : {},
+      } : null
+    })
+  }
+
+  resolvedHookTrustForResume(turnID: string) {
+    const row = this.sqlite.query(`
+      SELECT c.agent_id, c.payload, h.id, h.status
+      FROM agent_checkpoints AS c
+      JOIN hook_trust_requests AS h ON h.id = json_extract(c.payload, '$.requestID')
+      WHERE c.turn_id = ? AND c.state = 'ready'
+        AND json_extract(c.payload, '$.kind') = 'hook-trust'
+        AND h.status IN ('allowed', 'blocked')
+      LIMIT 1
+    `).get(turnID) as { agent_id: string; payload: string; id: string; status: "allowed" | "blocked" } | null
+    return row ? {
+      agentID: row.agent_id,
+      requestID: row.id,
+      decision: row.status === "allowed" ? "allow" as const : "deny" as const,
+    } : null
+  }
+
+  pendingAutoResolutionQuestions() {
+    const rows = this.sqlite.query(`
+      SELECT id, payload, created_at FROM question_requests WHERE status = 'pending'
+    `).all() as Array<{ id: string; payload: string; created_at: number }>
+    return rows.map((row) => ({
+      id: row.id,
+      payload: parse<Record<string, unknown>>(row.payload),
+      createdAt: row.created_at,
+    }))
+  }
+
+  isQuestionPending(id: string) {
+    return Boolean(this.sqlite.query("SELECT 1 FROM question_requests WHERE id = ? AND status = 'pending'").get(id))
+  }
+
+  pendingApprovalIDs(threadID?: string) {
+    return this.sqlite.query(`
+      SELECT id FROM approval_requests
+      WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
+      ORDER BY created_at, id
+    `).all(threadID ?? null, threadID ?? null) as Array<{ id: string }>
+  }
+
+  pendingQuestions(threadID?: string) {
+    const rows = this.sqlite.query(`
+      SELECT id, thread_id, turn_id, agent_id, payload, payload_version, created_at
+      FROM question_requests
+      WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
+      ORDER BY created_at, id
+    `).all(threadID ?? null, threadID ?? null) as Array<{
+      id: string
+      thread_id: string
+      turn_id: string
+      agent_id: string
+      payload: string
+      payload_version: number
+      created_at: number
+    }>
+    return rows.map((row) => ({
+      id: row.id,
+      threadID: row.thread_id,
+      turnID: row.turn_id,
+      agentID: row.agent_id,
+      payload: parse<Record<string, unknown>>(row.payload),
+      payloadVersion: row.payload_version,
+      createdAt: row.created_at,
+    }))
+  }
+
+  pendingHookTrustWaiters(threadID?: string) {
+    return this.sqlite.query(`
+      SELECT request.id, waiter.thread_id, waiter.turn_id, waiter.agent_id
+      FROM hook_trust_waiters AS waiter
+      JOIN hook_trust_requests AS request ON request.id = waiter.request_id
+      WHERE request.status = 'pending'
+        AND (? IS NULL OR waiter.thread_id = ?)
+      ORDER BY request.created_at, request.id, waiter.created_at, waiter.turn_id
+    `).all(threadID ?? null, threadID ?? null) as Array<{
+      id: string
+      thread_id: string
+      turn_id: string
+      agent_id: string
+    }>
+  }
+
+  pendingQuestionVersion(id: string) {
+    const row = this.sqlite.query("SELECT payload_version, status FROM question_requests WHERE id = ?").get(id) as { payload_version: number; status: string } | null
+    return row ? { version: row.payload_version, status: row.status } : null
+  }
+
+  pendingQuestionPayload(id: string) {
+    const row = this.sqlite.query("SELECT payload FROM question_requests WHERE id = ? AND status = 'pending'").get(id) as { payload: string } | null
+    return row ? parse<Record<string, unknown>>(row.payload) : null
+  }
+
+  cancelQuestionsForTurn(turnID: string) {
+    return this.transaction(() => {
+      const rows = this.sqlite.query("SELECT id FROM question_requests WHERE turn_id = ? AND status IN ('pending', 'resolved', 'resuming')").all(turnID) as Array<{ id: string }>
+      this.sqlite.query("UPDATE question_requests SET status = 'cancelled', answer = '__stopped__', resolved_at = ? WHERE turn_id = ? AND status IN ('pending', 'resolved', 'resuming')").run(now(), turnID)
+      return rows.map((row) => row.id)
+    })
+  }
+
+  subagentTaskID(runID: string) {
+    const row = this.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(runID) as { task_id: string } | null
+    return row?.task_id ?? null
+  }
+
+  interactionResumeTargets(interactionID: string, kind: "approval" | "permission" | "question" | "hookTrust") {
+    if (kind === "approval" || kind === "permission") {
+      const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM approval_requests WHERE id = ? AND status IN ('resolved','claimed')").get(interactionID) as { thread_id: string; turn_id: string; agent_id: string } | null
+      return row ? [{ threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id }] : []
+    }
+    if (kind === "question") {
+      const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM question_requests WHERE id = ? AND status IN ('resolved','resuming')").get(interactionID) as { thread_id: string; turn_id: string; agent_id: string } | null
+      return row ? [{ threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id }] : []
+    }
+    return (this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM hook_trust_waiters WHERE request_id = ?").all(interactionID) as Array<{ thread_id: string; turn_id: string; agent_id: string }>).map((row) => ({ threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id }))
+  }
+
+  interactionStopTarget(interactionID: string) {
+    const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM approval_requests WHERE id = ?").get(interactionID) as {
+      thread_id: string
+      turn_id: string
+      agent_id: string
+    } | null
+    return row ? { threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id } : null
+  }
+
+  resolveStopInteraction(input: {
+    interactionID: string
+    threadID: string
+    turnID: string
+    agentID: string
+    operation: InteractionOperationInput
+  }) {
+    return this.transaction(() => {
+      const pending = this.sqlite.query(`
+        SELECT 1 FROM approval_requests
+        WHERE id = ? AND thread_id = ? AND turn_id = ? AND agent_id = ? AND status = 'pending'
+      `).get(input.interactionID, input.threadID, input.turnID, input.agentID)
+      if (!pending) throw new AgentError("REQUEST_NOT_PENDING", "审批请求不存在或已处理", 409)
+      const terminal = this.finalizeTurn({
+        threadID: input.threadID,
+        turnID: input.turnID,
+        agentID: input.agentID,
+        status: "interrupted",
+        pauseReason: "interrupted",
+      })
+      const operation = this.saveInteractionOperation(input.operation)
+      return { ...terminal, operation }
+    })
+  }
+
+  convergeHookTrustDecisions() {
+    const pending = this.sqlite.query("SELECT id, workspace_path, config_hash FROM hook_trust_requests WHERE status = 'pending'").all() as Array<{ id: string; workspace_path: string; config_hash: string }>
+    for (const request of pending) {
+      const row = this.profileSqlite.query("SELECT decision FROM hook_trust_decisions WHERE workspace_path = ? AND config_hash = ?").get(request.workspace_path, request.config_hash) as { decision: "allow" | "block" } | null
+      if (row) this.resolveHookTrustRequest(request.id, row.decision)
+    }
+  }
+
+  acquireResumeCheckpointLease(input: {
+    turnID: string
+    agentID: string
+    kind: ResumeCheckpointKind
+    checkpoint: ResolvedResumeCheckpoint
+    permissionGrant?: Record<string, unknown>
+    consumer: ResumeCheckpointConsumer
+    leaseID: string
+  }) {
+    return this.transaction(() => {
+      const timestamp = now()
+      this.sqlite.query(`
+        INSERT INTO resume_checkpoint_leases (
+          turn_id, agent_id, checkpoint_kind, checkpoint_payload,
+          permission_grant, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'available', ?, ?)
+        ON CONFLICT(turn_id) DO UPDATE SET
+          agent_id = excluded.agent_id,
+          checkpoint_kind = excluded.checkpoint_kind,
+          checkpoint_payload = excluded.checkpoint_payload,
+          permission_grant = excluded.permission_grant,
+          consumer = NULL,
+          lease_id = NULL,
+          status = 'available',
+          created_at = excluded.created_at,
+          acquired_at = NULL,
+          completed_at = NULL,
+          updated_at = excluded.updated_at
+        WHERE resume_checkpoint_leases.status = 'completed'
+          AND resume_checkpoint_leases.checkpoint_payload <> excluded.checkpoint_payload
+      `).run(
+        input.turnID,
+        input.agentID,
+        input.kind,
+        stringify(input.checkpoint),
+        input.permissionGrant ? stringify(input.permissionGrant) : null,
+        timestamp,
+        timestamp,
+      )
+      const existing = this.sqlite.query(`
+        SELECT lease_id, status, checkpoint_payload
+        FROM resume_checkpoint_leases WHERE turn_id = ?
+      `).get(input.turnID) as {
+        lease_id: string | null
+        status: ResumeCheckpointLeaseStatus
+        checkpoint_payload: string
+      } | null
+      if (!existing || existing.status === "completed" || existing.status === "interrupted") return null
+      if (existing.status === "acquired") {
+        return existing.lease_id === input.leaseID
+          ? { leaseID: input.leaseID, checkpoint: parse<ResolvedResumeCheckpoint>(existing.checkpoint_payload) }
+          : null
+      }
+      const acquired = this.sqlite.query(`
+        UPDATE resume_checkpoint_leases
+        SET consumer = ?, lease_id = ?, status = 'acquired', acquired_at = ?, updated_at = ?
+        WHERE turn_id = ? AND status = 'available'
+      `).run(input.consumer, input.leaseID, timestamp, timestamp, input.turnID)
+      if (acquired.changes !== 1) return null
+      if (input.kind === "permission") {
+        const checkpoint = input.checkpoint as Extract<ResolvedResumeCheckpoint, { kind: "permission" }>
+        const claimed = this.sqlite.query("UPDATE approval_requests SET status = 'claimed' WHERE id = ? AND status = 'resolved'").run(checkpoint.approvalID)
+        if (claimed.changes !== 1) throw new Error(`审批 ${checkpoint.approvalID} 无法获取恢复 lease`)
+      } else if (input.kind === "question") {
+        const checkpoint = input.checkpoint as Extract<ResolvedResumeCheckpoint, { kind: "question" }>
+        const claimed = this.sqlite.query("UPDATE question_requests SET status = 'resuming' WHERE id = ? AND status = 'resolved'").run(checkpoint.questionID)
+        if (claimed.changes !== 1) throw new Error(`问题 ${checkpoint.questionID} 无法获取恢复 lease`)
+      }
+      return { leaseID: input.leaseID, checkpoint: input.checkpoint }
+    })
+  }
+
+  completeResumeCheckpointLease(leaseID: string) {
+    return this.transaction(() => {
+      const row = this.sqlite.query(`
+        SELECT checkpoint_kind, checkpoint_payload, status
+        FROM resume_checkpoint_leases
+        WHERE lease_id = ? AND status IN ('acquired', 'completed')
+      `).get(leaseID) as { checkpoint_kind: ResumeCheckpointKind; checkpoint_payload: string; status: ResumeCheckpointLeaseStatus } | null
+      if (!row) return false
+      if (row.status === "completed") return true
+      const checkpoint = parse<ResolvedResumeCheckpoint>(row.checkpoint_payload)
+      const timestamp = now()
+      this.sqlite.query(`
+        UPDATE resume_checkpoint_leases
+        SET status = 'completed', completed_at = ?, updated_at = ?
+        WHERE lease_id = ? AND status = 'acquired'
+      `).run(timestamp, timestamp, leaseID)
+      if (checkpoint.kind === "question") {
+        this.sqlite.query("UPDATE question_requests SET status = 'consumed' WHERE id = ? AND status = 'resuming'").run(checkpoint.questionID)
+        this.sqlite.query(`
+          DELETE FROM agent_checkpoints
+          WHERE turn_id = (SELECT turn_id FROM resume_checkpoint_leases WHERE lease_id = ?)
+            AND json_extract(payload, '$.questionID') = ?
+        `).run(leaseID, checkpoint.questionID)
+      } else if (checkpoint.kind === "hook-trust") {
+        this.sqlite.query(`
+          DELETE FROM agent_checkpoints
+          WHERE turn_id = (SELECT turn_id FROM resume_checkpoint_leases WHERE lease_id = ?)
+            AND state = 'ready'
+            AND json_extract(payload, '$.kind') = 'hook-trust'
+            AND json_extract(payload, '$.requestID') = ?
+        `).run(leaseID, checkpoint.requestID)
+      } else if (checkpoint.kind === "subagent-wait") {
+        this.sqlite.query(`
+          DELETE FROM agent_checkpoints
+          WHERE turn_id = (SELECT turn_id FROM resume_checkpoint_leases WHERE lease_id = ?)
+            AND state = 'ready'
+            AND json_extract(payload, '$.kind') = 'subagent-wait'
+        `).run(leaseID)
+      }
+      return true
+    })
+  }
+
+  recoverResumeCheckpointLeases(timestamp = now()): RecoveryLeaseSummary {
+    return this.transaction(() => {
+      const summary: RecoveryLeaseSummary = { available: [], completed: [], interrupted: [] }
+      const rows = this.sqlite.query(`
+        SELECT turn_id, lease_id, checkpoint_kind, checkpoint_payload
+        FROM resume_checkpoint_leases WHERE status = 'acquired'
+      `).all() as Array<{
+        turn_id: string
+        lease_id: string
+        checkpoint_kind: ResumeCheckpointKind
+        checkpoint_payload: string
+      }>
+      for (const row of rows) {
+        const checkpoint = parse<ResolvedResumeCheckpoint>(row.checkpoint_payload)
+        let status: "available" | "completed" | "interrupted" = "available"
+        if (checkpoint.kind === "permission") {
+          const tool = this.sqlite.query("SELECT status FROM tool_calls WHERE id = ?").get(checkpoint.toolCallID) as { status: string } | null
+          if (tool && ["running", "error", "interrupted"].includes(tool.status)) status = "interrupted"
+        }
+        if (status === "available") {
+          this.sqlite.query(`
+            UPDATE resume_checkpoint_leases
+            SET status = 'available', consumer = NULL, lease_id = NULL,
+              acquired_at = NULL, updated_at = ?
+            WHERE turn_id = ? AND status = 'acquired'
+          `).run(timestamp, row.turn_id)
+          if (checkpoint.kind === "permission") {
+            this.sqlite.query("UPDATE approval_requests SET status = 'resolved' WHERE id = ? AND status = 'claimed'").run(checkpoint.approvalID)
+          } else if (checkpoint.kind === "question") {
+            this.sqlite.query("UPDATE question_requests SET status = 'resolved' WHERE id = ? AND status = 'resuming'").run(checkpoint.questionID)
+          }
+          const queued = this.sqlite.query("UPDATE turns SET status = 'queued', finished_at = NULL, updated_at = ? WHERE id = ? AND status IN ('running','interrupted')").run(timestamp, row.turn_id)
+          this.sqlite.query("UPDATE agent_executions SET status = 'queued', error = NULL, updated_at = ? WHERE turn_id = ? AND status IN ('running','interrupted')").run(timestamp, row.turn_id)
+          if (queued.changes === 1) {
+            const execution = this.agentForTurn(row.turn_id)
+            if (execution) this.insertEvent(execution.threadID, row.turn_id, "agent/upserted", { agent: execution })
+          }
+        } else {
+          this.sqlite.query(`
+            UPDATE resume_checkpoint_leases
+            SET status = ?, completed_at = CASE WHEN ? = 'completed' THEN ? ELSE completed_at END,
+              updated_at = ?
+            WHERE turn_id = ? AND status = 'acquired'
+          `).run(status, status, timestamp, timestamp, row.turn_id)
+        }
+        summary[status].push(row.turn_id)
+      }
+      return summary
+    })
+  }
+
   interactionOperation(operationID: string) {
       const row = this.sqlite.query("SELECT interaction_id, response, result FROM interaction_operations WHERE operation_id = ?").get(operationID) as {
         interaction_id: string
@@ -457,6 +875,12 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
       this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status IN ('preparing', 'pending', 'resolved')").run(timestamp, turnID)
     }
 
+  getPendingInteractionCounts(threadID: string): { approvals: number; questions: number } {
+      const approvals = this.sqlite.query("SELECT COUNT(*) AS count FROM approval_requests WHERE thread_id = ? AND status = 'pending'").get(threadID) as { count: number } | null
+      const questions = this.sqlite.query("SELECT COUNT(*) AS count FROM question_requests WHERE thread_id = ? AND status = 'pending'").get(threadID) as { count: number } | null
+      return { approvals: Number(approvals?.count ?? 0), questions: Number(questions?.count ?? 0) }
+    }
+
   invalidateApprovalCheckpoint(approvalID: string, reason: string) {
       const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM approval_requests WHERE id = ?").get(approvalID) as { thread_id: string; turn_id: string; agent_id: string } | null
       if (!row) return null
@@ -512,8 +936,12 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         const request = this.getHookTrustRequest(id)!
         // Every newly-added waiter gets one durable notification, even when the
         // workspace/hash request was deduplicated against another turn.
-        const event = !existing || waiterAdded
-          ? this.insertEvent(input.threadID, input.turnID, "hook/trust/requested", { request, reused: Boolean(existing) })
+        const event = (!existing || waiterAdded) && input.threadID && input.turnID
+          ? this.insertEvent(input.threadID, input.turnID, "hook/trust/requested", hookTrustRequestedPayload(request, {
+              threadID: input.threadID,
+              turnID: input.turnID,
+              agentID: this.agentForTurn(input.turnID)?.id ?? `hook:${input.turnID}`,
+            }))
           : null
         return { request, event }
       })
@@ -549,15 +977,19 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         const events = resumed.length ? resumed.map((waiter) => {
           this.updateTurnStatus(waiter.turnID, "queued")
           this.updateAgentStatus(waiter.agentID, "queued")
-          this.sqlite.query("DELETE FROM agent_checkpoints WHERE agent_id = ? AND state = 'waiting_hook_trust'").run(waiter.agentID)
+          this.sqlite.query(`
+            UPDATE agent_checkpoints
+            SET state = 'ready', payload = json_set(payload, '$.decision', ?), updated_at = ?
+            WHERE agent_id = ? AND state = 'waiting_hook_trust'
+          `).run(decision, timestamp, waiter.agentID)
           const execution = this.getAgentExecution(waiter.agentID)
           if (execution?.subagentRunID) {
             this.sqlite.query("UPDATE subagent_runs SET status = 'queued', queue_reason = NULL, updated_at = ? WHERE id = ?").run(timestamp, execution.subagentRunID)
             this.sqlite.query("UPDATE subagent_tasks SET status = 'queued', updated_at = ? WHERE current_run_id = ?").run(timestamp, execution.subagentRunID)
             this.sqlite.query(`UPDATE items SET status = 'pending', data = json_set(data, '$.status', 'queued', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') = ?`).run(timestamp, execution.subagentRunID)
           }
-          return this.insertEvent(waiter.threadID, waiter.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: true })
-        }) : [this.insertEvent(resolved.threadID, resolved.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: false })]
+          return this.insertEvent(waiter.threadID, waiter.turnID, "hook/trust/resolved", hookTrustResolvedPayload(resolved, decision, true, timestamp))
+        }) : [this.insertEvent(resolved.threadID, resolved.turnID, "hook/trust/resolved", hookTrustResolvedPayload(resolved, decision, false, timestamp))]
         if (operation) this.saveInteractionOperation(operation)
         return { state: "resolved" as const, request: resolved, events, resumed }
       })
@@ -643,13 +1075,14 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
     ignored = false,
     operation?: InteractionOperationInput,
   ) {
-      const row = this.sqlite.query("SELECT thread_id, turn_id, payload, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; payload: string; status: string } | null
-      if (!row || row.status !== "pending") return null
-      const timestamp = now()
       return this.transaction(() => {
+        const row = this.sqlite.query("SELECT thread_id, turn_id, payload, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; payload: string; status: string } | null
+        if (!row || row.status !== "pending") return null
+        const timestamp = now()
         const checkpoint = this.getAgentTurnCheckpoint(row.turn_id)
         if (!checkpoint || checkpoint.state !== "waiting_question") throw new Error(`问题 ${id} 没有可恢复 checkpoint`)
-        this.sqlite.query("UPDATE question_requests SET status = 'resolved', answer = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(stringify({ value: answer, ignored }), timestamp, id)
+        const resolved = this.sqlite.query("UPDATE question_requests SET status = 'resolved', answer = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(stringify({ value: answer, ignored }), timestamp, id)
+        if (resolved.changes !== 1) return null
         this.saveAgentTurnCheckpoint({
           ...checkpoint,
           state: "ready",

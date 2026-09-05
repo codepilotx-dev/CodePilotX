@@ -1,11 +1,16 @@
-import type { AgentToolResult } from "@codepilotx/pi-agent-core"
+import type { AgentToolResult } from "../harness/agent-types"
 import { Type, type TSchema } from "@earendil-works/pi-ai"
 import { AgentError } from "../../domain"
 import { secretScrubber } from "../../security/SecretScrubber"
 import type { ToolDefinition } from "../../tool/ToolRegistry"
 import { executionPlanInputSchema } from "../plan/ExecutionPlanInput"
-import type { PiLifecycleCallbacks, PiRuntimeRequest, PiTool, PiToolAdapterOptions } from "./types"
+import type { HarnessRuntimeRequest, PiLifecycleCallbacks, PiTool, PiToolAdapterOptions } from "./types"
 import { requestUserInputSchema } from "../../session/QuestionInput"
+import {
+  formatStructuredResult,
+  parseStructuredResult,
+  structuredResultParameters,
+} from "./structured-result"
 
 const textResult = (value: unknown, terminate = false): AgentToolResult<unknown> => {
   const safe = secretScrubber.scrub(value)
@@ -13,7 +18,7 @@ const textResult = (value: unknown, terminate = false): AgentToolResult<unknown>
   return { content: [{ type: "text", text: text ?? "null" }], details: safe, ...(terminate ? { terminate: true } : {}) }
 }
 
-const descriptionFor = (definition: ToolDefinition, request: PiRuntimeRequest) => typeof definition.description === "string"
+const descriptionFor = (definition: ToolDefinition, request: HarnessRuntimeRequest) => typeof definition.description === "string"
   ? definition.description
   : definition.description({
       signal: request.signal,
@@ -74,6 +79,9 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
           : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
+        ...(request.frozenDeferredToolNames
+          ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
+          : {}),
         onProgress: (progress) => onUpdate?.(textResult(progress)),
       })
       if (definition.formatResult) {
@@ -162,7 +170,7 @@ const projectSourceReadTool = (
 })
 
 /** Product lifecycle tools remain callbacks so durable pause/recovery stays owned by ThreadService. */
-export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: PiRuntimeRequest): PiTool[] {
+export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: HarnessRuntimeRequest): PiTool[] {
   const tools: PiTool[] = []
   const exposed = new Set(request.exposedTools)
   const add = (tool: PiTool) => { if (exposed.has(tool.name)) tools.push(tool) }
@@ -210,11 +218,40 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: P
       return callbacks.updatePlan!(parsed.data, id, signal)
     }))
   }
-  if (callbacks.spawnAgents) add(lifecycleTool("spawn_agents", "创建一个或多个并行子代理。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.spawnAgents))
-  if (callbacks.waitAgents) add(lifecycleTool("wait_agents", "等待子代理完成。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.waitAgents, (result) => Boolean(result && typeof result === "object" && "__piPause" in result)))
-  if (callbacks.sendAgent) add(lifecycleTool("send_agent", "向运行中的子代理发送补充指令。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.sendAgent))
-  if (callbacks.stopAgent) add(lifecycleTool("stop_agent", "停止子代理。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.stopAgent))
-  if (callbacks.finalizeResult) add(lifecycleTool("finalize_result", "提交结构化子代理结果并结束当前 turn。", Type.Unsafe({ type: "object", additionalProperties: true }), (input, id) => callbacks.finalizeResult!(input as never, id), true))
+  if (callbacks.spawnAgents) add(lifecycleTool("spawn_agents", [
+    "把边界明确、有独立产出、能隔离大量中间信息或适合并行的问题委派给一个或多个并行子代理。",
+    "委派前先判断：小型、强耦合或能直接用工具并发完成的工作应由你自己完成。尊重用户和适用仓库规则对并行或委派的明确要求；数量上限由宿主按队列执行，模型不需要自行预设默认数量。",
+    "agents 中每个 task 都必须是自包含的任务描述：包含目标、范围、关键背景、约束与预期证据，且不得假设子代理能看到本会话未显式提供的上下文。不要为了获得一段总结而创建子代理。",
+    "Plan 模式只能创建 explorer 子代理。",
+  ].join("\n"), Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.spawnAgents))
+  if (callbacks.waitAgents) add(lifecycleTool("wait_agents", "等待子代理满足完成条件后继续：mode=all 等待全部完成，mode=any 等待任一完成。子代理仍在运行时当前轮会暂停到条件满足。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.waitAgents, (result) => Boolean(result && typeof result === "object" && "__piPause" in result)))
+  if (callbacks.sendAgent) add(lifecycleTool("send_agent", "向子代理发送补充指令或新要求。运行中的子代理在安全边界内继续；已结束的子代理会以新要求开启新一轮，其此前提交只代表此前工作的结果。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.sendAgent))
+  if (callbacks.stopAgent) add(lifecycleTool("stop_agent", "停止一个子代理。已发生的修改仍然保留，需要时人工核对或回退。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.stopAgent))
+  if (callbacks.finalizeResult) {
+    add({
+      name: "finalize_result",
+      label: "finalize_result",
+      description: [
+        "任务收尾时提交结构化交付结果并结束当前轮。先完成实际操作和必要验证再单独调用；summary 必须非空并说明做了什么与结果如何，没有内容的列表提交空数组。",
+        "outcome 是对任务结果的如实陈述：succeeded=已完成；partial=部分完成；blocked=受阻或无法继续。提交部分完成或受阻结果也是合法交付；validation 只能记录实际执行过的验证及其结果，不得编造验证成功。",
+        "提交本身不批准未决操作、不应用修改，也不替用户处理未决问题。本工具必须是该条回复中唯一的工具调用：先执行并验证其他工作，然后在单独一条回复中提交。",
+        "子 Agent 收尾必须提交结构化结果；主 Agent 仅在任务式工作收尾时使用本工具，普通问答直接以文本结束。",
+      ].join("\n"),
+      parameters: structuredResultParameters,
+      executionMode: "sequential",
+      execute: async (toolCallID, input) => {
+        const parsed = parseStructuredResult(input as never)
+        const safe = secretScrubber.scrub(parsed)
+        await callbacks.finalizeResult!(parsed, toolCallID)
+        return {
+          content: [{ type: "text", text: formatStructuredResult(safe) }],
+          details: safe,
+          structuredContent: safe,
+          terminate: true,
+        }
+      },
+    })
+  }
   return tools
 }
 

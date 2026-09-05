@@ -1,12 +1,12 @@
 @use 'sass:meta';
 @layer theme, vendor, reset, tokens, primitives, shell, features, utilities, overrides;
 
-@layer theme {
-  // Tailwind's theme layer is loaded by the approved direct CSS entrypoint.
+@layer vendor {
+  /* Vendor styles are loaded lazily by their owning features. */
 }
 
-@layer vendor {
-  @include meta.load-css('vendor');
+@layer theme {
+  // Tailwind's theme layer is loaded by the approved direct CSS entrypoint.
 }
 
 @layer reset {
@@ -20,14 +20,19 @@
 
 @layer primitives {
   @include meta.load-css('components/button');
+  @include meta.load-css('components/segmented-control');
+  @include meta.load-css('components/spinner');
   @include meta.load-css('components/card');
   @include meta.load-css('components/input');
+  @include meta.load-css('components/choice');
+  @include meta.load-css('components/date-picker');
   @include meta.load-css('components/interactive-row');
   @include meta.load-css('components/chip');
   @include meta.load-css('components/switch');
   @include meta.load-css('components/menu-item');
   @include meta.load-css('components/scroll-area');
   @include meta.load-css('components/skeleton');
+  @include meta.load-css('components/disclosure-content');
   @include meta.load-css('markdown');
   @include meta.load-css('popover');
   @include meta.load-css('modal');
@@ -64,10 +69,12 @@
   @include meta.load-css('features/review');
   @include meta.load-css('features/timeline');
   @include meta.load-css('features/canonical-conversation');
-  @include meta.load-css('features/marketplace');
+  @include meta.load-css('features/primary-page');
   @include meta.load-css('features/automation');
+  @include meta.load-css('features/automation-calendar');
+  @include meta.load-css('features/schedule-plan-card');
+  @include meta.load-css('features/schedule-plan-card');
   @include meta.load-css('features/pull-requests');
-  @include meta.load-css('features/model-center');
   @include meta.load-css('features/file-editor');
   @include meta.load-css('model-menu-pilot');
 }

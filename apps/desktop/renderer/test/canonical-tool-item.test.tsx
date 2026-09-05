@@ -7,23 +7,34 @@ import {
   buildStructuredToolDetail,
   buildToolItemDisplay,
   buildToolSemanticSummary,
+  cleanCommandOutput,
+  cleanCommandSummary,
   fileMutationDisplay,
   FileMutationItemView,
   formatToolDuration,
+  isProcessEnvelope,
   isStandaloneLifecycleTool,
   LifecycleToolItemView,
   syntheticPatchDisplay,
   ToolItemView,
   ToolExecutionCard,
 } from "../src/features/session/timeline/CanonicalItemRenderer.js";
+import { CodeBlock } from "../src/features/syntax/CodeBlock.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+import { AttachmentFilePill } from "../src/features/session/attachments/AttachmentRowPrimitives.js";
 import { threadPatchDiffToDesktopFile } from "../src/features/session/timeline/FileMutationDiffContent.js";
 import {
   createThreadPatchDiffLoader,
   ExpandableFileMutationRow,
 } from "../src/features/session/timeline/ExpandableFileMutationRow.js";
+import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
+import { createKeyedDisclosureStore } from "../src/components/ui/keyedDisclosureStore.js";
 
 type ToolItem = Extract<Item, { type: "tool" }>;
+
+function disclosureStore(...expandedKeys: string[]) {
+  return createKeyedDisclosureStore({ initialExpandedKeys: expandedKeys });
+}
 
 function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
   return {
@@ -38,6 +49,7 @@ function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
     state: "completed",
     input: null,
     command: "bun test",
+    activity: { type: "command", kind: "test" },
     output: "pass",
     error: null,
     startedAt: 1_000,
@@ -49,10 +61,83 @@ function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
 }
 
 describe("canonical tool item display", () => {
+  test("keeps file attachment pills independent from action button geometry", () => {
+    const markup = renderToStaticMarkup(
+      <AttachmentFilePill
+        detail="text/plain · 42 B"
+        name="notes.txt"
+        onOpen={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('<button aria-label="打开 notes.txt" class="attachment-file-pill__open" type="button">');
+    expect(markup).not.toMatch(/class="[^"]*attachment-file-pill__open[^"]*ui-button/);
+  });
+
+
+  test("cleanCommandOutput extracts stdout/stderr and drops process JSON envelope", () => {
+    const rawEnvelope = JSON.stringify({
+      exitCode: 0,
+      signal: null,
+      stdout: "On branch dev\nYour branch is ahead",
+      stderr: "",
+      timedOut: false,
+      truncated: false,
+    });
+    expect(cleanCommandOutput(rawEnvelope)).toBe("On branch dev\nYour branch is ahead");
+
+    const withStderr = JSON.stringify({
+      exitCode: 1,
+      signal: null,
+      stdout: "warning message",
+      stderr: "fatal error",
+    });
+    expect(cleanCommandOutput(withStderr)).toBe("warning message\nfatal error");
+
+    const emptyEnvelope = JSON.stringify({
+      exitCode: 0,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      timedOut: false,
+    });
+    expect(cleanCommandOutput(emptyEnvelope)).toBeNull();
+
+    expect(cleanCommandOutput("plain terminal output")).toBe("plain terminal output");
+  });
+
+  test("isProcessEnvelope detects various process execution payloads", () => {
+    expect(isProcessEnvelope({ exitCode: 0, signal: null, stdout: "ok", stderr: "" })).toBe(true);
+    expect(isProcessEnvelope('{"exitCode":0,"stdout":"ok"}')).toBe(true);
+    expect(isProcessEnvelope('```json\n{"exitCode":0,"stdout":"ok"}\n```')).toBe(true);
+    expect(isProcessEnvelope({ exit_code: 0, stdout: "ok" })).toBe(true);
+    expect(isProcessEnvelope({ result: { exitCode: 0, stdout: "ok" } })).toBe(true);
+    expect(isProcessEnvelope([{ exitCode: 0, stdout: "ok" }])).toBe(true);
+    expect(isProcessEnvelope({ custom: "data", status: 200 })).toBe(false);
+    expect(isProcessEnvelope("plain user output")).toBe(false);
+  });
+
+  test("cleanCommandSummary strips directory changes", () => {
+    expect(cleanCommandSummary("cd F:/CodeProject/CodePilotX && git diff CHANGELOG.md")).toBe("git diff CHANGELOG.md");
+    expect(cleanCommandSummary("cd \"C:\\Program Files\" ; npm test")).toBe("npm test");
+    expect(cleanCommandSummary("git status")).toBe("git status");
+  });
   test("formats command durations independently from semantic summaries", () => {
     expect(formatToolDuration(250)).toBe("1 秒");
     expect(formatToolDuration(84_000)).toBe("1 分 24 秒");
-    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("Ran command");
+    expect(buildToolItemDisplay(toolItem()).expandedLabel).toBe("bun test · 1 秒");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: undefined,
+    })).collapsedLabel).toBe("bun test · 1 秒");
+    expect(buildToolSemanticSummary(toolItem({
+      durationMs: null,
+      finishedAt: null,
+    })).collapsedLabel).toBe("bun test");
+    expect(buildToolSemanticSummary(toolItem({
+      durationMs: null,
+      finishedAt: null,
+      state: "running",
+    }), { nowMs: 2_500 }).collapsedLabel).toBe("正在运行 bun test · 2 秒");
   });
 
   test("only allows an active command to expand after output arrives", () => {
@@ -69,62 +154,89 @@ describe("canonical tool item display", () => {
       output: "partial output",
     }))).toMatchObject({
       canExpand: true,
-      collapsedLabel: "Running bun test",
-      expandedLabel: "Running command",
+      collapsedLabel: "正在运行 bun test",
+      expandedLabel: "正在运行 bun test",
       resultText: "partial output",
     });
   });
 
-  test("uses semantic state labels for structured tools without exposing tool names", () => {
+  test("uses shared descriptors for activity labels and icons", () => {
     const scenarios = [
-      ["Read", { file_path: "src/ConversationPage.tsx" }, "正在读取 src/ConversationPage.tsx", "已读取 src/ConversationPage.tsx"],
-      ["workspace.Grep", { pattern: "canRegenerate" }, "正在搜索 canRegenerate", "已搜索 canRegenerate"],
-      ["Glob", { pattern: "**/*.tsx" }, "正在查找 **/*.tsx", "已查找 **/*.tsx"],
-      ["ToolSearch", {}, "正在搜索工具", "已搜索工具"],
-      ["update_plan", {}, "正在更新计划", "已更新计划"],
-      ["skill_read", { name: "reverse-engineer-ui-feature" }, "正在读取技能 reverse-engineer-ui-feature", "已读取技能 reverse-engineer-ui-feature"],
+      [{ type: "read", subject: "file", target: { displayLabel: "src/ConversationPage.tsx", workspacePath: "src/ConversationPage.tsx" } }, "正在读取 src/ConversationPage.tsx", "已读取 src/ConversationPage.tsx", "read"],
+      [{ type: "search", query: "canRegenerate" }, "正在搜索“canRegenerate”", "已搜索“canRegenerate”", "search"],
+      [{ type: "list_files" }, "正在列出文件", "已列出文件", "list-files"],
+      [{ type: "tool", mode: "search" }, "正在搜索工具", "已搜索工具", "tool"],
+      [{ type: "tool", mode: "load", name: "browser.open" }, "正在加载工具 browser.open", "已加载工具 browser.open", "skill"],
+      [{ type: "read", subject: "skill", target: { displayLabel: "reverse-engineer-ui-feature" } }, "正在读取 reverse-engineer-ui-feature 技能", "已读取 reverse-engineer-ui-feature 技能", "skill"],
+      [{ type: "web_search" }, "正在搜索网页", "已搜索网页", "web-search"],
+      [{ type: "integration", source: "github" }, "正在使用 github", "已使用 github", "integration"],
+      [{ type: "command", kind: "skill_script", skillName: "review", scriptName: "check.py" }, "正在运行 review 技能中的脚本 check.py", "review 技能中的脚本 check.py · 1 秒", "command"],
+      [{ type: "command", kind: "current_time" }, "正在检查当前日期和时间", "已检查当前日期和时间 · 1 秒", "current-time"],
     ] as const;
 
-    for (const [tool, input, runningLabel, completedLabel] of scenarios) {
+    for (const [activity, runningLabel, completedLabel, iconKind] of scenarios) {
       const running = buildToolSemanticSummary(toolItem({
         command: null,
-        input,
+        activity,
         state: "running",
-        tool,
       }));
       const completed = buildToolSemanticSummary(toolItem({
         command: null,
-        input,
-        tool,
+        activity,
       }));
       expect(running.collapsedLabel).toBe(runningLabel);
       expect(completed.collapsedLabel).toBe(completedLabel);
+      expect(completed.iconKind).toBe(iconKind);
     }
 
     expect(buildToolSemanticSummary(toolItem({
+      activity: undefined,
       command: null,
       input: { secret: "do-not-render" },
       state: "error",
       tool: "internal.private_tool",
     }))).toMatchObject({
-      collapsedLabel: "操作失败",
-      toolLabel: "操作",
+      collapsedLabel: "工具调用失败 internal.private_tool",
+      toolLabel: "工具",
     });
+
+    expect(buildToolSemanticSummary(toolItem()).kind).toBe("command");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "read", subject: "file", target: { displayLabel: "src/a.ts" } },
+      command: null,
+      tool: "Read",
+    })).kind).toBe("exploration");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "web_search" },
+      command: null,
+      tool: "web__run",
+    })).kind).toBe("web-search");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "integration", source: "drive" },
+      command: null,
+      tool: "mcp__drive__search",
+    })).kind).toBe("integration");
+    expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "tool", mode: "call" },
+      command: null,
+      tool: "internal.private_tool",
+    })).kind).toBe("tool");
   });
 
   test("uses state-specific failure and interruption labels", () => {
     expect(buildToolSemanticSummary(toolItem({
       state: "error",
-    })).collapsedLabel).toBe("Command failed bun test");
+    })).collapsedLabel).toBe("运行失败 bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
       state: "interrupted",
-    })).collapsedLabel).toBe("Command interrupted bun test");
+    })).collapsedLabel).toBe("已停止执行 bun test · 1 秒");
     expect(buildToolSemanticSummary(toolItem({
+      activity: { type: "read", subject: "file", target: { displayLabel: "ConversationPage.tsx" } },
       command: null,
       input: { file_path: "C:\\private\\ConversationPage.tsx" },
       state: "interrupted",
       tool: "Read",
-    })).collapsedLabel).toBe("已中断读取 ConversationPage.tsx");
+    })).collapsedLabel).toBe("已停止读取 ConversationPage.tsx");
     expect(buildToolItemDisplay(toolItem({
       command: null,
       input: { file_path: "C:\\private\\ConversationPage.tsx" },
@@ -365,10 +477,142 @@ describe("canonical tool item display", () => {
     expect(withResult).toContain("pass\nwarning");
     expect(withoutResult).toContain('aria-label="复制执行内容"');
     expect(withoutResult).not.toContain('aria-label="复制返回结果"');
-    expect(withoutResult).toContain("无输出");
+    expect(withoutResult).not.toContain('aria-label="返回结果"');
+    expect(withResult.match(/<figure /g)).toHaveLength(2);
+    expect(withoutResult.match(/<figure /g)).toHaveLength(1);
+    expect(withResult.match(/md-code-surface/g)).toHaveLength(1);
+    expect(withResult.match(/data-surface="embedded"/g)).toHaveLength(2);
+    expect(withoutResult.match(/data-surface="embedded"/g)).toHaveLength(1);
+    const output = withResult.slice(withResult.indexOf('aria-label="返回结果"'));
+    expect(output.indexOf('aria-label="复制返回结果"')).toBeLessThan(output.indexOf("canonical-command-shell__scroller"));
+    expect(output).not.toContain("<details");
+    expect(withResult).toContain('<details class="md-code-disclosure">');
+    expect(withResult.match(/bun test/g)).toHaveLength(1);
+    expect(withResult).not.toContain("md-code-summary-text");
+    expect(output).not.toContain("<figcaption");
+    expect(withResult.match(/<figcaption/g)).toHaveLength(1);
+    expect(withResult).not.toContain("执行内容 ·");
+    expect(output).toContain("canonical-command-shell__scroll-content");
+    expect(output).not.toContain("tw:overflow-x-auto");
+    expect(withoutResult).not.toContain("<pre");
+    expect(withResult).not.toContain("canonical-command-shell__prompt");
   });
 
-  test("uses the persisted disclosure state for command details", () => {
+  test("renders multiline execution content once inside its collapsed summary", () => {
+    const command = ["python script.py", "second line", "third line"].join(String.fromCharCode(10));
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <CodeBlock collapsible code={command} language="text" />
+      </TooltipProvider>,
+    );
+    expect(markup).toContain(command);
+    expect(markup.match(/second line/g)).toHaveLength(1);
+    expect(markup).toContain('<details class="md-code-disclosure">');
+    expect(markup).not.toContain("<pre");
+    expect(markup).not.toContain("lucide-chevron");
+  });
+
+  test("keeps ordinary code blocks on a standalone surface", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <CodeBlock code="const answer = 42" language="typescript" />
+      </TooltipProvider>,
+    );
+    expect(markup).toContain('data-surface="standalone"');
+    expect(markup.match(/md-code-surface/g)).toHaveLength(1);
+    expect(markup).toContain('aria-label="复制代码"');
+    expect(markup).toContain("typescript");
+    expect(markup).toContain("const answer = 42");
+    expect(markup).not.toContain("<details");
+  });
+
+  test("renders workspace targets as isolated file links", () => {
+    const linked = renderToStaticMarkup(
+      <TooltipProvider>
+        <ConversationItemContext.Provider value={{
+          canCopyFileReferenceContents: () => false,
+          onCopyFileReferenceContents: () => undefined,
+          onOpenFileReference: () => undefined,
+          onSubmitEditedUserMessage: async () => undefined,
+          sessionStatus: "idle",
+          workspacePath: "C:\\workspace",
+        }}>
+          <ToolItemView item={toolItem({
+            activity: {
+              type: "read",
+              subject: "file",
+              target: { displayLabel: "src/a.ts", workspacePath: "src/a.ts" },
+            },
+            command: null,
+            tool: "Read",
+          })} />
+        </ConversationItemContext.Provider>
+      </TooltipProvider>,
+    );
+    const displayOnly = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView item={toolItem({
+          activity: { type: "read", subject: "file", target: { displayLabel: "external.ts" } },
+          command: null,
+          tool: "Read",
+        })} />
+      </TooltipProvider>,
+    );
+
+    expect(linked).toContain('class="cpx-agent-activity__file-link"');
+    expect(linked).toContain('aria-label="打开文件 src/a.ts"');
+    expect(displayOnly).not.toContain("cpx-agent-activity__file-link");
+  });
+
+  test("renders grouped commands as embedded shells without losing details", () => {
+    const item = toolItem({ output: "pass" });
+    const embedded = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard
+          item={item}
+          presentation="grouped"
+          view={buildToolItemDisplay(item)}
+        />
+      </TooltipProvider>,
+    );
+    const standalone = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard
+          item={item}
+          view={buildToolItemDisplay(item)}
+        />
+      </TooltipProvider>,
+    );
+    const groupedItem = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolItemView
+          disclosure={{
+            id: "tool:turn-1:tool-1",
+            expanded: true,
+            onExpandedChange: () => undefined,
+          }}
+          item={item}
+          presentation="grouped"
+        />
+      </TooltipProvider>,
+    );
+
+    expect(embedded).toContain("canonical-command-shell--embedded");
+    expect(embedded).toContain("md-code-header");
+    expect(embedded).toContain(">bash</span>");
+    expect(embedded).toContain('aria-label="复制执行内容"');
+    expect(embedded).toContain('aria-label="复制返回结果"');
+    expect(embedded).toContain("bun test");
+    expect(embedded).toContain("pass");
+    expect(embedded).toContain("成功");
+    expect(standalone).not.toContain("canonical-command-shell--embedded");
+    expect(standalone).toContain("md-code-header");
+    expect(standalone).toContain(">bash</span>");
+    expect(groupedItem).toContain('data-presentation="grouped"');
+    expect(groupedItem).toContain("canonical-command-shell--embedded");
+  });
+
+  test("keeps the controlled disclosure mode for command details", () => {
     const item = toolItem();
     const collapsed = renderToStaticMarkup(
       <TooltipProvider>
@@ -395,14 +639,20 @@ describe("canonical tool item display", () => {
       </TooltipProvider>,
     );
 
-    expect(collapsed).toContain("Ran bun test");
+    expect(collapsed.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");
+    expect(collapsed).not.toContain('title="bun test · 1 秒"');
     expect(collapsed).not.toContain('aria-label="执行内容"');
+    expect(collapsed).toContain('data-mount-policy="until-exit"');
+    expect(collapsed).toContain('aria-hidden="true"');
+    expect(collapsed).toContain("inert");
+    expect(collapsed).not.toContain("canonical-command-shell");
     expect(collapsed).toContain("lucide-chevron-right");
     expect(collapsed).not.toContain("lucide-chevron-down");
-    expect(expanded).toContain("Ran command");
+    expect(expanded.replace(/<[^>]*>/g, "")).toContain("bun test · 1 秒");
+    expect(expanded).not.toContain('title="bun test · 1 秒"');
     expect(expanded).toContain('aria-label="执行内容"');
-    expect(expanded).toContain("lucide-chevron-down");
-    expect(expanded).not.toContain("lucide-chevron-right");
+    expect(expanded).toContain("lucide-chevron-right");
+    expect(expanded).not.toContain("lucide-chevron-down");
   });
 
   test("extracts file mutations and renders one row per affected file", () => {
@@ -431,7 +681,7 @@ describe("canonical tool item display", () => {
 
     const markup = renderToStaticMarkup(<FileMutationItemView item={item} />);
     expect(markup).toContain("已编辑 src/a.ts");
-    expect(markup).toContain("已编辑 src/b.ts");
+    expect(markup).toContain("已创建 src/b.ts");
     expect(markup).toContain("+2");
     expect(markup).not.toContain("+0</small><small");
   });
@@ -449,8 +699,7 @@ describe("canonical tool item display", () => {
         diffMarkerStyle="color"
         disclosure={{
           id: "file-mutation:tool-1:0",
-          expanded: true,
-          onExpandedChange: () => undefined,
+          store: disclosureStore("file-mutation:tool-1:0"),
         }}
         file={{ additions: 1, deletions: 0, path: "src/a.ts" }}
         item={completed}
@@ -465,10 +714,7 @@ describe("canonical tool item display", () => {
     );
     const runningMarkup = renderToStaticMarkup(
       <FileMutationItemView
-        disclosureState={{
-          expandedIds: new Set(["file-mutation:tool-1:0"]),
-          onExpandedChange: () => undefined,
-        }}
+        disclosureStore={disclosureStore("file-mutation:tool-1:0")}
         item={{ ...completed, state: "running" }}
         readThreadPatchDiff={async () => {
           throw new Error("not called during server render");
@@ -478,9 +724,9 @@ describe("canonical tool item display", () => {
     );
 
     expect(expandableMarkup).toContain('data-expandable="true"');
-    expect(expandableMarkup).toContain("lucide-chevron-down");
+    expect(expandableMarkup).toContain("lucide-chevron-right");
     expect(expandableMarkup).toContain("正在加载差异");
-    expect(legacyMarkup).toContain('class="canonical-file-mutation__row"');
+    expect(legacyMarkup).toContain("cpx-agent-activity__item-header--static");
     expect(legacyMarkup).not.toContain("<details");
     expect(legacyMarkup).not.toContain("<summary");
     expect(legacyMarkup).not.toContain("lucide-chevron");
@@ -620,5 +866,112 @@ describe("canonical tool item display", () => {
       totalAdditions: 3,
       totalDeletions: 1,
     });
+  });
+
+  test("renders text, citation, JSON and artifact result blocks without API name branches", () => {
+    const item = toolItem({
+      command: null,
+      input: null,
+      output: "结论",
+      resultBlocks: [
+        { type: "text", text: "结论" },
+        { type: "citation", title: "示例来源", url: "https://example.com/source" },
+        { type: "citation", url: "https://example.com/bare" },
+        { type: "citation", url: "file:///etc/passwd" },
+        { type: "json", value: { items: [{ id: 1, ok: true }] } },
+        { type: "artifact", artifactId: "artifact:1", name: "preview.png", mimeType: "image/png", size: 1024 },
+        { type: "artifact", artifactId: "artifact:2", name: "notes.txt", mimeType: "text/plain", size: 42 },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("canonical-tool-result-blocks");
+    expect(markup).toContain("canonical-tool-result-block--text");
+    expect(markup).toContain("结论");
+    // citation: 安全可点击链接仅放行 http/https，且标题优先。
+    expect(markup).toContain('href="https://example.com/source"');
+    expect(markup).toContain("示例来源");
+    expect(markup).toContain('href="https://example.com/bare"');
+    // 非 http/https 的 citation 渲染为纯文本，不生成可点击链接。
+    expect(markup).not.toContain('href="file:///etc/passwd"');
+    // json: 结构化展示不按工具名分支。
+    expect(markup).toContain("canonical-tool-result-block--json");
+    expect(markup).toContain("&quot;ok&quot;: true");
+    // artifact: 图片走预览 tile，其他类型走通用文件 pill。
+    expect(markup).toContain("attachment-image-tile");
+    expect(markup).toContain("preview.png");
+    expect(markup).toContain("attachment-file-pill");
+    expect(markup).toContain("notes.txt");
+  });
+
+  test("filters out process execution envelopes from resultBlocks completely", () => {
+    const item = toolItem({
+      command: "git status",
+      output: JSON.stringify({
+        exitCode: 0,
+        signal: null,
+        stdout: "On branch dev\nclean working tree",
+        stderr: "",
+        timedOut: false,
+        truncated: false,
+      }),
+      resultBlocks: [
+        {
+          type: "json",
+          value: {
+            exitCode: 0,
+            signal: null,
+            stdout: "On branch dev\nclean working tree",
+            stderr: "",
+            timedOut: false,
+            truncated: false,
+          },
+        },
+        {
+          type: "text",
+          text: JSON.stringify({
+            exitCode: 0,
+            signal: null,
+            stdout: "On branch dev\nclean working tree",
+            stderr: "",
+          }),
+        },
+        {
+          type: "artifact",
+          artifactId: "art-1",
+          name: "screenshot.png",
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("On branch dev\nclean working tree");
+    expect(markup).toContain("attachment-image-tile");
+    expect(markup).not.toContain("exitCode");
+    expect(markup).not.toContain("timedOut");
+    expect(markup).not.toContain("canonical-tool-result-block--json");
+    expect(markup).not.toContain("canonical-tool-result-block--text");
+  });
+
+  test("renders a single legacy text block when resultBlocks are absent", () => {
+    const item = toolItem({ command: null, input: null, output: "旧字符串结果" });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+    expect(markup).not.toContain("canonical-tool-result-blocks");
+    expect(markup).toContain("旧字符串结果");
+    expect(markup).toContain('aria-label="复制返回结果"');
   });
 });

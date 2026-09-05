@@ -3,16 +3,22 @@ import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { RepositoryDatabase } from "../repositories/RepositoryDatabase"
 import { credentialRepositoryDatabase } from "../repositories/credential-repository"
+import { ContextRepository } from "../repositories/context-repository"
 import { executionRepository } from "../repositories/execution-repository"
 import { interactionRepository } from "../repositories/interaction-repository"
 import { projectRepository } from "../repositories/project-repository"
 import { reviewRepository } from "../repositories/review-repository"
 import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
+import { SideChatRepository } from "../repositories/side-chat-repository"
 import { threadRepository } from "../repositories/thread-repository"
+import { AutomationRepository } from "../repositories/automation-repository"
+import { SchedulePlanProposalRepository, ScheduledTaskRepository } from "../repositories/scheduled-task-repository"
 import { TurnPatchRepository } from "../repositories/turn-patch-repository"
+import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
-import { recoverInterruptedRuns } from "../recovery/interrupted-run-recovery"
-import { configureConnection } from "./connection"
+import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
+import { SessionGroupRepository } from "../repositories/session-group-repository"
+import { configureConnection, shrinkDatabaseMemory } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
 import { prepareStorage, type StoragePaths } from "./reset"
@@ -61,17 +67,32 @@ export class AgentDatabase extends RepositoryDatabase {
       executions: executionRepository(this),
       interactions: interactionRepository(this),
       subagents: subagentRepositoryDatabase(this),
+      sideChats: new SideChatRepository(this),
       projects: projectRepository(this),
       workspaces: workspaceRepository(this),
       reviews: reviewRepository(this),
       credentials: credentialRepositoryDatabase(this),
+      context: new ContextRepository(this),
       turnPatches: new TurnPatchRepository(this),
+      runtimeCompositions: new RuntimeCompositionRepository(this),
+      sessionGroups: new SessionGroupRepository(this),
+      automations: new AutomationRepository(this),
+      scheduledTasks: new ScheduledTaskRepository(this),
+      schedulePlanProposals: new SchedulePlanProposalRepository(this),
     }
+    this.artifacts = new ArtifactRepository(sqlite)
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
-    recoverInterruptedRuns(this)
   }
 
   readonly repositories
+
+  /** Tool-result artifact catalog over the same history connection. */
+  readonly artifacts: ArtifactRepository
+
+  shrinkMemory(): void {
+    shrinkDatabaseMemory(this.sqlite)
+    if (this.profileSqlite !== this.sqlite) shrinkDatabaseMemory(this.profileSqlite)
+  }
 
   close() {
     this.sqlite.close()

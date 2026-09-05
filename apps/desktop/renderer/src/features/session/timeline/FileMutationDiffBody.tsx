@@ -14,7 +14,7 @@ const LazyFileMutationDiffContent = React.lazy(async () => {
   return { default: module.FileMutationDiffContent };
 });
 
-export function FileMutationDiffBody({
+export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
   diff,
   diffMarkerStyle,
 }: {
@@ -29,7 +29,7 @@ export function FileMutationDiffBody({
       />
     </React.Suspense>
   );
-}
+});
 
 export function FileMutationDiffLoading(): React.ReactNode {
   return (
@@ -48,7 +48,7 @@ export function FileMutationDiffError({
   return (
     <div className="canonical-file-mutation__message" role="alert">
       <span>无法加载本次文件差异</span>
-      <Button onClick={onRetry}>重试</Button>
+      <Button color="secondary" onClick={onRetry}>重试</Button>
     </div>
   );
 }

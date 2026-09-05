@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
-import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
+import { EventManifest, type EventType, type ProtocolCapability } from "@codepilotx/agent-protocol"
 import { relative, resolve, sep } from "node:path"
 import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import type { AgentConfig } from "../config/Config"
@@ -14,14 +14,18 @@ import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import { RpcRouter } from "./rpc/RpcRouter"
 import { proxyRendererRequest } from "./RendererProxy"
+import { buildEventNextNotification } from "./event-envelope"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ProviderCredentialService } from "../provider/ProviderCredentialService"
 import type { ProviderCredentialStoreManager } from "../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../provider/pi"
+import type { ModelHealthService } from "../provider/ModelHealthService"
 import type { PiAuthSessionService } from "../auth/PiAuthSessionService"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
+import type { ArtifactService } from "../storage/ArtifactService"
+import type { LocalContextPathService } from "../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
 import type { MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
@@ -32,6 +36,8 @@ import type { ToolingManager } from "../tool/ToolingManager"
 import type { PetService } from "../pet/PetService"
 import type { ReleaseNotesService } from "../release-notes/ReleaseNotesService"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
+import type { PluginManagementService } from "../plugin/PluginManagementService"
+import type { MiniMaxCliIntegrationService } from "../integration/minimax-cli/MiniMaxCliIntegrationService"
 import type { McpRuntimeService } from "../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
 import type { ConfigService } from "../config/ConfigService"
@@ -46,7 +52,14 @@ import type { TaskExecutionBindingService } from "../worktree/TaskExecutionBindi
 import type { WorktreeRepository } from "../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../local-environment/EnvironmentDeltaStore"
 import type { ThreadMessageForkService } from "../session/fork/ThreadMessageForkService"
+import type { SideChatService } from "../session/side-chat/SideChatService"
 import { normalizeShellSecurityLevel } from "../security/ShellRiskClassifier"
+import type { SpeechTranscriptionService } from "../speech/SpeechTranscriptionService"
+import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
+import type { SessionGroupService } from "../session-group/SessionGroupService"
+import type { AutomationService } from "../automation"
+import type { CalendarService, SchedulePlanService, ScheduledTaskService } from "../calendar"
+import type { MemoryManager } from "../resource/MemoryManager"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -59,10 +72,13 @@ export interface TransportDependencies {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  artifacts: ArtifactService
+  localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
   piModels: PiModelService
   apiKeys: ApiKeyService
+  modelHealth: ModelHealthService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
@@ -75,6 +91,8 @@ export interface TransportDependencies {
   pets: PetService
   releaseNotes: ReleaseNotesService
   skills: SkillManagementService
+  plugins: PluginManagementService
+  minimaxCli: MiniMaxCliIntegrationService
   mcp: McpRuntimeService
   suggestions: TaskSuggestionService
   logger: AgentLogger
@@ -86,9 +104,18 @@ export interface TransportDependencies {
   worktrees: ManagedWorktreeService
   handoff: HandoffService
   threadFork: ThreadMessageForkService
+  sideChats: SideChatService
   executionBindings: TaskExecutionBindingService
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore
+  speech: SpeechTranscriptionService
+  threadExecutions: ThreadExecutionPreparationService
+  sessionGroups: SessionGroupService
+  automation: AutomationService
+  calendar: CalendarService
+  scheduledTasks: ScheduledTaskService
+  schedulePlans: SchedulePlanService
+  memoryManager?: MemoryManager | undefined
 }
 
 export const resolveEventCursor = (
@@ -103,6 +130,63 @@ export const resolveEventCursor = (
     Number.isFinite(queryCursor) ? queryCursor : 0,
     Number.isFinite(headerCursor) ? headerCursor : 0,
   )
+}
+
+/**
+ * Shared gate: returns false for unregistered events or events whose
+ * negotiated capability is not held by the subscription.
+ * Cursor must always advance even when delivery is denied.
+ */
+export const eventDeliveryAllowed = (
+  event: StoredEventEnvelope,
+  subscription: {
+    capabilities: ReadonlySet<ProtocolCapability>
+  },
+): boolean => {
+  if (!(event.method in EventManifest)) return false
+  const definition = EventManifest[event.method as EventType]
+  if (definition.capability && !subscription.capabilities.has(definition.capability)) return false
+  return true
+}
+
+/**
+ * Live event gate: eventDeliveryAllowed + durability="live" + liveEventTypes.
+ * Clients that never negotiated e.g. model.health.v1 must not receive
+ * model/health/updated even when they omit liveEventTypes.
+ */
+export const liveEventDeliveryAllowed = (
+  event: StoredEventEnvelope,
+  subscription: {
+    liveEventTypes: ReadonlySet<string> | null
+    capabilities: ReadonlySet<ProtocolCapability>
+  },
+): boolean => {
+  if (!(event.method in EventManifest)) return false
+  const definition = EventManifest[event.method as EventType]
+  if (definition.durability !== "live") return false
+  if (!eventDeliveryAllowed(event, subscription)) return false
+  if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return false
+  return true
+}
+
+export const deliverDurablePage = async (input: {
+  events: readonly StoredEventEnvelope[]
+  target: number
+  subscription: { capabilities: ReadonlySet<ProtocolCapability> }
+  updateCursor: (cursor: number) => void
+  deliver: (event: StoredEventEnvelope) => boolean | Promise<boolean>
+}) => {
+  let lastCursor: number | null = null
+  let delivered = 0
+  for (const event of input.events) {
+    if (event.id > input.target) break
+    lastCursor = event.id
+    input.updateCursor(event.id)
+    if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
+    if (!eventDeliveryAllowed(event, input.subscription)) continue
+    if (await input.deliver(event)) delivered += 1
+  }
+  return { lastCursor, delivered }
 }
 
 export const deliverAnchoredLive = async (
@@ -156,7 +240,9 @@ const desktopProjection = (config: Record<string, unknown>) => {
       ),
     )
     : {}
-  const taskModels = isPlainObject(config.task_models) ? config.task_models : {}
+  const specializedModels = isPlainObject(config.specialized_models)
+    ? config.specialized_models
+    : {}
   const features = isPlainObject(config.features) ? config.features : {}
   const sandbox = isPlainObject(config.sandbox_workspace_write) ? config.sandbox_workspace_write : {}
   const permissionConfig = isPlainObject(desktop.permissionConfig)
@@ -176,12 +262,10 @@ const desktopProjection = (config: Record<string, unknown>) => {
     ...(typeof config.system_prompt === "string" ? { systemPrompt: config.system_prompt } : {}),
     ...(typeof config.append_system_prompt === "string" ? { appendSystemPrompt: config.append_system_prompt } : {}),
     ...(typeof config.custom_instructions === "string" ? { customInstructions: config.custom_instructions } : {}),
-    ...(typeof taskModels.small_fast === "string" ? { smallFastModel: taskModels.small_fast } : {}),
-    ...(typeof taskModels.fast === "string" ? { fastModel: taskModels.fast } : {}),
-    ...(typeof taskModels.default === "string" ? { defaultModel: taskModels.default } : {}),
-    ...(typeof taskModels.deep === "string" ? { deepModel: taskModels.deep } : {}),
-    ...(typeof taskModels.plan === "string" ? { planExecutionModel: taskModels.plan } : {}),
-    ...(typeof taskModels.reviewer === "string" ? { reviewModel: taskModels.reviewer } : {}),
+    ...(typeof specializedModels.generation === "string" ? { generationModel: specializedModels.generation } : {}),
+    ...(typeof specializedModels.organization === "string" ? { organizationModel: specializedModels.organization } : {}),
+    ...(typeof specializedModels.coding === "string" ? { codingModel: specializedModels.coding } : {}),
+    ...(typeof specializedModels.security === "string" ? { securityModel: specializedModels.security } : {}),
     ...(typeof features.memory === "boolean" ? { enableMemory: features.memory } : {}),
     ...(typeof features.pareto_code_router === "boolean" ? { enableParetoCodeRouter: features.pareto_code_router } : {}),
     ...(typeof features.fusion_router === "boolean" ? { enableFusionRouter: features.fusion_router } : {}),
@@ -196,12 +280,10 @@ const desktopCorePath = (key: string): string[] | null => ({
   systemPrompt: ["system_prompt"],
   appendSystemPrompt: ["append_system_prompt"],
   customInstructions: ["custom_instructions"],
-  smallFastModel: ["task_models", "small_fast"],
-  fastModel: ["task_models", "fast"],
-  defaultModel: ["task_models", "default"],
-  deepModel: ["task_models", "deep"],
-  planExecutionModel: ["task_models", "plan"],
-  reviewModel: ["task_models", "reviewer"],
+  generationModel: ["specialized_models", "generation"],
+  organizationModel: ["specialized_models", "organization"],
+  codingModel: ["specialized_models", "coding"],
+  securityModel: ["specialized_models", "security"],
   enableMemory: ["features", "memory"],
   enableParetoCodeRouter: ["features", "pareto_code_router"],
   enableFusionRouter: ["features", "fusion_router"],
@@ -300,40 +382,17 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
-) => {
-  if (!(event.method in EventManifest)) return null
-  const type = event.method as EventType
-  const definition = EventManifest[type]
-  if (definition.durability === "live" && event.afterSequence === undefined) return null
-  const payload = rpc.projection.notification(event).notification.params
-  const base = {
-    eventId: definition.durability === "live"
-      ? `live:${event.createdAt}:${crypto.randomUUID()}`
-      : String(event.id),
-    streamId,
-    type,
-    version: definition.version,
-    occurredAt: event.createdAt,
-    ...(event.threadId ? { threadId: event.threadId } : {}),
-    ...(event.turnId ? { turnId: event.turnId } : {}),
-    payload,
-  }
-  return {
-    jsonrpc: "2.0" as const,
-    method: "event/next" as const,
-    params: {
-      subscriptionId,
-      event: definition.durability === "live"
-        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.afterSequence! }
-        : { ...base, durability: "durable" as const, sequence: event.id },
-    },
-  }
-}
+) => buildEventNextNotification({
+  subscriptionId,
+  streamId,
+  event,
+  projection: rpc.projection,
+})
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, projectSources, providers, piModels, apiKeys, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation, calendar: dependencies.calendar, scheduledTasks: dependencies.scheduledTasks, schedulePlans: dependencies.schedulePlans, memoryManager: dependencies.memoryManager })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -466,14 +525,8 @@ export const createApp = (dependencies: TransportDependencies) => {
       config.authToken,
     )
     if (!rpc.touchConnection(connectionId, transportAuthority)) throw new AgentError("UNAUTHORIZED", "RPC 连接已过期或认证来源已变化", 401)
+    rpc.subscriptions.validateLastEventID(subscription, context.req.header("Last-Event-ID"))
     const cursors = new Map(subscription.acknowledged)
-    if (cursors.size === 1) {
-      const lastEventId = Number(context.req.header("Last-Event-ID"))
-      if (Number.isFinite(lastEventId)) {
-        const [streamId, current] = [...cursors][0]!
-        cursors.set(streamId, Math.max(current, lastEventId))
-      }
-    }
     return streamSSE(context, async (stream) => {
       let heartbeatAt = Date.now()
       let replayCompleted = false
@@ -489,9 +542,7 @@ export const createApp = (dependencies: TransportDependencies) => {
         }
         const event = signal.event
         if (!appliesToAnyStream(event)) return
-        const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
-        if (!definition || definition.durability !== "live") return
-        if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return
+        if (!liveEventDeliveryAllowed(event, subscription)) return
         if (buffered.length >= 1024) {
           overflow = true
           return
@@ -506,18 +557,23 @@ export const createApp = (dependencies: TransportDependencies) => {
         let delivered = 0
         while (cursor < target) {
           const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
-          let advanced = false
-          for (const event of events) {
-            if (event.id > target) break
-            cursor = event.id
-            cursors.set(streamId, cursor)
-            advanced = true
-            if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
-            const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
-            if (!notification) continue
-            await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
-            delivered += 1
-          }
+          const page = await deliverDurablePage({
+            events,
+            target,
+            subscription,
+            updateCursor: (nextCursor) => {
+              cursor = nextCursor
+              cursors.set(streamId, nextCursor)
+            },
+            deliver: async (event) => {
+              const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+              if (!notification) return false
+              await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+              return true
+            },
+          })
+          const advanced = page.lastCursor !== null
+          delivered += page.delivered
           if (!advanced || events.length < 500 || events.at(-1)!.id > target) {
             cursor = target
             cursors.set(streamId, cursor)
@@ -564,7 +620,7 @@ export const createApp = (dependencies: TransportDependencies) => {
             for (const event of pending) {
               for (const streamId of cursors.keys()) {
                 if (streamId !== "global" && event.threadId !== null && event.threadId !== streamId) continue
-                if (active.liveEventTypes && !active.liveEventTypes.has(event.method)) continue
+                if (!liveEventDeliveryAllowed(event, active)) continue
                 const anchor = event.afterSequence
                 if (anchor === undefined) continue
                 let durableDelivered = 0
@@ -613,7 +669,17 @@ export const createApp = (dependencies: TransportDependencies) => {
 
   app.get("/api/ready", (context) => {
     db.sqlite.query("SELECT 1").get()
-    return context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now() })
+    const instanceToken = process.env.CODEPILOTX_DESKTOP_MANAGED === "1"
+      ? process.env.CODEPILOTX_SIDECAR_INSTANCE_TOKEN
+      : undefined
+    return context.json({
+      ok: true,
+      service: "codepilotx-agent",
+      version: "0.1.0",
+      pid: process.pid,
+      readyAt: Date.now(),
+      ...(instanceToken ? { instanceToken } : {}),
+    })
   })
 
   app.get("/api/config/desktop-projection", async (context) => {

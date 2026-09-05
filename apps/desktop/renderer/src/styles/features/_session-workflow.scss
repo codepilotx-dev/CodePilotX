@@ -2,7 +2,7 @@
 .workflow-page {
   --workflow-content-width: min(820px, calc(100vw - 96px));
   --workflow-dock-width: min(980px, calc(100vw - 96px));
-  background: var(--color-token-main-surface-primary);
+  background: var(--cpx-sys-color-surface-canvas);
   overflow: hidden;
 }
 
@@ -48,21 +48,10 @@
 }
 
 .workflow-page__composer-inner {
-  width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
-  max-width: var(--session-content-w, var(--layout-content-w, 760px));
+  width: var(--session-content-w, min(var(--cpx-sys-layout-content-max-width, 760px), 100%));
+  max-width: var(--session-content-w, var(--cpx-sys-layout-content-max-width, 760px));
   pointer-events: auto;
   margin: 0 auto;
-}
-
-.workflow-page {
-  .chat-session-actions {
-    .message-action {
-      width: var(--control-size-sm);
-      height: var(--control-size-sm);
-      padding: 0;
-    }
-  }
-
 }
 
 .workflow-page__composer .composer {
@@ -77,67 +66,69 @@
 
 /* --- Workflow plan card --- */
 .workflow-plan-card {
-  width: var(--workflow-composer-width, var(--layout-content-w));
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 15px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-editor-widget-background);
-  color: var(--color-token-foreground);
-  font-size: var(--type-body);
-  box-shadow: var(--shadow-raised);
-  animation: workflow-item-in 0.28s ease-out;
+  gap: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-4);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-panel);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  box-shadow: none;
+  animation: workflow-item-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
 .workflow-plan-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--cpx-sys-space-3);
 }
 
 .workflow-plan-card__actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   flex: 0 0 auto;
 }
 
 .workflow-plan-card__label {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-meta);
-  font-weight: 500;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 .workflow-plan-card__dock {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: var(--radius-3);
+  border-radius: var(--cpx-sys-radius-md);
   background: transparent;
-  color: var(--color-token-description-foreground);
+  color: var(--cpx-sys-color-fg-tertiary);
   cursor: pointer;
   transition:
-    background 0.15s ease-out,
-    color 0.15s ease-out;
+    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
 
   &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 
 .workflow-plan-card__title {
   margin: 0;
-  color: var(--color-token-foreground);
-  font-size: var(--type-title-lg);
-  font-weight: var(--font-weight-heading);
-  line-height: 1.35;
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-lg);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  line-height: var(--cpx-sys-line-height-relaxed);
 }
 
 .workflow-plan-card__body {
@@ -154,14 +145,14 @@
     height: 40px;
     background: color-mix(
       in srgb,
-      var(--color-token-editor-widget-background) 88%,
+      var(--cpx-sys-color-surface-raised) 88%,
       transparent
     );
   }
 }
 
 .workflow-plan-card__body .md-body {
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 
   h1:first-child {
     display: none;
@@ -172,84 +163,55 @@
 .execution-plan-card {
   position: absolute;
   z-index: 0;
-  bottom: calc(100% + 5px);
-  left: -40%;
-  width: 100%;
-  padding: 12px 14px;
-  overflow: hidden;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-marquee);
-  background: var(--color-token-editor-widget-background);
-  color: var(--color-token-foreground);
-  box-shadow: var(--shadow-raised);
-  animation: workflow-item-in 0.28s ease-out;
+  padding: var(--cpx-sys-space-2);
+}
+
+.execution-plan-card__steps-scroller {
+  max-height: 20rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .execution-plan-card__steps {
-  --execution-plan-edge-fade-distance: 2rem;
-
   display: grid;
-  gap: 4px;
-  max-height: 20rem;
+  gap: var(--cpx-sys-space-2);
   margin: 0;
   padding: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
   list-style: none;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    var(--color-token-foreground) var(--execution-plan-top-fade)
-      calc(100% - var(--execution-plan-bottom-fade)),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    var(--color-token-foreground) var(--execution-plan-top-fade)
-      calc(100% - var(--execution-plan-bottom-fade)),
-    transparent
-  );
-  animation-name: execution-plan-edge-fade;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-  animation-timeline: scroll(self y);
 
   li {
     display: grid;
-    grid-template-columns: 18px max-content minmax(0, 1fr);
+    grid-template-columns: var(--cpx-sys-space-4) minmax(0, 1fr);
     align-items: start;
-    gap: 7px;
-    min-height: 20px;
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-body);
-    line-height: 1.4;
+    gap: var(--cpx-sys-space-2);
+    min-height: var(--cpx-sys-space-4);
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-md);
+    line-height: var(--cpx-sys-line-height-tight);
   }
 
   li[data-status="in_progress"] .execution-plan-card__step-text {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
+}
+
+/* 与 canonical 共用滚动边界渐隐 frame；向卡片底色渐隐。 */
+.execution-plan-card__edge-fade {
+  --edge-fade-distance: 2rem;
+  --edge-fade-fill: var(--cpx-sys-glass-bg);
 }
 
 .execution-plan-card__step-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-token-description-foreground);
-  margin-top: 2px;
+  color: var(--cpx-sys-color-fg-tertiary);
+  margin-top: var(--cpx-sys-space-1);
 
   svg {
     width: 15px;
     height: 15px;
   }
-}
-
-.execution-plan-card__step-index {
-  color: color-mix(
-    in srgb,
-    var(--color-token-description-foreground) 80%,
-    transparent
-  );
 }
 
 .execution-plan-card__step-text {
@@ -265,39 +227,7 @@
 
 .execution-plan-card__steps li[data-status="in_progress"]
   .execution-plan-card__step-icon {
-  color: var(--color-token-focus-border);
-}
-
-@property --execution-plan-top-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
-
-@property --execution-plan-bottom-fade {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0;
-}
-
-@keyframes execution-plan-edge-fade {
-  0%,
-  1% {
-    --execution-plan-top-fade: 0;
-    --execution-plan-bottom-fade: var(
-      --execution-plan-edge-fade-distance,
-      2rem
-    );
-  }
-
-  99%,
-  100% {
-    --execution-plan-top-fade: var(
-      --execution-plan-edge-fade-distance,
-      2rem
-    );
-    --execution-plan-bottom-fade: 0;
-  }
+  color: var(--cpx-sys-color-border-focus);
 }
 
 .workflow-plan-card--compact {
@@ -311,17 +241,17 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--control-gap);
-  padding: 1em
-    calc(var(--control-padding-inline) + var(--control-padding-inline-compact));
+  gap: var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-4)
+    calc(var(--cpx-sys-space-2) + var(--cpx-sys-space-2));
   border: 0;
   background: transparent;
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
   cursor: pointer;
   text-align: left;
 
   &:hover {
-    background: var(--color-token-list-hover-background);
+    background: var(--cpx-sys-color-hover);
   }
 }
 
@@ -330,12 +260,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--type-card-title);
-  font-weight: var(--font-weight-label);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
 }
 
 /* Composer placement is owned by ThreadScrollLayout's sticky footer. */
-.workflow-page .chat-composer.workflow-page__composer {
+.chat-composer.workflow-page__composer {
   position: relative;
   flex: 0 0 auto;
   width: 100%;
@@ -362,18 +292,23 @@
     animation: none;
   }
 
+  .execution-plan-card__edge-fade::before,
+  .execution-plan-card__edge-fade::after {
+    transition: none;
+  }
+
   .workflow-page__composer-inner {
     transition: none;
   }
 }
 
 .workflow-plan-card {
-  border-color: var(--color-token-border-light);
-  background: var(--color-token-bg-secondary);
+  border-color: var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-sys-color-surface-recessed);
 }
 
 .workflow-plan-card__body .md-body code:not(pre code) {
-  border: 1px solid var(--color-token-border);
-  background: var(--color-token-text-preformat-background);
-  color: var(--color-token-foreground);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  background: var(--cpx-sys-color-surface-editor);
+  color: var(--cpx-sys-color-fg-primary);
 }

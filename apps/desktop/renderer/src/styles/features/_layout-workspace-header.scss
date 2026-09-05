@@ -1,12 +1,15 @@
 /* --- Shared workspace header --- */
 
 .desktop-workspace-header {
-  --workspace-header-route-end-inset: var(--workspace-header-shell-width, 0px);
+  --workspace-header-route-end-inset: max(
+    var(--workspace-header-shell-width, 0px),
+    var(--workspace-right-panel-live-width, 0px)
+  );
   --workspace-header-route-width: calc(
     100% - var(--workspace-header-route-end-inset)
   );
   position: absolute;
-  z-index: calc(var(--z-right-dock) + 1);
+  z-index: var(--cpx-sys-z-dock);
   top: 0;
   right: 0;
   left: 0;
@@ -22,14 +25,25 @@
     left: 0;
     width: var(--workspace-header-route-width);
     height: 100%;
-    border-bottom: 1px solid var(--color-token-border-light);
-    background: var(--color-token-main-surface-primary);
+    background: transparent;
     content: "";
+  }
+
+  &[data-divider]::before {
+    border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
   }
 }
 
-.desktop-workspace-header[data-right-dock-open="true"] {
-  --workspace-header-route-end-inset: var(--workspace-right-panel-live-width, 0px);
+@media (prefers-reduced-transparency: reduce) {
+  .desktop-workspace-header::before {
+    background: transparent;
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .desktop-workspace-header::before {
+    background: transparent;
+  }
 }
 
 .desktop-workspace-header-route-band,
@@ -59,18 +73,20 @@
   justify-self: start;
   width: max-content;
   max-width: 100%;
-  padding-left: var(--space-3);
+  padding-left: var(--cpx-sys-space-2);
 }
 
 .desktop-workspace-header-center {
+  --workspace-header-center-padding: calc(
+    var(--workspace-header-center-safe-inset, 0) +
+      var(--cpx-sys-layout-toolbar-gap)
+  );
+
   position: absolute;
   inset: 0;
   justify-content: center;
   overflow: hidden;
-  padding-inline: calc(
-    var(--workspace-header-center-safe-inset, 0px) +
-      var(--layout-toolbar-gap)
-  );
+  padding-inline: var(--workspace-header-center-padding);
 }
 
 .desktop-workspace-header-route-right {
@@ -79,16 +95,23 @@
   width: max-content;
   flex: 0 0 auto;
   justify-content: flex-end;
-  padding-right: var(--space-3);
+  padding-right: 0;
+}
+
+.desktop-workspace-header[data-right-dock-open]
+  .desktop-workspace-header-route-right {
+  padding-right: var(--cpx-sys-space-2);
 }
 
 .desktop-workspace-header-item {
   max-width: 100%;
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-control);
   pointer-events: auto;
 }
 
 .desktop-workspace-header-group {
-  gap: var(--layout-toolbar-gap);
+  gap: var(--cpx-sys-space-1);
 
   &[data-align="center"] {
     margin-inline: auto;
@@ -117,9 +140,33 @@
 }
 
 @container desktop-workspace (max-width: 47.9375rem) {
+  .desktop-workspace-header-route-band {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+  }
+
+  .desktop-workspace-header-route-left {
+    grid-column: 1;
+    min-width: 0;
+  }
+
   .desktop-workspace-header-center {
-    visibility: hidden;
-    pointer-events: none;
+    position: static;
+    grid-column: 2;
+    justify-content: center;
+    overflow: hidden;
+    min-width: 0;
+    padding-inline: var(--cpx-sys-space-2);
+  }
+
+  .desktop-workspace-header-route-right {
+    grid-column: 3;
+    min-width: 0;
+  }
+
+  .desktop-workspace-header-item,
+  .desktop-workspace-header-center .desktop-workspace-header-group {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 
@@ -127,39 +174,32 @@
   display: flex;
   height: 100%;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-3);
+  gap: var(--cpx-sys-space-1);
+  padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-1);
+}
+
+.workspace-shell-controls__divider {
+  width: 1px;
+  height: 14px;
+  background: var(--cpx-sys-color-border-subtle);
+  flex-shrink: 0;
 }
 
 .workspace-shell-control-button {
-  display: inline-flex;
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
-  flex: 0 0 var(--control-size-sm);
-  align-items: center;
-  justify-content: center;
-  padding: 0;
   border: 0;
-  border-radius: var(--radius-5);
   background: transparent;
-  color: var(--color-token-text-secondary);
+  color: var(--cpx-sys-color-fg-secondary);
   transition:
-    background var(--motion-standard) var(--ease-out),
-    color var(--motion-standard) var(--ease-out),
-    box-shadow var(--motion-standard) var(--ease-out);
-
-  &:hover {
-    background: var(--color-token-list-hover-background);
-    color: var(--color-token-foreground);
-  }
+    background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
 
   &[aria-pressed="true"] {
-    background: var(--color-token-list-active-selection-background);
-    color: var(--color-token-foreground);
+    background: var(--cpx-sys-color-selected);
+    color: var(--cpx-sys-color-fg-primary);
   }
 
   &:focus-visible {
-    outline-color: color-mix(in srgb, var(--color-token-text-link-foreground) 72%, transparent);
+    outline-color: color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
   }
 }
 
@@ -171,12 +211,42 @@
 
 @media (forced-colors: active) {
   .desktop-workspace-header::before {
+    background: transparent;
+  }
+
+  .desktop-workspace-header[data-divider]::before {
     border-bottom-color: CanvasText;
-    background: Canvas;
+  }
+
+  .workspace-shell-controls__divider {
+    background: CanvasText;
   }
 
   .workspace-shell-control-button[aria-pressed="true"] {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }
+}
+
+.desktop-workspace-header .icon-button[data-color] {
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
+  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
+}
+
+.workspace-panel-icon > path {
+  transform-box: view-box;
+  transform-origin: center;
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+}
+
+.workspace-panel-icon--bottom[data-open="false"] > path {
+  transform: scaleX(0.4);
+}
+
+.workspace-panel-icon--right[data-open="false"] > path {
+  transform: scaleY(0.4);
 }

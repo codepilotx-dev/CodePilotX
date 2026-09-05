@@ -1,0 +1,6 @@
+@use 'sass:meta';
+@layer theme, vendor, reset, tokens, primitives, shell, features, utilities, overrides;
+
+@layer features {
+  @include meta.load-css('../features/marketplace');
+}

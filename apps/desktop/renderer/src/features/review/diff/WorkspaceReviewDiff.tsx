@@ -1,5 +1,4 @@
 import React from "react";
-import { FileIcon } from "@codepilotx/material-icon-theme";
 import { VList } from "virtua";
 import {
   Briefcase,
@@ -41,16 +40,24 @@ import type {
 } from "../../../../shared/types.js";
 import {
   desktopClient,
+  desktopClipboard,
   WORKSPACE_GIT_CHANGED_EVENT,
 } from "../../../services/desktop-client/index.js";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { Button } from "../../../components/ui/Button.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
+import { FileTypeIcon } from "../../layout/FileTypeIcon.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import {
+  useDisclosureExpanded,
+  type KeyedDisclosureStore,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "../workspace/CommitPopover.js";
 import { PullRequestPopover } from "../workspace/PullRequestPopover.js";
@@ -126,6 +133,29 @@ export function reviewFileLoadMessage(
     return "变更快照加载失败，请使用上方重试。";
   }
   return "等待加载文件差异…";
+}
+
+export type ReviewFileDiffLoadMode = "none" | "batch" | "selected";
+
+export function reviewFileDiffLoadMode(input: {
+  hasSummary: boolean;
+  cacheState: "fresh" | "stale" | null;
+  summaryLoadState: ReviewLoadState;
+  largeWorkspaceMode: boolean;
+  selectedPath: string | null;
+}): ReviewFileDiffLoadMode {
+  if (
+    !input.hasSummary ||
+    input.cacheState !== "fresh" ||
+    (input.summaryLoadState !== "success" &&
+      input.summaryLoadState !== "large-diff")
+  ) {
+    return "none";
+  }
+  if (input.largeWorkspaceMode) {
+    return input.selectedPath ? "selected" : "none";
+  }
+  return "batch";
 }
 
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340;
@@ -236,7 +266,7 @@ export function flattenDiffRows(
 
 export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   attachedComments,
-  collapsedDiffPaths,
+  disclosureStore,
   diffMarkerStyle,
   draft,
   fileLoadStates,
@@ -246,7 +276,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   summaryLoadState,
   scope,
   selectedPath,
-  toggleCollapseDiff,
+  onDiffExpandedChange,
   viewportRef,
   view,
   showWordDiff,
@@ -256,7 +286,6 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onFileSectionMount,
   onRetryFile,
   onResolveComment,
@@ -264,7 +293,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onScroll,
 }: {
   attachedComments: Map<string, DesktopReviewComment[]>;
-  collapsedDiffPaths: Set<string>;
+  disclosureStore: KeyedDisclosureStore;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   fileLoadStates: ReadonlyMap<string, ReviewFileLoadState>;
@@ -274,7 +303,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   summaryLoadState: ReviewLoadState;
   scope: DesktopReviewScope;
   selectedPath: string | null;
-  toggleCollapseDiff: (path: string) => void;
+  onDiffExpandedChange: (path: string, expanded: boolean) => void;
   viewportRef: React.RefObject<HTMLDivElement | null>;
   view: DesktopReviewView;
   showWordDiff: boolean;
@@ -289,12 +318,11 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onFileSectionMount: (path: string, element: HTMLElement | null) => void;
   onRetryFile: (path: string) => void;
   onScroll: (scrollTop: number) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const filePaths = React.useMemo(
     () => files.map((file) => file.path),
@@ -403,7 +431,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
             <ReviewDiffFilePreview
               active={file.path === selectedPath}
               attachedComments={attachedComments}
-              collapsedDiffPaths={collapsedDiffPaths}
+              disclosureStore={disclosureStore}
               diffMarkerStyle={diffMarkerStyle}
               draft={draft}
               file={file}
@@ -423,7 +451,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
               }
               scope={scope}
               sectionRef={setFileSectionElement(file.path)}
-              toggleCollapseDiff={toggleCollapseDiff}
+              onDiffExpandedChange={onDiffExpandedChange}
               onRetryFile={onRetryFile}
               view={view}
               showWordDiff={showWordDiff}
@@ -433,7 +461,6 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -444,7 +471,7 @@ export const ReviewDiffPreview = React.memo(function ReviewDiffPreview({
   );
 }, (previous, next) =>
   previous.attachedComments === next.attachedComments &&
-  previous.collapsedDiffPaths === next.collapsedDiffPaths &&
+  previous.disclosureStore === next.disclosureStore &&
   previous.diffMarkerStyle === next.diffMarkerStyle &&
   previous.draft === next.draft &&
   previous.fileLoadStates === next.fileLoadStates &&
@@ -469,10 +496,10 @@ export function shouldVirtualizeReviewFile(
   );
 }
 
-export function ReviewDiffFilePreview({
+export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   active,
   attachedComments,
-  collapsedDiffPaths,
+  disclosureStore,
   diffMarkerStyle,
   draft,
   file,
@@ -485,7 +512,7 @@ export function ReviewDiffFilePreview({
   scope,
   sectionRef,
   onRetryFile,
-  toggleCollapseDiff,
+  onDiffExpandedChange,
   view,
   showWordDiff,
   wrapLines,
@@ -494,13 +521,12 @@ export function ReviewDiffFilePreview({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
   active: boolean;
   attachedComments: Map<string, DesktopReviewComment[]>;
-  collapsedDiffPaths: Set<string>;
+  disclosureStore: KeyedDisclosureStore;
   diffMarkerStyle: DesktopDiffMarkerStyle;
   draft: CommentDraft | null;
   file: DesktopReviewDiffFile;
@@ -513,7 +539,7 @@ export function ReviewDiffFilePreview({
   scope: DesktopReviewScope;
   sectionRef: (element: HTMLElement | null) => void;
   onRetryFile: (path: string) => void;
-  toggleCollapseDiff: (path: string) => void;
+  onDiffExpandedChange: (path: string, expanded: boolean) => void;
   view: DesktopReviewView;
   showWordDiff: boolean;
   wrapLines: boolean;
@@ -527,13 +553,14 @@ export function ReviewDiffFilePreview({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const hasContent = file.hunks.some((hunk) => hunk.lines.length > 0);
-  const isCollapsed = collapsedDiffPaths.has(file.path);
+  const isExpanded = useDisclosureExpanded(disclosureStore, file.path);
+  const isCollapsed = !isExpanded;
   const displayPath = splitReviewDisplayPath(file.path);
+  const diffBodyId = React.useId();
 
   const virtualize = React.useMemo(() => {
     if (!renderBody || isCollapsed || !hasContent) return false;
@@ -591,7 +618,6 @@ export function ReviewDiffFilePreview({
           onCancelDraft={onCancelDraft}
           onCreateDraft={onCreateDraft}
           onDeleteComment={onDeleteComment}
-          onDraftBodyChange={onDraftBodyChange}
           onResolveComment={onResolveComment}
           onSaveDraft={onSaveDraft}
         />
@@ -613,9 +639,9 @@ export function ReviewDiffFilePreview({
     diffBody = (
       <div className="review-empty-state review-file-load-state" role="alert">
         <span>{fileLoadState.message}</span>
-        <button type="button" onClick={() => onRetryFile(file.path)}>
+        <Button size="compact" type="button" onClick={() => onRetryFile(file.path)}>
           重试
-        </button>
+        </Button>
       </div>
     );
   } else if (!hasContent) {
@@ -641,7 +667,6 @@ export function ReviewDiffFilePreview({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
@@ -661,18 +686,10 @@ export function ReviewDiffFilePreview({
         onCancelDraft={onCancelDraft}
         onCreateDraft={onCreateDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       />
     );
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent): void {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleCollapseDiff(file.path);
-    }
   }
 
   return (
@@ -695,58 +712,62 @@ export function ReviewDiffFilePreview({
             ? "review-file-row active preview-header"
             : "review-file-row preview-header"
         }
-        role="button"
-        tabIndex={0}
-        aria-expanded={!isCollapsed}
-        onClick={() => toggleCollapseDiff(file.path)}
-        onKeyDown={handleKeyDown}
       >
-        <FileIcon
-          associationMode="extension-only"
-          aria-hidden="true"
-          className="review-file-icon"
-          path={file.path}
-          size={APP_ICON_SIZE}
-        />
-        <span className="review-file-path" title={file.path}>
-          <span className="review-file-path__content">
-            <span className="review-file-path__directory">
-              {displayPath.directory}
-            </span>
-            <span className="review-file-path__name">
-              {displayPath.fileName}
+        <button
+          aria-controls={diffBodyId}
+          aria-expanded={!isCollapsed}
+          className="review-file-summary"
+          type="button"
+          onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
+        >
+          <FileTypeIcon
+            associationMode="extension-only"
+            aria-hidden="true"
+            className="review-file-icon"
+            path={file.path}
+            size={APP_ICON_SIZE}
+          />
+          <span className="review-file-path" title={file.path}>
+            <span className="review-file-path__content">
+              <span className="review-file-path__directory">
+                {displayPath.directory}
+              </span>
+              <span className="review-file-path__name">
+                {displayPath.fileName}
+              </span>
             </span>
           </span>
-        </span>
-        <span className="review-file-counts">
-          <strong>+{formatPanelNumber(file.additions)}</strong>
-          <em>-{formatPanelNumber(file.deletions)}</em>
-        </span>
+          <span className="review-file-counts">
+            <strong>+{formatPanelNumber(file.additions)}</strong>
+            <em>-{formatPanelNumber(file.deletions)}</em>
+          </span>
+        </button>
         <div
           className="review-file-actions review-file-actions-primary"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
           role="group"
           aria-label="文件查看操作"
         >
           <Tooltip content={isCollapsed ? "展开文件差异" : "折叠文件差异"}>
-            <button
+            <IconButton
+              aria-controls={diffBodyId}
               aria-expanded={!isCollapsed}
-              aria-label={isCollapsed ? "展开文件差异" : "折叠文件差异"}
-              className="message-action review-file-toggle"
+              className="review-file-toggle"
+              color="ghostSecondary"
               data-expanded={isCollapsed ? "false" : "true"}
-              type="button"
-              onClick={() => toggleCollapseDiff(file.path)}
+              size="iconMd"
+              title={isCollapsed ? "展开文件差异" : "折叠文件差异"}
+              onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
             >
               <ChevronRight size={REVIEW_FILE_ACTION_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content="打开文件">
-            <button
-              aria-label="打开文件"
+            <IconButton
               aria-disabled={!workspacePath}
-              className="message-action review-file-open"
-              type="button"
+              className="review-file-open"
+              color="ghostSecondary"
+              size="iconMd"
+              title="打开文件"
               onClick={() => {
                 if (!workspacePath) return;
                 void desktopClient.openPathWithDefaultTarget(
@@ -755,22 +776,20 @@ export function ReviewDiffFilePreview({
               }}
             >
               <ExternalLink size={REVIEW_FILE_ACTION_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
         </div>
         <div
           className="review-file-actions review-file-actions-secondary"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
           role="group"
           aria-label="文件 Git 操作"
         >
           <Tooltip content={file.isUntracked ? "删除未跟踪文件" : "还原文件"}>
-            <button
-              aria-label={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
+            <IconButton
               aria-disabled={pending}
-              className="message-action"
-              type="button"
+              color="ghostSecondary"
+              size="iconMd"
+              title={file.isUntracked ? "删除未跟踪文件" : "还原文件"}
               onClick={() => {
                 if (pending) return;
                 onApplyOperation("revert", { type: "file", path: file.path });
@@ -781,45 +800,47 @@ export function ReviewDiffFilePreview({
               ) : (
                 <Undo2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
               )}
-            </button>
+            </IconButton>
           </Tooltip>
           {scope === "unstaged" ? (
             <Tooltip content="暂存文件">
-              <button
-                aria-label="暂存文件"
+              <IconButton
                 aria-disabled={pending}
-                className="message-action"
-                type="button"
+                color="ghostSecondary"
+                size="iconMd"
+                title="暂存文件"
                 onClick={() => {
                   if (pending) return;
                   onApplyOperation("stage", { type: "file", path: file.path });
                 }}
               >
                 <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </button>
+              </IconButton>
             </Tooltip>
           ) : (
             <Tooltip content="取消暂存文件">
-              <button
-                aria-label="取消暂存文件"
+              <IconButton
                 aria-disabled={pending}
-                className="message-action"
-                type="button"
+                color="ghostSecondary"
+                size="iconMd"
+                title="取消暂存文件"
                 onClick={() => {
                   if (pending) return;
                   onApplyOperation("unstage", { type: "file", path: file.path });
                 }}
               >
                 <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </button>
+              </IconButton>
             </Tooltip>
           )}
         </div>
       </div>
-      {diffBody}
+      <div className="review-diff-file-body" id={diffBodyId}>
+        {diffBody}
+      </div>
     </section>
   );
-}
+});
 
 /* ── Virtual-scroll row renderers ──────────────────────────── */
 
@@ -838,7 +859,6 @@ export function ReviewVirtualDiffRows({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -861,9 +881,8 @@ export function ReviewVirtualDiffRows({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const syntax = useReviewDiffSyntax(file);
 
@@ -908,7 +927,6 @@ export function ReviewVirtualDiffRows({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -925,7 +943,6 @@ export function ReviewVirtualDiffRows({
               onCancelDraft={onCancelDraft}
               onCreateDraft={onCreateDraft}
               onDeleteComment={onDeleteComment}
-              onDraftBodyChange={onDraftBodyChange}
               onResolveComment={onResolveComment}
               onSaveDraft={onSaveDraft}
             />
@@ -999,7 +1016,6 @@ export function VirtualDiffInlineRow({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -1013,9 +1029,8 @@ export function VirtualDiffInlineRow({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   const side = line.type === "removed" ? "left" : "right";
   const lineNumber = line.type === "removed" ? line.oldLine : line.newLine;
@@ -1044,7 +1059,6 @@ export function VirtualDiffInlineRow({
         readOnly={readOnly}
         onCancelDraft={onCancelDraft}
         onDeleteComment={onDeleteComment}
-        onDraftBodyChange={onDraftBodyChange}
         onResolveComment={onResolveComment}
         onSaveDraft={onSaveDraft}
       >
@@ -1072,7 +1086,6 @@ export function VirtualDiffSplitRow({
   onCancelDraft,
   onCreateDraft,
   onDeleteComment,
-  onDraftBodyChange,
   onResolveComment,
   onSaveDraft,
 }: {
@@ -1086,9 +1099,8 @@ export function VirtualDiffSplitRow({
   onCancelDraft: () => void;
   onCreateDraft: (draft: CommentDraft) => void;
   onDeleteComment: (commentId: string) => void;
-  onDraftBodyChange: (body: string) => void;
   onResolveComment: (commentId: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft: (body: string) => void;
 }): React.ReactNode {
   return (
     <div
@@ -1123,7 +1135,6 @@ export function VirtualDiffSplitRow({
                 cellTone={cell.tone}
                 onCancelDraft={onCancelDraft}
                 onDeleteComment={onDeleteComment}
-                onDraftBodyChange={onDraftBodyChange}
                 onResolveComment={onResolveComment}
                 onSaveDraft={onSaveDraft}
               >
@@ -1331,7 +1342,7 @@ export async function copyGitApplyCommand(
   const cmd = scope === "staged" ? "git apply --cached" : "git apply";
   const text = `${cmd} << 'EOF'\n${patches.join("\n")}\nEOF`;
   try {
-    await navigator.clipboard.writeText(text);
+    await desktopClipboard.writeText(text);
   } catch {
     // clipboard write may fail in some contexts; silently ignore
   }

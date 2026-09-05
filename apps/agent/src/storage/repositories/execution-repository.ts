@@ -1,219 +1,112 @@
-import { Database } from "bun:sqlite"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { encodeApprovalPolicy } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
-import type {
-  EventEnvelope,
-  AgentExecution,
-  Item,
-  ModelRef,
-  PermissionConfig,
-  StoredInputDelivery,
-  SubmitMessage,
-  TaskMode,
-  ThreadSnapshot,
-  ToolInvocation,
-  TurnStatus,
-} from "../../domain"
-
-export type ProjectModelSettings = {
-  defaultModel: ModelRef | null
-}
-
-export type StoredEncryptedCredential = {
-  id: string
-  integrationID: string
-  kind: "api-key" | "oauth"
-  methodID: string | null
-  label: string
-  keySuffix: string | null
-  fingerprint: string | null
-  enabled: boolean
-  priority: number
-  ciphertext: string
-  nonce: string
-  keyVersion: number
-  createdAt: number
-  updatedAt: number
-}
-
-export type CredentialHealthStatus = "untested" | "healthy" | "auth-failed" | "rate-limited" | "error"
-export type CredentialErrorCategory = "authentication" | "rate-limit" | "network" | "unknown"
-
-export type StoredCredentialHealth = {
-  credentialID: string
-  status: CredentialHealthStatus
-  lastTestedAt: number | null
-  lastUsedAt: number | null
-  lastErrorCategory: CredentialErrorCategory | null
-  cooldownUntil: number | null
-  updatedAt: number
-}
-
-export type StoredProject = {
-  id: string
-  name: string
-  rootPath: string
-  lastOpenedAt: number
-  createdAt: number
-  updatedAt: number
-  settings: ProjectModelSettings
-}
-
-export type AgentTurnCheckpoint = {
-  agentID: string
-  turnID: string
-  threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
-  payload: Record<string, unknown>
-  version: number
-  createdAt: number
-  updatedAt: number
-}
-
-export type SideEffectRecoveryPayload = {
-  kind: "side-effect-prompt-recovery"
-  attemptOrdinal: number
-  completed: Array<{ toolCallID: string; tool: string; summary: string }>
-  error: string
-}
-
-export type ResumableQuestion = {
-  id: string
-  threadID: string
-  turnID: string
-  toolCallID: string | null
-  payload: Record<string, unknown>
-  payloadVersion: number
-  createdAt: number
-}
-
-export type ApprovalCheckpointPayload = {
-  kind: "tool-approval"
-  invocation: ToolInvocation
-  invocationHash: string
-  permissionSnapshot: PermissionConfig
-  sandbox: Record<string, unknown>
-  reviewer: PermissionConfig["approvalsReviewer"]
-  review: Record<string, unknown>
-  runState?: string
-  interruption?: unknown
-  resolution?: { decision: "allow" | "deny"; feedback?: string; resolvedAt: number }
-  claimedAt?: number
-}
-
-export type StoredApprovalCheckpoint = {
-  approvalID: string
-  threadID: string
-  turnID: string
-  agentID: string
-  toolCallID: string
-  status: "preparing" | "pending" | "resolved" | "claimed" | "cancelled"
-  decision: "allow" | "deny" | null
-  risk: string
-  reason: string
-  payload: ApprovalCheckpointPayload
-  version: number
-  createdAt: number
-  updatedAt: number
-}
-
-export type SandboxEscalation = {
-  token: string
-  threadID: string
-  turnID: string
-  agentID: string
-  toolCallID: string
-  invocation: ToolInvocation
-  invocationHash: string
-  failure: string
-  status: "awaiting_request" | "claimed" | "completed" | "cancelled"
-  createdAt: number
-}
-
-export type HookTrustRequest = {
-  id: string
-  threadID: string | null
-  turnID: string | null
-  workspacePath: string
-  configPath: string
-  configHash: string
-  status: "pending" | "allowed" | "blocked"
-  auditSummary: Record<string, unknown>
-  createdAt: number
-  resolvedAt: number | null
-}
-
-type SqlValue = string | number | boolean | Uint8Array | null
-
-const stringify = (value: unknown) => JSON.stringify(value ?? null)
-const parse = <T>(value: string): T => JSON.parse(value) as T
-const now = () => Date.now()
-const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-const containedPath = (root: string, candidate: string) => {
-  const path = relative(root, candidate)
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
-}
-export type QueuePauseReason = "interrupted" | "turn_failed" | null
-export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
-
-export type StoredThreadWorkspace =
-  | { kind: "project"; projectID: string; cwd: string; runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>; instructionSources: string[]; outputDirectory: null }
-  | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
-
-export type CreateThreadInput = {
-  id?: string
-  title?: string | undefined
-  settings?: ThreadSettings | undefined
-  workspace:
-    | { kind: "project"; projectID: string }
-    | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
-  operationID?: string | undefined
-  requestHash?: string | undefined
-}
-
-export type CreatedThreadRecord = {
-  id: string
-  title: string
-  projectID: string | null
-  workspace: StoredThreadWorkspace | null
-  settings: ThreadSettings
-  createdAt: number
-  updatedAt: number
-  event: EventEnvelope
-}
-
-type PermissionColumns = {
-  sandbox_mode: PermissionConfig["sandboxMode"]
-  approval_policy: string
-  approvals_reviewer: PermissionConfig["approvalsReviewer"]
-}
-
-type ThreadSettingsColumns = PermissionColumns & {
-  task_mode: TaskMode
-}
-
-const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
-  sandboxMode: row.sandbox_mode,
-  approvalPolicy: decodeApprovalPolicy(row.approval_policy),
-  approvalsReviewer: row.approvals_reviewer,
-})
-
-const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
-  taskMode: row.task_mode,
-  permissionConfig: permissionConfigFromRow(row),
-})
-
-const defaultThreadSettings = (): ThreadSettings => ({
-  taskMode: "chat",
-  permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
-})
+import type { AgentExecution, EventEnvelope, Item, ModelRef, PermissionConfig, StoredInputDelivery, SubmitMessage, TaskMode, ToolInvocation, TurnStatus } from "../../domain"
+import type { AgentTurnCheckpoint, PermissionColumns, QueueMutationMeta, QueuePauseReason, SideEffectRecoveryPayload } from "./repository-core"
+import { now, parse, permissionConfigFromRow, stringify } from "./repository-core"
 
 import { ThreadRepositoryDatabase } from "./thread-repository"
 
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
+  bindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
+    if (attachmentIDs.length === 0) return
+    const input = this.sqlite.query("SELECT thread_id FROM inputs WHERE id = ?").get(inputID) as { thread_id: string } | null
+    if (!input) throw new AgentError("INPUT_NOT_FOUND", "附件目标 input 不存在", 404)
+    const timestamp = now()
+    this.transaction(() => {
+      for (const attachmentID of attachmentIDs) {
+        const attachment = this.sqlite.query("SELECT input_id FROM input_attachments WHERE id = ?").get(attachmentID) as { input_id: string | null } | null
+        if (!attachment) throw new AgentError("ATTACHMENT_NOT_FOUND", "一个或多个附件不存在", 404)
+        if (attachment.input_id && attachment.input_id !== inputID) {
+          throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 input", 409)
+        }
+        this.sqlite.query("UPDATE input_attachments SET thread_id = ?, input_id = ?, bound_at = COALESCE(bound_at, ?) WHERE id = ?").run(
+          input.thread_id,
+          inputID,
+          timestamp,
+          attachmentID,
+        )
+      }
+    })
+  }
+
+  recoverInterruptedExecutions(timestamp: number) {
+    const interruptedTurns = this.sqlite.query(`
+      SELECT id, thread_id, root_agent_id FROM turns
+      WHERE status = 'running'
+        OR (status = 'waiting_permission' AND NOT EXISTS (
+          SELECT 1 FROM approval_requests AS r JOIN approval_checkpoints AS c ON c.approval_id = r.id
+          WHERE r.turn_id = turns.id AND r.status = 'pending' AND c.version = 1
+            AND json_type(c.payload, '$.runState') = 'text' AND json_type(c.payload, '$.interruption') IS NOT NULL
+        ) AND NOT EXISTS (
+          SELECT 1 FROM hook_trust_waiters AS w JOIN hook_trust_requests AS h ON h.id = w.request_id
+          JOIN agent_checkpoints AS c ON c.turn_id = w.turn_id AND c.state = 'waiting_hook_trust'
+          WHERE w.turn_id = turns.id AND h.status = 'pending'
+        ))
+        OR (status = 'waiting_question' AND NOT EXISTS (
+          SELECT 1 FROM question_requests AS q LEFT JOIN agent_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question'
+          WHERE q.turn_id = turns.id AND q.status = 'pending'
+            AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)
+        ))
+    `).all() as Array<{ id: string; thread_id: string; root_agent_id: string }>
+    const interruptedItems = this.sqlite.query(`
+      SELECT id FROM items
+      WHERE status IN ('pending', 'running') AND type <> 'subagent'
+        AND NOT (type = 'question' AND id IN (
+          SELECT id FROM question_requests WHERE status = 'pending'
+            AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL
+              OR turn_id IN (SELECT turn_id FROM agent_checkpoints WHERE state = 'waiting_question'))
+        ))
+    `).all() as Array<{ id: string }>
+    this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ?
+      WHERE status = 'running'
+        OR (status = 'waiting_permission' AND NOT EXISTS (
+          SELECT 1 FROM approval_requests AS r JOIN approval_checkpoints AS c ON c.approval_id = r.id
+          WHERE r.turn_id = turns.id AND r.status = 'pending' AND c.version = 1
+            AND json_type(c.payload, '$.runState') = 'text' AND json_type(c.payload, '$.interruption') IS NOT NULL
+        ) AND NOT EXISTS (
+          SELECT 1 FROM hook_trust_waiters AS w JOIN hook_trust_requests AS h ON h.id = w.request_id
+          JOIN agent_checkpoints AS c ON c.turn_id = w.turn_id AND c.state = 'waiting_hook_trust'
+          WHERE w.turn_id = turns.id AND h.status = 'pending'
+        ))
+        OR (status = 'waiting_question' AND NOT EXISTS (
+          SELECT 1 FROM question_requests AS q LEFT JOIN agent_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question'
+          WHERE q.turn_id = turns.id AND q.status = 'pending'
+            AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)
+        ))
+    `).run(timestamp, timestamp)
+    this.sqlite.query("UPDATE agent_executions SET status = 'interrupted', updated_at = ? WHERE status = 'running' OR (status IN ('waiting_permission','waiting_question') AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted'))").run(timestamp)
+    this.sqlite.query("UPDATE tool_calls SET status = 'interrupted', finished_at = ?, error = COALESCE(error, 'Agent 重启时工具执行被中断') WHERE status = 'running' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted')").run(timestamp)
+    this.sqlite.query(`UPDATE items SET status = 'interrupted', updated_at = ?
+      WHERE status IN ('pending', 'running') AND type <> 'subagent'
+        AND NOT (type = 'question' AND id IN (
+          SELECT id FROM question_requests WHERE status = 'pending'
+            AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL
+              OR turn_id IN (SELECT turn_id FROM agent_checkpoints WHERE state = 'waiting_question'))
+        ))
+    `).run(timestamp)
+    this.sqlite.query(`UPDATE threads SET queue_pause_reason = 'interrupted', queue_version = queue_version + 1, updated_at = ?
+      WHERE kind = 'main' AND EXISTS (SELECT 1 FROM turns AS q WHERE q.thread_id = threads.id AND q.status = 'queued')
+        AND EXISTS (SELECT 1 FROM turns AS stopped WHERE stopped.thread_id = threads.id AND stopped.status = 'interrupted' AND stopped.finished_at = ?)
+    `).run(timestamp, timestamp)
+    for (const turn of interruptedTurns) {
+      const agent = this.getAgentExecution(turn.root_agent_id)
+      if (agent) this.insertEvent(turn.thread_id, turn.id, "agent/upserted", { agent })
+      this.insertEvent(turn.thread_id, turn.id, "turn/interrupted", { turnId: turn.id, rootAgentId: turn.root_agent_id, reason: "process-restart", finishedAt: timestamp })
+    }
+    for (const row of interruptedItems) {
+      const item = this.getItem(row.id)
+      if (item?.status !== "interrupted") continue
+      const thread = this.sqlite.query("SELECT thread_id FROM items WHERE id = ?").get(row.id) as { thread_id: string } | null
+      if (thread) this.insertEvent(thread.thread_id, item.turnID, "item/completed", { item })
+    }
+    const pausedThreads = this.sqlite.query("SELECT id, queue_version, queue_pause_reason FROM threads WHERE queue_pause_reason = 'interrupted' AND updated_at = ?").all(timestamp) as Array<{ id: string; queue_version: number; queue_pause_reason: string }>
+    for (const thread of pausedThreads) {
+      this.insertEvent(thread.id, null, "queue/updated", { threadId: thread.id, version: thread.queue_version, pauseReason: thread.queue_pause_reason, action: "paused" })
+    }
+    this.sqlite.query("UPDATE memory_jobs SET status = 'queued', started_at = NULL, updated_at = ? WHERE status = 'running'").run(timestamp)
+  }
+
   createTurn(
     threadID: string,
     input: SubmitMessage,
@@ -634,6 +527,34 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return row ? { name: row.tool_name, input: parse<Record<string, unknown>>(row.input), output: row.output == null ? null : parse<unknown>(row.output) } : null
     }
 
+  completedToolEvidenceForTurn(turnID: string) {
+    const rows = this.sqlite.query(`
+        SELECT id, tool_name
+        FROM tool_calls
+        WHERE turn_id = ? AND status = 'completed'
+        ORDER BY COALESCE(finished_at, started_at, 0), id
+        LIMIT 100
+    `).all(turnID) as Array<{ id: string; tool_name: string }>
+    return rows.map((row) => ({
+      toolCallID: row.id,
+      tool: row.tool_name,
+      summary: "工具调用已完成，结果保存在会话历史中",
+    }))
+  }
+
+  hasPersistedToolResult(turnID: string, toolCallID: string) {
+      return Boolean(this.sqlite.query(`
+        SELECT 1
+        FROM pi_session_entries AS entry
+        JOIN agent_executions AS execution ON execution.session_id = entry.session_id
+        WHERE execution.turn_id = ?
+          AND json_extract(entry.payload, '$.type') = 'message'
+          AND json_extract(entry.payload, '$.message.role') = 'toolResult'
+          AND json_extract(entry.payload, '$.message.toolCallId') = ?
+        LIMIT 1
+      `).get(turnID, toolCallID))
+    }
+
   nextQueuedTurn(threadID: string) {
       const state = this.queueStateMeta(threadID)
       if (!state || state.pauseReason) return null
@@ -758,6 +679,11 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage & { id: string }
     }
 
+  getTurnStatus(turnID: string): TurnStatus | null {
+      const row = this.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turnID) as { status: TurnStatus } | null
+      return row?.status ?? null
+    }
+
   saveAgentTurnCheckpoint(input: Omit<AgentTurnCheckpoint, "createdAt" | "updatedAt">) {
       const timestamp = now()
       this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
@@ -818,7 +744,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           agentId: input.agentID,
           attemptOrdinal: input.payload.attemptOrdinal,
           completedSideEffects: input.payload.completed,
-          createdAt: timestamp,
+          checkpointVersion: 1,
         }))
         return this.getAgentTurnCheckpoint(input.turnID)!
       })

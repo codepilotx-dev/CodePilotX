@@ -5,8 +5,11 @@ import { githubHandlers } from "./handlers/github"
 import { gitHandlers } from "./handlers/git"
 import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
+import { localContextHandlers } from "./handlers/local-context"
 import { mcpHandlers } from "./handlers/mcp"
 import { petHandlers } from "./handlers/pet"
+import { pluginHandlers } from "./handlers/plugins"
+import { miniMaxCliHandlers } from "./handlers/minimax-cli"
 import { releaseNotesHandlers } from "./handlers/release-notes"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
@@ -20,9 +23,14 @@ import { localEnvironmentHandlers } from "./handlers/local-environment"
 import { worktreeHandlers } from "./handlers/worktree"
 import { handoffHandlers } from "./handlers/handoff"
 import { threadForkHandlers } from "./handlers/thread-fork"
+import { sideChatHandlers } from "./handlers/side-chat"
 import { threadHandlers } from "./handlers/thread"
 import { toolingHandlers } from "./handlers/tooling"
 import { usageHandlers } from "./handlers/usage"
+import { speechHandlers } from "./handlers/speech"
+import { sessionGroupHandlers } from "./handlers/session-group"
+import { automationHandlers } from "./handlers/automation"
+import { calendarHandlers } from "./handlers/calendar"
 import type { RpcHandlerGroup } from "./handlers/types"
 import { workspaceHandlers } from "./handlers/workspace"
 import type { RpcRouterContext } from "./request-context"
@@ -40,9 +48,12 @@ const groups: readonly RpcHandlerGroup[] = [
   reviewHandlers,
   gitHandlers,
   mcpHandlers,
+  pluginHandlers,
+  miniMaxCliHandlers,
   skillHandlers,
   githubHandlers,
   threadHandlers,
+  localContextHandlers,
   memoryHandlers,
   petHandlers,
   releaseNotesHandlers,
@@ -53,9 +64,14 @@ const groups: readonly RpcHandlerGroup[] = [
   worktreeHandlers,
   handoffHandlers,
   threadForkHandlers,
+  sideChatHandlers,
   providerHandlers,
   toolingHandlers,
   usageHandlers,
+  speechHandlers,
+  sessionGroupHandlers,
+  automationHandlers,
+  calendarHandlers,
 ]
 
 const registeredMethods = groups.flatMap((group) => group.methods)

@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,11 +11,17 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import {
+  enterTween,
+  exitTween,
+  motionTransition,
+} from '../motion/motionTransitions.js'
 
 type Props = {
   state: DesktopBrowserState
@@ -37,12 +44,17 @@ export function DesktopBrowserPanel({
   onStateChange,
 }: Props): React.ReactNode {
   const viewportRef = useRef<HTMLDivElement | null>(null)
+  const annotationToggleRef = useRef<HTMLButtonElement | null>(null)
+  const annotationPanelRef = useRef<HTMLDivElement | null>(null)
+  const reducedMotion = usePrefersReducedMotion()
   const [address, setAddress] = useState(state.url)
   const [addressFocused, setAddressFocused] = useState(false)
   const [annotationOpen, setAnnotationOpen] = useState(false)
   const [annotationTarget, setAnnotationTarget] = useState('')
   const [annotationBody, setAnnotationBody] = useState('')
   const lastBoundsRef = useRef<BrowserBounds | null>(null)
+  const boundsPausedRef = useRef(false)
+  const syncBrowserBoundsRef = useRef<() => Promise<void>>(async () => undefined)
 
   useEffect(() => {
     if (state.url) {
@@ -50,47 +62,76 @@ export function DesktopBrowserPanel({
     }
   }, [state.url])
 
+  useEffect(
+    () => desktopBrowserClient.onBrowserStateChange(onStateChange),
+    [onStateChange],
+  )
+
+  useEffect(() => {
+    if (
+      !desktopBrowserClient.available
+      || !state.open
+      || annotationOpen
+      || boundsPausedRef.current
+    ) return
+    void desktopBrowserClient
+      .setBrowserVisible(true)
+      .then(onStateChange)
+      .catch(() => undefined)
+  }, [annotationOpen, onStateChange, state.open])
+
+  useLayoutEffect(() => {
+    if (!annotationOpen) return
+    annotationPanelRef.current?.removeAttribute('aria-hidden')
+    annotationPanelRef.current?.removeAttribute('inert')
+    annotationPanelRef.current?.setAttribute('data-presence', 'present')
+  }, [annotationOpen])
+
   useLayoutEffect(() => {
     const viewport = viewportRef.current
     if (!viewport || !state.open) return
 
     let animationFrame = 0
-    const setBounds = (bounds: BrowserBounds): void => {
+    const setBounds = async (bounds: BrowserBounds): Promise<void> => {
       const previous = lastBoundsRef.current
       if (previous && sameBrowserBounds(previous, bounds)) {
         return
       }
 
       lastBoundsRef.current = bounds
-      void desktopClient
-        .setBrowserBounds(bounds)
-        .then(onStateChange)
-        .catch(() => undefined)
+      try {
+        const next = await desktopBrowserClient.setBrowserBounds(bounds)
+        onStateChange(next)
+      } catch {
+        // Bounds synchronization is retried by the next resize or visibility change.
+      }
     }
 
-    const syncBounds = (): void => {
+    const syncBounds = async (): Promise<void> => {
       if (!state.url) {
-        setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        await setBounds({ x: 0, y: 0, width: 0, height: 0 })
         return
       }
       const rect = viewport.getBoundingClientRect()
-      setBounds({
+      await setBounds({
         x: rect.left,
         y: rect.top,
         width: rect.width,
         height: rect.height,
       })
     }
+    syncBrowserBoundsRef.current = syncBounds
 
     const scheduleSyncBounds = (): void => {
+      if (boundsPausedRef.current) return
       if (animationFrame) return
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = 0
-        syncBounds()
+        void syncBounds()
       })
     }
 
-    syncBounds()
+    if (!boundsPausedRef.current) void syncBounds()
     const resizeObserver = new ResizeObserver(scheduleSyncBounds)
     resizeObserver.observe(viewport)
     window.addEventListener('resize', scheduleSyncBounds)
@@ -98,7 +139,8 @@ export function DesktopBrowserPanel({
       if (animationFrame) {
         window.cancelAnimationFrame(animationFrame)
       }
-      setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      syncBrowserBoundsRef.current = async () => undefined
+      void setBounds({ x: 0, y: 0, width: 0, height: 0 })
       resizeObserver.disconnect()
       window.removeEventListener('resize', scheduleSyncBounds)
     }
@@ -119,7 +161,7 @@ export function DesktopBrowserPanel({
   }
 
   function handleNavigate(): void {
-    void runBrowserAction(() => desktopClient.navigateBrowser(address))
+    void runBrowserAction(() => desktopBrowserClient.navigateBrowser(address))
   }
 
   function handleSubmitAnnotation(): void {
@@ -136,7 +178,43 @@ export function DesktopBrowserPanel({
     onAppendAnnotation(lines.join('\n'))
     setAnnotationBody('')
     setAnnotationTarget('')
+    closeAnnotation()
+  }
+
+  function closeAnnotation(): void {
+    boundsPausedRef.current = true
+    annotationPanelRef.current?.setAttribute('aria-hidden', 'true')
+    annotationPanelRef.current?.setAttribute('inert', '')
+    annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
+    const activeElement = document.activeElement
+    if (
+      activeElement instanceof HTMLElement
+      && annotationPanelRef.current?.contains(activeElement)
+    ) {
+      annotationToggleRef.current?.focus({ preventScroll: true })
+    }
     setAnnotationOpen(false)
+  }
+
+  function openAnnotation(): void {
+    boundsPausedRef.current = true
+    void desktopBrowserClient
+      .setBrowserVisible(false)
+      .then(next => {
+        onStateChange(next)
+        setAnnotationOpen(true)
+      })
+      .catch(() => setAnnotationOpen(true))
+  }
+
+  function finishAnnotationExit(): void {
+    void syncBrowserBoundsRef.current()
+      .then(() => desktopBrowserClient.setBrowserVisible(true))
+      .then(onStateChange)
+      .catch(() => undefined)
+      .finally(() => {
+        boundsPausedRef.current = false
+      })
   }
 
   function handleSendPageToComposer(): void {
@@ -166,28 +244,32 @@ export function DesktopBrowserPanel({
       <div className="browser-commandbar">
         <div className="browser-navigation">
           <IconButton
+            color="ghostSecondary"
             disabled={!state.canGoBack}
-            size="md"
+            size="toolbar"
             title="后退"
-            variant="browser"
-            onClick={() => void runBrowserAction(desktopClient.goBackBrowser)}
+            onClick={() => void runBrowserAction(desktopBrowserClient.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
+            color="ghostSecondary"
             disabled={!state.canGoForward}
-            size="md"
+            size="toolbar"
             title="前进"
-            variant="browser"
-            onClick={() => void runBrowserAction(desktopClient.goForwardBrowser)}
+            onClick={() => void runBrowserAction(desktopBrowserClient.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
-            size="md"
-            title="重新加载"
-            variant="browser"
-            onClick={() => void runBrowserAction(desktopClient.reloadBrowser)}
+            color="ghostSecondary"
+            size="toolbar"
+            title={state.loading ? '停止加载' : '重新加载'}
+            onClick={() => void runBrowserAction(
+              state.loading
+                ? desktopBrowserClient.stopBrowser
+                : desktopBrowserClient.reloadBrowser,
+            )}
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -213,10 +295,10 @@ export function DesktopBrowserPanel({
         </form>
         <div className="browser-toolbar-actions">
           <IconButton
+            color="ghostSecondary"
             disabled={!state.url && !address.trim()}
-            size="md"
+            size="toolbar"
             title="发送当前页面到对话框"
-            variant="browser"
             onClick={handleSendPageToComposer}
           >
             <MessageSquarePlus
@@ -225,23 +307,53 @@ export function DesktopBrowserPanel({
             />
           </IconButton>
           <IconButton
-            size="md"
+            ref={annotationToggleRef}
+            color="ghostSecondary"
+            size="toolbar"
             title={annotationOpen ? '收起批注' : '添加批注'}
-            variant="browser"
-            onClick={() => setAnnotationOpen(current => !current)}
+            onClick={() => {
+              if (annotationOpen) closeAnnotation()
+              else openAnnotation()
+            }}
           >
             <MessageSquarePlus
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           </IconButton>
-          <IconButton size="md" title="更多" variant="browser">
+          <IconButton color="ghostSecondary" size="toolbar" title="更多">
             <MoreVertical size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </div>
       </div>
 
-      <div className="browser-viewport" ref={viewportRef}>
+      {state.error ? (
+        <div className="browser-status-row" role="alert">
+          <span>{state.error}</span>
+          <Button
+            color="secondary"
+            disabled={!state.url && !address.trim()}
+            type="button"
+            onClick={() => void runBrowserAction(
+              state.url
+                ? desktopBrowserClient.reloadBrowser
+                : () => desktopBrowserClient.navigateBrowser(address),
+            )}
+          >
+            重试
+          </Button>
+        </div>
+      ) : null}
+
+      <div
+        className="browser-viewport"
+        ref={viewportRef}
+        onPointerDown={() => {
+          if (desktopBrowserClient.available) {
+            void desktopBrowserClient.focusBrowser().catch(() => undefined)
+          }
+        }}
+      >
         {!state.url ? (
           <div className="browser-empty-state">
             <Globe2 size={86} strokeWidth={1.6} />
@@ -251,41 +363,59 @@ export function DesktopBrowserPanel({
         ) : null}
       </div>
 
-      {annotationOpen ? (
-        <div className="browser-annotation-bar">
-          <Button
-            onClick={() => setAnnotationOpen(current => !current)}
+      <AnimatePresence initial={false} onExitComplete={finishAnnotationExit}>
+        {annotationOpen ? (
+          <motion.div
+            ref={annotationPanelRef}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            className="browser-annotation-presence"
+            data-presence="present"
+            exit={{
+              height: 0,
+              opacity: 0,
+              y: 8,
+              transition: motionTransition(reducedMotion, exitTween),
+            }}
+            initial={{ height: 0, opacity: 0, y: 8 }}
+            transition={motionTransition(reducedMotion, enterTween)}
+            onKeyDown={event => {
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              event.stopPropagation()
+              closeAnnotation()
+            }}
           >
-            <MessageSquarePlus size={APP_ICON_SIZE} />
-            <span>添加批注</span>
-          </Button>
-        </div>
-      ) : null}
-
-      {annotationOpen ? (
-        <div className="browser-annotation-form">
-          <input
-            aria-label="批注位置"
-            placeholder="位置或元素描述，例如 顶部导航按钮"
-            value={annotationTarget}
-            onChange={event => setAnnotationTarget(event.target.value)}
-          />
-          <textarea
-            aria-label="批注内容"
-            placeholder="描述需要调整的视觉问题"
-            rows={3}
-            value={annotationBody}
-            onChange={event => setAnnotationBody(event.target.value)}
-          />
-          <Button
-            disabled={!annotationBody.trim()}
-            onClick={handleSubmitAnnotation}
-          >
-            <Check size={APP_ICON_SIZE} />
-            <span>插入输入框</span>
-          </Button>
-        </div>
-      ) : null}
+            <div className="browser-annotation-bar">
+              <Button color="primary" onClick={closeAnnotation}>
+                <MessageSquarePlus size={APP_ICON_SIZE} />
+                <span>添加批注</span>
+              </Button>
+            </div>
+            <div className="browser-annotation-form">
+              <input
+                aria-label="批注位置"
+                placeholder="位置或元素描述，例如 顶部导航按钮"
+                value={annotationTarget}
+                onChange={event => setAnnotationTarget(event.target.value)}
+              />
+              <textarea
+                aria-label="批注内容"
+                placeholder="描述需要调整的视觉问题"
+                rows={3}
+                value={annotationBody}
+                onChange={event => setAnnotationBody(event.target.value)}
+              />
+              <Button color="primary"
+                disabled={!annotationBody.trim()}
+                onClick={handleSubmitAnnotation}
+              >
+                <Check size={APP_ICON_SIZE} />
+                <span>插入输入框</span>
+              </Button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </section>
   )
 }

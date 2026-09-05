@@ -1,63 +1,36 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { createHashRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate, useLocation } from 'react-router-dom'
 import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
 import { RouteErrorPage } from './features/routing/RouteErrorPage.js'
+import { RequireConfiguredModel } from './features/models/setup/RequireConfiguredModel.js'
+import { AutomationView } from './features/automation/AutomationView.js'
+import { ConversationPage } from './features/session/conversation/ConversationPage.js'
+import { PluginsView } from './features/plugins/PluginsView.js'
+import { ProjectsView } from './features/projects/ProjectsView.js'
+import { PullRequestsPlaceholder } from './features/pull-requests/PullRequestsPlaceholder.js'
+import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
+import { SettingsLayout } from './features/settings/SettingsLayout.js'
+import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
+import { SessionGroupsView } from './features/session-groups/SessionGroupsView.js'
+import { legacyModelCenterSettingsTarget } from './features/models/modelCenterState.js'
 
-const AutomationView = lazy(() =>
-  import('./features/automation/AutomationView.js').then(module => ({
-    default: module.AutomationView,
-  })),
-)
-const ConversationPage = lazy(() =>
-  import('./features/session/conversation/ConversationPage.js').then(module => ({
-    default: module.ConversationPage,
-  })),
-)
-const PluginsView = lazy(() =>
-  import('./features/plugins/PluginsView.js').then(module => ({
-    default: module.PluginsView,
-  })),
-)
-const ProjectsView = lazy(() =>
-  import('./features/projects/ProjectsView.js').then(module => ({
-    default: module.ProjectsView,
-  })),
-)
-const PullRequestsPlaceholder = lazy(() =>
-  import('./features/pull-requests/PullRequestsPlaceholder.js').then(module => ({
-    default: module.PullRequestsPlaceholder,
-  })),
-)
-const ModelCenterView = lazy(() =>
-  import('./features/models/ModelCenterView.js').then(module => ({
-    default: module.ModelCenterView,
-  })),
-)
-const SettingsLayout = lazy(() =>
-  import('./features/settings/SettingsLayout.js').then(module => ({
-    default: module.SettingsLayout,
-  })),
-)
-const LabsPage = lazy(() =>
-  import('./features/labs/LabsPage.js').then(module => ({
-    default: module.LabsPage,
-  })),
-)
 const PetOverlayPage = lazy(() =>
   import('./features/pet/PetOverlayPage.js').then(module => ({
     default: module.PetOverlayPage,
   })),
 )
-const PetCatalogPage = lazy(() =>
-  import('./features/pet/PetCatalogPage.js').then(module => ({
-    default: module.PetCatalogPage,
-  })),
-)
-function deferred(element: ReactNode): ReactNode {
-  return <Suspense fallback={null}>{element}</Suspense>
+
+function LegacyModelsRedirect(): ReactNode {
+  const location = useLocation()
+  return (
+    <Navigate
+      replace
+      to={legacyModelCenterSettingsTarget(location.search)}
+    />
+  )
 }
 
 const routeErrorElement = <RouteErrorPage />
@@ -66,9 +39,20 @@ const router = createHashRouter([
   {
     path: '/pet-overlay',
     errorElement: routeErrorElement,
-    element: deferred(
+    element: (
       <DesktopSettingsProvider access="read-only">
-        <PetOverlayPage />
+        <Suspense fallback={null}>
+          <PetOverlayPage />
+        </Suspense>
+      </DesktopSettingsProvider>
+    ),
+  },
+  {
+    path: '/setup',
+    errorElement: routeErrorElement,
+    element: (
+      <DesktopSettingsProvider access="read-write">
+        <ModelSetupPage />
       </DesktopSettingsProvider>
     ),
   },
@@ -77,33 +61,33 @@ const router = createHashRouter([
     errorElement: routeErrorElement,
     element: (
       <DesktopSettingsProvider access="read-write">
-        <DesktopLayout />
+        <RequireConfiguredModel />
       </DesktopSettingsProvider>
     ),
     children: [
-      { index: true, element: <Navigate to="/new" replace /> },
-      { path: 'new', element: <QuickChatView /> },
       {
-        path: 'threads/:threadId',
-        element: deferred(<ConversationPage />),
+        element: <DesktopLayout />,
+        children: [
+          { index: true, element: <Navigate to="/new" replace /> },
+          { path: 'new', element: <QuickChatView /> },
+          { path: 'threads/:threadId', element: <ConversationPage /> },
+          { path: 'projects', element: <ProjectsView /> },
+          { path: 'projects/:projectId', element: <ProjectsView /> },
+          { path: 'session-groups', element: <SessionGroupsView /> },
+          { path: 'session-groups/:groupId', element: <SessionGroupsView /> },
+          { path: 'models', element: <LegacyModelsRedirect /> },
+          { path: 'plugins', element: <PluginsView /> },
+          { path: 'pull-requests', element: <PullRequestsPlaceholder /> },
+          { path: 'automations', element: <AutomationView /> },
+          { path: 'pets', element: <PetCatalogPage /> },
+          {
+            path: 'settings/environment/:projectId',
+            element: <SettingsLayout />,
+          },
+          { path: 'settings/:tab', element: <SettingsLayout /> },
+          { path: '*', element: <NotFoundPage /> },
+        ],
       },
-      { path: 'projects', element: deferred(<ProjectsView />) },
-      { path: 'projects/:projectId', element: deferred(<ProjectsView />) },
-      { path: 'models', element: deferred(<ModelCenterView />) },
-      { path: 'plugins', element: deferred(<PluginsView />) },
-      {
-        path: 'pull-requests',
-        element: deferred(<PullRequestsPlaceholder />),
-      },
-      { path: 'automations', element: deferred(<AutomationView />) },
-      { path: 'pets', element: deferred(<PetCatalogPage />) },
-      {
-        path: 'settings/environment/:projectId',
-        element: deferred(<SettingsLayout />),
-      },
-      { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
-      { path: 'labs', element: deferred(<LabsPage />) },
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])

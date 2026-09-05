@@ -1,7 +1,5 @@
 import React from "react";
-import { FileIcon } from "@codepilotx/material-icon-theme";
 import { motion } from "motion/react";
-import { VList, type VListHandle } from "virtua";
 import {
   Briefcase,
   CheckCircle2,
@@ -51,6 +49,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
+import { IconButton } from "../../../components/ui/IconButton.js";
 import {
   PopoverCheckboxItem,
   PopoverItem,
@@ -61,21 +60,24 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SearchInput } from "../../../components/ui/SearchInput.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
+import {
+  createKeyedDisclosureStore,
+  type KeyedDisclosureStore,
+} from "../../../components/ui/keyedDisclosureStore.js";
 import { useLiveResizeValue } from "../../layout/useLiveResizeValue.js";
 import {
   buildReviewFileTree,
-  flattenReviewFileTree,
-  type ReviewFileTreeRow as ReviewFileTreeRowModel,
 } from "./buildReviewFileTree.js";
 import { buildCommentCountsByPath } from "../comments/reviewCommentUtils.js";
 import { CommitPopover } from "./CommitPopover.js";
 import { PullRequestPopover } from "./PullRequestPopover.js";
 import { ReviewFileTreeResizeController } from "./ReviewFileTreeResizeController.js";
-import { ReviewFileTreeRow } from "./ReviewFileTree.js";
+import { ReviewFileTreeController } from "./ReviewFileTreeController.js";
+import { ReviewFileTreePanelPresence } from "./ReviewFileTreePanelPresence.js";
 import { formatReviewCount } from "../diff/reviewFormat.js";
 import {
   isReviewDiffExpanded,
-  toggleReviewDiffExpansion,
+  type ReviewDiffExpansion,
   type ReviewTabUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { syntaxTokenStyle } from "../../syntax/CodeBlock.js";
@@ -125,6 +127,7 @@ import {
   errorMessageOf,
   formatPanelNumber,
   parseGithubPullRequestUrl,
+  reviewFileDiffLoadMode,
   type CommentDraft,
   type ReviewFileLoadState,
 } from "../diff/WorkspaceReviewDiff.js";
@@ -135,53 +138,52 @@ import {
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH =
   REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260;
-const REVIEW_FILE_TREE_ROW_HEIGHT = 29;
+function reviewDiffExpansionFromKeys(
+  allPaths: readonly string[],
+  expandedKeys: readonly string[],
+): ReviewDiffExpansion {
+  const expanded = new Set(expandedKeys);
+  const expandedFiles = allPaths.filter((path) => expanded.has(path));
+  if (expandedFiles.length === 0) return { mode: "none" };
+  if (expandedFiles.length === allPaths.length) return { mode: "all" };
+  return { mode: "custom", expandedFiles };
+}
 
-const ReviewFileTreeList = React.memo(function ReviewFileTreeList({
-  collapsedDirs,
-  commentCountsByPath,
-  emptyMessage,
-  listRef,
-  rows,
-  selectedPath,
-  onSelectFile,
-  onToggleDir,
-}: {
-  collapsedDirs: Set<string>;
-  commentCountsByPath: Readonly<Record<string, number>>;
-  emptyMessage: string;
-  listRef: React.RefObject<VListHandle | null>;
-  rows: ReviewFileTreeRowModel[];
-  selectedPath: string | null;
-  onSelectFile: (path: string) => void;
-  onToggleDir: (path: string) => void;
-}): React.ReactNode {
-  if (rows.length === 0) {
-    return <div className="review-empty-state">{emptyMessage}</div>;
-  }
-
-  return (
-    <VList
-      className="review-file-tree-scroll review-file-tree-vlist"
-      data={rows}
-      itemSize={REVIEW_FILE_TREE_ROW_HEIGHT}
-      ref={listRef}
-      role="tree"
-    >
-      {(row) => (
-        <ReviewFileTreeRow
-          collapsedDirs={collapsedDirs}
-          commentCountsByPath={commentCountsByPath}
-          key={row.key}
-          row={row}
-          onSelectFile={onSelectFile}
-          onToggleDir={onToggleDir}
-          selectedPath={selectedPath}
-        />
-      )}
-    </VList>
-  );
-});
+const ReviewDiffExpansionToggle = React.memo(
+  function ReviewDiffExpansionToggle({
+    allPaths,
+    store,
+    onSetAllExpanded,
+  }: {
+    allPaths: readonly string[];
+    store: KeyedDisclosureStore;
+    onSetAllExpanded: (expanded: boolean) => void;
+  }): React.ReactNode {
+    React.useSyncExternalStore(
+      store.subscribeAll,
+      store.getVersion,
+      store.getVersion,
+    );
+    const allCollapsed =
+      allPaths.length > 0 && allPaths.every((path) => !store.getSnapshot(path));
+    return (
+      <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
+        <IconButton
+          color="ghostSecondary"
+          size="toolbar"
+          title={allCollapsed ? "展开全部差异" : "折叠全部差异"}
+          onClick={() => onSetAllExpanded(allCollapsed)}
+        >
+          {allCollapsed ? (
+            <ListChevronsUpDown size={APP_ICON_SIZE} />
+          ) : (
+            <ListChevronsDownUp size={APP_ICON_SIZE} />
+          )}
+        </IconButton>
+      </Tooltip>
+    );
+  },
+);
 
 export type WorkspaceReviewSidebarProps = {
   activeSessionId: string | null;
@@ -302,6 +304,7 @@ function WorkspaceReviewSidebarImpl({
   );
   const fileTreePanelWidth = reviewTabState.fileTreeWidth;
   const {
+    liveSize: liveFileTreePanelWidth,
     liveSizePixels: liveFileTreePanelWidthPixels,
     previewSize: previewFileTreePanelWidth,
   } = useLiveResizeValue(fileTreePanelWidth);
@@ -316,9 +319,6 @@ function WorkspaceReviewSidebarImpl({
       });
     },
     [onReviewTabStateChange],
-  );
-  const [collapsedDirs, setCollapsedDirs] = React.useState<Set<string>>(
-    () => new Set(),
   );
   const [scopeMenuOpen, setScopeMenuOpen] = React.useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = React.useState(false);
@@ -389,8 +389,8 @@ function WorkspaceReviewSidebarImpl({
     let active = true;
     setSourceOptionsState("loading");
     void Promise.all([
-      reviewAgentClient.branches(workspacePath),
-      reviewAgentClient.commits(workspacePath),
+      reviewAgentClient.branches(workspacePath, projectId ?? undefined),
+      reviewAgentClient.commits(workspacePath, projectId ?? undefined),
     ]).then(
       ([nextBranches, nextCommits]) => {
         if (!active) return;
@@ -409,12 +409,14 @@ function WorkspaceReviewSidebarImpl({
     branchPickerOpen,
     scopeMenuOpen,
     sourceOptionsRetry,
+    projectId,
     workspacePath,
   ]);
 
   const commitButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const prButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewMainRef = React.useRef<HTMLDivElement | null>(null);
+  const fileTreeToggleRef = React.useRef<HTMLButtonElement | null>(null);
   const reviewRootRef = React.useRef<HTMLElement | null>(null);
   const staleGitChangeRef = React.useRef(false);
   const summaryRef = React.useRef<ReviewSummarySnapshot | null>(null);
@@ -469,6 +471,15 @@ function WorkspaceReviewSidebarImpl({
       cacheState: "fresh" | "stale";
     }>(),
   );
+  const refreshLifecycleGenerationRef = React.useRef(0);
+  React.useEffect(() => {
+    const coordinator = refreshCoordinatorRef.current;
+    coordinator.activate();
+    return () => {
+      refreshLifecycleGenerationRef.current += 1;
+      coordinator.dispose();
+    };
+  }, []);
   const activeSummaryIdentityRef = React.useRef(summaryIdentity);
   const activeCommentIdentityRef = React.useRef(commentIdentity);
   activeSummaryIdentityRef.current = summaryIdentity;
@@ -476,7 +487,6 @@ function WorkspaceReviewSidebarImpl({
   const diffScrollViewportRef = React.useRef<HTMLDivElement | null>(null);
   const diffFileSectionRefs = React.useRef(new Map<string, HTMLElement>());
   const fileSearchInputRef = React.useRef<HTMLInputElement | null>(null);
-  const reviewFileTreeListRef = React.useRef<VListHandle | null>(null);
   const errorTimerRef = React.useRef<number | null>(null);
   const publishedGithubCommentIdsRef = React.useRef(new Set<string>());
   const mutationRequestTokenRef = React.useRef(0);
@@ -529,6 +539,10 @@ function WorkspaceReviewSidebarImpl({
 
   const refreshReviewDiff = React.useCallback((force = false) => {
     const identity = summaryIdentity;
+    const lifecycleGeneration = refreshLifecycleGenerationRef.current;
+    const isCurrentRequest = (): boolean =>
+      activeSummaryIdentityRef.current === identity &&
+      refreshLifecycleGenerationRef.current === lifecycleGeneration;
     const cycleStartedAt = performance.now();
     const request = refreshCoordinatorRef.current.request(
       identity,
@@ -539,7 +553,7 @@ function WorkspaceReviewSidebarImpl({
       } | null> => {
         const startedAt = performance.now();
         if (!workspacePath) {
-          if (activeSummaryIdentityRef.current !== identity) return null;
+          if (!isCurrentRequest()) return null;
           summaryStateIdentityRef.current = identity;
           summaryRef.current = null;
           summaryCacheStateRef.current = null;
@@ -552,7 +566,7 @@ function WorkspaceReviewSidebarImpl({
           return null;
         }
         try {
-          if (activeSummaryIdentityRef.current !== identity) return null;
+          if (!isCurrentRequest()) return null;
           setLoadState(current =>
             summaryRef.current !== null ||
             current === 'success' ||
@@ -576,13 +590,14 @@ function WorkspaceReviewSidebarImpl({
               workspacePath,
               source,
               refresh,
+              projectId ?? undefined,
             );
             diagnosticTimer.succeed({ cacheState: result.cacheState });
           } catch (summaryError) {
             diagnosticTimer.fail();
             throw summaryError;
           }
-          if (activeSummaryIdentityRef.current !== identity) return null;
+          if (!isCurrentRequest()) return null;
           const nextSummary = result.snapshot;
           summaryCacheStateRef.current = result.cacheState;
           const retainedDiffs = retainCurrentReviewFileDiffs(
@@ -649,6 +664,7 @@ function WorkspaceReviewSidebarImpl({
                 ? 'empty'
                 : 'success';
           React.startTransition(() => {
+            if (!isCurrentRequest()) return;
             setSummary(nextSummary);
             setLoadedDiffs(retainedDiffs);
             setFileLoadStates((current) => {
@@ -673,7 +689,7 @@ function WorkspaceReviewSidebarImpl({
           });
           return result;
         } catch (refreshError) {
-          if (activeSummaryIdentityRef.current !== identity) return null;
+          if (!isCurrentRequest()) return null;
           reportReviewDiagnostic(
             "error",
             "review.summary.load.failed",
@@ -700,7 +716,7 @@ function WorkspaceReviewSidebarImpl({
       },
     );
     return request.catch((refreshError: unknown) => {
-      if (activeSummaryIdentityRef.current === identity) {
+      if (isCurrentRequest()) {
         reportReviewDiagnostic(
           "error",
           "review.summary.refresh-cycle.failed",
@@ -728,6 +744,7 @@ function WorkspaceReviewSidebarImpl({
   }, [
     beginDiagnosticTimer,
     gitStatus,
+    projectId,
     scope,
     source,
     summaryIdentity,
@@ -776,6 +793,7 @@ function WorkspaceReviewSidebarImpl({
     setFileLoadStates(new Map());
     setBatchLargeModeKey(null);
     setReviewDiff(null);
+    setLoadState('loading');
     setError(null);
     setPending(false);
     setCurrentPullRequestUrl(null);
@@ -929,6 +947,7 @@ function WorkspaceReviewSidebarImpl({
               currentSummary.generation,
               path,
               reviewTabState.hideWhitespace,
+              projectId ?? undefined,
             );
             initialDiagnosticTimer.succeed();
             commitLoaded(request, loaded, currentSummary);
@@ -1015,6 +1034,7 @@ function WorkspaceReviewSidebarImpl({
                     refreshed.snapshot.generation,
                     path,
                     reviewTabState.hideWhitespace,
+                    projectId ?? undefined,
                   );
                   retryDiagnosticTimer.succeed();
                 } catch (retryLoadError) {
@@ -1066,6 +1086,7 @@ function WorkspaceReviewSidebarImpl({
     [
       beginDiagnosticTimer,
       onReviewTabStateChange,
+      projectId,
       recoverExpiredReview,
       reviewTabState.hideWhitespace,
       source,
@@ -1143,6 +1164,7 @@ function WorkspaceReviewSidebarImpl({
           expectedSummary.generation,
           paths,
           hideWhitespace,
+          projectId ?? undefined,
         );
         diagnosticTimer.succeed({ resultType: result.type });
         if (
@@ -1328,6 +1350,7 @@ function WorkspaceReviewSidebarImpl({
     onReviewTabStateChange,
     beginDiagnosticTimer,
     loadFileDiff,
+    projectId,
     recoverExpiredReview,
     reviewTabState.hideWhitespace,
     source,
@@ -1350,6 +1373,7 @@ function WorkspaceReviewSidebarImpl({
         workspacePath,
         activeSessionId,
         source,
+        projectId ?? undefined,
       );
       if (activeCommentIdentityRef.current === identity) {
         commentsStateIdentityRef.current = identity;
@@ -1360,7 +1384,7 @@ function WorkspaceReviewSidebarImpl({
         setError(errorMessageOf(refreshError));
       }
     }
-  }, [activeSessionId, commentIdentity, source, workspacePath]);
+  }, [activeSessionId, commentIdentity, projectId, source, workspacePath]);
 
   React.useEffect(() => {
     void refreshReviewDiff();
@@ -1424,6 +1448,13 @@ function WorkspaceReviewSidebarImpl({
             ? "hide-whitespace"
             : "standard",
         ].join("\0"));
+  const fileDiffLoadMode = reviewFileDiffLoadMode({
+    hasSummary: summary !== null,
+    cacheState: summaryCacheStateRef.current,
+    summaryLoadState: loadState,
+    largeWorkspaceMode,
+    selectedPath,
+  });
 
   React.useEffect(() => {
     const nextContext = {
@@ -1469,14 +1500,14 @@ function WorkspaceReviewSidebarImpl({
   }, [reviewTabState.hideWhitespace, summary?.generation]);
 
   React.useEffect(() => {
-    if (largeWorkspaceMode && selectedPath) {
+    if (fileDiffLoadMode === "selected" && selectedPath) {
       void loadFileDiff(selectedPath, "selected");
     }
-  }, [largeWorkspaceMode, loadFileDiff, selectedPath]);
+  }, [fileDiffLoadMode, loadFileDiff, selectedPath]);
 
   React.useEffect(() => {
-    if (!largeWorkspaceMode && summary) void loadSmallWorkspaceDiffs();
-  }, [largeWorkspaceMode, loadSmallWorkspaceDiffs, summary?.generation]);
+    if (fileDiffLoadMode === "batch") void loadSmallWorkspaceDiffs();
+  }, [fileDiffLoadMode, loadSmallWorkspaceDiffs, summary?.generation]);
 
   React.useEffect(() => {
     if (!summary) return;
@@ -1513,7 +1544,6 @@ function WorkspaceReviewSidebarImpl({
 
   React.useEffect(() => {
     return () => {
-      refreshCoordinatorRef.current.dispose();
       flushReviewScrollRef.current(activeSummaryIdentityRef.current);
       if (errorTimerRef.current !== null) {
         window.clearTimeout(errorTimerRef.current);
@@ -1557,14 +1587,46 @@ function WorkspaceReviewSidebarImpl({
     () => files.map((file) => file.path),
     [files],
   );
-  const collapsedDiffPaths = React.useMemo(() => {
-    return new Set(
-      allFilePaths.filter(
-        (path) =>
-          !isReviewDiffExpanded(reviewTabState.diffExpansion, path),
+  const allFilePathsRef = React.useRef(allFilePaths);
+  allFilePathsRef.current = allFilePaths;
+  const diffExpansionStore = React.useMemo(
+    () =>
+      createKeyedDisclosureStore({
+        initialExpandedKeys: [],
+        persist: (expandedKeys) => {
+          const diffExpansion = reviewDiffExpansionFromKeys(
+            allFilePathsRef.current,
+            expandedKeys,
+          );
+          onReviewTabStateChangeRef.current((current) => ({
+            ...current,
+            diffExpansion,
+          }));
+        },
+      }),
+    [],
+  );
+  const diffExpansionDestroyTimerRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (diffExpansionDestroyTimerRef.current !== null) {
+      window.clearTimeout(diffExpansionDestroyTimerRef.current);
+      diffExpansionDestroyTimerRef.current = null;
+    }
+    return () => {
+      diffExpansionStore.flush();
+      diffExpansionDestroyTimerRef.current = window.setTimeout(
+        () => diffExpansionStore.destroy(),
+        0,
+      );
+    };
+  }, [diffExpansionStore]);
+  React.useLayoutEffect(() => {
+    diffExpansionStore.replace(
+      allFilePaths.filter((path) =>
+        isReviewDiffExpanded(reviewTabState.diffExpansion, path),
       ),
     );
-  }, [allFilePaths, reviewTabState.diffExpansion]);
+  }, [allFilePaths, diffExpansionStore, reviewTabState.diffExpansion]);
   const showProjectEmptyState =
     loadState === "empty" && summary !== null && files.length === 0;
   const visibleFiles = React.useMemo(() => {
@@ -1591,39 +1653,6 @@ function WorkspaceReviewSidebarImpl({
     () => buildReviewFileTree(visibleFiles),
     [visibleFiles],
   );
-  const reviewTreeRows = React.useMemo(
-    () => flattenReviewFileTree(reviewTree, collapsedDirs),
-    [collapsedDirs, reviewTree],
-  );
-
-  React.useEffect(() => {
-    if (!selectedPath) return;
-    const selectedIndex = reviewTreeRows.findIndex(
-      (row) => row.kind === "file" && row.file.path === selectedPath,
-    );
-    if (selectedIndex < 0) return;
-    reviewFileTreeListRef.current?.scrollToIndex(selectedIndex, {
-      align: "nearest",
-    });
-  }, [reviewTreeRows, selectedPath]);
-
-  React.useEffect(() => {
-    if (!selectedPath) return;
-    const segments = selectedPath.split("/").slice(0, -1);
-    if (segments.length === 0) return;
-    setCollapsedDirs((prev) => {
-      let next: Set<string> | null = null;
-      let path = "";
-      for (const segment of segments) {
-        path = path ? `${path}/${segment}` : segment;
-        if (prev.has(path)) {
-          if (!next) next = new Set(prev);
-          next.delete(path);
-        }
-      }
-      return next ?? prev;
-    });
-  }, [selectedPath]);
 
   React.useEffect(() => {
     if (!selectedPath || largeWorkspaceMode) return;
@@ -1659,9 +1688,6 @@ function WorkspaceReviewSidebarImpl({
       ),
     [files],
   );
-  const allCollapsed =
-    files.length > 0 &&
-    files.every((file) => collapsedDiffPaths.has(file.path));
   const { attachedComments, staleComments } = React.useMemo(
     () => attachComments(files, comments),
     [comments, files],
@@ -1674,44 +1700,21 @@ function WorkspaceReviewSidebarImpl({
   const sessionBusy =
     sessionStatus === "running" || sessionStatus === "waiting";
 
-  function toggleDir(dirPath: string): void {
-    setCollapsedDirs((prev) => {
-      const next = new Set(prev);
-      if (next.has(dirPath)) next.delete(dirPath);
-      else next.add(dirPath);
-      return next;
-    });
-  }
+  const setDiffExpanded = React.useCallback(
+    (path: string, expanded: boolean): void => {
+      diffExpansionStore.setExpanded(path, expanded);
+      if (expanded && largeWorkspaceMode) {
+        void loadFileDiff(path, "selected");
+      }
+    },
+    [diffExpansionStore, largeWorkspaceMode, loadFileDiff],
+  );
 
-  function toggleCollapseDiff(path: string): void {
-    const willExpand = collapsedDiffPaths.has(path);
-    onReviewTabStateChange((current) => ({
-      ...current,
-      selectedFile: willExpand ? path : current.selectedFile,
-      diffExpansion: toggleReviewDiffExpansion(
-        current.diffExpansion,
-        allFilePaths,
-        path,
-      ),
-    }));
-    if (willExpand && largeWorkspaceMode) {
-      void loadFileDiff(path, "selected");
+  const setAllDiffsExpanded = React.useCallback((expanded: boolean): void => {
+    for (const path of allFilePathsRef.current) {
+      diffExpansionStore.setExpanded(path, expanded);
     }
-  }
-
-  function collapseAllDiffs(): void {
-    onReviewTabStateChange((current) => ({
-      ...current,
-      diffExpansion: { mode: "none" },
-    }));
-  }
-
-  function expandAllDiffs(): void {
-    onReviewTabStateChange((current) => ({
-      ...current,
-      diffExpansion: { mode: "all" },
-    }));
-  }
+  }, [diffExpansionStore]);
 
   async function applyOperation(
     action: "stage" | "unstage" | "revert",
@@ -1753,7 +1756,7 @@ function WorkspaceReviewSidebarImpl({
                 path: target.path,
                 hunkId: target.hunkId,
               },
-      });
+      }, projectId ?? undefined);
       if (!isMutationCurrent(operationToken, operationIdentity)) return;
       setError(null);
       await refreshReviewDiff(true);
@@ -1775,13 +1778,13 @@ function WorkspaceReviewSidebarImpl({
     }
   }
 
-  async function saveDraft(): Promise<void> {
+  async function saveDraft(body: string): Promise<void> {
     if (
       !activeSessionId ||
       !workspacePath ||
       !summary ||
       !draft ||
-      !draft.body.trim()
+      !body.trim()
     ) {
       return;
     }
@@ -1802,8 +1805,9 @@ function WorkspaceReviewSidebarImpl({
           filePath: draft.filePath,
           side: draft.side,
           lineNumber: draft.lineNumber,
-          body: draft.body.trim(),
+          body: body.trim(),
         },
+        projectId ?? undefined,
       );
       if (
         !isMutationCurrent(
@@ -1839,6 +1843,7 @@ function WorkspaceReviewSidebarImpl({
       workspacePath,
       activeSessionId,
       commentId,
+      projectId ?? undefined,
     );
     if (activeCommentIdentityRef.current !== identity) return;
     setComments((current) =>
@@ -1855,6 +1860,7 @@ function WorkspaceReviewSidebarImpl({
       workspacePath,
       activeSessionId,
       commentId,
+      projectId ?? undefined,
     );
     if (activeCommentIdentityRef.current !== identity) return;
     setComments((current) =>
@@ -1937,6 +1943,7 @@ function WorkspaceReviewSidebarImpl({
             reviewSource,
             comment,
             published,
+            projectId ?? undefined,
           );
           if (
             !isMutationCurrent(
@@ -2020,7 +2027,10 @@ function WorkspaceReviewSidebarImpl({
       let commitPaths: string[] = [];
       if (includeUnstaged) {
         const statusResult =
-          await desktopClient.getWorkspaceGitStatus(workspacePath);
+          await desktopClient.getWorkspaceGitStatus(
+            workspacePath,
+            projectId ?? undefined,
+          );
         if ("error" in statusResult) {
           throw new Error(statusResult.error);
         }
@@ -2029,6 +2039,7 @@ function WorkspaceReviewSidebarImpl({
         ];
       }
       const result = await desktopClient.commitWorkspaceChanges({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         message: message.trim(),
         paths: commitPaths,
@@ -2085,6 +2096,7 @@ function WorkspaceReviewSidebarImpl({
     setPending(true);
     try {
       const result = await desktopClient.pushWorkspaceBranch({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         setUpstream: !gitStatus?.upstream,
       });
@@ -2130,12 +2142,14 @@ function WorkspaceReviewSidebarImpl({
     try {
       if (pushFirst) {
         const pushed = await desktopClient.pushWorkspaceBranch({
+          ...(projectId ? { projectId } : {}),
           workspacePath,
           setUpstream: !gitStatus?.upstream,
         });
         if (pushed.ok === false) throw new Error(pushed.error);
       }
       const result = await desktopClient.createPullRequest({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         title: title.trim(),
         body: body.trim(),
@@ -2271,7 +2285,7 @@ function WorkspaceReviewSidebarImpl({
         generation: currentSummary.generation,
         action,
         items,
-      });
+      }, projectId ?? undefined);
       if (
         activeSummaryIdentityRef.current !== operationIdentity ||
         mutationRequestTokenRef.current !== operationToken
@@ -2495,14 +2509,13 @@ function WorkspaceReviewSidebarImpl({
             sideOffset={4}
             width={220}
             trigger={
-              <button
-                aria-label="更多"
-                className="message-action"
+              <IconButton
+                color="ghostSecondary"
+                size="toolbar"
                 title="更多"
-                type="button"
               >
                 <Ellipsis size={APP_ICON_SIZE} />
-              </button>
+              </IconButton>
             }
             onOpenChange={setMoreMenuOpen}
           >
@@ -2592,43 +2605,35 @@ function WorkspaceReviewSidebarImpl({
               复制 git apply 命令
             </PopoverItem>
           </PopoverMenu>
-          <Tooltip content={allCollapsed ? "展开全部差异" : "折叠全部差异"}>
-            <button
-              aria-label={allCollapsed ? "展开全部差异" : "折叠全部差异"}
-              className="message-action"
-              type="button"
-              onClick={allCollapsed ? expandAllDiffs : collapseAllDiffs}
-            >
-              {allCollapsed ? (
-                <ListChevronsUpDown size={APP_ICON_SIZE} />
-              ) : (
-                <ListChevronsDownUp size={APP_ICON_SIZE} />
-              )}
-            </button>
-          </Tooltip>
+          <ReviewDiffExpansionToggle
+            allPaths={allFilePaths}
+            store={diffExpansionStore}
+            onSetAllExpanded={setAllDiffsExpanded}
+          />
           <Tooltip content="搜索文件">
-            <button
-              aria-label="搜索文件"
-              className="message-action"
-              type="button"
+            <IconButton
+              className="review-sidebar-search-action"
+              color="ghostSecondary"
+              size="toolbar"
+              title="搜索文件"
               onClick={() => fileSearchInputRef.current?.focus()}
             >
               <Search size={APP_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip
             content={
               reviewView === "inline" ? "切换到分离视图" : "切换到统一差异视图"
             }
           >
-            <button
-              aria-label={
+            <IconButton
+              color={reviewView === "inline" ? "ghostSecondary" : "ghostActive"}
+              size="toolbar"
+              title={
                 reviewView === "inline"
                   ? "切换到拆分差异视图"
                   : "切换到统一差异视图"
               }
-              className="message-action"
-              type="button"
               onClick={onToggleReviewView}
             >
               {reviewView === "inline" ? (
@@ -2642,24 +2647,26 @@ function WorkspaceReviewSidebarImpl({
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content={hideFileList ? "显示文件" : "隐藏文件"}>
-            <button
-              aria-label={hideFileList ? "显示文件" : "隐藏文件"}
+            <IconButton
+              ref={fileTreeToggleRef}
               aria-pressed={!hideFileList}
-              className="message-action"
-              type="button"
+              color={!hideFileList ? "ghostActive" : "ghostSecondary"}
+              size="toolbar"
+              title={hideFileList ? "显示文件" : "隐藏文件"}
               onClick={() => setHideFileList((value) => !value)}
             >
               <Briefcase size={APP_ICON_SIZE} />
-            </button>
+            </IconButton>
           </Tooltip>
           <Tooltip content="提交或推送">
-            <Button
+            <Button color="secondary"
               aria-label="提交或推送"
               className="review-sidebar-primary-action"
               ref={commitButtonRef}
+              size="toolbar"
               onClick={() => setCommitPopoverOpen((value) => !value)}
             >
               <GitCommitHorizontal size={APP_ICON_SIZE} />
@@ -2667,10 +2674,11 @@ function WorkspaceReviewSidebarImpl({
             </Button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
-            <Button
+            <Button color="secondary"
               aria-label="创建拉取请求"
               className="review-sidebar-primary-action"
               ref={prButtonRef}
+              size="toolbar"
               onClick={() => setPrPopoverOpen((value) => !value)}
             >
               <GitPullRequestArrow size={APP_ICON_SIZE} />
@@ -2683,7 +2691,7 @@ function WorkspaceReviewSidebarImpl({
       {error ? (
         <div className="review-error-state" role="alert">
           <span>{error}</span>
-          <Button
+          <Button color="secondary"
             onClick={() => void refreshReviewDiff(true)}
           >
             重试
@@ -2707,7 +2715,7 @@ function WorkspaceReviewSidebarImpl({
         {!showProjectEmptyState && visibleFiles.length > 0 ? (
           <ReviewDiffPreview
             attachedComments={attachedComments}
-            collapsedDiffPaths={collapsedDiffPaths}
+            disclosureStore={diffExpansionStore}
             diffMarkerStyle={diffMarkerStyle}
             draft={draft}
             fileLoadStates={fileLoadStates}
@@ -2717,7 +2725,7 @@ function WorkspaceReviewSidebarImpl({
             summaryLoadState={loadState}
             scope={scope}
             selectedPath={selectedFile?.path ?? null}
-            toggleCollapseDiff={toggleCollapseDiff}
+            onDiffExpandedChange={setDiffExpanded}
             viewportRef={diffScrollViewportRef}
             view={reviewView}
             showWordDiff={textDiff}
@@ -2728,11 +2736,8 @@ function WorkspaceReviewSidebarImpl({
             }
             onCreateDraft={setDraft}
             onDeleteComment={(commentId) => void deleteComment(commentId)}
-            onDraftBodyChange={(body) =>
-              setDraft((current) => (current ? { ...current, body } : current))
-            }
             onResolveComment={(commentId) => void resolveComment(commentId)}
-            onSaveDraft={() => void saveDraft()}
+            onSaveDraft={(body) => void saveDraft(body)}
             onCancelDraft={() => setDraft(null)}
             onFileSectionMount={setDiffFileSectionElement}
             onRetryFile={(path) => void loadFileDiff(path, "selected")}
@@ -2740,8 +2745,11 @@ function WorkspaceReviewSidebarImpl({
           />
         ) : null}
 
-        {!showProjectEmptyState && !hideFileList ? (
-          <>
+        <ReviewFileTreePanelPresence
+          focusReturnRef={fileTreeToggleRef}
+          liveWidth={liveFileTreePanelWidth}
+          liveWidthPixels={liveFileTreePanelWidthPixels}
+          resizeHandle={
             <ReviewFileTreeResizeController
               containerRef={reviewMainRef}
               liveWidthPixels={liveFileTreePanelWidthPixels}
@@ -2749,14 +2757,10 @@ function WorkspaceReviewSidebarImpl({
               onResizePreview={previewFileTreePanelWidth}
               onSetWidth={setFileTreePanelWidth}
             />
-            <motion.section
-              className="review-file-tree-panel"
-              aria-label="审查文件导航"
-              style={{
-                flexBasis: liveFileTreePanelWidthPixels,
-                width: liveFileTreePanelWidthPixels,
-              }}
-            >
+          }
+          visible={!showProjectEmptyState && !hideFileList}
+          width={fileTreePanelWidth}
+        >
               <div className="review-file-tree-panel-content">
                 <div className="review-file-search-region">
                   <SearchInput
@@ -2770,8 +2774,7 @@ function WorkspaceReviewSidebarImpl({
                   />
                 </div>
 
-                <ReviewFileTreeList
-                  collapsedDirs={collapsedDirs}
+                <ReviewFileTreeController
                   commentCountsByPath={commentCountsByPath}
                   emptyMessage={
                     loadState === "loading" && !summary
@@ -2788,11 +2791,9 @@ function WorkspaceReviewSidebarImpl({
                                 : "暂无未暂存变更。"
                               : "当前筛选下没有匹配的文件。"
                   }
-                  listRef={reviewFileTreeListRef}
-                  rows={reviewTreeRows}
+                  reviewTree={reviewTree}
                   selectedPath={selectedFile?.path ?? null}
                   onSelectFile={handleSelectFile}
-                  onToggleDir={toggleDir}
                 />
 
                 {staleComments.length > 0 ? (
@@ -2814,9 +2815,7 @@ function WorkspaceReviewSidebarImpl({
                   </ScrollArea>
                 ) : null}
               </div>
-            </motion.section>
-          </>
-        ) : null}
+        </ReviewFileTreePanelPresence>
       </motion.div>
 
       {!hideFileList &&
@@ -2828,7 +2827,7 @@ function WorkspaceReviewSidebarImpl({
               <Tooltip content="还原所有未暂存变更">
                 <Button
                   aria-disabled={reviewMutationPending}
-                  tone="danger"
+                  color="danger"
                   onClick={() => {
                     if (!reviewMutationPending) revertAll();
                   }}
@@ -2838,7 +2837,7 @@ function WorkspaceReviewSidebarImpl({
                 </Button>
               </Tooltip>
               <Tooltip content="暂存所有未暂存文件">
-                <Button
+                <Button color="primary"
                   aria-disabled={reviewMutationPending}
                   onClick={() => {
                     if (!reviewMutationPending) stageAll();
@@ -2852,7 +2851,7 @@ function WorkspaceReviewSidebarImpl({
           ) : (
             <>
               <Tooltip content="取消暂存所有已暂存文件">
-                <Button
+                <Button color="secondary"
                   aria-disabled={reviewMutationPending}
                   onClick={() => {
                     if (!reviewMutationPending) unstageAll();
@@ -2865,7 +2864,7 @@ function WorkspaceReviewSidebarImpl({
               <Tooltip content="还原已暂存变更">
                 <Button
                   aria-disabled={reviewMutationPending}
-                  tone="danger"
+                  color="danger"
                   onClick={() => {
                     if (!reviewMutationPending) revertAll();
                   }}
@@ -2881,14 +2880,14 @@ function WorkspaceReviewSidebarImpl({
 
       {source.kind === "pull-request" ? (
         <footer className="review-footer">
-          <Button
+          <Button color="secondary"
             disabled={pending || openComments.length === 0}
             onClick={() => void submitGithubReview("COMMENT")}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} />
             提交评论
           </Button>
-          <Button
+          <Button color="primary"
             disabled={pending}
             onClick={() => void submitGithubReview("APPROVE")}
           >
@@ -2897,7 +2896,7 @@ function WorkspaceReviewSidebarImpl({
           </Button>
           <Button
             disabled={pending || openComments.length === 0}
-            tone="danger"
+            color="danger"
             onClick={() => void submitGithubReview("REQUEST_CHANGES")}
           >
             <RotateCcw size={APP_ICON_SIZE} />

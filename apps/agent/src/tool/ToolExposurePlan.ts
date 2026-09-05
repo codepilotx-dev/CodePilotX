@@ -16,7 +16,9 @@ export interface ToolExposureInput {
   hasSkillService?: boolean
   hasProjectSources?: boolean
   defaultModeRequestUserInput?: boolean
+  delegationEnabled?: boolean
   allowedTools?: readonly string[]
+  activeDeferredTools?: readonly string[]
 }
 
 export interface ToolExposurePlan {
@@ -39,18 +41,32 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
   if (profile !== "main") lifecycle.push("finalize_result")
   else {
     if (input.taskMode === "plan" || input.defaultModeRequestUserInput) lifecycle.push("request_user_input")
-    if (input.taskMode === "chat") lifecycle.push("request_permissions", "update_plan")
-    lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")
+    if (input.taskMode === "chat") {
+      // Chat 主 Agent 可选用结构化交付收尾；Plan 继续以 <proposed_plan> 交付。
+      lifecycle.push("request_permissions", "update_plan", "finalize_result")
+    }
+    if (input.delegationEnabled !== false) lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")
   }
 
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null
   const deferred = deferredCandidates.filter((name) => !allowlist || allowlist.has(name))
+  const activeDeferred = new Set(input.activeDeferredTools ?? [])
+  const contextuallyActiveDeferred = deferredCandidates.filter((name) => (
+    activeDeferred.has(name) && (!allowlist || allowlist.has(name))
+  ))
   const explicitlyAllowedDeferred = allowlist
     ? deferredCandidates.filter((name) => allowlist.has(name))
     : []
+  // 子 Agent 无论 allowlist 收紧都必须能够收尾提交；主 Agent 的 finalize_result
+  // 与其他生命周期工具一样服从 Skill allowlist。
   const finalizers = new Set(["finalize_result"])
-  const exposed = [...eager, ...explicitlyAllowedDeferred, ...lifecycle]
-    .filter((name) => !allowlist || allowlist.has(name) || finalizers.has(name))
+  const lifecycleExemption = profile !== "main" ? (name: string) => finalizers.has(name) : () => false
+  const exposed = [...new Set([
+    ...eager,
+    ...contextuallyActiveDeferred,
+    ...explicitlyAllowedDeferred,
+    ...lifecycle,
+  ])].filter((name) => !allowlist || allowlist.has(name) || lifecycleExemption(name))
   const exposedSet = new Set(exposed)
   return { eager: eager.filter((name) => exposedSet.has(name)), deferred, exposed, allows: (name) => exposedSet.has(name) }
 }

@@ -1,24 +1,24 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import type { DesktopInstalledSkill } from '../../../shared/types.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
-
-const AppearanceSettings = React.lazy(() => import('./AppearanceSettings.js').then(module => ({ default: module.AppearanceSettings })))
-const ArchivedConversationsSettings = React.lazy(() => import('./ArchivedConversationsSettings.js').then(module => ({ default: module.ArchivedConversationsSettings })))
-const BrowserSettings = React.lazy(() => import('./BrowserSettings.js').then(module => ({ default: module.BrowserSettings })))
-const ConfigSettings = React.lazy(() => import('./ConfigSettings.js').then(module => ({ default: module.ConfigSettings })))
-const EnvironmentSettings = React.lazy(() => import('./EnvironmentSettings.js').then(module => ({ default: module.EnvironmentSettings })))
-const GeneralSettings = React.lazy(() => import('./GeneralSettings.js').then(module => ({ default: module.GeneralSettings })))
-const GitSettings = React.lazy(() => import('./GitSettings.js').then(module => ({ default: module.GitSettings })))
-const KeyboardShortcutsSettings = React.lazy(() => import('./KeyboardShortcutsSettings.js').then(module => ({ default: module.KeyboardShortcutsSettings })))
-const PluginsSettingsPage = React.lazy(() => import('./plugins/PluginsSettingsPage.js').then(module => ({ default: module.PluginsSettingsPage })))
-const MemorySettings = React.lazy(() => import('./MemorySettings.js').then(module => ({ default: module.MemorySettings })))
-const PetSettings = React.lazy(() => import('./PetSettings.js').then(module => ({ default: module.PetSettings })))
-const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettings.js').then(module => ({ default: module.PersonalizationSettings })))
-const ProfileSettings = React.lazy(() => import('./ProfileSettings.js').then(module => ({ default: module.ProfileSettings })))
-const UsageBillingSettings = React.lazy(() => import('./UsageBillingSettings.js').then(module => ({ default: module.UsageBillingSettings })))
-const WorkspaceDependenciesSettings = React.lazy(() => import('./WorkspaceDependenciesSettings.js').then(module => ({ default: module.WorkspaceDependenciesSettings })))
-const LocalEnvironmentSettings = React.lazy(() => import('./local-environment/LocalEnvironmentSettings.js').then(module => ({ default: module.LocalEnvironmentSettings })))
-const WorktreeSettings = React.lazy(() => import('../worktree/WorktreeSettings.js').then(module => ({ default: module.WorktreeSettings })))
+import { AppearanceSettings } from './AppearanceSettings.js'
+import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
+import { BrowserSettings } from './BrowserSettings.js'
+import { ConfigSettings } from './ConfigSettings.js'
+import { EnvironmentSettings } from './EnvironmentSettings.js'
+import { GeneralSettings } from './GeneralSettings.js'
+import { GitSettings } from './GitSettings.js'
+import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings.js'
+import { PluginsSettingsPage } from './plugins/PluginsSettingsPage.js'
+import { MemorySettings } from './MemorySettings.js'
+import { PetSettings } from './PetSettings.js'
+import { PersonalizationSettings } from './PersonalizationSettings.js'
+import { ProfileSettings } from './ProfileSettings.js'
+import { UsageBillingSettings } from './UsageBillingSettings.js'
+import { WorkspaceDependenciesSettings } from './WorkspaceDependenciesSettings.js'
+import { LocalEnvironmentSettings } from './local-environment/LocalEnvironmentSettings.js'
+import { WorktreeSettings } from '../worktree/WorktreeSettings.js'
+import { ProviderSettings } from '../models/ModelCenterView.js'
 
 type Props = {
   activeTab: string
@@ -40,6 +40,9 @@ export function SettingsPage({
     : 'general'
   let content: React.ReactNode
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
+  else if (resolvedTab === 'providers') {
+    content = <ProviderSettings onError={onError} onNotice={onNotice ?? (() => {})} />
+  }
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} />
   else if (resolvedTab === 'config') content = <ConfigSettings />
   else if (resolvedTab === 'plugins') {
@@ -75,5 +78,5 @@ export function SettingsPage({
   else if (resolvedTab === 'browser') content = <BrowserSettings />
   else if (resolvedTab === 'dependencies') content = <WorkspaceDependenciesSettings onError={onError} onNotice={onNotice} />
   else content = <GeneralSettings onNotice={onNotice} />
-  return <Suspense fallback={null}>{content}</Suspense>
+  return content
 }

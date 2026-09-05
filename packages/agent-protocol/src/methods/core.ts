@@ -11,9 +11,12 @@ import {
   JsonValueSchema,
   LimitSchema,
   MutationMetaSchema,
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
   OkResultSchema,
   OpaqueIDSchema,
   OperationParamsSchema,
+  PositiveIntSchema,
   SequenceSchema,
   StreamPositionSchema,
   TimestampSchema,
@@ -54,13 +57,11 @@ const ThreadErrors = [
 ] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
+const LocalContextErrors = ["THREAD_NOT_FOUND", "LOCAL_CONTEXT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const ApprovalFeedbackSchema = Schema.String.check(Schema.isMaxLength(4_000))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
-const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
 const NullableCursorSchema = Schema.NullOr(CursorSchema)
 
 export const ClientInfoSchema = Schema.Struct({
@@ -479,6 +480,8 @@ export const ProjectSourceRemoveResultSchema = Schema.Struct({
 export const WorkspaceFileRevisionSchema = Schema.Struct({
   mtimeMs: NonNegativeNumberSchema,
   sha256: NonEmptyStringSchema,
+  rawSha256: Schema.optional(NonEmptyStringSchema),
+  utf8Bom: Schema.optional(Schema.Boolean),
 })
 
 export const WorkspaceFileListParamsSchema = Schema.Struct({
@@ -563,6 +566,8 @@ export const ThreadCreateWorkspaceSchema = Schema.Union([
 ])
 
 const ThreadCreateFields = {
+  sessionGroupId: Schema.optional(OpaqueIDSchema),
+  creationSurface: Schema.optional(AgentThread.ThreadCreationSurfaceSchema),
   title: Schema.optional(Schema.String),
   settings: Schema.optional(AgentThread.ThreadSettingsSchema),
   ...OperationParamsSchema.fields,
@@ -621,6 +626,16 @@ export const ThreadMarkReadParamsSchema = Schema.Struct({
 })
 
 export const ThreadMarkReadResultSchema = Schema.Struct({
+  thread: AgentThread.ThreadListItemSchema,
+})
+
+export const ThreadMarkUnreadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  unreadAt: TimestampSchema,
+  ...OperationParamsSchema.fields,
+})
+
+export const ThreadMarkUnreadResultSchema = Schema.Struct({
   thread: AgentThread.ThreadListItemSchema,
 })
 
@@ -819,10 +834,12 @@ export const PromptRefreshResultSchema = Schema.Struct({
 
 export const CompactionSchema = Schema.Struct({
   id: OpaqueIDSchema,
+  trigger: Schema.optional(Schema.Literals(["manual", "automatic", "reactive"])),
   beforeCount: NonNegativeIntSchema,
   afterCount: NonNegativeIntSchema,
   beforeTokens: NonNegativeIntSchema,
   afterTokens: NonNegativeIntSchema,
+  afterTokensSource: Schema.optional(Schema.Literals(["compaction-estimate", "measured"])),
   targetTokens: NonNegativeIntSchema,
   usageSampleId: OpaqueIDSchema,
   baselineVersion: SequenceSchema,
@@ -837,6 +854,7 @@ export const ThreadCompactResultSchema = Schema.Struct({ compaction: CompactionS
 const TurnContentFields = {
   content: NonEmptyStringSchema,
   attachmentIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
+  contextReferenceIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
 }
 
 export const TurnStartParamsSchema = Schema.Struct({
@@ -988,6 +1006,82 @@ export const AttachmentReadResultSchema = Schema.Struct({
   }),
 })
 
+export const ArtifactMetadataSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  threadId: OpaqueIDSchema,
+  turnId: OpaqueIDSchema,
+  itemId: OpaqueIDSchema,
+  name: NonEmptyStringSchema,
+  mimeType: NonEmptyStringSchema,
+  sizeBytes: NonNegativeIntSchema,
+  createdAt: TimestampSchema,
+})
+
+export const ArtifactReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  artifactId: OpaqueIDSchema,
+})
+
+export const ArtifactReadResultSchema = Schema.Struct({
+  artifact: ArtifactMetadataSchema,
+  data: Schema.String,
+  encoding: Schema.Literals(["base64"]),
+  sizeBytes: NonNegativeIntSchema,
+})
+
+export const LocalContextPathImportParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  paths: Schema.Array(NonEmptyStringSchema),
+  ...OperationParamsSchema.fields,
+})
+export const LocalContextPathImportResultSchema = Schema.Struct({
+  references: Schema.Array(AgentThread.LocalContextReferenceSchema),
+})
+
+export const LocalContextPathRangeSchema = Schema.Struct({
+  offset: NonNegativeIntSchema,
+  length: PositiveIntSchema,
+})
+
+export const LocalContextPathReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  referenceId: OpaqueIDSchema,
+  relativePath: Schema.optional(Schema.String),
+  range: Schema.optional(LocalContextPathRangeSchema),
+})
+export const LocalContextPathReadResultSchema = Schema.Struct({
+  reference: AgentThread.LocalContextReferenceSchema,
+  relativePath: Schema.NullOr(Schema.String),
+  preview: Schema.Literals(["text", "image", "unsupported"]),
+  mediaType: Schema.NullOr(Schema.String),
+  data: Schema.NullOr(Schema.String),
+  encoding: Schema.NullOr(Schema.Literals(["utf8", "base64"])),
+  range: Schema.NullOr(Schema.Struct({
+    offset: NonNegativeIntSchema,
+    length: NonNegativeIntSchema,
+    total: NonNegativeIntSchema,
+  })),
+})
+
+export const LocalContextPathListParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  referenceId: OpaqueIDSchema,
+  relativePath: Schema.optional(Schema.String),
+  cursor: Schema.optional(CursorSchema),
+  limit: Schema.optional(LimitSchema),
+})
+export const LocalContextPathListResultSchema = Schema.Struct({
+  reference: AgentThread.LocalContextReferenceSchema,
+  relativePath: Schema.NullOr(Schema.String),
+  entries: Schema.Array(Schema.Struct({
+    name: NonEmptyStringSchema,
+    relativePath: NonEmptyStringSchema,
+    kind: Schema.Literals(["file", "directory"]),
+    status: Schema.Literals(["available", "missing"]),
+  })),
+  nextCursor: NullableCursorSchema,
+})
+
 export const MemoryScopeSchema = Schema.Literals(["user", "project"])
 export const MemoryEntrySchema = Schema.Struct({
   id: OpaqueIDSchema,
@@ -1069,6 +1163,7 @@ export const CoreRpcMethods = {
   "thread/history/read": defineMethod({ params: ThreadHistoryReadParamsSchema, result: ThreadHistoryPageResultSchema, errors: ThreadErrors, capability: null, mutation: false, exactParams: true, exactResult: true }),
   "thread/update": defineMethod({ params: ThreadUpdateParamsSchema, result: ThreadUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/mark-read": defineMethod({ params: ThreadMarkReadParamsSchema, result: ThreadMarkReadResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
+  "thread/mark-unread": defineMethod({ params: ThreadMarkUnreadParamsSchema, result: ThreadMarkUnreadResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/title/regenerate": defineMethod({ params: ThreadTitleRegenerateParamsSchema, result: ThreadTitleRegenerateResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "thread/settings/update": defineMethod({ params: ThreadSettingsUpdateParamsSchema, result: ThreadSettingsUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/delete": defineMethod({ params: ThreadDeleteParamsSchema, result: ThreadDeleteResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
@@ -1108,6 +1203,10 @@ export const CoreRpcMethods = {
   "sandbox/uninstall": defineMethod({ params: SandboxUninstallParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "attachment/import": defineMethod({ params: AttachmentImportParamsSchema, result: AttachmentImportResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: true, exactParams: true }),
   "attachment/read": defineMethod({ params: AttachmentReadParamsSchema, result: AttachmentReadResultSchema, errors: AttachmentErrors, capability: "attachments.v1", mutation: false }),
+  "artifact/read": defineMethod({ params: ArtifactReadParamsSchema, result: ArtifactReadResultSchema, errors: ["THREAD_NOT_FOUND", "ARTIFACT_NOT_FOUND", "ARTIFACT_LOCATION_INVALID", "PERMISSION_DENIED", ...CommonErrors] as const, capability: "artifacts.read.v1", mutation: false, exactParams: true, exactResult: true }),
+  "context/path/import": defineMethod({ params: LocalContextPathImportParamsSchema, result: LocalContextPathImportResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: true, exactParams: true, exactResult: true }),
+  "context/path/read": defineMethod({ params: LocalContextPathReadParamsSchema, result: LocalContextPathReadResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),
+  "context/path/list": defineMethod({ params: LocalContextPathListParamsSchema, result: LocalContextPathListResultSchema, errors: LocalContextErrors, capability: "local-context.paths.v1", mutation: false, exactParams: true, exactResult: true }),
   "memory/list": defineMethod({ params: MemoryListParamsSchema, result: MemoryListResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: false, exactResult: true }),
   "memory/read": defineMethod({ params: MemoryReadParamsSchema, result: MemoryReadResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: false, exactResult: true }),
   "memory/save": defineMethod({ params: MemorySaveParamsSchema, result: MemorySaveResultSchema, errors: MemoryErrors, capability: "memory.v2", mutation: true, exactParams: true, exactResult: true }),

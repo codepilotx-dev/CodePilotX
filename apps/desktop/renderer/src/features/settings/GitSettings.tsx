@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
   desktopClient,
+  desktopClipboard,
   startGithubLoginFlow,
 } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
@@ -103,7 +104,7 @@ export function GitSettings(): React.ReactNode {
 
   const copyGithubCode = async (): Promise<void> => {
     if (!githubLogin?.userCode) return
-    await navigator.clipboard.writeText(githubLogin.userCode)
+    await desktopClipboard.writeText(githubLogin.userCode)
   }
 
   const openGithubDevicePage = async (): Promise<void> => {
@@ -282,13 +283,13 @@ export function GitSettings(): React.ReactNode {
                 </p>
               </div>
               <div className="github-device-code-actions">
-                <Button
+                <Button color="secondary"
                   onClick={() => void copyGithubCode()}
                   type="button"
                 >
                   复制验证码
                 </Button>
-                <Button
+                <Button color="secondary"
                   onClick={() => void openGithubDevicePage()}
                   type="button"
                 >
@@ -310,7 +311,7 @@ export function GitSettings(): React.ReactNode {
               <div className="settings-inline-actions">
                 <span className="settings-row-status">{githubStatusText}</span>
                 {githubAuth?.authenticated ? (
-                  <Button
+                  <Button color="danger"
                     disabled={githubBusy}
                     onClick={() => void logoutGithub()}
                     type="button"
@@ -319,14 +320,14 @@ export function GitSettings(): React.ReactNode {
                   </Button>
                 ) : (
                   <>
-                    <Button
+                    <Button color="primary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('browser')}
                       type="button"
                     >
                       登录 GitHub
                     </Button>
-                    <Button
+                    <Button color="secondary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('device')}
                       type="button"

@@ -5,6 +5,17 @@ import type { SkillService } from "../prompt/SkillService"
 import type { ToolCatalog } from "../tool/ToolRegistry"
 import type { ExecutionPlanInput } from "./plan/ExecutionPlanInput"
 import type { RichQuestion } from "../session/QuestionInput"
+import type { ContextCompaction } from "../context/ContextCompactionService"
+import type { ToolExposureInput, ToolExposurePlan } from "../tool/ToolExposurePlan"
+
+export type RuntimeImage = { type: "image"; data: string; mimeType: string }
+
+export class SafeBoundaryInterrupt extends Error {
+  constructor() {
+    super("Subagent reached a safe boundary")
+    this.name = "SafeBoundaryInterrupt"
+  }
+}
 
 export interface PlanCheckpoint {
   state: string
@@ -15,6 +26,7 @@ export interface PlanCheckpoint {
   authorizationFingerprint?: string
   approvalID?: string
   checkpointID?: string
+  resumeLeaseID?: string
   permissionGrant?: {
     scope: "tool-call" | "turn" | "session"
     grantedPermissions: {
@@ -82,11 +94,15 @@ export interface AgentRuntimeRequest {
   workspace: WorkspaceService
   defaultCwd?: string
   resume?: PlanCheckpoint
+  /** Durable gate acquired before starting a fresh runtime (for example Hook trust). */
+  startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
+  delegationEnabled?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService
   projectSources?: ProjectSourceRuntimeAccess
   allowedTools?: readonly string[]
+  activeDeferredTools?: readonly string[]
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>
@@ -108,12 +124,14 @@ export interface AgentRuntime {
   steer(
     threadID: string,
     content: string,
-    images?: Array<{ type: "image"; data: string; mimeType: string }>,
+    images?: RuntimeImage[],
     inputID?: string,
   ): Promise<void>
   followUp(threadID: string, content: string): Promise<void>
   abort(threadID: string): Promise<void>
-  compact(threadID: string, instructions?: string): Promise<unknown>
+  compact(threadID: string, instructions?: string, promptText?: string): Promise<ContextCompaction>
+  toolExposure(input: ToolExposureInput): ToolExposurePlan
+  clearTurnPermissionGrants(threadID: string, turnID: string): void
   dispose(): Promise<void>
 }
 

@@ -25,6 +25,80 @@ describe("工作空间依赖项迁移", () => {
   })
 })
 
+describe("首次模型配置向导", () => {
+  test("只保留数值 0 和 1，并让缺失或无效值继续走旧用户迁移", () => {
+    expect(defaultDesktopStoredSettings().firstUseSetupCompleted).toBeUndefined()
+    expect(normalizeDesktopStoredSettings({
+      firstUseSetupCompleted: 0,
+    }).firstUseSetupCompleted).toBe(0)
+    expect(normalizeDesktopStoredSettings({
+      firstUseSetupCompleted: 1,
+    }).firstUseSetupCompleted).toBe(1)
+
+    for (const value of [true, false, "0", "1", 2, -1]) {
+      expect(normalizeDesktopStoredSettings({
+        firstUseSetupCompleted: value as never,
+      }).firstUseSetupCompleted).toBeUndefined()
+    }
+  })
+})
+
+describe("专用模型设置迁移", () => {
+  test("将旧任务模型映射到四类专用模型且不保留旧字段", () => {
+    const settings = normalizeDesktopStoredSettings({
+      smallFastModel: 'openai/gpt-fast',
+      fastModel: 'openai/gpt-fallback',
+      defaultModel: 'openai/gpt-default',
+      deepModel: 'openai/gpt-deep',
+      planExecutionModel: 'openai/gpt-code',
+      reviewModel: 'openai/gpt-safe',
+    })
+
+    expect(settings).toMatchObject({
+      generationModel: 'openai/gpt-fast',
+      organizationModel: 'openai/gpt-fast',
+      codingModel: 'openai/gpt-code',
+      securityModel: 'openai/gpt-safe',
+    })
+    expect('smallFastModel' in settings).toBe(false)
+    expect('planExecutionModel' in settings).toBe(false)
+    expect('reviewModel' in settings).toBe(false)
+  })
+
+  test("已有专用模型优先于旧任务模型", () => {
+    expect(normalizeDesktopStoredSettings({
+      generationModel: 'anthropic/claude-new',
+      codingModel: 'anthropic/claude-code',
+      smallFastModel: 'openai/gpt-old',
+      planExecutionModel: 'openai/gpt-old-code',
+    })).toMatchObject({
+      generationModel: 'anthropic/claude-new',
+      codingModel: 'anthropic/claude-code',
+    })
+    expect(normalizeDesktopStoredSettings({
+      reviewModel: 'openai/gpt-review',
+    }).codingModel).toBe('openai/gpt-review')
+  })
+})
+
+describe("语音输入设备设置", () => {
+  test("默认跟随系统设备并保留有效设备 ID", () => {
+    expect(
+      defaultDesktopStoredSettings()['desktop.voice.preferredInputDeviceId'],
+    ).toBe('')
+    expect(
+      normalizeDesktopStoredSettings({
+        'desktop.voice.preferredInputDeviceId': 'microphone-1',
+      })['desktop.voice.preferredInputDeviceId'],
+    ).toBe('microphone-1')
+    expect(
+      normalizeDesktopStoredSettings({
+        'desktop.voice.preferredInputDeviceId': 42 as never,
+      })['desktop.voice.preferredInputDeviceId'],
+    ).toBe('')
+  })
+})
+
 describe("宠物设置归一化", () => {
   test("提供安全默认值并限制尺寸与宠物 ID", () => {
     expect(defaultDesktopStoredSettings().pet).toEqual({
@@ -373,17 +447,22 @@ describe("侧边栏设置归一化", () => {
     })
   })
 
-  test("重置侧栏状态会关闭时间线并取消优先级勾选", () => {
+  test("重置侧栏状态会关闭时间线并保留已关闭的引导状态", () => {
     const settings = normalizeDesktopStoredSettings({
       sidebarTimelineEnabled: true,
       sidebarTimelinePriorityEnabled: true,
+      sidebarActivityCoachmarkDismissed: true,
+      sidebarActivityShowWork: false,
     })
+    expect(settings.sidebarActivityCoachmarkDismissed).toBe(true)
+    expect(settings.sidebarActivityShowWork).toBe(false)
     const reset = {
       ...settings,
       ...createSidebarStateResetPatch(settings),
     }
     expect(reset.sidebarTimelineEnabled).toBe(false)
     expect(reset.sidebarTimelinePriorityEnabled).toBe(false)
+    expect(reset.sidebarActivityCoachmarkDismissed).toBe(true)
   })
 })
 
@@ -446,4 +525,20 @@ test("不再持久化 GitHub OAuth 客户端与认证服务地址", () => {
 
   expect("githubOAuthClientId" in settings).toBe(false)
   expect("authBaseUrl" in settings).toBe(false)
+})
+
+
+describe('聊天宽度', () => {
+  test('保留三个档位，旧设置及非法值回落默认宽度', () => {
+    expect(defaultDesktopStoredSettings().conversationWidth).toBe('default')
+    expect(normalizeDesktopStoredSettings({}).conversationWidth).toBe('default')
+    for (const conversationWidth of ['default', 'narrow', 'wide'] as const) {
+      expect(normalizeDesktopStoredSettings({ conversationWidth }).conversationWidth)
+        .toBe(conversationWidth)
+    }
+    for (const conversationWidth of ['full', '', 1250, null]) {
+      expect(normalizeDesktopStoredSettings({ conversationWidth }).conversationWidth)
+        .toBe('default')
+    }
+  })
 })

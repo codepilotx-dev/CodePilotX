@@ -17,6 +17,7 @@ import { realpath } from "node:fs/promises"
 import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
+import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { pathContains } from "../permission/PathPermissions"
 import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRiskClassifier"
@@ -49,6 +50,12 @@ export function shellRuntimeDependencies(command: string): ManagedToolID[] {
   return [...dependencies]
 }
 
+/** 仅在命令片段的首项识别官方 MiniMax CLI，避免匹配引号或普通参数文本。 */
+export function shellUsesMiniMaxCli(command: string): boolean {
+  return shellCommandSegments(command).some((segment) =>
+    segment.executable === "mmx" && !segment.executableIsPath)
+}
+
 export interface ToolExecutionContext {
   threadID: string
   turnID: string
@@ -77,6 +84,21 @@ export interface ToolExecutionContext {
   onProgress?: (progress: ToolProgress) => void
   /** Immutable tool catalog captured for this turn. */
   toolCatalog?: ToolCatalog
+  /** Deferred tool names frozen in the durable turn composition. */
+  frozenDeferredToolNames?: readonly string[]
+}
+
+export const frozenDeferredEnvelope = <T extends { sdkName: string }>(
+  definitions: readonly T[],
+  frozenNames: readonly string[] | undefined,
+): T[] => {
+  if (!frozenNames) return [...definitions]
+  const definitionsByName = new Map(definitions.map((definition) => [definition.sdkName, definition]))
+  const missing = frozenNames.filter((name) => !definitionsByName.has(name))
+  if (missing.length > 0) {
+    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", `冻结的 deferred 工具缺失: ${missing.join(", ")}`, 409)
+  }
+  return frozenNames.map((name) => definitionsByName.get(name)!)
 }
 
 export interface ToolExecutorOptions {
@@ -92,6 +114,7 @@ export interface ToolExecutorOptions {
   runHost?: typeof runHostCommand
   resolveTooling?: ToolingResolver
   resolveToolingEnvironment?: ToolingEnvironmentResolver
+  resolveMiniMaxCliPathEntries?: () => Promise<readonly string[]>
   resolveShellSecurityLevel?: () => ShellSecurityLevel
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
@@ -110,6 +133,9 @@ export class ToolExecutor {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
   }
 
+  /** Process-wide catalog used only to bind names already frozen in a turn snapshot. */
+  catalog(): ToolCatalog { return this.registry }
+
   definition(name: string, catalog: ToolCatalog = this.registry) {
     return catalog.get(name)
   }
@@ -118,8 +144,12 @@ export class ToolExecutor {
     return createToolExposurePlan(catalog, input)
   }
 
-  deferredDefinitions(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
-    return this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+  deferredDefinitions(
+    input: ToolExposureInput & { frozenDeferredToolNames?: readonly string[] },
+    catalog: ToolCatalog = this.registry,
+  ) {
+    const definitions = this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+    return frozenDeferredEnvelope(definitions, input.frozenDeferredToolNames)
   }
 
   async previewApproval(name: string, input: Record<string, unknown>, context: ToolExecutionContext, toolCallID: string) {
@@ -358,6 +388,9 @@ export class ToolExecutor {
         sandboxMode: permissionConfig.sandboxMode,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
+        ...(context.frozenDeferredToolNames
+          ? { frozenDeferredToolNames: context.frozenDeferredToolNames }
+          : {}),
       }, catalog)
       for (const configWrite of inspection?.configWrites ?? []) {
         this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
@@ -568,6 +601,7 @@ export class ToolExecutor {
       throw new AgentError("PLAN_SHELL_DISABLED", "Plan 模式禁止执行 Bash 或 PowerShell", 403)
     }
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
+    const executionPolicy = executionPolicyFromV4(permissionConfig)
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
     const workspaceRoot = await realpath(context.workspace.rootPath)
@@ -581,7 +615,7 @@ export class ToolExecutor {
       ? (isAbsolute(shell.cwd) ? resolve(shell.cwd) : resolve(context.defaultCwd ?? workspaceRoot, shell.cwd))
       : resolve(context.defaultCwd ?? workspaceRoot)
     const cwd = await realpath(requestedCwd).catch(() => { throw new AgentError("SHELL_CWD_NOT_FOUND", "Shell cwd 不存在或无法解析", 400) })
-    if (permissionConfig.sandboxMode !== "danger-full-access") {
+    if (executionPolicy.fileAccess !== "full-access") {
       const outsideWorkspace = !context.workspace.containsPath(cwd)
       if (outsideWorkspace && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) {
         throw new AgentError("SHELL_CWD_PERMISSION_REQUIRED", "工作区外 cwd 必须在 additionalPermissions.readPaths 中声明", 403)
@@ -658,7 +692,7 @@ export class ToolExecutor {
         details: {
           shellTool,
           taskMode: context.taskMode,
-          permissionProfile: permissionConfig.sandboxMode,
+          fileAccess: executionPolicy.fileAccess,
           risk: staticRisk.risk,
           hookDecision,
           permissionDecision: decision.decision,
@@ -972,7 +1006,10 @@ export class ToolExecutor {
         })
       }
     }
-    const env = toolingPathOverride(environment.pathEntries)
+    const miniMaxCliPathEntries = shellUsesMiniMaxCli(command)
+      ? await this.options?.resolveMiniMaxCliPathEntries?.() ?? []
+      : []
+    const env = toolingPathOverride([...environment.pathEntries, ...miniMaxCliPathEntries])
     if (process.platform === "win32" && shellTool === "Bash") {
       const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)("git-bash", { signal })
       if (!resolution.available) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", resolution.reason, 503, { toolingID: "git-bash", reason: resolution.code })

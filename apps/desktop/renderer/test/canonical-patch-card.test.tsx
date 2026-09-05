@@ -29,7 +29,7 @@ function patch(count: number, overrides: Partial<PatchDisplay> = {}): PatchDispl
 }
 
 describe("canonical patch card", () => {
-  test("keeps the card visible and initially limits long file lists to three", () => {
+  test("keeps extra file rows mounted while initially showing three", () => {
     const markup = renderToStaticMarkup(
       <PatchSummaryView
         onOpenReview={() => undefined}
@@ -41,9 +41,14 @@ describe("canonical patch card", () => {
     expect(markup).toContain("已编辑 4 个文件");
     expect(markup).toContain("src/file-1.ts");
     expect(markup).toContain("src/file-3.ts");
-    expect(markup).not.toContain("src/file-4.ts");
+    expect(markup).toContain("src/file-4.ts");
     expect(markup).toContain("再显示 1 个文件");
     expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('data-mount-policy="always"');
+    expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain("inert");
+    expect(markup).toContain('class="canonical-patch-card__disclosure"');
+    expect(markup).not.toContain('ui-button canonical-patch-card__disclosure');
   });
 
   test("does not render a disclosure for three or fewer files", () => {

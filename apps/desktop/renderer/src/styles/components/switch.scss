@@ -3,52 +3,160 @@
 .toggle-switch,
 .chat-input__dropdown-switch,
 .context-menu-switch {
+  box-sizing: border-box;
+  border: 1px solid var(--cpx-sys-color-border-default);
   background: color-mix(
     in srgb,
-    var(--color-token-foreground) 16%,
-    var(--color-token-editor-widget-background)
+    var(--cpx-sys-color-fg-primary) 14%,
+    var(--cpx-comp-surface-panel)
   );
+  box-shadow: none;
+  outline: none;
+  transition:
+    background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+
+  &:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 20%,
+      var(--cpx-comp-surface-panel)
+    );
+  }
+
+  &:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+    background: var(--cpx-sys-color-selected);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 2px;
+  }
+
+  &[data-state="unchecked"] {
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 14%,
+      var(--cpx-comp-surface-panel)
+    );
+  }
 
   &[data-state="checked"],
   &[aria-checked="true"] {
-    background: var(--codex-base-accent);
+    background: var(--cpx-sys-color-accent);
+    border-color: color-mix(
+      in srgb,
+      var(--cpx-sys-color-accent) 72%,
+      var(--cpx-sys-color-border-default)
+    );
+  }
+
+  &[data-state="checked"]:hover:not(:where(:disabled, [data-disabled])),
+  &[aria-checked="true"]:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 8%,
+      var(--cpx-sys-color-accent)
+    );
+  }
+
+  &[data-state="checked"]:active:not(:where(:disabled, [data-disabled])),
+  &[aria-checked="true"]:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-primary) 14%,
+      var(--cpx-sys-color-accent)
+    );
+  }
+
+  &:disabled,
+  &[data-disabled],
+  &[aria-disabled="true"] {
+    border-color: var(--cpx-sys-color-border-subtle);
+    background: color-mix(
+      in srgb,
+      var(--cpx-sys-color-fg-disabled) 12%,
+      var(--cpx-comp-surface-panel)
+    );
+    color: var(--cpx-sys-color-fg-disabled);
+    outline: none;
+    cursor: default;
+    opacity: 0.5;
   }
 }
 
 .chat-input__dropdown-switch-thumb,
 .context-menu-switch-thumb {
-  background: var(--color-token-main-surface-primary);
+  box-sizing: border-box;
+  border: 1px solid var(--cpx-sys-color-border-default);
+  background: var(--cpx-comp-switch-thumb-fill);
+  box-shadow: var(--cpx-sys-shadow-control);
 }
 
 /* --- Settings Page Toggle Switch --- */
 .toggle-switch {
   width: 32px;
   height: 20px;
-  border-radius: var(--radius-marquee);
+  border-radius: var(--cpx-sys-radius-xl);
   position: relative;
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  border: none;
   padding: 0;
   flex-shrink: 0;
 
   &[data-state="checked"] .toggle-knob,
   &[aria-checked="true"] .toggle-knob {
-    transform: translateX(14px);
+    transform: translateX(12px);
   }
 }
 
 .toggle-knob {
+  box-sizing: border-box;
   width: 16px;
   height: 16px;
-  border: 1px solid white;
-  border-radius: var(--radius-full);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-full);
   position: absolute;
-  top: 2px;
-  left: 0;
-  transition: transform 0.15s ease;
-  transform: translateX(2px);
-  background: white;
+  top: 1px;
+  left: 1px;
+  box-shadow: var(--cpx-sys-shadow-control);
+  transition:
+    background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
+  transform: translateX(0);
+  background: var(--cpx-comp-switch-thumb-fill);
+}
+
+.toggle-switch[data-state="checked"] .toggle-knob,
+.toggle-knob[data-state="checked"],
+.toggle-switch[aria-checked="true"] .toggle-knob {
+  border-color: transparent;
+  background: var(--cpx-comp-switch-thumb-fill);
+}
+
+.toggle-knob[data-state="unchecked"] {
+  border-color: var(--cpx-sys-color-border-default);
+  background: var(--cpx-comp-switch-thumb-fill);
+}
+
+.toggle-knob[data-disabled] {
+  border-color: var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-comp-surface-raised);
+  box-shadow: none;
+}
+
+.chat-input__dropdown-switch:is(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"]
+  )
+  .chat-input__dropdown-switch-thumb,
+.context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+  .context-menu-switch-thumb {
+  border-color: var(--cpx-sys-color-border-subtle);
+  background: var(--cpx-comp-surface-raised);
+  box-shadow: none;
 }
 
 /* --- Chat Input Dropdown Switch --- */
@@ -57,8 +165,7 @@
   height: 22px;
   margin-left: auto;
   flex: 0 0 auto;
-  border-radius: var(--radius-full);
-  transition: background 0.15s ease-out;
+  border-radius: var(--cpx-sys-radius-full);
   cursor: pointer;
 }
 
@@ -67,12 +174,46 @@
   width: 16px;
   height: 16px;
   margin: 3px;
-  border-radius: 50%;
-  box-shadow: var(--shadow-raised);
-  transition: transform 0.15s ease-out;
+  border-radius: var(--cpx-sys-radius-full);
+  box-shadow: var(--cpx-sys-shadow-control);
+  transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
 .chat-input__dropdown-switch[aria-checked="true"]
   .chat-input__dropdown-switch-thumb {
   transform: translateX(14px);
+}
+
+:root[data-reduce-motion='on'] {
+  .toggle-switch,
+  .chat-input__dropdown-switch,
+  .context-menu-switch,
+  .toggle-knob,
+  .chat-input__dropdown-switch-thumb,
+  .context-menu-switch-thumb {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .toggle-knob,
+  .chat-input__dropdown-switch-thumb,
+  .context-menu-switch-thumb {
+    border-color: ButtonText;
+    background: ButtonText;
+  }
+
+  .toggle-knob[data-disabled],
+  .chat-input__dropdown-switch:is(
+      :disabled,
+      [data-disabled],
+      [aria-disabled="true"]
+    )
+    .chat-input__dropdown-switch-thumb,
+  .context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+    .context-menu-switch-thumb {
+    border-color: GrayText;
+    background: GrayText;
+    box-shadow: none;
+  }
 }

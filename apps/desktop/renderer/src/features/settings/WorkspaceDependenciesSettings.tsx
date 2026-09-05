@@ -8,7 +8,7 @@ import type {
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
@@ -268,7 +268,7 @@ function WorkspaceDependenciesHeader({
     <div className="settings-page-header">
       <div className="settings-section-header">
         <h2 className="settings-page-title">工作空间依赖项</h2>
-        <Button
+        <Button color="primary"
           disabled={disabled}
           onClick={onRefresh}
           title={refreshing ? '正在扫描工作空间依赖项' : '重新扫描'}
@@ -358,7 +358,7 @@ function DependencySection({
               : '首次使用时也会自动安装代码内固定的版本。'
           }
           control={
-            <Button
+            <Button color="primary"
               disabled={busy || installing}
               onClick={onInstall}
               type="button"

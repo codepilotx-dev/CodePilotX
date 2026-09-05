@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
-import { catalogProviderToDesktop } from '../src/services/desktop-client/provider-adapters.js'
+import {
+  catalogProviderToDesktop,
+  desktopProviderExecutionError,
+  isExecutableDesktopProvider,
+} from '../src/services/desktop-client/provider-adapters.js'
 
 const provider = {
   provider: {
@@ -58,6 +62,106 @@ const provider = {
 }
 
 describe('desktop provider client', () => {
+  test('preserves models.dev origin and availability while filtering unavailable providers', () => {
+    const ready = catalogProviderToDesktop({
+      provider: {
+        ...provider.provider,
+        source: {
+          ...provider.provider.source,
+          kind: 'models-dev',
+        },
+        catalogOrigin: 'models-dev',
+        availability: { status: 'ready' },
+      },
+      models: provider.models,
+    } as never)
+    const unavailable = {
+      ...ready,
+      availability: {
+        status: 'unavailable' as const,
+        reason: 'unsupported-protocol' as const,
+      },
+    }
+
+    expect(ready).toMatchObject({
+      providerKind: 'models-dev',
+      catalogOrigin: 'models-dev',
+      availability: { status: 'ready' },
+    })
+    expect(isExecutableDesktopProvider(ready)).toBe(true)
+    expect(isExecutableDesktopProvider(unavailable)).toBe(false)
+    expect(desktopProviderExecutionError(unavailable)).toContain('协议或 Endpoint')
+    expect(desktopProviderExecutionError({ ...ready, enabled: false })).toContain('已禁用')
+    expect(desktopProviderExecutionError({
+      ...ready,
+      defaultModels: [],
+      modelCount: 0,
+    })).toContain('暂无可用模型')
+    expect(desktopProviderExecutionError(ready)).toBeNull()
+  })
+
+  describe('models.dev logo URL', () => {
+    test('仅当 catalogOrigin 为 models-dev 时生成固定域名 SVG URL', () => {
+      const summary = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'models-dev',
+        },
+        models: provider.models,
+      } as never)
+
+      expect(summary.logoURL).toBe(
+        'https://models.dev/logos/minimax-cn-coding-plan.svg',
+      )
+    })
+
+    test('对含特殊字符的 providerID 安全进行 encodeURIComponent', () => {
+      const summary = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          id: 'prov/中文 id & ?=+#',
+          catalogOrigin: 'models-dev',
+        },
+        models: provider.models,
+      } as never)
+
+      expect(summary.logoURL).toBe(
+        `https://models.dev/logos/${encodeURIComponent('prov/中文 id & ?=+#')}.svg`,
+      )
+      expect(summary.logoURL?.startsWith('https://models.dev/logos/')).toBe(true)
+      expect(summary.logoURL?.endsWith('.svg')).toBe(true)
+    })
+
+    test('用户自定义或非 models-dev 来源不生成 models.dev 图标 URL', () => {
+      const userDefined = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'user',
+        },
+        models: provider.models,
+      } as never)
+      const piBundled = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          catalogOrigin: 'pi-bundled',
+        },
+        models: provider.models,
+      } as never)
+      const undefinedOrigin = catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+        },
+        models: provider.models,
+      } as never)
+
+      expect(userDefined.logoURL).toBeUndefined()
+      expect(piBundled.logoURL).toBeUndefined()
+      expect(undefinedOrigin.logoURL).toBeUndefined()
+      expect(userDefined.logoURL ?? '').not.toContain('models.dev')
+      expect(piBundled.logoURL ?? '').not.toContain('models.dev')
+    })
+  })
+
   test('仅支持 OAuth 的 provider 未认证时不会被 adapter 视为已配置', () => {
     expect(catalogProviderToDesktop({
       provider: {
@@ -180,6 +284,63 @@ describe('desktop provider client', () => {
     expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
   })
 
+  test('完整预加载会遍历 provider 的全部模型分页', async () => {
+    const modelRequests: Array<Record<string, unknown>> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [{ ...provider.provider, authConfigured: true, modelCount: 2 }],
+          issues: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 9,
+        })
+      }
+      if (body.method === 'model/list') {
+        modelRequests.push(body.params)
+        const secondPage = body.params.cursor === 'page-2'
+        const modelID = secondPage ? 'MiniMax-M2' : 'MiniMax-M3'
+        return rpc(body.id, {
+          providers: [{
+            ...provider,
+            models: [{
+              ...provider.models[0],
+              id: modelID,
+              name: modelID,
+              api: { ...provider.models[0]!.api, id: modelID },
+            }],
+          }],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 9,
+          total: 2,
+          ...(secondPage ? {} : { nextCursor: 'page-2' }),
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    await client.listModelProviders()
+    const result = await client.fetchProviderModels({
+      providerID: provider.provider.id,
+      all: true,
+    })
+
+    expect(modelRequests).toEqual([
+      { providerId: provider.provider.id, enabled: true, limit: 100 },
+      { providerId: provider.provider.id, enabled: true, limit: 100, cursor: 'page-2' },
+    ])
+    expect(result.models).toEqual(['MiniMax-M3', 'MiniMax-M2'])
+    expect(result.nextCursor).toBeUndefined()
+  })
+
   test('provider 摘要使用 Agent 认证状态且仅按需加载当前 provider 模型', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const codexProvider = {
@@ -243,8 +404,8 @@ describe('desktop provider client', () => {
       if (body.method === 'provider/list') {
         return rpc(body.id, {
           providers: [
-            { ...codexProvider, authConfigured: true },
-            { ...deepseekProvider, authConfigured: true },
+            { ...codexProvider, authConfigured: true, modelCount: 1 },
+            { ...deepseekProvider, authConfigured: true, modelCount: 1 },
           ],
           issues: [],
           defaultModel: { providerID: 'openai-codex', id: 'gpt-5' },
@@ -287,9 +448,10 @@ describe('desktop provider client', () => {
     expect(providers.map(item => ({
       providerID: item.providerID,
       apiKeyConfigured: item.apiKeyConfigured,
+      executable: isExecutableDesktopProvider(item),
     }))).toEqual([
-      { providerID: 'openai-codex', apiKeyConfigured: true },
-      { providerID: 'deepseek', apiKeyConfigured: true },
+      { providerID: 'openai-codex', apiKeyConfigured: true, executable: true },
+      { providerID: 'deepseek', apiKeyConfigured: true, executable: true },
     ])
     expect(
       requests.filter(request => request.method === 'model/list'),
@@ -308,6 +470,63 @@ describe('desktop provider client', () => {
       apiKeyConfigured: true,
       apiKeySource: 'environment',
     })
+  })
+
+  test('手动刷新使用 model/refresh 并清理 Provider、模型与凭据缓存', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [{ ...provider.provider, authConfigured: true, modelCount: 1 }],
+          issues: [],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+        })
+      }
+      if (body.method === 'model/list') {
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+          total: 1,
+        })
+      }
+      if (body.method === 'model/refresh') {
+        expect(body.params).toEqual({ operationId: expect.any(String) })
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 8,
+        })
+      }
+      if (body.method === 'provider/credential/list') {
+        return rpc(body.id, { credentials: [credential()] })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.getModelProviderState()
+    await client.listModelProviders()
+    await client.refreshModelProviders()
+    await client.getModelProviderState()
+    await client.listModelProviders()
+
+    expect(requests.filter(request => request.method === 'model/refresh')).toHaveLength(1)
+    expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(2)
+    expect(requests.filter(request => request.method === 'model/list')).toHaveLength(2)
+    expect(requests.filter(request => request.method === 'provider/credential/list'))
+      .toHaveLength(2)
   })
 
   test('凭据更新事件会清理 provider 目录缓存并通知工作台刷新', async () => {
@@ -371,13 +590,14 @@ describe('desktop provider client', () => {
         eventSourceFactory: () => source as unknown as EventSource,
       })
       expect((await client.listModelProviders())[0]?.apiKeyConfigured).toBe(false)
-      unsubscribe = client.onAgentEvent(() => {})
+      unsubscribe = client.onSessionStoreChange(() => {})
       for (let index = 0; index < 20 && !source.onmessage; index += 1) {
         await new Promise(resolve => setTimeout(resolve, 0))
       }
       authConfigured = true
       source.onmessage?.({
         data: JSON.stringify({
+          jsonrpc: '2.0',
           method: 'event/next',
           params: {
             subscriptionId: 'subscription-1',
@@ -396,7 +616,7 @@ describe('desktop provider client', () => {
         }),
       } as MessageEvent)
       for (let index = 0; index < 20 && refreshEvents === 0; index += 1) {
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, 10))
       }
 
       expect(refreshEvents).toBe(1)
@@ -661,6 +881,168 @@ describe('desktop provider client', () => {
       'auth/session/respond',
       'auth/session/status',
       'auth/session/cancel',
+    ]))
+  })
+
+  test('模型健康 RPC 通过 typed RPC 调用并受 capability 门禁', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const runSnapshot = {
+      runId: 'run-1',
+      status: 'running',
+      startedAt: 1000,
+      counts: {
+        total: 2,
+        queued: 1,
+        running: 1,
+        healthy: 0,
+        failed: 0,
+        cancelled: 0,
+      },
+      excludedProviders: [],
+      items: [
+        { model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' }, status: 'queued' },
+        {
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+          status: 'running',
+          startedAt: 1000,
+        },
+      ],
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('model.health.v1')
+        return rpc(body.id, initializedResult([
+          'rpc.typed.v1',
+          'model.health.v1',
+        ]))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'model/health/preview') {
+        expect(body.params).toEqual({})
+        return rpc(body.id, {
+          totalRequests: 2,
+          excludedProviders: [],
+        })
+      }
+      if (body.method === 'model/health/start') {
+        expect(body.params.operationId).toEqual('op-1')
+        return rpc(body.id, { run: runSnapshot })
+      }
+      if (body.method === 'model/health/read') {
+        expect(body.params).toEqual({ runId: 'run-1' })
+        return rpc(body.id, { run: null })
+      }
+      if (body.method === 'model/health/cancel') {
+        expect(body.params).toEqual({ runId: 'run-1', operationId: 'op-1' })
+        return rpc(body.id, {
+          run: {
+            ...runSnapshot,
+            status: 'cancelled',
+            completedAt: 1500,
+          },
+        })
+      }
+      if (body.method === 'provider/test') {
+        expect(body.params).toEqual({
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+        })
+        return rpc(body.id, {
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+          status: 'reachable',
+          testedAt: 1000,
+          latencyMs: 42,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    expect(await client.previewModelHealth()).toEqual({
+      totalRequests: 2,
+      excludedProviders: [],
+    })
+    expect(await client.startModelHealth('op-1')).toEqual({ run: runSnapshot })
+    expect(await client.readModelHealth('run-1')).toEqual({ run: null })
+    expect(await client.cancelModelHealth('run-1', 'op-1')).toMatchObject({
+      run: { status: 'cancelled' },
+    })
+    expect(await client.testModelProvider(
+      'minimax-cn-coding-plan',
+      { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+    )).toMatchObject({
+      status: 'reachable',
+      latencyMs: 42,
+    })
+
+    expect(requests).toEqual(expect.arrayContaining([
+      { method: 'model/health/preview', params: {} },
+      { method: 'model/health/start', params: { operationId: 'op-1' } },
+      { method: 'model/health/read', params: { runId: 'run-1' } },
+      { method: 'model/health/cancel', params: { runId: 'run-1', operationId: 'op-1' } },
+      {
+        method: 'provider/test',
+        params: {
+          providerId: 'minimax-cn-coding-plan',
+          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+        },
+      },
+    ]))
+  })
+
+  test('declares the side-chat capability before calling its RPC methods', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('thread.side-chat.v1')
+        return rpc(body.id, initializedResult([
+          'rpc.typed.v1',
+          'thread.side-chat.v1',
+        ]))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'thread/side-chat/create') {
+        return rpc(body.id, {
+          sideChat: {
+            threadId: 'side-chat-1',
+            sourceThreadId: 'thread-1',
+            inheritedThroughTurnId: 'turn-1',
+            createdAt: 1,
+          },
+        })
+      }
+      if (body.method === 'thread/side-chat/discard') {
+        return rpc(body.id, { ok: true })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.createSideChat({ sourceThreadId: 'thread-1' })
+    await client.discardSideChat({ threadId: 'side-chat-1' })
+
+    expect(requests).toEqual(expect.arrayContaining([
+      {
+        method: 'thread/side-chat/create',
+        params: {
+          sourceThreadId: 'thread-1',
+          operationId: expect.any(String),
+        },
+      },
+      {
+        method: 'thread/side-chat/discard',
+        params: {
+          threadId: 'side-chat-1',
+          operationId: expect.any(String),
+        },
+      },
     ]))
   })
 })

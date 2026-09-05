@@ -80,7 +80,7 @@ export function BranchSelectPopover({
           创建并检出新分支...
         </SearchablePopoverAction>
       )}
-      listClassName="branch-popover-list-scroll popover-section"
+      listClassName="branch-popover-list-scroll"
       listLabel="Git 分支"
       open={open}
       options={options}

@@ -11,6 +11,7 @@ import {
   type WorkbenchTabId,
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
+import { arePathsEqual } from '../../../utils/pathUtils.js'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
@@ -85,6 +86,11 @@ export type ConversationUiValidationOptions = {
   validPlanEventIds?: readonly string[]
   validSideTaskIds?: readonly string[]
   workspacePath?: string | null
+  fileScopes?: readonly {
+    projectId?: string
+    folderId?: string
+    workspacePath: string
+  }[]
 }
 
 export function createDefaultConversationUiState(): ConversationUiState {
@@ -137,11 +143,70 @@ export function saveConversationUiState(
   try {
     window.localStorage.setItem(
       STORAGE_PREFIX + sessionId,
-      JSON.stringify(state),
+      JSON.stringify({
+        ...state,
+        workbench: omitEphemeralSideChatTabs(state.workbench),
+        sideChatInput: '',
+        sideChatAttachments: [],
+      }),
     )
   } catch {
     /* localStorage full or disabled; silently ignore */
   }
+}
+
+/** Removes process-local tabs before a conversation UI snapshot is persisted. */
+export function omitEphemeralSideChatTabs(
+  workbench: WorkbenchTabsState,
+): WorkbenchTabsState {
+  const sideChatIds = new Set(
+    Object.entries(workbench.tabsById)
+      .filter(([, tab]) =>
+        tab?.kind === 'side-chat' ||
+        tab?.kind === 'attachment-preview' ||
+        tab?.kind === 'skill-preview',
+      )
+      .map(([tabId]) => tabId),
+  )
+  if (sideChatIds.size === 0) return workbench
+
+  const tabsById = { ...workbench.tabsById }
+  for (const tabId of sideChatIds) {
+    delete tabsById[tabId as WorkbenchTabId]
+  }
+  const filterPanel = (
+    panel: WorkbenchPanelSnapshot,
+  ): WorkbenchPanelSnapshot => {
+    const tabIds = panel.tabIds.filter(tabId => !sideChatIds.has(tabId))
+    return {
+      ...panel,
+      tabIds,
+      activeTabId:
+        panel.activeTabId && !sideChatIds.has(panel.activeTabId)
+          ? panel.activeTabId
+          : (tabIds.at(-1) ?? null),
+    }
+  }
+  return {
+    ...workbench,
+    tabsById,
+    right: filterPanel(workbench.right),
+    bottom: filterPanel(workbench.bottom),
+  }
+}
+
+export function patchConversationUiState(
+  sessionId: string,
+  patch: Partial<Omit<ConversationUiState, 'schemaVersion'>>,
+): void {
+  const current = validateConversationUiState(
+    loadConversationUiState(sessionId) ?? createDefaultConversationUiState(),
+  )
+  saveConversationUiState(sessionId, {
+    ...current,
+    ...patch,
+    schemaVersion: 4,
+  })
 }
 
 export function loadConversationUiState(
@@ -176,6 +241,9 @@ export function transferConversationUiStateForHandoff(input: {
     const tabsById = Object.fromEntries(
       Object.entries(source.workbench.tabsById).filter(([, tab]) =>
         tab?.kind !== 'plan' &&
+        tab?.kind !== 'side-chat' &&
+        tab?.kind !== 'attachment-preview' &&
+        tab?.kind !== 'skill-preview' &&
         tab?.kind !== 'side-task' &&
         tab?.kind !== 'file-preview'),
     )
@@ -480,9 +548,8 @@ function validateTabDescriptor(
       ...(directoryPath ? { directoryPath } : {}),
     }
   }
-  if (tab.id === 'side-chat' && tab.kind === 'side-chat') {
-    return { id: 'side-chat', kind: 'side-chat' }
-  }
+  // Side chats are process-local and must never be restored from localStorage.
+  if (tab.kind === 'side-chat' || tab.kind === 'attachment-preview') return null
   if (tab.id === 'terminal' && tab.kind === 'terminal') {
     return { id: 'terminal', kind: 'terminal' }
   }
@@ -492,14 +559,27 @@ function validateTabDescriptor(
     tab.id.startsWith('file:') &&
     isSafePath(tab.workspacePath, false) &&
     isSafePath(tab.relativePath, true) &&
-    (!options.workspacePath || tab.workspacePath === options.workspacePath)
+    (!options.workspacePath || sameWorkspacePath(tab.workspacePath, options.workspacePath))
   ) {
+    const workspacePath = tab.workspacePath
+    const fileScope = options.fileScopes?.find(scope =>
+      sameWorkspacePath(scope.workspacePath, workspacePath),
+    )
+    if (options.fileScopes && !fileScope) return null
     return {
       id: tab.id as `file:${string}`,
       kind: 'file-preview',
-      workspacePath: tab.workspacePath,
-      ...(typeof tab.projectId === 'string' ? { projectId: tab.projectId } : {}),
-      ...(typeof tab.folderId === 'string' ? { folderId: tab.folderId } : {}),
+      workspacePath,
+      ...(fileScope?.projectId
+        ? { projectId: fileScope.projectId }
+        : typeof tab.projectId === 'string'
+          ? { projectId: tab.projectId }
+          : {}),
+      ...(fileScope?.folderId
+        ? { folderId: fileScope.folderId }
+        : typeof tab.folderId === 'string'
+          ? { folderId: tab.folderId }
+          : {}),
       relativePath: tab.relativePath,
       preview: Boolean(tab.preview),
       ...(tab.markdownViewMode === 'rich' ||
@@ -549,6 +629,10 @@ function validateTabDescriptor(
   }
 
   return null
+}
+
+function sameWorkspacePath(left: string, right: string): boolean {
+  return arePathsEqual(left, right)
 }
 
 function isPositiveInteger(value: unknown): value is number {

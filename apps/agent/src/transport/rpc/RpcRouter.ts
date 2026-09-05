@@ -22,9 +22,11 @@ import { AgentError, type SubmitMessage, type TaskMode } from "../../domain"
 import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
+import type { ModelHealthService } from "../../provider/ModelHealthService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
 import type { ProviderCredentialStoreManager } from "../../auth/ProviderCredentialStoreManager"
 import type { PiModelService } from "../../provider/pi"
+import { resolveSpecializedPiModel } from "../../provider/pi/PiSpecializedModelResolver"
 import type { PiAuthSessionService } from "../../auth/PiAuthSessionService"
 import type { ThreadHistoryService } from "../../session/ThreadHistoryService"
 import type { ThreadService } from "../../session/ThreadService"
@@ -33,6 +35,8 @@ import type { EventHub } from "../../storage/events/EventHub"
 import { globalEventSequence, publishAgentEvent } from "../../storage/events/EventPublisher"
 import type { SubagentService } from "../../subagent/SubagentService"
 import type { AttachmentService } from "../../subagent/AttachmentService"
+import type { ArtifactService } from "../../storage/ArtifactService"
+import type { LocalContextPathService } from "../../local-context/LocalContextPathService"
 import type { ProjectSourceService } from "../../project/ProjectSourceService"
 import { WorkspaceService } from "../../workspace/WorkspaceService"
 import { InvalidThreadHistoryCursorError, ThreadProjection } from "../ThreadProjection"
@@ -45,6 +49,8 @@ import type { ToolingManager } from "../../tool/ToolingManager"
 import type { PetService } from "../../pet/PetService"
 import type { ReleaseNotesService } from "../../release-notes/ReleaseNotesService"
 import type { SkillManagementService } from "../../prompt/SkillManagementService"
+import type { PluginManagementService } from "../../plugin/PluginManagementService"
+import type { MiniMaxCliIntegrationService } from "../../integration/minimax-cli/MiniMaxCliIntegrationService"
 import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
 import type { UsageService } from "../../usage/UsageService"
@@ -58,12 +64,21 @@ import type { HandoffService } from "../../handoff/HandoffService"
 import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
 import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
 import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
+import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptionService"
+import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
+import type { SessionGroupService } from "../../session-group/SessionGroupService"
+import type { AutomationService } from "../../automation"
+import type { CalendarService, SchedulePlanService, ScheduledTaskService } from "../../calendar"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
+import type { SideChatService } from "../../session/side-chat/SideChatService"
+import type { MemoryManager } from "../../resource/MemoryManager"
+import { InteractionService } from "../../interaction/InteractionService"
+import { ThreadReadViewRepository } from "../../session/ThreadReadViewRepository"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
 import type { RpcRouterContext } from "./request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "./decoders"
+import { decodeRpcParams as decodeParams, rpcRecord as record } from "./decoders"
 import {
   capabilityRequiredResponse,
   unauthorizedNotificationResponse,
@@ -96,10 +111,10 @@ import {
   ReviewSummaryParamsSchema,
   Capabilities,
   RpcApplicationError,
-  InitializedNotificationSchema,
   dispatchRpcMessageWithMethods,
   type ApplicationErrorCode,
   type JsonValue,
+  type ProtocolCapability,
   type RpcHandlers,
   type RpcMethod,
   type ReviewAiTarget,
@@ -117,10 +132,13 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
+  artifacts: ArtifactService
+  localContextPaths: LocalContextPathService
   projectSources: ProjectSourceService
   providers: AgentModelCatalog
   piModels: PiModelService
   apiKeys: ApiKeyService
+  modelHealth: ModelHealthService
   providerCredentials: ProviderCredentialService
   providerCredentialStore: ProviderCredentialStoreManager
   authSessions: PiAuthSessionService
@@ -133,6 +151,8 @@ export type RpcRouterDependencies = {
   pets: PetService
   releaseNotes: ReleaseNotesService
   skills?: SkillManagementService
+  plugins?: PluginManagementService
+  minimaxCli: MiniMaxCliIntegrationService
   mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
   usage: UsageService
@@ -143,9 +163,18 @@ export type RpcRouterDependencies = {
   worktrees: ManagedWorktreeService
   handoff: HandoffService
   threadFork: ThreadMessageForkService
+  sideChats: SideChatService
   executionBindings: TaskExecutionBindingService
   worktreeRepository: WorktreeRepository
   environmentDeltas: EnvironmentDeltaStore
+  speech: SpeechTranscriptionService
+  threadExecutions: ThreadExecutionPreparationService
+  sessionGroups: SessionGroupService
+  automation: AutomationService
+  calendar?: CalendarService
+  scheduledTasks?: ScheduledTaskService
+  schedulePlans?: SchedulePlanService
+  memoryManager?: MemoryManager | undefined
 }
 
 export type { RpcRouterContext } from "./request-context"
@@ -158,6 +187,13 @@ type ModelCatalogPage = {
   total?: number
   nextCursor?: string
 }
+
+const DESKTOP_THINKING_MODES = new Set([
+  "default",
+  "enabled",
+  "adaptive",
+  "disabled",
+])
 
 export const enumValue = <T extends string>(value: unknown, allowed: readonly T[], name: string): T => {
   if (typeof value !== "string" || !allowed.includes(value as T)) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
@@ -255,20 +291,26 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
 export class RpcRouter {
   readonly projection: ThreadProjection
   readonly subscriptions: EventSubscriptionRegistry
-  readonly workspaceFileWatchers = new Map<string, { close: () => void }>()
+  private readonly interactions: InteractionService
+  private readonly threadReadViews: ThreadReadViewRepository
+  readonly workspaceFileWatchers = new Map<string, {
+    close: () => void
+    ownerCounts: Map<string, number>
+  }>()
   catalogVersion = 1
   private catalogSource: Promise<{
     providers: readonly Provider.Info[]
     models: readonly Model.Info[]
     modelsByProvider: ReadonlyMap<string, readonly Model.Info[]>
   }> | null = null
+  private catalogSourceRevision = -1
   private readonly modelPageCache = new Map<string, Promise<ModelCatalogPage>>()
   private readonly handlers: RpcHandlers<RpcRouterContext>
   readonly connections = new Map<string, {
     initialized: boolean
     createdAt: number
     lastSeenAt: number
-    capabilities: ReadonlySet<string>
+    capabilities: ReadonlySet<ProtocolCapability>
     authority?: "desktop-host"
     transportAuthority?: "desktop-host" | "renderer"
   }>()
@@ -283,6 +325,15 @@ export class RpcRouter {
     this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
+    this.interactions = new InteractionService({
+      db: dependencies.db,
+      hub: dependencies.hub,
+      approvals: dependencies.approvals,
+      questions: dependencies.questions,
+      subagents: dependencies.subagents,
+      threads: dependencies.threads,
+    })
+    this.threadReadViews = new ThreadReadViewRepository(dependencies.db)
     this.handlers = createRpcHandlerRegistry(
       this,
       (method, cause) => this.applicationError(method, cause),
@@ -295,7 +346,6 @@ export class RpcRouter {
     }
     else this.reapExpiredConnections()
     if (isInitializedNotification(input)) {
-      const notification = Schema.decodeUnknownSync(InitializedNotificationSchema)(input)
       const connectionId = context.connectionId
       const connection = connectionId ? this.connections.get(connectionId) : undefined
       if (!connection) return unauthorizedNotificationResponse()
@@ -314,339 +364,11 @@ export class RpcRouter {
   }
 
   listPendingInteractions(rawParams: Record<string, unknown>) {
-    const { db } = this.dependencies
-    const threadId = typeof rawParams.threadId === "string" ? rawParams.threadId : undefined
-    const requestedKinds = Array.isArray(rawParams.kinds)
-      ? new Set(rawParams.kinds.filter((kind): kind is string => typeof kind === "string"))
-      : null
-    const interactions: Array<Record<string, unknown>> = []
-
-    if (!requestedKinds || requestedKinds.has("approval") || requestedKinds.has("permission")) {
-      const rows = db.sqlite.query(`
-        SELECT id FROM approval_requests
-        WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{ id: string }>
-      for (const row of rows) {
-        const checkpoint = db.getApprovalCheckpoint(row.id)
-        if (!checkpoint) continue
-        const invocation = checkpoint.payload.invocation
-        const isPermission = invocation.name === "request_permissions"
-        if (requestedKinds && !requestedKinds.has(isPermission ? "permission" : "approval")) continue
-        const permissionSource = isPermission
-          ? invocation.input
-          : record(invocation.input.additionalPermissions ?? {}, "requestedPermissions")
-        const requestedPermissions = {
-          ...(Array.isArray(permissionSource.readPaths) ? { readPaths: permissionSource.readPaths } : {}),
-          ...(Array.isArray(permissionSource.writePaths) ? { writePaths: permissionSource.writePaths } : {}),
-          ...(Array.isArray(permissionSource.networkDomains) ? { networkDomains: permissionSource.networkDomains } : {}),
-        }
-        const metadata = {
-          interactionId: checkpoint.approvalID,
-          threadId: checkpoint.threadID,
-          turnId: checkpoint.turnID,
-          agentId: checkpoint.agentID,
-          createdAt: checkpoint.createdAt,
-          version: checkpoint.version,
-          toolCallId: checkpoint.toolCallID,
-          tool: invocation.name,
-          reason: typeof invocation.input.justification === "string"
-            ? invocation.input.justification
-            : checkpoint.reason || "需要批准工具调用",
-          requestedPermissions,
-        }
-        if (isPermission) {
-          const requestedScope = enumValue(invocation.input.scope, ["tool-call", "turn", "session"] as const, "permission.scope")
-          interactions.push({
-            ...metadata,
-            kind: "permission",
-            requestedScope,
-            allowedScopes: requestedScope === "session"
-              ? ["tool-call", "turn", "session"]
-              : requestedScope === "turn"
-                ? ["tool-call", "turn"]
-                : ["tool-call"],
-          })
-        } else {
-          interactions.push({
-            ...metadata,
-            kind: "approval",
-            risk: ["low", "medium", "high", "critical"].includes(checkpoint.risk) ? checkpoint.risk : "high",
-            ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
-            ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
-            allowedChoices: ["allow-once", "deny", "stop"],
-          })
-        }
-      }
-    }
-
-    if (!requestedKinds || requestedKinds.has("question")) {
-      const rows = db.sqlite.query(`
-        SELECT id, thread_id, turn_id, agent_id, payload, payload_version, created_at
-        FROM question_requests
-        WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{
-        id: string; thread_id: string; turn_id: string; agent_id: string
-        payload: string; payload_version: number; created_at: number
-      }>
-      for (const row of rows) {
-        const payload = parseJsonRecord(row.payload)
-        const questions = Array.isArray(payload.questions)
-          ? payload.questions.flatMap((entry) => {
-              const question = record(entry, "question")
-              if (
-                typeof question.id !== "string"
-                || typeof question.header !== "string"
-                || typeof question.prompt !== "string"
-                || !Array.isArray(question.choices)
-              ) return []
-              const choices = question.choices.flatMap((entry) => {
-                const choice = record(entry, "choice")
-                return typeof choice.id === "string"
-                  && typeof choice.label === "string"
-                  && typeof choice.description === "string"
-                  ? [{
-                      id: choice.id,
-                      label: choice.label,
-                      description: choice.description,
-                      recommended: choice.recommended === true,
-                    }]
-                  : []
-              })
-              return choices.length >= 2 && choices.length <= 3
-                ? [{
-                    id: question.id,
-                    header: question.header,
-                    prompt: question.prompt,
-                    choices,
-                    allowFreeform: true,
-                    required: true,
-                  }]
-                : []
-            })
-          : []
-        if (questions.length === 0) continue
-        interactions.push({
-          interactionId: row.id,
-          threadId: row.thread_id,
-          turnId: row.turn_id,
-          agentId: row.agent_id,
-          createdAt: row.created_at,
-          version: row.payload_version,
-          kind: "question",
-          questions,
-          ...(typeof payload.autoResolutionMs === "number" ? { autoResolutionMs: payload.autoResolutionMs } : {}),
-        })
-      }
-    }
-
-    if (!requestedKinds || requestedKinds.has("hookTrust")) {
-      const rows = db.sqlite.query(`
-        SELECT id FROM hook_trust_requests
-        WHERE status = 'pending' AND thread_id IS NOT NULL AND turn_id IS NOT NULL
-          AND (? IS NULL OR thread_id = ?)
-        ORDER BY created_at, id
-      `).all(threadId ?? null, threadId ?? null) as Array<{ id: string }>
-      for (const row of rows) {
-        const request = db.getHookTrustRequest(row.id)
-        if (!request?.threadID || !request.turnID) continue
-        const audit = request.auditSummary
-        const hooks = Array.isArray(audit.hooks) ? audit.hooks : []
-        const hook = hooks.find((candidate) => candidate && typeof candidate === "object") as Record<string, unknown> | undefined
-        const agent = db.agentForTurn(request.turnID)
-        interactions.push({
-          interactionId: request.id,
-          threadId: request.threadID,
-          turnId: request.turnID,
-          agentId: agent?.id ?? `hook:${request.turnID}`,
-          createdAt: request.createdAt,
-          version: 1,
-          kind: "hookTrust",
-          configPath: request.configPath,
-          sha256: request.configHash,
-          hook: {
-            id: typeof hook?.id === "string" && hook.id ? hook.id : "project-hooks",
-            name: typeof hook?.id === "string" && hook.id ? hook.id : "项目 Hook",
-            event: typeof hook?.event === "string" && hook.event ? hook.event : "unknown",
-            command: typeof hook?.command === "string" && hook.command ? hook.command : "(multiple hooks)",
-          },
-        })
-      }
-    }
-
-    interactions.sort((left, right) => Number(left.createdAt) - Number(right.createdAt) || String(left.interactionId).localeCompare(String(right.interactionId)))
-    const offset = decodeOffsetCursor(rawParams.cursor)
-    const limit = typeof rawParams.limit === "number" ? rawParams.limit : 100
-    const page = interactions.slice(offset, offset + limit)
-    return {
-      interactions: page,
-      nextCursor: offset + page.length < interactions.length ? encodeOffsetCursor(offset + page.length) : null,
-    }
+    return this.interactions.listPending(rawParams)
   }
 
   async respondToInteraction(rawParams: Record<string, unknown>) {
-    const { db, approvals, questions, subagents, threads } = this.dependencies
-    const operationId = stringParam(rawParams, "operationId")
-    const interactionId = stringParam(rawParams, "interactionId")
-    const expectedVersion = rawParams.expectedVersion
-    if (!Number.isInteger(expectedVersion) || Number(expectedVersion) < 0) {
-      throw new AgentError("INVALID_REQUEST", "expectedVersion 参数无效", 400)
-    }
-    const response = record(rawParams.response, "response")
-    const duplicate = db.interactionOperation(operationId)
-    if (duplicate) {
-      if (duplicate.interactionID !== interactionId || JSON.stringify(duplicate.response) !== JSON.stringify(response)) {
-        throw new AgentError("CONFLICT", "operationId 已被其他 interaction 响应使用", 409)
-      }
-      return duplicate.result
-    }
-    const kind = enumValue(response.kind, ["approval", "permission", "question", "hookTrust"] as const, "response.kind")
-    const resolvedAt = Date.now()
-    const resumeActions: Array<() => void | Promise<void>> = []
-    const result = {
-      interactionId,
-      kind,
-      state: "resolved",
-      version: Number(expectedVersion) + 1,
-      resolvedAt,
-      response,
-    }
-    const operation = {
-      operationID: operationId,
-      interactionID: interactionId,
-      response,
-      result,
-    }
-    let operationPersistedWithResolution = false
-
-    if (kind === "approval") {
-      const checkpoint = db.getApprovalCheckpoint(interactionId)
-      if (!checkpoint || checkpoint.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "审批请求不存在或已处理", 409)
-      if (checkpoint.version !== expectedVersion) throw new AgentError("CONFLICT", "审批请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["allow-once", "deny", "stop"] as const, "response.decision")
-      if (decision === "stop") {
-        const execution = db.getAgentExecution(checkpoint.agentID)
-        if (execution?.subagentRunID) {
-          const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
-          if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
-          await subagents.stop(task.task_id, operationId)
-        } else {
-          await threads.stop(checkpoint.threadID, checkpoint.turnID)
-        }
-      } else {
-        const rawFeedback = response.feedback
-        if (rawFeedback !== undefined && typeof rawFeedback !== "string") {
-          throw new AgentError("INVALID_REQUEST", "response.feedback 参数无效", 400)
-        }
-        if (decision !== "deny" && rawFeedback?.trim()) {
-          throw new AgentError("INVALID_REQUEST", "只有拒绝审批时才能提交调整意见", 400)
-        }
-        const trimmedFeedback = rawFeedback?.trim().slice(0, 4_000)
-        const feedback = trimmedFeedback ? secretScrubber.scrubText(trimmedFeedback) : undefined
-        const resolved = await approvals.respond(
-          interactionId,
-          decision === "allow-once" ? "allow" : "deny",
-          feedback,
-          operation,
-        )
-        operationPersistedWithResolution = true
-        const execution = db.getAgentExecution(resolved.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-          : threads.resumeTurn(resolved.threadID, resolved.turnID))
-      }
-    } else if (kind === "permission") {
-      const checkpoint = db.getApprovalCheckpoint(interactionId)
-      if (
-        !checkpoint
-        || checkpoint.status !== "pending"
-        || checkpoint.payload.invocation.name !== "request_permissions"
-      ) throw new AgentError("REQUEST_NOT_PENDING", "权限请求不存在或已处理", 409)
-      if (checkpoint.version !== expectedVersion) throw new AgentError("CONFLICT", "权限请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["grant", "deny", "stop"] as const, "response.decision")
-      if (decision === "stop") {
-        const execution = db.getAgentExecution(checkpoint.agentID)
-        if (execution?.subagentRunID) {
-          const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
-          if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
-          await subagents.stop(task.task_id, operationId)
-        } else {
-          await threads.stop(checkpoint.threadID, checkpoint.turnID)
-        }
-      } else {
-        let resolved
-        if (decision === "grant") {
-          const requestedScope = enumValue(
-            checkpoint.payload.invocation.input.scope,
-            ["tool-call", "turn", "session"] as const,
-            "permission.requestedScope",
-          )
-          const scope = enumValue(response.scope, ["tool-call", "turn", "session"] as const, "response.scope")
-          const scopeRank = { "tool-call": 0, turn: 1, session: 2 } as const
-          if (scopeRank[scope] > scopeRank[requestedScope]) {
-            throw new AgentError("INVALID_REQUEST", "授予范围不能高于工具请求范围", 400)
-          }
-          resolved = await approvals.respondPermission(
-            interactionId,
-            "allow",
-            {
-              scope,
-              grantedPermissions: record(response.grantedPermissions, "response.grantedPermissions"),
-            },
-            operation,
-          )
-        } else {
-          resolved = await approvals.respondPermission(interactionId, "deny", undefined, operation)
-        }
-        operationPersistedWithResolution = true
-        const execution = db.getAgentExecution(resolved.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-          : threads.resumeTurn(resolved.threadID, resolved.turnID))
-      }
-    } else if (kind === "question") {
-      const row = db.sqlite.query("SELECT payload_version, status FROM question_requests WHERE id = ?").get(interactionId) as { payload_version: number; status: string } | null
-      if (!row || row.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "问题不存在或已经回答", 409)
-      if (row.payload_version !== expectedVersion) throw new AgentError("CONFLICT", "问题版本已经变化", 409)
-      const status = enumValue(response.status, ["answered", "ignored"] as const, "response.status")
-      const resolved = await questions.reply(
-        interactionId,
-        status === "ignored" ? null : response.answers,
-        status === "ignored",
-        status === "answered"
-          ? enumValue(response.resolution, ["user", "auto"] as const, "response.resolution")
-          : "user",
-        false,
-        operation,
-      )
-      operationPersistedWithResolution = true
-      const execution = db.agentForTurn(resolved.turnID)
-      resumeActions.push(() => execution?.subagentRunID
-        ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
-        : threads.resumeTurn(resolved.threadID, resolved.turnID))
-    } else {
-      const request = db.getHookTrustRequest(interactionId)
-      if (!request || request.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "Hook 信任请求不存在或已经处理", 409)
-      if (expectedVersion !== 1) throw new AgentError("CONFLICT", "Hook 信任请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["allow", "block"] as const, "response.decision")
-      const resolved = db.resolveHookTrustRequest(interactionId, decision, operation)
-      operationPersistedWithResolution = true
-      for (const event of resolved.events) await Effect.runPromise(this.dependencies.hub.publish(event))
-      for (const resumed of resolved.resumed) {
-        const execution = db.getAgentExecution(resumed.agentID)
-        resumeActions.push(() => execution?.subagentRunID
-          ? subagents.resumeTurn(resumed.threadID, resumed.turnID)
-          : threads.resumeHookTrust(resumed.threadID, resumed.turnID))
-      }
-    }
-
-    const storedOperation = operationPersistedWithResolution
-      ? db.interactionOperation(operationId)
-      : null
-    const stored = (storedOperation ?? db.saveInteractionOperation(operation)).result
-    for (const resume of resumeActions) await resume()
-    return stored
+    return this.interactions.respond(rawParams)
   }
 
   private applicationError(method: RpcMethod, cause: unknown) {
@@ -706,6 +428,12 @@ export class RpcRouter {
   closeConnection(connectionId: string) {
     const deleted = this.connections.delete(connectionId)
     this.subscriptions.closeConnection(connectionId)
+    for (const [key, watcher] of this.workspaceFileWatchers) {
+      watcher.ownerCounts.delete(connectionId)
+      if (watcher.ownerCounts.size > 0) continue
+      watcher.close()
+      this.workspaceFileWatchers.delete(key)
+    }
     return deleted
   }
 
@@ -722,37 +450,22 @@ export class RpcRouter {
   }
 
   threadSnapshotResult(threadId: string) {
-    const snapshot = this.requiredSnapshot(threadId)
-    const sequence = globalEventSequence(this.dependencies.db)
-    return { snapshot, streamPosition: { streamId: threadId, sequence } }
+    return this.threadReadViews.snapshot(threadId)
   }
 
   threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
-    return this.dependencies.db.transaction(() => {
-      const page = this.projection.historyPage(threadId, params)
-      if (!page) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-      const sequence = globalEventSequence(this.dependencies.db)
-      return { ...page, streamPosition: { streamId: threadId, sequence } }
-    })
+    return this.threadReadViews.history(threadId, params)
   }
 
   queueStateResult(threadId: string, eventID?: number) {
-    const snapshot = this.requiredSnapshot(threadId)
-    const metadata = this.dependencies.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
-    const sequence = Math.max(eventID ?? 0, globalEventSequence(this.dependencies.db))
-    return {
-      threadId,
-      version: metadata.version,
-      pauseReason: metadata.pauseReason,
-      turns: snapshot.turns,
-      inputs: snapshot.inputs,
-      streamPosition: { streamId: threadId, sequence },
-    }
+    return this.threadReadViews.queue(threadId, eventID)
   }
 
   private loadCatalogSource() {
-    if (this.catalogSource) return this.catalogSource
     const { providers } = this.dependencies
+    const revision = providers.catalogRevision?.() ?? 0
+    if (this.catalogSource && this.catalogSourceRevision === revision) return this.catalogSource
+    this.catalogSourceRevision = revision
     this.catalogSource = Promise.all([providers.list(), providers.models()]).then(([providerInfos, models]) => {
       const modelsByProvider = new Map<string, Model.Info[]>()
       for (const model of models) {
@@ -774,22 +487,37 @@ export class RpcRouter {
 
   private invalidateCatalogSource() {
     this.catalogSource = null
+    this.catalogSourceRevision = -1
     this.modelPageCache.clear()
   }
 
   private async configuredModels() {
     const source = await this.loadCatalogSource()
-    const first = source.models.find((model) => model.enabled)
     const config = this.dependencies.config.snapshot()
     const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
-    const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
-      ? config.task_models as Record<string, unknown>
+    const specializedModels = config.specialized_models && typeof config.specialized_models === "object" && !Array.isArray(config.specialized_models)
+      ? config.specialized_models as Record<string, unknown>
       : {}
     const configuredDefault = providerID && typeof config.model === "string"
-      ? { providerID, id: config.model } as Model.Ref
+      ? {
+          providerID,
+          id: config.model,
+          ...(typeof config.model_reasoning_effort === "string"
+            && config.model_reasoning_effort
+            && !DESKTOP_THINKING_MODES.has(config.model_reasoning_effort)
+            ? { variant: config.model_reasoning_effort as Model.VariantID }
+            : {}),
+        } as Model.Ref
       : null
-    const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
-      ? { providerID, id: taskModels.reviewer } as Model.Ref
+    const security = typeof specializedModels.security === "string"
+      ? specializedModels.security.trim()
+      : ""
+    const separator = security.indexOf("/")
+    const configuredReviewer = security
+      ? {
+          providerID: separator > 0 ? security.slice(0, separator) : providerID,
+          id: separator > 0 ? security.slice(separator + 1) : security,
+        } as Model.Ref
       : null
     const available = (ref: Model.Ref | null) => {
       if (!ref) return null
@@ -799,17 +527,28 @@ export class RpcRouter {
       return ref
     }
     return {
-      defaultModel: available(configuredDefault) ?? (first ? { providerID: first.providerID, id: first.id } : null),
+      defaultModel: available(configuredDefault),
       reviewerModel: available(configuredReviewer),
     }
   }
 
   async providerList() {
     const source = await this.loadCatalogSource()
+    const catalogSource = this.dependencies.providers.catalogStatus?.()
     return {
-      providers: [...source.providers],
+      providers: source.providers.map(provider => {
+        const runtimeModels = source.modelsByProvider.get(provider.id) ?? []
+        const modelsDevCount = provider.catalogOrigin === "models-dev"
+          ? this.dependencies.piModels.modelsDevModelCount(String(provider.id))
+          : undefined
+        return {
+          ...provider,
+          modelCount: modelsDevCount ?? runtimeModels.length,
+        }
+      }),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
+      ...(catalogSource ? { catalogSource } : {}),
     }
   }
 
@@ -845,6 +584,7 @@ export class RpcRouter {
 
   private async buildModelCatalog(query: ReturnType<RpcRouter["normalizedModelQuery"]>) {
     const source = await this.loadCatalogSource()
+    const catalogSource = this.dependencies.providers.catalogStatus?.()
     const filterHash = createHash("sha256").update(JSON.stringify(query.filters)).digest("base64url").slice(0, 16)
     let offset = 0
     if (query.cursor) {
@@ -881,6 +621,7 @@ export class RpcRouter {
         .map((provider) => ({ provider, models: pageByProvider.get(provider.id) ?? [] })),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
+      ...(catalogSource ? { catalogSource } : {}),
       ...(query.limit === undefined ? {} : { total: matches.length }),
       ...(query.limit !== undefined && nextOffset < matches.length
         ? { nextCursor: Buffer.from(JSON.stringify({ version: this.catalogVersion, filter: filterHash, offset: nextOffset })).toString("base64url") }
@@ -942,6 +683,7 @@ export const resolveAiReviewSource = async (
 export const aiReviewModel = async (
   db: AgentDatabase,
   providers: AgentModelCatalog,
+  piModels: PiModelService,
   configService: ConfigService,
   threadId: string,
   projectId: string,
@@ -955,34 +697,15 @@ export const aiReviewModel = async (
       latestModel = null
     }
   }
-  const project = db.getProject(projectId)
-  const config = (await configService.read(
-    project ? { cwd: project.rootPath } : {},
-  )).config
-  const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
-    ? config.task_models as Record<string, unknown>
-    : {}
-  const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
-  const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
-    ? { providerID, id: taskModels.reviewer } as Model.Ref
-    : null
-  const configuredDefault = providerID && typeof config.model === "string"
-    ? { providerID, id: config.model } as Model.Ref
-    : null
-  const candidates = [
-    configuredReviewer,
-    latestModel,
-    configuredDefault,
-  ]
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    try {
-      await providers.resolve(candidate)
-      return candidate
-    } catch {
-      // Try the next configured model.
-    }
-  }
+  const specialized = await resolveSpecializedPiModel({
+    purpose: "coding",
+    db,
+    models: piModels,
+    configService,
+    projectId,
+    ...(latestModel ? { fallbackRefs: [latestModel] } : {}),
+  })
+  if (specialized) return specialized.ref
   const first = (await providers.models()).find((candidate) => candidate.enabled)
   if (!first) throw new AgentError("MODEL_UNAVAILABLE", "没有可用于代码审查的模型", 409)
   return Model.Ref.make({ providerID: first.providerID, id: first.id })
@@ -1053,6 +776,26 @@ export const attachmentView = (record: { id: string; kind: "text" | "image"; nam
   mediaType: record.mimeType,
   sizeBytes: record.size,
   sha256: record.sha256,
+  createdAt: record.createdAt,
+})
+
+export const artifactMetadataView = (record: {
+  id: string
+  threadId: string
+  turnId: string
+  itemId: string
+  name: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: number
+}) => ({
+  id: record.id,
+  threadId: record.threadId,
+  turnId: record.turnId,
+  itemId: record.itemId,
+  name: record.name,
+  mimeType: record.mimeType,
+  sizeBytes: record.sizeBytes,
   createdAt: record.createdAt,
 })
 

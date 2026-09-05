@@ -1,17 +1,32 @@
-import React, { useMemo } from 'react'
+import React, { memo, useMemo, useRef } from 'react'
 import type { Token, Tokens } from 'marked'
-import { Check, Code2, Copy, FileText, FolderOpen } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertOctagon,
+  AlertTriangle,
+  Check,
+  Code2,
+  Copy,
+  FileText,
+  FolderOpen,
+  Info,
+  Lightbulb,
+} from 'lucide-react'
 import type { DesktopExternalOpenTarget } from '../../../shared/types.js'
 import {
   AppContextMenu,
   type AppContextMenuAction,
 } from '../../components/ui/AppContextMenu.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  desktopClipboard,
+} from '../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
@@ -28,7 +43,7 @@ import {
 import { MathRenderer } from './MathRenderer.js'
 import { MermaidRenderer } from './MermaidRenderer.js'
 import { LazyRender } from './LazyRender.js'
-import { parseMarkdown } from './parser.js'
+import { buildMarkdownBlocks } from './parser.js'
 import { renderSafeHtml } from './safeHtml.js'
 import {
   classifyMarkdownTarget,
@@ -46,7 +61,23 @@ import type {
   MarkdownMathToken,
   MarkdownStreamingCodeToken,
   MarkdownToken,
+  MarkdownRenderBlock,
 } from './types.js'
+
+export const MARKDOWN_THREAD_NAVIGATION_EVENT =
+  'codepilotx:markdown-thread-navigation'
+
+export function handleMarkdownThreadLinkClick(
+  event: { preventDefault: () => void },
+  threadId: string,
+): void {
+  event.preventDefault()
+  window.dispatchEvent(
+    new CustomEvent<{ threadId: string }>(MARKDOWN_THREAD_NAVIGATION_EVENT, {
+      detail: { threadId },
+    }),
+  )
+}
 
 export type MarkdownMessageProps = {
   allowBasicHtml?: boolean
@@ -93,6 +124,7 @@ type RenderContext = {
     | ((reference: MarkdownFileReference) => void | Promise<void>)
     | undefined
   streaming: boolean
+  streamingFragment: string
 }
 
 export function MarkdownMessage({
@@ -110,10 +142,20 @@ export function MarkdownMessage({
   text,
 }: MarkdownMessageProps): React.ReactNode {
   const sourceText = streamingChunks?.join('') ?? text
-  const parsed = useMemo(
-    () => parseMarkdown(sourceText, streaming),
-    [sourceText, streaming],
-  )
+  const priorRef = useRef<{ blocks: MarkdownRenderBlock[]; text: string }>({
+    blocks: [],
+    text: '',
+  })
+  const blocks = useMemo(() => {
+    const next = buildMarkdownBlocks(
+      sourceText,
+      streaming,
+      priorRef.current.blocks,
+      priorRef.current.text,
+    )
+    priorRef.current = { blocks: next, text: sourceText }
+    return next
+  }, [sourceText, streaming])
   const context = useMemo<RenderContext>(
     () => ({
       allowBasicHtml,
@@ -133,6 +175,7 @@ export function MarkdownMessage({
       onCopyFileReferenceContents,
       onOpenFileReference,
       streaming,
+      streamingFragment: '',
     }),
     [
       allowWideBlocks,
@@ -149,23 +192,47 @@ export function MarkdownMessage({
       streaming,
     ],
   )
-  if (parsed.tokens.length === 0) return null
-  const stableTokenCount =
-    streaming && parsed.pendingText
-      ? parseMarkdown(parsed.stableText, false).tokens.length
-      : parsed.tokens.length
+  if (blocks.length === 0) return null
   return (
     <div className={streaming ? 'md-body is-streaming' : 'md-body'}>
-      {renderTokens(parsed.tokens, context, 'md', stableTokenCount)}
+      {blocks.map(block => (
+        <MemoizedMarkdownBlock block={block} context={context} key={block.id} />
+      ))}
     </div>
   )
+}
+
+const MemoizedMarkdownBlock = memo(function MemoizedMarkdownBlock({
+  block,
+  context,
+}: {
+  block: MarkdownRenderBlock
+  context: RenderContext
+}): React.ReactNode {
+  const previousVisibleTextRef = useRef('')
+  const previous = previousVisibleTextRef.current
+  const prefixLength = commonPrefixLength(previous, block.visibleText)
+  const fragment = block.state === 'pending' && context.streaming
+    ? block.visibleText.slice(prefixLength)
+    : ''
+  previousVisibleTextRef.current = block.visibleText
+  const blockContext = fragment
+    ? { ...context, streamingFragment: fragment }
+    : context
+  return renderTokens(block.tokens, blockContext, block.id)
+})
+
+function commonPrefixLength(left: string, right: string): number {
+  let index = 0
+  const limit = Math.min(left.length, right.length)
+  while (index < limit && left[index] === right[index]) index += 1
+  return index
 }
 
 function renderTokens(
   tokens: MarkdownToken[],
   context: RenderContext,
   keyPrefix: string,
-  animateFromIndex = Number.POSITIVE_INFINITY,
 ): React.ReactNode[] {
   const rendered: React.ReactNode[] = []
   for (let index = 0; index < tokens.length; index += 1) {
@@ -182,35 +249,114 @@ function renderTokens(
             : inlineHtml.html}
         </React.Fragment>
       )
-      rendered.push(markStreamingNode(node, index >= animateFromIndex))
+      rendered.push(node)
       index = inlineHtml.end
       continue
     }
     rendered.push(
-      markStreamingNode(
-        renderToken(tokens[index], context, key),
-        index >= animateFromIndex,
-      ),
+      renderToken(tokens[index], context, key),
     )
   }
   return rendered
 }
 
-function markStreamingNode(
-  node: React.ReactNode,
-  streaming: boolean,
-): React.ReactNode {
-  if (
-    !streaming ||
-    !React.isValidElement<{ className?: string }>(node) ||
-    node.type === React.Fragment
-  ) {
-    return node
+type MarkdownAlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution'
+
+const ALERT_CONFIG: Record<
+  MarkdownAlertType,
+  {
+    title: string
+    icon: React.ComponentType<{
+      className?: string
+      size?: number
+      strokeWidth?: number
+      'aria-hidden'?: boolean | 'true' | 'false'
+    }>
   }
-  const className = [node.props.className, 'md-streaming-token']
-    .filter(Boolean)
-    .join(' ')
-  return React.cloneElement(node, { className })
+> = {
+  note: { title: 'Note', icon: Info },
+  tip: { title: 'Tip', icon: Lightbulb },
+  important: { title: 'Important', icon: AlertCircle },
+  warning: { title: 'Warning', icon: AlertTriangle },
+  caution: { title: 'Caution', icon: AlertOctagon },
+}
+
+function parseAlertBlockquote(tokens: Token[] | undefined): {
+  alertType: MarkdownAlertType
+  title: string
+  contentTokens: Token[]
+} | null {
+  if (!tokens || tokens.length === 0) return null
+  const first = tokens[0]
+  if (!first || (first.type !== 'paragraph' && first.type !== 'text')) {
+    return null
+  }
+
+  const rawText = first.raw ?? (first as { text?: string }).text ?? ''
+  const alertMatch = rawText.match(
+    /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*\n|\s*$)/i,
+  )
+  if (!alertMatch) {
+    const inlineMatch = rawText.match(
+      /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/im,
+    )
+    if (!inlineMatch) return null
+  }
+
+  const typeStr = (
+    alertMatch?.[1] ??
+    rawText.match(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i)?.[1]
+  )?.toLowerCase() as MarkdownAlertType
+
+  if (!typeStr || !ALERT_CONFIG[typeStr]) return null
+
+  const remainingTokens = [...tokens]
+  const p = { ...(first as Tokens.Paragraph) }
+  const strippedRaw = p.raw.replace(
+    /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+    '',
+  )
+
+  if (!strippedRaw.trim()) {
+    remainingTokens.shift()
+  } else {
+    p.raw = strippedRaw
+    p.text = (p.text ?? '').replace(
+      /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+      '',
+    )
+    if (p.tokens && p.tokens.length > 0) {
+      const childTokens = [...p.tokens]
+      const firstChild = { ...childTokens[0] }
+      if ('raw' in firstChild) {
+        firstChild.raw = (firstChild.raw ?? '').replace(
+          /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i,
+          '',
+        )
+      }
+      if ('text' in firstChild) {
+        ;(firstChild as { text: string }).text = (
+          (firstChild as { text: string }).text ?? ''
+        ).replace(/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?/i, '')
+      }
+      if (
+        !firstChild.raw?.trim() &&
+        !((firstChild as { text?: string }).text?.trim())
+      ) {
+        childTokens.shift()
+      } else {
+        childTokens[0] = firstChild
+      }
+      p.tokens = childTokens
+    }
+    remainingTokens[0] = p
+  }
+
+  return {
+    alertType: typeStr,
+    title: ALERT_CONFIG[typeStr].title,
+    contentTokens: remainingTokens,
+  }
 }
 
 function renderToken(
@@ -246,12 +392,36 @@ function renderToken(
       return <br key={key} />
     case 'code':
       return renderCode(token.text, token.lang, false, context, key)
-    case 'blockquote':
+    case 'blockquote': {
+      const alert = parseAlertBlockquote(token.tokens)
+      if (alert) {
+        const IconComponent = ALERT_CONFIG[alert.alertType].icon
+        return (
+          <div
+            className={cx('md-alert', `md-alert--${alert.alertType}`)}
+            key={key}
+          >
+            <div className="md-alert__header">
+              <IconComponent
+                aria-hidden="true"
+                className="md-alert__icon"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+              <span className="md-alert__title">{alert.title}</span>
+            </div>
+            <div className="md-alert__content">
+              {renderTokens(alert.contentTokens, context, `${key}-alert-body`)}
+            </div>
+          </div>
+        )
+      }
       return (
         <blockquote key={key}>
           {renderTokens(token.tokens, context, `${key}-quote`)}
         </blockquote>
       )
+    }
     case 'heading': {
       const level = Math.max(1, Math.min(6, token.depth))
       return React.createElement(
@@ -352,7 +522,7 @@ function renderToken(
       }
       return (
         <React.Fragment key={key}>
-          {renderTextWithFileReferences(token.text, context, key)}
+          {renderStreamingText(token.text, context, key)}
         </React.Fragment>
       )
     case 'checkbox':
@@ -368,6 +538,26 @@ function renderToken(
     default:
       return renderGenericToken(token, context, key)
   }
+}
+
+function renderStreamingText(
+  text: string,
+  context: RenderContext,
+  key: string,
+): React.ReactNode {
+  const fragment = context.streamingFragment
+  if (!fragment || !text.endsWith(fragment)) {
+    return renderTextWithFileReferences(text, context, key)
+  }
+  const stable = text.slice(0, -fragment.length)
+  return (
+    <>
+      {renderTextWithFileReferences(stable, context, `${key}-stable`)}
+      <span className="md-streaming-fragment">
+        {renderTextWithFileReferences(fragment, context, `${key}-fragment`)}
+      </span>
+    </>
+  )
 }
 
 function splitLeadDescriptionTokens(
@@ -416,6 +606,7 @@ function renderCode(
   }
   return (
     <LazyRender
+      className={context.allowWideBlocks ? 'md-wide-block' : undefined}
       fallback={
         <pre className="md-code-placeholder">
           <code>{code}</code>
@@ -571,16 +762,7 @@ function MarkdownTable({
 
   async function copyTable(): Promise<void> {
     try {
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([source], { type: 'text/plain' }),
-          }),
-        ])
-      } else {
-        await navigator.clipboard?.writeText(source)
-      }
+      await desktopClipboard.writeRichText({ text: source, html })
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2_000)
     } catch {
@@ -592,45 +774,34 @@ function MarkdownTable({
     <figure
       className={cx(
         'md-table-block',
-        'md-code-block',
-        'tw:bg-app-chrome',
-        'tw:mx-0',
-        'tw:w-full',
-        'tw:max-w-full',
-        'tw:overflow-hidden',
+        context.allowWideBlocks && 'md-wide-block',
       )}
     >
-      <figcaption className="md-table-toolbar md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
-        <span className="md-code-lang tw:font-mono">table</span>
-        <span className="md-code-actions tw:flex tw:items-center">
-          <button
-            aria-label={copied ? '已复制' : '复制表格'}
-            className={cx(
-              'md-code-action md-code-copy',
-              copied && 'is-copied',
-              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
-            )}
-            title={copied ? '已复制' : '复制表格'}
-            type="button"
-            onClick={() => void copyTable()}
-          >
-            {copied ? (
-              <Check
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            ) : (
-              <Copy
-                aria-hidden="true"
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
-              />
-            )}
-          </button>
-        </span>
-      </figcaption>
-      <div className="md-table-scroll">
+      <div className="md-table-actions">
+        <IconButton
+          className={cx('md-table-copy', copied && 'is-copied')}
+          color="ghostSecondary"
+          size="toolbar"
+          title={copied ? '已复制' : '复制表格'}
+          type="button"
+          onClick={() => void copyTable()}
+        >
+          {copied ? (
+            <Check
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          ) : (
+            <Copy
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          )}
+        </IconButton>
+      </div>
+      <div className="md-table-scroll" tabIndex={0}>
         <table>
           <thead>
             <tr>
@@ -667,7 +838,11 @@ function renderTableCell(
 ): React.ReactNode {
   const Tag = heading ? 'th' : 'td'
   return (
-    <Tag key={key} style={cell.align ? { textAlign: cell.align } : undefined}>
+    <Tag
+      key={key}
+      scope={heading ? 'col' : undefined}
+      style={cell.align ? { textAlign: cell.align } : undefined}
+    >
       {renderTokens(cell.tokens, context, `${key}-content`)}
     </Tag>
   )
@@ -680,6 +855,20 @@ function renderLink(
 ): React.ReactNode {
   const children = renderTokens(link.tokens, context, `${key}-label`)
   const target = classifyMarkdownTarget(link.href)
+  if (target.kind === 'thread') {
+    return (
+      <a
+        href={link.href}
+        key={key}
+        onClick={event => {
+          handleMarkdownThreadLinkClick(event, target.threadId)
+        }}
+        title={link.title ?? undefined}
+      >
+        {children}
+      </a>
+    )
+  }
   if (target.kind === 'external') {
     if (
       !context.externalResourcePolicy.allowExternalLinks ||
@@ -752,7 +941,8 @@ function renderCodeSpan(
   context: RenderContext,
   key: string,
 ): React.ReactNode {
-  if (!isLikelyFileReference(text)) return <code key={key}>{text}</code>
+  if (isWindowsWorkspaceRouteCodeSpan(text, context.cwd)
+    || !isLikelyFileReference(text)) return <code key={key}>{text}</code>
   const target = classifyMarkdownTarget(text)
   if (target.kind !== 'file') return <code key={key}>{text}</code>
   return (
@@ -766,6 +956,20 @@ function renderCodeSpan(
       {text}
     </FileReferenceButton>
   )
+}
+
+function isWindowsWorkspaceRouteCodeSpan(
+  text: string,
+  cwd: string | null,
+): boolean {
+  if (!cwd || !/^(?:[a-zA-Z]:[\\/]|\\\\)/u.test(cwd)) return false
+  const value = text.trim()
+  if (!/^\/(?!\/)/u.test(value)) return false
+  if (/(?:#L\d+(?:C\d+)?(?:-L?\d+(?:C\d+)?)?|:\d+(?::\d+)?)$/iu.test(value)) {
+    return false
+  }
+  const pathname = value.split(/[?#]/u, 1)[0] ?? value
+  return !/\.[a-zA-Z\d]{1,12}$/u.test(pathname)
 }
 
 function renderMediaGrid(
@@ -896,18 +1100,7 @@ function escapeRegExp(value: string): string {
 
 function stableTokenKey(token: MarkdownToken | undefined, index: number): string {
   if (!token) return String(index)
-  const source =
-    typeof token.raw === 'string'
-      ? token.raw
-      : 'text' in token && typeof token.text === 'string'
-        ? token.text
-        : ''
-  let hash = 2_166_136_261
-  for (let offset = 0; offset < source.length; offset += 1) {
-    hash ^= source.charCodeAt(offset)
-    hash = Math.imul(hash, 16_777_619)
-  }
-  return `${token.type}-${index}-${(hash >>> 0).toString(36)}`
+  return `${token.type}-${index}`
 }
 
 function renderTextWithFileReferences(
@@ -1167,7 +1360,7 @@ function FileReferenceButton({
         />
       ),
       onSelect: () => {
-        void navigator.clipboard
+        void desktopClipboard
           .writeText(absolutePath ?? reference.path)
           .catch(() => undefined)
       },
@@ -1221,7 +1414,7 @@ function FileReferenceButton({
         if (open) loadTargets()
       }}
       trigger={
-        <span
+        <button
           aria-label={`打开文件 ${reference.path}`}
           className={className}
           data-file-reference=""
@@ -1238,15 +1431,9 @@ function FileReferenceButton({
             open(false)
           }}
           onFocus={prefetch}
-          onKeyDown={event => {
-            if (event.key !== 'Enter' && event.key !== ' ') return
-            event.preventDefault()
-            open(true)
-          }}
           onMouseEnter={prefetch}
           onPointerDown={prefetch}
-          role="button"
-          tabIndex={0}
+          type="button"
           title={title}
         >
           <span className="md-file-reference__content">
@@ -1259,7 +1446,7 @@ function FileReferenceButton({
             </span>
             <span className="md-file-reference__label">{children}</span>
           </span>
-        </span>
+        </button>
       }
       width={240}
     />

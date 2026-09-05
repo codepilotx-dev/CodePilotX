@@ -62,7 +62,7 @@ export function PetOverlayPage(): React.ReactNode {
 
   if (!controller.pet) {
     return (
-      <main className="pet-overlay-page">
+      <main className="pet-overlay-page" data-startup-surface-ready="true">
         <div
           className="pet-overlay-empty pet-overlay-interactive"
           onPointerEnter={() => setInteractive(true)}
@@ -75,7 +75,7 @@ export function PetOverlayPage(): React.ReactNode {
   }
 
   return (
-    <main className="pet-overlay-page">
+    <main className="pet-overlay-page" data-startup-surface-ready="true">
       {notification || greeting ? (
         <section
           className="pet-overlay-pill pet-overlay-interactive"

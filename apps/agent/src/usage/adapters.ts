@@ -1,4 +1,3 @@
-import type { Credential } from "@codepilotx/model-schema"
 import { UsageRequestError } from "./safe-fetch"
 import {
   emptySource,
@@ -22,7 +21,6 @@ type MutableUsageGroup = {
 
 const record = (value: unknown): Json | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Json : null
-const list = (value: unknown): unknown[] => Array.isArray(value) ? value : []
 const requiredRecord = (value: unknown, label: string): Json => {
   const parsed = record(value)
   if (!parsed) throw new UsageRequestError("invalid-response", `${label} 响应结构无效`, false)
@@ -339,45 +337,59 @@ const minimax = (region: "global" | "cn") => adapter({
     if (statusCode !== 0) {
       throw new UsageRequestError("plan", "MiniMax 套餐额度当前不可用", false)
     }
-    const groups = requiredList(value.model_remains, "MiniMax").flatMap((item, index): UsageGroup[] => {
+    const modelItems = requiredList(value.model_remains, "MiniMax")
+    const groups = modelItems.flatMap((item, index): UsageGroup[] => {
       const remain = record(item)
       if (!remain) return []
-      const label = text(remain.model_name) ?? `Token Plan ${index + 1}`
+      const rawModelName = text(remain.model_name)
+      const isSpecificModel = rawModelName && rawModelName.toLowerCase() !== "general" && rawModelName.toLowerCase() !== "normal"
+      const modelDisplayName = isSpecificModel ? (rawModelName === "video" ? "视频" : rawModelName) : undefined
+      const label = modelDisplayName ?? rawModelName ?? `Token Plan ${index + 1}`
       const group = emptyGroup(`plan-${index + 1}`, label)
       const window = (
         id: string,
         windowLabel: string,
         totalValue: unknown,
-        remainingValue: unknown,
+        usageValue: unknown,
         percentValue: unknown,
         resetValue: unknown,
         statusValue: unknown,
       ) => {
-        const limit = number(totalValue)
-        const remaining = number(remainingValue)
+        const total = number(totalValue)
+        const usage = number(usageValue)
         const remainingPercent = percentage(percentValue)
         const status = number(statusValue)
         const reset = timestamp(resetValue)
         if (
-          limit === undefined
-          && remaining === undefined
+          total === undefined
+          && usage === undefined
           && remainingPercent === undefined
           && status === undefined
           && reset === undefined
         ) return
-        const unlimited = status === 2 || limit === 0 && remaining === 0 && remainingPercent === 100
+        if (status === 3) return
+        const hasCount = total !== undefined && total > 0
+        const limit = hasCount ? total : undefined
+        const used = hasCount && usage !== undefined ? Math.min(total, usage) : undefined
+        const remaining = hasCount ? Math.max(0, total - (usage ?? 0)) : undefined
+        const exhausted = status === 2
+          || (remainingPercent !== undefined && remainingPercent === 0)
+          || (hasCount && remaining === 0)
+        const unlimited = status === 4
+        const quotaId = modelItems.length > 1 ? `plan-${index + 1}-${id}` : id
+        const finalLabel = modelDisplayName && modelItems.length > 1 ? `${modelDisplayName} ${windowLabel}` : windowLabel
         group.quotaWindows.push({
-          id,
-          label: windowLabel,
+          id: quotaId,
+          label: finalLabel,
           unit: "requests",
           ...(unlimited ? {} : {
             ...(limit === undefined ? {} : { limit }),
-            ...(remaining === undefined ? {} : { remaining }),
-            ...(limit === undefined || remaining === undefined ? {} : { used: Math.max(0, limit - remaining) }),
-            ...(remainingPercent === undefined ? {} : { remainingPercent }),
+            ...(remaining === undefined ? (hasCount ? { remaining: 0 } : {}) : { remaining }),
+            ...(used === undefined ? {} : { used }),
+            remainingPercent: exhausted ? 0 : (remainingPercent ?? (hasCount && limit ? Math.round(((remaining ?? 0) / limit) * 100) : 100)),
           }),
           ...(reset === undefined ? {} : { resetsAt: reset }),
-          state: unlimited ? "unlimited" : remaining === 0 || remainingPercent === 0 ? "exhausted" : "normal",
+          state: unlimited ? "unlimited" : exhausted ? "exhausted" : "normal",
         })
       }
       window(
@@ -400,7 +412,7 @@ const minimax = (region: "global" | "cn") => adapter({
         remain.weekly_end_time,
         remain.current_weekly_status,
       )
-      return [group]
+      return group.quotaWindows.length > 0 ? [group] : []
     })
     return { ...emptySource(source, "available", credential.connection), checkedAt: context.now, groups }
   },

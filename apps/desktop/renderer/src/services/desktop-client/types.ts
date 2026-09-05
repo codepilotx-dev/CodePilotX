@@ -1,3 +1,4 @@
+import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
 import type {
   EventEnvelope,
   ProtocolCapability,
@@ -14,13 +15,37 @@ import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-ove
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
+import type { DesktopMicrophoneIpcBridge } from '@codepilotx/shared/desktop-microphone-ipc'
+import type {
+  SessionGroupChangedFile,
+  SessionGroupCheckpoint,
+  SessionGroupFailure,
+  SessionGroupStepStatus,
+  SessionGroupValidation,
+} from '@codepilotx/shared/session-group'
+import type {
+  DesktopAttachmentIpcBridge,
+  DesktopAttachmentSaveInput,
+  DesktopAttachmentSaveResult,
+  DesktopComposerPathListInput,
+  DesktopComposerPathListResult,
+  DesktopComposerPathPreview,
+  DesktopComposerPathReadInput,
+} from '@codepilotx/shared/desktop-attachment-ipc'
+import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
+import type {
+  DesktopOpenWindowInput,
+  DesktopWindowIpcBridge,
+} from '@codepilotx/shared/desktop-window-ipc'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
+  DesktopComposerAttachment,
   DesktopGitStatus,
   DesktopReviewSource,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
+  DesktopSystemFontsResult,
   DesktopThemeSettings,
 } from '../../../shared/types.js'
 
@@ -29,6 +54,7 @@ type DesktopClientWindow = {
     pickWorkspaceDirectory(): Promise<string | null>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
     saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
+    listSystemFonts?(): Promise<DesktopSystemFontsResult>
     getDesktopSettings?(): Promise<DesktopStoredSettings>
     saveDesktopSettings?(
       settings: DesktopStoredSettings,
@@ -40,7 +66,6 @@ type DesktopClientWindow = {
           | { settings: DesktopStoredSettings },
       ) => void,
     ): () => void
-    copyProviderApiKey?(credentialId: string): Promise<{ clearAfterMs: 60000 }>
     getSystemTheme?(): Promise<'light' | 'dark'>
     onSystemThemeChange?(
       listener: (theme: 'light' | 'dark') => void,
@@ -54,9 +79,14 @@ type DesktopClientWindow = {
     openPathWithTarget?(targetPath: string, targetId: string): Promise<void>
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
+    & Partial<DesktopWindowIpcBridge>
+    & Partial<Pick<DesktopStartupIpcBridge, 'quitDuringStartup'>>
     & Partial<DesktopDataLocationIpcBridge>
     & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
+    & Partial<DesktopAttachmentIpcBridge>
+    & Partial<DesktopBrowserIpcBridge>
+    & Partial<DesktopMicrophoneIpcBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
   dispatchEvent?: Window['dispatchEvent']
@@ -145,11 +175,13 @@ export type DesktopReviewAgentComment = {
 
 export type DesktopAgentReviewApi = {
   getAgentReviewSummary(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     refresh?: boolean
   }): Promise<DesktopReviewAgentSummaryResult>
   getAgentReviewFileDiff(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -157,6 +189,7 @@ export type DesktopAgentReviewApi = {
     hideWhitespace?: boolean
   }): Promise<DesktopReviewAgentFileDiff>
   getAgentReviewFileDiffs(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -164,6 +197,7 @@ export type DesktopAgentReviewApi = {
     hideWhitespace?: boolean
   }): Promise<RpcResult<'review/file-diffs'>>
   applyAgentReviewOperation(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -174,6 +208,7 @@ export type DesktopAgentReviewApi = {
       | { kind: 'hunk'; path: string; hunkId: string }
   }): Promise<void>
   applyAgentReviewBatch(input: {
+    projectId?: string
     workspacePath: string
     source: DesktopReviewSource
     generation: string
@@ -183,13 +218,13 @@ export type DesktopAgentReviewApi = {
       ...Array<{ path: string; expectedRevision: string }>,
     ]
   }): Promise<RpcResult<'review/applyBatch'>>
-  getAgentReviewBranches(workspacePath: string): Promise<Array<{
+  getAgentReviewBranches(workspacePath: string, projectId?: string): Promise<Array<{
     name: string
     sha: string
     current: boolean
     remote: boolean
   }>>
-  getAgentReviewCommits(workspacePath: string): Promise<Array<{
+  getAgentReviewCommits(workspacePath: string, projectId?: string): Promise<Array<{
     sha: string
     shortSha: string
     subject: string
@@ -197,11 +232,13 @@ export type DesktopAgentReviewApi = {
     authoredAt: string
   }>>
   listAgentReviewComments(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     sourceKey: string
   }): Promise<DesktopReviewAgentComment[]>
   saveAgentReviewComment(input: {
+    projectId?: string
     id?: string
     workspacePath: string
     threadId: string
@@ -216,11 +253,13 @@ export type DesktopAgentReviewApi = {
     githubThreadId?: string
   }): Promise<DesktopReviewAgentComment>
   resolveAgentReviewComment(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     id: string
   }): Promise<DesktopReviewAgentComment>
   deleteAgentReviewComment(input: {
+    projectId?: string
     workspacePath: string
     threadId: string
     id: string
@@ -249,12 +288,15 @@ export type DesktopAgentEventEnvelopeApi = {
   readThreadHistoryPage(
     params: RpcParams<'thread/history/read'>,
   ): Promise<RpcResult<'thread/history/read'>>
+  listPendingAgentInteractions(
+    params: RpcParams<'interaction/listPending'>,
+  ): Promise<RpcResult<'interaction/listPending'>>
   readThreadPatchDiff(
     params: RpcParams<'thread/patch/diff'>,
   ): Promise<RpcResult<'thread/patch/diff'>>
   subscribeAgentEventEnvelopes(
     options: AgentRpcSubscription,
-    callback: (event: EventEnvelope) => void,
+    callback: (events: readonly EventEnvelope[]) => void | Promise<void>,
   ): () => void
 }
 
@@ -317,6 +359,183 @@ export type DesktopRuntimeCapabilityApi = {
   getRuntimeCapabilities(): Promise<readonly ProtocolCapability[]>
 }
 
+type WithoutOperationId<T> = T extends { operationId: unknown }
+  ? Omit<T, 'operationId'>
+  : T
+
+export type DesktopAutomationApi = {
+  listAutomations(input: RpcParams<'automation/list'>): Promise<RpcResult<'automation/list'>>
+  readAutomation(input: RpcParams<'automation/read'>): Promise<RpcResult<'automation/read'>>
+  createAutomation(input: WithoutOperationId<RpcParams<'automation/create'>>): Promise<RpcResult<'automation/create'>>
+  updateAutomation(input: Pick<RpcParams<'automation/update'>, 'automationId' | 'expectedRevision'> & {
+    patch: Omit<RpcParams<'automation/update'>, 'automationId' | 'expectedRevision'>
+  }): Promise<RpcResult<'automation/update'>>
+  deleteAutomation(input: RpcParams<'automation/delete'>): Promise<RpcResult<'automation/delete'>>
+  runAutomation(input: WithoutOperationId<RpcParams<'automation/run'>>): Promise<RpcResult<'automation/run'>>
+  listAutomationRuns(input: RpcParams<'automation/run/list'>): Promise<RpcResult<'automation/run/list'>>
+  markAutomationRunRead(input: RpcParams<'automation/run/mark-read'>): Promise<RpcResult<'automation/run/mark-read'>>
+  markAllAutomationRunsRead(input: RpcParams<'automation/run/mark-all-read'>): Promise<RpcResult<'automation/run/mark-all-read'>>
+  previewAutomationSchedule(input: RpcParams<'automation/schedule/preview'>): Promise<RpcResult<'automation/schedule/preview'>['preview']>
+}
+
+export type DesktopCalendarApi = {
+  listCalendarOccurrences(input: RpcParams<'calendar/range'>): Promise<RpcResult<'calendar/range'>>
+  readScheduledTask(input: RpcParams<'scheduled-task/read'>): Promise<RpcResult<'scheduled-task/read'>>
+  createScheduledTask(input: WithoutOperationId<RpcParams<'scheduled-task/create'>>): Promise<RpcResult<'scheduled-task/create'>>
+  updateScheduledTask(input: RpcParams<'scheduled-task/update'>): Promise<RpcResult<'scheduled-task/update'>>
+  deleteScheduledTask(input: RpcParams<'scheduled-task/delete'>): Promise<RpcResult<'scheduled-task/delete'>>
+  runScheduledTask(input: Omit<RpcParams<'scheduled-task/run'>, 'operationId'>): Promise<RpcResult<'scheduled-task/run'>>
+  readSchedulePlan(input: RpcParams<'schedule-plan/read'>): Promise<RpcResult<'schedule-plan/read'>>
+  commitSchedulePlan(input: Omit<RpcParams<'schedule-plan/commit'>, 'operationId'>): Promise<RpcResult<'schedule-plan/commit'>>
+}
+
+export type DesktopPluginApi = {
+  listPlugins(
+    workspacePath?: string | null,
+    forceReload?: boolean,
+  ): Promise<RpcResult<'plugin/list'>>
+  getPluginDetails(
+    pluginId: string,
+    workspacePath?: string | null,
+  ): Promise<RpcResult<'plugin/getDetails'>['details'] | null>
+  setPluginEnabled(
+    pluginId: string,
+    enabled: boolean,
+  ): Promise<RpcResult<'plugin/setEnabled'>['plugin']>
+  onPluginsUpdated(callback: (generation: number) => void): () => void
+}
+
+export type DesktopMiniMaxCliApi = {
+  getMiniMaxCliStatus(forceReload?: boolean): Promise<RpcResult<'minimaxCli/status'>>
+  installMiniMaxCli(): Promise<RpcResult<'minimaxCli/install'>>
+  uninstallMiniMaxCli(): Promise<RpcResult<'minimaxCli/uninstall'>>
+  onMiniMaxCliUpdated(
+    callback: (status: RpcResult<'minimaxCli/status'>) => void,
+  ): () => void
+}
+
+export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
+
+export type DesktopSessionGroupStep = {
+  id: string
+  groupId: string
+  sequence: number
+  sourceThreadId: string | null
+  sourceThreadTitle: string
+  sourceTurnId: string
+  projectId: string | null
+  workspaceLabel: string
+  status: SessionGroupStepStatus
+  summary: string
+  checkpoints: readonly SessionGroupCheckpoint[]
+  changedFiles: readonly DesktopSessionGroupChangedFile[]
+  validations: readonly SessionGroupValidation[]
+  failure: SessionGroupFailure | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type DesktopSessionGroup = {
+  id: string
+  name: string
+  description: string
+  version: number
+  memberCount: number
+  projectLabels: readonly string[]
+  latestStepAt: number | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type DesktopSessionGroupMember = {
+  groupId: string
+  threadId: string
+  joinedAt: number
+  title?: string
+  workspaceLabel?: string
+}
+
+export type DesktopSessionGroupContextEntry = {
+  id: string
+  section: string
+  title: string
+  content: string
+  status: string
+}
+
+export type DesktopSessionGroupDetail = {
+  group: DesktopSessionGroup
+  members: readonly DesktopSessionGroupMember[]
+  digest: string
+  contextEntries: readonly DesktopSessionGroupContextEntry[]
+}
+
+export type DesktopSessionGroupApi = {
+  listSessionGroups(): Promise<DesktopSessionGroup[]>
+  readSessionGroup(groupId: string): Promise<DesktopSessionGroupDetail>
+  createSessionGroup(input: { name: string; description?: string }): Promise<DesktopSessionGroup>
+  updateSessionGroup(input: { groupId: string; name?: string; description?: string; version?: number }): Promise<DesktopSessionGroup>
+  deleteSessionGroup(groupId: string, expectedVersion: number): Promise<void>
+  setSessionGroupMembership(input: { threadId: string; groupId: string | null }): Promise<void>
+  listSessionGroupSteps(groupId: string): Promise<DesktopSessionGroupStep[]>
+  readSessionGroupStepDiff(input: { groupId: string; stepId: string; path?: string }): Promise<RpcResult<'session-group/step/diff'>>
+}
+
+export type DesktopSpeechStatus = RpcResult<'speech/status'>['status']
+
+export type DesktopSpeechApi = {
+  getSpeechStatus(): Promise<DesktopSpeechStatus>
+  installSpeech(force?: boolean): Promise<DesktopSpeechStatus>
+  transcribeSpeech(
+    input: RpcParams<'speech/transcribe'>,
+  ): Promise<RpcResult<'speech/transcribe'>>
+  cancelSpeech(operationId: string): Promise<boolean>
+  onSpeechStatusUpdated(
+    callback: (status: DesktopSpeechStatus) => void,
+  ): () => void
+  openMicrophonePrivacySettings(): Promise<void>
+}
+
+export type DesktopAttachmentApi = {
+  isComposerFileAttachmentAvailable(): Promise<boolean>
+  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
+  grantComposerFilePaths(filePaths: string[]): Promise<DesktopComposerAttachment[]>
+  getComposerFilePath(file: File): string
+  readAttachment(
+    attachmentId: string,
+  ): Promise<RpcResult<'attachment/read'>>
+  readArtifact(
+    threadId: string,
+    artifactId: string,
+  ): Promise<RpcResult<'artifact/read'>>
+  saveAttachmentToDownloads(
+    input: DesktopAttachmentSaveInput,
+  ): Promise<DesktopAttachmentSaveResult>
+  readDraftComposerPath(
+    input: DesktopComposerPathReadInput,
+  ): Promise<DesktopComposerPathPreview>
+  listDraftComposerPath(
+    input: DesktopComposerPathListInput,
+  ): Promise<DesktopComposerPathListResult>
+}
+
+export type DesktopLocalContextApi = {
+  readLocalContextPath(
+    input: RpcParams<'context/path/read'>,
+  ): Promise<RpcResult<'context/path/read'>>
+  listLocalContextPath(
+    input: RpcParams<'context/path/list'>,
+  ): Promise<RpcResult<'context/path/list'>>
+}
+
+export type DesktopModelProviderRefreshApi = {
+  refreshModelProviders(): Promise<void>
+}
+
+export type DesktopWindowApi = {
+  openWindow(input: DesktopOpenWindowInput): Promise<void>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
@@ -325,4 +544,14 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopPetApi &
   DesktopUsageApi &
   DesktopReleaseNotesApi &
-  DesktopRuntimeCapabilityApi
+  DesktopRuntimeCapabilityApi &
+  DesktopAutomationApi &
+  DesktopCalendarApi &
+  DesktopPluginApi &
+  DesktopMiniMaxCliApi &
+  DesktopSessionGroupApi &
+  DesktopAttachmentApi &
+  DesktopSpeechApi &
+  DesktopLocalContextApi &
+  DesktopModelProviderRefreshApi &
+  DesktopWindowApi

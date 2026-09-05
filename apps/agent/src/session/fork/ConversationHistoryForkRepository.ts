@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto"
-import type { SessionTreeEntry } from "@codepilotx/pi-agent-core"
+import type { SessionTreeEntry } from "../../orchestration/harness/types"
 import { AgentError } from "../../domain"
-import { SqlitePiSessionRepo, type SqlitePiSessionMetadata } from "../../storage/SqlitePiSession"
+import { SqlitePiSessionRepo, type SqlitePiSessionMetadata } from "../../storage/pi-session/SqlitePiSession"
 import type { AgentDatabase } from "../../storage/database/AgentDatabase"
-import { parsePiSessionEntry } from "../../storage/pi-session-entry"
+import { parsePiSessionEntry } from "../../storage/pi-session/pi-session-entry"
 import { TurnPiBoundaryRepository } from "../../storage/repositories/turn-pi-boundary-repository"
+import type { SideChatRepository, StoredSideChat } from "../../storage/repositories/side-chat-repository"
 
 type Scalar = string | number | bigint | Uint8Array | null
 type Row = Record<string, Scalar>
@@ -39,6 +40,13 @@ export type FullHistoryForkOptions = {
   targetWorkspace: ForkThroughOptions["targetWorkspace"]
 }
 
+export type SideChatForkOptions = {
+  operationID: string
+  targetThreadID?: string
+  referenceText?: string
+  targetWorkspace: ForkThroughOptions["targetWorkspace"]
+}
+
 type PiFork = {
   source: SqlitePiSessionMetadata
   targetSessionID: string
@@ -56,6 +64,7 @@ type ForkMappings = {
   toolCallIDs: Map<string, string>
   taskIDs: Map<string, string>
   runIDs: Map<string, string>
+  contextPathIDs: Map<string, string>
   includedTurns: Map<string, Set<string>>
 }
 
@@ -127,6 +136,7 @@ export class ConversationHistoryForkRepository {
   private readonly sessions: Pick<SqlitePiSessionRepo, "fork">
   private readonly boundaries: TurnPiBoundaryRepository
   private readonly inFlight = new Map<string, { requestKey: string; promise: Promise<ThreadForkResult> }>()
+  private readonly sideChatInFlight = new Map<string, { requestKey: string; promise: Promise<StoredSideChat> }>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -135,6 +145,41 @@ export class ConversationHistoryForkRepository {
   ) {
     this.sessions = sessions ?? new SqlitePiSessionRepo(db)
     this.boundaries = new TurnPiBoundaryRepository(db)
+  }
+
+  forkLatestForSideChat(
+    sourceThreadID: string,
+    options: SideChatForkOptions,
+    sideChats: SideChatRepository,
+  ): Promise<StoredSideChat> {
+    const requestKey = JSON.stringify({
+      sourceThreadID,
+      targetThreadID: options.targetThreadID ?? null,
+      referenceText: options.referenceText ?? null,
+      targetWorkspace: options.targetWorkspace,
+    })
+    const existing = sideChats.findByOperation(options.operationID)
+    if (existing) {
+      if (
+        existing.sourceThreadID !== sourceThreadID
+        || existing.referenceText !== (options.referenceText ?? null)
+        || (options.targetThreadID && existing.threadID !== options.targetThreadID)
+      ) {
+        throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+      }
+      return Promise.resolve(existing)
+    }
+    const inFlight = this.sideChatInFlight.get(options.operationID)
+    if (inFlight) {
+      if (inFlight.requestKey !== requestKey) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+      return inFlight.promise
+    }
+    const owned = this.forkLatestForSideChatOwned(sourceThreadID, options, sideChats)
+    const tracked = owned.finally(() => {
+      if (this.sideChatInFlight.get(options.operationID)?.promise === tracked) this.sideChatInFlight.delete(options.operationID)
+    })
+    this.sideChatInFlight.set(options.operationID, { requestKey, promise: tracked })
+    return tracked
   }
 
   forkThrough(sourceThreadID: string, options: ForkThroughOptions): Promise<ThreadForkResult> {
@@ -309,6 +354,103 @@ export class ConversationHistoryForkRepository {
       throw new AgentError("HISTORY_UNSUPPORTED", "任务历史无法完整分叉", 409)
     }
     return { sourceThreadID, targetThreadID: targetRootID, ...maps }
+  }
+
+  private async forkLatestForSideChatOwned(
+    sourceThreadID: string,
+    options: SideChatForkOptions,
+    sideChats: SideChatRepository,
+  ): Promise<StoredSideChat> {
+    const source = this.db.sqlite.query(`
+      SELECT threads.id, threads.kind
+      FROM threads
+      LEFT JOIN thread_side_chats ON thread_side_chats.thread_id = threads.id
+      WHERE threads.id = ?
+        AND thread_side_chats.thread_id IS NULL
+        AND (threads.archived_at IS NULL OR threads.archived_at <> -1)
+    `).get(sourceThreadID) as { id: string; kind: string } | null
+    if (!source) throw new AgentError("THREAD_NOT_FOUND", "源任务不存在", 404)
+    if (source.kind !== "main") throw new AgentError("HISTORY_UNSUPPORTED", "只能从主任务创建侧边聊天", 409)
+
+    const latestCompleted = this.db.sqlite.query(`
+      SELECT id
+      FROM turns
+      WHERE thread_id = ? AND status = 'completed'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `).get(sourceThreadID) as { id: string } | null
+    let sourceItemID: string | null = null
+    let selected: ReturnType<ConversationHistoryForkRepository["requireForkPoint"]> | null = null
+    let piBoundary: string | null = null
+    if (latestCompleted) {
+      const candidates = this.db.sqlite.query(`
+        SELECT items.id, items.data
+        FROM items
+        JOIN turns ON turns.id = items.turn_id
+        WHERE items.thread_id = ? AND items.turn_id = ?
+          AND items.agent_id = turns.root_agent_id
+          AND items.type = 'text' AND items.status = 'completed'
+        ORDER BY items.ordinal DESC, items.created_at DESC, items.id DESC
+      `).all(sourceThreadID, latestCompleted.id) as Array<{ id: string; data: string }>
+      sourceItemID = candidates.find((candidate) => {
+        try { return (JSON.parse(candidate.data) as Record<string, unknown>).placement === "result" } catch { return false }
+      })?.id ?? null
+      if (!sourceItemID) throw new AgentError("FORK_POINT_UNAVAILABLE", "最新完成回复缺少可安全分叉的结果", 409)
+      selected = this.requireForkPoint(sourceThreadID, latestCompleted.id, sourceItemID)
+      piBoundary = this.resolvePiBoundary(latestCompleted.id, selected.sessionID, selected.text)
+    }
+
+    const targetRootID = options.targetThreadID ?? this.nextID()
+    const maps = latestCompleted
+      ? this.allocatePrefixMappings(sourceThreadID, targetRootID, latestCompleted.id)
+      : this.allocateEmptyMappings(sourceThreadID, targetRootID)
+    const piForks = new Map<string, PiFork>()
+    const copiedBoundaries: Array<{ turnID: string; sessionID: string; entryID: string }> = []
+    const inheritedThroughTurnID = latestCompleted ? maps.turnIDs.get(latestCompleted.id) ?? null : null
+    const createdAt = Date.now()
+    try {
+      this.db.transaction(() => {
+        this.copyThreads(sourceThreadID, {
+          ...options,
+          throughTurnID: latestCompleted?.id ?? "",
+          sourceItemID: sourceItemID ?? "",
+          visible: false,
+        }, maps, false)
+        this.copyConversationRows(maps, piForks)
+        this.collectCopiedBoundaries(maps, piForks, copiedBoundaries)
+        if (latestCompleted && selected && piBoundary) {
+          const targetSessionID = piForks.get(selected.sessionID)?.targetSessionID
+          if (!inheritedThroughTurnID || !targetSessionID) throw new AgentError("FORK_POINT_UNAVAILABLE", "无法建立侧边聊天会话边界", 409)
+          piForks.get(selected.sessionID)!.entryID = piBoundary
+          copiedBoundaries.splice(0, copiedBoundaries.length, ...copiedBoundaries.filter((entry) => entry.turnID !== inheritedThroughTurnID))
+          copiedBoundaries.push({ turnID: inheritedThroughTurnID, sessionID: targetSessionID, entryID: piBoundary })
+        }
+        sideChats.insert({
+          threadID: targetRootID,
+          sourceThreadID,
+          inheritedThroughTurnID,
+          referenceText: options.referenceText ?? null,
+          operationID: options.operationID,
+          createdAt,
+        })
+      })
+      for (const entry of piForks.values()) {
+        await this.sessions.fork(entry.source, {
+          id: entry.targetSessionID,
+          threadID: entry.targetThreadID,
+          agentID: entry.targetAgentID,
+          ...(entry.entryID ? { entryId: entry.entryID, position: "at" as const } : {}),
+        })
+      }
+      this.db.transaction(() => {
+        for (const boundary of copiedBoundaries) this.boundaries.upsert(boundary)
+      })
+    } catch (cause) {
+      this.rollbackHiddenTarget(targetRootID)
+      if (cause instanceof AgentError) throw cause
+      throw new AgentError("HISTORY_UNSUPPORTED", "无法启动新的侧边聊天", 409)
+    }
+    return sideChats.findByThread(targetRootID)!
   }
 
   publishTarget(operationID: string, targetThreadID: string) {
@@ -520,10 +662,20 @@ export class ConversationHistoryForkRepository {
     const toolCallIDs = new Map<string, string>()
     const taskIDs = new Map<string, string>()
     const runIDs = new Map<string, string>()
+    const contextPathIDs = new Map<string, string>()
     for (const [sourceThreadID, turns] of includedTurns) {
       for (const turnID of turns) turnIDs.set(turnID, this.nextID())
       for (const row of this.rowsForTurns("agent_executions", sourceThreadID, turns)) agentIDs.set(String(row.id), this.nextID())
       for (const row of this.rowsForTurns("inputs", sourceThreadID, turns)) inputIDs.set(String(row.id), this.nextID())
+      const linkedContextPaths = turns.size === 0 ? [] : this.db.sqlite.query(`
+        SELECT DISTINCT context.*
+        FROM thread_context_paths AS context
+        JOIN input_context_paths AS binding ON binding.context_path_id = context.id
+        JOIN inputs ON inputs.id = binding.input_id
+        WHERE inputs.thread_id = ? AND inputs.turn_id IN (${[...turns].map(() => "?").join(",")})
+        ORDER BY context.created_at, context.id
+      `).all(sourceThreadID, ...turns) as Row[]
+      for (const row of linkedContextPaths) contextPathIDs.set(String(row.id), this.nextID())
       for (const row of this.completedTasks(sourceThreadID, turns)) taskIDs.set(String(row.id), this.nextID())
       for (const row of this.rowsForTurns("items", sourceThreadID, turns)) {
         if (row.type !== "subagent" || this.completedSubagentItem(row, taskIDs)) itemIDs.set(String(row.id), this.nextID())
@@ -531,7 +683,22 @@ export class ConversationHistoryForkRepository {
       for (const row of this.rowsForTurns("tool_calls", sourceThreadID, turns)) toolCallIDs.set(String(row.id), this.nextID())
     }
     for (const taskID of taskIDs.keys()) for (const row of this.rows("subagent_runs", "task_id", taskID)) runIDs.set(String(row.id), this.nextID())
-    return { threadIDs, turnIDs, agentIDs, inputIDs, itemIDs, toolCallIDs, taskIDs, runIDs, includedTurns }
+    return { threadIDs, turnIDs, agentIDs, inputIDs, itemIDs, toolCallIDs, taskIDs, runIDs, contextPathIDs, includedTurns }
+  }
+
+  private allocateEmptyMappings(sourceRootID: string, targetRootID: string): ForkMappings {
+    return {
+      threadIDs: new Map([[sourceRootID, targetRootID]]),
+      turnIDs: new Map(),
+      agentIDs: new Map(),
+      inputIDs: new Map(),
+      itemIDs: new Map(),
+      toolCallIDs: new Map(),
+      taskIDs: new Map(),
+      runIDs: new Map(),
+      contextPathIDs: new Map(),
+      includedTurns: new Map([[sourceRootID, new Set()]]),
+    }
   }
 
   private copyThreads(sourceRootID: string, options: ForkThroughOptions, maps: ForkMappings, appendForkSuffix = true) {
@@ -557,7 +724,7 @@ export class ConversationHistoryForkRepository {
   }
 
   private copyConversationRows(maps: ForkMappings, piForks: Map<string, PiFork>) {
-    const allIDs = new Map<string, string>([...maps.threadIDs, ...maps.turnIDs, ...maps.agentIDs, ...maps.inputIDs, ...maps.itemIDs, ...maps.toolCallIDs, ...maps.taskIDs, ...maps.runIDs])
+    const allIDs = new Map<string, string>([...maps.threadIDs, ...maps.turnIDs, ...maps.agentIDs, ...maps.inputIDs, ...maps.itemIDs, ...maps.toolCallIDs, ...maps.taskIDs, ...maps.runIDs, ...maps.contextPathIDs])
     const sessionIDs = new Map<string, string>()
     for (const [sourceThreadID, targetThreadID] of maps.threadIDs) {
       const turns = maps.includedTurns.get(sourceThreadID)!
@@ -591,6 +758,22 @@ export class ConversationHistoryForkRepository {
       for (const source of this.rowsForTurns("patches", sourceThreadID, turns)) this.insert("patches", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, turn_id: maps.turnIDs, agent_id: maps.agentIDs }))
       for (const source of this.rowsForTurns("agent_compactions", sourceThreadID, turns)) this.insert("agent_compactions", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, turn_id: maps.turnIDs }))
       for (const source of this.rowsByMappedIDs("input_attachments", "input_id", maps.inputIDs)) this.insert("input_attachments", this.remapRow({ ...source, id: this.nextID() }, allIDs, { thread_id: maps.threadIDs, input_id: maps.inputIDs }))
+      for (const source of this.rows("thread_context_paths", "thread_id", sourceThreadID)) {
+        if (!maps.contextPathIDs.has(String(source.id))) continue
+        this.insert("thread_context_paths", this.remapRow(source, allIDs, { id: maps.contextPathIDs, thread_id: maps.threadIDs }))
+      }
+      const sourceInputIDs = this.rowsForTurns("inputs", sourceThreadID, turns).map(({ id }) => String(id))
+      const contextBindings = sourceInputIDs.length === 0 ? [] : this.db.sqlite.query(`
+        SELECT binding.*
+        FROM input_context_paths AS binding
+        JOIN thread_context_paths AS context ON context.id = binding.context_path_id
+        WHERE context.thread_id = ? AND binding.input_id IN (${sourceInputIDs.map(() => "?").join(",")})
+        ORDER BY binding.sort_order, binding.created_at, binding.context_path_id
+      `).all(sourceThreadID, ...sourceInputIDs) as Row[]
+      for (const source of contextBindings) {
+        if (!maps.contextPathIDs.has(String(source.context_path_id))) continue
+        this.insert("input_context_paths", this.remapRow(source, allIDs, { input_id: maps.inputIDs, context_path_id: maps.contextPathIDs }))
+      }
       for (const source of this.rowsForTurns("turn_patch_sets", sourceThreadID, turns)) this.insert("turn_patch_sets", this.remapRow(source, allIDs, { turn_id: maps.turnIDs, thread_id: maps.threadIDs, item_id: maps.itemIDs }))
       for (const [sourceTaskID] of maps.taskIDs) {
         const task = this.row("subagent_tasks", "id", sourceTaskID)
