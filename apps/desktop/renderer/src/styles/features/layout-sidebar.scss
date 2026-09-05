@@ -948,9 +948,23 @@
   }
 }
 
+.sidebar-session-meta,
+.sidebar-session-actions {
+  gap: var(--cpx-sys-space-1);
+}
+
+.sidebar-session-indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--sidebar-icon-button-size);
+  height: var(--sidebar-icon-button-size);
+  color: var(--cpx-sys-color-fg-tertiary);
+}
+
 .sidebar-session-meta--approval {
   width: auto;
-  gap: var(--cpx-sys-space-2);
 }
 
 .sidebar-session-confirm-archive-button {

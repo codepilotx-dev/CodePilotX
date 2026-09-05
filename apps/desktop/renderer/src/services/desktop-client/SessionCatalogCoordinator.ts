@@ -53,9 +53,14 @@ export class SessionCatalogCoordinator {
 
   async deliverBatch(events: readonly EventEnvelope[]): Promise<void> {
     const threadIds = new Set<string>()
+    let scheduleChanged = false
     const lifecycleUpdates = new Map<string, SessionLifecycleUpdate>()
     for (const event of events) {
       switch (event.type) {
+        case 'automation/runChanged':
+        case 'scheduled-task/changed':
+          scheduleChanged = true
+          break
         case 'catalog/updated':
           this.#handlers.onCatalogUpdated()
           break
@@ -87,7 +92,7 @@ export class SessionCatalogCoordinator {
     for (const update of lifecycleUpdates.values()) {
       this.#handlers.onLifecycleUpdated(update)
     }
-    if (threadIds.size > 0) {
+    if (scheduleChanged || threadIds.size > 0) {
       await this.#handlers.refreshThreads([...threadIds])
     }
   }

@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Archive, Copy, Eye, EyeOff, Folder, MessageCircle, MessageSquare, Pencil, Pin, PinOff } from "lucide-react";
+import { Archive, Clock3, Copy, Eye, EyeOff, Folder, MessageCircle, MessageSquare, Pencil, Pin, PinOff, Split } from "lucide-react";
 import { Reorder } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
@@ -283,6 +283,8 @@ function SidebarSessionGroupComponent({
       pendingPermissionSessionIds,
     )
     const awaitingApproval = visualState === 'needs-input'
+    const showActions = hoveredSessionId === session.id || focusedSessionId === session.id
+    const showIndicators = !showActions && confirmArchiveSessionId !== session.id
     const metaClassName = cx(
       "sidebar-session-meta",
       "u-flex",
@@ -385,6 +387,16 @@ function SidebarSessionGroupComponent({
         }}
         trailing={
           <div className={metaClassName}>
+            {showIndicators && session.hasScheduledRun && (
+              <span className="sidebar-session-indicator" role="img" aria-label="日程运行过的会话" title="日程运行过的会话">
+                <Clock3 aria-hidden="true" size={APP_ICON_SIZE} />
+              </span>
+            )}
+            {showIndicators && session.isFork && (
+              <span className="sidebar-session-indicator" role="img" aria-label="分叉会话" title="分叉会话">
+                <Split aria-hidden="true" size={APP_ICON_SIZE} />
+              </span>
+            )}
             {confirmArchiveSessionId === session.id ? (
               <button
                 className="sidebar-session-confirm-archive-button"
@@ -394,14 +406,7 @@ function SidebarSessionGroupComponent({
               >
                 确认
               </button>
-            ) : awaitingApproval ? (
-              <>
-                <span className="sidebar-session-approval" title="等待审批">
-                  等待审批
-                </span>
-                <Spinner className="sidebar-session-spinner" label="加载中" />
-              </>
-            ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
+            ) : showActions ? (
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
                   <IconButton
@@ -434,13 +439,23 @@ function SidebarSessionGroupComponent({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
-            ) : visualState === 'unread' ? (
-              <span
-                aria-label="未读"
-                className="sidebar-session-unread-dot"
-              />
-            ) : visualState === 'running' ? (
-              <Spinner className="sidebar-session-spinner" label="加载中" />
+            ) : awaitingApproval ? (
+              <>
+                <span className="sidebar-session-approval" title="等待审批">
+                  等待审批
+                </span>
+                <span className="sidebar-session-indicator">
+                  <Spinner className="sidebar-session-spinner" label="加载中" />
+                </span>
+              </>
+            ) : session.hasScheduledRun || session.isFork || visualState !== 'idle' ? (
+              <span className="sidebar-session-indicator">
+                {visualState === 'unread' ? (
+                  <span aria-label="未读" className="sidebar-session-unread-dot" />
+                ) : visualState === 'running' ? (
+                  <Spinner className="sidebar-session-spinner" label="加载中" />
+                ) : null}
+              </span>
             ) : null}
           </div>
         }

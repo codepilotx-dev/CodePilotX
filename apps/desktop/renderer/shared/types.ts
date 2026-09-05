@@ -1192,6 +1192,8 @@ export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
   id: string
+  hasScheduledRun?: boolean
+  isFork?: boolean
   projectId?: string | null
   sessionGroupId?: string | null
   appServerThreadId?: string | null

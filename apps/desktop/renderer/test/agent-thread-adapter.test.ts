@@ -84,6 +84,26 @@ describe('agent thread adapter', () => {
     expect(itemLegacy.creationSurface).toBeUndefined()
   })
 
+  test('preserves independent schedule and fork markers in list and snapshot adapters', () => {
+    const base: ThreadListItem = {
+      id: 'thread-origin', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+      title: '来源', preview: null, firstUserMessage: null, messageCount: 0, latestTurnStatus: null,
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, createdAt: 1, updatedAt: 2,
+    }
+    for (const markers of [{}, { hasScheduledRun: true }, { isFork: true }, { hasScheduledRun: true, isFork: true }, { hasScheduledRun: false, isFork: false }]) {
+      const thread = { ...base, ...markers }
+      const list = agentThreadListItemToDesktop(thread, project)
+      const snapshot = agentThreadSnapshotToDesktop({
+        thread, turns: [], agents: [], inputs: [], messages: [], items: [], approvals: [],
+      }, project).item
+      for (const item of [list, snapshot]) {
+        expect(item.hasScheduledRun).toBe(thread.hasScheduledRun)
+        expect(item.isFork).toBe(thread.isFork)
+      }
+    }
+  })
+
   test('maps a projectless thread to a standalone session with its real cwd', () => {
     const cwd = 'C:\\Users\\tester\\Documents\\CodePilotX\\2026-07-22\\new-chat'
     const thread: ThreadListItem = {

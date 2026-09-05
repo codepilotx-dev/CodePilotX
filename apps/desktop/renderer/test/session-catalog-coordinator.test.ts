@@ -48,6 +48,35 @@ describe('SessionCatalogCoordinator', () => {
     expect(committed).toBe(true)
   })
 
+  test('refreshes once per schedule event batch, including global events without a thread ID', async () => {
+    const refreshed: string[][] = []
+    const coordinator = new SessionCatalogCoordinator({
+      onCatalogUpdated: () => {},
+      onProviderCredentialUpdated: () => {},
+      onConfigUpdated: () => {},
+      onWorkspaceFileChanged: () => {},
+      onWorkspaceGitChanged: () => {},
+      onLifecycleUpdated: () => {},
+      refreshThreads: async threadIds => { refreshed.push([...threadIds]) },
+    })
+    const base = {
+      streamId: 'global', version: 1 as const, occurredAt: 2,
+      durability: 'durable' as const, sequence: 2,
+    }
+    const scheduled: EventEnvelope = {
+      ...base, eventId: 'scheduled-1', type: 'scheduled-task/changed',
+      payload: { scheduledTaskId: 'task-1', revision: 1, status: 'running', changedAt: 2 },
+    }
+    const automation: EventEnvelope = {
+      ...base, eventId: 'automation-1', type: 'automation/runChanged',
+      payload: { automationId: 'automation-1', runId: 'run-1', status: 'running', changedAt: 2 },
+    }
+    await coordinator.deliverBatch([scheduled])
+    await coordinator.deliverBatch([automation])
+    await coordinator.deliverBatch([scheduled, automation, threadEvent('thread/updated', 'event-2')])
+    expect(refreshed).toEqual([[], [], ['thread-1']])
+  })
+
   test('applies only the latest lifecycle state for each thread before refresh', async () => {
     const calls: string[] = []
     const coordinator = new SessionCatalogCoordinator({
