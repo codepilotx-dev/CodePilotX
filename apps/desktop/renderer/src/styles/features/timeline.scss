@@ -427,6 +427,10 @@
 
 /* ── Turn preview card (inside tooltip) ──────────────────── */
 
+.conversation-turn-preview-tooltip {
+  animation: none;
+}
+
 .conversation-turn-preview-card {
   box-sizing: border-box;
   width: 320px;

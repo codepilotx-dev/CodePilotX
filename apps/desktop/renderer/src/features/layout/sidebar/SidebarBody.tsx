@@ -34,6 +34,7 @@ import {
   standardTween,
 } from "../../motion/motionTransitions.js";
 import { SidebarEmptyRow } from "./SidebarRow.js";
+import { SidebarHoverCardProvider } from './SidebarHoverCard.js'
 import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarReorderItem } from './SidebarReorderItem.js'
 import {
@@ -526,12 +527,13 @@ export function SidebarBody({
   }
 
   return (
-    <ScrollArea
-      className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-      contentClassName="sidebar-scroll-content"
-      viewportRef={scrollViewportRef}
-      onScroll={onScroll}
-    >
+    <SidebarHoverCardProvider>
+      <ScrollArea
+        className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
+        contentClassName="sidebar-scroll-content"
+        viewportRef={scrollViewportRef}
+        onScroll={onScroll}
+      >
       {scrollHeader}
       {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
       <div className="sidebar-scroll-main">
@@ -742,7 +744,8 @@ export function SidebarBody({
         </div>
         )}
       </div>
-    </ScrollArea>
+      </ScrollArea>
+    </SidebarHoverCardProvider>
   );
 }
 

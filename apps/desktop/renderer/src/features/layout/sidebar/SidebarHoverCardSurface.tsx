@@ -1,15 +1,7 @@
 import type React from 'react'
 import * as Popover from '@radix-ui/react-popover'
-import { motion, useIsPresent } from 'motion/react'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { cx } from '../../../utils/cx.js'
-import {
-  enterTween,
-  exitTween,
-  floatingSurfaceMotion,
-  motionTransition,
-} from '../../motion/motionTransitions.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 
 type VirtualAnchor = {
@@ -42,9 +34,6 @@ export function SidebarHoverCardSurface({
   returnFocusToAnchor,
 }: Props): React.ReactNode {
   const contentRef = useRef<HTMLDivElement | null>(null)
-  const isPresent = useIsPresent()
-  const reducedMotion = usePrefersReducedMotion()
-  const surfaceMotion = floatingSurfaceMotion('right')
   const sidebarEdgeRef = useMemo<{ current: VirtualAnchor }>(
     () => ({
       current: {
@@ -85,15 +74,6 @@ export function SidebarHoverCardSurface({
     })
     return () => cancelAnimationFrame(frame)
   }, [focusRef, focusRequest, onFocusRequestHandled])
-
-  useLayoutEffect(() => {
-    if (
-      isPresent
-      || !(document.activeElement instanceof HTMLElement)
-      || !contentRef.current?.contains(document.activeElement)
-    ) return
-    returnFocusToAnchor()
-  }, [isPresent, returnFocusToAnchor])
 
   return (
     <Popover.Root open onOpenChange={requestOpenChange}>
@@ -153,23 +133,11 @@ export function SidebarHoverCardSurface({
           onPointerEnter={keepOpen}
           onPointerLeave={closeAfterDelay}
         >
-          <motion.div
-            aria-hidden={!isPresent ? true : undefined}
-            animate={surfaceMotion.animate}
+          <div
             className={cx('sidebar-hover-card-surface', className)}
-            exit={{
-              ...surfaceMotion.exit,
-              transition: motionTransition(reducedMotion, exitTween),
-            }}
-            initial={surfaceMotion.initial}
-            inert={!isPresent ? true : undefined}
-            style={{
-              pointerEvents: isPresent ? undefined : 'none',
-            }}
-            transition={motionTransition(reducedMotion, enterTween)}
           >
             {children}
-          </motion.div>
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
