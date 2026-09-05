@@ -71,6 +71,9 @@
   @include meta.load-css('features/canonical-conversation');
   @include meta.load-css('features/primary-page');
   @include meta.load-css('features/automation');
+  @include meta.load-css('features/automation-calendar');
+  @include meta.load-css('features/schedule-plan-card');
+  @include meta.load-css('features/schedule-plan-card');
   @include meta.load-css('features/pull-requests');
   @include meta.load-css('features/file-editor');
   @include meta.load-css('model-menu-pilot');

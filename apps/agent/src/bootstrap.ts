@@ -110,13 +110,23 @@ import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
 import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
 import { SessionGroupService } from "./session-group/SessionGroupService";
 import { createAutomationDefinitions } from "./tool/Automation/definitions";
+import { createSchedulePlanDefinition } from "./tool/SchedulePlan/definition";
 import {
   AutomationRunCoordinator,
   AutomationScheduler,
   AutomationService,
   ThreadAutomationRunExecutor,
 } from "./automation";
-import { probeAutomationStorageCapabilities } from "./storage/database/storage-capabilities";
+import {
+  CalendarService,
+  SchedulePlanService,
+  ScheduledTaskCoordinator,
+  ScheduledTaskService,
+} from "./calendar";
+import {
+  probeAutomationStorageCapabilities,
+  probeScheduleCalendarStorageCapabilities,
+} from "./storage/database/storage-capabilities";
 import { createThreadReadDefinition } from "./tool/ThreadRead/definition";
 import { ThreadReadViewRepository } from "./session/ThreadReadViewRepository";
 import {
@@ -829,7 +839,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     );
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite);
     const automationEnabled = automationStorage.automations && automationStorage.automationRuns;
+    const calendarStorage = probeScheduleCalendarStorageCapabilities(db.sqlite);
+    const calendarEnabled = automationEnabled
+      && calendarStorage.scheduledTasks
+      && calendarStorage.schedulePlanProposals;
     const automationRepository = db.repositories.automations;
+    const scheduledTaskRepository = db.repositories.scheduledTasks;
     const automationExecutor = new ThreadAutomationRunExecutor(
       automationRepository,
       threads,
@@ -854,6 +869,24 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         }).then(() => undefined),
       },
     );
+    const scheduledTaskRuns = new ScheduledTaskCoordinator(
+      scheduledTaskRepository,
+      automationExecutor,
+      {
+        getTurnStatus: (turnId) => {
+          const status = db.repositories.executions.getTurnStatus(turnId);
+          if (status === "completed" || status === "failed" || status === "interrupted") return status;
+          if (status === "queued" || status === "running") return status;
+          return status ? "waiting" : null;
+        },
+        taskChanged: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
     let automationScheduler: AutomationScheduler | null = null;
     const automation = new AutomationService(automationRepository, {
       changed: (value) => publishAgentEvent(db, hub, null, null, "automation/changed", {
@@ -865,12 +898,63 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       claimed: (run) => automationRuns.startRun(run),
       wakeScheduler: () => automationScheduler?.wake(),
     });
+    const scheduledTasks = new ScheduledTaskService(
+      scheduledTaskRepository,
+      automationRepository,
+      {
+        claimed: (task) => scheduledTaskRuns.startTask(task),
+        wakeScheduler: () => automationScheduler?.wake(),
+        changed: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
+    const calendar = new CalendarService(automationRepository, scheduledTaskRepository);
+    const schedulePlans = new SchedulePlanService(
+      db,
+      db.repositories.schedulePlanProposals,
+      scheduledTaskRepository,
+      automationRepository,
+      {
+        wakeScheduler: () => automationScheduler?.wake(),
+        automationChanged: (value) => publishAgentEvent(db, hub, null, null, "automation/changed", {
+          automationId: value.id,
+          revision: value.revision,
+          status: value.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+        scheduledTaskChanged: (task) => publishAgentEvent(db, hub, null, task.turnId, "scheduled-task/changed", {
+          scheduledTaskId: task.id,
+          revision: task.revision,
+          status: task.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+        proposalChanged: (proposal) => publishAgentEvent(db, hub, null, proposal.turnId, "schedule-plan/changed", {
+          proposalId: proposal.id,
+          revision: proposal.revision,
+          status: proposal.status,
+          changedAt: Date.now(),
+        }).then(() => undefined),
+      },
+    );
     automationScheduler = new AutomationScheduler(automationRepository, {
       onClaimed: (runs) => automationRuns.startRuns(runs),
+      ...(calendarEnabled ? {
+        scheduledTasks: {
+          repository: scheduledTaskRepository,
+          onClaimed: (tasks) => scheduledTaskRuns.startTasks(tasks),
+        },
+      } : {}),
       onError: () => undefined,
     });
     if (automationEnabled) {
       for (const definition of createAutomationDefinitions(automation)) tools.register(definition);
+    }
+    if (calendarEnabled) {
+      tools.register(createSchedulePlanDefinition(schedulePlans, (threadId) => db.threadProjectID(threadId) ?? null));
     }
     const unsubscribeAutomationEvents = hub.listen((signal) => {
       if (!automationEnabled || signal.kind !== "durable" || !signal.event.turnId) return;
@@ -878,6 +962,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       else if (signal.event.method === "turn/completed") void automationRuns.handleTurnTerminal(signal.event.turnId, "completed");
       else if (signal.event.method === "turn/failed") void automationRuns.handleTurnTerminal(signal.event.turnId, "failed", "TURN_FAILED");
       else if (signal.event.method === "turn/interrupted") void automationRuns.handleTurnTerminal(signal.event.turnId, "interrupted", "TURN_INTERRUPTED");
+      if (!calendarEnabled) return;
+      if (signal.event.method === "turn/started") void scheduledTaskRuns.handleTurnRunning(signal.event.turnId);
+      else if (signal.event.method === "turn/completed") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "completed");
+      else if (signal.event.method === "turn/failed") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "failed", "TURN_FAILED");
+      else if (signal.event.method === "turn/interrupted") void scheduledTaskRuns.handleTurnTerminal(signal.event.turnId, "interrupted", "TURN_INTERRUPTED");
     });
     const handoffOperations = new HandoffRepository(db);
     const handoff = new HandoffService(
@@ -941,6 +1030,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       recoverAutomations: async () => {
         if (automationEnabled) await automationRuns.recover();
+        if (calendarEnabled) await scheduledTaskRuns.recover();
       },
       startQueues: () => {
         threads.startRecoveredQueues();
@@ -1000,6 +1090,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadExecutions,
       sessionGroups,
       automation,
+      calendar,
+      scheduledTasks,
+      schedulePlans,
       memoryManager,
     });
     const initialCatalogRevision = providers.catalogRevision?.() ?? 0;

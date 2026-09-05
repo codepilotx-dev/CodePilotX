@@ -55,6 +55,14 @@ const AUTOMATION_SCHEMA = [
   "CREATE UNIQUE INDEX automation_runs_one_active ON automation_runs(automation_id) WHERE status IN ('claimed','preparing','queued','running')",
 ] as const
 
+const SCHEDULE_CALENDAR_SCHEMA = [
+  "CREATE TABLE schedule_plan_proposals (id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1), operation_id TEXT NOT NULL UNIQUE, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE, tool_call_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL CHECK(status IN ('pending','committed','cancelled')), horizon TEXT NOT NULL CHECK(horizon IN ('day','week','month','year')), defaults TEXT NOT NULL, items TEXT NOT NULL, created_refs TEXT NOT NULL DEFAULT '[]', commit_operation_id TEXT UNIQUE, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, committed_at INTEGER)",
+  "CREATE TABLE scheduled_tasks (id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1 CHECK(revision >= 1), operation_id TEXT NOT NULL UNIQUE, manual_run_operation_id TEXT UNIQUE, proposal_id TEXT REFERENCES schedule_plan_proposals(id) ON DELETE SET NULL, kind TEXT NOT NULL CHECK(kind IN ('standalone','thread')), name TEXT NOT NULL, prompt TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('scheduled','paused','claimed','preparing','queued','running','completed','failed','interrupted','cancelled')), project_id TEXT, target_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, execution TEXT, model_ref TEXT NOT NULL, reasoning_effort TEXT, permission_config TEXT NOT NULL, scheduled_for INTEGER NOT NULL, time_zone TEXT NOT NULL, notification_policy TEXT NOT NULL CHECK(notification_policy IN ('all','failures','off')), thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL, worktree_id TEXT REFERENCES managed_worktrees(id) ON DELETE SET NULL, read_at INTEGER, safe_error_code TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, started_at INTEGER, completed_at INTEGER, cancelled_at INTEGER)",
+  "CREATE INDEX scheduled_tasks_status_scheduled_for ON scheduled_tasks(status, scheduled_for)",
+  "CREATE INDEX scheduled_tasks_thread ON scheduled_tasks(thread_id)",
+  "CREATE INDEX schedule_plan_proposals_thread ON schedule_plan_proposals(thread_id)",
+] as const
+
 export const FINAL_SCHEMA = [
   "CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)",
@@ -135,6 +143,7 @@ export const FINAL_SCHEMA = [
   ...TASKBOARD_PLANNING_SCHEMA,
   ...SESSION_GROUP_SCHEMA,
   ...AUTOMATION_SCHEMA,
+  ...SCHEDULE_CALENDAR_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1106,6 +1115,11 @@ const migrateHistory41To42 = (sqlite: Database) => sqlite.exec(AUTOMATION_SCHEMA
   .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")
   .replace(/^CREATE UNIQUE INDEX /, "CREATE UNIQUE INDEX IF NOT EXISTS ")).join(";\n"))
 
+const migrateHistory42To43 = (sqlite: Database) => sqlite.exec(SCHEDULE_CALENDAR_SCHEMA.map(statement => statement
+  .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+  .replace(/^CREATE INDEX /, "CREATE INDEX IF NOT EXISTS ")
+  .replace(/^CREATE UNIQUE INDEX /, "CREATE UNIQUE INDEX IF NOT EXISTS ")).join(";\n"))
+
 export const backfillProjectThreadWorkspaces = (history: Database, profile: Database) => {
   const projects = profile.query("SELECT id FROM projects").all() as Array<{ id: string }>
   for (const { id } of projects) {
@@ -1320,6 +1334,7 @@ class SchemaInitializer {
           39: () => migrateHistory39To40(this.sqlite),
           40: () => migrateHistory40To41(this.sqlite),
           41: () => migrateHistory41To42(this.sqlite),
+          42: () => migrateHistory42To43(this.sqlite),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

@@ -14,7 +14,7 @@ afterEach(async () => {
 })
 
 describe("automation schema", () => {
-  test("schema 41 前向迁移到 42 只新增自动化存储并保留未知对象", async () => {
+  test("schema 41 前向迁移到当前版本时保留自动化存储和未知对象", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-automation-schema-"))
     paths.push(root)
     const historyPath = join(root, "history.sqlite")
@@ -32,7 +32,7 @@ describe("automation schema", () => {
 
     const migrated = new AgentDatabase({ historyPath, profilePath })
     expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    expect(SCHEMA_VERSION).toBe(42)
+    expect(SCHEMA_VERSION).toBe(43)
     expect(probeAutomationStorageCapabilities(migrated.sqlite)).toEqual({
       automations: true,
       automationRuns: true,

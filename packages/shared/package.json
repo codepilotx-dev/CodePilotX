@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./api": "./src/api.ts",
     "./automation": "./src/automation.ts",
+    "./calendar": "./src/calendar.ts",
     "./events": "./src/llm-event.ts",
     "./desktop-theme": "./src/desktop-theme.ts",
     "./desktop-pet-overlay": "./src/desktop-pet-overlay.ts",
@@ -27,6 +28,8 @@
     "./desktop-terminal-ipc": "./src/desktop-terminal-ipc.ts",
     "./desktop-update-ipc": "./src/desktop-update-ipc.ts",
     "./model": "./src/model.ts",
+    "./schedule-plan": "./src/schedule-plan.ts",
+    "./scheduled-task": "./src/scheduled-task.ts",
     "./session-group": "./src/session-group.ts",
     "./thread": "./src/thread/index.ts",
     "./thread-reference": "./src/thread-reference.ts"

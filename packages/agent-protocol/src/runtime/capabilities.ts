@@ -57,6 +57,7 @@ export const Capabilities = [
   "worktree.manage.v1",
   "session-group.v1",
   "automation.manage.v1",
+  "calendar.manage.v1",
   "system.memory.v1",
 ] as const
 

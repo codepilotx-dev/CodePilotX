@@ -1,9 +1,15 @@
-import { useEffect, useRef } from 'react'
-import { AlertTriangle, Check, Clock3, Play, RotateCcw, X } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Check,
+  Play,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 import type React from 'react'
 import type { AutomationRun } from '@codepilotx/shared/automation'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
 import { Textarea } from '../../components/ui/Textarea.js'
@@ -22,6 +28,8 @@ type Props = {
   creating: boolean
   controller: AutomationController
   onClose: () => void
+  exitPending: 'back' | 'close' | null
+  onBack?: () => void
   onCreated: (id: string) => void
   onOpenThread: (id: string) => void
 }
@@ -38,15 +46,15 @@ export function AutomationDetailPanel({
   creating,
   controller,
   onClose,
+  exitPending,
+  onBack,
   onCreated,
   onOpenThread,
 }: Props): React.ReactNode {
-  const panelRef = useRef<HTMLElement>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsId = useId()
+  useEffect(() => setSettingsOpen(false), [controller.selected?.id, creating])
   const draft = controller.draft
-
-  useEffect(() => {
-    panelRef.current?.focus()
-  }, [creating, controller.selected?.id])
 
   if (!draft) return null
   const update = (patch: Partial<AutomationDraft>): void =>
@@ -58,36 +66,58 @@ export function AutomationDetailPanel({
     : []
 
   return (
-    <aside
-      ref={panelRef}
+    <section
       className="automation-detail"
       aria-label={creating ? '创建自动化' : '自动化详情'}
-      tabIndex={-1}
-      onKeyDown={event => {
-        if (event.key !== 'Escape') return
-        event.stopPropagation()
-        onClose()
-      }}
     >
       <header className="automation-detail-header">
-        <div>
-          <span className="automation-eyebrow">
-            {creating ? '新任务' : '任务设置'}
-          </span>
-          <h2>{creating ? '创建自动化' : controller.selected?.name}</h2>
+        <div className="automation-detail-title-group">
+          {onBack ? (
+            <Button
+              className="automation-detail-back-btn"
+              color="ghostSecondary"
+              size={exitPending === 'back' ? 'compact' : 'toolbar'}
+              uniform={exitPending !== 'back'}
+              title={exitPending === 'back' ? '再按一次返回' : '返回当日议程'}
+              aria-label={exitPending === 'back' ? '再按一次返回' : '返回当日议程'}
+              onClick={onBack}
+            >
+              <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
+              {exitPending === 'back' ? '再按一次返回' : null}
+            </Button>
+          ) : null}
+          <h2 title={creating ? '创建自动化' : controller.selected?.name}>{creating ? '创建自动化' : controller.selected?.name}</h2>
         </div>
-        <IconButton
-          color="ghostSecondary"
-          size="toolbar"
-          title="关闭详情"
-          onClick={onClose}
-        >
-          <X
-            aria-hidden="true"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
-        </IconButton>
+        <div className="automation-detail-header-actions">
+          {!creating && controller.selected ? (
+            <span className="automation-status-pill">
+              {
+                {
+                  active: '已开启',
+                  paused: '已暂停',
+                  deleted: '已删除',
+                }[controller.selected.status]
+              }
+            </span>
+          ) : null}
+          <Button
+            color="ghostSecondary"
+            size={exitPending === 'close' ? 'toolbarLabel' : 'toolbar'}
+            uniform={exitPending !== 'close'}
+            aria-label={exitPending === 'close' ? '再按一次退出' : '关闭详情'}
+            onClick={onClose}
+          >
+            {exitPending === 'close' ? (
+              '再按一次退出'
+            ) : (
+              <X
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            )}
+          </Button>
+        </div>
       </header>
 
       <div className="automation-detail-scroll">
@@ -98,126 +128,22 @@ export function AutomationDetailPanel({
               onChange={event => update({ name: event.currentTarget.value })}
             />
           </FormField>
-          <FormField
-            label="任务说明"
-            hint="每次运行都会把这段内容发送给 Agent。"
-          >
+          <FormField label="任务说明">
             <Textarea
-              rows={5}
+              rows={3}
               value={draft.prompt}
               onChange={event => update({ prompt: event.currentTarget.value })}
             />
           </FormField>
-          <div className="automation-form-grid">
-            <FormField label="运行方式">
-              <Select
-                ariaLabel="运行方式"
-                value={draft.kind}
-                options={[
-                  { value: 'standalone', label: '独立任务' },
-                  { value: 'thread', label: '续接聊天' },
-                ]}
-                onValueChange={kind =>
-                  update({
-                    kind,
-                    projectId:
-                      kind === 'standalone'
-                        ? (draft.projectId ?? controller.projects[0]?.projectId ?? null)
-                        : null,
-                    targetThreadId:
-                      kind === 'thread'
-                        ? (draft.targetThreadId ?? controller.sessions[0]?.id ?? null)
-                        : null,
-                    execution:
-                      kind === 'standalone'
-                        ? (draft.execution ?? { kind: 'local' })
-                        : null,
-                  })
-                }
-              />
-            </FormField>
-            {draft.kind === 'standalone' ? (
-              <FormField label="项目">
-                <Select
-                  ariaLabel="项目"
-                  searchable
-                  value={draft.projectId ?? ''}
-                  options={controller.projects.flatMap(project =>
-                    project.projectId
-                      ? [{ value: project.projectId, label: project.name }]
-                      : [],
-                  )}
-                  onValueChange={projectId => update({ projectId: projectId || null })}
-                />
-              </FormField>
-            ) : (
-              <FormField label="目标聊天">
-                <Select
-                  ariaLabel="目标聊天"
-                  searchable
-                  value={draft.targetThreadId ?? ''}
-                  options={controller.sessions.map(session => ({
-                    value: session.id,
-                    label:
-                      session.customTitle ??
-                      session.aiTitle ??
-                      session.sessionName ??
-                      '未命名聊天',
-                    detail: session.workspaceName,
-                  }))}
-                  onValueChange={targetThreadId =>
-                    update({ targetThreadId: targetThreadId || null })
-                  }
-                />
-              </FormField>
-            )}
-          </div>
-
-          {draft.kind === 'standalone' ? (
-            <div className="automation-form-grid">
-              <FormField label="执行位置">
-                <Select
-                  ariaLabel="执行位置"
-                  value={draft.execution?.kind ?? 'local'}
-                  options={[
-                    { value: 'local', label: '主工作区' },
-                    { value: 'new-worktree', label: '新 Worktree' },
-                  ]}
-                  onValueChange={kind =>
-                    update({
-                      execution:
-                        kind === 'local'
-                          ? { kind }
-                          : { kind, branchName: 'main' },
-                    })
-                  }
-                />
-              </FormField>
-              {draft.execution?.kind === 'new-worktree' ? (
-                <FormField label="基础分支">
-                  <Input
-                    value={draft.execution.branchName}
-                    onChange={event =>
-                      update({
-                        execution: {
-                          kind: 'new-worktree',
-                          branchName: event.currentTarget.value,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-              ) : null}
-            </div>
-          ) : null}
-
           <div className="automation-form-grid">
             <FormField label="排期">
               <Select
                 ariaLabel="排期"
                 value={draft.schedule.mode}
                 options={SCHEDULE_OPTIONS}
-                onValueChange={mode => update({ schedule: defaultSchedule(mode) })}
+                onValueChange={mode =>
+                  update({ schedule: defaultSchedule(mode) })
+                }
               />
             </FormField>
             {draft.schedule.mode === 'hourly' ? (
@@ -294,7 +220,7 @@ export function AutomationDetailPanel({
             >
               <Input
                 aria-describedby="automation-rrule-error"
-                invalid={Boolean(controller.scheduleError)}
+                invalid={Boolean(draft.schedule.rrule.trim() && controller.scheduleError)}
                 value={draft.schedule.rrule}
                 onChange={event =>
                   update({
@@ -305,7 +231,7 @@ export function AutomationDetailPanel({
                   })
                 }
               />
-              {controller.scheduleError ? (
+              {draft.schedule.rrule.trim() && controller.scheduleError ? (
                 <span
                   id="automation-rrule-error"
                   className="automation-field-error"
@@ -317,64 +243,180 @@ export function AutomationDetailPanel({
             </FormField>
           ) : null}
 
-          <div className="automation-form-grid">
-            <FormField label="时区">
-              <Input
-                value={draft.timeZone}
-                onChange={event => update({ timeZone: event.currentTarget.value })}
-              />
-            </FormField>
-            <FormField label="通知">
-              <Select
-                ariaLabel="通知策略"
-                value={draft.notificationPolicy}
-                options={[
-                  { value: 'all', label: '全部结果' },
-                  { value: 'failures', label: '仅失败' },
-                  { value: 'off', label: '关闭' },
-                ]}
-                onValueChange={notificationPolicy => update({ notificationPolicy })}
-              />
-            </FormField>
-          </div>
+          <span className="automation-field-hint">{controller.scheduleSummary ?? automationScheduleSummary(draft.schedule)}</span>
 
-          <div className="automation-form-grid">
-            <FormField label="推理强度">
+          {draft.kind === 'standalone' ? (
+            <FormField label="项目">
               <Select
-                ariaLabel="推理强度"
-                value={draft.reasoningEffort ?? ''}
-                options={[
-                  { value: '', label: '模型默认' },
-                  { value: 'low', label: '低' },
-                  { value: 'medium', label: '中' },
-                  { value: 'high', label: '高' },
-                  { value: 'xhigh', label: '极高' },
-                ]}
-                onValueChange={reasoningEffort =>
-                  update({ reasoningEffort: reasoningEffort || null })
+                ariaLabel="项目"
+                searchable
+                value={draft.projectId ?? ''}
+                options={controller.projects.flatMap(project =>
+                  project.projectId
+                    ? [{ value: project.projectId, label: project.name }]
+                    : [],
+                )}
+                onValueChange={projectId =>
+                  update({ projectId: projectId || null })
                 }
               />
             </FormField>
-            <FormField label="沙箱">
+          ) : (
+            <FormField label="目标聊天">
               <Select
-                ariaLabel="沙箱权限"
-                value={draft.permissionConfig.sandboxMode}
-                options={[
-                  { value: 'read-only', label: '只读' },
-                  { value: 'workspace-write', label: '工作区写入' },
-                  { value: 'danger-full-access', label: '完全访问' },
-                ]}
-                onValueChange={sandboxMode =>
-                  update({
-                    permissionConfig: {
-                      ...draft.permissionConfig,
-                      sandboxMode,
-                      approvalPolicy: 'never',
-                    },
-                  })
+                ariaLabel="目标聊天"
+                searchable
+                value={draft.targetThreadId ?? ''}
+                options={controller.sessions.map(session => ({
+                  value: session.id,
+                  label:
+                    session.customTitle ??
+                    session.aiTitle ??
+                    session.sessionName ??
+                    '未命名聊天',
+                  detail: session.workspaceName,
+                }))}
+                onValueChange={targetThreadId =>
+                  update({ targetThreadId: targetThreadId || null })
                 }
               />
             </FormField>
+          )}
+
+<div className="automation-more-settings">
+            <Button color="ghostTertiary" size="default" aria-expanded={settingsOpen} aria-controls={settingsId} onClick={() => setSettingsOpen(value => !value)}>更多设置</Button>
+            <div id={settingsId} hidden={!settingsOpen}>
+            <div className="automation-form-grid">
+              <FormField label="运行方式">
+                <Select
+                  ariaLabel="运行方式"
+                  value={draft.kind}
+                  options={[
+                    { value: 'standalone', label: '独立任务' },
+                    { value: 'thread', label: '续接聊天' },
+                  ]}
+                  onValueChange={kind =>
+                    update({
+                      kind,
+                      projectId:
+                        kind === 'standalone'
+                          ? (draft.projectId ??
+                            controller.projects[0]?.projectId ??
+                            null)
+                          : null,
+                      targetThreadId:
+                        kind === 'thread'
+                          ? (draft.targetThreadId ??
+                            controller.sessions[0]?.id ??
+                            null)
+                          : null,
+                      execution:
+                        kind === 'standalone'
+                          ? (draft.execution ?? { kind: 'local' })
+                          : null,
+                    })
+                  }
+                />
+              </FormField>
+              {draft.kind === 'standalone' ? (
+                <>
+                  <FormField label="执行位置">
+                    <Select
+                      ariaLabel="执行位置"
+                      value={draft.execution?.kind ?? 'local'}
+                      options={[
+                        { value: 'local', label: '主工作区' },
+                        { value: 'new-worktree', label: '新 Worktree' },
+                      ]}
+                      onValueChange={kind =>
+                        update({
+                          execution:
+                            kind === 'local'
+                              ? { kind }
+                              : { kind, branchName: 'main' },
+                        })
+                      }
+                    />
+                  </FormField>
+                  {draft.execution?.kind === 'new-worktree' ? (
+                    <FormField label="基础分支">
+                      <Input
+                        value={draft.execution.branchName}
+                        onChange={event =>
+                          update({
+                            execution: {
+                              kind: 'new-worktree',
+                              branchName: event.currentTarget.value,
+                            },
+                          })
+                        }
+                      />
+                    </FormField>
+                  ) : null}
+                </>
+              ) : null}
+
+              <FormField label="时区">
+                <Input
+                  value={draft.timeZone}
+                  onChange={event =>
+                    update({ timeZone: event.currentTarget.value })
+                  }
+                />
+              </FormField>
+              <FormField label="通知">
+                <Select
+                  ariaLabel="通知策略"
+                  value={draft.notificationPolicy}
+                  options={[
+                    { value: 'all', label: '全部结果' },
+                    { value: 'failures', label: '仅失败' },
+                    { value: 'off', label: '关闭' },
+                  ]}
+                  onValueChange={notificationPolicy =>
+                    update({ notificationPolicy })
+                  }
+                />
+              </FormField>
+
+              <FormField label="推理强度">
+                <Select
+                  ariaLabel="推理强度"
+                  value={draft.reasoningEffort ?? ''}
+                  options={[
+                    { value: '', label: '模型默认' },
+                    { value: 'low', label: '低' },
+                    { value: 'medium', label: '中' },
+                    { value: 'high', label: '高' },
+                    { value: 'xhigh', label: '极高' },
+                  ]}
+                  onValueChange={reasoningEffort =>
+                    update({ reasoningEffort: reasoningEffort || null })
+                  }
+                />
+              </FormField>
+              <FormField label="沙箱">
+                <Select
+                  ariaLabel="沙箱权限"
+                  value={draft.permissionConfig.sandboxMode}
+                  options={[
+                    { value: 'read-only', label: '只读' },
+                    { value: 'workspace-write', label: '工作区写入' },
+                    { value: 'danger-full-access', label: '完全访问' },
+                  ]}
+                  onValueChange={sandboxMode =>
+                    update({
+                      permissionConfig: {
+                        ...draft.permissionConfig,
+                        sandboxMode,
+                        approvalPolicy: 'never',
+                      },
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+            </div>
           </div>
 
           {draft.permissionConfig.sandboxMode === 'danger-full-access' ? (
@@ -386,48 +428,46 @@ export function AutomationDetailPanel({
             </div>
           ) : null}
 
-          <div className="automation-schedule-preview">
-            <Clock3 aria-hidden="true" size={APP_ICON_SIZE} />
-            <span>
-              {controller.scheduleSummary ??
-                automationScheduleSummary(draft.schedule)}
-            </span>
-          </div>
-          {controller.draftError ? (
+          {controller.error && (controller.saveState === 'failed' || controller.saveState === 'conflict') ? (
             <p className="automation-field-error" role="alert">
-              {controller.draftError}
+              {controller.error}
             </p>
           ) : null}
-
-          <footer className="automation-form-actions">
-            {creating ? (
-              <Button
-                color="primary"
-                disabled={Boolean(controller.draftError)}
-                loading={controller.saveState === 'saving'}
-                onClick={() =>
-                  void controller.create().then(id => {
-                    if (id) onCreated(id)
-                  })
-                }
-              >
-                创建自动化
-              </Button>
-            ) : (
-              <SaveIndicator controller={controller} />
-            )}
-          </footer>
         </section>
 
         {!creating && controller.selected ? (
-          <RunHistory
-            runs={runs}
-            controller={controller}
-            onOpenThread={onOpenThread}
-          />
+          <details
+            className="automation-more-settings"
+            key={controller.selected.id}
+          >
+            <summary>执行记录（{runs.length}）</summary>
+            <RunHistory
+              runs={runs}
+              controller={controller}
+              onOpenThread={onOpenThread}
+            />
+          </details>
         ) : null}
       </div>
-    </aside>
+      <footer className="automation-form-actions automation-detail-footer">
+        {creating ? (
+          <Button
+            color="primary"
+            disabled={Boolean(controller.draftError)}
+            loading={controller.saveState === 'saving'}
+            onClick={() =>
+              void controller.create().then(id => {
+                if (id) onCreated(id)
+              })
+            }
+          >
+            创建自动化
+          </Button>
+        ) : (
+          <SaveIndicator controller={controller} />
+        )}
+      </footer>
+    </section>
   )
 }
 
@@ -498,7 +538,10 @@ function RunHistory({
   onOpenThread: (id: string) => void
 }): React.ReactNode {
   return (
-    <section className="automation-runs" aria-labelledby="automation-runs-title">
+    <section
+      className="automation-runs"
+      aria-labelledby="automation-runs-title"
+    >
       <header>
         <div>
           <span className="automation-eyebrow">收件箱</span>

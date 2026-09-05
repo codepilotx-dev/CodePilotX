@@ -124,6 +124,7 @@ import {
 import type {
   DesktopAttachmentApi,
   DesktopAutomationApi,
+  DesktopCalendarApi,
   DesktopClientEnvironment,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
@@ -165,6 +166,7 @@ export function createBrowserMockDesktopClient(
   storage?: Storage,
 ): DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
   & DesktopLocalContextApi & DesktopSpeechApi & DesktopAutomationApi
+  & DesktopCalendarApi
   & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
@@ -416,6 +418,14 @@ export function createBrowserMockDesktopClient(
       summary: '浏览器自动化预览',
       nextRunAt: [],
     }),
+    listCalendarOccurrences: async () => ({ occurrences: [], truncated: false }),
+    readScheduledTask: async () => { throw new Error('浏览器模拟环境中不存在该计划任务。') },
+    createScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    updateScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    deleteScheduledTask: async () => { throw new Error('浏览器模拟环境不保存计划任务。') },
+    runScheduledTask: async () => { throw new Error('浏览器模拟环境不执行计划任务。') },
+    readSchedulePlan: async () => { throw new Error('浏览器模拟环境中不存在该规划草案。') },
+    commitSchedulePlan: async () => { throw new Error('浏览器模拟环境不保存规划草案。') },
     getAuthStatus: async () => mockAuthStatus(),
     getRuntimeStatus: async () => mockRuntimeStatus(),
     diagnoseDesktopToolchain: async () => {

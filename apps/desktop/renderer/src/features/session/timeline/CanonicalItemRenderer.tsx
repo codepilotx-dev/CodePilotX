@@ -68,6 +68,7 @@ import {
   type ToolSemanticKind,
   type ToolSemanticSummary,
 } from "./ToolActivityPresentation.js";
+import { isSchedulePlanTool, SchedulePlanCard } from "./SchedulePlanCard.js";
 
 export {
   buildToolSemanticSummary,
@@ -477,6 +478,7 @@ function CanonicalItemRendererContent({
     case "activity":
       return <ActivityItemView disclosure={disclosure} item={item} />;
     case "tool":
+      if (isSchedulePlanTool(item)) return <SchedulePlanCard item={item} />;
       return (
         <ToolItemView
           disclosure={disclosure}

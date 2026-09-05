@@ -1,4 +1,6 @@
-import type { Automation, AutomationRun, AutomationRunStatus } from "@codepilotx/shared/automation"
+import type { Automation, AutomationExecution, AutomationRun, AutomationRunStatus } from "@codepilotx/shared/automation"
+import type { ModelRef } from "@codepilotx/shared/model"
+import type { PermissionConfig } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
 import type { AutomationRepository } from "../storage/repositories/automation-repository"
 
@@ -6,7 +8,20 @@ type TerminalStatus = Extract<AutomationRunStatus, "completed" | "failed" | "int
 type RecoverableTurnStatus = "queued" | "running" | "waiting" | TerminalStatus
 
 export type AutomationExecutionBinding = { threadId: string; turnId: string; worktreeId?: string | null }
-export type AutomationRunExecutor = { start(automation: Automation, run: AutomationRun): Promise<AutomationExecutionBinding> }
+export type ScheduledWorkDefinition = {
+  kind: Automation["kind"]
+  name: string
+  prompt: string
+  projectId: string | null
+  targetThreadId: string | null
+  execution: AutomationExecution | null
+  model: ModelRef
+  reasoningEffort: string | null
+  permissionConfig: PermissionConfig
+}
+export type AutomationRunExecutor = {
+  start(work: ScheduledWorkDefinition, run: { id: string }): Promise<AutomationExecutionBinding>
+}
 export type AutomationRunCoordinatorOptions = {
   now?: () => number
   runChanged?: (run: AutomationRun) => void | Promise<void>

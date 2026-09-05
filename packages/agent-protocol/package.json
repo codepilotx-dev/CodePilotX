@@ -12,6 +12,7 @@
     "./interactions": "./src/wire/interactions.ts",
     "./methods": "./src/methods/index.ts",
     "./automation": "./src/methods/automation.ts",
+    "./calendar": "./src/methods/calendar.ts",
     "./host": "./src/methods/host.ts",
     "./local-environment": "./src/methods/local-environment.ts",
     "./terminal": "./src/methods/terminal.ts",

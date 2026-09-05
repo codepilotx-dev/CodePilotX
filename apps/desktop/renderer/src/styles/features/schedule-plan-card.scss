@@ -1,0 +1,119 @@
+.schedule-plan-card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-container);
+  color: var(--cpx-sys-color-fg-primary);
+  background: var(--cpx-sys-color-surface-panel);
+}
+
+.schedule-plan-card > header,
+.schedule-plan-card > footer {
+  display: flex;
+  align-items: center;
+  padding: var(--cpx-sys-space-3);
+  gap: var(--cpx-sys-space-2);
+}
+
+.schedule-plan-card > header {
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+}
+
+.schedule-plan-card > header > div {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: var(--cpx-sys-space-1);
+}
+
+.schedule-plan-card > header span,
+.schedule-plan-card__item-body > span,
+.schedule-plan-card > footer span {
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+}
+
+.schedule-plan-card__icon {
+  display: grid;
+  width: var(--cpx-sys-space-6);
+  height: var(--cpx-sys-space-6);
+  place-items: center;
+  border: 1px solid var(--cpx-sys-color-info-subtle-border);
+  border-radius: var(--cpx-sys-radius-container);
+  color: var(--cpx-sys-color-info-fg);
+  background: var(--cpx-sys-color-info-subtle-bg);
+}
+
+.schedule-plan-card__icon svg {
+  width: var(--cpx-sys-space-4);
+  height: var(--cpx-sys-space-4);
+}
+
+.schedule-plan-card__items {
+  display: grid;
+  max-height: 26rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.schedule-plan-card__items li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  padding: var(--cpx-sys-space-3);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  opacity: 0.62;
+  gap: var(--cpx-sys-space-2);
+}
+
+.schedule-plan-card__items li[data-enabled] {
+  opacity: 1;
+}
+
+.schedule-plan-card__items input[type='checkbox'] {
+  margin-top: var(--cpx-sys-space-2);
+}
+
+.schedule-plan-card__item-body {
+  display: grid;
+  min-width: 0;
+  gap: var(--cpx-sys-space-2);
+}
+
+.schedule-plan-card__item-controls,
+.schedule-plan-card__defaults {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cpx-sys-space-2);
+}
+
+.schedule-plan-card__item-controls > :nth-child(2):last-child {
+  grid-column: span 3;
+}
+
+.schedule-plan-card__defaults {
+  align-items: center;
+  padding: var(--cpx-sys-space-3);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+}
+
+.schedule-plan-card__defaults strong {
+  grid-column: 1 / -1;
+  font: var(--cpx-sys-type-label);
+}
+
+.schedule-plan-card > footer {
+  justify-content: space-between;
+}
+
+@media (max-width: 48rem) {
+  .schedule-plan-card__item-controls,
+  .schedule-plan-card__defaults {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .schedule-plan-card__item-controls > :nth-child(2):last-child {
+    grid-column: auto;
+  }
+}

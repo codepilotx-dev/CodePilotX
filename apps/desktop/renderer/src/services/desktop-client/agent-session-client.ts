@@ -148,6 +148,7 @@ export const RENDERER_CAPABILITIES = [
   'thread.side-chat.v1',
   'speech.transcription.v1',
   'automation.manage.v1',
+  'calendar.manage.v1',
   'session-group.v1' as ProtocolCapability,
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
@@ -173,6 +174,7 @@ import {
 import { catalogProviderToDesktop } from './provider-adapters.js'
 import type {
   CodePilotXDesktopClient,
+  DesktopCalendarApi,
   DesktopAttachmentApi,
   DesktopClientEnvironment,
   DesktopLocalContextApi,
@@ -192,7 +194,8 @@ export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi & DesktopRuntimeCapabilityApi & DesktopAttachmentApi
     & DesktopLocalContextApi & DesktopSpeechApi
-    & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi,
+    & DesktopModelProviderRefreshApi & DesktopPluginApi & DesktopMiniMaxCliApi
+    & DesktopCalendarApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
   const fetcher = environment.fetch
@@ -1623,6 +1626,22 @@ export function createAgentSessionDesktopClient(
     return agentAutomationApiPromise
   }
 
+  type AgentCalendarApi = ReturnType<
+    (typeof import('./agent-calendar-api.js'))['createAgentCalendarApi']
+  >
+  let agentCalendarApiPromise: Promise<AgentCalendarApi> | null = null
+  const loadAgentCalendarApi = (): Promise<AgentCalendarApi> => {
+    agentCalendarApiPromise ??= import('./agent-calendar-api.js').then(module =>
+      module.createAgentCalendarApi({
+        mockClient,
+        requireAgentCapability,
+        rpc,
+        withAgentOrMock,
+      }),
+    )
+    return agentCalendarApiPromise
+  }
+
   let unsubscribeSessionCatalog: (() => void) | null = null
   const sharedGlobalLiveEventTypes = [
     ...new Set<LiveEventType>([
@@ -2009,6 +2028,22 @@ export function createAgentSessionDesktopClient(
       loadAgentAutomationApi().then(api => api.markAllAutomationRunsRead(input)),
     previewAutomationSchedule: input =>
       loadAgentAutomationApi().then(api => api.previewAutomationSchedule(input)),
+    listCalendarOccurrences: input =>
+      loadAgentCalendarApi().then(api => api.listCalendarOccurrences(input)),
+    readScheduledTask: input =>
+      loadAgentCalendarApi().then(api => api.readScheduledTask(input)),
+    createScheduledTask: input =>
+      loadAgentCalendarApi().then(api => api.createScheduledTask(input)),
+    updateScheduledTask: input =>
+      loadAgentCalendarApi().then(api => api.updateScheduledTask(input)),
+    deleteScheduledTask: input =>
+      loadAgentCalendarApi().then(api => api.deleteScheduledTask(input)),
+    runScheduledTask: input =>
+      loadAgentCalendarApi().then(api => api.runScheduledTask(input)),
+    readSchedulePlan: input =>
+      loadAgentCalendarApi().then(api => api.readSchedulePlan(input)),
+    commitSchedulePlan: input =>
+      loadAgentCalendarApi().then(api => api.commitSchedulePlan(input)),
     listSessionGroups: () =>
       loadAgentSessionGroupApi().then(api => api.listSessionGroups()),
     readSessionGroup: groupId =>
@@ -3607,7 +3642,7 @@ export function createAgentSessionDesktopClient(
     listRuntimePermissionProfiles: lazyMock('listRuntimePermissionProfiles'),
     listSkillsCatalog: lazyMock('listSkillsCatalog'),
     logOut: lazyMock('logOut'),
-    minimizeWindow: lazyMock('minimizeWindow'),
+    minimizeWindow: async () => { await environment.window?.codePilotXDesktop?.minimize?.() },
     openDevTools: lazyMock('openDevTools'),
     openExternalURL: lazyMock('openExternalURL'),
     openSettings: lazyMock('openSettings'),

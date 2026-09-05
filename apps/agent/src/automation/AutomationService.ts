@@ -22,10 +22,33 @@ export type AutomationServiceOptions = {
   claimed?: (run: AutomationRun) => void | Promise<void>
 }
 
-const normalizePermission = (permissionConfig: PermissionConfig): PermissionConfig => ({
+export const normalizeScheduledPermission = (permissionConfig: PermissionConfig): PermissionConfig => ({
   ...permissionConfig,
   approvalPolicy: "never",
 })
+
+type AutomationTargetLookup = Pick<AutomationRepository, "projectAvailable" | "targetThreadAvailable">
+export type ScheduledWorkTargetDefinition = Pick<
+  AutomationDefinition,
+  "kind" | "name" | "prompt" | "projectId" | "targetThreadId" | "execution" | "model" | "reasoningEffort" | "permissionConfig"
+>
+
+export const validateAutomationDefinition = (
+  repository: AutomationTargetLookup,
+  input: ScheduledWorkTargetDefinition,
+) => {
+  if (!input.name.trim() || input.name.trim().length > 200) throw new AgentError("INVALID_REQUEST", "自动化名称不能为空且不能超过 200 字符", 400)
+  if (!input.prompt.trim() || input.prompt.length > 100_000) throw new AgentError("INVALID_REQUEST", "自动化 Prompt 不能为空且不能超过 100000 字符", 400)
+  if (input.kind === "standalone") {
+    if (!input.projectId || input.targetThreadId || !input.execution) throw new AgentError("INVALID_REQUEST", "独立自动化必须绑定单一项目和执行位置", 400)
+    if (!repository.projectAvailable(input.projectId)) throw new AgentError("PROJECT_NOT_FOUND", "自动化项目不存在或已移除", 404)
+    if (input.execution.kind === "new-worktree" && !input.execution.branchName.trim()) throw new AgentError("INVALID_REQUEST", "新 Worktree 必须指定基准分支", 400)
+  } else if (!input.targetThreadId || input.projectId || input.execution) {
+    throw new AgentError("INVALID_REQUEST", "聊天自动化必须只绑定一个目标聊天", 400)
+  } else if (!repository.targetThreadAvailable(input.targetThreadId)) {
+    throw new AgentError("THREAD_NOT_FOUND", "自动化目标聊天不存在或已归档", 404)
+  }
+}
 
 export class AutomationService {
   private readonly now: () => number
@@ -57,7 +80,7 @@ export class AutomationService {
       id: `automation:${input.operationId}`,
       name: input.name.trim(),
       prompt: input.prompt.trim(),
-      permissionConfig: normalizePermission(input.permissionConfig),
+      permissionConfig: normalizeScheduledPermission(input.permissionConfig),
       canonicalRrule,
       nextRunAt: nextAutomationOccurrence(input.schedule, input.timeZone, now),
     }, now)
@@ -96,7 +119,7 @@ export class AutomationService {
       status,
       name: definition.name.trim(),
       prompt: definition.prompt.trim(),
-      permissionConfig: normalizePermission(definition.permissionConfig),
+      permissionConfig: normalizeScheduledPermission(definition.permissionConfig),
       canonicalRrule,
       nextRunAt,
     }
@@ -142,16 +165,6 @@ export class AutomationService {
   private async changed(automation: Automation) { await this.options.changed?.(automation) }
 
   private validateDefinition(input: AutomationDefinition) {
-    if (!input.name.trim() || input.name.trim().length > 200) throw new AgentError("INVALID_REQUEST", "自动化名称不能为空且不能超过 200 字符", 400)
-    if (!input.prompt.trim() || input.prompt.length > 100_000) throw new AgentError("INVALID_REQUEST", "自动化 Prompt 不能为空且不能超过 100000 字符", 400)
-    if (input.kind === "standalone") {
-      if (!input.projectId || input.targetThreadId || !input.execution) throw new AgentError("INVALID_REQUEST", "独立自动化必须绑定单一项目和执行位置", 400)
-      if (!this.repository.projectAvailable(input.projectId)) throw new AgentError("PROJECT_NOT_FOUND", "自动化项目不存在或已移除", 404)
-      if (input.execution.kind === "new-worktree" && !input.execution.branchName.trim()) throw new AgentError("INVALID_REQUEST", "新 Worktree 必须指定基准分支", 400)
-    } else if (!input.targetThreadId || input.projectId || input.execution) {
-      throw new AgentError("INVALID_REQUEST", "聊天自动化必须只绑定一个目标聊天", 400)
-    } else if (!this.repository.targetThreadAvailable(input.targetThreadId)) {
-      throw new AgentError("THREAD_NOT_FOUND", "自动化目标聊天不存在或已归档", 404)
-    }
+    validateAutomationDefinition(this.repository, input)
   }
 }

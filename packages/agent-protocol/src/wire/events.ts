@@ -1,5 +1,7 @@
 import { Model, Provider } from "@codepilotx/model-schema"
 import { AutomationRunStatusSchema, AutomationStatusSchema } from "@codepilotx/shared/automation"
+import { SchedulePlanProposalStatusSchema } from "@codepilotx/shared/schedule-plan"
+import { ScheduledTaskStatusSchema } from "@codepilotx/shared/scheduled-task"
 import {
   AgentExecutionSchema,
   ExecutionPlanItemSchema,
@@ -49,6 +51,32 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "scheduled-task/changed": defineEvent({
+    payload: Schema.Struct({
+      scheduledTaskId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: ScheduledTaskStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "calendar.manage.v1",
+    reconcilesWith: "calendar/range",
+  }),
+  "schedule-plan/changed": defineEvent({
+    payload: Schema.Struct({
+      proposalId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: SchedulePlanProposalStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "calendar.manage.v1",
+    reconcilesWith: "schedule-plan/read",
+  }),
   "automation/changed": defineEvent({
     payload: Schema.Struct({
       automationId: OpaqueIDSchema,

@@ -3,6 +3,7 @@ import type { AgentDatabase } from "../../../storage/database/AgentDatabase"
 import {
   probeAutomationStorageCapabilities,
   probeArtifactsStorageCapabilities,
+  probeScheduleCalendarStorageCapabilities,
   probeThreadsStorageCapabilities,
 } from "../../../storage/database/storage-capabilities"
 
@@ -19,11 +20,13 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
   const { creationSurface } = probeThreadsStorageCapabilities(db.sqlite)
   const { itemArtifactsTable } = probeArtifactsStorageCapabilities(db.sqlite)
   const { automations, automationRuns } = probeAutomationStorageCapabilities(db.sqlite)
+  const { scheduledTasks, schedulePlanProposals } = probeScheduleCalendarStorageCapabilities(db.sqlite)
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
       (capability !== "thread.creation-surface.v1" || creationSurface)
       && (capability !== "artifacts.read.v1" || itemArtifactsTable)
-      && (capability !== "automation.manage.v1" || (automations && automationRuns)),
+      && (capability !== "automation.manage.v1" || (automations && automationRuns))
+      && (capability !== "calendar.manage.v1" || (automations && automationRuns && scheduledTasks && schedulePlanProposals)),
   )
 }
 

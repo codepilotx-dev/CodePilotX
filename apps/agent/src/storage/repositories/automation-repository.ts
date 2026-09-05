@@ -208,6 +208,16 @@ export class AutomationRepository {
     return (this.db.sqlite.query(`SELECT * FROM automation_runs ${where} ORDER BY created_at DESC, id LIMIT ? OFFSET ?`).all(...values) as RunRow[]).map(runFromRow)
   }
 
+  listRunsInRange(from: number, to: number, limit = 2_000) {
+    return (this.db.sqlite.query(`SELECT * FROM automation_runs
+      WHERE scheduled_for >= ? AND scheduled_for < ?
+      ORDER BY scheduled_for, id LIMIT ?`).all(
+      from,
+      to,
+      Math.max(1, Math.min(2_001, limit)),
+    ) as RunRow[]).map(runFromRow)
+  }
+
   readRun(id: string) { const row = this.db.sqlite.query("SELECT * FROM automation_runs WHERE id = ?").get(id) as RunRow | null; return row ? runFromRow(row) : null }
   targetThreadAvailable(id: string) { return Boolean(this.db.sqlite.query("SELECT 1 FROM threads WHERE id = ? AND archived_at IS NULL").get(id)) }
   projectAvailable(id: string) { return Boolean((this.db.profileSqlite ?? this.db.sqlite).query("SELECT 1 FROM projects WHERE id = ? AND removed_at IS NULL").get(id)) }

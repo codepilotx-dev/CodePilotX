@@ -1,3 +1,4 @@
+import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
 import type {
   EventEnvelope,
   ProtocolCapability,
@@ -79,6 +80,7 @@ type DesktopClientWindow = {
     revealPathInFolder?(targetPath: string): Promise<void>
   } & Partial<DesktopPetOverlayBridge>
     & Partial<DesktopWindowIpcBridge>
+    & Partial<Pick<DesktopStartupIpcBridge, 'quitDuringStartup'>>
     & Partial<DesktopDataLocationIpcBridge>
     & Partial<DesktopTerminalIpcBridge>
     & Partial<DesktopUpdateIpcBridge>
@@ -376,6 +378,17 @@ export type DesktopAutomationApi = {
   previewAutomationSchedule(input: RpcParams<'automation/schedule/preview'>): Promise<RpcResult<'automation/schedule/preview'>['preview']>
 }
 
+export type DesktopCalendarApi = {
+  listCalendarOccurrences(input: RpcParams<'calendar/range'>): Promise<RpcResult<'calendar/range'>>
+  readScheduledTask(input: RpcParams<'scheduled-task/read'>): Promise<RpcResult<'scheduled-task/read'>>
+  createScheduledTask(input: WithoutOperationId<RpcParams<'scheduled-task/create'>>): Promise<RpcResult<'scheduled-task/create'>>
+  updateScheduledTask(input: RpcParams<'scheduled-task/update'>): Promise<RpcResult<'scheduled-task/update'>>
+  deleteScheduledTask(input: RpcParams<'scheduled-task/delete'>): Promise<RpcResult<'scheduled-task/delete'>>
+  runScheduledTask(input: Omit<RpcParams<'scheduled-task/run'>, 'operationId'>): Promise<RpcResult<'scheduled-task/run'>>
+  readSchedulePlan(input: RpcParams<'schedule-plan/read'>): Promise<RpcResult<'schedule-plan/read'>>
+  commitSchedulePlan(input: Omit<RpcParams<'schedule-plan/commit'>, 'operationId'>): Promise<RpcResult<'schedule-plan/commit'>>
+}
+
 export type DesktopPluginApi = {
   listPlugins(
     workspacePath?: string | null,
@@ -533,6 +546,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopReleaseNotesApi &
   DesktopRuntimeCapabilityApi &
   DesktopAutomationApi &
+  DesktopCalendarApi &
   DesktopPluginApi &
   DesktopMiniMaxCliApi &
   DesktopSessionGroupApi &

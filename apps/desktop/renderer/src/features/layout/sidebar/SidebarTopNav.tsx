@@ -75,7 +75,7 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   },
   {
     view: "automations",
-    label: "自动化",
+    label: "已安排",
     icon: <Clock3 size={APP_ICON_SIZE} />,
     path: "/automations",
     availability: { kind: 'always' },

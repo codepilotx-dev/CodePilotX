@@ -109,4 +109,32 @@ describe('AutomationView primary page hierarchy', () => {
       'border-bottom: 1px solid var(--cpx-sys-color-border-subtle);',
     )
   })
+
+  test('keeps detail header in single row and hides raw timezone text from execution time', () => {
+    const scheduledTaskSource = readFileSync(
+      new URL('../src/features/automation/ScheduledTaskDetailPanel.tsx', import.meta.url),
+      'utf8',
+    )
+    const calendarStyleSource = readFileSync(
+      new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
+      'utf8',
+    )
+
+    // Header is single row with title group on left and action group on right
+    expect(styleSource).toContain('automation-detail-title-group')
+    expect(styleSource).toContain('automation-detail-header-actions')
+    expect(scheduledTaskSource).toContain('automation-detail-title-group')
+    expect(scheduledTaskSource).toContain('automation-detail-header-actions')
+
+    // Execution time no longer displays raw timezone region hint
+    expect(scheduledTaskSource).toContain('role="group" aria-label="执行时间"')
+    expect(scheduledTaskSource).toContain('aria-label="执行日期"')
+    expect(scheduledTaskSource).toContain('aria-label="执行时刻"')
+    expect(scheduledTaskSource).not.toContain('type="datetime-local"')
+    expect(scheduledTaskSource).not.toContain('<Field label="执行时间" hint={draft.timeZone}>')
+
+    // Calendar selected day uses accent border instead of dull solid gray
+    expect(calendarStyleSource).toContain(".automation-calendar__day[aria-selected='true']")
+    expect(calendarStyleSource).toContain('outline: 1.5px solid var(--cpx-sys-color-accent-fg);')
+  })
 })

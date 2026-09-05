@@ -1,11 +1,17 @@
 import type { AutomationRun } from "@codepilotx/shared/automation"
+import type { ScheduledTask } from "@codepilotx/shared/scheduled-task"
 import type { AutomationRepository } from "../storage/repositories/automation-repository"
+import type { ScheduledTaskRepository } from "../storage/repositories/scheduled-task-repository"
 
 const MAX_TIMER_DELAY = 2_147_000_000
 
 export type AutomationSchedulerOptions = {
   now?: () => number
   onClaimed: (runs: AutomationRun[]) => void | Promise<void>
+  scheduledTasks?: {
+    repository: ScheduledTaskRepository
+    onClaimed: (tasks: ScheduledTask[]) => void | Promise<void>
+  }
   onError?: (cause: unknown) => void
 }
 
@@ -58,6 +64,8 @@ export class AutomationScheduler {
     try {
       const runs = this.repository.claimDue(this.now(), "scheduled")
       if (runs.length) await this.options.onClaimed(runs)
+      const tasks = this.options.scheduledTasks?.repository.claimDue(this.now()) ?? []
+      if (tasks.length) await this.options.scheduledTasks?.onClaimed(tasks)
     } catch (cause) {
       this.options.onError?.(cause)
     }
@@ -65,7 +73,11 @@ export class AutomationScheduler {
   }
 
   private arm() {
-    const deadline = this.repository.nextDeadline()
+    const deadlines = [
+      this.repository.nextDeadline(),
+      this.options.scheduledTasks?.repository.nextDeadline() ?? null,
+    ].filter((value): value is number => value !== null)
+    const deadline = deadlines.length ? Math.min(...deadlines) : null
     if (deadline === null) return
     const delay = Math.max(0, Math.min(MAX_TIMER_DELAY, deadline - this.now()))
     this.timer = setTimeout(() => {

@@ -26,6 +26,11 @@ export type AutomationStorageCapabilities = {
   automationRuns: boolean
 }
 
+export type ScheduleCalendarStorageCapabilities = {
+  scheduledTasks: boolean
+  schedulePlanProposals: boolean
+}
+
 const cache = new WeakMap<Database, ThreadsStorageCapabilities>()
 
 const artifactsCache = new WeakMap<Database, ArtifactsStorageCapabilities>()
@@ -33,6 +38,8 @@ const artifactsCache = new WeakMap<Database, ArtifactsStorageCapabilities>()
 const runtimeCompositionCache = new WeakMap<Database, RuntimeCompositionStorageCapabilities>()
 
 const automationCache = new WeakMap<Database, AutomationStorageCapabilities>()
+
+const scheduleCalendarCache = new WeakMap<Database, ScheduleCalendarStorageCapabilities>()
 
 export function probeThreadsStorageCapabilities(
   sqlite: Database,
@@ -105,5 +112,22 @@ export function probeAutomationStorageCapabilities(
     automationRuns: names.has("automation_runs"),
   }
   automationCache.set(sqlite, capabilities)
+  return capabilities
+}
+
+/** Read-only probe for the additive schema 43 schedule-calendar tables. */
+export function probeScheduleCalendarStorageCapabilities(
+  sqlite: Database,
+): ScheduleCalendarStorageCapabilities {
+  const cached = scheduleCalendarCache.get(sqlite)
+  if (cached) return cached
+  const names = new Set((sqlite.query(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('scheduled_tasks','schedule_plan_proposals')",
+  ).all() as Array<{ name: string }>).map(row => row.name))
+  const capabilities = {
+    scheduledTasks: names.has("scheduled_tasks"),
+    schedulePlanProposals: names.has("schedule_plan_proposals"),
+  }
+  scheduleCalendarCache.set(sqlite, capabilities)
   return capabilities
 }

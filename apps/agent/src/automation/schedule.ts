@@ -110,6 +110,25 @@ export const nextAutomationOccurrence = (schedule: AutomationSchedule, timeZone:
   return ruleFor(schedule, timeZone, after).after(new Date(after), false)?.getTime() ?? null
 }
 
+export const automationOccurrencesBetween = (
+  schedule: AutomationSchedule,
+  timeZone: string,
+  from: number,
+  to: number,
+  max = 2_000,
+): number[] => {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) return fail("日历时间范围无效")
+  const limit = Math.max(1, Math.min(2_000, Math.trunc(max)))
+  const rule = ruleFor(schedule, timeZone, from)
+  const occurrences: number[] = []
+  let next = rule.after(new Date(from), true)
+  while (next && next.getTime() <= to && occurrences.length < limit) {
+    occurrences.push(next.getTime())
+    next = rule.after(next, false)
+  }
+  return occurrences
+}
+
 export const previewAutomationSchedule = (schedule: AutomationSchedule, timeZone: string, after = Date.now(), count = 5): AutomationSchedulePreview => {
   const rule = ruleFor(schedule, timeZone, after)
   const occurrences: number[] = []

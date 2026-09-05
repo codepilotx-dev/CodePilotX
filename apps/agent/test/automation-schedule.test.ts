@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { AgentError } from "../src/domain"
 import {
+  automationOccurrencesBetween,
   canonicalizeAutomationSchedule,
   nextAutomationOccurrence,
   previewAutomationSchedule,
@@ -19,6 +20,21 @@ describe("automation schedule", () => {
     const after = nextAutomationOccurrence(schedule, "America/New_York", before!)
     expect(new Date(before!).toISOString()).toBe("2026-03-08T13:00:00.000Z")
     expect(new Date(after!).toISOString()).toBe("2026-03-09T13:00:00.000Z")
+  })
+
+  test("按闭区间投影日历 occurrence，并限制返回数量", () => {
+    const occurrences = automationOccurrencesBetween(
+      { mode: "daily", time: "09:00" },
+      "Asia/Shanghai",
+      Date.parse("2026-09-01T00:00:00+08:00"),
+      Date.parse("2026-09-05T23:59:59+08:00"),
+      3,
+    )
+    expect(occurrences.map(value => new Date(value).toISOString())).toEqual([
+      "2026-09-01T01:00:00.000Z",
+      "2026-09-02T01:00:00.000Z",
+      "2026-09-03T01:00:00.000Z",
+    ])
   })
 
   test("拒绝有限规则与无效时区", () => {

@@ -1,25 +1,26 @@
-import type { Automation, AutomationRun } from "@codepilotx/shared/automation"
 import { AgentError } from "../domain"
 import type { ThreadService } from "../session/ThreadService"
 import type { AutomationRepository } from "../storage/repositories/automation-repository"
 import type { ManagedWorktreeService } from "../worktree/ManagedWorktreeService"
 import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
-import type { AutomationExecutionBinding, AutomationRunExecutor } from "./AutomationRunCoordinator"
+import type { AutomationExecutionBinding, AutomationRunExecutor, ScheduledWorkDefinition } from "./AutomationRunCoordinator"
+type ScheduledWorkRun = { id: string }
+type ThreadAvailability = { targetThreadAvailable(id: string): boolean }
 
 /** Concrete adapter that reuses the normal thread/worktree admission and binding lifecycle. */
 export class ThreadAutomationRunExecutor implements AutomationRunExecutor {
   constructor(
-    private readonly repository: AutomationRepository,
+    private readonly repository: Pick<AutomationRepository, "targetThreadAvailable"> | ThreadAvailability,
     private readonly threads: ThreadService,
     private readonly worktrees: ManagedWorktreeService,
     private readonly threadExecutions: ThreadExecutionPreparationService,
   ) {}
 
-  async start(automation: Automation, run: AutomationRun): Promise<AutomationExecutionBinding> {
+  async start(automation: ScheduledWorkDefinition, run: ScheduledWorkRun): Promise<AutomationExecutionBinding> {
     return automation.kind === "thread" ? this.continueThread(automation, run) : this.startStandalone(automation, run)
   }
 
-  private async startStandalone(automation: Automation, run: AutomationRun) {
+  private async startStandalone(automation: ScheduledWorkDefinition, run: ScheduledWorkRun) {
     if (!automation.projectId || !automation.execution) throw new AgentError("INVALID_REQUEST", "独立自动化缺少项目或执行位置", 400)
     let worktreeId: string | null = null
     let threadCreated = false
@@ -77,7 +78,7 @@ export class ThreadAutomationRunExecutor implements AutomationRunExecutor {
     }
   }
 
-  private async continueThread(automation: Automation, run: AutomationRun) {
+  private async continueThread(automation: ScheduledWorkDefinition, run: ScheduledWorkRun) {
     const threadId = automation.targetThreadId
     if (!threadId || !this.repository.targetThreadAvailable(threadId)) throw new AgentError("THREAD_NOT_FOUND", "自动化目标聊天不存在或已归档", 404)
     const turn = await this.threads.enqueueFollowUp(threadId, {
@@ -90,9 +91,9 @@ export class ThreadAutomationRunExecutor implements AutomationRunExecutor {
     return { threadId, turnId: turn.turnID, worktreeId: null }
   }
 
-  private model(automation: Automation): Automation["model"] {
+  private model(automation: ScheduledWorkDefinition): ScheduledWorkDefinition["model"] {
     return automation.reasoningEffort
-      ? { ...automation.model, variant: automation.reasoningEffort } as Automation["model"]
+      ? { ...automation.model, variant: automation.reasoningEffort } as ScheduledWorkDefinition["model"]
       : automation.model
   }
 }

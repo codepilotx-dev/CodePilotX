@@ -595,7 +595,142 @@ const automationRun = {
   completedAt: null,
 } as const
 
+const scheduledTask = {
+  id: "scheduled-task:1",
+  revision: 1,
+  kind: "standalone",
+  name: "发布前检查",
+  prompt: "检查发布前状态。",
+  status: "scheduled",
+  projectId: project.id,
+  targetThreadId: null,
+  execution: { kind: "local" },
+  model: modelRef,
+  reasoningEffort: "medium",
+  permissionConfig: { ...permissionConfig, approvalPolicy: "never" },
+  scheduledFor: 2_000,
+  timeZone: "Asia/Shanghai",
+  notificationPolicy: "failures",
+  threadId: null,
+  turnId: null,
+  worktreeId: null,
+  readAt: null,
+  safeErrorCode: null,
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  startedAt: null,
+  completedAt: null,
+  cancelledAt: null,
+} as const
+
+const schedulePlanDefaults = {
+  kind: scheduledTask.kind,
+  projectId: scheduledTask.projectId,
+  targetThreadId: scheduledTask.targetThreadId,
+  execution: scheduledTask.execution,
+  model: scheduledTask.model,
+  reasoningEffort: scheduledTask.reasoningEffort,
+  permissionConfig: scheduledTask.permissionConfig,
+  timeZone: scheduledTask.timeZone,
+  notificationPolicy: scheduledTask.notificationPolicy,
+} as const
+
+const schedulePlanItems = [{
+  key: "release-check",
+  enabled: true,
+  kind: "one-off",
+  name: scheduledTask.name,
+  prompt: scheduledTask.prompt,
+  scheduledFor: scheduledTask.scheduledFor,
+}] as const
+
+const schedulePlanProposal = {
+  id: "schedule-plan:1",
+  revision: 1,
+  threadId: "thread:1",
+  turnId: "turn:1",
+  toolCallId: "tool-call:1",
+  status: "pending",
+  horizon: "week",
+  defaults: schedulePlanDefaults,
+  items: schedulePlanItems,
+  createdRefs: [],
+  createdAt: 1_000,
+  updatedAt: 1_000,
+  committedAt: null,
+} as const
+
 const fixtures = {
+  "calendar/range": methodFixture("calendar/range", {
+    from: 1_000,
+    to: 3_000,
+    timeZone: "Asia/Shanghai",
+    query: "发布",
+    sourceKinds: ["scheduled-task", "automation"],
+  }, {
+    occurrences: [{
+      id: "calendar-occurrence:1",
+      source: { kind: "scheduled-task", id: scheduledTask.id },
+      definitionKind: "one-off",
+      title: scheduledTask.name,
+      scheduledFor: scheduledTask.scheduledFor,
+      status: scheduledTask.status,
+      runId: null,
+      threadId: null,
+      proposalId: schedulePlanProposal.id,
+    }],
+    truncated: false,
+  }),
+  "scheduled-task/read": methodFixture("scheduled-task/read", {
+    id: scheduledTask.id,
+  }, { scheduledTask }),
+  "scheduled-task/create": methodFixture("scheduled-task/create", {
+    operationId: "operation:scheduled-task-create",
+    kind: scheduledTask.kind,
+    name: scheduledTask.name,
+    prompt: scheduledTask.prompt,
+    projectId: scheduledTask.projectId,
+    targetThreadId: scheduledTask.targetThreadId,
+    execution: scheduledTask.execution,
+    model: scheduledTask.model,
+    reasoningEffort: scheduledTask.reasoningEffort,
+    permissionConfig: scheduledTask.permissionConfig,
+    scheduledFor: scheduledTask.scheduledFor,
+    timeZone: scheduledTask.timeZone,
+    notificationPolicy: scheduledTask.notificationPolicy,
+  }, { scheduledTask }),
+  "scheduled-task/update": methodFixture("scheduled-task/update", {
+    id: scheduledTask.id,
+    expectedRevision: scheduledTask.revision,
+    status: "paused",
+  }, { scheduledTask: { ...scheduledTask, revision: 2, status: "paused", updatedAt: 1_100 } }),
+  "scheduled-task/delete": methodFixture("scheduled-task/delete", {
+    id: scheduledTask.id,
+    expectedRevision: scheduledTask.revision,
+  }, { scheduledTask: { ...scheduledTask, revision: 2, status: "cancelled", updatedAt: 1_100, cancelledAt: 1_100 } }),
+  "scheduled-task/run": methodFixture("scheduled-task/run", {
+    id: scheduledTask.id,
+    operationId: "operation:scheduled-task-run",
+  }, { scheduledTask: { ...scheduledTask, status: "claimed" } }),
+  "schedule-plan/read": methodFixture("schedule-plan/read", {
+    id: schedulePlanProposal.id,
+  }, { proposal: schedulePlanProposal }),
+  "schedule-plan/commit": methodFixture("schedule-plan/commit", {
+    id: schedulePlanProposal.id,
+    expectedRevision: schedulePlanProposal.revision,
+    operationId: "operation:schedule-plan-commit",
+    defaults: schedulePlanDefaults,
+    items: schedulePlanItems,
+  }, {
+    proposal: {
+      ...schedulePlanProposal,
+      revision: 2,
+      status: "committed",
+      createdRefs: [{ kind: "scheduled-task", id: scheduledTask.id }],
+      updatedAt: 1_100,
+      committedAt: 1_100,
+    },
+  }),
   "automation/list": methodFixture("automation/list", {
     statuses: ["active"],
     query: "代码",
@@ -3290,7 +3425,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(232)
+    expect(methods).toHaveLength(240)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3621,7 +3756,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(226)
+    expect(Object.keys(RpcMethods)).toHaveLength(234)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })
