@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@types/react": "19.2.7",
-    "material-icon-theme": "5.37.0",
+    "material-icon-theme": "5.38.1",
     "typescript": "5.9.3"
   }
 }
