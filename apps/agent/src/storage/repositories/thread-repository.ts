@@ -13,6 +13,14 @@ import type {
   TurnStatus,
 } from "../../domain"
 
+/** Shared by list and detail projections; the outer threads table uses alias t. */
+export const THREAD_ORIGIN_PROJECTION_SQL = `
+  (EXISTS (SELECT 1 FROM scheduled_tasks WHERE thread_id = t.id)
+    OR EXISTS (SELECT 1 FROM automation_runs WHERE thread_id = t.id)) AS has_scheduled_run,
+  (EXISTS (SELECT 1 FROM thread_message_forks WHERE target_thread_id = t.id)
+    OR EXISTS (SELECT 1 FROM thread_forks WHERE target_thread_id = t.id)) AS is_fork
+`
+
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
 }

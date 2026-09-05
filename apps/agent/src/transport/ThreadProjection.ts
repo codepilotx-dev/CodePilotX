@@ -19,6 +19,7 @@ import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { probeThreadsStorageCapabilities } from "../storage/database/storage-capabilities"
+import { THREAD_ORIGIN_PROJECTION_SQL } from "../storage/repositories/thread-repository"
 import { SubagentRepository } from "../subagent/SubagentRepository"
 import { classifyToolActivity, storedToolActivity } from "../tool/ToolActivityClassifier"
 
@@ -256,6 +257,8 @@ export class ThreadProjection {
       projectID: row.project_id == null ? null : String(row.project_id),
       gitBranch: row.git_branch == null ? null : String(row.git_branch),
       sessionGroupId,
+      hasScheduledRun: Boolean(row.has_scheduled_run),
+      isFork: Boolean(row.is_fork),
       ...(row.creation_surface ? { creationSurface: row.creation_surface as Thread["creationSurface"] } : {}),
       ...(workspace ? { workspace } : {}),
       settings: {
@@ -274,9 +277,11 @@ export class ThreadProjection {
 
   private projectThread(threadId: string): Thread | null {
     const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
-    const sql = columnExists
-      ? "SELECT id, title, project_id, git_branch, creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, archived_at, created_at, updated_at FROM threads WHERE id = ?"
-      : "SELECT id, title, project_id, git_branch, NULL AS creation_surface, task_mode, sandbox_mode, approval_policy, approvals_reviewer, archived_at, created_at, updated_at FROM threads WHERE id = ?"
+    const sql = `SELECT t.id, t.title, t.project_id, t.git_branch,
+      ${columnExists ? "t.creation_surface" : "NULL AS creation_surface"},
+      t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer,
+      t.archived_at, t.created_at, t.updated_at, ${THREAD_ORIGIN_PROJECTION_SQL}
+      FROM threads AS t WHERE t.id = ?`
     const threadRow = this.db.sqlite.query(sql).get(threadId) as Record<string, string | number | null> | null
     if (!threadRow) return null
     return this.projectThreadRow(threadRow, this.db.threadWorkspace(threadId) ?? undefined)
@@ -696,7 +701,7 @@ export class ThreadProjection {
     const sql = `
       SELECT t.id, t.project_id, t.git_branch, ${creationSurfaceExpr}, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
-        read_state.unread_at,
+        read_state.unread_at, ${THREAD_ORIGIN_PROJECTION_SQL},
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
             u.created_at DESC LIMIT 1) AS latest_turn_status,
@@ -734,6 +739,8 @@ export class ThreadProjection {
         projectID: row.project_id == null ? null : String(row.project_id),
         gitBranch: row.git_branch == null ? null : String(row.git_branch),
         sessionGroupId,
+        hasScheduledRun: Boolean(row.has_scheduled_run),
+        isFork: Boolean(row.is_fork),
         ...(row.creation_surface ? { creationSurface: row.creation_surface as ThreadListItem["creationSurface"] } : {}),
         ...(workspace ? { workspace } : {}),
         title: String(row.title),

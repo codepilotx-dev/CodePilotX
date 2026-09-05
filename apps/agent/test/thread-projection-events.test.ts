@@ -69,6 +69,67 @@ const seedTurn = (db: AgentDatabase, threadID: string) => {
 }
 
 describe("v4 会话事件投影契约", () => {
+  test("列表和详情从运行绑定与分叉关系投影独立标记", async () => {
+    const { db, projection } = await fixture()
+    const source = db.createThread()
+    const scheduled = db.createThread()
+    const fork = db.createThread()
+    const messageFork = db.createThread()
+    const child = db.createThread()
+    db.sqlite.query("UPDATE threads SET kind = 'subagent', parent_thread_id = ? WHERE id = ?").run(source.id, child.id)
+    const assertMarkers = (id: string, hasScheduledRun: boolean, isFork: boolean) => {
+      const expected = { hasScheduledRun, isFork }
+      expect(projection.snapshot(id)?.thread).toMatchObject(expected)
+      if (id !== child.id) expect(projection.list().find(thread => thread.id === id)).toMatchObject(expected)
+    }
+    assertMarkers(source.id, false, false)
+    assertMarkers(child.id, false, false)
+
+    db.sqlite.query(`INSERT INTO scheduled_tasks (
+      id, operation_id, kind, name, prompt, status, target_thread_id, model_ref,
+      permission_config, scheduled_for, time_zone, notification_policy, created_at, updated_at
+    ) VALUES ('schedule', 'schedule', 'thread', 'schedule', 'run', 'scheduled', ?, '{}', '{}', 1, 'UTC', 'all', 1, 1)`)
+      .run(source.id)
+    assertMarkers(source.id, false, false)
+    db.sqlite.query("UPDATE scheduled_tasks SET thread_id = ?, status = 'completed' WHERE id = 'schedule'").run(scheduled.id)
+    assertMarkers(scheduled.id, true, false)
+    // An existing conversation gains the same marker when a task actually binds to it.
+    db.sqlite.query("UPDATE scheduled_tasks SET thread_id = ? WHERE id = 'schedule'").run(source.id)
+    assertMarkers(source.id, true, false)
+
+    db.sqlite.query(`INSERT INTO thread_handoff_operations (
+      operation_id, source_thread_id, target_thread_id, direction, request_hash, status, step, created_at, updated_at
+    ) VALUES ('handoff', ?, ?, 'local-to-worktree', 'hash', 'completed', 'complete', 1, 1)`).run(source.id, fork.id)
+    db.sqlite.query("INSERT INTO thread_forks (target_thread_id, source_thread_id, operation_id, created_at) VALUES (?, ?, 'handoff', 1)")
+      .run(fork.id, source.id)
+    assertMarkers(fork.id, false, true)
+
+    const turn = seedTurn(db, source.id)
+    db.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at)
+      VALUES ('fork-point', ?, ?, ?, 'text', 'completed', '{"text":"done","placement":"result"}', 0, 1, 1)`)
+      .run(source.id, turn.turnID, turn.agentID)
+    db.sqlite.query(`INSERT INTO thread_message_fork_operations (
+      operation_id, source_thread_id, source_turn_id, source_item_id, target_thread_id,
+      destination_kind, request_hash, status, step, created_at, updated_at
+    ) VALUES ('message-fork', ?, ?, 'fork-point', ?, 'same-worktree', 'hash', 'completed', 'complete', 1, 1)`)
+      .run(source.id, turn.turnID, messageFork.id)
+    db.sqlite.query(`INSERT INTO thread_message_forks (target_thread_id, source_thread_id, source_turn_id, source_item_id, operation_id, created_at)
+      VALUES (?, ?, ?, 'fork-point', 'message-fork', 1)`).run(messageFork.id, source.id, turn.turnID)
+    assertMarkers(messageFork.id, false, true)
+
+    db.sqlite.query(`INSERT INTO automations (
+      id, kind, name, prompt, status, model_ref, permission_config, schedule, canonical_rrule,
+      time_zone, notification_policy, created_at, updated_at
+    ) VALUES ('automation', 'thread', 'automation', 'run', 'deleted', '{}', '{}', '{}', 'FREQ=DAILY', 'UTC', 'all', 1, 1)`)
+      .run()
+    db.sqlite.query(`INSERT INTO automation_runs (
+      id, automation_id, operation_id, trigger, scheduled_for, status, thread_id, created_at
+    ) VALUES ('run', 'automation', 'run', 'manual', 1, 'completed', ?, 1)`).run(messageFork.id)
+    assertMarkers(messageFork.id, true, true)
+    assertMarkers(fork.id, false, true)
+    assertMarkers(child.id, false, false)
+  })
+
   test("thread/updated 把内部 patch 形状投影成完整 Thread + version", async () => {
     const { db, history, projection } = await fixture()
     const thread = db.createThread()
