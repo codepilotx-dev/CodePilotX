@@ -120,7 +120,7 @@
 - Renderer 目录或 lazy import 变化后，必须运行 renderer build 并确认 chunk 可解析。
 - 只有修改打包或发布行为，或用户明确要求时，才运行 `bun run package:win`。
 - 禁止为了让检查通过而盲目更新 CSS、style 或 test 基线。
-- 交付前必须搜索旧协议、旧路径和失效 import，并运行 `git diff --check`。
+- 交付前必须按本次变更涉及的协议、路径和调用方搜索旧协议、旧路径和失效 import，并运行 `git diff --check`；纯文档修改检查引用，不扩展为全仓代码审计。
 - 每个修改代码、配置或文档的任务，都必须在 `CHANGELOG.md` 的 `Unreleased` 区段新增至少一条项目符号，说明做了什么及影响。仅修改 `CHANGELOG.md` 自身时可以豁免。
 - 修改历史区段不能代替新增说明。记录使用 `- [作用域] 中文说明` 格式，并归入 `Added`、`Changed`、`Fixed`、`Deprecated`、`Removed` 或 `Security`。
 - 只有用户明确要求时才创建提交。
