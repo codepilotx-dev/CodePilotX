@@ -473,7 +473,8 @@
 
   &.is-visible,
   .sidebar-section-header:hover &,
-  .sidebar-section-header:focus-within & {
+  .sidebar-section-header:has(:focus-visible) &,
+  &:has([data-state="open"]) {
     opacity: 1;
     pointer-events: auto;
   }
@@ -534,6 +535,24 @@
   outline: none;
 }
 
+.sidebar-project-header > .sidebar-row-trailing {
+  position: relative;
+}
+
+.sidebar-project-unread {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  margin-block: auto;
+  pointer-events: none;
+}
+
+.sidebar-project-header:hover .sidebar-project-unread,
+.sidebar-project-header:has(:focus-visible) .sidebar-project-unread,
+.sidebar-project-header:has(.sidebar-project-actions.is-visible, [data-state="open"]) .sidebar-project-unread {
+  display: none;
+}
+
 .sidebar-project-actions {
   position: relative;
   min-height: var(--sidebar-icon-button-size);
@@ -569,15 +588,17 @@
 }
 
 .sidebar-project-header:hover .sidebar-project-actions,
-.sidebar-project-header:focus-within .sidebar-project-actions,
-.sidebar-project-actions.is-visible {
+.sidebar-project-header:has(:focus-visible) .sidebar-project-actions,
+.sidebar-project-actions.is-visible,
+.sidebar-project-actions:has([data-state="open"]) {
   opacity: 1;
   pointer-events: auto;
 }
 
 .sidebar-project-header:hover .sidebar-project-action-items,
-.sidebar-project-header:focus-within .sidebar-project-action-items,
-.sidebar-project-actions.is-visible .sidebar-project-action-items {
+.sidebar-project-header:has(:focus-visible) .sidebar-project-action-items,
+.sidebar-project-actions.is-visible .sidebar-project-action-items,
+.sidebar-project-actions:has([data-state="open"]) .sidebar-project-action-items {
   opacity: 1;
   pointer-events: auto;
 }
@@ -709,7 +730,7 @@
   border-radius: var(--cpx-sys-radius-sm);
 }
 
-.sidebar-session-unread-dot {
+.sidebar-unread-dot {
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
@@ -852,7 +873,7 @@
   }
 
   .sidebar-focus-section-header:hover &,
-  .sidebar-focus-section-header:focus-within & {
+  .sidebar-focus-section-header:has(:focus-visible) & {
     opacity: 1;
     pointer-events: auto;
   }
@@ -953,7 +974,7 @@
   gap: var(--cpx-sys-space-1);
 }
 
-.sidebar-session-indicator {
+.sidebar-indicator {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;

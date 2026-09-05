@@ -117,7 +117,7 @@ export function SidebarSessionHoverCardOverlay({
             {model.unread ? (
               <span
                 aria-hidden="true"
-                className="sidebar-session-unread-dot"
+                className="sidebar-unread-dot"
               />
             ) : null}
           </span>

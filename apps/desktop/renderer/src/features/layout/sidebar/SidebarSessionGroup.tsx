@@ -388,12 +388,12 @@ function SidebarSessionGroupComponent({
         trailing={
           <div className={metaClassName}>
             {showIndicators && session.hasScheduledRun && (
-              <span className="sidebar-session-indicator" role="img" aria-label="日程运行过的会话" title="日程运行过的会话">
+              <span className="sidebar-indicator" role="img" aria-label="日程运行过的会话" title="日程运行过的会话">
                 <Clock3 aria-hidden="true" size={APP_ICON_SIZE} />
               </span>
             )}
             {showIndicators && session.isFork && (
-              <span className="sidebar-session-indicator" role="img" aria-label="分叉会话" title="分叉会话">
+              <span className="sidebar-indicator" role="img" aria-label="分叉会话" title="分叉会话">
                 <Split aria-hidden="true" size={APP_ICON_SIZE} />
               </span>
             )}
@@ -444,14 +444,14 @@ function SidebarSessionGroupComponent({
                 <span className="sidebar-session-approval" title="等待审批">
                   等待审批
                 </span>
-                <span className="sidebar-session-indicator">
+                <span className="sidebar-indicator">
                   <Spinner className="sidebar-session-spinner" label="加载中" />
                 </span>
               </>
             ) : session.hasScheduledRun || session.isFork || visualState !== 'idle' ? (
-              <span className="sidebar-session-indicator">
+              <span className="sidebar-indicator">
                 {visualState === 'unread' ? (
-                  <span aria-label="未读" className="sidebar-session-unread-dot" />
+                  <span aria-label="未读" className="sidebar-unread-dot" />
                 ) : visualState === 'running' ? (
                   <Spinner className="sidebar-session-spinner" label="加载中" />
                 ) : null}

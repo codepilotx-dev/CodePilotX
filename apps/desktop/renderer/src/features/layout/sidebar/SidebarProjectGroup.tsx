@@ -118,6 +118,7 @@ function SidebarProjectGroupComponent({
   const isExpanded = useDisclosureExpanded(disclosureStore, disclosureKey)
   const projectSessionsId = useId()
   const projectSessions = bucket.displaySessions
+  const hasCollapsedUnread = !isExpanded && projectSessions.some(session => Boolean(session.unreadAt))
   const countedProjectSessions = bucket.allSessions
   const unreadCount = bucket.unreadCount
   const openCount = bucket.openCount
@@ -217,7 +218,6 @@ function SidebarProjectGroupComponent({
         'u-flex-col',
         'tw:flex tw:flex-col',
       )}
-      onMouseLeave={() => setHovered(false)}
     >
       <SidebarContextMenu
         actions={contextActions()}
@@ -238,85 +238,93 @@ function SidebarProjectGroupComponent({
               />
             }
             onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             trailing={
-              <div
-                className={cx(
-                  'sidebar-project-actions',
-                  actionsVisible && 'is-visible',
-                )}
-                onClick={event => event.stopPropagation()}
-              >
-                <PopoverMenu
-                  className="popover-sidebar-project popover-menu--grid"
-                  open={menuOpen}
-                  side="bottom"
-                  width="auto"
-                  trigger={
-                    <IconButton
-                      className="sidebar-project-action-button"
-                      color="ghostSecondary"
-                      size="iconMd"
-                      title="更多"
-                    >
-                      <MoreHorizontal size={APP_ICON_SIZE} />
-                    </IconButton>
-                  }
-                  onOpenChange={setMenuOpen}
+              <>
+                <div
+                  className={cx(
+                    'sidebar-project-actions',
+                    actionsVisible && 'is-visible',
+                  )}
+                  onClick={event => event.stopPropagation()}
                 >
-                  <PopoverItem
-                    icon={isPinned
-                      ? <PinOff size={APP_ICON_SIZE} />
-                      : <Pin size={APP_ICON_SIZE} />}
-                    onClick={togglePinned}
-                  >
-                    {isPinned ? '取消置顶项目' : '置顶项目'}
-                  </PopoverItem>
-                  <PopoverItem
-                    disabled={isUnavailable}
-                    icon={<FolderOpen size={APP_ICON_SIZE} />}
-                    onClick={() => {
-                      void desktopClient.openPathWithDefaultTarget(
-                        managedProject.path,
-                      )
-                    }}
-                  >
-                    在资源管理器中打开
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<Settings2 size={APP_ICON_SIZE} />}
-                    onClick={() => setManagerOpen(true)}
-                  >
-                    编辑项目
-                  </PopoverItem>
-                  <PopoverItem
-                    disabled={
-                      countedProjectSessions.length === 0 ||
-                      processingAction !== null
+                  <PopoverMenu
+                    className="popover-sidebar-project popover-menu--grid"
+                    open={menuOpen}
+                    side="bottom"
+                    width="auto"
+                    trigger={
+                      <IconButton
+                        className="sidebar-project-action-button"
+                        color="ghostSecondary"
+                        size="iconMd"
+                        title="更多"
+                      >
+                        <MoreHorizontal size={APP_ICON_SIZE} />
+                      </IconButton>
                     }
-                    icon={<Archive size={APP_ICON_SIZE} />}
-                    onClick={archiveAll}
+                    onOpenChange={setMenuOpen}
                   >
-                    {processingAction === 'archive' ? '归档中…' : '归档任务'}
-                  </PopoverItem>
-                  <PopoverItem
-                    icon={<X size={APP_ICON_SIZE} />}
-                    onClick={() => setConfirmRemoveOpen(true)}
+                    <PopoverItem
+                      icon={isPinned
+                        ? <PinOff size={APP_ICON_SIZE} />
+                        : <Pin size={APP_ICON_SIZE} />}
+                      onClick={togglePinned}
+                    >
+                      {isPinned ? '取消置顶项目' : '置顶项目'}
+                    </PopoverItem>
+                    <PopoverItem
+                      disabled={isUnavailable}
+                      icon={<FolderOpen size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        void desktopClient.openPathWithDefaultTarget(
+                          managedProject.path,
+                        )
+                      }}
+                    >
+                      在资源管理器中打开
+                    </PopoverItem>
+                    <PopoverItem
+                      icon={<Settings2 size={APP_ICON_SIZE} />}
+                      onClick={() => setManagerOpen(true)}
+                    >
+                      编辑项目
+                    </PopoverItem>
+                    <PopoverItem
+                      disabled={
+                        countedProjectSessions.length === 0 ||
+                        processingAction !== null
+                      }
+                      icon={<Archive size={APP_ICON_SIZE} />}
+                      onClick={archiveAll}
+                    >
+                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
+                    </PopoverItem>
+                    <PopoverItem
+                      icon={<X size={APP_ICON_SIZE} />}
+                      onClick={() => setConfirmRemoveOpen(true)}
+                    >
+                      移除
+                    </PopoverItem>
+                  </PopoverMenu>
+                  <IconButton
+                    aria-label="新建对话"
+                    className="sidebar-project-action-button"
+                    color="ghostSecondary"
+                    disabled={isUnavailable}
+                    size="iconMd"
+                    title="新建对话"
+                    onClick={() => onCreateSession(managedProject)}
                   >
-                    移除
-                  </PopoverItem>
-                </PopoverMenu>
-                <IconButton
-                  aria-label="新建对话"
-                  className="sidebar-project-action-button"
-                  color="ghostSecondary"
-                  disabled={isUnavailable}
-                  size="iconMd"
-                  title="新建对话"
-                  onClick={() => onCreateSession(managedProject)}
-                >
-                  <SquarePen size={APP_ICON_SIZE} />
-                </IconButton>
-              </div>
+                    <SquarePen size={APP_ICON_SIZE} />
+                  </IconButton>
+                </div>
+                {hasCollapsedUnread && !actionsVisible ? (
+                  <span className="sidebar-project-unread sidebar-indicator" role="img" aria-label="项目内有未读会话">
+                    <span className="sidebar-unread-dot" />
+                  </span>
+                ) : null}
+              </>
             }
           >
             <SidebarProjectHoverCard
