@@ -33,6 +33,9 @@ describe('desktop settings provider', () => {
       expect(settings[0]).toBe(settings[1])
       expect(runtime[0]).toBe(runtime[1])
       expect(settings[0].model).toBe(defaultDesktopSettings().model)
+      expect(settings[0].sidebarShowScheduledSessions).toBe(true)
+      expect(typeof settings[0].setSidebarShowScheduledSessions).toBe('function')
+      expect(runtime[0].values.sidebarShowScheduledSessions).toBe(true)
       expect(runtime[0].values.model).toBe(settings[0].model)
       expect(runtime[0].setModel).toBe(settings[0].setModel)
     },

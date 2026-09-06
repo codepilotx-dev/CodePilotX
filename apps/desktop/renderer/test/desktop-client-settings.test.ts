@@ -59,6 +59,85 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('plan approval preserves target, operation and model and refreshes after success', async () => {
+    const calls: string[] = []
+    const approval = { id: 'plan-approval-1', threadId: 'session-plan', turnId: 'plan-turn', planItemId: 'plan-item',
+      version: 1, status: 'pending' as const, title: '计划', markdown: '修改目标文件', nextTurnId: null, createdAt: now, resolvedAt: null }
+    const params = { threadId: approval.threadId, approvalId: approval.id, expectedVersion: 1, operationId: 'plan-op-1',
+      response: { action: 'implement' as const, model: { providerID: 'deepseek', id: 'deepseek-chat' } } }
+    const client = createDesktopClient({ fetch: async (_path, init) => {
+      const body = JSON.parse(String(init?.body))
+      calls.push(body.method)
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('plan.approval.v1')
+        return rpc(body.id, { ...initializedResult(), capabilities: [...initializedResult().capabilities, 'plan.approval.v1'] })
+      }
+      if (body.method === 'planApproval/read') {
+        expect(body.params).toEqual({ threadId: approval.threadId })
+        return rpc(body.id, { approval })
+      }
+      if (body.method === 'planApproval/respond') {
+        expect(body.params).toEqual(params)
+        return rpc(body.id, { approval: { ...approval, status: 'implemented', version: 2, nextTurnId: 'coding-turn', resolvedAt: now }, disposition: 'applied' })
+      }
+      if (body.method === 'thread/read') {
+        expect(body.params.threadId).toBe(approval.threadId)
+        return rpc(body.id, snapshotResult(snapshot(approval.threadId, defaultSettings)))
+      }
+      if (body.method === 'project/list') return rpc(body.id, { projects: [], nextCursor: null })
+      throw new Error(`Unexpected method: ${body.method}`)
+    } })
+    expect((await client.readPlanApproval({ threadId: approval.threadId })).approval?.id).toBe(approval.id)
+    expect((await client.respondPlanApproval(params)).approval.status).toBe('implemented')
+    expect(calls).not.toContain('interaction/respond')
+    expect(calls.indexOf('thread/read')).toBeGreaterThan(calls.indexOf('planApproval/respond'))
+  })
+
+  test('submits a complete question group by original ids and prefers keyed answers', async () => {
+    const responses: unknown[] = []
+    const questions = ['scope', 'format', 'filter'].map(id => ({
+      id, header: id, prompt: `请选择 ${id}`,
+      choices: [{ id: 'yes', label: '是', description: '保留', recommended: true },
+        { id: 'no', label: '否', description: '排除', recommended: false }],
+      allowFreeform: true, required: true,
+    }))
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body.method === 'interaction/listPending') {
+          expect(body.params.threadId).toBe('session-1')
+          return rpc(body.id, {
+          interactions: [{ interactionId: 'group-1', threadId: 'session-1',
+            turnId: 'turn-1', agentId: 'agent-1', createdAt: now, version: 1,
+            kind: 'question', questions }], nextCursor: null,
+          })
+        }
+        if (body.method === 'interaction/respond') {
+          responses.push(body.params)
+          return rpc(body.id, { interactionId: 'group-1', kind: 'question',
+            state: 'resolved', version: 2, resolvedAt: now, response: body.params.response })
+        }
+        if (body.method === 'thread/read') return rpc(body.id, snapshotResult(snapshot('session-1', defaultSettings)))
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+    await client.respondToPermission('session-1', 'question:group-1', {
+      behavior: 'allow', updatedInput: { answer: 'stale legacy answer',
+        answers: { scope: '是', format: '中文自定义', filter: '否' } },
+    })
+    expect(responses).toHaveLength(1)
+    expect(responses[0]).toMatchObject({ interactionId: 'group-1', expectedVersion: 1,
+      response: { kind: 'question', status: 'answered', resolution: 'user', answers: [
+        { questionId: 'scope', choiceIds: ['yes'] },
+        { questionId: 'format', choiceIds: [], text: '中文自定义' },
+        { questionId: 'filter', choiceIds: ['no'] },
+      ] },
+    })
+  })
+
   test('opens home and thread windows through the typed desktop bridge', async () => {
     const calls: unknown[] = []
     const client = createDesktopClient({
@@ -1801,5 +1880,29 @@ test('聊天宽度经过桌面 bridge 保存并在新 client 中读取', async (
     await client.saveDesktopSettings({ ...stored, conversationWidth })
     const reopened = createDesktopClient(environment)
     expect((await reopened.getDesktopSettings()).conversationWidth).toBe(conversationWidth)
+  }
+})
+
+test('日程会话显示过滤经过桌面 bridge 保存并在新 client 中读取', async () => {
+  const { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } = await import('../shared/settingsSchema.js')
+  let stored = defaultDesktopStoredSettings()
+  const environment = {
+    window: {
+      codePilotXDesktop: {
+        getDesktopSettings: async () => stored,
+        saveDesktopSettings: async (settings: typeof stored) => {
+          stored = normalizeDesktopStoredSettings(settings)
+          return stored
+        },
+      },
+    },
+  }
+  const client = createDesktopClient(environment)
+  expect((await client.getDesktopSettings()).sidebarShowScheduledSessions).toBe(true)
+  for (const sidebarShowScheduledSessions of [false, true]) {
+    await client.saveDesktopSettings({ ...stored, sidebarShowScheduledSessions })
+    const reopened = createDesktopClient(environment)
+    expect((await reopened.getDesktopSettings()).sidebarShowScheduledSessions)
+      .toBe(sidebarShowScheduledSessions)
   }
 })

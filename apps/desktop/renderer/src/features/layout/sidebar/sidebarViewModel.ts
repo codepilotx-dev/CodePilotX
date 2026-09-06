@@ -354,6 +354,7 @@ function sortPrioritySessions(
 export function buildSidebarViewModel({
   manualOrderByScope = {},
   organization = 'projects',
+  showScheduledSessions = true,
   pendingPermissionSessionIds,
   recentWorkspaces,
   removedWorkspaces,
@@ -362,6 +363,7 @@ export function buildSidebarViewModel({
 }: {
   manualOrderByScope?: Readonly<Record<string, readonly string[]>>
   organization?: DesktopSidebarOrganization
+  showScheduledSessions?: boolean
   pendingPermissionSessionIds: ReadonlySet<string>
   recentWorkspaces: readonly DesktopWorkspace[]
   removedWorkspaces: readonly DesktopRemovedWorkspace[]
@@ -369,7 +371,7 @@ export function buildSidebarViewModel({
   sessions: readonly SessionListItem[]
 }): SidebarViewModel {
   const visibleSessions = sessions
-    .filter(session => !session.archivedAt)
+    .filter(session => !session.archivedAt && (showScheduledSessions || !session.isScheduledSession))
     .map(session => ({
       ...session,
       pinnedAt: sessionPins[session.id] ?? null,

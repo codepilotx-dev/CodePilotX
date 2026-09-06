@@ -103,6 +103,7 @@ export type UseDesktopSettingsResult = {
   sidebarTimelinePriorityEnabled: boolean
   sidebarActivityShowWork: boolean
   sidebarActivityShowChat: boolean
+  sidebarShowScheduledSessions: boolean
   sidebarActivityShowPinned: boolean
   sidebarActivityCoachmarkDismissed: boolean
   sidebarManualOrder: Record<string, string[]>
@@ -178,6 +179,9 @@ export type UseDesktopSettingsResult = {
     value: boolean | ((current: boolean) => boolean),
   ) => void
   setSidebarActivityShowChat: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarShowScheduledSessions: (
     value: boolean | ((current: boolean) => boolean),
   ) => void
   setSidebarActivityShowPinned: (
@@ -528,6 +532,9 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
   const [sidebarActivityShowChat, setSidebarActivityShowChat] = useState<boolean>(
     initial.sidebarActivityShowChat ?? true,
   )
+  const [sidebarShowScheduledSessions, setSidebarShowScheduledSessions] = useState<boolean>(
+    initial.sidebarShowScheduledSessions ?? true,
+  )
   const [sidebarActivityShowPinned, setSidebarActivityShowPinned] =
     useState<boolean>(initial.sidebarActivityShowPinned ?? false)
   const [sidebarActivityCoachmarkDismissed, setSidebarActivityCoachmarkDismissed] =
@@ -662,6 +669,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
         )
         setSidebarActivityShowWork(settings.sidebarActivityShowWork ?? true)
         setSidebarActivityShowChat(settings.sidebarActivityShowChat ?? true)
+        setSidebarShowScheduledSessions(settings.sidebarShowScheduledSessions ?? true)
         setSidebarActivityShowPinned(settings.sidebarActivityShowPinned ?? false)
         setSidebarActivityCoachmarkDismissed(
           settings.sidebarActivityCoachmarkDismissed ?? false,
@@ -755,6 +763,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       sidebarTimelinePriorityEnabled,
       sidebarActivityShowWork,
       sidebarActivityShowChat,
+      sidebarShowScheduledSessions,
       sidebarActivityShowPinned,
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
@@ -830,6 +839,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       sidebarTimelinePriorityEnabled,
       sidebarActivityShowWork,
       sidebarActivityShowChat,
+      sidebarShowScheduledSessions,
       sidebarActivityShowPinned,
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
@@ -958,6 +968,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       )
       setSidebarActivityShowWork(snapshot.sidebarActivityShowWork ?? true)
       setSidebarActivityShowChat(snapshot.sidebarActivityShowChat ?? true)
+      setSidebarShowScheduledSessions(snapshot.sidebarShowScheduledSessions ?? true)
       setSidebarActivityShowPinned(snapshot.sidebarActivityShowPinned ?? false)
       setSidebarActivityCoachmarkDismissed(
         snapshot.sidebarActivityCoachmarkDismissed ?? false,
@@ -1167,6 +1178,7 @@ defaultOpenTargetId,
     sidebarTimelinePriorityEnabled,
     sidebarActivityShowWork,
     sidebarActivityShowChat,
+    sidebarShowScheduledSessions,
     sidebarActivityShowPinned,
     sidebarActivityCoachmarkDismissed,
     sidebarManualOrder,
@@ -1228,6 +1240,7 @@ defaultOpenTargetId,
     setSidebarTimelinePriorityEnabled,
     setSidebarActivityShowWork,
     setSidebarActivityShowChat,
+    setSidebarShowScheduledSessions,
     setSidebarActivityShowPinned,
     setSidebarActivityCoachmarkDismissed,
     setSidebarManualOrder,

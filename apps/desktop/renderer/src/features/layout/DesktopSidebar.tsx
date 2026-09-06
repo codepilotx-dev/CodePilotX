@@ -114,6 +114,8 @@ export function DesktopSidebar({
     setSidebarSessionPins,
     sidebarManualOrder,
     sidebarOrganization,
+    sidebarShowScheduledSessions,
+    setSidebarShowScheduledSessions,
     sidebarProjectSort,
     sidebarSort,
     setSidebarSort,
@@ -202,6 +204,7 @@ export function DesktopSidebar({
       buildSidebarViewModel({
         manualOrderByScope: sidebarManualOrder,
         organization: sidebarOrganization,
+        showScheduledSessions: sidebarShowScheduledSessions,
         pendingPermissionSessionIds,
         recentWorkspaces: mergedProjects,
         removedWorkspaces,
@@ -215,6 +218,7 @@ export function DesktopSidebar({
       sessions,
       sidebarManualOrder,
       sidebarOrganization,
+      sidebarShowScheduledSessions,
       sidebarSessionPins,
     ],
   )
@@ -485,6 +489,8 @@ export function DesktopSidebar({
         showTimelinePinned={sidebarActivityShowPinned}
         showActivityWork={sidebarActivityShowWork}
         showActivityChat={sidebarActivityShowChat}
+        showScheduledSessions={sidebarShowScheduledSessions}
+        onShowScheduledSessionsChange={setSidebarShowScheduledSessions}
         onShowActivityWorkChange={setSidebarActivityShowWork}
         onShowActivityChatChange={setSidebarActivityShowChat}
         onShowTimelinePinnedChange={setSidebarActivityShowPinned}

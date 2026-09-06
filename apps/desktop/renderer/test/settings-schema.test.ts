@@ -542,3 +542,14 @@ describe('聊天宽度', () => {
     }
   })
 })
+
+
+test('日程会话显示默认开启、保留关闭状态并随侧栏重置恢复', () => {
+  expect(defaultDesktopStoredSettings().sidebarShowScheduledSessions).toBe(true)
+  expect(normalizeDesktopStoredSettings({}).sidebarShowScheduledSessions).toBe(true)
+  expect(normalizeDesktopStoredSettings({ sidebarShowScheduledSessions: 'false' })
+    .sidebarShowScheduledSessions).toBe(true)
+  const settings = normalizeDesktopStoredSettings({ sidebarShowScheduledSessions: false })
+  expect(normalizeDesktopStoredSettings(settings).sidebarShowScheduledSessions).toBe(false)
+  expect(createSidebarStateResetPatch(settings).sidebarShowScheduledSessions).toBe(true)
+})

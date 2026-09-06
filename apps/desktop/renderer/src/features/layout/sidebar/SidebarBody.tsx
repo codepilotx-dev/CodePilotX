@@ -72,6 +72,8 @@ type Props = {
   showTimelinePinned: boolean;
   showActivityWork: boolean;
   showActivityChat: boolean;
+  showScheduledSessions: boolean;
+  onShowScheduledSessionsChange: (value: boolean) => void;
   onShowActivityWorkChange: (value: boolean) => void;
   onShowActivityChatChange: (value: boolean) => void;
   now: number;
@@ -126,6 +128,8 @@ export function SidebarBody({
   showTimelinePinned,
   showActivityWork,
   showActivityChat,
+  showScheduledSessions,
+  onShowScheduledSessionsChange,
   onShowActivityWorkChange,
   onShowActivityChatChange,
   now,
@@ -546,6 +550,8 @@ export function SidebarBody({
             pendingPermissionSessionIds={pendingPermissionSessionIds}
             showWork={showActivityWork}
             showChat={showActivityChat}
+            showScheduledSessions={showScheduledSessions}
+            onShowScheduledSessionsChange={onShowScheduledSessionsChange}
             showPinned={showTimelinePinned}
             timeline={timeline}
             titleLoadingIds={titleLoadingIds}
@@ -629,6 +635,8 @@ export function SidebarBody({
               action={
                 <SidebarSectionActions>
                   <SidebarOrganizeMenu
+                    showScheduledSessions={showScheduledSessions}
+                    onShowScheduledSessionsChange={onShowScheduledSessionsChange}
                     organization={organization}
                     sort={projectSort}
                     onOrganizationChange={onOrganizationChange}
@@ -696,6 +704,8 @@ export function SidebarBody({
             action={
               <SidebarSectionActions>
                 <SidebarOrganizeMenu
+                  showScheduledSessions={showScheduledSessions}
+                  onShowScheduledSessionsChange={onShowScheduledSessionsChange}
                   organization={organization}
                   sort={sessionSort}
                   onOrganizationChange={onOrganizationChange}
@@ -757,6 +767,8 @@ function Timeline({
   pendingPermissionSessionIds,
   showWork,
   showChat,
+  showScheduledSessions,
+  onShowScheduledSessionsChange,
   showPinned,
   timeline,
   titleLoadingIds,
@@ -780,6 +792,8 @@ function Timeline({
   pendingPermissionSessionIds: ReadonlySet<string>
   showWork: boolean
   showChat: boolean
+  showScheduledSessions: boolean
+  onShowScheduledSessionsChange: (value: boolean) => void
   showPinned: boolean
   timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
@@ -802,7 +816,7 @@ function Timeline({
 
   useEffect(() => {
     setVisibleLimit(10)
-  }, [showWork, showChat, showPinned])
+  }, [showWork, showChat, showPinned, showScheduledSessions])
 
   const sliced = useMemo(
     () => sliceSidebarTimelineModel(timeline, visibleLimit),
@@ -863,6 +877,8 @@ function Timeline({
               hasUnreadAttention={hasUnreadAttention}
               showWork={showWork}
               showChat={showChat}
+              showScheduledSessions={showScheduledSessions}
+              onShowScheduledSessionsChange={onShowScheduledSessionsChange}
               showPinned={showPinned}
               onMarkAttentionRead={onMarkAttentionRead}
               onRequestArchiveAttention={onRequestArchiveAttention}
@@ -894,6 +910,8 @@ function Timeline({
               hasUnreadAttention={hasUnreadAttention}
               showWork={showWork}
               showChat={showChat}
+              showScheduledSessions={showScheduledSessions}
+              onShowScheduledSessionsChange={onShowScheduledSessionsChange}
               showPinned={showPinned}
               onMarkAttentionRead={onMarkAttentionRead}
               onRequestArchiveAttention={onRequestArchiveAttention}
@@ -918,6 +936,8 @@ function Timeline({
             hasUnreadAttention={hasUnreadAttention}
             showWork={showWork}
             showChat={showChat}
+            showScheduledSessions={showScheduledSessions}
+            onShowScheduledSessionsChange={onShowScheduledSessionsChange}
             showPinned={showPinned}
             onMarkAttentionRead={onMarkAttentionRead}
             onRequestArchiveAttention={onRequestArchiveAttention}
@@ -958,6 +978,8 @@ function TimelinePriorityMenu({
   hasUnreadAttention,
   showWork,
   showChat,
+  showScheduledSessions,
+  onShowScheduledSessionsChange,
   showPinned,
   onMarkAttentionRead,
   onRequestArchiveAttention,
@@ -969,6 +991,8 @@ function TimelinePriorityMenu({
   hasUnreadAttention: boolean
   showWork: boolean
   showChat: boolean
+  showScheduledSessions: boolean
+  onShowScheduledSessionsChange: (value: boolean) => void
   showPinned: boolean
   onMarkAttentionRead: () => void
   onRequestArchiveAttention: () => void
@@ -981,7 +1005,7 @@ function TimelinePriorityMenu({
     <PopoverMenu
       align="start"
       className="sidebar-timeline-menu popover-menu--flex"
-      modal
+      avoidCollisions={false}
       open={menuOpen}
       side="bottom"
       sideOffset={4}
@@ -1018,12 +1042,11 @@ function TimelinePriorityMenu({
         置顶
       </PopoverCheckboxItem>
       <PopoverCheckboxItem
-        checked={false}
-        disabled
-        meta="自动化任务将在后续版本接入"
-        onCheckedChange={() => undefined}
+        checked={showScheduledSessions}
+        keepOpen
+        onCheckedChange={onShowScheduledSessionsChange}
       >
-        已安排
+        显示日程会话
       </PopoverCheckboxItem>
       <PopoverSeparator />
       <PopoverItem
@@ -1128,12 +1151,16 @@ const SIDEBAR_SORT_OPTIONS: Array<{
 ];
 
 function SidebarOrganizeMenu({
+  showScheduledSessions,
+  onShowScheduledSessionsChange,
   organization,
   sort,
   onOrganizationChange,
   onSortChange,
 }: {
   organization: DesktopSidebarOrganization;
+  showScheduledSessions: boolean;
+  onShowScheduledSessionsChange: (value: boolean) => void;
   sort: DesktopSidebarSort;
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void;
   onSortChange: (sort: DesktopSidebarSort) => void;
@@ -1141,10 +1168,12 @@ function SidebarOrganizeMenu({
   const [open, setOpen] = useState(false);
   return (
     <PopoverMenu
-      align="end"
+      align="start"
       className="popover-sidebar-organize popover-menu--flex"
+      avoidCollisions={false}
       open={open}
       side="bottom"
+      sideOffset={4}
       trigger={
         <IconButton color="ghostSecondary" size="toolbar" title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
@@ -1174,6 +1203,14 @@ function SidebarOrganizeMenu({
           </PopoverRadioItem>
         ))}
       </PopoverRadioGroup>
+      <PopoverLabel className="popover-sidebar-organize-heading">过滤</PopoverLabel>
+      <PopoverCheckboxItem
+        checked={showScheduledSessions}
+        keepOpen
+        onCheckedChange={onShowScheduledSessionsChange}
+      >
+        显示日程会话
+      </PopoverCheckboxItem>
     </PopoverMenu>
   );
 }

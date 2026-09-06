@@ -216,6 +216,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarTimelinePriorityEnabled: false,
   sidebarActivityShowWork: true,
   sidebarActivityShowChat: true,
+  sidebarShowScheduledSessions: true,
   sidebarActivityShowPinned: false,
   sidebarActivityCoachmarkDismissed: false,
     sidebarManualOrder: {},
@@ -516,6 +517,10 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.sidebarActivityShowChat === 'boolean'
         ? parsed.sidebarActivityShowChat
         : defaults.sidebarActivityShowChat,
+    sidebarShowScheduledSessions:
+      typeof parsed.sidebarShowScheduledSessions === 'boolean'
+        ? parsed.sidebarShowScheduledSessions
+        : defaults.sidebarShowScheduledSessions,
     sidebarActivityShowPinned:
       typeof parsed.sidebarActivityShowPinned === 'boolean'
         ? parsed.sidebarActivityShowPinned
@@ -578,6 +583,7 @@ export function createSidebarStateResetPatch(
     sidebarTimelinePriorityEnabled: false,
     sidebarActivityShowWork: true,
     sidebarActivityShowChat: true,
+    sidebarShowScheduledSessions: true,
     sidebarActivityShowPinned: false,
     sidebarActivityCoachmarkDismissed: settings.sidebarActivityCoachmarkDismissed ?? false,
     sidebarManualOrder: {},

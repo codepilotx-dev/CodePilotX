@@ -566,6 +566,48 @@ describe('sidebar shell modes', () => {
 })
 
 describe('sidebar view model', () => {
+  test('日程来源过滤统一作用于分组与活动，并保留原会话和排序设置', () => {
+    const input = {
+      pendingPermissionSessionIds: new Set<string>(),
+      recentWorkspaces: [{ name: 'Alpha', path: 'C:\\alpha' }],
+      removedWorkspaces: [],
+      sessionPins: { scheduledPinned: '2026-07-18T07:00:00.000Z' },
+      manualOrderByScope: { 'pinned-items': ['session:scheduledPinned'] },
+      sessions: [
+        { ...session('scheduledPinned', 'C:\\alpha'), isScheduledSession: true, unreadAt: '2026-07-18T07:00:00.000Z' },
+        { ...session('scheduledProject', 'C:\\alpha'), isScheduledSession: true },
+        { ...session('scheduledRecent', '', undefined, true), isScheduledSession: true },
+        { ...session('ordinaryWithRun', 'C:\\alpha'), hasScheduledRun: true },
+        session('ordinaryRecent', '', undefined, true),
+      ],
+    }
+    const original = structuredClone(input)
+    const shown = buildSidebarViewModel(input)
+    expect(shown.visibleSessions).toHaveLength(5)
+    for (const organization of ['projects', 'flat'] as const) {
+      const hidden = buildSidebarViewModel({ ...input, organization, showScheduledSessions: false })
+      expect(hidden.visibleSessions.map(item => item.id)).toEqual(['ordinaryWithRun', 'ordinaryRecent'])
+      expect(hidden.pinnedSessions).toEqual([])
+      expect(hidden.allProjectSessions.map(item => item.id)).toEqual(['ordinaryWithRun'])
+      expect(hidden.recentSessions.map(item => item.id)).toEqual(
+        organization === 'projects' ? ['ordinaryRecent'] : ['ordinaryWithRun', 'ordinaryRecent'],
+      )
+      expect(hidden.projectWorkspaces).toEqual(shown.projectWorkspaces)
+      expect([...hidden.projectSessionBuckets.values()][0]?.allSessions.map(item => item.id)).toEqual(['ordinaryWithRun'])
+      expect(hasSidebarUnreadSessions(hidden.visibleSessions)).toBeFalse()
+      const timeline = buildSidebarTimelineModel({
+        now: Date.parse('2026-07-18T12:00:00.000Z'),
+        sessions: hidden.visibleSessions,
+        showPinned: true,
+      })
+      expect(timeline.attentionSessions).toEqual([])
+      expect(timeline.pinnedSessions).toEqual([])
+      expect(timeline.dateSections.flatMap(section => section.sessions.map(item => item.id))).toEqual(['ordinaryWithRun', 'ordinaryRecent'])
+    }
+    expect(buildSidebarViewModel({ ...input, showScheduledSessions: true })).toEqual(shown)
+    expect(input).toEqual(original)
+  })
+
   const projects: DesktopWorkspace[] = [
     { name: 'Alpha', path: 'C:\\alpha' },
     { name: 'Removed', path: 'C:\\removed' },
