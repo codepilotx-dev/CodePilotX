@@ -35,6 +35,18 @@ async function expectContentWidth(locator: Locator, expected: number, tolerance 
   }).toBeLessThanOrEqual(tolerance)
 }
 
+async function expectControlOnRight(row: Locator) {
+  await expect(row).toBeVisible()
+  await expect.poll(() => row.evaluate(element => {
+    const info = element.querySelector('.settings-row-info')!.getBoundingClientRect()
+    const control = element.querySelector('.settings-row-control')!.getBoundingClientRect()
+    const bounds = element.getBoundingClientRect()
+    return control.width > 0 && control.left >= info.right
+      && Math.abs(control.top + control.height / 2 - bounds.top - bounds.height / 2) < 1
+      && control.right <= bounds.right
+  })).toBe(true)
+}
+
 for (const mode of ['light', 'dark'] as const) {
   test(`页面宽度全局自动保存与各页面布局 ${mode}`, async ({ page }) => {
     test.setTimeout(120_000)
@@ -96,6 +108,42 @@ for (const mode of ['light', 'dark'] as const) {
     await expect(option('窄')).toHaveAttribute('data-state', 'on')
     await expect(mainRoute).toHaveAttribute('data-page-width', 'narrow')
     await expectContentWidth(page.locator('.settings-content-inner .settings-page-header').first(), 768)
+
+    // 设置行始终保持左右两列，包含实际触发旧 42rem 容器断点的尺寸。
+    await page.evaluate(() => { window.location.hash = '#/settings/general' })
+    const permissionRows = ['默认权限', '自动审核', '完全访问权限'].map(title =>
+      page.locator('.settings-row').filter({ has: page.getByRole('heading', { name: title, exact: true }) }),
+    )
+    for (const row of permissionRows) await expectControlOnRight(row)
+    const switchBox = await permissionRows[1].getByRole('switch').boundingBox()
+    await page.setViewportSize({ width: 900, height: 1080 })
+    await expect.poll(() => page.locator('.settings-content-inner').evaluate(element => {
+      const style = getComputedStyle(element)
+      const width = element.getBoundingClientRect().width
+        - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      return width < 42 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+    })).toBe(true)
+    for (const row of permissionRows) await expectControlOnRight(row)
+    const narrowSwitchBox = await permissionRows[1].getByRole('switch').boundingBox()
+    expect(narrowSwitchBox!.width).toBeCloseTo(switchBox!.width, 1)
+    expect(narrowSwitchBox!.height).toBeCloseTo(switchBox!.height, 1)
+    const description = permissionRows[2].locator('.settings-row-desc')
+    await expect(description).toHaveCSS('white-space', 'normal')
+    await expect.poll(() => description.evaluate(element => {
+      return element.getBoundingClientRect().height > parseFloat(getComputedStyle(element).lineHeight)
+        && element.scrollHeight <= element.clientHeight + 1
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
+    await expectNoHorizontalOverflow(page)
+    await page.evaluate(() => { window.location.hash = '#/settings/appearance' })
+    for (const title of ['页面宽度', '减少动态效果']) {
+      await expectControlOnRight(page.locator('.settings-row').filter({
+        has: page.getByRole('heading', { name: title, exact: true }),
+      }))
+    }
+    await expect(option('窄')).toHaveAttribute('data-state', 'on')
+    await expectNoHorizontalOverflow(page)
+    await page.setViewportSize({ width: 1920, height: 1080 })
 
     // 3. 导航到聊天页，确认继承“窄”档位，Menu 快捷按钮可见
     await page.evaluate(() => { window.location.hash = '#/threads/visual-rich' })

@@ -599,16 +599,6 @@ button.settings-management-row-main {
     }
   }
 
-  .settings-row {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
-  .settings-row-control {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
   .settings-management-toolbar {
     align-items: stretch;
     flex-direction: column;
