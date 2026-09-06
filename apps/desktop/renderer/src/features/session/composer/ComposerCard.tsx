@@ -177,6 +177,9 @@ type Props = {
   enableParetoCodeRouter?: boolean;
   enableFusionRouter?: boolean;
   thinkingMode: DesktopThinkingMode;
+  modelVariant?: string;
+  modelVariantOptions?: Option<string>[];
+  onModelVariantChange?: (value: string) => void;
   selectedProviderID: ModelProviderID;
   selectedModelPreset: string;
   modelConfigured?: boolean;
@@ -298,6 +301,9 @@ export function ComposerCard({
   enableParetoCodeRouter = false,
   enableFusionRouter = false,
   thinkingMode,
+  modelVariant,
+  modelVariantOptions,
+  onModelVariantChange,
   selectedProviderID,
   selectedModelPreset,
   modelConfigured = true,
@@ -450,7 +456,11 @@ export function ComposerCard({
     return () => { active = false }
   }, [])
   const [thinkingPreviewMode, setThinkingPreviewMode] =
-    useState<DesktopThinkingMode | null>(null);
+    useState<string | null>(null);
+  useEffect(() => {
+    setThinkingPreviewMode(null);
+    setOpenDropdown(null);
+  }, [draftKey]);
   const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
   const [buttonContextRequest, setButtonContextRequest] = useState<{
     start: number;
@@ -523,12 +533,12 @@ export function ComposerCard({
       ? "打开模型配置"
       : (selectedModel?.label ?? "未选择模型");
   const effectiveThinkingOptions = resolveThinkingOptions(
-    deepSeekThinkingControls,
-    thinkingOptions,
+    modelVariantOptions ? false : deepSeekThinkingControls,
+    modelVariantOptions ?? thinkingOptions,
   );
   const selectedThinkingLabel = resolveThinkingLabel(
     effectiveThinkingOptions,
-    thinkingPreviewMode ?? thinkingMode,
+    thinkingPreviewMode ?? modelVariant ?? thinkingMode,
   );
   const composerDocument = useMemo(
     () => document ?? (selectedSkillToken
@@ -1579,7 +1589,7 @@ export function ComposerCard({
             ) : null}
             <ModelPickerPopover
               align="end"
-              deepSeekThinkingControls={deepSeekThinkingControls}
+              deepSeekThinkingControls={modelVariantOptions ? false : deepSeekThinkingControls}
               open={openDropdown === "model"}
               providerOptions={providerOptions}
               selectedModelPreset={selectedModelPreset}
@@ -1587,9 +1597,9 @@ export function ComposerCard({
               showThinkingOptions={showThinkingOptions}
               side="top"
               sideOffset={4}
-              thinkingMode={thinkingMode}
+              thinkingMode={modelVariant ?? thinkingMode}
               thinkingPreviewMode={thinkingPreviewMode}
-              thinkingOptions={thinkingOptions}
+              thinkingOptions={modelVariantOptions ?? thinkingOptions}
               trigger={
                 <ChipButton
                   active={openDropdown === "model"}
@@ -1623,7 +1633,10 @@ export function ComposerCard({
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
               onProviderSearch={onProviderSearch}
-              onThinkingChange={onThinkingChange}
+              onThinkingChange={value => {
+                if (onModelVariantChange) onModelVariantChange(value);
+                else if (value === 'default' || value === 'enabled' || value === 'adaptive' || value === 'disabled') onThinkingChange(value);
+              }}
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
 

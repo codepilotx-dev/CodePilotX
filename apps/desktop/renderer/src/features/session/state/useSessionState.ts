@@ -1,5 +1,6 @@
+import { sessionModelSelections, type SessionModelSelection } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopComposerAttachment,
@@ -94,6 +95,11 @@ export type UseSessionStateOptions = {
 }
 
 export type UseSessionStateResult = {
+  modelSelection: SessionModelSelection | null
+  modelSelectionLoading: boolean
+  modelSelectionError: string | null
+  setModelSelection: (selection: SessionModelSelection) => void
+  reloadModelSelection: () => void
   sessionId: string | null
   sessionsHydrated: boolean
   catalogStatus: DesktopSessionCatalogStatus
@@ -211,6 +217,17 @@ export function useSessionState(
   } = options
 
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const modelSelectionState = useSyncExternalStore(
+    sessionModelSelections.subscribe,
+    () => sessionModelSelections.getSnapshot(sessionId),
+  )
+  const reloadModelSelection = useCallback(() => {
+    void sessionModelSelections.load(sessionId).catch(error => onErrorRef.current(errorMessageOf(error)))
+  }, [sessionId])
+  useEffect(() => { reloadModelSelection() }, [reloadModelSelection])
+  const setModelSelection = useCallback((selection: SessionModelSelection) => {
+    sessionModelSelections.set(sessionId, selection)
+  }, [sessionId])
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [catalogStatus, setCatalogStatus] = useState<DesktopSessionCatalogStatus>({
     state: 'loading',
@@ -678,10 +695,13 @@ export function useSessionState(
       projectlessPrompt?: string,
       creationSurface?: ThreadCreationSurface,
     ): Promise<string | null> => {
+      const selection = await sessionModelSelections.load(null)
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
         {
           ...settingsSnapshot,
+          ...selection,
+          providerBaseURL: '',
           ...(creationSurface ? { creationSurface } : {}),
         },
         target,
@@ -690,6 +710,7 @@ export function useSessionState(
         { propagateError: true },
       )
       if (!nextSessionId) return null
+      sessionModelSelections.set(nextSessionId, selection)
 
       const homeInput = inputBySessionRef.current[HOME_INPUT_KEY] ?? ''
       const homeAttachments =
@@ -773,10 +794,10 @@ export function useSessionState(
   const canSubmit = useMemo(
     () =>
       Boolean(
-        sessionId &&
+        sessionId && modelSelectionState.selection?.model &&
           input.trim(),
       ),
-    [input, sessionId],
+    [input, sessionId, modelSelectionState.selection],
   )
 
   const submitToSession = useCallback(async (
@@ -794,6 +815,15 @@ export function useSessionState(
       (activeSessionIdRef.current === targetSessionId
         ? sessionStatusRef.current
         : 'idle')
+    let selection: SessionModelSelection
+    try {
+      selection = await sessionModelSelections.load(targetSessionId)
+      if (!selection.providerID || !selection.model) throw new Error('请先选择会话模型')
+    } catch (error) {
+      onErrorRef.current(errorMessageOf(error))
+      if (options?.propagateError) throw error
+      return null
+    }
     return submitSessionMessageAction(
       onErrorRef,
       targetSessionId,
@@ -804,7 +834,7 @@ export function useSessionState(
             (value.attachments?.length ?? 0) > 0 ||
             value.skillInvocation),
       ),
-      settingsSnapshot,
+      { ...settingsSnapshot, ...selection, providerBaseURL: '' },
       {
         sessionStatus: targetStatus,
         delivery: options?.delivery,
@@ -817,14 +847,10 @@ export function useSessionState(
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =
       sessionId ??
-      (await createSessionForWorkspaceAction(
-        actionContext,
-        settingsSnapshot,
-        target ?? null,
-      ))
+      (await createSessionForWorkspace(target ?? null))
     if (!targetSessionId) return
     await submitToSession(targetSessionId, { text: input })
-  }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
+  }, [createSessionForWorkspace, input, sessionId, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)
@@ -932,6 +958,11 @@ export function useSessionState(
   )
 
   return {
+    modelSelection: modelSelectionState.selection,
+    modelSelectionLoading: modelSelectionState.loading,
+    modelSelectionError: modelSelectionState.error,
+    setModelSelection,
+    reloadModelSelection,
     sessionId,
     sessionsHydrated,
     catalogStatus,

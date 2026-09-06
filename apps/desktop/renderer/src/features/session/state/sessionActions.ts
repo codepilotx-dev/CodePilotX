@@ -1,3 +1,4 @@
+import { sessionModelSelections } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
@@ -39,6 +40,7 @@ export type SessionSettingsSnapshot = {
   providerBaseURL: string
   model: string
   sessionName: string
+  variant?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
   appendSystemPrompt: string
@@ -234,6 +236,7 @@ export async function submitSessionMessageAction(
     options?.delivery,
   )
   const modelSelection: DesktopModelSelection = {
+    variant: settings.variant,
     providerID: settings.providerID,
     providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
     model: normalizeOptionalText(settings.model),
@@ -333,6 +336,7 @@ export async function closeSessionAction(
     context.onErrorRef.current(errorMessageOf(error))
     return null
   }
+  sessionModelSelections.delete(targetSessionId)
   canonicalThreadCache.invalidate(targetSessionId)
 
   const remaining = sessions.filter(session => session.id !== targetSessionId)

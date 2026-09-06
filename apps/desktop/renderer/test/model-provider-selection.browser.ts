@@ -10,62 +10,58 @@ const providers = [
   { providerID: 'minimax-cn-coding-plan', displayName: 'MiniMax', kind: 'anthropic', apiKeyConfigured: true, defaultModels: ['MiniMax-M3'] },
   { providerID: 'openai', displayName: 'OpenAI', kind: 'openai', apiKeyConfigured: true, defaultModels: ['gpt-5', 'gpt-5-mini'] },
 ];
-let selected = { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' };
-let deferred = false;
+const selected = { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' };
+let deferCatalog = false;
 const pending = [];
+const metadata = { 'gpt-5': { reasoning: true, variants: ['low', 'high'] } };
 function state(providerID = selected.providerID) {
   const provider = providers.find(item => item.providerID === providerID);
-  return { provider, selectedProviderID: providerID, models: provider.defaultModels,
+  return { provider, selectedProviderID: providerID, models: provider.defaultModels, modelMetadata: metadata,
     model: selected.providerID === providerID ? selected.id : provider.defaultModels[0],
     apiKeyConfigured: true, modelConfigured: true, baseURL: '' };
 }
-export function deferSaves() { deferred = true; }
-export function releaseSave() { pending.shift()?.(); }
+export function deferState() { deferCatalog = true; }
+export function releaseState() { deferCatalog = false; pending.splice(0).forEach(resolve => resolve()); }
 export const desktopClient = {
-  getModelProviderState: async providerID => state(providerID),
+  getModelProviderState: async providerID => { if (deferCatalog) await new Promise(resolve => pending.push(resolve)); return state(providerID); },
   listModelProviders: async () => providers,
-  fetchProviderModels: async ({ providerID }) => ({ models: state(providerID).models }),
-  saveModelProvider: async selection => {
-    document.body.dataset.saveStarted = String(Number(document.body.dataset.saveStarted || 0) + 1);
-    if (deferred) await new Promise(resolve => pending.push(resolve));
-    selected = selection;
-    window.dispatchEvent(new Event('desktop:model-provider-changed'));
-    document.body.dataset.saveCompleted = String(Number(document.body.dataset.saveCompleted || 0) + 1);
-    return state();
-  },
+  fetchProviderModels: async ({ providerID }) => ({ models: state(providerID).models, modelMetadata: metadata }),
+  saveModelProvider: async () => { document.body.dataset.saveStarted = '1'; throw Error('Global default must not change'); },
 };
 `
 const harness = `
 import React, { useCallback, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useModelProviderController } from ${JSON.stringify(resolve(rendererRoot, 'src/features/layout/useModelProviderController.ts').replaceAll('\\', '/'))};
-import { deferSaves, releaseSave } from 'model-selection-client';
+import { deferState, releaseState } from 'model-selection-client';
 function Harness() {
-  const [values, setValues] = useState({ providerID: 'minimax-cn-coding-plan', model: 'MiniMax-M3', selectedModelPreset: 'MiniMax-M3', thinkingMode: 'default' });
-  const [item, setItem] = useState({ id: 'session-a', providerID: 'minimax-cn-coding-plan', model: 'MiniMax-M3' });
+  const defaults = { providerID: 'minimax-cn-coding-plan', model: 'MiniMax-M3', thinkingMode: 'default' };
+  const [selections, setSelections] = useState({ 'session-a': defaults, 'session-b': defaults, home: defaults });
+  const [sessionId, setSessionId] = useState('session-a');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const patch = useCallback(value => setValues(current => ({ ...current, ...value })), []);
-  const setProviderID = useCallback(providerID => patch({ providerID }), [patch]);
-  const setProviderBaseURL = useCallback(providerBaseURL => patch({ providerBaseURL }), [patch]);
-  const setModel = useCallback(model => patch({ model }), [patch]);
-  const setSelectedModelPreset = useCallback(selectedModelPreset => patch({ selectedModelPreset }), [patch]);
-  const setThinkingMode = useCallback(thinkingMode => patch({ thinkingMode }), [patch]);
-  const controller = useModelProviderController({ settings: { values, setProviderID, setProviderBaseURL, setModel, setSelectedModelPreset, setThinkingMode, syncExternalSettingsPatch: patch }, activeSessionItem: item, sessionId: item?.id ?? null, hasMessages: true, setErrorMessage: setError, setNoticeMessage: () => {} });
+  const selection = selections[sessionId];
+  const update = useCallback(value => setSelections(current => ({ ...current, [sessionId]: value })), [sessionId]);
+  const controller = useModelProviderController({ selection: loading ? null : selection, onSelectionChange: update, selectionLoading: loading, sessionId: sessionId === 'home' ? null : sessionId, hasMessages: true, setErrorMessage: setError, setNoticeMessage: () => {} });
   return <>
-    <output id="selection">{controller.selectedProviderID + '/' + values.model}</output>
+    <output id="selection">{controller.selectedProviderID + '/' + controller.model}</output>
     <output id="configured">{String(controller.modelConfigured)}</output>
     <output id="preset">{controller.resolvedSelectedModelPreset}</output>
+    <output id="variant">{controller.selectedVariant}</output>
     <output id="error">{error}</output>
+    <output id="unavailable">{controller.selectedModelUnavailableMessage}</output>
     {controller.providerModelOptions.flatMap(provider => provider.modelPresets.map(preset =>
       <button key={provider.providerID + preset.id} onClick={() => controller.handleProviderModelChange(provider.providerID, preset.id)}>{provider.providerID + '/' + preset.id}</button>
     ))}
+    <button onClick={() => update({ ...selection, model: 'missing-model' })}>Missing model</button>
+    <button onClick={() => controller.handleVariantChange('high')}>High</button>
     <button onClick={() => window.dispatchEvent(new Event('desktop:model-provider-changed'))}>Refresh catalog</button>
-    <button onClick={() => setItem(current => ({ ...current, model: 'MiniMax-M2', sessionName: 'Updated title' }))}>Refresh old session</button>
-    <button onClick={() => setItem({ id: 'session-b', providerID: 'minimax-cn-coding-plan', model: 'MiniMax-M3' })}>Switch session</button>
-    <button onClick={() => setItem({ id: 'session-a', providerID: 'minimax-cn-coding-plan', model: 'MiniMax-M3' })}>First session</button>
-    <button onClick={() => setItem(null)}>Home</button>
-    <button onClick={deferSaves}>Defer saves</button>
-    <button onClick={releaseSave}>Release save</button>
+    <button onClick={() => setSessionId('session-b')}>Switch session</button>
+    <button onClick={() => setSessionId('session-a')}>First session</button>
+    <button onClick={() => setSessionId('home')}>Home</button>
+    <button onClick={() => setLoading(value => !value)}>Toggle loading</button>
+    <button onClick={deferState}>Defer catalog</button>
+    <button onClick={releaseState}>Release catalog</button>
   </>;
 }
 createRoot(document.getElementById('root')).render(<Harness />);
@@ -116,46 +112,45 @@ try {
     await expect(page.locator('#preset')).toHaveText(model.split('/')[1]!)
     await expect(page.locator('#error')).toBeEmpty()
   }
+  await expect(page.locator('#configured')).toHaveText('false')
+  assert.deepEqual(errors, [])
+  await page.getByRole('button', { name: 'Toggle loading' }).click()
   await check('minimax-cn-coding-plan/MiniMax-M3')
   await page.getByRole('button', { name: 'openai/gpt-5', exact: true }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-completed', '1')
   await check('openai/gpt-5')
+  await page.getByRole('button', { name: 'High', exact: true }).click()
+  await expect(page.locator('#variant')).toHaveText('high')
   await page.getByRole('button', { name: 'Refresh catalog' }).click()
   await check('openai/gpt-5')
-  await page.getByRole('button', { name: 'openai/gpt-5-mini', exact: true }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-completed', '2')
-  await check('openai/gpt-5-mini')
-  await page.getByRole('button', { name: 'Refresh old session' }).click()
-  await check('openai/gpt-5-mini')
-
-  await page.getByRole('button', { name: 'Defer saves' }).click()
-  await page.getByRole('button', { name: 'openai/gpt-5', exact: true }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-started', '3')
-  await page.getByRole('button', { name: 'openai/gpt-5-mini', exact: true }).click()
-  await check('openai/gpt-5-mini')
-  await page.getByRole('button', { name: 'Release save' }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-started', '4')
-  await check('openai/gpt-5-mini')
-  await page.getByRole('button', { name: 'Release save' }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-completed', '4')
-  await check('openai/gpt-5-mini')
-
+  await expect(page.locator('#variant')).toHaveText('high')
   await page.getByRole('button', { name: 'Switch session' }).click()
   await check('minimax-cn-coding-plan/MiniMax-M3')
-  await page.getByRole('button', { name: 'Home', exact: true }).click()
-  await check('openai/gpt-5-mini')
-  await page.getByRole('button', { name: 'Switch session' }).click()
-  await check('minimax-cn-coding-plan/MiniMax-M3')
-
-  await page.getByRole('button', { name: 'openai/gpt-5', exact: true }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-started', '5')
+  await expect(page.locator('#variant')).toHaveText('default')
   await page.getByRole('button', { name: 'First session' }).click()
+  await check('openai/gpt-5')
+  await expect(page.locator('#variant')).toHaveText('high')
+  await page.getByRole('button', { name: 'Home', exact: true }).click()
   await check('minimax-cn-coding-plan/MiniMax-M3')
-  await page.getByRole('button', { name: 'Release save' }).click()
-  await expect(page.locator('body')).toHaveAttribute('data-save-completed', '5')
+  await page.getByRole('button', { name: 'First session' }).click()
+  await page.getByRole('button', { name: 'Defer catalog' }).click()
+  await page.getByRole('button', { name: 'Refresh catalog' }).click()
+  await page.getByRole('button', { name: 'Switch session' }).click()
+  await page.getByRole('button', { name: 'Release catalog' }).click()
   await check('minimax-cn-coding-plan/MiniMax-M3')
+  await page.getByRole('button', { name: 'Toggle loading' }).click()
+  await expect(page.locator('#configured')).toHaveText('false')
+  await page.getByRole('button', { name: 'openai/gpt-5', exact: true }).click()
+  await page.getByRole('button', { name: 'Toggle loading' }).click()
+  await check('minimax-cn-coding-plan/MiniMax-M3')
+  await expect(page.locator('body')).not.toHaveAttribute('data-save-started')
+  await page.getByRole('button', { name: 'Missing model' }).click()
+  await expect(selection).toHaveText('minimax-cn-coding-plan/missing-model')
+  await expect(page.locator('#configured')).toHaveText('false')
+  await expect(page.locator('#unavailable')).toContainText('minimax-cn-coding-plan/missing-model')
+  await page.getByRole('button', { name: 'Refresh catalog' }).click()
+  await expect(selection).toHaveText('minimax-cn-coding-plan/missing-model')
   assert.deepEqual(errors, [])
-  console.log('Model selection survives catalog/session refresh and delayed saves; another session hydrates its own model.')
+  console.log('Session model/variant remain isolated across catalog refresh, delayed requests, home and loading; no global saves.')
 } finally {
   await browser.close()
 }

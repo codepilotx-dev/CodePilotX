@@ -1,28 +1,27 @@
 import { animate, motion, useMotionValue, useTransform } from 'motion/react'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { DesktopThinkingMode } from '../../../../shared/types.js'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { cx } from '../../../utils/cx.js'
 
 export type ThinkingOption = {
-  value: DesktopThinkingMode
+  value: string
   label: string
 }
 
 export type ThinkingLevelControlProps = {
   deepSeekThinkingControls: boolean
-  thinkingMode: DesktopThinkingMode
+  thinkingMode: string
   thinkingOptions: ThinkingOption[]
-  onThinkingChange: (mode: DesktopThinkingMode) => void
-  onThinkingPreviewChange?: (mode: DesktopThinkingMode | null) => void
+  onThinkingChange: (mode: string) => void
+  onThinkingPreviewChange?: (mode: string | null) => void
   onEndpointLabelsVisibleChange?: (visible: boolean) => void
 }
 
 type ThickPillSliderProps = {
   options: ThinkingOption[]
-  value: DesktopThinkingMode
-  onChange: (value: DesktopThinkingMode) => void
-  onPreviewChange?: (value: DesktopThinkingMode | null) => void
+  value: string
+  onChange: (value: string) => void
+  onPreviewChange?: (value: string | null) => void
   onEndpointLabelsVisibleChange?: (visible: boolean) => void
 }
 
@@ -67,7 +66,7 @@ export function resolveThinkingOptions(
 
 export function resolveThinkingLabel(
   options: ThinkingOption[],
-  thinkingMode: DesktopThinkingMode,
+  thinkingMode: string,
 ): string {
   return options.find(option => option.value === thinkingMode)?.label ?? '默认'
 }

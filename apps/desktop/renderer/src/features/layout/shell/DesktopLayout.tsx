@@ -249,10 +249,10 @@ export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopRuntimeSettings()
   const {
     values: {
-      model,
+      model: defaultModel,
       codingModel,
       sessionName,
-      thinkingMode,
+      thinkingMode: defaultThinkingMode,
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
@@ -264,8 +264,7 @@ export function DesktopLayout(): React.ReactNode {
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
       recentWorkspaces,
-      selectedModelPreset,
-      providerID,
+      providerID: defaultProviderID,
       providerBaseURL,
       showContextUsage,
       diffMarkerStyle,
@@ -279,7 +278,6 @@ export function DesktopLayout(): React.ReactNode {
     permissionMode,
     settingsLoaded,
     setPermissionMode,
-    setThinkingMode,
     setRecentWorkspaces,
     setDrawerTab,
     setReviewView,
@@ -428,11 +426,11 @@ export function DesktopLayout(): React.ReactNode {
     permissionConfig: settings.values.permissionConfig,
     planModeActive: homePlanModeActive,
     localRouterMode: homeLocalRouterMode,
-    providerID,
+    providerID: defaultProviderID,
     providerBaseURL,
-    model,
+    model: defaultModel,
     sessionName,
-    thinkingMode,
+    thinkingMode: defaultThinkingMode,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
@@ -1065,19 +1063,15 @@ export function DesktopLayout(): React.ReactNode {
   const initialSideChatSettings = useMemo(() => ({
     permissionMode: effectivePermissionMode,
     planModeActive,
-    providerID,
-    ...(providerBaseURL.trim() ? { providerBaseURL: providerBaseURL.trim() } : {}),
-    model,
-    selectedModelPreset,
-    thinkingMode,
+    providerID: session.modelSelection?.providerID ?? '',
+    model: session.modelSelection?.model ?? '',
+    selectedModelPreset: 'custom',
+    thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
+    variant: session.modelSelection?.variant,
   }), [
     effectivePermissionMode,
-    model,
     planModeActive,
-    providerBaseURL,
-    providerID,
-    selectedModelPreset,
-    thinkingMode,
+    session.modelSelection,
   ])
 
   const {
@@ -1094,6 +1088,9 @@ export function DesktopLayout(): React.ReactNode {
     requestCloseSideChatTabs,
     reportSideChatState,
     getSideChatSettings,
+    isSideChatModelLoading,
+    getSideChatModelError,
+    reloadSideChatModel,
     updateSideChatSettings,
     isCreatingSideChat,
     closeConfirmationOpen,
@@ -1594,9 +1591,14 @@ export function DesktopLayout(): React.ReactNode {
     selectedProviderID, selectedProviderModelPresets, resolvedSelectedModelPreset,
     selectedModelMetadata, deepSeekThinkingControls, showThinkingOptions,
     modelConfigured, providerModelOptions,
-    handleProviderModelChange, handleProviderOpen, handleProviderSearch,
+    handleProviderModelChange, handleProviderOpen, handleProviderSearch, handleThinkingChange,
+    selectedVariant, variantOptions, handleVariantChange,
+    selectedModelUnavailableMessage, refreshProviderState,
   } = useModelProviderController({
-    settings, activeSessionItem, sessionId, hasMessages: messages.length > 0,
+    selection: session.modelSelection,
+    onSelectionChange: session.setModelSelection,
+    selectionLoading: session.modelSelectionLoading,
+    sessionId, hasMessages: messages.length > 0,
     setErrorMessage, setNoticeMessage,
   })
 
@@ -2000,11 +2002,19 @@ export function DesktopLayout(): React.ReactNode {
           enableFullAccessPermissionMode:
             enableFullAccessPermissionMode ?? false,
           codingModel,
-          thinkingMode,
+          thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
+          modelVariant: selectedVariant,
+          modelVariantOptions: variantOptions,
+          onModelVariantChange: handleVariantChange,
+          modelSelectionError: session.modelSelectionError ?? selectedModelUnavailableMessage,
+          onRetryModelSelection: () => {
+            session.reloadModelSelection()
+            void refreshProviderState()
+          },
           selectedProviderID,
           selectedModelPreset: resolvedSelectedModelPreset,
-          modelConfigured,
-          modelCatalogLoading,
+          modelConfigured: modelConfigured && (!routedSessionId || routedSessionId === sessionId),
+          modelCatalogLoading: modelCatalogLoading || session.modelSelectionLoading,
           selectedModelMetadata,
           showThinkingOptions,
           deepSeekThinkingControls,
@@ -2042,7 +2052,7 @@ export function DesktopLayout(): React.ReactNode {
           onPermissionChange: handlePermissionChange,
           onPlanModeChange: handlePlanModeChange,
           onLocalRouterModeChange: handleLocalRouterModeChange,
-          onThinkingChange: setThinkingMode,
+          onThinkingChange: handleThinkingChange,
           createSessionForWorkspace,
           submitToSession,
           queuedFollowUps,
@@ -2081,16 +2091,21 @@ export function DesktopLayout(): React.ReactNode {
         : undefined)
     const sideModelMetadata = sideProviderSummary?.modelMetadata?.[
       sideSettings.model
-    ] ?? providerState?.modelMetadata?.[sideSettings.model]
+    ] ?? (providerState?.selectedProviderID === sideSettings.providerID ? providerState.modelMetadata?.[sideSettings.model] : undefined)
     const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
       providerID: sideSettings.providerID,
       model: sideSettings.model,
       metadata: sideModelMetadata,
     })
+    const sideModelConfigured = Boolean(sideSettings.model && sideProviderSummary?.apiKeyConfigured
+      && sideModelPresets.some(preset => preset.value === sideSettings.model))
+    const sideModelError = getSideChatModelError(tab.id)
+      ?? (!isSideChatModelLoading(tab.id) && !modelCatalogLoading && sideSettings.model && !sideModelConfigured
+        ? `当前会话模型不可用：${sideSettings.providerID}/${sideSettings.model}，请检查提供商配置` : null)
     const sideShowThinkingOptions =
       sideDeepSeekThinkingControls ||
       sideProviderSummary?.kind === 'anthropic' ||
-      sideModelMetadata?.reasoning === true
+      sideModelMetadata?.reasoning === true || Boolean(sideModelMetadata?.variants?.length)
     return (
       <DesktopComposer
         input={sideChatInput}
@@ -2108,11 +2123,22 @@ export function DesktopLayout(): React.ReactNode {
         enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         codingModel={codingModel}
+        modelSelectionError={sideModelError}
+        onRetryModelSelection={() => { reloadSideChatModel(tab.id); void refreshProviderState() }}
+        modelVariant={sideSettings.variant ?? 'default'}
+        modelVariantOptions={[
+          { value: 'default', label: '默认' },
+          ...(sideModelMetadata?.variants ?? []).filter(id => id !== 'default').map(id => ({ value: id, label: id })),
+        ]}
+        onModelVariantChange={variant => updateSideChatSettings(tab.id, {
+          variant: variant === 'default' ? undefined : variant,
+          thinkingMode: variant === 'enabled' || variant === 'adaptive' || variant === 'disabled' ? variant : 'default',
+        })}
         thinkingMode={sideSettings.thinkingMode}
         selectedProviderID={sideSettings.providerID}
         selectedModelPreset={sideSelectedModelPreset}
-        modelConfigured={modelConfigured}
-        modelCatalogLoading={modelCatalogLoading}
+        modelConfigured={sideModelConfigured}
+        modelCatalogLoading={modelCatalogLoading || isSideChatModelLoading(tab.id)}
         selectedModelMetadata={sideModelMetadata}
         showThinkingOptions={sideShowThinkingOptions}
         deepSeekThinkingControls={sideDeepSeekThinkingControls}
@@ -2141,11 +2167,18 @@ export function DesktopLayout(): React.ReactNode {
             candidate => candidate.id === nextPresetId,
           )
           if (!providerOption || !preset) return
+          if (nextProviderID === sideSettings.providerID && preset.value === sideSettings.model) return
+          const metadata = (providerState?.selectedProviderID === nextProviderID ? providerState.modelMetadata?.[preset.value] : undefined)
+            ?? modelProviders.find(provider => provider.providerID === nextProviderID)?.modelMetadata?.[preset.value]
+          const variant = sideSettings.variant ?? (sideSettings.thinkingMode !== 'default' ? sideSettings.thinkingMode : undefined)
+          const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
           updateSideChatSettings(tab.id, {
             providerID: nextProviderID,
             providerBaseURL: providerOption.baseURL ?? '',
             model: preset.value,
             selectedModelPreset: nextPresetId,
+            variant: preserveThinking ? variant : undefined,
+            thinkingMode: preserveThinking ? sideSettings.thinkingMode : 'default',
           })
         }}
         onProviderOpen={handleProviderOpen}
@@ -2180,7 +2213,7 @@ export function DesktopLayout(): React.ReactNode {
         }}
         onLocalRouterModeChange={() => undefined}
         onThinkingChange={value => {
-          updateSideChatSettings(tab.id, { thinkingMode: value })
+          updateSideChatSettings(tab.id, { thinkingMode: value, variant: sideModelMetadata?.variants?.includes(value) ? value : undefined })
         }}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}

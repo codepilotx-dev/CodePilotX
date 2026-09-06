@@ -2,7 +2,6 @@ import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'reac
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronRight } from 'lucide-react'
 import type {
-  DesktopThinkingMode,
   ModelProviderID,
 } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
@@ -33,11 +32,11 @@ export type ModelPickerPopoverProps = {
   providerOptions: ProviderModelOption[]
   deepSeekThinkingControls: boolean
   showThinkingOptions: boolean
-  thinkingMode: DesktopThinkingMode
-  thinkingPreviewMode?: DesktopThinkingMode | null
+  thinkingMode: string
+  thinkingPreviewMode?: string | null
   thinkingOptions: ThinkingOption[]
-  onThinkingChange: (mode: DesktopThinkingMode) => void
-  onThinkingPreviewChange?: (mode: DesktopThinkingMode | null) => void
+  onThinkingChange: (mode: string) => void
+  onThinkingPreviewChange?: (mode: string | null) => void
   onProviderModelChange: (providerID: ModelProviderID, modelID: string) => void
   onProviderOpen?: (providerID: ModelProviderID) => void
   onProviderSearch?: (providerID: ModelProviderID, query: string) => void

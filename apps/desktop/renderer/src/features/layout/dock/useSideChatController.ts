@@ -8,6 +8,7 @@ import type {
   ModelProviderID,
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { sessionModelSelections } from '../../session/state/sessionModelSelectionStore.js'
 import type {
   ComposerDeliveryIntent,
   ComposerDraftContentSnapshot,
@@ -30,6 +31,7 @@ export type SideChatComposerSettings = {
   model: string
   selectedModelPreset: string
   thinkingMode: DesktopThinkingMode
+  variant?: string
 }
 
 type PendingClose = {
@@ -74,6 +76,8 @@ export function useSideChatController({
   const visibleTurnCountsRef = useRef(new Map<string, number>())
   const statusesRef = useRef(new Map<string, DesktopSessionStatus>())
   const settingsRef = useRef(new Map<string, SideChatComposerSettings>())
+  const initialSettingsRef = useRef(initialSettings)
+  const modelLoadsRef = useRef(new Map<string, Promise<SideChatComposerSettings>>())
   const creatingTabIdsRef = useRef(new Set<string>())
   const cancelledCreatingTabIdsRef = useRef(new Set<string>())
   const activeComposerKeyRef = useRef<string | null>(null)
@@ -83,6 +87,53 @@ export function useSideChatController({
   const attachmentsRef = useRef(sideChatAttachments)
   inputRef.current = sideChatInput
   attachmentsRef.current = sideChatAttachments
+
+  useEffect(() => sessionModelSelections.subscribe(() => {
+    setSideChatTabsVersion(version => version + 1)
+  }), [])
+
+  const readSideChatSettings = useCallback((tabId: string): SideChatComposerSettings | undefined => {
+    const settings = settingsRef.current.get(tabId)
+    const selection = sessionModelSelections.getSnapshot(tabId.slice('side-chat:'.length)).selection
+    return settings && selection
+      ? { ...settings, ...selection, variant: selection.variant }
+      : settings
+  }, [])
+
+  const loadSideChatSettings = useCallback((tabId: string): Promise<SideChatComposerSettings> => {
+    const existing = readSideChatSettings(tabId)
+    if (existing) return Promise.resolve(existing)
+    const loading = modelLoadsRef.current.get(tabId)
+    if (loading) return loading
+    const threadId = tabId.slice('side-chat:'.length)
+    const request = sessionModelSelections.load(threadId).then(selection => {
+      const restored = {
+        ...initialSettingsRef.current,
+        ...selection,
+        variant: selection.variant,
+        providerBaseURL: undefined,
+        selectedModelPreset: '',
+      }
+      if (modelLoadsRef.current.get(tabId) === request) {
+        settingsRef.current.set(tabId, restored)
+      }
+      return restored
+    }).finally(() => {
+      if (modelLoadsRef.current.get(tabId) === request) {
+        modelLoadsRef.current.delete(tabId)
+        setSideChatTabsVersion(version => version + 1)
+      }
+    })
+    modelLoadsRef.current.set(tabId, request)
+    return request
+  }, [readSideChatSettings])
+
+  useEffect(() => {
+    if (!activeTab || creatingTabIdsRef.current.has(activeTab.id)) return
+    void loadSideChatSettings(activeTab.id).catch(error => {
+      onError(error instanceof Error ? error.message : String(error))
+    })
+  }, [activeTab?.id, loadSideChatSettings, onError])
 
   useEffect(() => {
     void desktopClient.getRuntimeCapabilities()
@@ -130,6 +181,23 @@ export function useSideChatController({
       onError('当前 Agent 不支持侧边聊天，请更新并重启 CodePilotX。')
       return null
     }
+    let creationSettings = { ...initialSettings }
+    try {
+      const selection = await sessionModelSelections.load(sourceThreadId)
+      creationSettings = {
+        ...creationSettings,
+        ...selection,
+        variant: selection.variant,
+        providerBaseURL: undefined,
+        selectedModelPreset: '',
+      }
+      if (!creationSettings.model || !creationSettings.providerID) {
+        throw new Error('请先为当前会话配置模型，再创建侧边聊天。')
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : String(error))
+      return null
+    }
     const nextIndex = nextIndexBySourceRef.current.get(sourceThreadId) ?? 1
     nextIndexBySourceRef.current.set(sourceThreadId, nextIndex + 1)
     const title = nextIndex === 1 ? '侧边聊天' : `侧边聊天 ${nextIndex}`
@@ -143,7 +211,7 @@ export function useSideChatController({
       title,
     }
     creatingTabIdsRef.current.add(pendingTab.id)
-    settingsRef.current.set(pendingTab.id, { ...initialSettings })
+    settingsRef.current.set(pendingTab.id, creationSettings)
     openRightDockTab(pendingTab)
     setSideChatTabsVersion(version => version + 1)
     try {
@@ -170,7 +238,8 @@ export function useSideChatController({
       }
       const pendingSettings = settingsRef.current.get(pendingTab.id)
       settingsRef.current.delete(pendingTab.id)
-      settingsRef.current.set(tab.id, pendingSettings ?? { ...initialSettings })
+      settingsRef.current.set(tab.id, pendingSettings ?? creationSettings)
+      sessionModelSelections.set(tab.threadId, pendingSettings ?? creationSettings)
       const current = tabsBySourceRef.current.get(sourceThreadId) ?? []
       tabsBySourceRef.current.set(sourceThreadId, [...current, tab])
       draftsRef.current.set(tab.id, { input: '', attachments: [] })
@@ -212,14 +281,22 @@ export function useSideChatController({
       },
     ): Promise<'sent' | 'queued'> => {
       const tabId = `side-chat:${sessionId}`
-      const settings = settingsRef.current.get(tabId) ?? initialSettings
+      const settings = { ...await loadSideChatSettings(tabId) }
+      if (!settings.providerID || !settings.model) throw new Error('请先选择侧边聊天模型')
+      const provider = await desktopClient.getModelProviderState(settings.providerID)
+      const model = {
+        providerID: settings.providerID,
+        model: settings.model,
+        ...(settings.variant ? { variant: settings.variant } : {}),
+        ...(provider.baseURL ? { providerBaseURL: provider.baseURL } : {}),
+      }
       if (options?.delivery === 'follow-up') {
         const outcome = await desktopClient.submitSessionFollowUp(
           sessionId,
           value,
           'follow-up',
           options.inputId,
-          settings,
+          model,
         )
         return outcome === 'queued' ? 'queued' : 'sent'
       }
@@ -230,25 +307,19 @@ export function useSideChatController({
           value,
           'steer',
           options?.inputId,
-          settings,
+          model,
         )
         return 'sent'
       }
       await desktopClient.sendUserMessage(
         sessionId,
         value,
-        {
-          providerID: settings.providerID,
-          ...(settings.providerBaseURL
-            ? { providerBaseURL: settings.providerBaseURL }
-            : {}),
-          model: settings.model,
-        },
+        model,
         options?.inputId,
       )
       return 'sent'
     },
-    [initialSettings],
+    [loadSideChatSettings],
   )
 
   const discardTabs = useCallback(async (
@@ -267,6 +338,8 @@ export function useSideChatController({
         visibleTurnCountsRef.current.delete(tab.threadId)
         statusesRef.current.delete(tab.threadId)
         settingsRef.current.delete(tab.id)
+        modelLoadsRef.current.delete(tab.id)
+        sessionModelSelections.delete(tab.threadId)
         const sourceTabs = tabsBySourceRef.current.get(tab.sourceThreadId) ?? []
         tabsBySourceRef.current.set(
           tab.sourceThreadId,
@@ -341,8 +414,16 @@ export function useSideChatController({
 
   const getSideChatSettings = useCallback(
     (tabId: SideChatTab['id']): SideChatComposerSettings =>
-      settingsRef.current.get(tabId) ?? initialSettings,
-    [initialSettings],
+      readSideChatSettings(tabId) ?? {
+        ...initialSettingsRef.current,
+        providerID: '',
+        providerBaseURL: undefined,
+        model: '',
+        selectedModelPreset: '',
+        thinkingMode: 'default',
+        variant: undefined,
+      },
+    [readSideChatSettings],
   )
 
   const updateSideChatSettings = useCallback(
@@ -350,14 +431,39 @@ export function useSideChatController({
       tabId: SideChatTab['id'],
       patch: Partial<SideChatComposerSettings>,
     ): void => {
-      settingsRef.current.set(tabId, {
-        ...(settingsRef.current.get(tabId) ?? initialSettings),
+      const current = readSideChatSettings(tabId)
+      if (!current) {
+        onError('侧边聊天模型尚未加载，请稍后重试。')
+        return
+      }
+      const next = {
+        ...current,
         ...patch,
-      })
+      }
+      settingsRef.current.set(tabId, next)
+      if (!creatingTabIdsRef.current.has(tabId)) {
+        sessionModelSelections.set(tabId.slice('side-chat:'.length), next)
+      }
       setSideChatTabsVersion(version => version + 1)
     },
-    [initialSettings],
+    [onError, readSideChatSettings],
   )
+
+  const isSideChatModelLoading = (tabId: SideChatTab['id']): boolean =>
+    !settingsRef.current.has(tabId) &&
+    !sessionModelSelections.getSnapshot(tabId.slice('side-chat:'.length)).error
+
+  const getSideChatModelError = (tabId: SideChatTab['id']): string | null =>
+    settingsRef.current.has(tabId)
+      ? null
+      : sessionModelSelections.getSnapshot(tabId.slice('side-chat:'.length)).error
+
+  const reloadSideChatModel = (tabId: SideChatTab['id']): void => {
+    void loadSideChatSettings(tabId).catch(error => {
+      onError(error instanceof Error ? error.message : String(error))
+    })
+    setSideChatTabsVersion(version => version + 1)
+  }
 
   const isCreatingSideChat = useCallback(
     (tabId: SideChatTab['id']): boolean =>
@@ -460,6 +566,9 @@ export function useSideChatController({
     reportSideChatState,
     getSideChatSettings,
     updateSideChatSettings,
+    isSideChatModelLoading,
+    getSideChatModelError,
+    reloadSideChatModel,
     isCreatingSideChat,
     closeConfirmationOpen,
     skipCloseConfirmation,

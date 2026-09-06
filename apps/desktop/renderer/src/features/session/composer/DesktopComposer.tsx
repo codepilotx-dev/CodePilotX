@@ -1,3 +1,4 @@
+import { Button } from '../../../components/ui/Button.js'
 import { useEffect } from 'react'
 import type React from 'react'
 import type {
@@ -89,9 +90,14 @@ export type DesktopComposerProps = {
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
   codingModel?: string
+  modelVariant?: string
+  modelVariantOptions?: { value: string; label: string }[]
+  onModelVariantChange?: (value: string) => void
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
+  modelSelectionError?: string | null
+  onRetryModelSelection?: () => void
   modelConfigured: boolean
   modelCatalogLoading?: boolean
   selectedModelMetadata?: DesktopModelMetadata
@@ -205,8 +211,13 @@ export function DesktopComposer({
   enableFullAccessPermissionMode,
   codingModel,
   thinkingMode,
+  modelVariant,
+  modelVariantOptions,
+  onModelVariantChange,
   selectedProviderID,
   selectedModelPreset,
+  modelSelectionError,
+  onRetryModelSelection,
   modelConfigured,
   modelCatalogLoading = false,
   selectedModelMetadata,
@@ -361,6 +372,11 @@ export function DesktopComposer({
   }
 
   return (
+    <>
+    {modelSelectionError && <div role="alert">
+      {modelSelectionError}
+      <Button color="secondary" onClick={onRetryModelSelection}>重新加载模型</Button>
+    </div>}
     <ComposerCard
       draftKey={draftKey}
       input={input}
@@ -389,6 +405,9 @@ export function DesktopComposer({
       localRouterMode={localRouterMode}
       enableParetoCodeRouter={enableParetoCodeRouter}
       enableFusionRouter={enableFusionRouter}
+      modelVariant={modelVariant}
+      modelVariantOptions={modelVariantOptions}
+      onModelVariantChange={onModelVariantChange}
       thinkingMode={thinkingMode}
       selectedProviderID={selectedProviderID ?? 'anthropic'}
       selectedModelPreset={selectedModelPreset}
@@ -468,5 +487,6 @@ export function DesktopComposer({
       onGoalComplete={onGoalComplete}
       onGoalClear={onGoalClear}
     />
+    </>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopModelMetadata,
+  DesktopThinkingMode,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
   ModelProviderID,
@@ -9,29 +10,28 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../services/desktop-client/provider-adapters.js'
 import { useModelCatalogLoading, withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
 import { buildModelPresets, resolveModelPresetId } from '../../modelPresets.js'
-import type { SessionListItem } from '../../uiTypes.js'
-import type { UseDesktopRuntimeSettingsResult } from '../settings/useDesktopSettings.js'
+import type { SessionModelSelection } from '../session/state/sessionModelSelectionStore.js'
 
 export function useModelProviderController({
-  settings,
-  activeSessionItem,
+  selection,
+  onSelectionChange,
+  selectionLoading,
   sessionId,
   hasMessages,
   setErrorMessage,
   setNoticeMessage,
 }: {
-  settings: UseDesktopRuntimeSettingsResult
-  activeSessionItem: SessionListItem | null | undefined
+  selection: SessionModelSelection | null
+  onSelectionChange: (selection: SessionModelSelection) => void
+  selectionLoading: boolean
   sessionId: string | null
   hasMessages: boolean
   setErrorMessage: (message: string) => void
   setNoticeMessage: (message: string) => void
 }) {
-  const {
-    values: { model, providerID, selectedModelPreset, thinkingMode },
-    setProviderID, setProviderBaseURL, setSelectedModelPreset, setModel,
-    setThinkingMode, syncExternalSettingsPatch,
-  } = settings
+  const model = selection?.model ?? ''
+  const providerID = selection?.providerID
+  const thinkingMode = selection?.thinkingMode ?? 'default'
   const [providerState, setProviderState] = useState<DesktopModelProviderState | null>(null)
   const [modelProviders, setModelProviders] = useState<DesktopModelProviderSummary[]>([])
   const modelCatalogLoading = useModelCatalogLoading()
@@ -42,21 +42,12 @@ export function useModelProviderController({
       ),
     [providerState],
   )
-  const syncedSessionModelRef = useRef<string | null>(null)
-  const modelRef = useRef(model)
   const providerIDRef = useRef(providerID)
-  const selectionRequestIdRef = useRef(0)
-  const selectionSaveTailRef = useRef<Promise<unknown>>(Promise.resolve())
-  const sessionIdRef = useRef(sessionId)
-  sessionIdRef.current = sessionId
+  providerIDRef.current = providerID
   const providerStateRequestIdRef = useRef(0)
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
-  useEffect(() => {
-    modelRef.current = model
-    providerIDRef.current = providerID
-  }, [model, providerID])
   const providerModelOptions = useMemo(
     () => {
       const providers = [...modelProviders]
@@ -90,23 +81,25 @@ export function useModelProviderController({
   const selectedProviderModelPresets =
     providerModelOptions.find(
       provider => provider.providerID === selectedProviderID,
-    )?.modelPresets ?? modelPresets
+    )?.modelPresets ?? []
   const resolvedSelectedModelPreset = resolveModelPresetId(
     model,
-    selectedModelPreset,
+    undefined,
     selectedProviderModelPresets,
   )
   const selectedProviderSummary =
     modelProviders.find(provider => provider.providerID === selectedProviderID) ??
-    (providerState?.provider.providerID === selectedProviderID
+    (providerState && providerState.provider.providerID === selectedProviderID
       ? providerState.provider
       : undefined)
   const selectedModelMetadata =
-    model && selectedProviderSummary?.modelMetadata
-      ? selectedProviderSummary.modelMetadata[model]
-      : model && providerState?.modelMetadata
-        ? providerState.modelMetadata[model]
-        : undefined
+    (providerState && providerState.selectedProviderID === selectedProviderID ? providerState.modelMetadata?.[model] : undefined)
+    ?? selectedProviderSummary?.modelMetadata?.[model]
+  const selectedVariant = selection?.variant ?? 'default'
+  const variantOptions = [
+    { value: 'default', label: '默认' },
+    ...(selectedModelMetadata?.variants ?? []).filter(id => id !== 'default').map(id => ({ value: id, label: id })),
+  ]
   const deepSeekThinkingControls = isDeepSeekThinkingModel({
     providerID: selectedProviderID,
     model,
@@ -115,7 +108,7 @@ export function useModelProviderController({
   const showThinkingOptions =
     deepSeekThinkingControls ||
     selectedProviderSummary?.kind === 'anthropic' ||
-    selectedModelMetadata?.reasoning === true
+    selectedModelMetadata?.reasoning === true || Boolean(selectedModelMetadata?.variants?.length)
   const selectedModelAvailable = Boolean(
     model
     && selectedProviderSummary
@@ -126,66 +119,24 @@ export function useModelProviderController({
         : selectedProviderSummary.defaultModels.includes(model)
     ),
   )
-  const modelConfigured = selectedProviderSummary?.apiKeyConfigured === true
-    && (Boolean(sessionId) || providerState?.modelConfigured === true)
+  const modelConfigured = !selectionLoading && selectedProviderSummary?.apiKeyConfigured === true
     && selectedModelAvailable
-
-  useEffect(() => {
-    const activeModel = activeSessionItem?.model?.trim()
-    const activeProviderID = activeSessionItem?.providerID
-    // Session history seeds the composer on entry, not after each turn update.
-    const syncKey = activeSessionItem?.id ?? null
-    if (!syncKey) syncedSessionModelRef.current = null
-    if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
-      return
-    }
-    syncedSessionModelRef.current = syncKey
-    modelRef.current = activeModel
-    if (activeProviderID) providerIDRef.current = activeProviderID
-    syncExternalSettingsPatch({
-      ...(activeProviderID ? { providerID: activeProviderID } : {}),
-      ...(model !== activeModel ? { model: activeModel } : {}),
-    })
-    const nextPreset = resolveModelPresetId(
-      activeModel,
-      undefined,
-      selectedProviderModelPresets,
-    )
-    if (selectedModelPreset !== nextPreset) {
-      setSelectedModelPreset(nextPreset)
-    }
-  }, [
-    activeSessionItem?.id,
-    activeSessionItem?.model,
-    activeSessionItem?.providerID,
-    model,
-    selectedProviderModelPresets,
-    selectedModelPreset,
-    setSelectedModelPreset,
-    syncExternalSettingsPatch,
-  ])
+  const selectedModelUnavailableMessage = selection?.model && !selectionLoading && !modelCatalogLoading
+    && providerState?.selectedProviderID === selectedProviderID && !modelConfigured
+    ? `当前会话模型不可用：${selection.providerID}/${selection.model}，请检查提供商配置`
+    : null
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
     const requestId = ++providerStateRequestIdRef.current
+    const requestedProviderID = providerID
     try {
       const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(sessionId ? providerIDRef.current : undefined),
+        desktopClient.getModelProviderState(requestedProviderID),
         desktopClient.listModelProviders(),
       ])
-      if (requestId !== providerStateRequestIdRef.current) return
+      if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
       setProviderState(next)
       setModelProviders(providers)
-      const activeModel = sessionId ? modelRef.current : null
-      const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      syncExternalSettingsPatch({
-        providerID: next.selectedProviderID,
-        providerBaseURL: next.baseURL ?? '',
-        ...(activeModel
-          ? { model: activeModel }
-          : shouldSyncModel
-            ? { model: next.model }
-            : {}),
-      })
       if (
         next.selectedProviderID &&
         next.apiKeyConfigured
@@ -207,6 +158,7 @@ export function useModelProviderController({
           }),
         )
           .then(result => {
+            if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
             setProviderState(current => {
               if (current?.selectedProviderID !== next.selectedProviderID) {
                 return current
@@ -223,20 +175,19 @@ export function useModelProviderController({
             })
             fetchedModelCatalogKeysRef.current.add(catalogKey)
           })
-          .catch(error =>
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            ),
-          )
+          .catch(error => {
+            if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
+            setErrorMessage(error instanceof Error ? error.message : String(error))
+          })
           .finally(() => {
             pendingModelCatalogKeysRef.current.delete(catalogKey)
           })
       }
     } catch (error) {
-      if (requestId !== providerStateRequestIdRef.current) return
+      if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
-  }, [sessionId, syncExternalSettingsPatch, setErrorMessage])
+  }, [providerID, setErrorMessage])
 
   useEffect(() => {
     void refreshProviderState()
@@ -252,90 +203,49 @@ export function useModelProviderController({
   }, [refreshProviderState])
 
   useEffect(() => {
-    if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
-      setThinkingMode('default')
-      return
-    }
-    if (showThinkingOptions || thinkingMode === 'default') return
-    setThinkingMode('default')
-  }, [
-    deepSeekThinkingControls,
-    showThinkingOptions,
-    thinkingMode,
-    setThinkingMode,
-  ])
+    if (!selection || selectionLoading || !selectedModelMetadata || thinkingMode === 'default') return
+    if (selectedModelMetadata.variants?.includes(thinkingMode)) return
+    // A historical provider-specific variant stays intact until the user changes it.
+    if (selection.variant && selection.variant !== thinkingMode) return
+    onSelectionChange({ ...selection, thinkingMode: 'default', variant: undefined })
+  }, [selection, selectionLoading, selectedModelMetadata, thinkingMode, onSelectionChange])
+
+  const handleVariantChange = useCallback((variant: string): void => {
+    if (!selection || selectionLoading) return
+    if (variant !== 'default' && !selectedModelMetadata?.variants?.includes(variant)) return
+    const nextThinkingMode = variant === 'enabled' || variant === 'adaptive' || variant === 'disabled' ? variant : 'default'
+    onSelectionChange({ ...selection, thinkingMode: nextThinkingMode, variant: variant === 'default' ? undefined : variant })
+  }, [selection, selectionLoading, selectedModelMetadata, onSelectionChange])
+  const handleThinkingChange = useCallback((mode: DesktopThinkingMode): void => {
+    handleVariantChange(mode)
+  }, [handleVariantChange])
 
   const handleProviderModelChange = useCallback(
     (providerID: ModelProviderID, nextPresetId: string): void => {
-      const providerOption = providerModelOptions.find(
-        provider => provider.providerID === providerID,
-      )
-      if (!providerOption) return
-
-      const providerSummary =
-        modelProviders.find(provider => provider.providerID === providerID) ??
-        (providerState?.provider.providerID === providerID
-          ? providerState.provider
-          : undefined)
-      const baseURL =
-        providerState?.selectedProviderID === providerID
-          ? providerState.baseURL
-          : providerSummary?.baseURL
-
-      const preset = providerOption.modelPresets.find(
-        item => item.id === nextPresetId,
-      )
-      if (!preset) return
-      const requestId = ++selectionRequestIdRef.current
-      ++providerStateRequestIdRef.current
-      modelRef.current = preset.value
-      providerIDRef.current = providerID
-      setProviderID(providerID)
-      setProviderBaseURL(baseURL ?? '')
-      setSelectedModelPreset(nextPresetId)
-      setModel(preset.value)
-      if (sessionId && hasMessages) {
-        setNoticeMessage('在对话过程中切换模型会降低性能表现')
-      }
-      const operation = selectionSaveTailRef.current
-        .catch(() => undefined)
-        .then(() => desktopClient.saveModelProvider({ providerID, id: preset.value }))
-      selectionSaveTailRef.current = operation
-      void operation
-        .then(next => {
-          if (requestId !== selectionRequestIdRef.current || sessionIdRef.current !== sessionId) return
-          ++providerStateRequestIdRef.current
-          setProviderState(next)
-          setProviderID(next.selectedProviderID)
-          setProviderBaseURL(next.baseURL ?? '')
-          setModel(next.model)
-        })
-        .catch(error => {
-          if (requestId !== selectionRequestIdRef.current || sessionIdRef.current !== sessionId) return
-          setErrorMessage(error instanceof Error ? error.message : String(error))
-        })
+      if (!selection || selectionLoading) return
+      const providerOption = providerModelOptions.find(provider => provider.providerID === providerID)
+      const preset = providerOption?.modelPresets.find(item => item.id === nextPresetId)
+      if (!preset || (providerID === selection.providerID && preset.value === selection.model)) return
+      const metadata = (providerState?.selectedProviderID === providerID ? providerState.modelMetadata?.[preset.value] : undefined)
+        ?? modelProviders.find(provider => provider.providerID === providerID)?.modelMetadata?.[preset.value]
+      const variant = selection.variant ?? (selection.thinkingMode !== 'default' ? selection.thinkingMode : undefined)
+      const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
+      onSelectionChange({ ...selection, providerID, model: preset.value,
+        variant: preserveThinking ? variant : undefined,
+        thinkingMode: preserveThinking ? selection.thinkingMode : 'default' })
+      if (sessionId && hasMessages) setNoticeMessage('在对话过程中切换模型会降低性能表现')
     },
-    [
-      modelProviders,
-      hasMessages,
-      providerModelOptions,
-      providerState,
-      sessionId,
-      setModel,
-      setProviderBaseURL,
-      setProviderID,
-      setSelectedModelPreset,
-      setErrorMessage,
-      setNoticeMessage,
-    ],
+    [selection, selectionLoading, providerModelOptions, providerState, modelProviders, onSelectionChange, sessionId, hasMessages, setNoticeMessage],
   )
 
   const handleProviderOpen = useCallback(
     (providerID: ModelProviderID): void => {
       if (openedProviderCatalogsRef.current.has(providerID)) return
       openedProviderCatalogsRef.current.add(providerID)
+      const requestId = providerStateRequestIdRef.current
       void desktopClient.fetchProviderModels({ providerID, all: true })
         .then(result => {
+          if (requestId !== providerStateRequestIdRef.current) return
           setModelProviders(current => current.map(provider =>
             provider.providerID === providerID
               ? {
@@ -361,22 +271,24 @@ export function useModelProviderController({
             : current)
         })
         .catch(error => {
+          if (requestId !== providerStateRequestIdRef.current) return
           openedProviderCatalogsRef.current.delete(providerID)
           setErrorMessage(error instanceof Error ? error.message : String(error))
         })
     },
-    [setModelProviders, setProviderState],
+    [setErrorMessage],
   )
 
   const handleProviderSearch = useCallback(
     (() => {
       const generations = new Map<string, number>();
       return (providerID: ModelProviderID, query: string): void => {
+        const requestId = providerStateRequestIdRef.current;
         const generation = (generations.get(providerID) ?? 0) + 1;
         generations.set(providerID, generation);
         void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
           .then(result => {
-            if (generations.get(providerID) !== generation) return;
+            if (generations.get(providerID) !== generation || requestId !== providerStateRequestIdRef.current) return;
             setModelProviders(current => current.map(provider =>
               provider.providerID === providerID
                 ? {
@@ -388,20 +300,21 @@ export function useModelProviderController({
             ));
           })
           .catch(error => {
-            if (generations.get(providerID) !== generation) return;
+            if (generations.get(providerID) !== generation || requestId !== providerStateRequestIdRef.current) return;
             setErrorMessage(error instanceof Error ? error.message : String(error));
           });
       };
     })(),
-    [setModelProviders],
+    [setErrorMessage],
   )
 
   return {
     providerState, modelProviders, modelCatalogLoading, modelPresets,
     selectedProviderID, selectedProviderModelPresets, resolvedSelectedModelPreset,
     selectedModelMetadata, deepSeekThinkingControls, showThinkingOptions,
-    modelConfigured, providerModelOptions,
-    handleProviderModelChange, handleProviderOpen, handleProviderSearch,
+    modelConfigured, providerModelOptions, model, thinkingMode, selectionLoading,
+    handleProviderModelChange, handleThinkingChange, handleProviderOpen, handleProviderSearch,
+    selectedVariant, variantOptions, handleVariantChange, selectedModelUnavailableMessage, refreshProviderState,
   }
 }
 
