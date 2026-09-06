@@ -1353,7 +1353,7 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  padding: calc(var(--cpx-sys-space-1) / 2) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   background: color-mix(in srgb, var(--cpx-sys-color-success) 14%, transparent);
   color: var(--cpx-sys-color-success);

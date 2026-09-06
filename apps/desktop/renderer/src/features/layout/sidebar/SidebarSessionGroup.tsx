@@ -283,6 +283,7 @@ function SidebarSessionGroupComponent({
       pendingPermissionSessionIds,
     )
     const awaitingApproval = visualState === 'needs-input'
+    const waitingLabel = session.latestTurnStatus === 'waiting-question' ? '需要用户输入' : '等待审批'
     const showActions = hoveredSessionId === session.id || focusedSessionId === session.id
     const showIndicators = !showActions && confirmArchiveSessionId !== session.id
     const metaClassName = cx(
@@ -440,14 +441,9 @@ function SidebarSessionGroupComponent({
                 </IconButton>
               </div>
             ) : awaitingApproval ? (
-              <>
-                <span className="sidebar-session-approval" title="等待审批">
-                  等待审批
-                </span>
-                <span className="sidebar-indicator">
-                  <Spinner className="sidebar-session-spinner" label="加载中" />
-                </span>
-              </>
+              <span className="sidebar-session-approval" title={waitingLabel}>
+                {waitingLabel}
+              </span>
             ) : session.hasScheduledRun || session.isFork || visualState !== 'idle' ? (
               <span className="sidebar-indicator">
                 {visualState === 'unread' ? (
