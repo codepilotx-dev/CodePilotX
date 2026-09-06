@@ -8,16 +8,20 @@ try {
  const page = await browser.newPage()
  await page.setContent(`<style>${css}
  * {box-sizing:border-box} .desktop-sidebar {--sidebar-current-width:280px;--cpx-sys-motion-micro:0ms; --button-icon-size-xs:14px;} .sidebar-session-meta{display:flex;align-items:center;justify-content:flex-end} .row{height:32px;padding:4px 8px;display:flex;justify-content:flex-end}
- </style><aside class="desktop-sidebar">
+ </style><aside class="desktop-sidebar"><header class="sidebar-header"><span>Coding</span><div class="sidebar-header-actions"><button class="ui-button icon-button" data-size="icon" data-uniform><svg id="search"></svg></button><button class="ui-button icon-button" data-size="icon" data-uniform><svg id="bell"></svg></button></div></header><div class="sidebar-standard-mode">
  <div class="row"><div class="sidebar-session-meta"><span class="sidebar-indicator"><svg id="clock"></svg></span><span class="sidebar-indicator"><span id="dot" class="sidebar-unread-dot"></span></span></div></div>
  <div class="row"><div class="sidebar-session-meta"><div class="sidebar-session-actions"><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="pin"></svg></button><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="archive"></svg></button></div></div></div>
  <div class="row"><div class="sidebar-session-meta"><span class="sidebar-indicator"><svg id="idle-clock"></svg></span><span class="sidebar-indicator"></span></div></div>
- <div class="row sidebar-project-header"><span class="sidebar-row-trailing"><div class="sidebar-project-actions"><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button><button id="project-action" class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button></div><span class="sidebar-project-unread sidebar-indicator"><span id="project-dot" class="sidebar-unread-dot"></span></span></span></div>
- <div class="row sidebar-section-header"><button id="section-title">项目</button><div class="sidebar-section-actions"><button id="section-menu" data-state="closed">更多</button><button>添加项目</button></div></div>
- </aside>`)
+ <div class="row sidebar-project-header"><span class="sidebar-row-trailing"><div class="sidebar-project-actions"><button id="project-more" class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button><button id="project-action" class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button></div><span class="sidebar-project-unread sidebar-indicator"><span id="project-dot" class="sidebar-unread-dot"></span></span></span></div>
+ <div class="row sidebar-section-header"><button id="section-title">项目</button><div class="sidebar-section-actions"><button id="section-menu" class="ui-button icon-button" data-size="iconMd" data-uniform data-state="closed"><svg id="section-more"></svg></button><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="section-add"></svg></button></div></div>
+ </div></aside>`)
  for (const width of [240,280,360]) {
   await page.locator('aside').evaluate((el, width) => (el as HTMLElement).style.setProperty('--sidebar-current-width',`${width}px`), width)
-  const centers = await page.evaluate(() => Object.fromEntries(['clock','dot','pin','archive','idle-clock'].map(id=>{const b=document.getElementById(id)!.getBoundingClientRect();return [id,b.x+b.width/2]})))
+  const centers = await page.evaluate(() => Object.fromEntries(['clock','dot','pin','archive','idle-clock','search','bell','section-more','section-add'].map(id=>{const b=document.getElementById(id)!.getBoundingClientRect();return [id,b.x+b.width/2]})))
+  assert.equal(centers['section-more'],centers.clock)
+  assert.equal(centers['section-add'],centers.dot)
+  assert.equal(centers.search,centers.clock)
+  assert.equal(centers.bell,centers.dot)
   assert.equal(centers.clock,centers.pin)
   assert.equal(centers.dot,centers.archive)
   assert.equal(centers['idle-clock'],centers.pin)
@@ -31,6 +35,9 @@ try {
   const actionBox = await projectAction.boundingBox()
   assert.ok(actionBox)
   assert.equal(actionBox.x + actionBox.width / 2, centers.dot)
+  const moreBox = await page.locator('#project-more').boundingBox()
+  assert.ok(moreBox)
+  assert.equal(moreBox.x + moreBox.width / 2, centers.clock)
   await projectAction.click()
   await page.mouse.move(700, 500)
   assert.equal(await projectAction.evaluate(el => el === document.activeElement), true)

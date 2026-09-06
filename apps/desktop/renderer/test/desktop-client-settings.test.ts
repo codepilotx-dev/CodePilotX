@@ -836,7 +836,11 @@ describe('desktop thread settings client', () => {
       { text: '下一轮' },
       'follow-up',
       'input-follow-up',
+      { providerID: 'anthropic', model: 'claude-opus-4-1' },
     )
+    expect(queueRequests[0]?.params.model).toEqual({
+      providerID: 'anthropic', id: 'claude-opus-4-1',
+    })
     await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新' })
     await client.removeQueuedFollowUp('thread-queue', 'input-2')
     await client.resumeQueuedFollowUps('thread-queue')
@@ -902,6 +906,7 @@ describe('desktop thread settings client', () => {
       { text: '补充要求' },
       'steer',
       'draft-steer',
+      { providerID: 'anthropic', model: 'claude-opus-4-1' },
     )
 
     expect(steerParams).toMatchObject({

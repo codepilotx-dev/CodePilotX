@@ -267,7 +267,7 @@ describe('desktop history client', () => {
           threadId: 'session-1',
           inputId: expect.any(String),
           content: '继续推进',
-          model: { providerID: 'openai', id: 'gpt-5' },
+          model: { providerID: 'anthropic', id: 'claude-opus-4-1' },
           permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
           taskMode: 'chat',
         })
@@ -360,9 +360,10 @@ describe('desktop history client', () => {
     snapshot.item.customTitle = '旧手工标题'
     snapshot.item.aiTitle = '旧 AI 标题'
 
+    // The next turn must use the new selection, not the OpenAI model in history.
     await client.sendUserMessage('session-1', { text: '继续推进' }, {
-      providerID: 'openai',
-      model: 'gpt-5',
+      providerID: 'anthropic',
+      model: 'claude-opus-4-1',
     })
     expect(
       requests.some(request =>
