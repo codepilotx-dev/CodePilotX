@@ -11,6 +11,7 @@ import type {
 } from "../../markdown/index.js";
 
 export type ConversationItemContextValue = {
+  modelProviderNames?: Readonly<Record<string, string>>;
   canCopyFileReferenceContents: (
     reference: MarkdownFileReference,
   ) => boolean;

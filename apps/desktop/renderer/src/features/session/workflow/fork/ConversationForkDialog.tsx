@@ -1,6 +1,6 @@
 import type React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { GitFork, LoaderCircle, X } from 'lucide-react'
+import { Split, LoaderCircle, X } from 'lucide-react'
 
 import { Button } from '../../../../components/ui/Button.js'
 import { IconButton } from '../../../../components/ui/IconButton.js'
@@ -143,7 +143,7 @@ function DestinationButton({
       onClick={onClick}
       type="button"
     >
-      <GitFork
+      <Split
         aria-hidden="true"
         className="tw:shrink-0"
         size={APP_ICON_SIZE}
@@ -178,7 +178,7 @@ function ForkProgress({
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
-          <GitFork
+          <Split
             aria-hidden="true"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}

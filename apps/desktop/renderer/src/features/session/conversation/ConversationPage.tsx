@@ -8,7 +8,7 @@ import {
   Bot,
   ChevronRight,
   Copy,
-  GitFork,
+  Split,
   LayoutList,
   MessagesSquare,
   MessageSquarePlus,
@@ -1032,12 +1032,12 @@ export function ConversationPage(): React.ReactNode {
           </SessionSubmenu>
           <SessionSubmenu
             disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
-            icon={<GitFork size={APP_ICON_SIZE} />}
+            icon={<Split size={APP_ICON_SIZE} />}
             label="继续到…"
           >
             <PopoverItem
               disabled={!conversationFork.onForkFromMessage || !latestConversationForkPoint}
-              icon={<GitFork size={APP_ICON_SIZE} />}
+              icon={<Split size={APP_ICON_SIZE} />}
               onClick={continueInNewConversation}
             >
               在新聊天中继续
@@ -1261,6 +1261,9 @@ export function ConversationPage(): React.ReactNode {
   ) : null;
   const conversationItemContextValue = React.useMemo(
     () => ({
+      modelProviderNames: Object.fromEntries((composerProps?.providerOptions ?? []).map(
+        provider => [provider.providerID, provider.displayName],
+      )),
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,
@@ -1271,6 +1274,7 @@ export function ConversationPage(): React.ReactNode {
       workspacePath,
     }),
     [
+      composerProps?.providerOptions,
       canCopyFileReferenceContents,
       onCopyFileReferenceContents,
       onOpenFileReference,

@@ -1,3 +1,4 @@
+import { ModelSwitchDivider } from './ModelSwitchDivider.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import {
@@ -551,11 +552,12 @@ function CanonicalThreadViewComponent({
     });
   }, [listRef, onLoadOlder, scrollRef]);
   const renderTurn = React.useCallback(
-    (entry: RenderTurnEntry): React.ReactElement => (
+    (entry: RenderTurnEntry, index: number): React.ReactElement => (
       <CanonicalTurnRow
         diffMarkerStyle={diffMarkerStyle}
         disclosureState={disclosureState}
         entry={entry}
+        previousModel={turns[index - 1]?.turn.model}
         key={entry.id}
         onApplyPatch={onApplyPatch}
         onOpenPatchReview={onOpenPatchReview}
@@ -578,6 +580,7 @@ function CanonicalThreadViewComponent({
       rightDockPlanEventId,
       readThreadPatchDiff,
       threadId,
+      turns,
     ],
   );
 
@@ -645,6 +648,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   disclosureState,
   diffMarkerStyle,
   entry,
+  previousModel,
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
@@ -656,6 +660,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
 }: {
   disclosureState: KeyedDisclosureStore;
   entry: RenderTurnEntry;
+  previousModel?: RenderTurnEntry['turn']['model'];
   diffMarkerStyle: DesktopDiffMarkerStyle;
   onApplyPatch?: CanonicalThreadViewProps["onApplyPatch"];
   onOpenPatchReview?: CanonicalThreadViewProps["onOpenPatchReview"];
@@ -681,6 +686,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
       data-turn-navigation-id={entry.id}
     >
       <ConversationTurnErrorBoundary turnId={entry.id}>
+        <ModelSwitchDivider previousModel={previousModel} model={entry.turn.model} />
         <CanonicalConversationTurn
           disclosureState={disclosureState}
           diffMarkerStyle={diffMarkerStyle}

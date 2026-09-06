@@ -25,7 +25,7 @@ import {
   File,
   FileText,
   Folder,
-  GitFork,
+  Split,
   GitBranch,
   Globe2,
   Hand,
@@ -1984,7 +1984,7 @@ function composerSlashCommandIcon(
     case "side":
       return <MessageSquarePlus size={APP_ICON_SIZE} />;
     case "fork":
-      return <GitFork size={APP_ICON_SIZE} />;
+      return <Split size={APP_ICON_SIZE} />;
     case "archive":
       return <Archive size={APP_ICON_SIZE} />;
     case "project":

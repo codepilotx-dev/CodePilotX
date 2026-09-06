@@ -111,6 +111,7 @@
   gap: var(--cpx-sys-space-1);
   min-width: 0;
   margin-left: var(--cpx-sys-space-2);
+  padding-inline-end: var(--sidebar-inline-gutter);
 }
 
 .sidebar-timeline-toggle-button {
@@ -575,11 +576,12 @@
 .sidebar-project-actions,
 .sidebar-project-action-items,
 .sidebar-section-actions,
+.sidebar-session-meta,
 .sidebar-session-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--cpx-sys-space-2);
+  gap: var(--cpx-sys-space-1);
 }
 
 .sidebar-section-actions,
@@ -967,11 +969,6 @@
   * {
     cursor: grabbing;
   }
-}
-
-.sidebar-session-meta,
-.sidebar-session-actions {
-  gap: var(--cpx-sys-space-1);
 }
 
 .sidebar-indicator {

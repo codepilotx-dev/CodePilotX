@@ -10,7 +10,7 @@ import {
   Copy,
   FileDiff,
   Globe2,
-  GitFork,
+  Split,
   Hourglass,
   LoaderCircle,
   MessageCircleQuestion,
@@ -560,7 +560,7 @@ function TextItemView({
                   onForkFromMessage({ itemId: item.id, turnId: item.turnId });
                 }}
               >
-                <GitFork
+                <Split
                   aria-hidden="true"
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
