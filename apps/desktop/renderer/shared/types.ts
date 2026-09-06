@@ -1254,6 +1254,7 @@ export type DesktopSessionSettingsSnapshot = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
+  variant?: string
   effort?: string | null
   personality?: DesktopPersonality
   sessionName?: string

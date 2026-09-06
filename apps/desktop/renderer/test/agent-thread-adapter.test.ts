@@ -29,6 +29,41 @@ const projectWorkspace = {
 }
 
 describe('agent thread adapter', () => {
+  test('restores the latest actual model and exact variant without adopting queued selections', () => {
+    const permissionConfig = desktopPermissionModeToPermissionConfig('default')
+    const snapshot: ThreadSnapshot = {
+      thread: { id: 'thread-model', title: '模型恢复', projectID: project.id, gitBranch: null, workspace: projectWorkspace, settings: { taskMode: 'chat', permissionConfig }, archivedAt: null, createdAt: 1, updatedAt: 3 },
+      turns: [], inputs: [], agents: [], messages: [], items: [], approvals: [],
+    }
+    const actual: ThreadSnapshot['turns'][number] = {
+      id: 'actual', threadId: 'thread-model', sourceInputID: 'actual-input', status: 'failed', mode: 'chat',
+      model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig, rootAgentId: 'agent-1',
+      mergedInputIDs: [], startedAt: 1, finishedAt: 2, elapsedSeconds: 1, error: null,
+    }
+    const queued: ThreadSnapshot['turns'][number] = {
+      ...actual, id: 'queued', sourceInputID: 'queued-input', status: 'queued', startedAt: null, finishedAt: null,
+      model: { providerID: 'openai', id: 'gpt-5', variant: 'high' },
+    }
+    snapshot.inputs = [{
+      id: 'queued-input', threadId: 'thread-model', turnId: 'queued', content: '稍后执行', delivery: 'follow-up',
+      mode: 'chat', model: queued.model, permissionConfig, state: 'queued', createdAt: 3,
+    }]
+    for (const variant of [undefined, 'default', 'enabled', 'adaptive', 'disabled', 'high']) {
+      snapshot.turns = [{ ...actual, model: { ...actual.model, variant } }, queued]
+      const restored = agentThreadSnapshotToDesktop(snapshot)
+      const expectedThinkingMode = variant === 'enabled' || variant === 'adaptive' || variant === 'disabled'
+        ? variant : 'default'
+      expect(restored.settings).toMatchObject({ providerID: 'deepseek', model: 'deepseek-chat', variant, thinkingMode: expectedThinkingMode })
+      expect(restored.item).toMatchObject({ providerID: 'deepseek', model: 'deepseek-chat', thinkingMode: expectedThinkingMode })
+    }
+    snapshot.turns = [queued]
+    const queuedOnly = agentThreadSnapshotToDesktop(snapshot)
+    expect(queuedOnly.settings.model).toBeUndefined()
+    expect(queuedOnly.settings.variant).toBeUndefined()
+    expect(queuedOnly.settings.thinkingMode).toBe('default')
+    expect(queuedOnly.item.model).toBeNull()
+  })
+
   test('maps terminal lifecycle states out of the sidebar running state', () => {
     expect(agentTurnStatusToDesktopStatus('completed')).toBe('done')
     expect(agentTurnStatusToDesktopStatus('failed')).toBe('error')

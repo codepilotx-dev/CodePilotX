@@ -133,6 +133,11 @@ export function agentThreadSnapshotToDesktop(
   project?: Project | null,
 ): DesktopSessionSnapshot {
   const latestTurn = latestDisplayTurn(snapshot.turns)
+  const latestModel = [...snapshot.turns].reverse().find(turn => turn.status !== 'queued')?.model
+  const variant = latestModel?.variant
+  const thinkingMode = variant === 'enabled' ? 'enabled'
+    : variant === 'adaptive' ? 'adaptive'
+      : variant === 'disabled' ? 'disabled' : 'default'
   const latestInput = snapshot.inputs.at(-1) ?? null
   const workspace = threadWorkspaceToDesktopWorkspace(
     snapshot.thread.workspace,
@@ -166,10 +171,10 @@ export function agentThreadSnapshotToDesktop(
     permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
-    providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,
-    model: latestTurn?.model.id ?? latestInput?.model.id ?? null,
+    providerID: latestModel?.providerID,
+    model: latestModel?.id ?? null,
     reviewModel: null,
-    thinkingMode: 'default',
+    thinkingMode,
     hasSystemPrompt: false,
     hasAppendSystemPrompt: false,
     additionalDirectoryCount: 0,
@@ -186,9 +191,10 @@ export function agentThreadSnapshotToDesktop(
       permissionConfig: snapshot.thread.settings.permissionConfig,
       collaborationMode: item.collaborationMode,
       planModeActive,
-      providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,
-      model: latestTurn?.model.id ?? latestInput?.model.id,
-      thinkingMode: 'default',
+      providerID: latestModel?.providerID,
+      model: latestModel?.id,
+      variant,
+      thinkingMode,
       sessionName: item.sessionName ?? undefined,
       additionalDirectories: [],
     },
