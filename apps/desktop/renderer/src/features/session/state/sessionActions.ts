@@ -2,6 +2,7 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
+  DesktopModelSelection,
   DesktopPermissionDecision,
   LocalRouterMode,
   ModelProviderID,
@@ -232,6 +233,12 @@ export async function submitSessionMessageAction(
     options?.sessionStatus,
     options?.delivery,
   )
+  const modelSelection: DesktopModelSelection = {
+    providerID: settings.providerID,
+    providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+    model: normalizeOptionalText(settings.model),
+    localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
+  }
   try {
     if (delivery === 'follow-up') {
       return await desktopClient.submitSessionFollowUp(
@@ -239,6 +246,7 @@ export async function submitSessionMessageAction(
         input,
         'follow-up',
         options?.inputId,
+        modelSelection,
       )
     }
     if (delivery === 'steer') {
@@ -247,17 +255,13 @@ export async function submitSessionMessageAction(
         input,
         'steer',
         options?.inputId,
+        modelSelection,
       )
     }
     await desktopClient.sendUserMessage(
       sessionId,
       input,
-      {
-        providerID: settings.providerID,
-        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-        model: normalizeOptionalText(settings.model),
-        localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
-      },
+      modelSelection,
       options?.inputId,
     )
     return 'sent'

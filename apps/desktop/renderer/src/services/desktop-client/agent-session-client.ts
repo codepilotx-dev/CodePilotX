@@ -3316,6 +3316,7 @@ export function createAgentSessionDesktopClient(
       input: DesktopUserMessageInput,
       delivery: DesktopMessageDelivery,
       inputId?: string,
+      model?: string | DesktopModelSelection,
     ) =>
       withAgentOrMock(
         async () => {
@@ -3323,11 +3324,11 @@ export function createAgentSessionDesktopClient(
             sessionId,
             input,
             delivery,
-            { inputId },
+            { inputId, model },
           )
           return admission.outcome
         },
-        () => mockClient.submitSessionFollowUp(sessionId, input, delivery),
+        () => mockClient.submitSessionFollowUp(sessionId, input, delivery, inputId, model),
       ),
     updateQueuedFollowUp: (sessionId, followUpId, input) =>
       withAgentOrMock(

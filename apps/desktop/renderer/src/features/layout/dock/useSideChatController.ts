@@ -219,6 +219,7 @@ export function useSideChatController({
           value,
           'follow-up',
           options.inputId,
+          settings,
         )
         return outcome === 'queued' ? 'queued' : 'sent'
       }
@@ -229,6 +230,7 @@ export function useSideChatController({
           value,
           'steer',
           options?.inputId,
+          settings,
         )
         return 'sent'
       }

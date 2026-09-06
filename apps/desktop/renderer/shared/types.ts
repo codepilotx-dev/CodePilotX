@@ -2031,6 +2031,7 @@ export type DesktopApi = {
     input: DesktopUserMessageInput,
     delivery: DesktopMessageDelivery,
     inputId?: string,
+    model?: string | DesktopModelSelection,
   ): Promise<'sent' | 'steered' | 'queued'>
   updateQueuedFollowUp(
     sessionId: string,

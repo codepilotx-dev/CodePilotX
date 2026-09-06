@@ -4,7 +4,6 @@ import {
   desktopClipboard,
   loadDesktopTerminalClient,
 } from '../../../services/desktop-client/index.js'
-import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
@@ -57,6 +56,7 @@ import {
   sessionViewFallbackTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
+import { resolveModelPresetId } from '../../../modelPresets.js'
 import { useDesktopRuntimeSettings } from '../../settings/useDesktopSettings.js'
 import { useSystemNotifications } from '../../notifications/useSystemNotifications.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
@@ -64,15 +64,9 @@ import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore
 import { useSessionState } from '../../session/state/useSessionState.js'
 import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
-import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
-import {
-  buildModelPresets,
-  resolveModelPresetId,
-} from '../../../modelPresets.js'
 import type {
   DesktopComposerAttachment,
-  DesktopModelMetadata,
   DesktopBrowserState,
   DesktopFileEntry,
   DesktopInstalledSkill,
@@ -80,7 +74,6 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
-  ModelProviderID,
 } from '../../../../shared/types.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -96,7 +89,7 @@ import {
   useIntegratedTerminalController,
 } from './useIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
-import { useModelProviderController } from '../useModelProviderController.js'
+import { isDeepSeekThinkingModel, useModelProviderController } from '../useModelProviderController.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
@@ -286,17 +279,12 @@ export function DesktopLayout(): React.ReactNode {
     permissionMode,
     settingsLoaded,
     setPermissionMode,
-    setModel,
-    setProviderBaseURL,
-    setProviderID,
     setThinkingMode,
     setRecentWorkspaces,
     setDrawerTab,
-    setSelectedModelPreset,
     setReviewView,
     setSidebarSessionPins,
     setSidebarTimelineEnabled,
-    syncExternalSettingsPatch,
   } = settings
   useSystemNotifications(
     settingsLoaded ? settings.values.notifications : undefined,
@@ -327,13 +315,6 @@ export function DesktopLayout(): React.ReactNode {
   const globalMessageModalMounted = useEverOpened(
     errorMessage !== null || noticeMessage !== null,
   )
-  const {
-    providerState,
-    setProviderState,
-    modelProviders,
-    setModelProviders,
-    modelCatalogLoading,
-  } = useModelProviderController()
   const {
     sidebarCollapsed,
     sidebarWidth,
@@ -1608,292 +1589,16 @@ export function DesktopLayout(): React.ReactNode {
     onError: setErrorMessage,
   })
 
-  const modelPresets = useMemo(
-    () =>
-      buildModelPresets(
-        providerState?.models ?? providerState?.provider.defaultModels ?? [],
-      ),
-    [providerState],
-  )
-  const syncedSessionModelRef = useRef<string | null>(null)
-  const modelRef = useRef(model)
-  const activeSessionModelRef = useRef<string | null>(null)
-  const providerStateRequestIdRef = useRef(0)
-  const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
-  const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
-  const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
-  useEffect(() => {
-    modelRef.current = model
-  }, [model])
-  useEffect(() => {
-    activeSessionModelRef.current = activeSessionItem?.model?.trim() || null
-  }, [activeSessionItem?.model])
-  const providerModelOptions = useMemo(
-    () => {
-      const providers = [...modelProviders]
-      if (
-        providerState &&
-        !providers.some(
-          provider => provider.providerID === providerState.provider.providerID,
-        )
-      ) {
-        providers.unshift(providerState.provider)
-      }
-      return providers
-        .filter(provider => provider.apiKeyConfigured && isExecutableDesktopProvider(provider))
-        .map(provider => {
-          const isSelected =
-            provider.providerID === providerState?.selectedProviderID
-          const models = isSelected
-            ? providerState?.models ?? provider.defaultModels
-            : provider.defaultModels
-          return {
-            providerID: provider.providerID,
-            displayName: provider.displayName,
-            modelPresets: buildModelPresets(models),
-            baseURL: provider.baseURL,
-          }
-        })
-    },
-    [modelProviders, providerState],
-  )
-  const activeSessionProviderID = activeSessionItem?.providerID
-  const selectedProviderID =
-    activeSessionProviderID ?? providerState?.selectedProviderID ?? providerID
-  const selectedProviderModelPresets =
-    providerModelOptions.find(
-      provider => provider.providerID === selectedProviderID,
-    )?.modelPresets ?? modelPresets
-  const resolvedSelectedModelPreset = resolveModelPresetId(
-    model,
-    selectedModelPreset,
-    selectedProviderModelPresets,
-  )
-  const selectedProviderSummary =
-    modelProviders.find(provider => provider.providerID === selectedProviderID) ??
-    (providerState?.provider.providerID === selectedProviderID
-      ? providerState.provider
-      : undefined)
-  const selectedModelMetadata =
-    model && selectedProviderSummary?.modelMetadata
-      ? selectedProviderSummary.modelMetadata[model]
-      : model && providerState?.modelMetadata
-        ? providerState.modelMetadata[model]
-        : undefined
-  const deepSeekThinkingControls = isDeepSeekThinkingModel({
-    providerID: selectedProviderID,
-    model,
-    metadata: selectedModelMetadata,
+  const {
+    providerState, modelProviders, modelCatalogLoading, modelPresets,
+    selectedProviderID, selectedProviderModelPresets, resolvedSelectedModelPreset,
+    selectedModelMetadata, deepSeekThinkingControls, showThinkingOptions,
+    modelConfigured, providerModelOptions,
+    handleProviderModelChange, handleProviderOpen, handleProviderSearch,
+  } = useModelProviderController({
+    settings, activeSessionItem, sessionId, hasMessages: messages.length > 0,
+    setErrorMessage, setNoticeMessage,
   })
-  const showThinkingOptions =
-    deepSeekThinkingControls ||
-    selectedProviderSummary?.kind === 'anthropic' ||
-    selectedModelMetadata?.reasoning === true
-  const selectedModelAvailable = Boolean(
-    model
-    && selectedProviderSummary
-    && isExecutableDesktopProvider(selectedProviderSummary)
-    && (
-      selectedProviderID === providerState?.selectedProviderID
-        ? providerState.models.includes(model)
-        : selectedProviderSummary.defaultModels.includes(model)
-    ),
-  )
-  const modelConfigured = providerState?.modelConfigured === true
-    && selectedModelAvailable
-
-  useEffect(() => {
-    const activeModel = activeSessionItem?.model?.trim()
-    const activeProviderID = activeSessionItem?.providerID
-    const syncKey =
-      activeSessionItem?.id && activeModel
-        ? [activeSessionItem.id, activeProviderID ?? '', activeModel].join('\0')
-        : null
-    if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
-      return
-    }
-    syncedSessionModelRef.current = syncKey
-    syncExternalSettingsPatch({
-      ...(activeProviderID ? { providerID: activeProviderID } : {}),
-      ...(model !== activeModel ? { model: activeModel } : {}),
-    })
-    const nextPreset = resolveModelPresetId(
-      activeModel,
-      undefined,
-      selectedProviderModelPresets,
-    )
-    if (selectedModelPreset !== nextPreset) {
-      setSelectedModelPreset(nextPreset)
-    }
-  }, [
-    activeSessionItem?.id,
-    activeSessionItem?.model,
-    activeSessionItem?.providerID,
-    model,
-    selectedProviderModelPresets,
-    selectedModelPreset,
-    setSelectedModelPreset,
-    syncExternalSettingsPatch,
-  ])
-
-  const refreshProviderState = useCallback(async (): Promise<void> => {
-    const requestId = ++providerStateRequestIdRef.current
-    try {
-      const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(activeSessionProviderID),
-        desktopClient.listModelProviders(),
-      ])
-      if (requestId !== providerStateRequestIdRef.current) return
-      setProviderState(next)
-      setModelProviders(providers)
-      const activeModel = activeSessionModelRef.current
-      const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      syncExternalSettingsPatch({
-        providerID: next.selectedProviderID,
-        providerBaseURL: next.baseURL ?? '',
-        ...(activeModel
-          ? { model: activeModel }
-          : shouldSyncModel
-            ? { model: next.model }
-            : {}),
-      })
-      if (
-        next.selectedProviderID &&
-        next.apiKeyConfigured
-      ) {
-        const catalogKey = [
-          next.selectedProviderID,
-          next.apiKeyConfigured ? 'key' : 'no-key',
-        ].join('\0')
-        if (
-          fetchedModelCatalogKeysRef.current.has(catalogKey) ||
-          pendingModelCatalogKeysRef.current.has(catalogKey)
-        ) {
-          return
-        }
-        pendingModelCatalogKeysRef.current.add(catalogKey)
-        void withModelCatalogLoading(() =>
-          desktopClient.fetchProviderModels({
-            providerID: next.selectedProviderID,
-          }),
-        )
-          .then(result => {
-            setProviderState(current => {
-              if (current?.selectedProviderID !== next.selectedProviderID) {
-                return current
-              }
-              return {
-                ...current,
-                models: result.models,
-                modelMetadata: {
-                  ...current.modelMetadata,
-                  ...result.modelMetadata,
-                },
-                error: result.error,
-              }
-            })
-            fetchedModelCatalogKeysRef.current.add(catalogKey)
-          })
-          .catch(error =>
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            ),
-          )
-          .finally(() => {
-            pendingModelCatalogKeysRef.current.delete(catalogKey)
-          })
-      }
-    } catch (error) {
-      if (requestId !== providerStateRequestIdRef.current) return
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-    }
-  }, [activeSessionProviderID, syncExternalSettingsPatch])
-
-  useEffect(() => {
-    void refreshProviderState()
-    const listener = () => {
-      openedProviderCatalogsRef.current.clear()
-      fetchedModelCatalogKeysRef.current.clear()
-      void refreshProviderState()
-    }
-    window.addEventListener('desktop:model-provider-changed', listener)
-    return () => {
-      window.removeEventListener('desktop:model-provider-changed', listener)
-    }
-  }, [refreshProviderState])
-
-  useEffect(() => {
-    if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
-      setThinkingMode('default')
-      return
-    }
-    if (showThinkingOptions || thinkingMode === 'default') return
-    setThinkingMode('default')
-  }, [
-    deepSeekThinkingControls,
-    showThinkingOptions,
-    thinkingMode,
-    setThinkingMode,
-  ])
-
-  const handleProviderModelChange = useCallback(
-    (providerID: ModelProviderID, nextPresetId: string): void => {
-      const providerOption = providerModelOptions.find(
-        provider => provider.providerID === providerID,
-      )
-      if (!providerOption) return
-
-      const providerSummary =
-        modelProviders.find(provider => provider.providerID === providerID) ??
-        (providerState?.provider.providerID === providerID
-          ? providerState.provider
-          : undefined)
-      const baseURL =
-        providerState?.selectedProviderID === providerID
-          ? providerState.baseURL
-          : providerSummary?.baseURL
-
-      const preset = providerOption.modelPresets.find(
-        item => item.id === nextPresetId,
-      )
-      if (!preset) return
-      setProviderID(providerID)
-      setProviderBaseURL(baseURL ?? '')
-      setSelectedModelPreset(nextPresetId)
-      setModel(preset.value)
-      if (sessionId && messages.length > 0) {
-        setNoticeMessage('在对话过程中切换模型会降低性能表现')
-      }
-      void desktopClient
-        .saveModelProvider({
-          providerID,
-          id: preset.value,
-        })
-        .then(next => {
-          setProviderState(next)
-          setProviderID(next.selectedProviderID)
-          setProviderBaseURL(next.baseURL ?? '')
-          setModel(next.model)
-        })
-        .catch(error =>
-          setErrorMessage(
-            error instanceof Error ? error.message : String(error),
-          ),
-        )
-    },
-    [
-      model,
-      modelProviders,
-      messages.length,
-      providerModelOptions,
-      providerState,
-      sessionId,
-      setModel,
-      setProviderBaseURL,
-      setProviderID,
-      setSelectedModelPreset,
-    ],
-  )
 
   const handlePermissionChange = useCallback(
     (value: DesktopPermissionMode): void => {
@@ -1936,72 +1641,6 @@ export function DesktopLayout(): React.ReactNode {
       navigate,
     ],
   )
-  const handleProviderOpen = useCallback(
-    (providerID: ModelProviderID): void => {
-      if (openedProviderCatalogsRef.current.has(providerID)) return
-      openedProviderCatalogsRef.current.add(providerID)
-      void desktopClient.fetchProviderModels({ providerID, all: true })
-        .then(result => {
-          setModelProviders(current => current.map(provider =>
-            provider.providerID === providerID
-              ? {
-                  ...provider,
-                  defaultModels: result.models,
-                  modelMetadata: {
-                    ...provider.modelMetadata,
-                    ...result.modelMetadata,
-                  },
-                }
-              : provider,
-          ))
-          setProviderState(current => current?.selectedProviderID === providerID
-            ? {
-                ...current,
-                models: result.models,
-                modelMetadata: {
-                  ...current.modelMetadata,
-                  ...result.modelMetadata,
-                },
-                error: result.error,
-              }
-            : current)
-        })
-        .catch(error => {
-          openedProviderCatalogsRef.current.delete(providerID)
-          setErrorMessage(error instanceof Error ? error.message : String(error))
-        })
-    },
-    [setModelProviders, setProviderState],
-  )
-
-  const handleProviderSearch = useCallback(
-    (() => {
-      const generations = new Map<string, number>();
-      return (providerID: ModelProviderID, query: string): void => {
-        const generation = (generations.get(providerID) ?? 0) + 1;
-        generations.set(providerID, generation);
-        void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
-          .then(result => {
-            if (generations.get(providerID) !== generation) return;
-            setModelProviders(current => current.map(provider =>
-              provider.providerID === providerID
-                ? {
-                    ...provider,
-                    defaultModels: result.models,
-                    modelMetadata: result.modelMetadata,
-                  }
-                : provider,
-            ));
-          })
-          .catch(error => {
-            if (generations.get(providerID) !== generation) return;
-            setErrorMessage(error instanceof Error ? error.message : String(error));
-          });
-      };
-    })(),
-    [setModelProviders],
-  )
-
   const handleArchiveSessions = useCallback(
     async (targetSessionIds: readonly string[]) => {
       const result = await archiveSessions(targetSessionIds)
@@ -3061,6 +2700,9 @@ export function DesktopLayout(): React.ReactNode {
           getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
           onInteractionError: message => setErrorMessage(message),
           itemContext: (tab, status) => ({
+            modelProviderNames: Object.fromEntries(modelProviders.map(
+              provider => [provider.providerID, provider.displayName],
+            )),
             canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
             onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
             onOpenFileReference: handleOpenMarkdownFileReference,
@@ -3465,22 +3107,4 @@ function ArchiveConversationNotice({
       </button>
     </div>
   )
-}
-
-function isDeepSeekThinkingModel({
-  providerID,
-  model,
-  metadata,
-}: {
-  providerID?: ModelProviderID
-  model: string
-  metadata?: DesktopModelMetadata
-}): boolean {
-  if (providerID === 'deepseek') {
-    return true
-  }
-  if (providerID !== 'openrouter') {
-    return false
-  }
-  return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true
 }
