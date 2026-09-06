@@ -6,7 +6,7 @@ import type {
   Input,
   Item,
   Message,
-  QuestionChoice,
+  PlanApproval,
   SubagentProjection,
   Thread,
   ThreadSnapshot,
@@ -43,6 +43,7 @@ export interface CanonicalQueueState {
 
 export interface CanonicalThreadState {
   thread: Thread
+  pendingPlanApproval: PlanApproval | null
   turnOrder: string[]
   turnsById: Map<string, Turn>
   inputsById: Map<string, Input>
@@ -117,6 +118,7 @@ export function pageFromThreadSnapshot(
 ): CanonicalThreadPage {
   return {
     thread: snapshot.thread,
+    pendingPlanApproval: snapshot.pendingPlanApproval,
     subagents: [...snapshot.subagents],
     turns: snapshot.turns.map((turn) => ({
       turn,
@@ -225,6 +227,7 @@ export function hydrateLatestThreadPage(
   page: CanonicalThreadPage,
 ): CanonicalThreadState {
   const next = emptyState(page.thread)
+  next.pendingPlanApproval = page.pendingPlanApproval ?? null
   mergePageEntities(next, page, "replace")
   next.subagentsByTaskId = mapBy(page.subagents, (projection) => projection.task.id)
   next.hookTrustsById = mapBy(
@@ -544,13 +547,16 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       return
     case "thread/settings/updated":
       state.thread = { ...state.thread, settings: envelope.payload.settings }
+      if (envelope.payload.settings.taskMode === "chat") state.pendingPlanApproval = null
       return
     case "turn/queued":
+      state.pendingPlanApproval = null
       upsertTurn(state, envelope.payload.turn)
       state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
       if (!state.queue.turnIds.includes(envelope.payload.turn.id)) state.queue.turnIds.push(envelope.payload.turn.id)
       return
     case "turn/started":
+      state.pendingPlanApproval = null
       upsertTurn(state, envelope.payload.turn)
       state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
       state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
@@ -559,6 +565,11 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
     case "turn/failed":
     case "turn/interrupted":
       upsertTurn(state, envelope.payload.turn)
+      for (const item of state.itemsById.values()) {
+        if (item.type === "question" && item.turnId === envelope.payload.turn.id && item.status === "pending") {
+          state.itemsById.set(item.id, { ...item, status: "cancelled" })
+        }
+      }
       state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
       return
     case "turn/statusChanged": {
@@ -619,14 +630,33 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       if (approval) state.approvalsById.set(approval.id, { ...approval, status: "cancelled" })
       return
     }
-    case "question/requested":
-      for (const item of questionsFromPayload(envelope.payload)) state.itemsById.set(item.id, item)
+    case "question/requested": {
+      const item = questionFromPayload(envelope.payload)
+      state.itemsById.set(item.id, item)
       return
+    }
     case "interaction/resolved": {
       // Newer events carry the interaction identifier so the pending approval
       // can be closed precisely; historical events without it keep waiting for
       // snapshot reconciliation instead of guessing which request to close.
       if (typeof envelope.payload.interactionId !== "string") return
+      const question = state.itemsById.get(envelope.payload.interactionId)
+      if (question?.type === "question" && envelope.payload.result.kind === "question") {
+        const result = envelope.payload.result
+        const firstAnswer = result.status === "answered"
+          ? result.answers.find((answer) => answer.questionId === question.questions?.[0]?.id) ?? result.answers[0]
+          : undefined
+        state.itemsById.set(question.id, {
+          ...question,
+          status: result.status,
+          ...(result.status === "answered" ? {
+            answers: result.answers,
+            answer: firstAnswer?.text ?? firstAnswer?.choiceIds
+              .map((id) => question.choices.find((choice) => choice.id === id)?.label ?? id).join(", ") ?? null,
+          } : {}),
+        })
+        return
+      }
       if (envelope.payload.result?.kind === "hookTrust") {
         state.hookTrustsById.delete(envelope.payload.interactionId)
         return
@@ -645,6 +675,7 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       projectContextCompaction(state, envelope)
       return
     case "queue/updated":
+      if (envelope.payload.action === "added") state.pendingPlanApproval = null
       applyQueueUpdate(state, envelope.payload)
       return
     default:
@@ -806,29 +837,29 @@ function permissionFromPayload(payload: {
   }
 }
 
-function questionsFromPayload(payload: {
+function questionFromPayload(payload: {
   interactionId: string
   turnId: string
   agentId: string
-  questions: ReadonlyArray<{
-    id: string
-    prompt: string
-    choices: readonly QuestionChoice[]
-  }>
+  questions: NonNullable<Extract<Item, { type: "question" }>["questions"]>
+  toolCallId?: string
   createdAt: number
-}): Array<Extract<Item, { type: "question" }>> {
-  return payload.questions.map((question, index) => ({
-    id: payload.questions.length === 1 ? payload.interactionId : `${payload.interactionId}:${question.id}`,
+}): Extract<Item, { type: "question" }> {
+  const first = payload.questions[0]
+  return {
+    id: payload.interactionId,
     messageID: payload.interactionId,
     turnId: payload.turnId,
     agentId: payload.agentId,
     type: "question",
-    prompt: question.prompt,
-    choices: [...question.choices],
+    prompt: first?.prompt ?? "需要你的选择",
+    choices: first?.choices ?? [],
+    questions: payload.questions,
+    ...(payload.toolCallId ? { toolCallId: payload.toolCallId } : {}),
     status: "pending",
     answer: null,
-    createdAt: payload.createdAt + index,
-  }))
+    createdAt: payload.createdAt,
+  }
 }
 
 function applyQueueUpdate(state: CanonicalThreadState, payload: {
@@ -905,6 +936,7 @@ function upsertTurn(state: CanonicalThreadState, turn: Turn): void {
 function emptyState(thread: Thread): CanonicalThreadState {
   return {
     thread,
+    pendingPlanApproval: null,
     turnOrder: [],
     turnsById: new Map(),
     inputsById: new Map(),

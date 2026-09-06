@@ -21,6 +21,7 @@ import { ReviewerService } from "./permission/ReviewerService";
 import { QuestionService } from "./session/QuestionService";
 import { ResumeCheckpointResolver } from "./interaction/ResumeCheckpointResolver";
 import { ThreadService } from "./session/ThreadService";
+import { PlanApprovalService } from "./session/plan/PlanApprovalService";
 import { ThreadHistoryService } from "./session/ThreadHistoryService";
 import { AgentRuntimeService } from "./orchestration/AgentRuntimeService";
 import { ContextCompactionService } from "./context/ContextCompactionService";
@@ -838,6 +839,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       sessionGroups,
     );
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite);
+    const planApprovals = new PlanApprovalService(db, hub, threads);
     const automationEnabled = automationStorage.automations && automationStorage.automationRuns;
     const calendarStorage = probeScheduleCalendarStorageCapabilities(db.sqlite);
     const calendarEnabled = automationEnabled
@@ -1045,6 +1047,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       db,
       hub,
       threads,
+      planApprovals,
       history,
       approvals,
       questions,

@@ -111,6 +111,7 @@ export const RENDERER_CAPABILITIES = [
   'interactions.serverRequests.v1',
   'interaction.recovery.v1',
   'turn.admission.v1',
+  'plan.approval.v1',
   'turn.steer.v1',
   'turn.queue.management.v1',
   'attachments.v1',
@@ -1278,10 +1279,7 @@ export function createAgentSessionDesktopClient(
       candidate =>
         questionId
           ? candidate.kind === 'question' &&
-            (
-              candidate.interactionId === questionId ||
-              candidate.questions.some(question => question.id === questionId)
-            )
+            candidate.interactionId === questionId
           : (
               candidate.kind === 'approval' ||
               candidate.kind === 'permission' ||
@@ -1302,6 +1300,9 @@ export function createAgentSessionDesktopClient(
       await respondToInteraction(interaction, {
         kind: 'approval',
         decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
+        ...(typeof decision.updatedInput?.feedback === 'string'
+          ? { feedback: decision.updatedInput.feedback }
+          : {}),
         ...(decision.alwaysAllow
           ? {
               remember: {
@@ -3111,15 +3112,6 @@ export function createAgentSessionDesktopClient(
         ...(behavior === 'allow' ? { grantScope } : {}),
       })
     },
-    respondSubagentQuestion: async (questionId, answer, ignored) => {
-      const interaction = await findPendingInteraction(
-        candidate =>
-          candidate.kind === 'question' &&
-          candidate.questions.some(question => question.id === questionId),
-      )
-      if (interaction.kind !== 'question') return
-      await respondToQuestionInteraction(interaction, answer, ignored)
-    },
     getActiveSessionId: () =>
       withAgentOrMock(
         async () => activeSessionId,
@@ -3484,6 +3476,17 @@ export function createAgentSessionDesktopClient(
           operationId: crypto.randomUUID(),
         }),
       ),
+    readPlanApproval: params => withRequiredAgent(() => {
+      requireAgentCapability('plan.approval.v1')
+      return rpc.call('planApproval/read', params)
+    }),
+    respondPlanApproval: params => withRequiredAgent(async () => {
+      requireAgentCapability('plan.approval.v1')
+      const result = await rpc.call('planApproval/respond', params)
+      await loadAgentSessionSnapshot(params.threadId)
+      emitSessionStoreChange()
+      return result
+    }),
     readThreadHistoryPage: params =>
       withAgentOrMock(
         () => rpc.call('thread/history/read', params),
@@ -3665,15 +3668,14 @@ export function createAgentSessionDesktopClient(
 
 function questionAnswerFromDecision(decision: DesktopPermissionDecision): string {
   const input = decision.updatedInput
-  if (typeof input?.answer === 'string') return input.answer
   const answers = input?.answers
   if (answers && typeof answers === 'object' && !Array.isArray(answers)) {
     const values = Object.values(answers).filter(
       (value): value is string => typeof value === 'string',
     )
-    if (values.length === 1) return values[0]!
-    if (values.length > 1) return JSON.stringify(answers)
+    if (values.length > 0) return JSON.stringify(answers)
   }
+  if (typeof input?.answer === 'string') return input.answer
   return decision.message ?? ''
 }
 

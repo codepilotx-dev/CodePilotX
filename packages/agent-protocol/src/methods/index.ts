@@ -3,6 +3,7 @@ import type { ParamsOf, ResultOf } from "../wire/definition"
 import { AutomationRpcMethods } from "./automation"
 import { BaseRpcMethods } from "./base"
 import { CalendarRpcMethods } from "./calendar"
+import { PlanApprovalRpcMethods } from "./plan-approval"
 import { HandoffRpcMethods } from "./handoff"
 import { LocalEnvironmentRpcMethods } from "./local-environment"
 import { ThreadForkRpcMethods } from "./thread-fork"
@@ -16,6 +17,7 @@ export const RpcMethods = {
   ...AutomationRpcMethods,
   ...BaseRpcMethods,
   ...CalendarRpcMethods,
+  ...PlanApprovalRpcMethods,
   ...HandoffRpcMethods,
   ...LocalEnvironmentRpcMethods,
   ...ThreadForkRpcMethods,
@@ -46,6 +48,7 @@ export type PublicRpcResult<M extends PublicRpcMethod> = ResultOf<(typeof RpcMet
 export * from "./core"
 export * from "./automation"
 export * from "./calendar"
+export * from "./plan-approval"
 export * from "./config"
 export * from "./extended"
 export * from "./git"

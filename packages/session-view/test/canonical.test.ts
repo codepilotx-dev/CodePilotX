@@ -18,6 +18,7 @@ import {
   applyThreadEnvelope,
   applyThreadEnvelopes,
   createCanonicalThreadState,
+  pageFromThreadSnapshot,
   createRenderTurnEntriesSelector,
   prependOlderThreadPage,
   reconcileLatestThreadPage,
@@ -43,6 +44,23 @@ const thread: Thread = {
   createdAt: 1,
   updatedAt: 2,
 }
+
+test("preserves plan approval on snapshot/history hydration and clears it on new input", () => {
+  const approval = { id: "plan-approval", threadId: thread.id, turnId: "plan-turn", planItemId: "plan-item", version: 1, status: "pending" as const, title: "计划", markdown: "# 计划", nextTurnId: null, createdAt: 1, resolvedAt: null }
+  const snapshotPage = pageFromThreadSnapshot({ thread, turns: [], agents: [], subagents: [], inputs: [], messages: [], items: [], approvals: [], pendingPlanApproval: approval })
+  expect(snapshotPage.pendingPlanApproval).toEqual(approval)
+  const state = createCanonicalThreadState({ ...page([]), pendingPlanApproval: approval })
+  expect(state.pendingPlanApproval).toEqual(approval)
+  expect(prependOlderThreadPage(state, page([])).pendingPlanApproval).toEqual(approval)
+  expect(reconcileLatestThreadPage(state, { ...page([]), pendingPlanApproval: null }).pendingPlanApproval).toBeNull()
+  for (const type of ["turn/queued", "turn/started"] as const) {
+    const nextTurn = turn("next")
+    expect(applyThreadEnvelope(state, durable(11, type, { turn: nextTurn, input: input("next-input", nextTurn.id, 11) })).pendingPlanApproval).toBeNull()
+  }
+  expect(applyThreadEnvelope(state, durable(11, "queue/updated", { threadId: thread.id, action: "added" })).pendingPlanApproval).toBeNull()
+  expect(applyThreadEnvelope(state, durable(11, "thread/settings/updated", { threadId: thread.id, settings: thread.settings })).pendingPlanApproval).toBeNull()
+  expect(createCanonicalThreadState(page([])).pendingPlanApproval).toBeNull()
+})
 
 function turn(id: string, sourceInputID = `input-${id}`): Turn {
   return {
@@ -161,6 +179,36 @@ function live<T extends LiveEventType>(
 }
 
 describe("canonical thread state", () => {
+  test("keeps a question group intact through replay, snapshot and resolution", () => {
+    const activeTurn = turn("group-turn")
+    const rootAgent = agent("group-agent", activeTurn.id)
+    const bundle = { turn: activeTurn, inputs: [], messages: [], agents: [rootAgent], items: [], approvals: [] }
+    const questions = ["scope", "format", "selection"].map((id) => ({
+      id, header: id, prompt: `Choose ${id}`,
+      choices: ["a", "b"].map((choice) => ({ id: choice, label: choice, description: choice, recommended: choice === "a" })),
+      allowFreeform: true as const, required: true as const,
+    }))
+    const requested = applyThreadEnvelope(createCanonicalThreadState(page([bundle])), durable(11, "question/requested", {
+      interactionId: "group", threadId: thread.id, turnId: activeTurn.id, agentId: rootAgent.id,
+      createdAt: 10, version: 2, kind: "question", questions, toolCallId: "call-group",
+    }))
+    const item = requested.itemsById.get("group")!
+    expect([...requested.itemsById.keys()]).toEqual(["group"])
+    expect(item).toMatchObject({ questions, toolCallId: "call-group", status: "pending" })
+    const restored = createCanonicalThreadState(page([{ ...bundle, items: [item] }]))
+    expect(restored.itemsById.get("group")).toEqual(item)
+    const answers = questions.map((question) => ({ questionId: question.id, choiceIds: ["b"] }))
+    const resolved = applyThreadEnvelope(requested, durable(12, "interaction/resolved", {
+      interactionId: "group", result: { kind: "question", status: "answered", resolution: "user", answers }, resolvedAt: 12,
+    }))
+    expect(resolved.itemsById.get("group")).toMatchObject({ status: "answered", answers, answer: "b" })
+    const ignored = applyThreadEnvelope(requested, durable(12, "interaction/resolved", {
+      interactionId: "group", result: { kind: "question", status: "ignored" }, resolvedAt: 12,
+    }))
+    expect(ignored.itemsById.get("group")).toMatchObject({ status: "ignored" })
+    const cancelled = applyThreadEnvelope(requested, durable(12, "turn/interrupted", { turn: { ...activeTurn, status: "interrupted" } }))
+    expect(cancelled.itemsById.get("group")).toMatchObject({ status: "cancelled" })
+  })
   test("projects local context references onto only their owning input", () => {
     const currentTurn = turn("turn-context")
     const currentInput = {

@@ -527,7 +527,23 @@ export class ThreadService {
   }
 
   async startTurn(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = []) {
-    return this.coordinator.exclusive(threadID, async () => {
+    return this.coordinator.exclusive(threadID, () => this.startTurnLocked(threadID, input, inputID, attachmentIDs, contextReferenceIDs))
+  }
+
+  /** Plan decisions share the normal admission lock and transaction, never a second execution path. */
+  withPlanAdmission<T>(threadID: string, operation: (start: (
+    input: SubmitMessage,
+    inputID: string,
+    transition: { beforeCreate: () => void; afterCreate: (turnID: string) => void },
+  ) => Promise<{ disposition: "started" | "duplicate"; turnID: string; inputID: string }>, assertIdle: () => void) => Promise<T>): Promise<T> {
+    return this.coordinator.exclusive(threadID, () => operation((input, inputID, transition) =>
+      this.startTurnLocked(threadID, input, inputID, [], [], transition), () => {
+        if (this.coordinator.active(threadID)) throw new AgentError("TURN_ACTIVE", "当前任务仍有运行中的轮次", 409)
+        this.db.repositories.planApprovals.assertIdle(threadID)
+      }))
+  }
+
+  private async startTurnLocked(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[], transition?: { beforeCreate: () => void; afterCreate: (turnID: string) => void }) {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
@@ -539,7 +555,9 @@ export class ThreadService {
       await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       let created
       created = this.db.transaction(() => {
+        transition?.beforeCreate()
         const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
+        transition?.afterCreate(value.turnID)
         this.db.bindInputAttachments(inputID, attachmentIDs)
         this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
         return value
@@ -549,7 +567,6 @@ export class ThreadService {
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)
       return { disposition: "started" as const, turnID: created.turnID, inputID: created.inputID }
-    })
   }
 
   async enqueueFollowUp(

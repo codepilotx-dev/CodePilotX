@@ -69,6 +69,7 @@ import {
   type ToolSemanticSummary,
 } from "./ToolActivityPresentation.js";
 import { isSchedulePlanTool, SchedulePlanCard } from "./SchedulePlanCard.js";
+import { QuestionItemView } from "./QuestionItemView.js";
 
 export {
   buildToolSemanticSummary,
@@ -173,7 +174,7 @@ export type CanonicalItemDisclosure = {
   store: KeyedDisclosureStore;
 };
 
-type ResolvedCanonicalItemDisclosure = {
+export type ResolvedCanonicalItemDisclosure = {
   id: string;
   expanded: boolean;
   onExpandedChange: (id: string, expanded: boolean) => void;
@@ -500,7 +501,7 @@ function CanonicalItemRendererContent({
     case "execution-plan":
       return null;
     case "question":
-      return <QuestionItemView item={item} />;
+      return <QuestionItemView disclosure={disclosure} item={item} />;
     case "patch":
       return (
         <PatchItemView
@@ -1052,22 +1053,6 @@ function CommandShellEmbeddedScroll({
   );
 }
 
-function QuestionItemView({ item }: { item: ItemOf<"question"> }): React.ReactNode {
-  return (
-    <article className="canonical-blocker-card" data-state={item.status}>
-      <header><CircleAlert size={APP_ICON_SIZE} aria-hidden="true" /><strong>{item.prompt}</strong></header>
-      <div className="canonical-question-options">
-        {item.choices.map((choice) => (
-          <span key={choice.id} data-recommended={choice.recommended || undefined}>
-            {choice.label}{choice.recommended ? " · 推荐" : ""}
-          </span>
-        ))}
-      </div>
-      {item.answer ? <p>已回答：{item.answer}</p> : <p>等待你的回答</p>}
-    </article>
-  );
-}
-
 function PatchItemView({
   item,
   onApplyPatch,
@@ -1505,11 +1490,11 @@ const LIFECYCLE_ACTIONS: Readonly<Record<string, LifecycleAction>> = {
     toolLabel: "请求权限",
   },
   request_user_input: {
-    completed: "已获得回答",
+    completed: "已发起提问",
     error: "提问失败",
     icon: MessageCircleQuestion,
     interrupted: "已中断提问",
-    running: "正在等待回答",
+    running: "正在询问问题",
     toolLabel: "提问",
   },
   spawn_agents: {

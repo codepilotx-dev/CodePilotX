@@ -8,6 +8,7 @@ import {
   agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
   permissionModeFromPermissionConfig,
+  questionToRequest,
 } from '../src/services/agentThreadAdapter.js'
 
 const project: Project = {
@@ -126,7 +127,7 @@ describe('agent thread adapter', () => {
       settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
       archivedAt: null, createdAt: 1, updatedAt: 2,
     }
-    for (const markers of [{}, { hasScheduledRun: true }, { isFork: true }, { hasScheduledRun: true, isFork: true }, { hasScheduledRun: false, isFork: false }]) {
+    for (const markers of [{}, { isScheduledSession: true }, { hasScheduledRun: true, isScheduledSession: false }, { isFork: true }, { hasScheduledRun: true, isScheduledSession: true, isFork: true }, { hasScheduledRun: false, isScheduledSession: false, isFork: false }]) {
       const thread = { ...base, ...markers }
       const list = agentThreadListItemToDesktop(thread, project)
       const snapshot = agentThreadSnapshotToDesktop({
@@ -134,6 +135,7 @@ describe('agent thread adapter', () => {
       }, project).item
       for (const item of [list, snapshot]) {
         expect(item.hasScheduledRun).toBe(thread.hasScheduledRun)
+        expect(item.isScheduledSession).toBe(thread.isScheduledSession)
         expect(item.isFork).toBe(thread.isFork)
       }
     }
@@ -447,7 +449,41 @@ describe('agent thread adapter', () => {
     })[0]!
 
     expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', input: { command: 'bun test', cwd: 'F:\\CodeProject\\CodePilotX-Ts' }, requestKind: 'shell-command' } })
-    expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:question-1', toolUseId: 'question-1', description: '如何继续？' } })
+    expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:interaction-1', toolUseId: 'interaction-1', description: '如何继续？' } })
+  })
+
+  test('keeps the same complete question group for snapshots and live events', () => {
+    const questions = ['scope', 'format', 'filter'].map(id => ({
+      id, header: id, prompt: `请选择 ${id}`,
+      choices: [
+        { id: `${id}-yes`, label: '是', description: '保留', recommended: true },
+        { id: `${id}-no`, label: '否', description: '排除', recommended: false },
+      ], allowFreeform: true as const, required: true as const, maxAnswers: id === 'scope' ? 2 : 1,
+    }))
+    const request = questionToRequest({
+      id: 'interaction-group', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1',
+      type: 'question', prompt: questions[0]!.prompt, choices: questions[0]!.choices,
+      questions, status: 'pending', answer: null, createdAt: 1,
+    })
+    const events = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'question/requested',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1',
+        interactionId: 'interaction-group', createdAt: 1, version: 1, kind: 'question', questions },
+    })
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'permission_request', request })
+    expect(request.requestId).toBe('question:interaction-group')
+    expect(request.input.questions).toEqual(questions.map(question => ({
+      id: question.id, question: question.prompt, header: question.header,
+      multiSelect: question.maxAnswers > 1,
+      options: [{ label: '是 (Recommended)', description: '保留' }, { label: '否', description: '排除' }],
+    })))
+    const withoutDescription = questionToRequest({
+      id: 'plain', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1',
+      type: 'question', prompt: '请选择', choices: [{ id: 'a', label: 'A', recommended: true }, { id: 'b', label: 'B', recommended: false }],
+      status: 'pending', answer: null, createdAt: 1,
+    })
+    expect(withoutDescription.input.options).toEqual([{ label: 'A (Recommended)', description: '' }, { label: 'B', description: '' }])
   })
 
   test('maps dynamic permission requests to permission-grant desktop requests', () => {
@@ -589,7 +625,7 @@ describe('agent thread adapter', () => {
     }
   })
 
-  test('derives pendingPlanApproval from the latest completed turn with a completed plan item', () => {
+  test('uses durable pendingPlanApproval instead of inferring approval from plan text', () => {
     const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
@@ -612,7 +648,11 @@ describe('agent thread adapter', () => {
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
     expect(desktop.item.latestTurnStatus).toBe('completed')
-    expect(desktop.item.pendingPlanApproval).toBe(true)
+    expect(desktop.item.pendingPlanApproval).toBe(false)
+    const approval = { id: 'approval-plan', threadId: snapshot.thread.id, turnId: 'turn-plan', planItemId: 'plan-1',
+      version: 1, status: 'pending' as const, title: '实施计划', markdown: '- 步骤', nextTurnId: null, createdAt: 1, resolvedAt: null }
+    expect(agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: approval }, project).item.pendingPlanApproval).toBe(true)
+    expect(agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: { ...approval, status: 'closed' } }, project).item.pendingPlanApproval).toBe(false)
   })
 
   test('does not mark pendingPlanApproval for streaming plan, newer running turn, or planless completed turn', () => {
@@ -654,7 +694,7 @@ describe('agent thread adapter', () => {
     expect(agentThreadSnapshotToDesktop(planless, project).item.pendingPlanApproval).toBe(false)
   })
 
-  test('list item and full snapshot derive the same priority state', () => {
+  test('list item and full snapshot expose the same durable priority state', () => {
     const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const thread: ThreadListItem = {
@@ -683,7 +723,9 @@ describe('agent thread adapter', () => {
     }
 
     expect(agentThreadListItemToDesktop(thread, project).pendingPlanApproval).toBe(
-      agentThreadSnapshotToDesktop(snapshot, project).item.pendingPlanApproval,
+      agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: { id: 'approval-consistent', threadId: thread.id,
+        turnId: 'turn-consistent', planItemId: 'plan-consistent', version: 1, status: 'pending', title: '计划', markdown: '- 步骤',
+        nextTurnId: null, createdAt: 1, resolvedAt: null } }, project).item.pendingPlanApproval,
     )
     expect(agentThreadListItemToDesktop(thread, project).latestTurnStatus).toBe(
       agentThreadSnapshotToDesktop(snapshot, project).item.latestTurnStatus,

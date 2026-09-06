@@ -58,6 +58,7 @@ import {
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 import type { RegisterConversationTurnRow } from "../conversation/useConversationTurnRowVisibility.js";
 import { useScrollEdgeState } from "../../../hooks/useScrollEdgeState.js";
+import { questionTimelineItems } from "./QuestionItemView.js";
 
 export type ProcessActivityProjection =
   | { kind: "groupable"; item: Item }
@@ -737,7 +738,9 @@ function CanonicalConversationTurnComponent({
     } = {},
   ) => (
     <CanonicalItemRenderer
-      disclosure={options.disclosureId ? disclosure(options.disclosureId) : undefined}
+      disclosure={options.disclosureId
+        ? disclosure(options.disclosureId)
+        : item.type === "question" ? disclosure(`question:${item.id}`) : undefined}
       item={item}
       key={item.id}
       onApplyPatch={onApplyPatch}
@@ -777,7 +780,7 @@ function CanonicalConversationTurnComponent({
   const active = isActiveTurn(entry.turn.status);
   const hasAssistantResult = entry.assistantResultItems.length > 0;
   const activitySliceClosed = hasAssistantResult;
-  const processActivity = buildProcessActivityModel(entry.processItems, {
+  const processActivity = buildProcessActivityModel(questionTimelineItems(entry.processItems, entry.items), {
     activitySliceClosed,
     hasBlockingRequest: entry.blockers.length > 0,
     turnActive: active,

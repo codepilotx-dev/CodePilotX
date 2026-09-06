@@ -282,6 +282,8 @@ export type DesktopAgentReviewApi = {
 }
 
 export type DesktopAgentEventEnvelopeApi = {
+  readPlanApproval(params: RpcParams<'planApproval/read'>): Promise<RpcResult<'planApproval/read'>>
+  respondPlanApproval(params: RpcParams<'planApproval/respond'>): Promise<RpcResult<'planApproval/respond'>>
   applyThreadPatch(
     params: Omit<RpcParams<'thread/patch/apply'>, 'operationId'>,
   ): Promise<RpcResult<'thread/patch/apply'>>

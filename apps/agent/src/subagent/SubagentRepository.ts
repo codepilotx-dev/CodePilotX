@@ -114,6 +114,7 @@ export class SubagentRepository {
     sequence: number
     timestamp: number
   }) {
+    this.db.repositories.planApprovals.invalidate(input.childThreadID)
     this.db.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, 'queue', NULL, NULL, ?, ?)`).run(
       input.turnID, input.childThreadID, input.agentID, input.taskMode, input.permission.sandboxMode, encodeApprovalPolicy(input.permission.approvalPolicy),
       input.permission.approvalsReviewer, stringify(input.model), input.timestamp, input.timestamp,
@@ -291,6 +292,7 @@ export class SubagentRepository {
       if (latestAgent) {
         this.db.updateAgentStatus(latestAgent.id, status === "stopped" ? "interrupted" : status)
         this.db.updateTurnStatus(latestAgent.turn_id, status === "stopped" ? "interrupted" : status)
+        if (status === "completed") this.db.repositories.planApprovals.recover(task.childThreadId)
       }
       const itemStatus = status === "completed" ? "completed" : status === "interrupted" || status === "stopped" ? "interrupted" : "error"
       this.db.sqlite.query("UPDATE items SET status = ?, data = json_set(data, '$.status', ?, '$.queueReason', NULL, '$.result', json(?)), updated_at = ? WHERE thread_id = ? AND type = 'subagent' AND json_extract(data, '$.subagentTaskId') = ?").run(itemStatus, status, stringify(result), timestamp, task.parentThreadId, task.id)

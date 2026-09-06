@@ -91,6 +91,8 @@ import {
   type ConversationTurnNavItem,
 } from "./turnNavigationModel.js";
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
+import { PlanApprovalCard } from "../approvals/PlanApprovalCard.js";
+import { usePlanApprovalResponse } from "../approvals/usePlanApprovalResponse.js";
 import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
 import {
   canInlineEditConversationTitle,
@@ -192,6 +194,12 @@ export function ConversationPage(): React.ReactNode {
     setSidebarSessionPins,
   } = useDesktopSettings();
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const pendingPlanApproval = canonicalConversation.state?.pendingPlanApproval;
+  const planModel = composerProps?.modelPresets.find(preset => preset.id === composerProps.selectedModelPreset)?.value;
+  const planApproval = usePlanApprovalResponse(pendingPlanApproval, canonicalConversation.reload,
+    composerProps?.selectedProviderID && planModel ? {
+      providerID: composerProps.selectedProviderID, model: planModel, variant: composerProps.modelVariant,
+    } : undefined);
   const subagents = React.useMemo(
     () => canonicalConversation.state
       ? [...canonicalConversation.state.subagentsByTaskId.values()]
@@ -1235,11 +1243,18 @@ export function ConversationPage(): React.ReactNode {
                 request={activePermissionRequest}
                 currentPermissionMode={permissionMode}
                 onDecide={onDecidePermission}
+                onInterrupt={composerProps.onInterrupt}
               />
+            </ComposerFooterPresence>
+          ) : pendingPlanApproval ? (
+            <ComposerFooterPresence key={pendingPlanApproval.id} reducedMotion={reduceMotion}>
+              <PlanApprovalCard approval={pendingPlanApproval}
+                disabledReason={planApproval.disabledReason}
+                onRespond={planApproval.respond} />
             </ComposerFooterPresence>
           ) : null}
         </AnimatePresence>
-        {!activePermissionRequest ? (
+        {!activePermissionRequest && !pendingPlanApproval ? (
           <DesktopComposer
             {...composerProps}
             canForkConversation={Boolean(

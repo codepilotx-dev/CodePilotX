@@ -1051,6 +1051,7 @@ gitBranchPrefix: string
   sidebarTimelinePriorityEnabled: boolean
   sidebarActivityShowWork?: boolean
   sidebarActivityShowChat?: boolean
+  sidebarShowScheduledSessions?: boolean
   sidebarActivityShowPinned?: boolean
   sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
@@ -1154,14 +1155,6 @@ export type DesktopThemeSettingsV7 =
 
 export type DesktopThemeSettings = DesktopThemeSettingsV7
 
-export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
-
-export type DesktopPermissionRememberOption = {
-  id: DesktopPermissionRememberOptionId
-  label: string
-  hint?: string
-}
-
 export type DesktopPermissionGrantScope = 'tool-call' | 'turn' | 'session'
 
 export type DesktopPermissionGrant = {
@@ -1175,12 +1168,10 @@ export type DesktopPermissionGrant = {
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision & {
-  rememberOptionId?: DesktopPermissionRememberOptionId
   grantScope?: DesktopPermissionGrantScope
 }
 
 export type DesktopPermissionRequest = AgentPermissionRequest & {
-  rememberOptions?: DesktopPermissionRememberOption[]
   permissionGrant?: DesktopPermissionGrant
 }
 
@@ -1193,6 +1184,7 @@ export type DesktopContextUsage = AgentContextUsage
 export type DesktopSessionListItem = {
   id: string
   hasScheduledRun?: boolean
+  isScheduledSession?: boolean
   isFork?: boolean
   projectId?: string | null
   sessionGroupId?: string | null
@@ -1714,7 +1706,6 @@ export type DesktopApi = {
   restoreSubagentWorkspace?(taskId: string): Promise<unknown>
   respondSubagentApproval?(approval: ApprovalRequest, decision: 'allow-once' | 'deny' | 'stop'): Promise<void>
   respondSubagentPermission?(approval: ApprovalRequest, behavior: 'allow' | 'deny', grantScope?: DesktopPermissionGrantScope): Promise<void>
-  respondSubagentQuestion?(questionId: string, answer: string | null, ignored: boolean): Promise<void>
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>

@@ -108,28 +108,22 @@ export function SubagentDockContent({
     ),
     onOpenSubagent,
     onOpenPatchReview,
-    onApprovalRespond: (approval, decision) => void runAction(
-      desktopClient.respondSubagentApproval
-        ? () => desktopClient.respondSubagentApproval!(approval, decision)
-        : undefined,
-      '当前 Agent 不支持响应子智能体审批。',
-    ),
-    onPermissionRespond: (approval, behavior, grantScope) => void runAction(
-      desktopClient.respondSubagentPermission
-        ? () => desktopClient.respondSubagentPermission!(approval, behavior, grantScope)
-        : undefined,
-      '当前 Agent 不支持响应子智能体权限请求。',
-    ),
-    onQuestionRespond: (question, response) => void runAction(
-      desktopClient.respondSubagentQuestion
-        ? () => desktopClient.respondSubagentQuestion!(
-            question.id,
-            response.answer,
-            response.ignored,
-          )
-        : undefined,
-      '当前 Agent 不支持响应子智能体问题。',
-    ),
+    onRequestRespond: async (request, behavior, alwaysAllow, updatedInput, extras) => {
+      try {
+        await desktopClient.respondToPermission(read.task.childThreadId, request.requestId, {
+          behavior, alwaysAllow, updatedInput, ...extras,
+        })
+        await onRefresh()
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error))
+        throw error
+      }
+    },
+    onInterrupt: async () => {
+      if (!desktopClient.stopSubagent) throw new Error('当前 Agent 不支持停止子智能体。')
+      await desktopClient.stopSubagent(read.task.id)
+      await onRefresh()
+    },
   }
 
   return (

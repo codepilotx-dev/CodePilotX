@@ -105,6 +105,29 @@ export const QuestionChoiceSchema = Schema.Struct({
 })
 export type QuestionChoice = typeof QuestionChoiceSchema.Type
 
+const QuestionTextSchema = Schema.String.check(Schema.isMinLength(1))
+export const InteractionQuestionChoiceSchema = Schema.Struct({
+  id: QuestionTextSchema,
+  label: QuestionTextSchema,
+  description: QuestionTextSchema,
+  recommended: Schema.Boolean,
+})
+export const InteractionQuestionSchema = Schema.Struct({
+  id: QuestionTextSchema,
+  header: QuestionTextSchema.check(Schema.isMaxLength(12)),
+  prompt: QuestionTextSchema,
+  choices: Schema.Array(InteractionQuestionChoiceSchema).check(Schema.isMinLength(2)).check(Schema.isMaxLength(3)),
+  allowFreeform: Schema.Literal(true),
+  required: Schema.Literal(true),
+  minAnswers: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
+  maxAnswers: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
+})
+export const InteractionQuestionAnswerSchema = Schema.Struct({
+  questionId: QuestionTextSchema,
+  choiceIds: Schema.Array(QuestionTextSchema).check(Schema.isMaxLength(1)),
+  text: Schema.optional(Schema.String),
+})
+
 export const ModelUsageSchema = Schema.Struct({
   provider: Schema.String,
   model: Schema.String,
@@ -302,6 +325,9 @@ export const QuestionItemSchema = Schema.Struct({
   choices: Schema.Array(QuestionChoiceSchema),
   status: Schema.Literals(["pending", "answered", "ignored", "cancelled"]),
   answer: Schema.NullOr(Schema.String),
+  questions: Schema.optional(Schema.Array(InteractionQuestionSchema)),
+  answers: Schema.optional(Schema.Array(InteractionQuestionAnswerSchema)),
+  toolCallId: Schema.optional(Schema.String),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })

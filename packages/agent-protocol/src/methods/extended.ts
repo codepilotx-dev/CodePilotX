@@ -27,6 +27,7 @@ const SubagentCapabilitiesSchema = Schema.Struct({
   canRetry: Schema.Boolean,
   canRespondToApprovals: Schema.Boolean,
   canRespondToQuestions: Schema.Boolean,
+  canRespondToPlan: Schema.optional(Schema.Boolean),
   canApplyWorktree: Schema.Boolean,
   canDiscardWorktree: Schema.Boolean,
   canRestoreWorkspace: Schema.Boolean,

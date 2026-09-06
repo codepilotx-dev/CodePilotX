@@ -22,7 +22,6 @@ import {
   createCanonicalThreadState,
   pageFromThreadSnapshot,
   selectRenderTurnEntries,
-  selectVisibleTurnEntries,
 } from '@codepilotx/session-view'
 import type { VirtualizerHandle } from 'virtua'
 import {
@@ -33,8 +32,9 @@ import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
-import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
-import type { DesktopPermissionGrantScope } from '../../../../shared/types.js'
+import { InlineApprovalCard, type InlineApprovalCardProps } from '../approvals/InlineApprovalCard.js'
+import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
+import { selectCanonicalConversationAuxiliaryState } from '../conversation/canonicalConversationSelectors.js'
 import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
@@ -48,6 +48,7 @@ export interface SubagentThreadCapabilities {
   canRetry: boolean
   canRespondToApprovals: boolean
   canRespondToQuestions: boolean
+  canRespondToPlan?: boolean
   canApplyWorktree: boolean
   canDiscardWorktree: boolean
   canRestoreWorkspace: boolean
@@ -62,19 +63,8 @@ export interface SubagentThreadCallbacks {
   onRestoreWorkspace?: (task: SubagentTask, run: SubagentRun) => void
   onOpenSubagent?: (item: Extract<Item, { type: 'subagent' }>) => void
   onOpenPatchReview?: (path?: string) => void
-  onApprovalRespond?: (
-    approval: ApprovalRequest,
-    decision: 'allow-once' | 'deny' | 'stop',
-  ) => void
-  onPermissionRespond?: (
-    approval: ApprovalRequest,
-    behavior: 'allow' | 'deny',
-    grantScope?: DesktopPermissionGrantScope,
-  ) => void
-  onQuestionRespond?: (
-    question: Extract<Item, { type: 'question' }>,
-    response: { answer: string | null; ignored: boolean },
-  ) => void
+  onRequestRespond?: InlineApprovalCardProps['onDecide']
+  onInterrupt?: () => Promise<void>
 }
 
 export interface SubagentThreadPanelProps {
@@ -105,27 +95,17 @@ export function SubagentThreadPanel({
     () => selectRenderTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
     [canonicalState, run.id],
   )
-  const visibleTurns = React.useMemo(
-    () => selectVisibleTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
-    [canonicalState, run.id],
+  const pendingRequests = React.useMemo(
+    () => selectCanonicalConversationAuxiliaryState(canonicalState).pendingPermissions,
+    [canonicalState],
   )
-  const pendingApprovals = React.useMemo(
-    () => visibleTurns.flatMap((turn) => turn.approvals).filter((approval) => approval.status === 'pending'),
-    [visibleTurns],
+  const pendingRequest = pendingRequests[0]
+  const canRespond = Boolean(callbacks.onRequestRespond) && isActiveRun(run) && (
+    pendingRequest?.toolName === 'AskUserQuestion'
+      ? capabilities.canRespondToQuestions
+      : capabilities.canRespondToApprovals
   )
-  const permissionApprovals = React.useMemo(
-    () => pendingApprovals.filter((approval) => Boolean(approval.permissionGrant)),
-    [pendingApprovals],
-  )
-  const approvalApprovals = React.useMemo(
-    () => pendingApprovals.filter((approval) => !approval.permissionGrant),
-    [pendingApprovals],
-  )
-  const pendingQuestions = React.useMemo(
-    () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'question' }> => item.type === 'question' && item.status === 'pending'),
-    [visibleTurns],
-  )
-  const viewBlocked = pendingApprovals.length + pendingQuestions.length > 0
+  const viewBlocked = pendingRequests.length > 0
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
@@ -284,37 +264,20 @@ export function SubagentThreadPanel({
             </div>
           )}
 
-          {permissionApprovals.map((approval) => (
+          {pendingRequest ? (
             <InlineApprovalCard
-              key={approval.id}
-              request={approvalToRequest(approval)}
-              onDecide={(_request, behavior, _alwaysAllow, _updatedInput, extras) =>
-                callbacks.onPermissionRespond?.(
-                  approval,
-                  behavior,
-                  extras?.grantScope,
-                )
-              }
+              key={pendingRequest.requestId}
+              request={pendingRequest}
+              identity={task.displayName}
+              disabledReason={canRespond ? undefined : '此子智能体当前不可操作，请通过父任务继续。'}
+              onDecide={callbacks.onRequestRespond ?? (() => Promise.reject(new Error('此子智能体当前不可操作。')))}
+              onInterrupt={canStop ? callbacks.onInterrupt : undefined}
             />
-          ))}
-
-          {approvalApprovals.map((approval) => (
-            <ApprovalCard
-              key={approval.id}
-              approval={approval}
-              enabled={capabilities.canRespondToApprovals}
-              onRespond={callbacks.onApprovalRespond}
-            />
-          ))}
-
-          {pendingQuestions.map((question) => (
-            <QuestionRow
-              key={`response:${question.id}`}
-              item={question}
-              enabled={capabilities.canRespondToQuestions}
-              onRespond={callbacks.onQuestionRespond}
-            />
-          ))}
+          ) : snapshot.pendingPlanApproval ? (
+            <PlanApprovalCard approval={snapshot.pendingPlanApproval} identity={task.displayName}
+              disabledReason="此子智能体没有计划续跑入口，请返回父任务处理。"
+              onRespond={() => Promise.reject(new Error('此子智能体不支持计划操作。'))} />
+          ) : null}
 
           {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
           {run.error ? (
@@ -327,122 +290,6 @@ export function SubagentThreadPanel({
         </div>
       </div>
     </section>
-  )
-}
-
-function QuestionRow({
-  item,
-  enabled,
-  onRespond,
-}: {
-  item: Extract<Item, { type: 'question' }>
-  enabled: boolean
-  onRespond?: SubagentThreadCallbacks['onQuestionRespond']
-}): React.ReactNode {
-  const [selected, setSelected] = React.useState(item.choices[0]?.label ?? '')
-  const [custom, setCustom] = React.useState('')
-  if (item.status !== 'pending') {
-    return (
-      <article className="subagent-thread-row subagent-thread-row--answer">
-        <strong>{item.prompt}</strong>
-        <p>{item.answer ?? (item.status === 'ignored' ? '已跳过' : '未回答')}</p>
-      </article>
-    )
-  }
-  const answer = custom.trim() || selected
-  return (
-    <article className="subagent-thread-row subagent-thread-row--question">
-      <header>
-        <span>子智能体提问</span>
-        <strong>{item.prompt}</strong>
-      </header>
-      {item.choices.length > 0 ? (
-        <div className="subagent-thread-row__choices">
-          {item.choices.map((choice) => (
-            <label key={choice.id}>
-              <input
-                checked={selected === choice.label && !custom}
-                disabled={!enabled}
-                name={`subagent-question:${item.id}`}
-                type="radio"
-                value={choice.label}
-                onChange={() => {
-                  setSelected(choice.label)
-                  setCustom('')
-                }}
-              />
-              <span>
-                <strong>{choice.label}</strong>
-                {choice.description ? <small>{choice.description}</small> : null}
-              </span>
-            </label>
-          ))}
-        </div>
-      ) : null}
-      <textarea
-        aria-label="自定义回答"
-        disabled={!enabled}
-        placeholder="输入其他回答"
-        rows={2}
-        value={custom}
-        onChange={(event) => setCustom(event.target.value)}
-      />
-      <div className="subagent-thread-row__actions">
-        <Button color="secondary"
-          disabled={!enabled || !onRespond}
-          onClick={() => onRespond?.(item, { answer: null, ignored: true })}
-        >
-          跳过
-        </Button>
-        <Button color="primary"
-          disabled={!enabled || !onRespond || !answer}
-          onClick={() => onRespond?.(item, { answer, ignored: false })}
-        >
-          <Send size={APP_ICON_SIZE} />
-          提交
-        </Button>
-      </div>
-    </article>
-  )
-}
-
-function ApprovalCard({
-  approval,
-  enabled,
-  onRespond,
-}: {
-  approval: ApprovalRequest
-  enabled: boolean
-  onRespond?: SubagentThreadCallbacks['onApprovalRespond']
-}): React.ReactNode {
-  return (
-    <article className="subagent-thread-row subagent-thread-row--approval" aria-label="审批请求">
-      <header>
-        <AlertCircle size={APP_ICON_SIZE} />
-        <span>
-          <strong>{approval.tool}</strong>
-          <small>{approval.reason}</small>
-        </span>
-        <em data-risk={approval.risk}>{riskLabel(approval.risk)}</em>
-      </header>
-      {approval.command ? <pre>{approval.command}</pre> : null}
-      {approval.paths.length > 0 ? <p>{approval.paths.join('\n')}</p> : null}
-      <div className="subagent-thread-row__actions">
-        <Button
-          disabled={!enabled || !onRespond}
-          color="danger"
-          onClick={() => onRespond?.(approval, 'deny')}
-        >
-          拒绝
-        </Button>
-        <Button color="primary"
-          disabled={!enabled || !onRespond}
-          onClick={() => onRespond?.(approval, 'allow-once')}
-        >
-          允许一次
-        </Button>
-      </div>
-    </article>
   )
 }
 
@@ -510,10 +357,6 @@ function queueReasonLabel(reason: NonNullable<SubagentRun['queueReason']>): stri
   if (reason === 'parent-limit') return '等待同一父智能体释放并发名额'
   if (reason === 'global-limit') return '等待全局并发名额'
   return '等待共享工作区写入锁'
-}
-
-function riskLabel(risk: ApprovalRequest['risk']): string {
-  return { low: '低风险', medium: '中风险', high: '高风险', critical: '严重风险' }[risk]
 }
 
 function isBlockedRun(run: SubagentRun): boolean {

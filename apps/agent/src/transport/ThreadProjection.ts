@@ -10,12 +10,14 @@ import type {
   Thread,
   ThreadListItem,
   ThreadSnapshot,
+  PlanApproval,
   ThreadTurnBundle,
   Turn,
 } from "@codepilotx/shared/thread"
 import { realpathSync } from "node:fs"
 import { resolve } from "node:path"
-import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy, InteractionQuestionSchema, InteractionQuestionAnswerSchema } from "@codepilotx/shared/thread"
+import { Schema } from "effect"
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { probeThreadsStorageCapabilities } from "../storage/database/storage-capabilities"
@@ -24,6 +26,8 @@ import { SubagentRepository } from "../subagent/SubagentRepository"
 import { classifyToolActivity, storedToolActivity } from "../tool/ToolActivityClassifier"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
+const isQuestionGroup = Schema.is(Schema.Array(InteractionQuestionSchema))
+const isQuestionAnswers = Schema.is(Schema.Array(InteractionQuestionAnswerSchema))
 const localContextStatus = (path: string): LocalContextReference["status"] => {
   try {
     const canonical = realpathSync(resolve(path))
@@ -186,6 +190,7 @@ export class InvalidThreadHistoryCursorError extends Error {
 }
 
 export type ThreadHistoryPage = {
+  pendingPlanApproval?: PlanApproval | null
   thread: Thread
   subagents: SubagentProjection[]
   turns: ThreadTurnBundle[]
@@ -258,6 +263,7 @@ export class ThreadProjection {
       gitBranch: row.git_branch == null ? null : String(row.git_branch),
       sessionGroupId,
       hasScheduledRun: Boolean(row.has_scheduled_run),
+      isScheduledSession: Boolean(row.is_scheduled_session),
       isFork: Boolean(row.is_fork),
       ...(row.creation_surface ? { creationSurface: row.creation_surface as Thread["creationSurface"] } : {}),
       ...(workspace ? { workspace } : {}),
@@ -494,6 +500,7 @@ export class ThreadProjection {
       messages,
       items,
       approvals,
+      pendingPlanApproval: this.db.repositories.planApprovals.pending(threadId),
       contextReferences: contextRows.map((row) => ({ id: row.id, name: row.name, path: row.path, kind: row.kind, status: localContextStatus(row.path), createdAt: row.created_at })),
       queue: this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null },
     }
@@ -667,6 +674,7 @@ export class ThreadProjection {
       thread,
       subagents: this.subagents.projectionForThread(threadId),
       turns: bundles,
+      pendingPlanApproval: this.db.repositories.planApprovals.pending(threadId),
       queue: { ...queueMetadata, turns: queueTurnRows.map(mapTurn), inputs: inputs.filter((input) => input.turnId != null && queueTurnIDs.includes(input.turnId)) },
       olderCursor: hasOlder && oldest ? encodeHistoryCursor({ v: 1, createdAt: Number(oldest.created_at), id: String(oldest.id) }) : null,
       hasOlder,
@@ -705,23 +713,7 @@ export class ThreadProjection {
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
             u.created_at DESC LIMIT 1) AS latest_turn_status,
-        EXISTS (
-          SELECT 1
-          FROM turns AS plan_turn
-          WHERE plan_turn.thread_id = t.id
-            AND plan_turn.status = 'completed'
-            AND plan_turn.id = (
-              SELECT u.id FROM turns AS u WHERE u.thread_id = t.id
-              ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
-                u.created_at DESC LIMIT 1
-            )
-            AND EXISTS (
-              SELECT 1 FROM items AS plan_item
-              WHERE plan_item.turn_id = plan_turn.id
-                AND plan_item.type = 'plan'
-                AND plan_item.status NOT IN ('pending', 'running', 'interrupted')
-            )
-        ) AS pending_plan_approval
+        ${this.db.repositories.planApprovals.available() ? "EXISTS (SELECT 1 FROM plan_approvals WHERE thread_id = t.id AND status = 'pending')" : "0"} AS pending_plan_approval
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
@@ -740,6 +732,7 @@ export class ThreadProjection {
         gitBranch: row.git_branch == null ? null : String(row.git_branch),
         sessionGroupId,
         hasScheduledRun: Boolean(row.has_scheduled_run),
+        isScheduledSession: Boolean(row.is_scheduled_session),
         isFork: Boolean(row.is_fork),
         ...(row.creation_surface ? { creationSurface: row.creation_surface as ThreadListItem["creationSurface"] } : {}),
         ...(workspace ? { workspace } : {}),
@@ -841,7 +834,24 @@ export class ThreadProjection {
     }
     if (item.type === "question") {
       const options = Array.isArray(item.data.options) ? item.data.options.filter((value): value is string => typeof value === "string") : []
-      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })), status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : "answered", answer: asText(item.data.answer), ...order, createdAt: item.createdAt }
+      const questions = isQuestionGroup(item.data.questions) ? item.data.questions : undefined
+      const rawAnswer = item.data.answer
+      const rawAnswers = rawAnswer && typeof rawAnswer === "object" && "answers" in rawAnswer ? rawAnswer.answers : rawAnswer
+      const answers = isQuestionAnswers(rawAnswers) ? rawAnswers : undefined
+      const first = questions?.[0]
+      const firstAnswer = answers?.find((answer) => answer.questionId === first?.id)
+      const toolCallId = typeof item.data.toolCallId === "string" ? item.data.toolCallId : this.db.repositories.interactions.questionToolCallID(item.id)
+      return {
+        id: item.id, messageID, turnId: item.turnID, agentId, type: "question",
+        prompt: first?.prompt ?? asText(item.data.question) ?? "需要你的选择",
+        choices: first?.choices ?? options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })),
+        status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : item.data.ignored === true ? "ignored" : "answered",
+        answer: firstAnswer?.text ?? firstAnswer?.choiceIds.map((id) => first?.choices.find((choice) => choice.id === id)?.label ?? id).join(", ") ?? asText(rawAnswer),
+        ...(questions ? { questions } : {}),
+        ...(answers ? { answers } : {}),
+        ...(toolCallId ? { toolCallId } : {}),
+        ...order, createdAt: item.createdAt,
+      }
     }
     if (item.type === "patch") {
       const patchState = this.db.repositories.turnPatches.getByTurn(item.turnID)

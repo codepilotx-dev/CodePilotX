@@ -43,7 +43,6 @@
     "src/styles/lazy/whats-new.scss": "features"
   },
   "customPropertyReferenceAllowlist": [
-    "--inline-approval-card-radius",
     "--popover-overflow-x",
     "--radix-context-menu-content-transform-origin",
     "--radix-context-menu-content-available-height",

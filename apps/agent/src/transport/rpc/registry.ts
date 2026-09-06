@@ -31,6 +31,7 @@ import { speechHandlers } from "./handlers/speech"
 import { sessionGroupHandlers } from "./handlers/session-group"
 import { automationHandlers } from "./handlers/automation"
 import { calendarHandlers } from "./handlers/calendar"
+import { planApprovalHandlers } from "./handlers/plan-approval"
 import type { RpcHandlerGroup } from "./handlers/types"
 import { workspaceHandlers } from "./handlers/workspace"
 import type { RpcRouterContext } from "./request-context"
@@ -72,6 +73,7 @@ const groups: readonly RpcHandlerGroup[] = [
   sessionGroupHandlers,
   automationHandlers,
   calendarHandlers,
+  planApprovalHandlers,
 ]
 
 const registeredMethods = groups.flatMap((group) => group.methods)

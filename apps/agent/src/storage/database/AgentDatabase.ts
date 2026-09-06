@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { RepositoryDatabase } from "../repositories/RepositoryDatabase"
+import { PlanApprovalRepository } from "../repositories/plan-approval-repository"
 import { credentialRepositoryDatabase } from "../repositories/credential-repository"
 import { ContextRepository } from "../repositories/context-repository"
 import { executionRepository } from "../repositories/execution-repository"
@@ -64,6 +65,7 @@ export class AgentDatabase extends RepositoryDatabase {
     super(sqlite, profileSqlite)
     this.repositories = {
       threads: threadRepository(this),
+      planApprovals: new PlanApprovalRepository(this),
       executions: executionRepository(this),
       interactions: interactionRepository(this),
       subagents: subagentRepositoryDatabase(this),
@@ -81,6 +83,7 @@ export class AgentDatabase extends RepositoryDatabase {
       schedulePlanProposals: new SchedulePlanProposalRepository(this),
     }
     this.artifacts = new ArtifactRepository(sqlite)
+    this.repositories.planApprovals.recover()
     sqlite.exec(`PRAGMA application_id = ${HISTORY_APPLICATION_ID}`)
   }
 

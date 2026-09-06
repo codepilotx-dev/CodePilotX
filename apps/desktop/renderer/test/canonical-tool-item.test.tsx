@@ -350,7 +350,7 @@ describe("canonical tool item display", () => {
     const scenarios = [
       ["update_plan", "正在更新计划", "已更新计划", "更新计划", "lucide-notepad-text"],
       ["request_permissions", "正在请求权限", "已请求权限", "请求权限", "lucide-shield"],
-      ["request_user_input", "正在等待回答", "已获得回答", "提问", "lucide-message-circle-question"],
+      ["request_user_input", "正在询问问题", "已发起提问", "提问", "lucide-message-circle-question"],
       ["spawn_agents", "正在创建子代理", "已创建子代理", "创建子代理", "lucide-user-round-plus"],
       ["wait_agents", "正在等待子代理", "子代理已返回", "等待子代理", "lucide-hourglass"],
       ["send_agent", "正在通知子代理", "已通知子代理", "通知子代理", "lucide-send"],

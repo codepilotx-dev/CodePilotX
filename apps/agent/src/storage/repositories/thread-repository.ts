@@ -15,6 +15,7 @@ import type {
 
 /** Shared by list and detail projections; the outer threads table uses alias t. */
 export const THREAD_ORIGIN_PROJECTION_SQL = `
+  COALESCE(t.create_operation_id GLOB 'automation-run:*:thread', 0) AS is_scheduled_session,
   (EXISTS (SELECT 1 FROM scheduled_tasks WHERE thread_id = t.id)
     OR EXISTS (SELECT 1 FROM automation_runs WHERE thread_id = t.id)) AS has_scheduled_run,
   (EXISTS (SELECT 1 FROM thread_message_forks WHERE target_thread_id = t.id)

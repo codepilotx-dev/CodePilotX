@@ -162,9 +162,7 @@ export type UseSessionStateResult = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: {
-      rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
-    },
+    decisionExtras?: {    },
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
@@ -862,9 +860,7 @@ export function useSessionState(
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
-      decisionExtras?: {
-        rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
-        grantScope?: DesktopPermissionDecision['grantScope']
+      decisionExtras?: {        grantScope?: DesktopPermissionDecision['grantScope']
       },
     ): Promise<void> => {
       await decidePermissionAction(

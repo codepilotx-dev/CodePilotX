@@ -20,6 +20,7 @@ import type {
   DesktopFilePreview,
   DesktopGitStatus,
   DesktopPermissionMode,
+  DesktopModelSelection,
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
@@ -173,6 +174,7 @@ export type WorkbenchTabRenderContext = {
     getPermissionMode: (
       tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
     ) => DesktopPermissionMode
+    getModelSelection?: (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>) => Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
     onInteractionError: (message: string) => void
     onOpenPatchReview?: (path?: string) => void
     onOpenPlan?: (request: OpenPlanInDockRequest) => void
@@ -417,6 +419,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
             onRecreate={context.sideChat.onRecreate}
             onStateChange={context.sideChat.onStateChange}
             permissionMode={context.sideChat.getPermissionMode(tab)}
+            modelSelection={context.sideChat.getModelSelection?.(tab)}
             renderComposer={context.sideChat.renderComposer}
             tab={tab}
           />

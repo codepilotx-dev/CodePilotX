@@ -98,9 +98,9 @@ export type QuickChatContextValue = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Pick<
       DesktopPermissionDecision,
-      'rememberOptionId'
+      'grantScope'
     >,
-  ) => void
+  ) => void | Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge

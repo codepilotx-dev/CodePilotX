@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
-import { decodeEventEnvelope, type EventEnvelope as WireEventEnvelope } from "@codepilotx/agent-protocol"
+import { Effect, Schema } from "effect"
+import { decodeEventEnvelope, RpcMethods, type EventEnvelope as WireEventEnvelope } from "@codepilotx/agent-protocol"
 import { Model, Provider } from "@codepilotx/model-schema"
 import type { EventEnvelope } from "../src/domain"
 import { removeFixturePaths } from "./fixture-cleanup"
@@ -13,6 +13,8 @@ import { buildEventNextNotification } from "../src/transport/event-envelope"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { SubagentRepository } from "../src/subagent/SubagentRepository"
+import { interactionQuestions } from "../src/session/QuestionInput"
+import { ThreadReadViewRepository } from "../src/session/ThreadReadViewRepository"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -69,21 +71,85 @@ const seedTurn = (db: AgentDatabase, threadID: string) => {
 }
 
 describe("v4 会话事件投影契约", () => {
-  test("列表和详情从运行绑定与分叉关系投影独立标记", async () => {
+  test.each([false, true])("真实提问历史严格编码保留完整问题（缺省答题数量：%s）", async (omitLimits) => {
+    const { db } = await fixture()
+    const thread = db.createThread()
+    const turn = seedTurn(db, thread.id)
+    db.startTurnExecution(turn.turnID, { ...turn.input, id: turn.inputID })
+    const agent = db.agentForTurn(turn.turnID)!
+    const generated = interactionQuestions(["scope", "format", "selection"].map(id => ({
+      id, header: id, question: `Choose ${id}`, multiSelect: id === "selection",
+      options: [{ label: "A", description: "第一项说明" }, { label: "B", description: "第二项说明" }],
+    })))
+    const questions = omitLimits
+      ? generated.map(({ minAnswers: _min, maxAnswers: _max, ...question }) => question)
+      : generated
+    const { question } = db.createResumableQuestion({
+      threadID: thread.id, turnID: turn.turnID, agentID: agent.id, toolCallID: "call-history",
+      payload: { questions, question: questions[0]!.prompt, options: ["A", "B"] }, payloadVersion: 2,
+      checkpoint: { payload: { state: "", interruption: null }, version: 1 },
+    })
+    const definition = RpcMethods["thread/history/read"]
+    expect(definition.exactResult).toBe(true)
+    const page = new ThreadReadViewRepository(db).history(thread.id, { limit: 10 })
+    const encoded = Schema.encodeSync(definition.result, { onExcessProperty: "error" })(page)
+    const decoded = Schema.decodeUnknownSync(definition.result)(encoded)
+    const items = decoded.turns.flatMap(turn => turn.items).filter(item => item.type === "question")
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ id: question.id, status: "pending", questions, toolCallId: "call-history" })
+  })
+
+  test("问题组实时事件与历史保留同一交互、原始问题和答案", async () => {
+    const { db, projection } = await fixture()
+    const thread = db.createThread()
+    const turn = seedTurn(db, thread.id)
+    db.startTurnExecution(turn.turnID, { ...turn.input, id: turn.inputID })
+    const agent = db.agentForTurn(turn.turnID)!
+    const questions = ["scope", "format", "selection"].map((id) => ({
+      id, header: id, prompt: `Choose ${id}`,
+      choices: ["a", "b"].map((choice) => ({ id: choice, label: choice, description: choice, recommended: choice === "a" })),
+      allowFreeform: true, required: true,
+    }))
+    const { question, events } = db.createResumableQuestion({
+      threadID: thread.id, turnID: turn.turnID, agentID: agent.id, toolCallID: "call-group",
+      payload: { questions, question: questions[0]!.prompt, options: ["a", "b"] }, payloadVersion: 2,
+      checkpoint: { payload: { state: "", interruption: null }, version: 1 },
+    })
+    const wire = decodeFromStorage(events.find((event) => event.method === "question/requested")!, projection)
+    expect(wire.payload).toMatchObject({ interactionId: question.id, questions, toolCallId: "call-group" })
+    const projected = () => projection.snapshot(thread.id)!.items.filter((item) => item.type === "question")
+    expect(projected()).toHaveLength(1)
+    expect(projected()[0]).toMatchObject({ id: question.id, questions, toolCallId: "call-group", status: "pending" })
+    const answers = questions.map((entry) => ({ questionId: entry.id, choiceIds: ["b"] }))
+    db.resolveResumableQuestion(question.id, { resolution: "user", answers })
+    expect(projected()[0]).toMatchObject({ id: question.id, questions, answers, status: "answered", answer: "b" })
+    const item = db.getItem(question.id)!
+    const { toolCallId: _toolCallId, ...historicalData } = item.data
+    db.upsertItem(thread.id, { ...item, data: historicalData })
+    expect(projected()[0]).toMatchObject({ toolCallId: "call-group", questions, answers })
+    db.upsertItem(thread.id, { ...item, data: { ...item.data, ignored: true } })
+    expect(projected()[0]).toMatchObject({ status: "ignored" })
+    db.upsertItem(thread.id, { ...item, status: "interrupted" })
+    expect(projected()[0]).toMatchObject({ status: "cancelled" })
+  })
+  test("列表和详情从创建来源、运行绑定与分叉关系投影独立标记", async () => {
     const { db, projection } = await fixture()
     const source = db.createThread()
-    const scheduled = db.createThread()
+    const scheduled = db.createThread({ operationID: "automation-run:one-time:thread" })
+    const recurring = db.createThread({ operationID: "automation-run:recurring:thread" })
     const fork = db.createThread()
     const messageFork = db.createThread()
     const child = db.createThread()
     db.sqlite.query("UPDATE threads SET kind = 'subagent', parent_thread_id = ? WHERE id = ?").run(source.id, child.id)
-    const assertMarkers = (id: string, hasScheduledRun: boolean, isFork: boolean) => {
-      const expected = { hasScheduledRun, isFork }
+    const assertMarkers = (id: string, hasScheduledRun: boolean, isFork: boolean, isScheduledSession = false) => {
+      const expected = { hasScheduledRun, isFork, isScheduledSession }
       expect(projection.snapshot(id)?.thread).toMatchObject(expected)
       if (id !== child.id) expect(projection.list().find(thread => thread.id === id)).toMatchObject(expected)
     }
     assertMarkers(source.id, false, false)
     assertMarkers(child.id, false, false)
+    assertMarkers(scheduled.id, false, false, true)
+    assertMarkers(recurring.id, false, false, true)
 
     db.sqlite.query(`INSERT INTO scheduled_tasks (
       id, operation_id, kind, name, prompt, status, target_thread_id, model_ref,
@@ -92,7 +158,7 @@ describe("v4 会话事件投影契约", () => {
       .run(source.id)
     assertMarkers(source.id, false, false)
     db.sqlite.query("UPDATE scheduled_tasks SET thread_id = ?, status = 'completed' WHERE id = 'schedule'").run(scheduled.id)
-    assertMarkers(scheduled.id, true, false)
+    assertMarkers(scheduled.id, true, false, true)
     // An existing conversation gains the same marker when a task actually binds to it.
     db.sqlite.query("UPDATE scheduled_tasks SET thread_id = ? WHERE id = 'schedule'").run(source.id)
     assertMarkers(source.id, true, false)
@@ -126,6 +192,8 @@ describe("v4 会话事件投影契约", () => {
       id, automation_id, operation_id, trigger, scheduled_for, status, thread_id, created_at
     ) VALUES ('run', 'automation', 'run', 'manual', 1, 'completed', ?, 1)`).run(messageFork.id)
     assertMarkers(messageFork.id, true, true)
+    db.sqlite.query("UPDATE automation_runs SET thread_id = ? WHERE id = 'run'").run(recurring.id)
+    assertMarkers(recurring.id, true, false, true)
     assertMarkers(fork.id, false, true)
     assertMarkers(child.id, false, false)
   })

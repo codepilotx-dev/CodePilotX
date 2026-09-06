@@ -10,6 +10,7 @@ import {
 } from "./items"
 import { ThreadListItemSchema, ThreadSchema, TurnSchema } from "./schema"
 import { AgentExecutionSchema, SubagentProjectionSchema } from "./subagent"
+import { PlanApprovalSchema } from "./plan-approval"
 
 export const QueuePauseReasonSchema = Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))
 export type QueuePauseReason = typeof QueuePauseReasonSchema.Type
@@ -34,6 +35,7 @@ export const ThreadSnapshotSchema = Schema.Struct({
   messages: Schema.Array(MessageSchema),
   items: Schema.Array(ItemSchema),
   approvals: Schema.Array(ApprovalRequestSchema),
+  pendingPlanApproval: Schema.optional(Schema.NullOr(PlanApprovalSchema)),
   contextReferences: Schema.optional(Schema.Array(LocalContextReferenceSchema)),
   queue: Schema.optional(Schema.Struct({
     version: Schema.Number,

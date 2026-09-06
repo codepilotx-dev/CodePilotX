@@ -1,33 +1,32 @@
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import {
-  ArrowDown,
-  ArrowUp,
+  ArrowRight,
   Check,
   ChevronLeft,
   ChevronRight,
   CornerDownLeft,
-  Info,
   PenLine,
+  X,
 } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
+import { RequestCard, RequestMarker } from './RequestCard.js'
 import {
   CUSTOM_OPTION_ID,
   answerStateForConfirmation,
-  buildAskUserQuestionAnswers,
+  buildAskUserQuestionUpdatedInput,
   canSubmitFromCurrentQuestion,
   enterQuestionAction,
   firstUnansweredQuestionIndex,
-  footerControls,
-  hasQuestionAnswer,
   initialQuestionState,
+  questionKey,
   nextQuestionIndex,
   nextQuestionOptionId,
   parseAskUserQuestions,
   selectQuestionOption,
+  shouldShowQuestionSubmit,
   shouldDeferAskUserQuestionShortcutToTextEntry,
-  shouldSubmitOptionClick,
   type AskUserQuestion,
   type QuestionState,
 } from './askUserQuestionModel.js'
@@ -51,7 +50,6 @@ export {
   questionOptionIds,
   selectQuestionOption,
   shouldDeferAskUserQuestionShortcutToTextEntry,
-  shouldSubmitOptionClick,
   toggleMultiSelectOption,
   type AskUserQuestion,
   type AskUserQuestionOption,
@@ -62,16 +60,42 @@ export {
 
 export type AskUserQuestionApprovalProps = {
   request: DesktopPermissionRequest
-  onSubmit: (updatedInput: Record<string, unknown>) => void
-  onReject: () => void
+  onSubmit: (updatedInput: Record<string, unknown>) => void | Promise<void>
+  onReject: () => void | Promise<void>
+  onInterrupt?: () => void | Promise<void>
+  identity?: string
+  disabledReason?: string
 }
 
-export function AskUserQuestionApproval({
-  request,
+export function AskUserQuestionApproval({ request, ...props }: AskUserQuestionApprovalProps): React.ReactNode {
+  return <QuestionAnswerForm {...props} requestId={request.requestId} input={request.input} questions={parseAskUserQuestions(request.input)} />
+}
+
+export type QuestionAnswerFormProps = Omit<AskUserQuestionApprovalProps, 'request' | 'onSubmit'> & {
+  onSubmit: (updatedInput: Record<string, unknown>, states: Readonly<Record<string, QuestionState>>) => void | Promise<void>
+  requestId: string
+  input?: Record<string, unknown>
+  questions: AskUserQuestion[] | null
+  variant?: 'question' | 'plan'
+  dismissLabel?: string
+  closeLabel?: string
+  closeError?: string
+}
+
+export function QuestionAnswerForm({
+  requestId,
+  input = {},
+  questions,
   onSubmit,
   onReject,
-}: AskUserQuestionApprovalProps): React.ReactNode {
-  const questions = parseAskUserQuestions(request.input)
+  onInterrupt,
+  identity,
+  disabledReason,
+  variant = 'question',
+  dismissLabel = '跳过',
+  closeLabel = '中断当前对话',
+  closeError = '中断对话失败，请重试。',
+}: QuestionAnswerFormProps): React.ReactNode {
   const [questionStates, setQuestionStates] = React.useState<
     Record<string, QuestionState>
   >({})
@@ -79,7 +103,18 @@ export function AskUserQuestionApproval({
   const [error, setError] = React.useState<string | null>(null)
   const customInputRef = React.useRef<HTMLTextAreaElement | null>(null)
   const approvalRef = React.useRef<HTMLDivElement | null>(null)
+  const submittedRef = React.useRef(false)
+  const [busy, setBusy] = React.useState(false)
+  const disabled = busy || Boolean(disabledReason)
   const questionCount = questions?.length ?? 0
+
+  React.useEffect(() => {
+    submittedRef.current = false
+    setBusy(false)
+    setQuestionStates({})
+    setCurrentQuestionIndex(0)
+    setError(null)
+  }, [requestId])
 
   React.useEffect(() => {
     setCurrentQuestionIndex(current =>
@@ -100,14 +135,17 @@ export function AskUserQuestionApproval({
       approvalRef.current?.focus()
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [request.requestId])
+  }, [requestId])
 
   React.useEffect(() => {
-    if (!questions || typeof window === 'undefined') return
+    if (!questions || disabled || typeof window === 'undefined') return
     function handleKeyDown(event: KeyboardEvent): void {
+      if (!(event.target instanceof Node) || !approvalRef.current?.contains(event.target)) return
+      if (event.isComposing || event.repeat || submittedRef.current) return
+      if (event.target instanceof HTMLElement && event.target.closest('button')) return
       if (event.key === 'Escape') {
         event.preventDefault()
-        onReject()
+        void reject()
         return
       }
       if (shouldDeferAskUserQuestionShortcutToTextEntry(
@@ -123,9 +161,7 @@ export function AskUserQuestionApproval({
         )
       } else if (event.key === 'ArrowRight') {
         event.preventDefault()
-        setCurrentQuestionIndex(current =>
-          nextQuestionIndex(current, 1, questionCount),
-        )
+        if (currentQuestionIndex < questionCount - 1) confirmCurrentQuestionAndAdvance(currentQuestion)
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault()
         updateQuestionSelection(
@@ -137,28 +173,11 @@ export function AskUserQuestionApproval({
           event.preventDefault()
           toggleFocusedMultiSelectOption(currentQuestion)
         }
-      } else if (event.key === 'Enter') {
-        const currentState =
-          questionStates[currentQuestion.question] ??
-          initialQuestionState(currentQuestion)
-        const focusedCustom =
-          currentState.focused === CUSTOM_OPTION_ID
-        if (focusedCustom && !currentState.custom.trim()) {
-          event.preventDefault()
-          customInputRef.current?.focus()
-          return
-        }
-        if (shouldDeferAskUserQuestionShortcutToTextEntry(
-          event.key,
-          isTextEntryTarget(event.target),
-        )) return
-        event.preventDefault()
-        confirmCurrentQuestionAndAdvance(currentQuestion)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentQuestionIndex, onReject, questionCount, questionStates, questions])
+  }, [currentQuestionIndex, onReject, questionCount, questionStates, questions, disabled])
 
   if (!questions) {
     return (
@@ -174,7 +193,8 @@ export function AskUserQuestionApproval({
           <span className="inline-approval-footer-spacer" aria-hidden="true" />
           <Button
             color="danger"
-            onClick={onReject}
+            disabled={disabled}
+            onClick={() => void reject()}
           >
             拒绝
             <CornerDownLeft size={APP_ICON_SIZE} />
@@ -189,7 +209,7 @@ export function AskUserQuestionApproval({
     updater: (current: QuestionState) => QuestionState,
   ): void {
     setQuestionStates(current => {
-      const question = questions?.find(item => item.question === questionText)
+      const question = questions?.find(item => questionKey(item) === questionText)
       const previous = question
         ? (current[questionText] ?? initialQuestionState(question))
         : { selected: [], custom: '', answered: false }
@@ -204,9 +224,9 @@ export function AskUserQuestionApproval({
   function submitAnswers(
     override?: { question: AskUserQuestion; state: QuestionState },
   ): void {
-    if (!questions) return
+    if (!questions || submittedRef.current || disabledReason) return
     const effectiveStates = override
-      ? { ...questionStates, [override.question.question]: override.state }
+      ? { ...questionStates, [questionKey(override.question)]: override.state }
       : questionStates
     const firstUnanswered = firstUnansweredQuestionIndex(questions, effectiveStates)
     if (firstUnanswered !== -1) {
@@ -214,33 +234,33 @@ export function AskUserQuestionApproval({
       setError('请先确认所有问题后再提交。')
       return
     }
-    const answers = buildAskUserQuestionAnswers(questions, effectiveStates)
-    onSubmit({
-      ...request.input,
-      answers,
-    })
-  }
-
-  function confirmCurrentSelection(
-    question: AskUserQuestion,
-    selectedLabel?: string,
-  ): void {
-    updateQuestion(question.question, current => {
-      const selected = selectedLabel ? [selectedLabel] : current.selected
-      return {
-        ...current,
-        selected,
-        custom: selectedLabel ? '' : current.custom,
-        answered: selected.length > 0 || Boolean(current.custom.trim()),
+    submittedRef.current = true
+    setBusy(true)
+    try {
+      const submission = onSubmit(buildAskUserQuestionUpdatedInput(input, questions, effectiveStates), effectiveStates)
+      if (submission) {
+        void submission.catch(() => {
+          setError('提交回答失败，请重试。')
+        }).finally(() => {
+          submittedRef.current = false
+          setBusy(false)
+        })
       }
-    })
+    } catch {
+      submittedRef.current = false
+      setBusy(false)
+      setError('提交回答失败，请重试。')
+    }
   }
 
-  function confirmCurrentQuestionAndAdvance(question: AskUserQuestion): void {
-    const confirmedState = answerStateForConfirmation(
-      questionStates[question.question] ?? initialQuestionState(question),
-    )
-    confirmCurrentSelection(question)
+  function confirmCurrentQuestionAndAdvance(
+    question: AskUserQuestion,
+  ): void {
+    if (submittedRef.current || disabledReason) return
+    const current = questionStates[questionKey(question)] ?? initialQuestionState(question)
+    const confirmedState = answerStateForConfirmation(current)
+    if (!confirmedState.answered) return
+    updateQuestion(questionKey(question), () => confirmedState)
     if (enterQuestionAction(currentQuestionIndex, questionCount) === 'confirm-and-submit') {
       submitAnswers({ question, state: confirmedState })
       return
@@ -248,70 +268,70 @@ export function AskUserQuestionApproval({
     goToQuestion(1)
   }
 
-  function submitCurrentSelection(
-    question: AskUserQuestion,
-    selectedLabel: string,
-  ): void {
-    if (!questions) return
-    const answers = buildAskUserQuestionAnswers(questions, questionStates, {
-      question,
-      state: {
-        selected: [selectedLabel],
-        custom: '',
-        answered: true,
-      },
-    })
-    onSubmit({
-      ...request.input,
-      answer: answers[question.id ?? question.question] ?? '',
-      answers,
-    })
-  }
-
   function updateQuestionSelection(
     question: AskUserQuestion,
     delta: -1 | 1,
   ): void {
-    updateQuestion(question.question, current => {
+    updateQuestion(questionKey(question), current => {
       const currentLabel =
         current.focused ?? current.selected[0] ?? question.options[0]?.label
       const nextLabel = nextQuestionOptionId(question, currentLabel, delta)
       if (nextLabel === undefined) return current
-      return selectQuestionOption(current, nextLabel, question.multiSelect, 'focus')
+      return { ...selectQuestionOption(current, nextLabel, question.multiSelect, 'focus'), answered: false }
     })
   }
 
   function toggleFocusedMultiSelectOption(question: AskUserQuestion): void {
-    updateQuestion(question.question, current => {
+    updateQuestion(questionKey(question), current => {
       const label = current.focused ?? current.selected[0] ?? question.options[0]?.label
       if (!label) return current
-      return selectQuestionOption(current, label, question.multiSelect, 'toggle')
+      return { ...selectQuestionOption(current, label, question.multiSelect, 'toggle'), answered: false, touched: true }
     })
   }
 
-  function focusCustomInput(): void {
-    customInputRef.current?.focus()
-  }
-
   function goToQuestion(delta: -1 | 1): void {
+    if (submittedRef.current) return
     setCurrentQuestionIndex(current =>
       nextQuestionIndex(current, delta, questionCount),
     )
     setError(null)
   }
 
+  async function interrupt(): Promise<void> {
+    if (!onInterrupt || submittedRef.current || disabledReason) return
+    submittedRef.current = true
+    setBusy(true)
+    setError(null)
+    try {
+      await onInterrupt()
+    } catch {
+      setError(closeError)
+    } finally {
+      submittedRef.current = false
+      setBusy(false)
+    }
+  }
+
+  async function reject(): Promise<void> {
+    if (submittedRef.current || disabledReason) return
+    submittedRef.current = true
+    setBusy(true)
+    setError(null)
+    try { await onReject() } catch { setError('操作失败，请重试。') }
+    finally { submittedRef.current = false; setBusy(false) }
+  }
+
   const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
   const state =
-    questionStates[currentQuestion.question] ?? initialQuestionState(currentQuestion)
-  const answeredCount = questions.filter(question =>
-    hasQuestionAnswer(questionStates[question.question]),
-  ).length
+    questionStates[questionKey(currentQuestion)] ?? initialQuestionState(currentQuestion)
   const canSubmit = canSubmitFromCurrentQuestion(
     questions,
     questionStates,
     currentQuestionIndex,
   )
-  const controls = footerControls(currentQuestionIndex, questionCount)
+  const isLastQuestion = currentQuestionIndex === questionCount - 1
+  const showSubmit = shouldShowQuestionSubmit(questions, questionStates, currentQuestionIndex)
+  const canConfirm = isLastQuestion ? canSubmit : state.selected.length > 0 || Boolean(state.custom.trim())
   const questionOptions = [
     ...currentQuestion.options.map((option, index) => ({
       kind: 'choice' as const,
@@ -328,14 +348,22 @@ export function AskUserQuestionApproval({
       className="ask-user-question-approval"
       tabIndex={-1}
     >
-      <div className="ask-user-question-progress">
-        <span>
-          问题 {currentQuestionIndex + 1}/{questionCount}
-        </span>
-        <span>{answeredCount}/{questionCount} 已回答</span>
-      </div>
-      <section className="ask-user-question-block" key={currentQuestion.question}>
-        <h3 className="ask-user-question-heading">{currentQuestion.question}</h3>
+      <RequestCard variant={variant} title={currentQuestion.question} identity={identity} disabledReason={disabledReason} error={error}
+        navigation={<div className="ask-user-question-navigation">
+            {variant === 'question' || questionCount > 1 ? <><button type="button" className="ask-user-question-nav-button" aria-label="上一题"
+              disabled={disabled || currentQuestionIndex === 0} onClick={() => goToQuestion(-1)}>
+              <ChevronLeft size={APP_ICON_SIZE} />
+            </button>
+            <span aria-live="polite">{currentQuestionIndex + 1} of {questionCount}</span>
+            <button type="button" className="ask-user-question-nav-button" aria-label="下一题"
+              disabled={disabled || isLastQuestion || !canConfirm} onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}>
+              <ChevronRight size={APP_ICON_SIZE} />
+            </button></> : null}
+            <button type="button" className="ask-user-question-nav-button" aria-label={closeLabel}
+              disabled={disabled || !onInterrupt} onClick={() => void interrupt()}>
+              <X size={APP_ICON_SIZE} />
+            </button>
+          </div>}>
         <div
           className="inline-approval-options"
           role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
@@ -354,48 +382,31 @@ export function AskUserQuestionApproval({
                     .join(' ')}
                   key={questionOption.id}
                 >
-                  <input
-                    aria-label="使用自定义回答"
-                    checked={Boolean(state.custom.trim())}
-                    name={`ask-user-question-${currentQuestionIndex}`}
-                    type={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
-                    onChange={() => {
-                    updateQuestion(currentQuestion.question, current =>
-                      selectQuestionOption(
-                        current,
-                        questionOption.id,
-                        currentQuestion.multiSelect,
-                        'focus',
-                      ),
-                    )
-                    focusCustomInput()
-                  }}
-                  />
-                  <span
-                    className="inline-approval-option-custom-icon"
-                    aria-hidden="true"
-                  >
+                  <RequestMarker>
                     <PenLine size={APP_ICON_SIZE} />
-                  </span>
+                  </RequestMarker>
                   <textarea
                     ref={customInputRef}
                     className="ask-user-question-custom-input"
+                    aria-label="自定义回答"
                     placeholder="否，请告知 CodePilotX 如何调整"
                     rows={1}
+                    disabled={disabled}
                     value={state.custom}
                     onFocus={() => {
-                      updateQuestion(currentQuestion.question, current =>
-                        selectQuestionOption(
+                      updateQuestion(questionKey(currentQuestion), current => ({
+                        ...selectQuestionOption(
                           current,
                           questionOption.id,
                           currentQuestion.multiSelect,
                           'focus',
                         ),
-                      )
+                        answered: false,
+                      }))
                     }}
                     onChange={event => {
                       const custom = event.target.value
-                      updateQuestion(currentQuestion.question, current => ({
+                      updateQuestion(questionKey(currentQuestion), current => ({
                         ...selectQuestionOption(
                           current,
                           questionOption.id,
@@ -403,10 +414,7 @@ export function AskUserQuestionApproval({
                           'focus',
                         ),
                         custom,
-                        answered:
-                          Boolean(custom.trim()) ||
-                          (currentQuestion.multiSelect &&
-                            current.selected.length > 0),
+                        answered: false,
                       }))
                     }}
                   />
@@ -431,40 +439,41 @@ export function AskUserQuestionApproval({
                 }
                 key={option.label}
                 role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
-                title={option.description || undefined}
                 type="button"
+                disabled={disabled}
                 onClick={() => {
-                  updateQuestion(currentQuestion.question, current =>
-                    selectQuestionOption(
-                      current,
+                  if (submittedRef.current || disabledReason) return
+                  const nextState = {
+                    ...selectQuestionOption(
+                      state,
                       option.label,
                       currentQuestion.multiSelect,
                       'toggle',
                     ),
-                  )
-                  if (shouldSubmitOptionClick(currentQuestion)) {
-                    submitCurrentSelection(currentQuestion, option.label)
+                    answered: false,
+                    touched: true,
                   }
+                  const directlySubmit = questionCount === 1 && !currentQuestion.multiSelect
+                  const next = directlySubmit ? answerStateForConfirmation(nextState) : nextState
+                  updateQuestion(questionKey(currentQuestion), () => next)
+                  if (directlySubmit) submitAnswers({ question: currentQuestion, state: next })
                 }}
               >
-                <span className="inline-approval-option-index">
+                <RequestMarker>
                   {index + 1}
-                </span>
-                <span className="inline-approval-option-label">
-                  {option.label}
+                </RequestMarker>
+                <span className="ask-user-question-option-copy">
+                  <span className="inline-approval-option-label">
+                    {option.label}
+                    {index === 0 ? (
+                      <span className="inline-approval-option-hint">
+                        {' '}
+                        （推荐）
+                      </span>
+                    ) : null}
+                  </span>
                   {option.description ? (
-                    <span
-                      className="inline-approval-option-info"
-                      aria-hidden="true"
-                    >
-                      <Info size={APP_ICON_SIZE} />
-                    </span>
-                  ) : null}
-                  {index === 0 ? (
-                    <span className="inline-approval-option-hint">
-                      {' '}
-                      （推荐）
-                    </span>
+                    <span className="ask-user-question-option-description">{option.description}</span>
                   ) : null}
                 </span>
                 {currentQuestion.multiSelect ? (
@@ -486,8 +495,7 @@ export function AskUserQuestionApproval({
                       className="inline-approval-option-arrows"
                       aria-hidden="true"
                     >
-                      <ArrowUp size={APP_ICON_SIZE} />
-                      <ArrowDown size={APP_ICON_SIZE} />
+                      <ArrowRight size={APP_ICON_SIZE} />
                     </span>
                   </span>
                 ) : null}
@@ -495,46 +503,23 @@ export function AskUserQuestionApproval({
             )
           })}
           <div className="inline-approval-split ask-user-question-actions">
-            <Button color="secondary"
-              aria-label="跳过当前问题"
-              title="按 Esc 跳过"
-              onClick={onReject}
+            {showSubmit ? <Button color="primary"
+              disabled={disabled}
+              onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
             >
-              跳过
-            </Button>
-            {controls.showPrevious || controls.showNext ? (
-              <div className="ask-user-question-navigation">
-                {controls.showPrevious ? (
-                  <Button color="secondary"
-                    onClick={() => goToQuestion(-1)}
-                  >
-                    <ChevronLeft size={APP_ICON_SIZE} />
-                    上一题
-                  </Button>
-                ) : null}
-                {controls.showNext ? (
-                  <Button color="secondary"
-                    onClick={() => goToQuestion(1)}
-                  >
-                    下一题
-                    <ChevronRight size={APP_ICON_SIZE} />
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-            {controls.showSubmit ? (
-              <Button color="primary"
-                disabled={!canSubmit}
-                onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
-              >
-                提交
-                <CornerDownLeft size={APP_ICON_SIZE} />
-              </Button>
-            ) : null}
+              提交
+              <CornerDownLeft size={APP_ICON_SIZE} />
+            </Button> : <Button color="secondary"
+              aria-label={variant === 'question' ? '跳过本组问题' : dismissLabel}
+              title="按 Esc 跳过"
+              disabled={disabled}
+              onClick={() => void reject()}
+            >
+              {dismissLabel}
+            </Button>}
           </div>
         </div>
-      </section>
-      {error ? <p className="ask-user-question-error">{error}</p> : null}
+      </RequestCard>
     </div>
   )
 }

@@ -294,6 +294,7 @@ export async function interruptSessionAction(
     await desktopClient.interruptSession(sessionId)
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
+    throw error
   }
 }
 
@@ -306,7 +307,7 @@ export async function decidePermissionAction(
   updatedInput?: Record<string, unknown>,
   decisionExtras?: Pick<
     DesktopPermissionDecision,
-    'rememberOptionId' | 'grantScope'
+    'grantScope'
   >,
 ): Promise<void> {
   if (!sessionId) return
@@ -322,6 +323,7 @@ export async function decidePermissionAction(
     // 不在 RPC 成功前乐观移除请求卡片：成功后由 interaction/resolved 事件与
     // 刷新后的 snapshot 清理；失败或已被其他客户端处理时保留卡片供重试。
     onErrorRef.current(errorMessageOf(error))
+    throw error
   }
 }
 

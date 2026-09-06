@@ -18,6 +18,11 @@ export type QuestionState = {
   custom: string
   answered: boolean
   focused?: string
+  touched?: boolean
+}
+
+export function questionKey(question: { id?: string; question: string }): string {
+  return question.id ?? question.question
 }
 
 export function nextQuestionIndex(
@@ -30,38 +35,50 @@ export function nextQuestionIndex(
 }
 
 export function firstUnansweredQuestionIndex(
-  questions: Array<{ question: string }>,
+  questions: Array<{ id?: string; question: string }>,
   questionStates: Record<string, QuestionState>,
 ): number {
   return questions.findIndex(
-    question => !hasQuestionAnswer(questionStates[question.question]),
+    question => !hasQuestionAnswer(questionStates[questionKey(question)]),
   )
 }
 
 export function areAllQuestionsAnswered(
-  questions: Array<{ question: string }>,
+  questions: Array<{ id?: string; question: string }>,
   questionStates: Record<string, QuestionState>,
 ): boolean {
   return (
     questions.length > 0
-    && questions.every(question => hasQuestionAnswer(questionStates[question.question]))
+    && questions.every(question => hasQuestionAnswer(questionStates[questionKey(question)]))
   )
 }
 
 export function canSubmitFromCurrentQuestion(
-  questions: Array<{ question: string; options: Array<{ label: string }> }>,
+  questions: Array<{ id?: string; question: string; options: Array<{ label: string }> }>,
   questionStates: Record<string, QuestionState>,
   currentQuestionIndex: number,
 ): boolean {
   if (questions.length === 0) return false
   return questions.every((question, index) => {
     const state =
-      questionStates[question.question] ?? initialQuestionState(question)
+      questionStates[questionKey(question)] ?? initialQuestionState(question)
     if (index === currentQuestionIndex) {
       return state.selected.length > 0 || Boolean(state.custom.trim())
     }
-    return hasQuestionAnswer(questionStates[question.question])
+    return hasQuestionAnswer(questionStates[questionKey(question)])
   })
+}
+
+export function shouldShowQuestionSubmit(
+  questions: AskUserQuestion[],
+  states: Record<string, QuestionState>,
+  index: number,
+): boolean {
+  if (index !== questions.length - 1 || !canSubmitFromCurrentQuestion(questions, states, index)) return false
+  if (questions.length > 1) return true
+  const question = questions[index]!
+  const state = states[questionKey(question)] ?? initialQuestionState(question)
+  return Boolean(state.custom.trim()) || (question.multiSelect && state.touched === true)
 }
 
 export type FooterControls = {
@@ -102,12 +119,6 @@ export function initialQuestionState(question: {
     custom: '',
     answered: false,
   }
-}
-
-export function shouldSubmitOptionClick(question: {
-  multiSelect: boolean
-}): boolean {
-  return !question.multiSelect
 }
 
 export function toggleMultiSelectOption(
@@ -220,9 +231,9 @@ export function buildAskUserQuestionAnswers(
   const answers: Record<string, string> = {}
   for (const question of questions) {
     const state =
-      override?.question.question === question.question
+      override && questionKey(override.question) === questionKey(question)
         ? override.state
-        : (questionStates[question.question] ?? initialQuestionState(question))
+        : (questionStates[questionKey(question)] ?? questionStates[question.question] ?? initialQuestionState(question))
     const answerParts = [
       ...state.selected,
       ...(state.custom.trim() ? [state.custom.trim()] : []),
@@ -279,8 +290,8 @@ export function parseAskUserQuestions(
     for (const rawOption of rawOptions) {
       if (!isRecord(rawOption)) return null
       const label = normalizeRecommendedOptionLabel(stringValue(rawOption.label))
-      const description = stringValue(rawOption.description)
-      if (!label || !description) return null
+      const description = stringValue(rawOption.description) ?? ''
+      if (!label) return null
       options.push({ label, description })
     }
 

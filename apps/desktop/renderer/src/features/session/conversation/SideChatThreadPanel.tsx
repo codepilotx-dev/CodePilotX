@@ -3,6 +3,7 @@ import { CirclePlus, LoaderCircle } from 'lucide-react'
 import type { VirtualizerHandle } from 'virtua'
 import type {
   DesktopPermissionMode,
+  DesktopModelSelection,
   DesktopSessionStatus,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -10,6 +11,8 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/ico
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { WorkbenchTabDescriptor } from '../../layout/dock/rightDockState.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
+import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
+import { usePlanApprovalResponse } from '../approvals/usePlanApprovalResponse.js'
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import { CanonicalThreadView } from '../timeline/CanonicalThreadView.js'
 import type { ThreadTimelineNavigationHandle } from '../timeline/SessionTimelineView.js'
@@ -27,6 +30,7 @@ type SideChatTab = Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>
 export type SideChatComposerRenderContext = {
   hasVisibleMessages: boolean
   status: DesktopSessionStatus
+  planModeActive?: boolean
 }
 
 export function SideChatThreadPanel({
@@ -41,6 +45,7 @@ export function SideChatThreadPanel({
   itemContext,
   onInteractionError,
   permissionMode,
+  modelSelection,
   renderComposer,
 }: {
   active: boolean
@@ -58,6 +63,7 @@ export function SideChatThreadPanel({
   itemContext: (status: DesktopSessionStatus) => ConversationItemContextValue
   onInteractionError: (message: string) => void
   permissionMode: DesktopPermissionMode
+  modelSelection?: Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
   renderComposer: (
     tab: SideChatTab,
     context: SideChatComposerRenderContext,
@@ -76,6 +82,8 @@ export function SideChatThreadPanel({
     [tab.inheritedThroughTurnId],
   )
   const conversation = useCanonicalThreadConversation(tab.threadId, scope)
+  const pendingPlanApproval = conversation.state?.pendingPlanApproval
+  const planApproval = usePlanApprovalResponse(pendingPlanApproval, conversation.reload, modelSelection)
   const auxiliary = React.useMemo(
     () => selectCanonicalConversationAuxiliaryState(conversation.state),
     [conversation.state],
@@ -102,6 +110,7 @@ export function SideChatThreadPanel({
   const composer = renderComposer(tab, {
     hasVisibleMessages: visibleTurnCount > 0,
     status,
+    planModeActive: conversation.state ? conversation.state.thread.settings.taskMode === 'plan' : undefined,
   })
 
   return (
@@ -117,6 +126,7 @@ export function SideChatThreadPanel({
             <ThreadComposerDock ref={surfaceRef}>
               {auxiliary.pendingPermissions[0] ? (
                 <InlineApprovalCard
+                  onInterrupt={() => desktopClient.interruptSession(tab.threadId)}
                   currentPermissionMode={permissionMode}
                   request={auxiliary.pendingPermissions[0]}
                   onDecide={(
@@ -126,7 +136,7 @@ export function SideChatThreadPanel({
                     updatedInput,
                     decisionExtras,
                   ) => {
-                    void desktopClient.respondToPermission(
+                    return desktopClient.respondToPermission(
                       tab.threadId,
                       request.requestId,
                       {
@@ -142,9 +152,12 @@ export function SideChatThreadPanel({
                       onInteractionError(
                         error instanceof Error ? error.message : String(error),
                       )
+                      throw error
                     })
                   }}
                 />
+              ) : pendingPlanApproval ? (
+                <PlanApprovalCard approval={pendingPlanApproval} disabledReason={planApproval.disabledReason} onRespond={planApproval.respond} />
               ) : composer}
             </ThreadComposerDock>
           ) : null

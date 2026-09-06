@@ -21,6 +21,7 @@ import type { AgentModelCatalog } from "../../provider/AgentModelCatalog"
 import { AgentError, type SubmitMessage, type TaskMode } from "../../domain"
 import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
+import { PlanApprovalService } from "../../session/plan/PlanApprovalService"
 import type { ApiKeyService } from "../../provider/ApiKeyService"
 import type { ModelHealthService } from "../../provider/ModelHealthService"
 import type { ProviderCredentialService } from "../../provider/ProviderCredentialService"
@@ -127,6 +128,7 @@ export type RpcRouterDependencies = {
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
+  planApprovals?: PlanApprovalService | undefined
   history: ThreadHistoryService
   approvals: ApprovalService
   questions: QuestionService
@@ -292,6 +294,7 @@ export class RpcRouter {
   readonly projection: ThreadProjection
   readonly subscriptions: EventSubscriptionRegistry
   private readonly interactions: InteractionService
+  readonly planApprovals: PlanApprovalService
   private readonly threadReadViews: ThreadReadViewRepository
   readonly workspaceFileWatchers = new Map<string, {
     close: () => void
@@ -324,6 +327,7 @@ export class RpcRouter {
     this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
     this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
+    this.planApprovals = dependencies.planApprovals ?? new PlanApprovalService(dependencies.db, dependencies.hub, dependencies.threads)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
     this.interactions = new InteractionService({
       db: dependencies.db,
@@ -444,16 +448,19 @@ export class RpcRouter {
   }
 
   requiredSnapshot(threadId: string) {
+    this.dependencies.db.repositories.planApprovals.recover(threadId)
     const snapshot = this.projection.snapshot(threadId)
     if (!snapshot) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
     return snapshot
   }
 
   threadSnapshotResult(threadId: string) {
+    this.dependencies.db.repositories.planApprovals.recover(threadId)
     return this.threadReadViews.snapshot(threadId)
   }
 
   threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
+    this.dependencies.db.repositories.planApprovals.recover(threadId)
     return this.threadReadViews.history(threadId, params)
   }
 

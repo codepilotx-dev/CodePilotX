@@ -661,6 +661,12 @@ const schedulePlanProposal = {
 } as const
 
 const fixtures = {
+  "planApproval/read": methodFixture("planApproval/read", {
+    threadId: "thread:1",
+  }, { approval: null }),
+  "planApproval/respond": methodFixture("planApproval/respond", {
+    threadId: "thread:1", approvalId: "plan:1", expectedVersion: 1, operationId: "op:1", response: { action: "close" },
+  }, { approval: { id: "plan:1", threadId: "thread:1", turnId: "turn:1", planItemId: "item:1", version: 2, status: "closed", title: "计划", markdown: "# 计划", nextTurnId: null, createdAt: 1, resolvedAt: 2 }, disposition: "applied" }),
   "calendar/range": methodFixture("calendar/range", {
     from: 1_000,
     to: 3_000,
@@ -3425,7 +3431,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(240)
+    expect(methods).toHaveLength(242)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3756,7 +3762,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(234)
+    expect(Object.keys(RpcMethods)).toHaveLength(236)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

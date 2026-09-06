@@ -1,5 +1,6 @@
 export * from "./items"
 export * from "./permission"
+export * from "./plan-approval"
 export * from "./queue"
 export * from "./schema"
 export * from "./settings"

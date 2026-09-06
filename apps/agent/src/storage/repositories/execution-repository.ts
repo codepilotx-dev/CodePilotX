@@ -6,6 +6,7 @@ import type { AgentTurnCheckpoint, PermissionColumns, QueueMutationMeta, QueuePa
 import { now, parse, permissionConfigFromRow, stringify } from "./repository-core"
 
 import { ThreadRepositoryDatabase } from "./thread-repository"
+import { PlanApprovalRepository } from "./plan-approval-repository"
 
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
   bindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
@@ -131,6 +132,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         const queuePosition = status === "queued"
           ? (this.sqlite.query("SELECT COALESCE(MAX(queue_position), 0) AS position FROM turns WHERE thread_id = ? AND status = 'queued'").get(threadID) as { position: number }).position + 1
           : null
+        new PlanApprovalRepository(this).invalidate(threadID)
         const settingsUpdate = this.syncThreadSettings(threadID, {
           taskMode: input.taskMode,
           permissionConfig: input.permissionConfig,
@@ -210,6 +212,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       const id = inputID ?? crypto.randomUUID()
       const timestamp = now()
       return this.transaction(() => {
+        new PlanApprovalRepository(this).invalidate(threadID)
         const settingsUpdate = this.syncThreadSettings(threadID, {
           taskMode: input.taskMode,
           permissionConfig: input.permissionConfig,
@@ -420,6 +423,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
             "UPDATE items SET status = ?, updated_at = ? WHERE turn_id = ? AND type = 'execution-plan' AND status IN ('pending', 'running')",
           ).run(input.status === "completed" ? "completed" : "interrupted", timestamp, input.turnID)
         }
+        if (input.status === "completed") new PlanApprovalRepository(this).recover(input.threadID)
         const events: EventEnvelope[] = [
           this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent }),
           ...requeuedSteers.flatMap((queued) => [

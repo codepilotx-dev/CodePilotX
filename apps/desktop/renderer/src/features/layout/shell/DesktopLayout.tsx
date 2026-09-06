@@ -2116,7 +2116,7 @@ export function DesktopLayout(): React.ReactNode {
         routedSessionId={tab.threadId}
         sessionStatus={sideChatContext.status}
         permissionMode={sideSettings.permissionMode}
-        planModeActive={sideSettings.planModeActive}
+        planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
         localRouterMode={effectiveLocalRouterMode}
         enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
@@ -2731,6 +2731,7 @@ export function DesktopLayout(): React.ReactNode {
           focusVersion: sideChatFocusVersion,
           isCreating: isCreatingSideChat,
           getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+          getModelSelection: tab => getSideChatSettings(tab.id),
           onInteractionError: message => setErrorMessage(message),
           itemContext: (tab, status) => ({
             modelProviderNames: Object.fromEntries(modelProviders.map(
@@ -2997,7 +2998,7 @@ export function DesktopLayout(): React.ReactNode {
               updatedInput,
               decisionExtras,
             ) => {
-              void decidePermission(
+              return decidePermission(
                 request,
                 behavior,
                 alwaysAllow,

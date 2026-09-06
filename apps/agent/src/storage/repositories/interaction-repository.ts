@@ -483,6 +483,11 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
     return row ? { version: row.payload_version, status: row.status } : null
   }
 
+  questionToolCallID(id: string): string | null {
+    const row = this.sqlite.query("SELECT tool_call_id FROM question_requests WHERE id = ?").get(id) as { tool_call_id: string | null } | null
+    return row?.tool_call_id ?? null
+  }
+
   pendingQuestionPayload(id: string) {
     const row = this.sqlite.query("SELECT payload FROM question_requests WHERE id = ? AND status = 'pending'").get(id) as { payload: string } | null
     return row ? parse<Record<string, unknown>>(row.payload) : null
@@ -1046,7 +1051,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         )
         this.updateTurnStatus(input.turnID, "waiting_question")
         this.updateAgentStatus(input.agentID, "waiting_question")
-        const item = { id, turnID: input.turnID, agentID: input.agentID, type: "question" as const, status: "pending" as const, data: input.payload, createdAt, updatedAt: createdAt }
+        const item = { id, turnID: input.turnID, agentID: input.agentID, type: "question" as const, status: "pending" as const, data: { ...input.payload, toolCallId: input.toolCallID }, createdAt, updatedAt: createdAt }
         this.upsertItem(input.threadID, item)
         const question = { id, threadID: input.threadID, turnID: input.turnID, toolCallID: input.toolCallID, payload: input.payload, payloadVersion: input.payloadVersion, createdAt } satisfies ResumableQuestion
         const events = [
@@ -1059,6 +1064,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
             createdAt,
             version: input.payloadVersion,
             kind: "question",
+            toolCallId: input.toolCallID,
             questions: input.payload.questions,
             ...(typeof input.payload.autoResolutionMs === "number"
               ? { autoResolutionMs: input.payload.autoResolutionMs }

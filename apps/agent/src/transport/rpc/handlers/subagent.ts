@@ -36,6 +36,7 @@ export const subagentHandlers = {
             canRetry: Boolean(value.currentRun && ["failed", "stopped", "interrupted"].includes(value.currentRun.status)),
             canRespondToApprovals: approvals > 0,
             canRespondToQuestions: questions > 0,
+            canRespondToPlan: false,
             canApplyWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded" && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
             canDiscardWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded",
             canRestoreWorkspace: value.task.workspace.mode === "shared" && value.task.workspace.baselineRef !== null && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),

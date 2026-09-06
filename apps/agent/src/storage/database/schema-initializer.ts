@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite"
 import { createHash } from "node:crypto"
 import { resolve } from "node:path"
+import { PLAN_APPROVAL_SCHEMA } from "../repositories/plan-approval-repository"
 
 import {
   PROFILE_APPLICATION_ID,
@@ -144,6 +145,7 @@ export const FINAL_SCHEMA = [
   ...SESSION_GROUP_SCHEMA,
   ...AUTOMATION_SCHEMA,
   ...SCHEDULE_CALENDAR_SCHEMA,
+  ...PLAN_APPROVAL_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -1335,6 +1337,7 @@ class SchemaInitializer {
           40: () => migrateHistory40To41(this.sqlite),
           41: () => migrateHistory41To42(this.sqlite),
           42: () => migrateHistory42To43(this.sqlite),
+          43: () => this.sqlite.exec(PLAN_APPROVAL_SCHEMA.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")).join(";")),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration

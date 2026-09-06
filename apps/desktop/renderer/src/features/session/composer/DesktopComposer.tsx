@@ -447,7 +447,7 @@ export function DesktopComposer({
       onSkillTokenActivate={onSkillTokenActivate}
       onCompositionStart={handleCompositionStart}
       onCompositionEnd={handleCompositionEnd}
-      onInterrupt={() => void onInterrupt()}
+      onInterrupt={() => void onInterrupt().catch(error => handleCommandError(error instanceof Error ? error.message : String(error)))}
       onProviderModelChange={onProviderModelChange}
       onProviderOpen={onProviderOpen}
       onProviderSearch={onProviderSearch}

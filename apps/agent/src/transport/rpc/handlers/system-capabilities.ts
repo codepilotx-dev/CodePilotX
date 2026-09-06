@@ -24,6 +24,7 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
       (capability !== "thread.creation-surface.v1" || creationSurface)
+      && (capability !== "plan.approval.v1" || db.repositories.planApprovals.available())
       && (capability !== "artifacts.read.v1" || itemArtifactsTable)
       && (capability !== "automation.manage.v1" || (automations && automationRuns))
       && (capability !== "calendar.manage.v1" || (automations && automationRuns && scheduledTasks && schedulePlanProposals)),

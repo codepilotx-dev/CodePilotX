@@ -9,6 +9,7 @@ export const Capabilities = [
   "interactions.serverRequests.v1",
   "interaction.recovery.v1",
   "turn.admission.v1",
+  "plan.approval.v1",
   "turn.steer.v1",
   "turn.resume.v1",
   "turn.queue.management.v1",

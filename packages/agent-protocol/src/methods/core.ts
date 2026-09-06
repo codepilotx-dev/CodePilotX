@@ -177,27 +177,13 @@ export const PendingPermissionInteractionSchema = Schema.Struct({
   risk: Schema.optional(Schema.Literals(["low", "medium", "high", "critical"])),
 })
 
-export const InteractionQuestionChoiceSchema = Schema.Struct({
-  id: OpaqueIDSchema,
-  label: NonEmptyStringSchema,
-  description: NonEmptyStringSchema,
-  recommended: Schema.Boolean,
-})
-
-export const InteractionQuestionSchema = Schema.Struct({
-  id: OpaqueIDSchema,
-  header: NonEmptyStringSchema.check(Schema.isMaxLength(12)),
-  prompt: NonEmptyStringSchema,
-  choices: Schema.Array(InteractionQuestionChoiceSchema)
-    .check(Schema.isMinLength(2))
-    .check(Schema.isMaxLength(3)),
-  allowFreeform: Schema.Literal(true),
-  required: Schema.Literal(true),
-})
+export const InteractionQuestionChoiceSchema = AgentThread.InteractionQuestionChoiceSchema
+export const InteractionQuestionSchema = AgentThread.InteractionQuestionSchema
 
 export const PendingQuestionInteractionSchema = Schema.Struct({
   ...InteractionMetadataFields,
   kind: Schema.Literal("question"),
+  toolCallId: Schema.optional(OpaqueIDSchema),
   questions: Schema.Array(InteractionQuestionSchema)
     .check(Schema.isMinLength(1))
     .check(Schema.isMaxLength(3)),
@@ -264,11 +250,7 @@ export const QuestionInteractionResponseSchema = Schema.Union([
     kind: Schema.Literal("question"),
     status: Schema.Literal("answered"),
     resolution: Schema.Literals(["user", "auto"]),
-    answers: Schema.Array(Schema.Struct({
-      questionId: OpaqueIDSchema,
-      choiceIds: Schema.Array(OpaqueIDSchema).check(Schema.isMaxLength(1)),
-      text: Schema.optional(Schema.String),
-    }))
+    answers: Schema.Array(AgentThread.InteractionQuestionAnswerSchema)
       .check(Schema.isMinLength(1))
       .check(Schema.isMaxLength(3)),
   }),
@@ -595,6 +577,7 @@ export const ThreadHistoryReadParamsSchema = Schema.Struct({
 
 export const ThreadHistoryPageResultSchema = Schema.Struct({
   thread: AgentThread.ThreadSchema,
+  pendingPlanApproval: Schema.optional(Schema.NullOr(AgentThread.PlanApprovalSchema)),
   subagents: Schema.Array(AgentThread.SubagentProjectionSchema),
   turns: Schema.Array(AgentThread.ThreadTurnBundleSchema),
   queue: Schema.Struct({
