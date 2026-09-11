@@ -16,12 +16,17 @@ import {
 import {
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
+  DEEPSEEK_PROVIDER_ID,
+  DEFAULT_DEEPSEEK_PROTOCOL,
+  resolveDeepSeekProtocol,
+  type DeepSeekProtocol,
   type ParsedPiProviderCatalog,
   type PiModelCatalogConfig,
   type PiProviderConfig,
   type PiProviderConfigIssue,
   type PiProviderDefinitionInput,
 } from "./PiProviderConfig";
+import { createPiDeepSeekProvider } from "./PiDeepSeekProvider";
 import {
   createPiCustomProvider,
   discoverOpenAIModels,
@@ -216,6 +221,13 @@ export class PiModelService {
   private syncOperation: Promise<ParsedPiProviderCatalog> = Promise.resolve(
     this.parsedConfig,
   );
+  private deepSeekProtocol:
+    | {
+        readonly protocol: DeepSeekProtocol;
+        readonly provider: PiProvider;
+        readonly source: PiProvider;
+      }
+    | undefined;
   private disposed = false;
 
   constructor(
@@ -375,6 +387,7 @@ export class PiModelService {
           id,
           enabled: model.enabled,
         })),
+        ...(builtin?.protocol ? { protocol: builtin.protocol } : {}),
       };
     });
     const defined = new Set(definitions.map((definition) => definition.id));
@@ -603,12 +616,43 @@ export class PiModelService {
         nextCustomProviderIDs.add(providerID);
       }
       this.configuredCustomProviderIDs = nextCustomProviderIDs;
+      this.applyProviderProtocolOverride(parsed);
       this.parsedConfig = parsed;
       this.configFingerprint = fingerprint;
       return parsed;
     };
     this.syncOperation = this.syncOperation.then(operation, operation);
     return this.syncOperation;
+  }
+
+  /**
+   * DeepSeek selects one global wire protocol per config write, so the runtime
+   * provider is rebuilt from whatever catalog is currently installed: a
+   * models.dev overlay keeps its extra models, and a stream that is already
+   * running keeps the model object it started with.
+   */
+  private applyProviderProtocolOverride(config: ParsedPiProviderCatalog): void {
+    if (!this.mutablePi) return;
+    const base = this.baseProviders.get(DEEPSEEK_PROVIDER_ID);
+    if (!base) return;
+    const active = this.deepSeekProtocol;
+    const current = this.pi.getProvider(DEEPSEEK_PROVIDER_ID) ?? base;
+    const protocol = resolveDeepSeekProtocol(config);
+    // A rejected DeepSeek block keeps the provider that is already running.
+    if (!protocol) return;
+    if (protocol === DEFAULT_DEEPSEEK_PROTOCOL) {
+      if (!active) return;
+      this.deepSeekProtocol = undefined;
+      this.mutablePi.setProvider(active.source);
+      return;
+    }
+    if (active?.protocol === protocol && current === active.provider) return;
+    // A provider other than our own override means the catalog was rebuilt
+    // underneath it, so that provider becomes the new mapping source.
+    const source = current === active?.provider ? active.source : current;
+    const provider = createPiDeepSeekProvider(source, protocol);
+    this.deepSeekProtocol = { protocol, provider, source };
+    this.mutablePi.setProvider(provider);
   }
 
   private restoreModelsDevCache(): Promise<void> {

@@ -10,6 +10,7 @@ import {
   ModelsDevCatalogStore,
   PiModelService,
   validateModelsDevCatalog,
+  type PiModelCatalogConfig,
 } from "../src/provider/pi"
 
 type Stored = {
@@ -139,6 +140,222 @@ describe("EncryptedCredentialStore", () => {
   })
 })
 
+describe("PiModelService DeepSeek protocol", () => {
+  const deepSeekRepository = () =>
+    repository([{
+      id: "cred_deepseek",
+      integrationID: "deepseek",
+      methodID: null,
+      label: "DeepSeek",
+      value: { type: "key", key: "sk-deepseek-secret" },
+    }]);
+
+  const deepSeekConfig = (protocol?: string) => ({
+    schemaVersion: 2,
+    providers: {
+      deepseek: {
+        kind: "builtin",
+        enabled: true,
+        allow_models: [],
+        deny_models: [],
+        models: {},
+        ...(protocol ? { protocol } : {}),
+      },
+    },
+  });
+
+  const deepSeekRef = () => ({
+    providerID: "deepseek" as never,
+    id: "deepseek-v4-pro" as never,
+  });
+
+  test("rebuilds every DeepSeek model on the selected protocol", async () => {
+    const fake = deepSeekRepository();
+    const service = new PiModelService(fake.adapter, {
+      config: deepSeekConfig("anthropic-messages"),
+      env: {},
+    });
+
+    try {
+      await service.list();
+      const models = service.pi.getModels("deepseek");
+      expect(models.map((model) => model.id)).toContain("deepseek-v4-pro");
+      for (const model of models) {
+        expect(model.api).toBe("anthropic-messages");
+        expect(model.baseUrl).toBe("https://api.deepseek.com/anthropic");
+        // openai-completions 的 compat 不能带到 Anthropic 协议上。
+        expect(model.compat).toBeUndefined();
+      }
+      const pro = models.find((model) => model.id === "deepseek-v4-pro");
+      expect(pro).toMatchObject({
+        provider: "deepseek",
+        reasoning: true,
+        contextWindow: 1_000_000,
+      });
+      expect(await service.isAuthConfigured("deepseek")).toBe(true);
+      expect(await service.getPiModel(deepSeekRef() as never)).toBe(pro!);
+      expect((await service.list()).find((provider) => provider.id === "deepseek"))
+        .toMatchObject({
+          source: {
+            kind: "builtin",
+            apis: ["anthropic-messages"],
+            baseUrl: "https://api.deepseek.com/anthropic",
+          },
+        });
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  test("uses OpenAI Responses without leaking completions compat", async () => {
+    const fake = deepSeekRepository();
+    const service = new PiModelService(fake.adapter, {
+      config: deepSeekConfig("openai-responses"),
+      env: {},
+    });
+
+    try {
+      await service.list();
+      const models = service.pi.getModels("deepseek");
+      expect(models.length).toBeGreaterThan(0);
+      for (const model of models) {
+        expect(model.api).toBe("openai-responses");
+        expect(model.baseUrl).toBe("https://api.deepseek.com");
+        expect(model.compat).toBeUndefined();
+      }
+      expect(service.pi.getProvider("deepseek")?.baseUrl).toBe(
+        "https://api.deepseek.com",
+      );
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  test("keeps the running model until the next resolution and restores the default", async () => {
+    const fake = deepSeekRepository();
+    let config: PiModelCatalogConfig = deepSeekConfig();
+    const service = new PiModelService(fake.adapter, {
+      config: () => config,
+      env: {},
+    });
+
+    try {
+      const before = await service.getPiModel(deepSeekRef() as never);
+      expect(before.api).toBe("openai-completions");
+      expect(before.compat).toBeDefined();
+
+      config = deepSeekConfig("anthropic-messages") as PiModelCatalogConfig;
+      await service.reload();
+      // 已经开始的请求继续使用原来的协议与端点。
+      expect(before.api).toBe("openai-completions");
+      expect(before.baseUrl).toBe("https://api.deepseek.com");
+      expect(before.compat).toBeDefined();
+      const switched = await service.getPiModel(deepSeekRef() as never);
+      expect(switched.api).toBe("anthropic-messages");
+      expect(switched.baseUrl).toBe("https://api.deepseek.com/anthropic");
+
+      config = deepSeekConfig() as PiModelCatalogConfig;
+      await service.reload();
+      const restored = await service.getPiModel(deepSeekRef() as never);
+      expect(restored.api).toBe("openai-completions");
+      expect(restored.baseUrl).toBe("https://api.deepseek.com");
+      expect(restored.compat).toBeDefined();
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  test("ignores a rejected protocol and keeps the running provider", async () => {
+    const fake = deepSeekRepository();
+    let config: PiModelCatalogConfig = deepSeekConfig(
+      "anthropic-messages",
+    ) as PiModelCatalogConfig;
+    const service = new PiModelService(fake.adapter, {
+      config: () => config,
+      env: {},
+    });
+
+    try {
+      expect((await service.configIssues()).length).toBe(0);
+      config = deepSeekConfig("openai-beta-fim") as PiModelCatalogConfig;
+      await service.reload();
+
+      expect(await service.configIssues()).toEqual([
+        {
+          providerID: "deepseek",
+          path: "model_providers.deepseek",
+          code: "INVALID_PROVIDER",
+        },
+      ]);
+      expect(service.pi.getProvider("deepseek")?.baseUrl).toBe(
+        "https://api.deepseek.com/anthropic",
+      );
+      expect(
+        service.pi.getModels("deepseek").every((model) =>
+          model.api === "anthropic-messages"
+        ),
+      ).toBe(true);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  test("maps models.dev additions onto the selected protocol", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-deepseek-protocol-"));
+    const fake = deepSeekRepository();
+    const catalog = {
+      deepseek: {
+        id: "deepseek",
+        name: "DeepSeek",
+        npm: "@ai-sdk/openai-compatible",
+        api: "https://api.deepseek.com",
+        env: ["DEEPSEEK_API_KEY"],
+        models: {
+          "deepseek-shadow": {
+            id: "deepseek-shadow",
+            name: "DeepSeek Shadow",
+            reasoning: false,
+            tool_call: true,
+            modalities: { input: ["text"], output: ["text"] },
+            limit: { context: 64_000, output: 8_000 },
+          },
+        },
+      },
+    };
+    let config: PiModelCatalogConfig = deepSeekConfig() as PiModelCatalogConfig;
+    const service = new PiModelService(fake.adapter, {
+      modelsDevStore: new ModelsDevCatalogStore(join(root, "catalog.json")),
+      modelsDevFetch: async () => Response.json(catalog),
+      config: () => config,
+      env: {},
+    });
+
+    try {
+      await service.refresh(true);
+      const shadow = () =>
+        service.pi.getModels("deepseek").find((model) => model.id === "deepseek-shadow");
+      expect(shadow()).toMatchObject({
+        api: "openai-completions",
+        baseUrl: "https://api.deepseek.com",
+      });
+
+      config = deepSeekConfig("anthropic-messages") as PiModelCatalogConfig;
+      await service.reload();
+
+      expect(shadow()).toMatchObject({
+        api: "anthropic-messages",
+        baseUrl: "https://api.deepseek.com/anthropic",
+      });
+      expect(
+        service.pi.getModels("deepseek").length,
+      ).toBeGreaterThanOrEqual(2);
+    } finally {
+      await service.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("PiModelService", () => {
   test("reload advances catalog revision and re-evaluates OAuth model availability", async () => {
     const fake = repository()
@@ -240,8 +457,11 @@ describe("PiModelService", () => {
       },
       env: {},
     })
-    const piModel = service.pi.getModels("openai")[0]
+    const piModel = service.pi.getModels("openai").find((candidate) => candidate.id === "gpt-6-astra")
     expect(piModel).toBeDefined()
+    expect(piModel?.cost).toMatchObject({ input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 })
+    expect(piModel?.maxTokens).toBe(128_000)
+    expect(piModel?.input).toContain("image")
 
     const resolved = await service.resolve({
       providerID: piModel!.provider as never,

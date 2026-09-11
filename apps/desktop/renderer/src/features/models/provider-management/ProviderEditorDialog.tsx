@@ -37,6 +37,15 @@ import {
   PROVIDER_PRESETS,
   type ProviderPreset,
 } from './providerEditorPresets.js'
+import {
+  DEEPSEEK_PROTOCOL_OPTIONS,
+  DEFAULT_DEEPSEEK_PROTOCOL,
+  buildDeepSeekProtocolDefinition,
+  deepSeekManagedProvider,
+  deepSeekProtocolOf,
+  deepSeekProtocolOption,
+  type DeepSeekProtocol,
+} from './deepseekProtocol.js'
 
 const API_OPTIONS = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -70,6 +79,7 @@ type DialogTab = 'basic' | 'models' | 'advanced'
 export type ProviderEditorDialogProps = {
   open: boolean
   provider?: DesktopModelProviderSummary
+  deepSeekProtocolSupported?: boolean
   onOpenChange: (open: boolean) => void
   onSaved: (providerId: string) => void | Promise<void>
 }
@@ -77,6 +87,7 @@ export type ProviderEditorDialogProps = {
 export function ProviderEditorDialog({
   open,
   provider: currentProvider,
+  deepSeekProtocolSupported = false,
   onOpenChange,
   onSaved,
 }: ProviderEditorDialogProps): React.ReactNode {
@@ -84,6 +95,12 @@ export function ProviderEditorDialog({
   const provider = open ? currentProvider : retainedProvider ?? undefined
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
+  // 内置 DeepSeek 走同一编辑入口，但只允许切换全局 API 协议。
+  // memo 保持引用稳定，避免初始化 effect 在每次渲染后重复执行。
+  const managed = useMemo(
+    () => deepSeekManagedProvider(provider, deepSeekProtocolSupported),
+    [deepSeekProtocolSupported, provider],
+  )
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
 
   const [activeTab, setActiveTab] = useState<DialogTab>('basic')
@@ -98,6 +115,7 @@ export function ProviderEditorDialog({
   const [models, setModels] = useState<EditableModel[]>([emptyModel()])
   const [candidates, setCandidates] = useState<DesktopProviderModelDefinition[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
+  const [protocol, setProtocol] = useState<DeepSeekProtocol>(DEFAULT_DEEPSEEK_PROTOCOL)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,10 +158,11 @@ export function ProviderEditorDialog({
     setEnv(customConfig?.env.join(', ') ?? provider?.envVars?.join(', ') ?? '')
     setHeaders(headersToText(customConfig?.headers ?? {}))
     setModels(nextModels.length > 0 ? nextModels : [emptyModel()])
+    setProtocol(managed ? deepSeekProtocolOf(managed.config) : DEFAULT_DEEPSEEK_PROTOCOL)
     setCandidates([])
     setSelectedCandidates(new Set())
     setError(null)
-  }, [open, provider])
+  }, [open, provider, managed])
 
   function applyPreset(preset: ProviderPreset): void {
     setId(preset.defaultValues.id)
@@ -217,6 +236,23 @@ export function ProviderEditorDialog({
   }, [allowInsecureHttp, auth, baseUrl, enabled, env, headers, id, models, name])
 
   async function save(): Promise<void> {
+    if (managed) {
+      setBusy(true)
+      setError(null)
+      try {
+        await desktopClient.updateProvider(
+          managed.provider.providerID,
+          buildDeepSeekProtocolDefinition(managed.config, protocol),
+        )
+        await onSaved(String(managed.provider.providerID))
+        onOpenChange(false)
+      } catch (saveError) {
+        setError(saveError instanceof Error ? saveError.message : String(saveError))
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
     if (definition instanceof Error) {
       setError(definition.message)
       return
@@ -283,10 +319,13 @@ export function ProviderEditorDialog({
 
   const isRemoteHttp = /^http:\/\//i.test(baseUrl) && !isLoopbackUrl(baseUrl)
 
+  // 内置 DeepSeek 只暴露协议设置，因此不显示“高级与网络”页签。
   const tabOptions: readonly { value: DialogTab; label: React.ReactNode }[] = [
     { value: 'basic', label: '基本配置' },
     { value: 'models', label: `模型管理 (${models.length})` },
-    { value: 'advanced', label: '高级与网络' },
+    ...(managed
+      ? []
+      : [{ value: 'advanced' as const, label: '高级与网络' }]),
   ]
 
   return (
@@ -309,10 +348,16 @@ export function ProviderEditorDialog({
               </div>
               <div>
                 <Dialog.Title id={titleId}>
-                  {editing ? `编辑 ${provider.displayName}` : '新增自定义 Provider'}
+                  {managed
+                    ? `编辑 ${managed.provider.displayName}`
+                    : editing
+                      ? `编辑 ${provider.displayName}`
+                      : '新增自定义 Provider'}
                 </Dialog.Title>
                 <Dialog.Description>
-                  配置兼容 OpenAI / Anthropic 协议的自定义模型端点
+                  {managed
+                    ? '内置 DeepSeek Provider：切换全局 API 协议，所有模型同步生效'
+                    : '配置兼容 OpenAI / Anthropic 协议的自定义模型端点'}
                 </Dialog.Description>
               </div>
             </div>
@@ -336,7 +381,30 @@ export function ProviderEditorDialog({
           <div className="settings-management-dialog-body provider-editor-body">
             {activeTab === 'basic' ? (
               <div className="provider-editor-tab-panel">
-                {!editing ? (
+                {managed ? (
+                  <div className="settings-management-dialog-card provider-editor-basic-card">
+                    <div className="settings-management-dialog-row provider-editor-field">
+                      <span>API 协议</span>
+                      <SegmentedControl<DeepSeekProtocol>
+                        ariaLabel="DeepSeek API 协议"
+                        options={DEEPSEEK_PROTOCOL_OPTIONS.map(option => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
+                        value={protocol}
+                        onChange={setProtocol}
+                      />
+                      <p>切换后所有 DeepSeek 模型从下一次请求开始使用新协议，正在进行的请求不会中断。</p>
+                    </div>
+                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                      <span>Endpoint</span>
+                      <Input readOnly value={deepSeekProtocolOption(protocol).endpoint} />
+                      <p>端点由所选协议决定，由系统自动管理。</p>
+                    </label>
+                  </div>
+                ) : null}
+
+                {!managed && !editing ? (
                   <section className="provider-editor-presets-section">
                     <div className="provider-editor-presets-header">
                       <span>快速套用常用预设</span>
@@ -362,6 +430,7 @@ export function ProviderEditorDialog({
                   </section>
                 ) : null}
 
+                {!managed ? (
                 <div className="settings-management-dialog-card provider-editor-basic-card">
                   <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
                     <span>
@@ -414,6 +483,7 @@ export function ProviderEditorDialog({
                     />
                   </label>
                 </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -424,6 +494,7 @@ export function ProviderEditorDialog({
                     <h3>模型列表</h3>
                     <span>{models.length}</span>
                   </div>
+                  {!managed ? (
                   <div className="provider-editor-models-actions">
                     {editing ? (
                       <Button
@@ -445,6 +516,7 @@ export function ProviderEditorDialog({
                       新增模型
                     </Button>
                   </div>
+                  ) : null}
                 </header>
 
                 {candidates.length > 0 ? (
@@ -483,6 +555,19 @@ export function ProviderEditorDialog({
                   </section>
                 ) : null}
 
+                {managed ? (
+                  <div className="settings-management-dialog-card">
+                    {models.map(model => (
+                      <div
+                        className="settings-management-dialog-row"
+                        key={model.editorKey}
+                      >
+                        <span>{model.id}</span>
+                        <span className="provider-editor-model-card-badge">{protocol}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div className="provider-editor-models-list">
                   {models.map((model, index) => (
                     <ProviderModelCard
@@ -499,10 +584,11 @@ export function ProviderEditorDialog({
                     />
                   ))}
                 </div>
+                )}
               </div>
             ) : null}
 
-            {activeTab === 'advanced' ? (
+            {activeTab === 'advanced' && !managed ? (
               <div className="provider-editor-tab-panel">
                 <div className="settings-management-dialog-card">
                   <div className="settings-management-dialog-row provider-editor-switch-card">

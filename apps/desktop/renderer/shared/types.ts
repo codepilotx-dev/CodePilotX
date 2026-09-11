@@ -836,6 +836,8 @@ export type SaveDesktopModelProviderOptions = {
 export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
 export type DesktopListedProviderDefinition =
   RpcResult<'provider/list'>['providers'][number]['config']
+export type DesktopBuiltinProviderDefinition =
+  Extract<DesktopListedProviderDefinition, { kind: 'builtin' }>
 export type DesktopCustomProviderDefinition =
   RpcParams<'provider/create'>['definition']
 export type DesktopProviderModelDefinition =

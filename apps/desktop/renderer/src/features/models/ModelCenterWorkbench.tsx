@@ -49,6 +49,12 @@ import { ProviderEditorDialog } from "./provider-management/ProviderEditorDialog
 import { ProviderConnectionSection } from "./provider-management/ProviderConnectionSection.js";
 import { ProviderModelsSection } from "./provider-management/ProviderModelsSection.js";
 import {
+  canEditProviderConfig,
+  deepSeekManagedProvider,
+  deepSeekProtocolOf,
+  deepSeekProtocolOption,
+} from "./provider-management/deepseekProtocol.js";
+import {
   ApiKeyEditorDialog,
   type ApiKeyEditorValue,
 } from "./ApiKeyEditorDialog.js";
@@ -109,8 +115,23 @@ export function ModelCenterWorkbench({
   const [connectionDialogProviderId, setConnectionDialogProviderId] =
     useState<ModelProviderID | null>(null);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
+  const [deepSeekProtocolSupported, setDeepSeekProtocolSupported] = useState(false);
   const [providerEditorProviderId, setProviderEditorProviderId] =
     useState<ModelProviderID | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void desktopClient.getRuntimeCapabilities().then((capabilities) => {
+      if (active) {
+        setDeepSeekProtocolSupported(
+          capabilities.includes("provider.deepseekProtocol.v1"),
+        );
+      }
+    }).catch(() => {
+      if (active) setDeepSeekProtocolSupported(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   // Key editing & deletion state
   const [editorProviderId, setEditorProviderId] = useState<ModelProviderID | null>(null);
@@ -679,7 +700,7 @@ export function ModelCenterWorkbench({
 
           {!showInitialSkeleton &&
           showingProviderDetail &&
-          selectedProvider?.providerKind === "custom" ? (
+          canEditProviderConfig(selectedProvider, deepSeekProtocolSupported) ? (
             <>
               <Button
                 color="secondary"
@@ -693,15 +714,17 @@ export function ModelCenterWorkbench({
                   编辑 Provider
                 </span>
               </Button>
-              <Button
-                color="danger"
-                onClick={() => void deleteCustomProvider()}
-              >
-                <Trash2 size={APP_ICON_SIZE} aria-hidden />
-                <span className="model-center-header-action-label">
-                  删除 Provider
-                </span>
-              </Button>
+              {selectedProvider?.providerKind === "custom" ? (
+                <Button
+                  color="danger"
+                  onClick={() => void deleteCustomProvider()}
+                >
+                  <Trash2 size={APP_ICON_SIZE} aria-hidden />
+                  <span className="model-center-header-action-label">
+                    删除 Provider
+                  </span>
+                </Button>
+              ) : null}
             </>
           ) : null}
 
@@ -864,6 +887,7 @@ export function ModelCenterWorkbench({
       />
 
       <ProviderEditorDialog
+        deepSeekProtocolSupported={deepSeekProtocolSupported}
         open={providerEditorOpen}
         provider={
           providerEditorProviderId
@@ -877,14 +901,16 @@ export function ModelCenterWorkbench({
           await providerManagementStore.refresh();
           const nextId = savedProviderId as ModelProviderID;
           setProviderEditorProviderId(null);
-          applyProviderSelection(
-            nextId,
-            providerManagementStore
-              .getSnapshot()
-              .providers.find((item) => item.providerID === nextId),
-          );
+          const savedProvider = providerManagementStore
+            .getSnapshot()
+            .providers.find((item) => item.providerID === nextId);
+          applyProviderSelection(nextId, savedProvider);
           updateLocation({ provider: nextId, section: "connection" });
-          onNotice("自定义 Provider 配置已保存。");
+          onNotice(
+            deepSeekManagedProvider(savedProvider)
+              ? "DeepSeek API 协议已保存，将从下一次请求开始生效。"
+              : "自定义 Provider 配置已保存。",
+          );
         }}
       />
 
@@ -1018,6 +1044,13 @@ function providerDescription(
           ? "Pi 原生执行 · models.dev 目录"
           : "Pi 内置",
   );
+  const managed = deepSeekManagedProvider(provider);
+  if (managed) {
+    const protocol = deepSeekProtocolOption(
+      deepSeekProtocolOf(managed.config),
+    );
+    parts.push(`${protocol.label} · ${protocol.endpoint}`);
+  }
   return parts.join(" · ");
 }
 
