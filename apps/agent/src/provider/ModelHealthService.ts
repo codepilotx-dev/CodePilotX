@@ -112,7 +112,7 @@ const isTimeoutSignal = (cause: unknown, message: string): boolean => {
   return /timed?\s*out|timeout|abort/i.test(message)
 }
 
-const failureCategory = (cause: unknown): ModelHealthFailureCategory => {
+export const providerFailureCategory = (cause: unknown): ModelHealthFailureCategory => {
   const status = statusCode(cause)
   const message = cause instanceof Error ? cause.message : String(cause)
   if (cause && typeof cause === "object" && "name" in cause
@@ -136,7 +136,10 @@ const failureCategory = (cause: unknown): ModelHealthFailureCategory => {
   return "unknown"
 }
 
-const failureMessage = (category: ModelHealthFailureCategory): string => {
+export const providerFailureMessage = (
+  category: ModelHealthFailureCategory,
+  context: "request" | "health-check",
+): string => {
   switch (category) {
     case "authentication":
       return "凭据鉴权失败"
@@ -147,11 +150,11 @@ const failureMessage = (category: ModelHealthFailureCategory): string => {
     case "rate-limit":
       return "请求受到限流"
     case "timeout":
-      return "请求在 15 秒内未完成"
+      return context === "request" ? "模型请求超时，请稍后重试" : "请求在 15 秒内未完成"
     case "provider":
       return "Provider 服务暂时不可用"
     default:
-      return "模型测试失败"
+      return context === "request" ? "模型请求失败，请稍后重试" : "模型测试失败"
   }
 }
 
@@ -639,7 +642,7 @@ export class ModelHealthService {
     try {
       piModel = await this.piModels.getPiModel(ref)
     } catch {
-      return { ok: false, category: "configuration", message: failureMessage("configuration") }
+      return { ok: false, category: "configuration", message: providerFailureMessage("configuration", "health-check") }
     }
     // getPiModel can race cancel()/dispose(): never hand an already-aborted
     // signal to the request, or its abort listener would never fire.
@@ -675,8 +678,8 @@ export class ModelHealthService {
       if (opts.signal?.aborted) {
         return { ok: false, category: "timeout", message: "模型测试已取消" }
       }
-      const category = failureCategory(cause)
-      return { ok: false, category, message: failureMessage(category) }
+      const category = providerFailureCategory(cause)
+      return { ok: false, category, message: providerFailureMessage(category, "health-check") }
     }
   }
 }

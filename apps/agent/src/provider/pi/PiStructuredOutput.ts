@@ -21,6 +21,25 @@ const jsonPayload = (text: string) => {
   }
 };
 
+const isOfficialOpenAIResponses = (model: PiModel<Api>) => {
+  if (model.provider !== "openai" || model.api !== "openai-responses") return false;
+  try {
+    return new URL(model.baseUrl).hostname.toLowerCase() === "api.openai.com";
+  } catch {
+    return false;
+  }
+};
+
+export class PiStructuredOutputError extends Error {
+  readonly code: "STRUCTURED_OUTPUT_MISSING";
+
+  constructor() {
+    super("结构化输出未调用提交工具");
+    this.name = "PiStructuredOutputError";
+    this.code = "STRUCTURED_OUTPUT_MISSING";
+  }
+}
+
 export async function generatePiObject<TSchema extends z.ZodType>(input: {
   models: Models;
   model: PiModel<Api>;
@@ -31,6 +50,7 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
   signal?: AbortSignal;
 }): Promise<z.output<TSchema>> {
   const toolName = `submit_${input.schemaName}`;
+  const strictToolCall = isOfficialOpenAIResponses(input.model);
   const response = await input.models.completeSimple(
     input.model,
     {
@@ -45,12 +65,18 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
         name: toolName,
         description: `提交符合 ${input.schemaName} schema 的结构化结果`,
         parameters: Type.Unsafe(z.toJSONSchema(input.schema)),
-        constrainedSampling: { type: "json_schema", strict: "prefer" },
+        constrainedSampling: { type: "json_schema", strict: strictToolCall ? "require" : "prefer" },
       }],
     },
     {
       ...(input.signal ? { signal: input.signal } : {}),
       maxRetries: 1,
+      ...(strictToolCall ? {
+        onPayload: (payload: unknown) => ({
+          ...(payload as Record<string, unknown>),
+          tool_choice: { type: "function", name: toolName },
+        }),
+      } : {}),
     },
   );
   if (response.stopReason === "error")
@@ -60,5 +86,6 @@ export async function generatePiObject<TSchema extends z.ZodType>(input: {
   );
   if (toolCall?.type === "toolCall")
     return input.schema.parse(toolCall.arguments);
+  if (strictToolCall) throw new PiStructuredOutputError();
   return input.schema.parse(jsonPayload(contentText(response.content, "\n")));
 }

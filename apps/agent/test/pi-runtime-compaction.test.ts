@@ -95,6 +95,34 @@ async function createRuntime(input: {
   return { runtime: { run: (request: HarnessRuntimeRequest) => executeHarnessRun(runtimeOptions, request), dispose: () => active?.harness.abort() ?? Promise.resolve() }, request, compacted, failures }
 }
 
+describe("Harness runtime provider errors", () => {
+  test.each([
+    ["timeout", "PI_TIMEOUT_FAILED", "模型请求超时，请稍后重试"],
+    ["unexpected failure", "PI_UNKNOWN_FAILED", "模型请求失败，请稍后重试"],
+  ])("%s 使用主请求安全文案", async (providerMessage, code, message) => {
+    const credential = "sk-test-private-credential"
+    const localPath = "C:\\private\\credentials.json"
+    const setup = await createRuntime({
+      responses: [fauxAssistantMessage([], {
+        stopReason: "error",
+        errorMessage: `${providerMessage}: ${credential} ${localPath}`,
+      })],
+    })
+    try {
+      const error = await setup.runtime.run(setup.request).then(
+        () => undefined,
+        (cause: unknown) => cause,
+      )
+      expect(error).toBeInstanceOf(AgentError)
+      expect(error).toMatchObject({ code, message, status: 502 })
+      expect((error as Error).message).not.toContain(credential)
+      expect((error as Error).message).not.toContain(localPath)
+    } finally {
+      await setup.runtime.dispose()
+    }
+  })
+})
+
 describe("Harness runtime context compaction", () => {
   test("successful turns remain successful when automatic compaction runs afterward", async () => {
     const setup = await createRuntime({

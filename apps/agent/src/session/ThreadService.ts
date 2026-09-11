@@ -412,7 +412,6 @@ export class ThreadService {
     const sections = createPromptSections({
       permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
       mode: thread.settings.taskMode, profile: "main",
-      toolGuidance: exposedTools.map((name) => ({ name, content: `仅在需要时使用 ${name}，并服从 resolved permission policy。` })),
       systemPrompt: stringSetting("systemPrompt"), personality: stringSetting("personality"), customInstructions: stringSetting("customInstructions"),
       appendPrompt: stringSetting("appendPrompt") ?? stringSetting("appendSystemPrompt"),
       environment: this.workspaceEnvironment(runtime),
@@ -887,7 +886,6 @@ export class ThreadService {
         permissionInstructions,
         mode: input.taskMode,
         profile: "main",
-        toolGuidance: exposedTools.map((name) => ({ name, content: `仅在需要时使用 ${name}；输入必须符合工具 schema，并服从 resolved permission policy。` })),
         systemPrompt: stringSetting("systemPrompt"),
         personality: stringSetting("personality"),
         customInstructions: stringSetting("customInstructions"),
