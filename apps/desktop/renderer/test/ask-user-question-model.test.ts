@@ -47,7 +47,7 @@ test('keeps options without descriptions without inventing explanatory text', ()
 })
 
 describe('AskUserQuestion pure model', () => {
-  test('shows submit only for valid custom, explicitly edited multi-select, or confirmed final page', () => {
+  test('shows confirmation only for valid custom or explicitly edited multi-select on any page', () => {
     const [single, multi] = parseAskUserQuestions(input)!
     const draft = initialQuestionState(single!)
     expect(shouldShowQuestionSubmit([single!], {}, 0)).toBe(false)
@@ -60,8 +60,21 @@ describe('AskUserQuestion pure model', () => {
     expect(shouldShowQuestionSubmit([single!, multi!], {}, 1)).toBe(false)
     const confirmed = { editor: { ...draft, answered: true } }
     expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 0)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 1)).toBe(true)
+    expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 1)).toBe(false)
     expect(shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, answered: false } }, 1)).toBe(false)
+    expect(shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, selected: [], custom: '自定义' } }, 0)).toBe(true)
+  })
+
+  test('explicit skips complete a question without an answer or default selection', () => {
+    const questions = parseAskUserQuestions(input)!
+    const skipped: QuestionState = { selected: [], custom: '', answered: false, skipped: true }
+    const states = { editor: skipped, features: { selected: ['检查'], custom: '', answered: true } }
+    expect(hasQuestionAnswer(skipped)).toBe(false)
+    expect(firstUnansweredQuestionIndex(questions, states)).toBe(-1)
+    expect(buildAskUserQuestionUpdatedInput(input, questions, states)).toMatchObject({
+      answers: { editor: '', features: '检查' }, skippedQuestionIds: ['editor'],
+    })
+    expect(firstUnansweredQuestionIndex(questions, { editor: skipped })).toBe(1)
   })
 
   test('keeps identical prompts independent by ID and does not confirm untouched defaults', () => {

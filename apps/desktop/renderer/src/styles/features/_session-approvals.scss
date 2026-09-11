@@ -48,7 +48,7 @@
 }
 .request-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-4) var(--cpx-sys-space-4) var(--cpx-sys-space-2);
@@ -83,7 +83,7 @@
 .request-card-marker {
   width: var(--cpx-sys-space-7);
   height: var(--cpx-sys-space-7);
-  align-self: start;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -499,7 +499,7 @@
 
 .request-card[data-variant="question"] .inline-approval-options,
 .request-card[data-variant="plan"] .inline-approval-options {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   column-gap: var(--cpx-sys-space-3);
   row-gap: var(--cpx-sys-space-1);
   align-items: end;
@@ -516,15 +516,12 @@
   > .inline-approval-option.custom {
   grid-column: 1;
   margin-top: var(--cpx-sys-space-1);
-  grid-template-columns: var(--cpx-sys-space-7) minmax(0, 1fr);
+  grid-template-columns: var(--cpx-sys-space-7) minmax(0, 1fr) auto;
+  background: var(--cpx-sys-color-surface-control);
 }
 
-.request-card
-  .inline-approval-options
-  > .inline-approval-split {
-  grid-column: 2;
-  margin-top: var(--cpx-sys-space-1);
-  align-self: stretch;
+.request-card .ask-user-question-actions {
+  align-self: end;
 }
 
 .request-card .inline-approval-split {
@@ -547,6 +544,17 @@
   flex-shrink: 0;
   color: var(--cpx-sys-color-fg-tertiary);
   font: var(--cpx-sys-type-caption);
+}
+
+.ask-user-question-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  white-space: nowrap;
+
+  .ask-user-question-nav-button {
+    padding: var(--cpx-sys-space-1);
+  }
 }
 
 .ask-user-question-nav-button {

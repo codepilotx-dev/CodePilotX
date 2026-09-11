@@ -179,7 +179,7 @@ function live<T extends LiveEventType>(
 }
 
 describe("canonical thread state", () => {
-  test("keeps a question group intact through replay, snapshot and resolution", () => {
+  test.each([false, true])("keeps a question group intact through replay, snapshot and resolution (skip: %s)", skip => {
     const activeTurn = turn("group-turn")
     const rootAgent = agent("group-agent", activeTurn.id)
     const bundle = { turn: activeTurn, inputs: [], messages: [], agents: [rootAgent], items: [], approvals: [] }
@@ -197,11 +197,14 @@ describe("canonical thread state", () => {
     expect(item).toMatchObject({ questions, toolCallId: "call-group", status: "pending" })
     const restored = createCanonicalThreadState(page([{ ...bundle, items: [item] }]))
     expect(restored.itemsById.get("group")).toEqual(item)
-    const answers = questions.map((question) => ({ questionId: question.id, choiceIds: ["b"] }))
+    const answers = questions.map((question, index) => skip && index === 0
+      ? { questionId: question.id, choiceIds: [], skipped: true as const }
+      : { questionId: question.id, choiceIds: ["b"] })
     const resolved = applyThreadEnvelope(requested, durable(12, "interaction/resolved", {
       interactionId: "group", result: { kind: "question", status: "answered", resolution: "user", answers }, resolvedAt: 12,
     }))
-    expect(resolved.itemsById.get("group")).toMatchObject({ status: "answered", answers, answer: "b" })
+    expect(resolved.itemsById.get("group")).toMatchObject({ status: "answered", answers, answer: skip ? "" : "b" })
+    expect(createCanonicalThreadState(page([{ ...bundle, items: [resolved.itemsById.get("group")!] }])).itemsById.get("group")).toEqual(resolved.itemsById.get("group"))
     const ignored = applyThreadEnvelope(requested, durable(12, "interaction/resolved", {
       interactionId: "group", result: { kind: "question", status: "ignored" }, resolvedAt: 12,
     }))

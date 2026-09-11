@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
+import { RpcMethods, decodeServerRequestResult } from "@codepilotx/agent-protocol"
+import { ThreadReadViewRepository } from "../src/session/ThreadReadViewRepository"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { QuestionService } from "../src/session/QuestionService"
@@ -15,6 +17,63 @@ afterEach(() => {
 })
 
 describe("问题 checkpoint", () => {
+  test.each([false, true])("逐题跳过经过校验、持久化、严格历史及恢复保留（全部跳过：%s）", async (skipAll) => {
+    const path = join(tmpdir(), `codepilotx-question-skip-${crypto.randomUUID()}.sqlite`)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+    const hub = await Effect.runPromise(EventHub.make)
+    const thread = db.createThread()
+    const input = {
+      content: "规划", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }),
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      strategy: "queue", taskMode: "plan",
+    } as const
+    const turn = db.createTurn(thread.id, input)
+    db.startTurnExecution(turn.turnID, { ...input, id: turn.inputID })
+    const service = new QuestionService(db, hub)
+    const id = await service.checkpoint(thread.id, turn.turnID, turn.agentID, {
+      kind: "clarification",
+      questions: ["scope", "format", "selection"].map(id => ({
+        id, header: id, question: `Choose ${id}`,
+        options: [{ label: "A", description: "第一项说明" }, { label: "B", description: "第二项说明" }],
+      })),
+      checkpoint: { state: '{"version":2}', interruption: { name: "request_user_input" } },
+    })
+    const answers = ["scope", "format", "selection"].map((questionId, index) => skipAll || index === 0
+      ? { questionId, choiceIds: [], skipped: true as const }
+      : { questionId, choiceIds: [`${questionId}:1`] })
+    for (const invalid of [
+      answers.slice(1),
+      [{ questionId: "scope", choiceIds: [] }, ...answers.slice(1)],
+      [{ ...answers[0], choiceIds: ["scope:0"] }, ...answers.slice(1)],
+      [{ ...answers[0], text: "" }, ...answers.slice(1)],
+      [...answers, answers[0]],
+    ]) await expect(service.reply(id, invalid)).rejects.toThrow()
+    await expect(service.reply(id, answers, false, "auto")).rejects.toThrow()
+    expect(db.repositories.interactions.isQuestionPending(id)).toBe(true)
+    await service.reply(id, answers, false, "user", false)
+    const event = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
+    expect(decodeServerRequestResult("question/request", JSON.parse(event.params).result)).toMatchObject({ status: "answered", answers })
+    service.dispose()
+    databases.splice(databases.indexOf(db), 1)
+    db.close()
+    const reopened = new AgentDatabase(path)
+    databases.push(reopened)
+    // Restart recovery queues the interrupted turn; resume it before reading its history page.
+    reopened.startTurnExecution(turn.turnID, { ...input, id: turn.inputID })
+    const definition = RpcMethods["thread/history/read"]
+    const history = new ThreadReadViewRepository(reopened).history(thread.id, { limit: 10 })
+    const encoded = Schema.encodeSync(definition.result, { onExcessProperty: "error" })(history)
+    const question = encoded.turns.flatMap(turn => turn.items).find(item => item.type === "question")
+    expect(question).toMatchObject({ id, status: "answered", answers, questions: [
+      { id: "scope", minAnswers: 1, maxAnswers: 1, choices: [{ description: "第一项说明" }, { description: "第二项说明" }] },
+      { id: "format" }, { id: "selection" },
+    ] })
+    const restored = new QuestionService(reopened, hub)
+    expect(JSON.parse(restored.claimResolvedCheckpoint(turn.turnID)!.approval.answer!)).toEqual({ resolution: "user", answers })
+    restored.dispose()
+  })
+
   test("request_user_input 接受 rich questions 并拒绝越界超时", async () => {
     const received: unknown[] = []
     const [tool] = createLifecycleTools({

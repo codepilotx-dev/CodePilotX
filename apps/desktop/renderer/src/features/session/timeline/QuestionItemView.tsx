@@ -38,7 +38,8 @@ export function QuestionItemView({ item, disclosure }: {
       </div>
     );
   }
-  const label = item.status === "answered" ? "已回答" : item.status === "ignored" ? "已跳过" : "已取消";
+  const allSkipped = Boolean(item.answers?.length && item.questions?.length === item.answers.length && item.answers.every(answer => answer.skipped));
+  const label = item.status === "answered" ? allSkipped ? "未提供答案" : "已回答" : item.status === "ignored" ? "已跳过" : "已取消";
   return (
     <div className="canonical-process-card" data-question-id={item.id} data-state={item.status} data-expanded={expanded}>
       <button
@@ -62,7 +63,7 @@ export function QuestionItemView({ item, disclosure }: {
           return (
             <div key={question.id}>
               <strong>{question.prompt}</strong>
-              <p>{text || (item.status === "answered" ? "未提供答案" : label)}</p>
+              <p>{answer?.skipped ? "未提供答案" : text || (item.status === "answered" ? "未提供答案" : label)}</p>
             </div>
           );
         }) : <><strong>{item.prompt}</strong><p>{item.answer || label}</p></>}

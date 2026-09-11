@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Item } from "@codepilotx/shared/thread";
+import { decodeResultCardEnvelope } from "@codepilotx/shared/thread-result-card";
 
 import {
   buildLifecycleToolDisplay,
@@ -19,6 +20,7 @@ import {
   ToolItemView,
   ToolExecutionCard,
 } from "../src/features/session/timeline/CanonicalItemRenderer.js";
+import { ResultCardView } from "../src/features/session/timeline/ResultCardView.js";
 import { CodeBlock } from "../src/features/syntax/CodeBlock.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
 import { AttachmentFilePill } from "../src/features/session/attachments/AttachmentRowPrimitives.js";
@@ -58,6 +60,27 @@ function toolItem(overrides: Partial<ToolItem> = {}): ToolItem {
     createdAt: 1_000,
     ...overrides,
   };
+}
+
+/** Builds the fixture through the shared decoder so it is a real v1 envelope. */
+function resultCardEnvelope(overrides: { card?: Record<string, unknown> } = {}) {
+  const envelope = decodeResultCardEnvelope({
+    kind: "codepilotx.result-card",
+    version: 1,
+    card: {
+      title: "任务已完成",
+      summary: "回归通过并修复了参数校验",
+      tone: "success",
+      sections: [{
+        title: "关键结论",
+        items: [{ label: "修复了校验边界", value: "空参数不再通过", tone: "neutral" }],
+      }],
+      references: [{ kind: "url", value: "https://example.com/report", label: "验证报告" }],
+      ...(overrides.card ?? {}),
+    },
+  });
+  if (!envelope) throw new Error("测试信封必须可解码");
+  return envelope;
 }
 
 describe("canonical tool item display", () => {
@@ -973,5 +996,166 @@ describe("canonical tool item display", () => {
     expect(markup).not.toContain("canonical-tool-result-blocks");
     expect(markup).toContain("旧字符串结果");
     expect(markup).toContain('aria-label="复制返回结果"');
+  });
+
+  test("renders the shared result card for an explicit envelope block", () => {
+    const item = toolItem({
+      command: null,
+      input: null,
+      output: "结论",
+      resultBlocks: [
+        { type: "json", value: resultCardEnvelope() },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain('class="canonical-result-card"');
+    expect(markup).toContain('data-tone="success"');
+    expect(markup).toContain("任务已完成");
+    expect(markup).toContain("成功");
+    expect(markup).toContain("回归通过并修复了参数校验");
+    expect(markup).toContain("关键结论");
+    expect(markup).toContain("<dl");
+    expect(markup).toContain("<dt>修复了校验边界</dt>");
+    expect(markup).toContain("<dd>空参数不再通过</dd>");
+    expect(markup).toContain("lucide-check");
+    expect(markup).toContain('aria-label="复制结构化结果"');
+    // 安全引用：https 链接可点击，凭证/非 http 地址保持纯文本。
+    expect(markup).toContain('href="https://example.com/report"');
+    expect(markup).not.toContain("javascript:");
+    expect(markup).not.toContain("canonical-tool-result-block--json");
+    expect(markup).not.toContain("&quot;kind&quot;");
+  });
+
+  test("keeps plain, forged and future JSON blocks as code", () => {
+    const blocks = [
+      { items: [{ id: 1, ok: true }] },
+      { kind: "codepilotx.result-card", version: 1, card: { title: "缺少摘要" } },
+      { kind: "codepilotx.result-card", version: 2, card: { title: "未来版本", summary: "未知版本" } },
+      { kind: "codepilotx.other-card", version: 1, card: { title: "错误标记", summary: "未知标记" } },
+    ];
+    for (const value of blocks) {
+      const item = toolItem({
+        command: null,
+        input: null,
+        output: "结论",
+        resultBlocks: [{ type: "json", value }],
+      });
+      const markup = renderToStaticMarkup(
+        <TooltipProvider>
+          <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+        </TooltipProvider>,
+      );
+      expect(markup).toContain("canonical-tool-result-block--json");
+      expect(markup).not.toContain("canonical-result-card");
+    }
+  });
+
+  test("reuses the same card under the finalize_result lifecycle row", () => {
+    const item = toolItem({
+      command: null,
+      input: {},
+      output: "已提交结构化结果（outcome: succeeded · 已完成）",
+      resultBlocks: [{ type: "json", value: resultCardEnvelope() }],
+      tool: "finalize_result",
+    });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <LifecycleToolItemView item={item} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("canonical-lifecycle-entry");
+    expect(markup).toContain("已提交子代理结果");
+    expect(markup).toContain("canonical-result-card");
+    expect(markup).toContain("回归通过并修复了参数校验");
+    expect(markup).not.toContain("canonical-tool-result-block--json");
+  });
+
+  test("only opens workspace-relative file references", () => {
+    const withContext = (card: ReturnType<typeof resultCardEnvelope>) =>
+      renderToStaticMarkup(
+        <TooltipProvider>
+          <ConversationItemContext.Provider value={{
+            canCopyFileReferenceContents: () => false,
+            onCopyFileReferenceContents: () => undefined,
+            onOpenFileReference: () => undefined,
+            onSubmitEditedUserMessage: async () => undefined,
+            sessionStatus: "idle",
+            workspacePath: "C:\\workspace",
+          }}>
+            <ResultCardView card={card.card} />
+          </ConversationItemContext.Provider>
+        </TooltipProvider>,
+      );
+
+    const relative = withContext(resultCardEnvelope({
+      card: { references: [{ kind: "file", value: "src/tool/tool.ts", label: "工具实现" }] },
+    }));
+    expect(relative).toContain("canonical-result-card__file-link");
+    expect(relative).toContain('aria-label="打开文件 工具实现"');
+
+    const escaping = withContext(resultCardEnvelope({
+      card: {
+        references: [
+          { kind: "file", value: "C:\\private\\secret.ts" },
+          { kind: "file", value: "../../outside.ts" },
+        ],
+      },
+    }));
+    expect(escaping).not.toContain("canonical-result-card__file-link");
+    expect(escaping).toContain("secret.ts");
+
+    // 没有工作区上下文时文件引用只展示，不提供打开入口。
+    const withoutContext = renderToStaticMarkup(
+      <TooltipProvider>
+        <ResultCardView card={resultCardEnvelope({
+          card: { references: [{ kind: "file", value: "src/tool/tool.ts" }] },
+        }).card} />
+      </TooltipProvider>,
+    );
+    expect(withoutContext).not.toContain("canonical-result-card__file-link");
+    expect(withoutContext).toContain("src/tool/tool.ts");
+  });
+
+  test("folds long sections behind the existing disclosure control", () => {
+    const item = toolItem({
+      command: null,
+      input: null,
+      output: "结论",
+      resultBlocks: [{
+        type: "json",
+        value: resultCardEnvelope({
+          card: {
+            sections: [{
+              title: "验证",
+              items: Array.from({ length: 5 }, (_, index) => ({
+                label: `bun test ${index}`,
+                value: `通过 ${index}`,
+              })),
+            }],
+          },
+        }),
+      }],
+    });
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ToolExecutionCard item={item} view={buildToolItemDisplay(item)} />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain("再显示 2 项");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('aria-controls="');
+    expect(markup).toContain("bun test 0");
+    expect(markup).toContain("bun test 2");
+    expect(markup).toContain("ui-disclosure-content");
+    // 折叠项在展开前不进入渲染树。
+    expect(markup).not.toContain("bun test 3");
+    expect(markup).not.toContain("bun test 4");
   });
 });

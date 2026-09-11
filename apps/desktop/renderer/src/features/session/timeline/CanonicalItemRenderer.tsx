@@ -7,7 +7,6 @@ import {
   CircleAlert,
   CircleStop,
   ClipboardCheck,
-  Copy,
   FileDiff,
   Globe2,
   Split,
@@ -23,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Attachment, Input, Item, LocalContextReference, ToolResultBlock } from "@codepilotx/shared/thread";
+import { decodeResultCardEnvelope, type ResultCard } from "@codepilotx/shared/thread-result-card";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
 import type {
@@ -42,7 +42,6 @@ import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
 } from "../../../components/ui/keyedDisclosureStore.js";
-import { desktopClipboard } from "../../../services/desktop-client/index.js";
 import { CodeBlock } from "../../syntax/CodeBlock.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 import { ConversationMarkdownErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
@@ -70,6 +69,9 @@ import {
 } from "./ToolActivityPresentation.js";
 import { isSchedulePlanTool, SchedulePlanCard } from "./SchedulePlanCard.js";
 import { QuestionItemView } from "./QuestionItemView.js";
+import { CopyButton } from "./CopyButton.js";
+import { ResultCardView } from "./ResultCardView.js";
+import { safeCitationUrl } from "./citationUrl.js";
 
 export {
   buildToolSemanticSummary,
@@ -952,12 +954,17 @@ function ToolResultBlockView({
         </div>
       );
     }
-    case "json":
+    case "json": {
+      // Only an explicit CodePilotX envelope becomes a card; every other JSON
+      // value (including forged or future-shaped envelopes) keeps the raw block.
+      const envelope = decodeResultCardEnvelope(block.value);
+      if (envelope) return <ResultCardView card={envelope.card} />;
       return (
         <pre className="canonical-tool-result-block canonical-tool-result-block--json">
           <code>{formatUnknown(block.value)}</code>
         </pre>
       );
+    }
     case "artifact":
       return (
         <ToolArtifactBlockView
@@ -1010,17 +1017,6 @@ function ToolArtifactImageBlock({
       />
     </div>
   );
-}
-
-function safeCitationUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    if (url.username || url.password) return null;
-    return url.href;
-  } catch {
-    return null;
-  }
 }
 
 function formatArtifactByteSize(sizeBytes: number): string {
@@ -1324,38 +1320,6 @@ function SubagentItemView({
       </span>
       <em>{subagentStatusLabel(item.status)}</em>
     </button>
-  );
-}
-
-function CopyButton({
-  ariaLabel = "复制",
-  className,
-  text,
-}: {
-  ariaLabel?: string;
-  className?: string;
-  text: string;
-}): React.ReactNode {
-  const [copied, setCopied] = React.useState(false);
-  return (
-    <Tooltip content={copied ? "已复制" : ariaLabel}>
-      <IconButton
-        aria-label={copied ? `${ariaLabel}：已复制` : ariaLabel}
-        className={className}
-        color="ghostSecondary"
-        size="toolbar"
-        title={copied ? "已复制" : ariaLabel}
-        onClick={(event) => {
-          event.stopPropagation();
-          void desktopClipboard.writeText(text).then(() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1400);
-          });
-        }}
-      >
-        {copied ? <Check aria-hidden="true" size={APP_ICON_SIZE} /> : <Copy aria-hidden="true" size={APP_ICON_SIZE} />}
-      </IconButton>
-    </Tooltip>
   );
 }
 
@@ -1844,28 +1808,47 @@ export function LifecycleToolItemView({
   const display = buildLifecycleToolDisplay(item);
   if (!display) return null;
   const LifecycleIcon = display.icon;
+  const card = lifecycleResultCard(item);
   return (
-    <div
-      className="canonical-lifecycle-tool"
-      data-state={item.state}
-      role={display.active ? "status" : undefined}
-    >
-      {display.failed ? (
-        <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
-      ) : (
-        <span className="canonical-lifecycle-tool__icon">
-          <LifecycleIcon size={APP_ICON_SIZE} aria-hidden="true" />
-          {display.active ? (
-            <LifecycleIcon size={APP_ICON_SIZE}
-              className="canonical-lifecycle-tool__icon-flash"
-              aria-hidden="true"
-            />
-          ) : null}
-        </span>
-      )}
-      <span>{display.label}</span>
+    <div className="canonical-lifecycle-entry">
+      <div
+        className="canonical-lifecycle-tool"
+        data-state={item.state}
+        role={display.active ? "status" : undefined}
+      >
+        {display.failed ? (
+          <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
+        ) : (
+          <span className="canonical-lifecycle-tool__icon">
+            <LifecycleIcon size={APP_ICON_SIZE} aria-hidden="true" />
+            {display.active ? (
+              <LifecycleIcon size={APP_ICON_SIZE}
+                className="canonical-lifecycle-tool__icon-flash"
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
+        )}
+        <span>{display.label}</span>
+      </div>
+      {card ? <ResultCardView card={card} /> : null}
     </div>
   );
+}
+
+/**
+ * Lifecycle rows keep their compact status line; a delivery submitted by
+ * finalize_result reuses the ordinary result card below it instead of the raw
+ * JSON block.
+ */
+function lifecycleResultCard(item: ToolItem): ResultCard | null {
+  if (toolLeafName(item.tool) !== "finalize_result") return null;
+  for (const block of item.resultBlocks ?? []) {
+    if (block.type !== "json") continue;
+    const envelope = decodeResultCardEnvelope(block.value);
+    if (envelope) return envelope.card;
+  }
+  return null;
 }
 
 export function isFileMutationTool(item: ToolItem): boolean {

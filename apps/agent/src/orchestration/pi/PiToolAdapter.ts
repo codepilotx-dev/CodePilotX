@@ -9,6 +9,7 @@ import { requestUserInputSchema } from "../../session/QuestionInput"
 import {
   formatStructuredResult,
   parseStructuredResult,
+  resultCardEnvelopeFromStructuredResult,
   structuredResultParameters,
 } from "./structured-result"
 
@@ -242,11 +243,14 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
       execute: async (toolCallID, input) => {
         const parsed = parseStructuredResult(input as never)
         const safe = secretScrubber.scrub(parsed)
+        const card = resultCardEnvelopeFromStructuredResult(safe)
         await callbacks.finalizeResult!(parsed, toolCallID)
         return {
           content: [{ type: "text", text: formatStructuredResult(safe) }],
           details: safe,
-          structuredContent: safe,
+          // The envelope drives the shared result card; an unexpected decoding
+          // failure falls back to the raw structured result instead of losing it.
+          structuredContent: card ?? safe,
           terminate: true,
         }
       },

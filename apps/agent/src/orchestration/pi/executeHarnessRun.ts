@@ -3,6 +3,7 @@ import { DeferredToolCatalog } from "../../tool/harness/deferred-tool-catalog"
 import { type AssistantMessage, type ImageContent } from "@earendil-works/pi-ai"
 import { AgentError } from "../../domain"
 import type { SubagentResult } from "../../domain"
+import { providerFailureCategory, providerFailureMessage } from "../../provider/ModelHealthService"
 import { PromptComposer } from "../../prompt/PromptComposer"
 import { inferPromptCacheRuntimePolicy } from "../../prompt/PromptCache"
 import { secretScrubber } from "../../security/SecretScrubber"
@@ -100,7 +101,7 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
       steeringMode: "one-at-a-time",
       followUpMode: "one-at-a-time",
       streamOptions: {
-        timeoutMs: 120_000,
+        timeoutMs: 600_000,
         maxRetries: 2,
         maxRetryDelayMs: 10_000,
         cacheRetention: initialCachePolicy.cacheRetention,
@@ -175,7 +176,10 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
           throw new AgentError("PI_CONTEXT_WINDOW_EXCEEDED", "模型上下文超过窗口限制，压缩后仍无法继续", 413)
         }
       }
-      if (message.stopReason === "error") throw new AgentError("PI_AGENT_FAILED", message.errorMessage ?? "Pi Agent 执行失败", 502)
+      if (message.stopReason === "error") {
+        const category = providerFailureCategory(message.errorMessage ?? "Pi Agent 执行失败")
+        throw new AgentError(`PI_${category.toUpperCase().replace("-", "_")}_FAILED`, providerFailureMessage(category, "request"), 502)
+      }
       if (message.stopReason === "aborted" || request.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
       const output = adapter.outputText(message.content)
       const compaction = options.compaction

@@ -7,6 +7,14 @@
 
 import { Schema } from "effect"
 import { SubagentResultSchema } from "@codepilotx/shared/thread"
+import {
+  RESULT_CARD_ENVELOPE_KIND,
+  RESULT_CARD_ENVELOPE_VERSION,
+  decodeResultCardEnvelope,
+  type ResultCardEnvelope,
+  type ResultCardSection,
+  type ResultCardTone,
+} from "@codepilotx/shared/thread-result-card"
 import { Type } from "@earendil-works/pi-ai"
 import { AgentError, type SubagentResult } from "../../domain"
 
@@ -70,6 +78,84 @@ export const formatStructuredResult = (result: SubagentResult): string => {
     for (const risk of result.risks) lines.push(`- ${risk}`)
   }
   return lines.join("\n")
+}
+
+const cardOutcome: Record<SubagentResult["outcome"], { title: string; tone: ResultCardTone }> = {
+  succeeded: { title: "任务已完成", tone: "success" },
+  partial: { title: "任务部分完成", tone: "warning" },
+  blocked: { title: "任务受阻", tone: "danger" },
+}
+
+const findingTone: Record<SubagentResult["findings"][number]["severity"], ResultCardTone> = {
+  info: "neutral",
+  warning: "warning",
+  error: "danger",
+}
+
+const validationTone: Record<SubagentResult["validation"][number]["status"], ResultCardTone> = {
+  passed: "success",
+  failed: "danger",
+  skipped: "neutral",
+}
+
+/**
+ * Result-card envelope projected from an already validated and redacted
+ * structured result. Pure mapping of existing fields: no new facts, no model
+ * call, and empty lists produce no section. The envelope is normalized by the
+ * shared decoder so titles, text and collection sizes stay bounded; `null`
+ * means the caller must keep the raw structured result instead.
+ */
+export const resultCardEnvelopeFromStructuredResult = (
+  result: SubagentResult,
+): ResultCardEnvelope | null => {
+  const sections: ResultCardSection[] = []
+  if (result.findings.length > 0) {
+    sections.push({
+      title: "关键结论",
+      items: result.findings.map((finding) => ({
+        label: finding.title,
+        value: finding.detail,
+        tone: findingTone[finding.severity],
+      })),
+    })
+  }
+  if (result.changedFiles.length > 0) {
+    sections.push({
+      title: "改动文件",
+      items: result.changedFiles.map((file) => ({
+        label: file.path,
+        value: file.summary,
+      })),
+    })
+  }
+  if (result.validation.length > 0) {
+    sections.push({
+      title: "验证",
+      items: result.validation.map((item) => ({
+        label: item.command,
+        ...(item.output ? { value: item.output } : {}),
+        tone: validationTone[item.status],
+      })),
+    })
+  }
+  if (result.risks.length > 0) {
+    sections.push({
+      title: "风险与未决事项",
+      items: result.risks.map((risk) => ({ label: risk, tone: "warning" as ResultCardTone })),
+    })
+  }
+  const outcome = cardOutcome[result.outcome]
+  return decodeResultCardEnvelope({
+    kind: RESULT_CARD_ENVELOPE_KIND,
+    version: RESULT_CARD_ENVELOPE_VERSION,
+    card: {
+      title: outcome.title,
+      summary: result.summary,
+      tone: outcome.tone,
+      sections,
+      references: result.references,
+    },
+  })
 }
 
 /**

@@ -19,6 +19,7 @@ export type QuestionState = {
   answered: boolean
   focused?: string
   touched?: boolean
+  skipped?: boolean
 }
 
 export function questionKey(question: { id?: string; question: string }): string {
@@ -39,7 +40,7 @@ export function firstUnansweredQuestionIndex(
   questionStates: Record<string, QuestionState>,
 ): number {
   return questions.findIndex(
-    question => !hasQuestionAnswer(questionStates[questionKey(question)]),
+    question => !isQuestionComplete(questionStates[questionKey(question)]),
   )
 }
 
@@ -49,7 +50,7 @@ export function areAllQuestionsAnswered(
 ): boolean {
   return (
     questions.length > 0
-    && questions.every(question => hasQuestionAnswer(questionStates[questionKey(question)]))
+    && questions.every(question => isQuestionComplete(questionStates[questionKey(question)]))
   )
 }
 
@@ -65,7 +66,7 @@ export function canSubmitFromCurrentQuestion(
     if (index === currentQuestionIndex) {
       return state.selected.length > 0 || Boolean(state.custom.trim())
     }
-    return hasQuestionAnswer(questionStates[questionKey(question)])
+    return isQuestionComplete(questionStates[questionKey(question)])
   })
 }
 
@@ -74,11 +75,9 @@ export function shouldShowQuestionSubmit(
   states: Record<string, QuestionState>,
   index: number,
 ): boolean {
-  if (index !== questions.length - 1 || !canSubmitFromCurrentQuestion(questions, states, index)) return false
-  if (questions.length > 1) return true
   const question = questions[index]!
   const state = states[questionKey(question)] ?? initialQuestionState(question)
-  return Boolean(state.custom.trim()) || (question.multiSelect && state.touched === true)
+  return !state.skipped && (Boolean(state.custom.trim()) || (question.multiSelect && state.touched === true && state.selected.length > 0))
 }
 
 export type FooterControls = {
@@ -139,6 +138,7 @@ export function toggleMultiSelectOption(
 export function answerStateForConfirmation(state: QuestionState): QuestionState {
   return {
     ...state,
+    skipped: false,
     answered: state.selected.length > 0 || Boolean(state.custom.trim()),
   }
 }
@@ -234,7 +234,7 @@ export function buildAskUserQuestionAnswers(
       override && questionKey(override.question) === questionKey(question)
         ? override.state
         : (questionStates[questionKey(question)] ?? questionStates[question.question] ?? initialQuestionState(question))
-    const answerParts = [
+    const answerParts = state.skipped ? [] : [
       ...state.selected,
       ...(state.custom.trim() ? [state.custom.trim()] : []),
     ]
@@ -249,18 +249,24 @@ export function buildAskUserQuestionUpdatedInput(
   questionStates: Record<string, QuestionState>,
 ): Record<string, unknown> {
   const answers = buildAskUserQuestionAnswers(questions, questionStates)
+  const skippedQuestionIds = questions.filter(question => questionStates[questionKey(question)]?.skipped).map(questionKey)
   return {
     ...input,
     ...(questions.length === 1
       ? { answer: answers[questions[0]!.id ?? questions[0]!.question] ?? '' }
       : {}),
     answers,
+    ...(skippedQuestionIds.length ? { skippedQuestionIds } : {}),
   }
 }
 
 export function hasQuestionAnswer(state: QuestionState | undefined): boolean {
   if (!state) return false
-  return state.answered && (state.selected.length > 0 || Boolean(state.custom.trim()))
+  return !state.skipped && state.answered && (state.selected.length > 0 || Boolean(state.custom.trim()))
+}
+
+function isQuestionComplete(state: QuestionState | undefined): boolean {
+  return state?.skipped === true || hasQuestionAnswer(state)
 }
 
 export function shouldDeferAskUserQuestionShortcutToTextEntry(

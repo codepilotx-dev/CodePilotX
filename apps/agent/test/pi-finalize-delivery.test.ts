@@ -16,6 +16,7 @@ import { frozenDeferredEnvelope } from "../src/tool/ToolExecutor"
 import {
   formatStructuredResult,
   parseStructuredResult,
+  resultCardEnvelopeFromStructuredResult,
   structuredResultDomainFields,
   structuredResultParameters,
 } from "../src/orchestration/pi/structured-result"
@@ -189,6 +190,63 @@ describe("structured result module", () => {
     expect(first).toContain("- 旧缓存需手动清理")
     expect(first).not.toContain("findings")
   })
+
+  test("三种 outcome 映射为固定的卡片标题与 tone", () => {
+    const scenarios = [
+      ["succeeded", "任务已完成", "success"],
+      ["partial", "任务部分完成", "warning"],
+      ["blocked", "任务受阻", "danger"],
+    ] as const
+    for (const [outcome, title, tone] of scenarios) {
+      const result = parseStructuredResult({ ...validResult(), outcome })
+      const envelope = resultCardEnvelopeFromStructuredResult(result)
+      expect(envelope?.kind).toBe("codepilotx.result-card")
+      expect(envelope?.version).toBe(1)
+      expect(envelope?.card).toMatchObject({ title, tone, summary: "完成查询工具回归并修复参数校验" })
+    }
+  })
+
+  test("卡片按现有字段生成 section，空列表不产生 section", () => {
+    const envelope = resultCardEnvelopeFromStructuredResult(validSubagentResult("多分支覆盖"))
+    expect(envelope?.card.sections.map((section) => section.title)).toEqual([
+      "关键结论",
+      "改动文件",
+      "验证",
+      "风险与未决事项",
+    ])
+    expect(envelope?.card.sections[0]!.items[0]).toEqual({
+      label: "修复了校验边界",
+      value: "空参数不再通过",
+      tone: "neutral",
+    })
+    expect(envelope?.card.sections[1]!.items[0]).toEqual({
+      label: "src/tool/tool.ts",
+      value: "补充校验",
+    })
+    expect(envelope?.card.sections[2]!.items[0]).toEqual({
+      label: "bun run typecheck",
+      tone: "success",
+    })
+    expect(envelope?.card.sections[3]!.items[0]).toEqual({
+      label: "旧缓存需手动清理",
+      tone: "warning",
+    })
+    expect(envelope?.card.references).toEqual([
+      { kind: "file", value: "src/tool/tool.ts", label: "改动文件" },
+    ])
+
+    const empty = resultCardEnvelopeFromStructuredResult(parseStructuredResult({
+      outcome: "succeeded",
+      summary: "没有额外内容",
+      findings: [],
+      changedFiles: [],
+      validation: [],
+      risks: [],
+      references: [],
+    }))
+    expect(empty?.card.sections).toEqual([])
+    expect(empty?.card.references).toEqual([])
+  })
 })
 
 describe("finalize_result structured delivery runtime", () => {
@@ -211,14 +269,21 @@ describe("finalize_result structured delivery runtime", () => {
     expect(result.output).toBe(formatStructuredResult(validSubagentResult()))
     expect(hostInputs).toHaveLength(1)
     expect(hostInputs[0]!.id).toBeTypeOf("string")
-    // tool 输出沿现有链路投影为可读文本 + JSON 块
+    // tool 输出沿现有链路投影为可读文本 + 共享结果卡片信封
     const item = setup.finished.find((entry) => entry.tool === "finalize_result")
     expect(item).toBeDefined()
     expect(item!.isError).toBe(false)
     expect(item!.result).toBe(result.output)
     const blocks = item!.resultBlocks as Array<{ type: string; text?: string; value?: unknown }>
     expect(blocks.some((block) => block.type === "text" && block.text === result.output)).toBe(true)
-    expect(blocks.some((block) => block.type === "json" && JSON.stringify(block.value) === JSON.stringify(validSubagentResult()))).toBe(true)
+    const envelope = blocks.find((block) => block.type === "json")?.value as {
+      kind?: string
+      version?: number
+      card?: unknown
+    }
+    expect(envelope.kind).toBe("codepilotx.result-card")
+    expect(envelope.version).toBe(1)
+    expect(envelope.card).toEqual(resultCardEnvelopeFromStructuredResult(validSubagentResult())!.card)
     await setup.runtime.dispose()
   })
 

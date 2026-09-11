@@ -11,6 +11,7 @@ import type {
 import { Button } from '../../../components/ui/Button.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
+import { useQuestionSkipCapability } from './useQuestionSkipCapability.js'
 import { RequestCard } from './RequestCard.js'
 import {
   McpElicitationForm,
@@ -108,6 +109,7 @@ export function InlineApprovalCard({
   identity,
   disabledReason,
 }: InlineApprovalCardProps): React.ReactNode {
+  const supportsQuestionSkip = useQuestionSkipCapability(request.requestId, request.toolName === 'AskUserQuestion')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const busyRef = React.useRef(false)
@@ -164,6 +166,7 @@ export function InlineApprovalCard({
   if (request.toolName === 'AskUserQuestion') {
     return (
         <AskUserQuestionApproval
+          supportsQuestionSkip={supportsQuestionSkip}
           identity={identity}
           disabledReason={disabledReason}
           onInterrupt={onInterrupt}

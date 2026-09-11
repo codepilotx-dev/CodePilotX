@@ -93,6 +93,7 @@ import {
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
 import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
+import { questionInteractionResponse } from './questionInteractionResponse.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 import { SessionCatalogCoordinator } from './SessionCatalogCoordinator.js'
 import type { SessionLifecycleUpdate } from './SessionCatalogCoordinator.js'
@@ -110,6 +111,7 @@ export const RENDERER_CAPABILITIES = [
   'events.live.v1',
   'interactions.serverRequests.v1',
   'interaction.recovery.v1',
+  'interaction.questionSkip.v1',
   'turn.admission.v1',
   'plan.approval.v1',
   'turn.steer.v1',
@@ -1208,44 +1210,6 @@ export function createAgentSessionDesktopClient(
     })
   }
 
-  async function respondToQuestionInteraction(
-    interaction: Extract<PendingInteraction, { kind: 'question' }>,
-    answer: string | null,
-    ignored: boolean,
-  ): Promise<void> {
-    if (ignored) {
-      await respondToInteraction(interaction, {
-        kind: 'question',
-        status: 'ignored',
-      })
-      return
-    }
-    const rawAnswers = parseQuestionAnswerMap(answer)
-    const answers = interaction.questions.map((question, index) => {
-      const value =
-        rawAnswers[question.id] ??
-        (interaction.questions.length === 1 && index === 0 ? answer : null) ??
-        ''
-      const choice = question.choices.find(
-        candidate =>
-          candidate.id === value ||
-          candidate.label === value ||
-          candidate.label.replace(/\s+\(Recommended\)$/u, '') === value,
-      )
-      return {
-        questionId: question.id,
-        choiceIds: choice ? [choice.id] : [],
-        ...(!choice && value ? { text: value } : {}),
-      }
-    })
-    await respondToInteraction(interaction, {
-      kind: 'question',
-      status: 'answered',
-      answers,
-      resolution: 'user',
-    })
-  }
-
   async function respondToPermissionInteraction(
     interaction: Extract<PendingInteraction, { kind: 'permission' }>,
     decision: DesktopPermissionDecision,
@@ -1289,11 +1253,11 @@ export function createAgentSessionDesktopClient(
       threadId,
     )
     if (interaction.kind === 'question') {
-      await respondToQuestionInteraction(
-        interaction,
-        questionAnswerFromDecision(decision),
-        decision.behavior === 'deny',
-      )
+      const response = questionInteractionResponse(interaction, decision)
+      if (response.kind === 'question' && response.status === 'answered' && response.answers.some(answer => answer.skipped)) {
+        requireAgentCapability('interaction.questionSkip.v1')
+      }
+      await respondToInteraction(interaction, response)
       return
     }
     if (interaction.kind === 'approval') {
@@ -3664,36 +3628,6 @@ export function createAgentSessionDesktopClient(
   } as unknown as CodePilotXDesktopClient
 
   return client
-}
-
-function questionAnswerFromDecision(decision: DesktopPermissionDecision): string {
-  const input = decision.updatedInput
-  const answers = input?.answers
-  if (answers && typeof answers === 'object' && !Array.isArray(answers)) {
-    const values = Object.values(answers).filter(
-      (value): value is string => typeof value === 'string',
-    )
-    if (values.length > 0) return JSON.stringify(answers)
-  }
-  if (typeof input?.answer === 'string') return input.answer
-  return decision.message ?? ''
-}
-
-function parseQuestionAnswerMap(
-  answer: string | null,
-): Record<string, string> {
-  if (!answer?.trim().startsWith('{')) return {}
-  try {
-    const parsed = JSON.parse(answer) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
-        (entry): entry is [string, string] => typeof entry[1] === 'string',
-      ),
-    )
-  } catch {
-    return {}
-  }
 }
 
 function noop(): void {}

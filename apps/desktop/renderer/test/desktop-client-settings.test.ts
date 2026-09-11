@@ -94,7 +94,7 @@ describe('desktop thread settings client', () => {
     expect(calls.indexOf('thread/read')).toBeGreaterThan(calls.indexOf('planApproval/respond'))
   })
 
-  test('submits a complete question group by original ids and prefers keyed answers', async () => {
+  test.each(['answer', 'mixed', 'all', 'unsupported'] as const)('submits complete question results by original ids with capability gating (%s)', async mode => {
     const responses: unknown[] = []
     const questions = ['scope', 'format', 'filter'].map(id => ({
       id, header: id, prompt: `请选择 ${id}`,
@@ -106,7 +106,9 @@ describe('desktop thread settings client', () => {
       fetch: async (_path, init) => {
         const body = JSON.parse(String(init?.body))
         if (body.method === 'initialized') return new Response(null, { status: 204 })
-        if (body.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body.method === 'initialize') return rpc(body.id, { ...initializedResult(), capabilities: [
+          ...initializedResult().capabilities, ...(mode === 'unsupported' ? [] : ['interaction.questionSkip.v1']),
+        ] })
         if (body.method === 'interaction/listPending') {
           expect(body.params.threadId).toBe('session-1')
           return rpc(body.id, {
@@ -124,16 +126,25 @@ describe('desktop thread settings client', () => {
         throw new Error(`Unhandled method: ${body.method}`)
       },
     })
-    await client.respondToPermission('session-1', 'question:group-1', {
+    const skippedQuestionIds = mode === 'answer' ? [] : mode === 'all' ? ['scope', 'format', 'filter'] : ['scope']
+    const submission = client.respondToPermission('session-1', 'question:group-1', {
       behavior: 'allow', updatedInput: { answer: 'stale legacy answer',
-        answers: { scope: '是', format: '中文自定义', filter: '否' } },
+        answers: { scope: mode === 'answer' ? '是' : '', format: mode === 'all' ? '' : '中文自定义', filter: mode === 'all' ? '' : '否' }, skippedQuestionIds },
     })
+    if (mode === 'unsupported') {
+      await expect(submission).rejects.toThrow('interaction.questionSkip.v1')
+      expect(responses).toHaveLength(0)
+      return
+    }
+    await submission
     expect(responses).toHaveLength(1)
     expect(responses[0]).toMatchObject({ interactionId: 'group-1', expectedVersion: 1,
       response: { kind: 'question', status: 'answered', resolution: 'user', answers: [
-        { questionId: 'scope', choiceIds: ['yes'] },
-        { questionId: 'format', choiceIds: [], text: '中文自定义' },
-        { questionId: 'filter', choiceIds: ['no'] },
+        ...(mode === 'all' ? skippedQuestionIds.map(questionId => ({ questionId, choiceIds: [], skipped: true })) : [
+          mode === 'mixed' ? { questionId: 'scope', choiceIds: [], skipped: true } : { questionId: 'scope', choiceIds: ['yes'] },
+          { questionId: 'format', choiceIds: [], text: '中文自定义' },
+          { questionId: 'filter', choiceIds: ['no'] },
+        ]),
       ] },
     })
   })
@@ -472,6 +483,8 @@ describe('desktop thread settings client', () => {
         'usage/source/updated',
         'model/health/updated',
         'skill/updated',
+        'plugins/updated',
+        'minimaxCli/updated',
         'tooling/updated',
         'mcp/updated',
         'speech/statusChanged',
@@ -1220,6 +1233,8 @@ describe('desktop thread settings client', () => {
             'usage/source/updated',
             'model/health/updated',
             'skill/updated',
+            'plugins/updated',
+            'minimaxCli/updated',
             'tooling/updated',
             'mcp/updated',
             'speech/statusChanged',

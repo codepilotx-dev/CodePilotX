@@ -36,7 +36,7 @@ const toolCallID = (value: unknown) => {
 
 type StoredAnswer = {
   resolution: "user" | "auto"
-  answers: Array<{ questionId: string; choiceIds: string[]; text?: string }>
+  answers: Array<{ questionId: string; choiceIds: string[]; text?: string; skipped?: true }>
 }
 
 const storedQuestions = (payload: Record<string, unknown>): InteractionQuestion[] => {
@@ -86,7 +86,7 @@ const normalizeRichAnswer = (
     : Array.isArray(record(answer).answers)
       ? record(answer).answers as unknown[]
       : []
-  const byQuestion = new Map<string, { questionId: string; choiceIds: string[]; text?: string }>()
+  const byQuestion = new Map<string, StoredAnswer["answers"][number]>()
   for (const value of candidate) {
     const item = record(value)
     if (typeof item.questionId !== "string" || !Array.isArray(item.choiceIds)) {
@@ -99,6 +99,13 @@ const normalizeRichAnswer = (
     const choiceIds = item.choiceIds.filter((choice): choice is string => typeof choice === "string")
     if (choiceIds.length !== item.choiceIds.length || choiceIds.some((choice) => !question.choices.some(({ id }) => id === choice))) {
       throw new AgentError("INVALID_QUESTION_ANSWER", "问题答案包含未知选项", 400)
+    }
+    if (item.skipped !== undefined) {
+      if (item.skipped !== true || resolution !== "user" || choiceIds.length > 0 || item.text !== undefined) {
+        throw new AgentError("INVALID_QUESTION_ANSWER", "跳过的问题不能包含答案，且必须由用户确认", 400)
+      }
+      byQuestion.set(question.id, { questionId: question.id, choiceIds: [], skipped: true })
+      continue
     }
     const text = typeof item.text === "string" && item.text.trim() ? item.text.trim().slice(0, 4_000) : undefined
     const answerCount = choiceIds.length + (text ? 1 : 0)

@@ -15,6 +15,15 @@ const question: QuestionItem = {
 };
 
 describe("question timeline", () => {
+  test("explicitly skipped questions render no answer and all-skipped summaries remain distinct", () => {
+    const answers = question.questions!.map(q => ({ questionId: q.id, choiceIds: [], skipped: true as const }));
+    const item: QuestionItem = { ...question, status: "answered", answers };
+    expect(renderToStaticMarkup(<QuestionItemView item={item} />)).toContain("未提供答案");
+    const html = renderToStaticMarkup(<QuestionItemView item={{ ...item, answers: [answers[0]!, { questionId: "question-1", choiceIds: ["second"] }, answers[2]!] }} disclosure={{ id: item.id, expanded: true, onExpandedChange: () => {} }} />);
+    expect(html).toContain("已回答");
+    expect(html.match(/未提供答案/g)).toHaveLength(2);
+    expect(html).toContain("格式选项二");
+  });
   test("pending groups only show two status nodes, resolved groups collapse all answers", () => {
     const pending = renderToStaticMarkup(<QuestionItemView item={question} />);
     expect(pending).toContain("正在询问问题");

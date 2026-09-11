@@ -387,6 +387,83 @@ describe("PiEventAdapter", () => {
     })
   })
 
+  test("normalizes an explicit result-card envelope inside structured content", async () => {
+    const seen: Array<{ resultBlocks?: unknown[] }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      toolFinished: async (_context, result) => { seen.push(result) },
+    })
+
+    await adapter.handle({
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "mcp__demo__report",
+      result: {
+        content: [{ type: "text", text: "报告" }],
+        structuredContent: {
+          kind: "codepilotx.result-card",
+          version: 1,
+          card: {
+            title: "  任务已完成  ",
+            summary: "  回归通过  ",
+            tone: "success",
+            sections: [{
+              title: "验证",
+              items: [{ label: "bun test", value: "通过", tone: "success" }],
+            }],
+            references: [{ kind: "file", value: "apps/agent/src/tool/tool.ts", label: "工具实现" }],
+          },
+        },
+      },
+      isError: false,
+    } as unknown as AgentHarnessEvent)
+
+    expect(seen[0]?.resultBlocks).toEqual([
+      { type: "text", text: "报告" },
+      {
+        type: "json",
+        value: {
+          kind: "codepilotx.result-card",
+          version: 1,
+          card: {
+            title: "任务已完成",
+            summary: "回归通过",
+            tone: "success",
+            sections: [{
+              title: "验证",
+              items: [{ label: "bun test", value: "通过", tone: "success" }],
+            }],
+            references: [{ kind: "file", value: "apps/agent/src/tool/tool.ts", label: "工具实现" }],
+          },
+        },
+      },
+    ])
+  })
+
+  test("keeps forged or future result-card envelopes as raw JSON blocks", async () => {
+    const forged = [
+      { kind: "codepilotx.result-card", version: 1, card: { title: "无摘要" } },
+      { kind: "codepilotx.result-card", version: 2, card: { title: "未来版本", summary: "按 JSON 降级" } },
+      { kind: "codepilotx.other-card", version: 1, card: { title: "错误标记", summary: "按 JSON 降级" } },
+    ]
+    for (const structuredContent of forged) {
+      const seen: Array<{ resultBlocks?: unknown[] }> = []
+      const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+        toolFinished: async (_context, result) => { seen.push(result) },
+      })
+      await adapter.handle({
+        type: "tool_execution_end",
+        toolCallId: "call-1",
+        toolName: "mcp__demo__report",
+        result: { content: [{ type: "text", text: "报告" }], structuredContent },
+        isError: false,
+      } as unknown as AgentHarnessEvent)
+      expect(seen[0]?.resultBlocks).toEqual([
+        { type: "text", text: "报告" },
+        { type: "json", value: structuredContent },
+      ])
+    }
+  })
+
   test("degrades unknown or non-JSON tool parts to bounded text instead of throwing", async () => {
     const circular: Record<string, unknown> = {}
     circular.self = circular

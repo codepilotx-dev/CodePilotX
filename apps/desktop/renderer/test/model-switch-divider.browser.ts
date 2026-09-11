@@ -11,6 +11,7 @@ const harness = `
 import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CanonicalThreadView } from ${source('features/session/timeline/CanonicalThreadView.tsx')};
+import { CanonicalItemRenderer } from ${source('features/session/timeline/CanonicalItemRenderer.tsx')};
 import { ModelSwitchDivider } from ${source('features/session/timeline/ModelSwitchDivider.tsx')};
 import { ConversationItemContext } from ${source('features/session/timeline/ConversationItemContext.ts')};
 import { TooltipProvider } from ${source('components/ui/Tooltip.tsx')};
@@ -31,6 +32,22 @@ function entry(index, model) {
     assistantResultItems: [], postAssistantItems: [], patchItems: [], planItem: null, executionPlanItems: [], contentBlocks: [], blockers: [], systemItems: [] };
 }
 const all = [a, b, b, a].map((model, index) => entry(index, model));
+const baseItem = { messageID: 'message', turnId: 'turn', agentId: 'agent', createdAt: 1 };
+const alignmentItems = [
+  { ...baseItem, id: 'tool', type: 'tool', callID: 'call', tool: 'Bash', title: '运行命令', state: 'completed',
+    input: null, command: 'bun test', activity: { type: 'command', kind: 'test' }, output: 'pass', error: null, startedAt: 1, finishedAt: 2, durationMs: 1 },
+  { ...baseItem, id: 'reasoning', type: 'reasoning', status: 'completed', text: '检查现有实现。' },
+  { ...baseItem, id: 'answered', type: 'question', prompt: '导出什么？', choices: [], status: 'answered', answer: '项目列表' },
+  { ...baseItem, id: 'pending', type: 'question', prompt: '选择格式', choices: [], status: 'pending', answer: null },
+];
+function Alignment({ narrow, grouped }) {
+  return <section data-alignment style={{ width: narrow ? 360 : 880, containerType: 'inline-size' }}>
+    <div className={grouped ? 'cpx-agent-activity__list' : 'canonical-turn__process'}>
+      {alignmentItems.map(item => <CanonicalItemRenderer key={item.id} item={item}
+        onOpenPlanInRightDock={noop} onOpenSubagent={noop} rightDockPlanEventId={null} />)}
+    </div>
+  </section>;
+}
 function Timeline({ side }) {
   const [older, setOlder] = useState(false);
   const [generation, setGeneration] = useState(0);
@@ -55,6 +72,7 @@ function Harness() {
       Object.entries(deriveThemeVariables(config)).forEach(([key, value]) => document.documentElement.style.setProperty(key, value));
     }}>{config.variant}</button>)}
     <Timeline /><Timeline side />
+    <Alignment /><Alignment narrow /><Alignment narrow grouped />
     <section id="long" style={{ width: 360 }}><ModelSwitchDivider previousModel={{ ...a, id: 'very-long-model-name-'.repeat(10) }} model={b} /></section>
   </ConversationItemContext.Provider></TooltipProvider>;
 }
@@ -121,8 +139,34 @@ try {
     await section.locator('[data-scroll-container]').evaluate(element => { element.style.height = '600px' })
   }
   const themeColors: string[] = []
+  for (const section of await page.locator('[data-alignment]').all()) {
+    await section.getByRole('button', { name: '思考过程', exact: true }).click()
+    await section.getByRole('button', { name: '已回答', exact: true }).click()
+  }
   for (const theme of ['light', 'dark']) {
     await page.getByRole('button', { name: theme, exact: true }).click()
+    for (const section of await page.locator('[data-alignment]').all()) {
+      const geometry = await section.evaluate(element => {
+        const rows = [...element.querySelectorAll('.cpx-agent-activity__item-header, .canonical-process-card__summary, .canonical-lifecycle-tool')]
+        return {
+          icons: rows.map(row => row.querySelector('svg')!.getBoundingClientRect().left),
+          labels: rows.map(row => row.querySelector('span')!.getBoundingClientRect().left),
+          headers: rows.filter(row => !row.classList.contains('canonical-lifecycle-tool')).map(row => ({
+            height: row.getBoundingClientRect().height, radius: getComputedStyle(row).borderRadius,
+          })),
+          bodies: [...element.querySelectorAll('.canonical-process-card__body')].map(body =>
+            body.firstElementChild!.getBoundingClientRect().left),
+        }
+      })
+      assert.equal(geometry.icons.length, 5, 'tool, reasoning, answer and two pending rows are rendered')
+      assert.ok(Math.max(...geometry.icons) - Math.min(...geometry.icons) < 1, 'same-level icons align')
+      assert.ok(Math.max(...geometry.labels) - Math.min(...geometry.labels) < 1, 'same-level labels align')
+      assert.equal(geometry.headers.length, 3)
+      assert.ok(geometry.headers.every(header => Math.abs(header.height - geometry.headers[0]!.height) < 1
+        && header.radius === geometry.headers[0]!.radius), 'tool, reasoning and answer hover surfaces share height and radius')
+      assert.equal(geometry.bodies.length, 2)
+      assert.ok(geometry.bodies.every(left => Math.abs(left - geometry.labels[0]!) < 1), 'expanded prose aligns with its heading at both widths')
+    }
     const metrics = await page.locator(divider).evaluateAll(elements => elements.map(element => {
       const before = getComputedStyle(element, '::before'), after = getComputedStyle(element, '::after')
       const style = getComputedStyle(element)
@@ -142,10 +186,13 @@ try {
   }
   assert.notEqual(themeColors[0], themeColors[1], 'divider foreground follows the active theme')
   assert.deepEqual(errors, [])
+  if (process.env.TIMELINE_ALIGNMENT_SCREENSHOT) {
+    await page.locator('[data-alignment]').first().screenshot({ path: process.env.TIMELINE_ALIGNMENT_SCREENSHOT })
+  }
   if (process.env.MODEL_SWITCH_SCREENSHOT) {
     await page.screenshot({ path: process.env.MODEL_SWITCH_SCREENSHOT, fullPage: true })
   }
-  console.log('Model switch divider: real timeline boundaries, failed turn, history prepend/reload, navigation, main/side widths, light/dark themes and long names passed.')
+  console.log('Timeline: model switch boundaries, history, navigation, and tool/reasoning/question alignment at main/side widths in light/dark themes passed.')
 } finally {
   await browser.close()
 }

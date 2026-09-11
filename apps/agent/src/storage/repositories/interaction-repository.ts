@@ -209,7 +209,7 @@ const questionInteractionResult = (
       kind: "question",
       status: "answered",
       resolution: stored.resolution,
-      answers: stored.answers as Array<{ questionId: string; choiceIds: string[]; text?: string }>,
+      answers: stored.answers as Array<{ questionId: string; choiceIds: string[]; text?: string; skipped?: true }>,
     }
   }
   const firstQuestion = Array.isArray(payload.questions)

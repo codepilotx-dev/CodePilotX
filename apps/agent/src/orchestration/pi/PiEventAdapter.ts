@@ -1,5 +1,6 @@
 import type { AgentHarnessEvent } from "../harness/types"
 import type { ToolResultBlock } from "@codepilotx/shared/thread"
+import { decodeResultCardEnvelope } from "@codepilotx/shared/thread-result-card"
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
 import type { PiRuntimeEventContext, PiRuntimeEventSink, PiToolArtifactInput, RuntimeCompactionTrigger } from "./types"
 
@@ -133,10 +134,13 @@ export const piToolResultBlocks = (
   }
   // MCP-style structured results are projected as JSON blocks. Mutation
   // `details` stays on the tool item for the existing patch timeline, so it is
-  // never duplicated as a JSON block here.
+  // never duplicated as a JSON block here. A payload carrying the explicit
+  // result-card envelope is normalized to its bounded card form; every other
+  // payload (including a forged or invalid envelope) keeps the raw JSON value.
   const structured = (result as unknown as { structuredContent?: unknown }).structuredContent
   if (structured !== undefined) {
-    const block = jsonBlock(structured)
+    const card = decodeResultCardEnvelope(structured)
+    const block = jsonBlock(card ?? structured)
     if (block) blocks.push(block)
   }
   return { blocks, artifacts }
