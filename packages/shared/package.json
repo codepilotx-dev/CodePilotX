@@ -32,7 +32,8 @@
     "./scheduled-task": "./src/scheduled-task.ts",
     "./session-group": "./src/session-group.ts",
     "./thread": "./src/thread/index.ts",
-    "./thread-reference": "./src/thread-reference.ts"
+    "./thread-reference": "./src/thread-reference.ts",
+    "./thread-result-card": "./src/thread-result-card.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

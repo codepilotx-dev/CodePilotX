@@ -4069,6 +4069,38 @@ describe("RPC method schema contracts", () => {
     }
   })
 
+  test("negotiates DeepSeek protocol configuration and keeps the provider definition exact", () => {
+    expect(Capabilities).toContain("provider.deepseekProtocol.v1")
+    expect(
+      Schema.decodeUnknownSync(ProtocolCapabilitySchema)(
+        "provider.deepseekProtocol.v1",
+      ),
+    ).toBe("provider.deepseekProtocol.v1")
+
+    const decodeUpdate = Schema.decodeUnknownSync(
+      RpcMethods["provider/update"].params,
+    )
+    const definition = {
+      kind: "builtin" as const,
+      id: providerId,
+      enabled: true,
+      allowModels: [],
+      denyModels: [],
+      models: [],
+      protocol: "openai-responses" as const,
+    }
+    expect(decodeUpdate({
+      providerId,
+      definition,
+      operationId: "operation:deepseek-protocol",
+    }).definition).toEqual(definition)
+    expect(() => decodeUpdate({
+      providerId,
+      definition: { ...definition, protocol: "openai-beta-fim" },
+      operationId: "operation:deepseek-protocol-invalid",
+    })).toThrow()
+  })
+
   test("health run schema rejects invalid states, negative latency, and unknown categories", () => {
     const decodeItem = Schema.decodeUnknownSync(ModelHealthItemSchema)
     expect(decodeItem({

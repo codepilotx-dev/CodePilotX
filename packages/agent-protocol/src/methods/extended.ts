@@ -126,6 +126,12 @@ export const BuiltinProviderDefinitionSchema = Schema.Struct({
     id: Model.ID,
     enabled: Schema.Boolean,
   })),
+  /**
+   * Optional global wire protocol for builtin providers that expose more than
+   * one endpoint. Only DeepSeek accepts it; the Agent rejects other builtin
+   * providers that carry the field.
+   */
+  protocol: Schema.optional(PiProviderApiSchema),
 })
 
 export const CustomProviderDefinitionSchema = Schema.Struct({

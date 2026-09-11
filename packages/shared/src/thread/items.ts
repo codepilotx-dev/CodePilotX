@@ -1,6 +1,15 @@
 import { Model } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import {
+  RESULT_CARD_ENVELOPE_KIND,
+  RESULT_CARD_ENVELOPE_VERSION,
+  RESULT_CARD_MAX_ITEMS,
+  RESULT_CARD_MAX_REFERENCES,
+  RESULT_CARD_MAX_SECTIONS,
+  RESULT_CARD_TEXT_MAX_LENGTH,
+  RESULT_CARD_TITLE_MAX_LENGTH,
+} from "../thread-result-card"
+import {
   AdditionalPermissionsSchema,
   PermissionConfigSchema,
   PermissionGrantScopeSchema,
@@ -81,6 +90,46 @@ export const ToolResultBlockSchema = Schema.Union([
 ])
 export type ToolResultBlock = typeof ToolResultBlockSchema.Type
 
+/**
+ * Wire contract of the display-neutral result-card envelope that a tool result
+ * may carry inside an existing `{ type: "json", value }` block. The envelope
+ * adds no new block discriminator, so clients that do not know it keep showing
+ * the raw JSON. Clients normalize and validate untrusted payloads with
+ * `decodeResultCardEnvelope` from `@codepilotx/shared/thread-result-card`; this
+ * schema is the strict shape those normalized envelopes must satisfy.
+ */
+export const ResultCardToneSchema = Schema.Literals(["neutral", "success", "warning", "danger"])
+/** Non-blank text: the normalizing decoder trims, this schema rejects blanks. */
+const resultCardText = (maxLength: number) =>
+  Schema.String.check(Schema.isPattern(/\S/)).check(Schema.isMaxLength(maxLength))
+export const ResultCardItemSchema = Schema.Struct({
+  label: resultCardText(RESULT_CARD_TITLE_MAX_LENGTH),
+  value: Schema.optional(resultCardText(RESULT_CARD_TEXT_MAX_LENGTH)),
+  tone: Schema.optional(ResultCardToneSchema),
+})
+export const ResultCardSectionSchema = Schema.Struct({
+  title: resultCardText(RESULT_CARD_TITLE_MAX_LENGTH),
+  items: Schema.Array(ResultCardItemSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(RESULT_CARD_MAX_ITEMS)),
+})
+export const ResultCardReferenceSchema = Schema.Struct({
+  kind: Schema.Literals(["file", "url", "thread", "subagent"]),
+  value: resultCardText(RESULT_CARD_TEXT_MAX_LENGTH),
+  label: Schema.optional(resultCardText(RESULT_CARD_TITLE_MAX_LENGTH)),
+})
+export const ResultCardEnvelopeSchema = Schema.Struct({
+  kind: Schema.Literal(RESULT_CARD_ENVELOPE_KIND),
+  version: Schema.Literal(RESULT_CARD_ENVELOPE_VERSION),
+  card: Schema.Struct({
+    title: resultCardText(RESULT_CARD_TITLE_MAX_LENGTH),
+    summary: resultCardText(RESULT_CARD_TEXT_MAX_LENGTH),
+    tone: ResultCardToneSchema,
+    sections: Schema.Array(ResultCardSectionSchema).check(Schema.isMaxLength(RESULT_CARD_MAX_SECTIONS)),
+    references: Schema.Array(ResultCardReferenceSchema).check(Schema.isMaxLength(RESULT_CARD_MAX_REFERENCES)),
+  }),
+})
+
 export const ToolCompletionMetadataSchema = Schema.Struct({
   stopReason: Schema.optional(Schema.String),
   inputTokens: Schema.optional(Schema.Number),
@@ -126,6 +175,7 @@ export const InteractionQuestionAnswerSchema = Schema.Struct({
   questionId: QuestionTextSchema,
   choiceIds: Schema.Array(QuestionTextSchema).check(Schema.isMaxLength(1)),
   text: Schema.optional(Schema.String),
+  skipped: Schema.optional(Schema.Literal(true)),
 })
 
 export const ModelUsageSchema = Schema.Struct({
