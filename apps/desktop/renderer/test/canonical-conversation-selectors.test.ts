@@ -6,6 +6,8 @@ import {
 
 import {
   selectCanonicalConversationAuxiliaryState,
+  selectCanonicalLatestTurnStatus,
+  selectCanonicalSessionLifecycle,
   selectCanonicalSessionStatus,
 } from '../src/features/session/conversation/canonicalConversationSelectors.js'
 import { canRegenerateConversationTitle } from '../src/features/session/conversation/conversationTitleActions.js'
@@ -492,5 +494,115 @@ describe('canonical conversation auxiliary selector', () => {
     expect(
       selectCanonicalConversationAuxiliaryState(runningState).sessionStatus,
     ).toBe('running')
+  })
+
+  test('exposes the raw lifecycle status for list surfaces', () => {
+    const page: CanonicalThreadPage = {
+      thread: {
+        id: 'thread-list-status',
+        projectID: null,
+        title: null,
+        gitBranch: null,
+        workspace: {
+          kind: 'projectless',
+          projectID: null,
+          workspaceRoot: 'C:\\workspace',
+          cwd: 'C:\\workspace',
+          outputDirectory: null,
+        },
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1,
+        updatedAt: 12,
+      },
+      subagents: [],
+      turns: [
+        {
+          turn: {
+            id: 'turn-active',
+            threadId: 'thread-list-status',
+            sourceInputID: 'input-1',
+            status: 'waiting-question',
+            mode: 'chat',
+            model,
+            permissionConfig,
+            rootAgentId: 'agent-1',
+            mergedInputIDs: [],
+            startedAt: 2,
+            finishedAt: null,
+            elapsedSeconds: 3,
+            error: null,
+          },
+          inputs: [],
+          messages: [],
+          agents: [],
+          items: [],
+          approvals: [],
+          attachments: [],
+        },
+      ],
+      olderCursor: null,
+      hasOlder: false,
+      streamPosition: { streamId: 'thread:thread-list-status', sequence: 1 },
+    }
+
+    expect(selectCanonicalLatestTurnStatus(null)).toBeNull()
+    expect(selectCanonicalSessionLifecycle(null)).toBeNull()
+
+    const waitingState = createCanonicalThreadState(page)
+    expect(selectCanonicalLatestTurnStatus(waitingState)).toBe(
+      'waiting-question',
+    )
+    expect(selectCanonicalSessionLifecycle(waitingState)).toEqual({
+      status: 'waiting',
+      latestTurnStatus: 'waiting-question',
+    })
+
+    const completedState = createCanonicalThreadState({
+      ...page,
+      turns: [
+        {
+          ...page.turns[0]!,
+          turn: {
+            ...page.turns[0]!.turn,
+            status: 'completed',
+            finishedAt: 5,
+          },
+        },
+      ],
+    })
+    expect(selectCanonicalSessionLifecycle(completedState)).toEqual({
+      status: 'done',
+      latestTurnStatus: 'completed',
+    })
+
+    // A turn waiting in the queue is never the active turn, but list surfaces
+    // must still report it as queued instead of idle.
+    const queueOnlyState = createCanonicalThreadState({
+      ...page,
+      turns: [],
+      queue: {
+        version: 1,
+        pauseReason: null,
+        turns: [
+          {
+            ...page.turns[0]!.turn,
+            id: 'turn-queued',
+            status: 'queued',
+            startedAt: null,
+          },
+        ],
+        inputs: [],
+      },
+    })
+    expect(selectCanonicalLatestTurnStatus(queueOnlyState)).toBeNull()
+    expect(selectCanonicalSessionLifecycle(queueOnlyState)).toEqual({
+      status: 'queued',
+      latestTurnStatus: 'queued',
+    })
+    // The open conversation keeps its existing queue-only behaviour.
+    expect(selectCanonicalSessionStatus(queueOnlyState)).toBe('idle')
+
+    const emptyState = createCanonicalThreadState({ ...page, turns: [] })
+    expect(selectCanonicalSessionLifecycle(emptyState)).toBeNull()
   })
 })

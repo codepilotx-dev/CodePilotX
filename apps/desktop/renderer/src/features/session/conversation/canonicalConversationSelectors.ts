@@ -1,5 +1,5 @@
 import type { CanonicalThreadState } from '@codepilotx/session-view'
-import type { Item } from '@codepilotx/shared/thread'
+import type { Item, Turn } from '@codepilotx/shared/thread'
 
 import type {
   DesktopContextUsage,
@@ -35,9 +35,14 @@ export type CanonicalConversationAuxiliaryState = {
 
 const completedResultSourceLinks = new WeakMap<object, SourceLink[]>()
 
-export function selectCanonicalSessionStatus(
+/**
+ * Raw lifecycle status of the turn the canonical projection currently reports:
+ * the newest active turn, otherwise the newest turn that is not waiting in the
+ * queue. Returns `null` when the projection holds no usable turn yet.
+ */
+export function selectCanonicalLatestTurnStatus(
   state: CanonicalThreadState | null,
-): DesktopSessionStatus | null {
+): Turn['status'] | null {
   if (!state) return null
   const queueTurnIds = new Set(state.queue.turnIds)
   const activeTurn = [...state.turnsById.values()]
@@ -47,12 +52,50 @@ export function selectCanonicalSessionStatus(
         (turn.status === 'running' || turn.status.startsWith('waiting-')),
     )
     .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
-  if (activeTurn) return agentTurnStatusToDesktopStatus(activeTurn.status)
+  if (activeTurn) return activeTurn.status
   const latestTurn = [...state.turnOrder]
     .reverse()
     .map(id => state.turnsById.get(id))
     .find(turn => turn && !queueTurnIds.has(turn.id))
-  return agentTurnStatusToDesktopStatus(latestTurn?.status)
+  return latestTurn?.status ?? null
+}
+
+export type CanonicalSessionLifecycle = {
+  status: DesktopSessionStatus
+  latestTurnStatus: Turn['status']
+}
+
+/**
+ * Lifecycle published to list surfaces such as the sidebar, which cannot read
+ * the canonical projection for every session. Unlike
+ * `selectCanonicalSessionStatus`, a thread whose only turns are still waiting in
+ * the queue reports `queued`, and a projection that holds no turn information at
+ * all returns `null` so the caller keeps its catalog value instead of guessing.
+ */
+export function selectCanonicalSessionLifecycle(
+  state: CanonicalThreadState | null,
+): CanonicalSessionLifecycle | null {
+  const latestTurnStatus = selectCanonicalLatestTurnStatus(state)
+  if (latestTurnStatus) {
+    return {
+      status: agentTurnStatusToDesktopStatus(latestTurnStatus),
+      latestTurnStatus,
+    }
+  }
+  if (state && state.queue.turnIds.length > 0) {
+    return {
+      status: agentTurnStatusToDesktopStatus('queued'),
+      latestTurnStatus: 'queued',
+    }
+  }
+  return null
+}
+
+export function selectCanonicalSessionStatus(
+  state: CanonicalThreadState | null,
+): DesktopSessionStatus | null {
+  if (!state) return null
+  return agentTurnStatusToDesktopStatus(selectCanonicalLatestTurnStatus(state) ?? undefined)
 }
 
 export function selectCanonicalConversationAuxiliaryState(

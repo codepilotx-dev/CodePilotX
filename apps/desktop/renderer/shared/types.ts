@@ -1969,6 +1969,18 @@ export type DesktopApi = {
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
+  /**
+   * Renderer-local status channel. The canonical thread projection publishes the
+   * status of the thread it covers here, and the session store change carries the
+   * merged value so every list surface reads one status. `null` clears it.
+   */
+  publishCanonicalSessionStatus(
+    threadId: string,
+    status: {
+      status: DesktopSessionStatus
+      latestTurnStatus: ThreadListItem['latestTurnStatus']
+    } | null,
+  ): void
   markSessionRead(
     sessionId: string,
     readThroughAt: string,

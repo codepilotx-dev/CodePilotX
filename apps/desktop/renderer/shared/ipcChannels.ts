@@ -9,6 +9,7 @@ export type DesktopApiMethod = Exclude<
   | 'onSessionStoreChange'
   | 'onDesktopSettingsChange'
   | 'onUpdateStatusChange'
+  | 'publishCanonicalSessionStatus'
 >
 
 export const DESKTOP_API_METHODS = [

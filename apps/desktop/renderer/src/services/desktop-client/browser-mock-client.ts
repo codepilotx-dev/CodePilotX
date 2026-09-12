@@ -1149,6 +1149,10 @@ export function createBrowserMockDesktopClient(
       activeSessionId = sessionId
       emitSessionStoreChange()
     },
+    publishCanonicalSessionStatus: (_threadId, _status) => {
+      // The browser preview has no agent turn lifecycle behind its mock sessions,
+      // so there is no canonical projection to overlay here.
+    },
     markSessionRead: async (sessionId, readThroughAt) => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)

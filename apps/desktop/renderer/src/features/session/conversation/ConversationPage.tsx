@@ -93,7 +93,10 @@ import {
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
 import { PlanApprovalCard } from "../approvals/PlanApprovalCard.js";
 import { usePlanApprovalResponse } from "../approvals/usePlanApprovalResponse.js";
-import { selectCanonicalConversationAuxiliaryState } from "./canonicalConversationSelectors.js";
+import {
+  selectCanonicalConversationAuxiliaryState,
+  selectCanonicalSessionLifecycle,
+} from "./canonicalConversationSelectors.js";
 import {
   canInlineEditConversationTitle,
   canRegenerateConversationTitle,
@@ -211,6 +214,22 @@ export function ConversationPage(): React.ReactNode {
       selectCanonicalConversationAuxiliaryState(canonicalConversation.state),
     [canonicalConversation.state],
   );
+  const canonicalLifecycle = React.useMemo(
+    () => selectCanonicalSessionLifecycle(canonicalConversation.state),
+    [canonicalConversation.state],
+  );
+  // The canonical projection cannot be read by list surfaces such as the
+  // sidebar, so publish it for the thread it covers; the session store change
+  // then carries the merged status to every consumer. Clearing it on unmount or
+  // thread switch hands that thread back to the catalog status.
+  React.useEffect(() => {
+    if (!activeSessionId) return;
+    desktopClient.publishCanonicalSessionStatus(activeSessionId, canonicalLifecycle);
+  }, [activeSessionId, canonicalLifecycle]);
+  React.useEffect(() => {
+    if (!activeSessionId) return;
+    return () => desktopClient.publishCanonicalSessionStatus(activeSessionId, null);
+  }, [activeSessionId]);
   const isThreadLoading =
     isConversationLoading ||
     (canonicalConversation.loading && canonicalConversation.turns.length === 0);

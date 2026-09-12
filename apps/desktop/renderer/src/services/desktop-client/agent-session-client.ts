@@ -39,6 +39,11 @@ import type {
   RpcResult,
 } from '@codepilotx/agent-protocol'
 import {
+  hasNonTerminalSessionStatus,
+  withSessionStatusOverride,
+  type SessionStatusOverride,
+} from './sessionStatusOverrides.js'
+import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
   isNewerDesktopThemeSettingsVersion,
   normalizeDesktopThemeSettings,
@@ -105,6 +110,12 @@ export const WORKSPACE_GIT_CHANGED_EVENT =
 export const CONFIG_UPDATED_EVENT = 'codepilotx-config-updated'
 
 const RENDERER_PROTOCOL = 'thread-rpc-v4' as const
+
+/**
+ * Cadence of the in-flight session status reconcile. It runs only while at least
+ * one session still reports queued, waiting or running work.
+ */
+const SESSION_STATUS_RECONCILE_INTERVAL_MS = 30_000
 export const RENDERER_CAPABILITIES = [
   'rpc.typed.v1',
   'events.replay.v1',
@@ -245,6 +256,11 @@ export function createAgentSessionDesktopClient(
     string,
     SessionLifecycleUpdate
   >()
+  // Canonical projection status per thread. It outranks the catalog snapshot for
+  // the threads that projection currently covers, and is applied in
+  // `emitSessionStoreChange` so every session store consumer sees one status.
+  const canonicalStatusOverrides = new Map<string, SessionStatusOverride>()
+  let sessionStatusReconcileTimer: ReturnType<typeof setInterval> | null = null
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   let pendingInteractionThreadIds = new Set<string>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
@@ -1002,12 +1018,16 @@ export function createAgentSessionDesktopClient(
   async function refreshAgentSessionStoreChange(
     options: { reloadActive?: boolean; reconcileInteractions?: boolean } = {},
   ): Promise<void> {
-    const [sessions] = await Promise.all([
-      listAgentSessions({ archived: false }),
-      options.reconcileInteractions
-        ? refreshPendingInteractionCatalog()
-        : Promise.resolve(),
-    ])
+    // The catalog list is the primary source: without it there is nothing to
+    // publish. The pending-interaction catalog and the active-session snapshot
+    // are supplements, so a failure there must not discard the list refresh
+    // that already corrected `sessionSnapshots`.
+    const sessions = await listAgentSessions({ archived: false })
+    if (options.reconcileInteractions) {
+      await refreshPendingInteractionCatalog().catch(error => {
+        console.error('待处理交互目录对账失败：', error)
+      })
+    }
     const visibleIds = new Set(sessions.map(snapshot => snapshot.item.id))
     for (const sessionId of [...sessionSnapshots.keys()]) {
       if (!visibleIds.has(sessionId)) {
@@ -1022,7 +1042,9 @@ export function createAgentSessionDesktopClient(
       activeSessionId = sessions[0]?.item.id ?? null
     }
     if (options.reloadActive && activeSessionId) {
-      await loadAgentSessionSnapshot(activeSessionId)
+      await loadAgentSessionSnapshot(activeSessionId).catch(error => {
+        console.error('活动会话快照刷新失败：', error)
+      })
     }
     emitSessionStoreChange()
   }
@@ -1042,19 +1064,87 @@ export function createAgentSessionDesktopClient(
     return sessionStoreReconcile
   }
 
+  function applyCanonicalStatusOverrides(
+    sessions: DesktopSessionSnapshot[],
+  ): DesktopSessionSnapshot[] {
+    if (canonicalStatusOverrides.size === 0) return sessions
+    return sessions.map(snapshot => {
+      const item = withSessionStatusOverride(
+        snapshot.item,
+        canonicalStatusOverrides.get(snapshot.item.id),
+      )
+      return item === snapshot.item ? snapshot : { ...snapshot, item }
+    })
+  }
+
   function emitSessionStoreChange(
     sessions = [...sessionSnapshots.values()].filter(
       snapshot => !snapshot.item.archivedAt,
     ),
   ): void {
+    // Session status has exactly one published value: the catalog snapshot,
+    // overridden by the canonical projection for the threads it covers. Every
+    // consumer (sidebar, command menu, notifications, pets) reads this change.
     const change: DesktopSessionStoreChange = {
       activeSessionId,
-      sessions,
+      sessions: applyCanonicalStatusOverrides(sessions),
       pendingInteractionThreadIds: [...pendingInteractionThreadIds],
     }
     for (const listener of sessionStoreListeners) {
       listener(change)
     }
+  }
+
+  function publishCanonicalSessionStatus(
+    threadId: string,
+    status: SessionStatusOverride | null,
+  ): void {
+    const current = canonicalStatusOverrides.get(threadId)
+    if (status === null) {
+      if (!current) return
+      canonicalStatusOverrides.delete(threadId)
+    } else {
+      if (
+        current &&
+        current.status === status.status &&
+        current.latestTurnStatus === status.latestTurnStatus
+      ) {
+        return
+      }
+      canonicalStatusOverrides.set(threadId, status)
+    }
+    // The browser mock owns its own session map, so republishing the agent
+    // snapshots there would report an empty session list.
+    if (agentReady) emitSessionStoreChange()
+  }
+
+  /**
+   * Reconciles the catalog while any session still claims in-flight work. This
+   * is the safety net for a lifecycle event that never reached this client: the
+   * terminal status is persisted, so the next list read publishes it.
+   */
+  function startSessionStatusReconcile(): void {
+    if (sessionStatusReconcileTimer !== null) return
+    sessionStatusReconcileTimer = setInterval(() => {
+      const published = [...sessionSnapshots.values()].map(snapshot =>
+        withSessionStatusOverride(
+          snapshot.item,
+          canonicalStatusOverrides.get(snapshot.item.id),
+        ),
+      )
+      if (!hasNonTerminalSessionStatus(published)) return
+      void refreshAgentSessionStoreChange({ reloadActive: false }).catch(
+        error => {
+          console.error('会话状态对账失败：', error)
+        },
+      )
+    }, SESSION_STATUS_RECONCILE_INTERVAL_MS)
+  }
+
+  function stopSessionStatusReconcile(): void {
+    if (sessionStatusReconcileTimer === null) return
+    clearInterval(sessionStatusReconcileTimer)
+    sessionStatusReconcileTimer = null
   }
 
   async function refreshPendingInteractionCatalog(): Promise<void> {
@@ -1654,6 +1744,7 @@ export function createAgentSessionDesktopClient(
 
   const startSessionCatalogSubscription = (): void => {
     if (unsubscribeSessionCatalog || !eventSourceFactory()) return
+    startSessionStatusReconcile()
     const catalogCoordinator = new SessionCatalogCoordinator({
       onCatalogUpdated: () => {
         invalidateModelCatalog()
@@ -1688,9 +1779,16 @@ export function createAgentSessionDesktopClient(
       },
       onLifecycleUpdated: applySessionLifecycleUpdate,
       refreshThreads: async () => {
+        // Catalog reconciliation is best-effort: the lifecycle update of this
+        // batch was already applied above. Letting a transient list failure
+        // reject the batch would make the event client tear the subscription
+        // down and resubscribe, which is how a terminal lifecycle event gets
+        // skipped and a session stays stuck in its previous status.
         await refreshAgentSessionStoreChange({
           reconcileInteractions: true,
           reloadActive: true,
+        }).catch(error => {
+          console.error('会话目录对账失败：', error)
         })
       },
     })
@@ -1717,6 +1815,7 @@ export function createAgentSessionDesktopClient(
   }
 
   const stopSessionCatalogSubscription = (): void => {
+    stopSessionStatusReconcile()
     unsubscribeSessionCatalog?.()
     unsubscribeSessionCatalog = null
   }
@@ -3089,6 +3188,11 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.setActiveSession(sessionId),
       ),
+    // Renderer-local status channel: the canonical projection publishes here and
+    // every session store consumer reads the merged value from the store change.
+    publishCanonicalSessionStatus: (threadId: string, status: SessionStatusOverride | null) => {
+      publishCanonicalSessionStatus(threadId, status)
+    },
     markSessionRead: (sessionId: string, readThroughAt: string) =>
       withAgentOrMock(
         async () => {
