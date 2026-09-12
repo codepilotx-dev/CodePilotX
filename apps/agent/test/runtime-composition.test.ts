@@ -244,6 +244,96 @@ describe("RuntimeCompositionSnapshotV2 Skills 引用冻结", () => {
   })
 })
 
+describe("RuntimeComposition rebind 生命周期工具", () => {
+  const composeForRebind = async (workspace: string, exposed: readonly string[]) => {
+    const skillService = new SkillService()
+    await skillService.scan({ workspaceRoot: workspace, dataRoot: workspace, userHome: workspace })
+    const faux = fauxProvider()
+    const models = createModels()
+    models.setProvider(faux.provider)
+    const model = faux.getModel()
+    const modelRef = { providerID: "faux", id: "test" } as never
+    const mcpBinding = createMcpGenerationBinding(workspace, { serverInstructions: [], definitions: [] })
+    const toolContext = {
+      threadID: "thread-rc-lifecycle", turnID: "turn-rc-lifecycle", agentID: "agent-rc-lifecycle",
+      profile: "main", taskMode: "plan",
+      signal: new AbortController().signal,
+      workspace: {} as never,
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      model: { providerID: "faux", id: "test" } as never,
+      taskSummary: "x",
+    } as never
+    const input = {
+      turnID: "turn-rc-lifecycle",
+      threadID: "thread-rc-lifecycle",
+      profile: "main" as const,
+      taskMode: "plan" as const,
+      model,
+      modelRef,
+      toolCatalog: {} as never,
+      workspace: {} as never,
+      workspaceScope: { kind: "project" as const, cwd: workspace, roots: [workspace], outputDirectory: null, instructionSources: [] },
+      sessionEntryID: null,
+      skillService,
+      mcpBinding,
+      effectivePermissionConfig: DEFAULT_PERMISSION_CONFIG,
+      toolContext,
+      promptBundle: {
+        instructions: "frozen plan prompt",
+        stableContextText: "frozen plan prompt",
+        baseHash: "base", contextHash: "context", cacheHash: "cache", cacheKey: "cache",
+        diagnostics: [], contextItems: [], cacheSegments: [], cacheBoundaries: [],
+      },
+      exposurePlan: { eager: [], deferred: [], exposed: [...exposed] },
+    }
+    const fresh = composeRuntimeComposition(input)
+    const rebindInput = {
+      model,
+      modelRef,
+      workspace: {} as never,
+      workspaceScope: input.workspaceScope,
+      skillService,
+      mcpBinding,
+      toolContext,
+      toolCatalog: {
+        get: (name: string) => {
+          if (name === "Read") return { sdkName: "Read" }
+          throw new Error(`普通 catalog 未知工具: ${name}`)
+        },
+      } as never,
+    }
+    return { snapshot: fresh.snapshot, rebindInput }
+  }
+
+  test("Plan 快照恢复把 request_user_input 与 submit_plan 当作动态生命周期工具，不查询普通 catalog", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "codepilotx-rc-lifecycle-"))
+    paths.push(workspace)
+    const { snapshot, rebindInput } = await composeForRebind(workspace, [
+      "Read", "request_user_input", "submit_plan",
+    ])
+
+    // 普通工具 Read 仍走 catalog 校验；两个生命周期工具不在普通 catalog 中。
+    const bindings = rebindRuntimeComposition(snapshot, rebindInput)
+    expect(bindings.toolContext).toBe(rebindInput.toolContext)
+    expect(bindings.toolCatalog).toBe(rebindInput.toolCatalog)
+    expect(bindings.skills.list()).toEqual([])
+  })
+
+  test("快照包含未知的非生命周期工具时仍 fail-closed", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "codepilotx-rc-lifecycle-unknown-"))
+    paths.push(workspace)
+    const { snapshot, rebindInput } = await composeForRebind(workspace, ["Read", "Unknown.Tool"])
+
+    expect(() => rebindRuntimeComposition(snapshot, rebindInput))
+      .toThrow(/Frozen tool catalog is unavailable/)
+    try {
+      rebindRuntimeComposition(snapshot, rebindInput)
+    } catch (error) {
+      expect(error).toMatchObject({ code: "RUNTIME_COMPOSITION_UNAVAILABLE" })
+    }
+  })
+})
+
 describe("RuntimeCompositionSnapshotV2 引用证据持久化与组合身份", () => {
   const writeSkill = async (root: string, name: string, body: string) => {
     const dir = join(root, ".codepilotx", "skills", name)

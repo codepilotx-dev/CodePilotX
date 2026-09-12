@@ -4,7 +4,7 @@ import type { Model } from "@earendil-works/pi-ai"
 import { Model as ModelSchema } from "@codepilotx/model-schema"
 import { AgentError, type PermissionConfig, type TaskMode } from "../domain"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
-import { createToolExposurePlan, type ToolExposureInput } from "../tool/ToolExposurePlan"
+import { createToolExposurePlan, PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan"
 import type { ToolExecutionContext } from "../tool/ToolExecutor"
 import type { ToolCatalog } from "../tool/ToolRegistry"
 import type { WorkspaceService } from "../workspace/WorkspaceService"
@@ -426,11 +426,10 @@ export function rebindRuntimeComposition(
   if (promptHashFor(snapshot.prompt) !== snapshot.hashes.promptHash) {
     throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen prompt failed verification", 409)
   }
-  const lifecycle = new Set([
-    "skill_list", "skill_read", "project_source_list", "project_source_read",
-    "request_user_input", "request_permissions", "update_plan", "spawn_agents",
-    "wait_agents", "send_agent", "stop_agent", "finalize_result",
-  ])
+  // 动态生命周期工具由运行时按 turn 快照绑定，不来自普通 toolCatalog；恢复时
+  // 必须与真正普通工具的 fail-closed 校验区分开，否则 Plan 恢复会误判不可用。
+  // 复用曝光层的单一来源，避免新增生命周期工具时两边清单各自漂移。
+  const lifecycle = new Set<string>(PI_LIFECYCLE_TOOLS)
   for (const name of new Set([...snapshot.tools.exposed, ...snapshot.tools.deferred])) {
     if (lifecycle.has(name)) continue
     try { input.toolCatalog.get(name) } catch {
