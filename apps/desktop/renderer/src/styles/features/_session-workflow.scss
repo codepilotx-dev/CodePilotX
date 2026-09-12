@@ -159,6 +159,60 @@
   }
 }
 
+/* --- Structured plan body --- */
+.workflow-plan-structured {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-3);
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  line-height: var(--cpx-sys-line-height-relaxed);
+}
+
+.workflow-plan-structured__summary {
+  margin: 0;
+  color: var(--cpx-sys-color-fg-secondary);
+}
+
+.workflow-plan-structured__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-2);
+}
+
+.workflow-plan-structured__heading {
+  margin: 0;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  text-transform: none;
+}
+
+.workflow-plan-structured__change {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-1);
+}
+
+.workflow-plan-structured__area {
+  margin: 0;
+  color: var(--cpx-sys-color-fg-primary);
+  font-size: var(--cpx-sys-font-size-md);
+  font-weight: var(--cpx-sys-font-weight-medium);
+}
+
+.workflow-plan-structured__list {
+  margin: 0;
+  padding-left: var(--cpx-sys-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-1);
+
+  li {
+    overflow-wrap: anywhere;
+  }
+}
+
 /* --- Composer execution plan --- */
 .execution-plan-card {
   position: absolute;

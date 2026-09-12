@@ -12,6 +12,7 @@ import {
   Split,
   Hourglass,
   LoaderCircle,
+  ListChecks,
   MessageCircleQuestion,
   NotepadText,
   Pencil,
@@ -495,6 +496,7 @@ function CanonicalItemRendererContent({
         <WorkflowPlanCard
           eventId={item.id}
           summary={item.markdown}
+          structured={item.structured}
           streaming={item.status === "streaming"}
           isDocked={rightDockPlanEventId === item.id}
           onOpenInRightDock={onOpenPlanInRightDock}
@@ -1444,6 +1446,14 @@ const LIFECYCLE_ACTIONS: Readonly<Record<string, LifecycleAction>> = {
     interrupted: "已中断更新计划",
     running: "正在更新计划",
     toolLabel: "更新计划",
+  },
+  submit_plan: {
+    completed: "已提交计划",
+    error: "提交计划失败",
+    icon: ListChecks,
+    interrupted: "已中断提交计划",
+    running: "正在提交计划",
+    toolLabel: "提交计划",
   },
   request_permissions: {
     completed: "已请求权限",

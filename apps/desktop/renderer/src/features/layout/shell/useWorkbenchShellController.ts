@@ -425,6 +425,7 @@ export function useWorkbenchShellController() {
         kind: 'plan',
         eventId: plan.eventId,
         title: plan.title,
+        content: plan.content,
       })
     },
     [openRightDockTab],

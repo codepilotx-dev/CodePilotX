@@ -369,7 +369,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       <RightDockPlanPanel
         content={
           tab.kind === 'plan'
-            ? context.planContentByEventId[tab.eventId] ?? null
+            ? tab.content?.trim() || context.planContentByEventId[tab.eventId] || null
             : null
         }
       />

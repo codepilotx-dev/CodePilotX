@@ -427,6 +427,7 @@ describe('workbench dynamic tab state', () => {
       kind: 'plan',
       eventId: 'event-1',
       title: '计划 1',
+      content: '# 计划 1\n\n正文',
     })
     state = open(state, {
       id: 'plan:event-2',
@@ -446,6 +447,7 @@ describe('workbench dynamic tab state', () => {
       'plan:event-2',
       'side-task:task-1',
     ])
+    expect(state.tabsById['plan:event-1']).toMatchObject({ content: '# 计划 1\n\n正文' })
   })
 
   test('replaces a loading side-chat tab in place', () => {

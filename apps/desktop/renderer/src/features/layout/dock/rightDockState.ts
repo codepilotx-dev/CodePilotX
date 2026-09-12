@@ -90,6 +90,8 @@ export type WorkbenchTabDescriptor =
       kind: 'plan'
       eventId: string
       title: string
+      /** Markdown captured when opened; older persisted tabs may omit it. */
+      content?: string
     }
   | {
       id: `side-chat:${string}`

@@ -125,6 +125,7 @@ export const RENDERER_CAPABILITIES = [
   'interaction.questionSkip.v1',
   'turn.admission.v1',
   'plan.approval.v1',
+  'plan.structured.v1',
   'turn.steer.v1',
   'turn.queue.management.v1',
   'attachments.v1',

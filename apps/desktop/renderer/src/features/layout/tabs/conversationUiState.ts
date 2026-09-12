@@ -607,6 +607,9 @@ function validateTabDescriptor(
       kind: 'plan',
       eventId: tab.eventId,
       title: tab.title,
+      ...(typeof tab.content === 'string' && tab.content.trim()
+        ? { content: tab.content }
+        : {}),
     }
   }
   if (

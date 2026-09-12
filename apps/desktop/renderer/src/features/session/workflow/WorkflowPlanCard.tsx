@@ -1,5 +1,6 @@
 import React from "react";
 import { Maximize2, PanelRight } from "lucide-react";
+import type { StructuredPlan } from "@codepilotx/shared/thread";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -15,17 +16,19 @@ export type OpenPlanInDockRequest = {
 export function WorkflowPlanCard({
   eventId,
   summary,
+  structured,
   streaming,
   isDocked,
   onOpenInRightDock,
 }: {
   eventId: string;
   summary: string;
+  structured?: StructuredPlan;
   streaming: boolean;
   isDocked: boolean;
   onOpenInRightDock: (plan: OpenPlanInDockRequest) => void;
 }): React.ReactNode {
-  const title = planTitleFromSummary(summary);
+  const title = structured?.title ?? planTitleFromSummary(summary);
   const presentation = planCardPresentation({ streaming, isDocked });
   const plan = { eventId, title, content: summary };
 
@@ -75,9 +78,81 @@ export function WorkflowPlanCard({
       <h2 className="workflow-plan-card__title">{title}</h2>
 
       <div className="workflow-plan-card__body">
-        <MarkdownMessage text={summary} />
+        {structured ? (
+          <StructuredPlanView plan={structured} />
+        ) : (
+          <MarkdownMessage text={summary} />
+        )}
       </div>
     </article>
+  );
+}
+
+/**
+ * 结构化计划的唯一展示实现：按固定语义顺序渲染摘要、按 area 分组的实现项、
+ * 接口变化、测试和假设；空的可选章节不渲染。Markdown 只作为历史与兼容回退。
+ */
+export function StructuredPlanView({
+  plan,
+}: {
+  plan: StructuredPlan;
+}): React.ReactNode {
+  return (
+    <div className="workflow-plan-structured">
+      <p className="workflow-plan-structured__summary">{plan.summary}</p>
+      <StructuredPlanSection title="实现变更">
+        {plan.changes.map((change, index) => (
+          <div
+            className="workflow-plan-structured__change"
+            key={`${change.area}:${index}`}
+          >
+            <h4 className="workflow-plan-structured__area">{change.area}</h4>
+            <ul className="workflow-plan-structured__list">
+              {change.items.map((item, itemIndex) => (
+                <li key={`${item}:${itemIndex}`}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </StructuredPlanSection>
+      <StructuredPlanListSection title="接口变化" items={plan.interfaceChanges} />
+      <StructuredPlanListSection title="测试" items={plan.tests} />
+      <StructuredPlanListSection title="假设" items={plan.assumptions} />
+    </div>
+  );
+}
+
+function StructuredPlanListSection({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly string[];
+}): React.ReactNode {
+  if (items.length === 0) return null;
+  return (
+    <StructuredPlanSection title={title}>
+      <ul className="workflow-plan-structured__list">
+        {items.map((item, index) => (
+          <li key={`${item}:${index}`}>{item}</li>
+        ))}
+      </ul>
+    </StructuredPlanSection>
+  );
+}
+
+function StructuredPlanSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}): React.ReactNode {
+  return (
+    <section className="workflow-plan-structured__section">
+      <h3 className="workflow-plan-structured__heading">{title}</h3>
+      {children}
+    </section>
   );
 }
 
