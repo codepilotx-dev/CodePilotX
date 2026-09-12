@@ -24,11 +24,20 @@ describe("ToolExposurePlan finalize_result exposure", () => {
     expect(plan.exposed).toContain("finalize_result")
   })
 
-  test("Plan 主 Agent 不暴露 finalize_result，继续以 <proposed_plan> 交付", () => {
+  test("Plan 主 Agent 不暴露 finalize_result，改以 submit_plan 交付", () => {
     const plan = exposure({ taskMode: "plan", profile: "main" })
     expect(plan.allows("finalize_result")).toBe(false)
     expect(plan.allows("update_plan")).toBe(false)
     expect(plan.allows("request_permissions")).toBe(false)
+    expect(plan.allows("submit_plan")).toBe(true)
+    expect(plan.exposed).toContain("submit_plan")
+  })
+
+  test("submit_plan 只属于 Plan 主 Agent", () => {
+    expect(exposure({ taskMode: "chat", profile: "main" }).allows("submit_plan")).toBe(false)
+    for (const profile of ["default", "explorer", "worker"] as const) {
+      expect(exposure({ taskMode: "plan", profile }).allows("submit_plan")).toBe(false)
+    }
   })
 
   test("子 Agent 各 profile 暴露 finalize_result，但不暴露主 Agent 生命周期工具", () => {

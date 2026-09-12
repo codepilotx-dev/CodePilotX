@@ -1,5 +1,5 @@
 import { Model } from "@codepilotx/model-schema"
-import { Schema } from "effect"
+import { Option, Schema } from "effect"
 import {
   RESULT_CARD_ENVELOPE_KIND,
   RESULT_CARD_ENVELOPE_VERSION,
@@ -331,6 +331,71 @@ export const ToolItemSchema = Schema.Struct({
 })
 export type ToolItem = typeof ToolItemSchema.Type
 
+/** 结构化计划是 Plan 模式最终方案的权威表示，Markdown 只是它的确定性兼容投影。 */
+export const STRUCTURED_PLAN_MAX_TITLE_LENGTH = 200
+export const STRUCTURED_PLAN_MAX_TEXT_LENGTH = 4_000
+export const STRUCTURED_PLAN_MAX_GROUPS = 20
+export const STRUCTURED_PLAN_MAX_GROUP_ITEMS = 50
+export const STRUCTURED_PLAN_MAX_LIST_ITEMS = 50
+
+const structuredPlanText = (maxLength: number) =>
+  Schema.String.check(Schema.isPattern(/\S/)).check(Schema.isMaxLength(maxLength))
+
+export const StructuredPlanChangeSchema = Schema.Struct({
+  area: structuredPlanText(STRUCTURED_PLAN_MAX_TITLE_LENGTH),
+  items: Schema.Array(structuredPlanText(STRUCTURED_PLAN_MAX_TEXT_LENGTH))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(STRUCTURED_PLAN_MAX_GROUP_ITEMS)),
+})
+export type StructuredPlanChange = typeof StructuredPlanChangeSchema.Type
+
+const structuredPlanList = Schema.Array(structuredPlanText(STRUCTURED_PLAN_MAX_TEXT_LENGTH))
+  .check(Schema.isMaxLength(STRUCTURED_PLAN_MAX_LIST_ITEMS))
+
+/**
+ * 固定领域 schema：模型只能提交内容，不能提交组件名、样式或任意 Renderer props。
+ * `changes` 至少一组且每组至少一项；其余章节允许为空。
+ */
+export const StructuredPlanSchema = Schema.Struct({
+  title: structuredPlanText(STRUCTURED_PLAN_MAX_TITLE_LENGTH),
+  summary: structuredPlanText(STRUCTURED_PLAN_MAX_TEXT_LENGTH),
+  changes: Schema.Array(StructuredPlanChangeSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(STRUCTURED_PLAN_MAX_GROUPS)),
+  interfaceChanges: structuredPlanList,
+  tests: structuredPlanList,
+  assumptions: structuredPlanList,
+})
+export type StructuredPlan = typeof StructuredPlanSchema.Type
+
+const decodeStructuredPlanOption = Schema.decodeUnknownOption(StructuredPlanSchema, {
+  onExcessProperty: "error",
+})
+
+/** 校验存储或 RPC 中未知来源的结构化计划；非法对象返回 null，调用方回退到 Markdown。 */
+export const decodeStructuredPlan = (value: unknown): StructuredPlan | null =>
+  value === undefined || value === null ? null : Option.getOrNull(decodeStructuredPlanOption(value))
+
+/** 结构化计划到 Markdown 的确定性投影，作为审批、复制和历史客户端的兼容表示。 */
+export const formatStructuredPlanMarkdown = (plan: StructuredPlan): string => {
+  const lines = [`# ${plan.title.trim()}`, "", plan.summary.trim(), "", "## 实现变更"]
+  for (const change of plan.changes) {
+    lines.push(`### ${change.area.trim()}`)
+    for (const item of change.items) lines.push(`- ${item.trim()}`)
+  }
+  const sections: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ["接口变化", plan.interfaceChanges],
+    ["测试", plan.tests],
+    ["假设", plan.assumptions],
+  ]
+  for (const [heading, items] of sections) {
+    if (items.length === 0) continue
+    lines.push("", `## ${heading}`)
+    for (const item of items) lines.push(`- ${item.trim()}`)
+  }
+  return lines.join("\n")
+}
+
 export const PlanItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
@@ -339,6 +404,8 @@ export const PlanItemSchema = Schema.Struct({
   type: Schema.Literal("plan"),
   title: Schema.String,
   markdown: Schema.String,
+  /** 新计划的结构化真源；历史纯 Markdown 计划缺少该字段时继续正常解码。 */
+  structured: Schema.optional(StructuredPlanSchema),
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,

@@ -4,6 +4,7 @@ import { AgentError } from "../../domain"
 import { secretScrubber } from "../../security/SecretScrubber"
 import type { ToolDefinition } from "../../tool/ToolRegistry"
 import { executionPlanInputSchema } from "../plan/ExecutionPlanInput"
+import { parseStructuredPlan, structuredPlanParameters } from "../plan/structured-plan"
 import type { HarnessRuntimeRequest, PiLifecycleCallbacks, PiTool, PiToolAdapterOptions } from "./types"
 import { requestUserInputSchema } from "../../session/QuestionInput"
 import {
@@ -219,6 +220,26 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
       return callbacks.updatePlan!(parsed.data, id, signal)
     }))
   }
+  if (callbacks.submitPlan && request.taskMode === "plan" && (request.profile ?? "main") === "main") {
+    add(lifecycleTool(
+      "submit_plan",
+      [
+        "提交 Plan 模式的最终方案并结束当前轮。必须先完成调查，再单独调用本工具；本工具必须是该条回复中唯一的工具调用。",
+        "只提交决策完整、可直接交给工程 Agent 实施、无需再作产品或技术决策的方案。",
+        "changes 按区域分组，每组至少一项；interfaceChanges、tests、assumptions 没有内容时提交空数组。",
+        "决策未完成时不要调用本工具：继续用普通文本向用户提问。",
+      ].join("\n"),
+      structuredPlanParameters,
+      async (input, id, signal) => {
+        if (request.taskMode !== "plan" || (request.profile ?? "main") !== "main") {
+          throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "submit_plan 仅允许 Plan 模式的主 Agent 使用", 403)
+        }
+        const parsed = parseStructuredPlan(input)
+        return callbacks.submitPlan!(parsed, id, signal)
+      },
+      true,
+    ))
+  }
   if (callbacks.spawnAgents) add(lifecycleTool("spawn_agents", [
     "把边界明确、有独立产出、能隔离大量中间信息或适合并行的问题委派给一个或多个并行子代理。",
     "委派前先判断：小型、强耦合或能直接用工具并发完成的工作应由你自己完成。尊重用户和适用仓库规则对并行或委派的明确要求；数量上限由宿主按队列执行，模型不需要自行预设默认数量。",
@@ -260,7 +281,7 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
 }
 
 export function createPiTools(options: PiToolAdapterOptions, callbacks: PiLifecycleCallbacks = {}): PiTool[] {
-  const special = new Set(["skill_list", "skill_read", "project_source_list", "project_source_read", "request_user_input", "request_permissions", "update_plan", "spawn_agents", "wait_agents", "send_agent", "stop_agent", "finalize_result"])
+  const special = new Set(["skill_list", "skill_read", "project_source_list", "project_source_read", "request_user_input", "request_permissions", "update_plan", "submit_plan", "spawn_agents", "wait_agents", "send_agent", "stop_agent", "finalize_result"])
   const regular = options.request.exposedTools
     .filter((name) => !special.has(name))
     .map((name) => adaptToolDefinition(options.executor.definition(name, options.request.toolCatalog), options))

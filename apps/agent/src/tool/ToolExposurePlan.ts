@@ -4,7 +4,7 @@ import type { ToolCatalog } from "./ToolRegistry"
 
 export const PI_LIFECYCLE_TOOLS = [
   "skill_list", "skill_read", "project_source_list", "project_source_read",
-  "request_user_input", "request_permissions", "update_plan",
+  "request_user_input", "request_permissions", "update_plan", "submit_plan",
   "spawn_agents", "wait_agents", "send_agent", "stop_agent",
   "finalize_result",
 ] as const
@@ -41,8 +41,10 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
   if (profile !== "main") lifecycle.push("finalize_result")
   else {
     if (input.taskMode === "plan" || input.defaultModeRequestUserInput) lifecycle.push("request_user_input")
+    // Plan 主 Agent 以结构化 submit_plan 交付最终方案；<proposed_plan> 仅作兼容回退。
+    if (input.taskMode === "plan") lifecycle.push("submit_plan")
     if (input.taskMode === "chat") {
-      // Chat 主 Agent 可选用结构化交付收尾；Plan 继续以 <proposed_plan> 交付。
+      // Chat 主 Agent 可选用结构化交付收尾；Plan 的最终方案由 submit_plan 负责。
       lifecycle.push("request_permissions", "update_plan", "finalize_result")
     }
     if (input.delegationEnabled !== false) lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")

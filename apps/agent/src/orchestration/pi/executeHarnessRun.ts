@@ -120,13 +120,21 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
       return { payload: secretScrubber.scrub(applied.payload) }
     })
     const pausedToolCalls = new Set<string>()
-    const finalizeEnabled = options.lifecycle?.finalizeResult !== undefined
-    // The hook carries the per-message tool call count so the runtime can
-    // reject a submission mixed with other tool calls; every other tool in the
-    // batch keeps following the existing execution rules.
-    if (finalizeEnabled || options.beforeToolCall) harness.on("tool_call", async (event) => {
-      if (event.toolName === "finalize_result" && event.messageToolCallCount > 1) {
-        return { block: true, reason: "finalize_result 必须是该条回复中唯一的工具调用；先完成并验证其他工作，然后在单独一条回复中提交。" }
+    // Lifecycle tools that only make sense as the sole call of an assistant
+    // message. The hook carries the per-message tool call count so the runtime
+    // can reject a submission mixed with other tool calls; every other tool in
+    // the batch keeps following the existing execution rules.
+    const singleToolCallReasons = new Map<string, string>()
+    if (options.lifecycle?.finalizeResult) {
+      singleToolCallReasons.set("finalize_result", "finalize_result 必须是该条回复中唯一的工具调用；先完成并验证其他工作，然后在单独一条回复中提交。")
+    }
+    if (options.lifecycle?.submitPlan) {
+      singleToolCallReasons.set("submit_plan", "submit_plan 必须是该条回复中唯一的工具调用；先完成调查，然后在单独一条回复中提交方案。")
+    }
+    if (singleToolCallReasons.size > 0 || options.beforeToolCall) harness.on("tool_call", async (event) => {
+      const singleCallReason = singleToolCallReasons.get(event.toolName)
+      if (singleCallReason && event.messageToolCallCount > 1) {
+        return { block: true, reason: singleCallReason }
       }
       if (!options.beforeToolCall) return undefined
       const result = await options.beforeToolCall!(request, { toolCallID: event.toolCallId, tool: event.toolName, input: event.input, messageToolCallCount: event.messageToolCallCount })

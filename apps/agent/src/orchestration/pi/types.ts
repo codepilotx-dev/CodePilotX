@@ -9,6 +9,7 @@ import type { ToolExecutor } from "../../tool/ToolExecutor"
 import type { ToolCatalog } from "../../tool/ToolRegistry"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
 import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
+import type { StructuredPlan } from "@codepilotx/shared/thread"
 import type { RequestUserInput } from "../../session/QuestionInput"
 
 export type HarnessRunResult =
@@ -171,6 +172,7 @@ export interface PiLifecycleCallbacks {
   requestUserInput?(input: RequestUserInput & { question?: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   updatePlan?(input: ExecutionPlanInput, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  submitPlan?(input: StructuredPlan, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   waitAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   sendAgent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>

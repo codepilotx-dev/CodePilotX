@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
+import { DEFAULT_PERMISSION_CONFIG, formatStructuredPlanMarkdown, type StructuredPlan } from "@codepilotx/shared/thread"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ThreadService } from "../src/session/ThreadService"
 import { PlanApprovalService } from "../src/session/plan/PlanApprovalService"
@@ -153,6 +153,56 @@ test("普通编码、失败/中断、空或未完成计划均不产生批准；�
   db.finalizeTurn({ threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, status: "completed" })
   expect(service.read(thread.id)?.markdown).toBe("最终计划")
 })
+
+test("结构化计划随计划项与审批投影，并优先于同 turn 的标签计划", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cpx-plan-structured-"))
+  roots.push(root)
+  const db = new AgentDatabase(join(root, "history.sqlite"))
+  databases.push(db)
+  const { service } = client(db, root)
+  const thread = db.createThread()
+  const turn = db.createTurn(thread.id, input, "running")
+  const structured: StructuredPlan = {
+    title: "结构化计划交付",
+    summary: "把最终方案升级为 submit_plan 提交。",
+    changes: [{ area: "共享契约", items: ["新增 StructuredPlanSchema"] }],
+    interfaceChanges: ["新增 plan.structured.v1"],
+    tests: ["聚焦行为测试"],
+    assumptions: [],
+  }
+  const markdown = formatStructuredPlanMarkdown(structured)
+  // 先写入仅 Markdown 的标签计划，结构化计划随后提交且优先级更高。
+  db.upsertItem(thread.id, { id: crypto.randomUUID(), turnID: turn.turnID, agentID: turn.agentID, type: "plan", status: "completed", data: { title: "标签计划", markdown: "# 标签计划\n\n旧方案" }, createdAt: Date.now(), updatedAt: Date.now() })
+  const itemId = `${turn.turnID}:plan`
+  db.upsertItem(thread.id, { id: itemId, turnID: turn.turnID, agentID: turn.agentID, type: "plan", status: "completed", data: { title: structured.title, markdown, structured }, createdAt: Date.now(), updatedAt: Date.now() })
+  db.finalizeTurn({ threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, status: "completed" })
+
+  const approval = service.read(thread.id)!
+  expect(approval.planItemId).toBe(itemId)
+  expect(approval.structured).toEqual(structured)
+  expect(approval.markdown).toBe(markdown)
+
+  const projection = new ThreadProjection(db)
+  const snapshot = projection.snapshot(thread.id)!
+  expect(snapshot.pendingPlanApproval?.structured).toEqual(structured)
+  expect(projection.historyPage(thread.id)?.pendingPlanApproval?.structured).toEqual(structured)
+  const planItems = snapshot.items.filter((item) => item.type === "plan")
+  expect(planItems.find((item) => item.id === itemId)?.structured).toEqual(structured)
+  expect(planItems.find((item) => item.id !== itemId)?.structured).toBeUndefined()
+
+  const admitted = await service.respond({ ...approvalParams(approval, thread.id), response: { action: "implement" } })
+  expect(db.getTurnInput(admitted.approval.nextTurnId!)?.content).toContain(markdown)
+
+  // 非法或旧的结构化对象只回退到 Markdown，不透传未经验证的对象。
+  db.sqlite.query("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify({ title: "坏数据", markdown: "仍可用", structured: { title: "缺字段" } }), itemId)
+  const fallback = projection.snapshot(thread.id)!.items.find((item) => item.id === itemId)
+  expect(fallback?.type === "plan" && fallback.structured).toBeUndefined()
+  expect(fallback?.type === "plan" && fallback.markdown).toBe("仍可用")
+})
+
+function approvalParams(approval: { id: string; version: number }, threadId: string) {
+  return { threadId, approvalId: approval.id, expectedVersion: approval.version, operationId: crypto.randomUUID() }
+}
 
 test("更高未知 schema 缺少新表时原样保留并禁用计划能力", async () => {
   const { db, path, thread } = await fixture()

@@ -16,7 +16,7 @@ import type {
 } from "@codepilotx/shared/thread"
 import { realpathSync } from "node:fs"
 import { resolve } from "node:path"
-import { decodeApprovalPolicy, InteractionQuestionSchema, InteractionQuestionAnswerSchema } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy, decodeStructuredPlan, InteractionQuestionSchema, InteractionQuestionAnswerSchema } from "@codepilotx/shared/thread"
 import { Schema } from "effect"
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -807,7 +807,11 @@ export class ThreadProjection {
       })
       return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command, output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, activity, ...(mutationDiffPaths.length ? { mutationDiffPaths } : {}), ...(resultBlocks ? { resultBlocks } : {}), ...order, createdAt: item.createdAt }
     }
-    if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
+    if (item.type === "plan") {
+      // 未经验证或旧数据只回退到 Markdown，不向客户端透传任意对象。
+      const structured = decodeStructuredPlan(item.data.structured)
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", ...(structured ? { structured } : {}), status, ...order, createdAt: item.createdAt }
+    }
     if (item.type === "execution-plan") {
       const steps = Array.isArray(item.data.steps)
         ? item.data.steps.flatMap((raw) => {

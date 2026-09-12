@@ -1,4 +1,4 @@
-import type { PlanApproval } from "@codepilotx/shared/thread"
+import { decodeStructuredPlan, type PlanApproval } from "@codepilotx/shared/thread"
 import { AgentError } from "../../domain"
 import type { RepositoryDatabase } from "./RepositoryDatabase"
 
@@ -34,10 +34,12 @@ export class PlanApprovalRepository {
 
   private project(row: Row): PlanApproval {
     const item = this.db.getItem(row.plan_item_id)
+    const structured = decodeStructuredPlan(item?.data.structured)
     return {
       id: row.id, threadId: row.thread_id, turnId: row.source_turn_id, planItemId: row.plan_item_id,
       version: row.version, status: row.status, title: typeof item?.data.title === "string" ? item.data.title : "实施计划",
       markdown: typeof item?.data.markdown === "string" ? item.data.markdown : "",
+      ...(structured ? { structured } : {}),
       nextTurnId: row.next_turn_id, createdAt: row.created_at, resolvedAt: row.resolved_at,
     }
   }
@@ -68,9 +70,10 @@ export class PlanApprovalRepository {
         AND NOT EXISTS (SELECT 1 FROM plan_approvals WHERE source_turn_id = t.id)`)
         .all(...(threadId ? [threadId] : [])) as Array<{ id: string; thread_id: string }>
       for (const turn of candidates) {
+        // 同一 turn 里结构化计划优先于仅 Markdown 的标签计划，避免出现两个权威计划。
         const item = this.db.sqlite.query(`SELECT id FROM items WHERE turn_id = ? AND type = 'plan' AND status = 'completed'
           AND json_type(data, '$.markdown') = 'text' AND length(trim(json_extract(data, '$.markdown'))) > 0
-          ORDER BY ordinal DESC, rowid DESC LIMIT 1`).get(turn.id) as { id: string } | null
+          ORDER BY (json_type(data, '$.structured') IS NOT NULL) DESC, ordinal DESC, rowid DESC LIMIT 1`).get(turn.id) as { id: string } | null
         if (item) this.db.sqlite.query(`INSERT INTO plan_approvals(id, thread_id, source_turn_id, plan_item_id, status, created_at)
           VALUES (?, ?, ?, ?, 'pending', ?)`).run(crypto.randomUUID(), turn.thread_id, turn.id, item.id, Date.now())
       }

@@ -25,6 +25,7 @@ import { AgentError, type Item, type SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
 import { secretScrubber } from "../security/SecretScrubber";
 import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
+import { formatStructuredPlanMarkdown, type StructuredPlan } from "@codepilotx/shared/thread";
 import { parseApplyPatch } from "../tool/ApplyPatch/parseApplyPatch";
 import { TurnPiBoundaryRepository } from "../storage/repositories/turn-pi-boundary-repository";
 import {
@@ -881,6 +882,45 @@ export class AgentRuntimeService implements AgentRuntime {
     };
   }
 
+  /**
+   * Persists a validated submit_plan submission as the turn's single completed
+   * plan item. The item id is deterministic per turn so a repeated submission
+   * replaces the same authoritative plan instead of creating a second one, and
+   * the Markdown stays a deterministic projection of the structured object.
+   */
+  private async persistStructuredPlan(input: {
+    threadID: string;
+    turnID: string;
+    agentID: string;
+    plan: StructuredPlan;
+  }): Promise<{ status: "submitted"; itemID: string }> {
+    const timestamp = Date.now();
+    const itemID = `${input.turnID}:plan`;
+    const existing = this.options.db.getItem(itemID);
+    const item: Item = {
+      id: itemID,
+      turnID: input.turnID,
+      agentID: input.agentID,
+      type: "plan",
+      status: "completed",
+      data: {
+        title: input.plan.title.trim(),
+        markdown: formatStructuredPlanMarkdown(input.plan),
+        structured: input.plan,
+      },
+      ...(existing?.ordinal === undefined ? {} : { ordinal: existing.ordinal }),
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    };
+    const persisted = this.options.db.upsertItemWithEvent(
+      input.threadID,
+      item,
+      "item/completed",
+    );
+    await this.publish(persisted.event);
+    return { status: "submitted", itemID };
+  }
+
   async run(request: AgentRuntimeRequest) {
     this.options.memoryManager?.notifyTurnStarted();
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
@@ -1347,6 +1387,16 @@ export class AgentRuntimeService implements AgentRuntime {
             throw new Error("update_plan 仅允许 Chat 模式的主 Agent 使用");
           if (!request.updatePlan) throw new Error("当前 turn 未配置执行计划服务");
           return request.updatePlan(input, toolCallID);
+        },
+        submitPlan: async (input) => {
+          if (request.taskMode !== "plan" || (request.profile ?? "main") !== "main")
+            throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "submit_plan 仅允许 Plan 模式的主 Agent 使用", 403);
+          return this.persistStructuredPlan({
+            threadID: request.threadID,
+            turnID: request.turnID,
+            agentID: request.agentID,
+            plan: input,
+          });
         },
         spawnAgents: async (input) => {
           const agents = Array.isArray(input.agents) ? input.agents : [];

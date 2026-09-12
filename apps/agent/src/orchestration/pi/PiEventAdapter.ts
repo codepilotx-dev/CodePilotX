@@ -159,6 +159,18 @@ const assistantMessagePlacement = (content: unknown) =>
     ? "process" as const
     : "result" as const
 
+/**
+ * A tag plan in the same assistant message as a successful structured
+ * submission is not authoritative: its buffered chunks are dropped so the
+ * turn keeps exactly one plan source.
+ */
+const hasStructuredPlanSubmission = (content: unknown): boolean =>
+  Array.isArray(content) && content.some(
+    (part) => part && typeof part === "object"
+      && (part as { type?: unknown }).type === "toolCall"
+      && (part as { name?: unknown }).name === "submit_plan",
+  )
+
 /** Converts Pi's AgentToolResult wrapper into user-facing semantic text. */
 export const piToolResultText = (value: unknown, options: { tool: string; progress?: boolean }): string => {
   if (typeof value === "string") return value
@@ -190,6 +202,7 @@ export class PiEventAdapter {
   private planStarted = false
   private pendingText = ""
   private pendingPlan = ""
+  private deferredPlan = ""
   private completedText = ""
 
   constructor(
@@ -223,6 +236,7 @@ export class PiEventAdapter {
     this.planStarted = false
     this.pendingText = ""
     this.pendingPlan = ""
+    this.deferredPlan = ""
     return items
   }
 
@@ -243,7 +257,7 @@ export class PiEventAdapter {
     })
   }
 
-  private async routeChunks(chunks: readonly ProposedPlanChunk[]) {
+  private async routeChunks(chunks: readonly ProposedPlanChunk[], deferPlan = false) {
     const items = await this.ensureAssistantItems(false)
     for (const chunk of chunks) {
       if (chunk.kind === "text") {
@@ -253,6 +267,12 @@ export class PiEventAdapter {
           await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: this.pendingText })
           this.pendingText = ""
         }
+        continue
+      }
+      // A structured submission in this message decides the plan; the tag block
+      // stays buffered until the message ends so it can be dropped entirely.
+      if (deferPlan) {
+        this.deferredPlan += chunk.delta
         continue
       }
       this.pendingPlan += chunk.delta
@@ -265,6 +285,14 @@ export class PiEventAdapter {
         this.pendingPlan = ""
       }
     }
+  }
+
+  /** Emits any buffered tag plan once the message is known not to carry a structured submission. */
+  private async flushDeferredPlan() {
+    if (!this.deferredPlan) return
+    const delta = this.deferredPlan
+    this.deferredPlan = ""
+    await this.routeChunks([{ kind: "plan", delta }])
   }
 
   outputText(content: unknown) {
@@ -314,7 +342,7 @@ export class PiEventAdapter {
         const items = await this.ensureAssistantItems()
         if (update.type === "text_delta") {
           this.receivedTextDelta = true
-          if (this.parser) await this.routeChunks(this.parser.push(update.delta))
+          if (this.parser) await this.routeChunks(this.parser.push(update.delta), true)
           else await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: update.delta })
         }
         if (update.type === "thinking_delta") await this.sink.reasoningDelta?.(this.context, { itemID: items.reasoningItemID, delta: update.delta })
@@ -351,15 +379,19 @@ export class PiEventAdapter {
             ? { sessionEntryID: resolvedEntryID }
             : {}
           if (this.parser) {
-            if (!this.receivedTextDelta) await this.routeChunks(this.parser.push(textContent(event.message.content)))
+            if (!this.receivedTextDelta) await this.routeChunks(this.parser.push(textContent(event.message.content)), true)
             const parsed = this.parser.finish()
-            await this.routeChunks(parsed.chunks)
+            await this.routeChunks(parsed.chunks, true)
+            // A successful structured submission makes the tag block redundant:
+            // drop the buffered tag plan instead of persisting a second source.
+            const structuredSubmission = hasStructuredPlanSubmission(event.message.content)
+            if (!structuredSubmission) await this.flushDeferredPlan()
             this.completedText = parsed.text
             await this.sink.assistantMessageCompleted?.(this.context, {
               ...items,
               content: event.message.content,
               text: parsed.text,
-              plan: parsed.plan,
+              plan: structuredSubmission ? null : parsed.plan,
               ...(safeCompletion ? { completion: safeCompletion } : {}),
               ...sessionEntry,
               ...completion,
