@@ -11,6 +11,8 @@
 
 - [website] 新增纯静态英文产品官网 workspace (`apps/website`)，采用 1600px 宽幅黑色画布、全宽三段式黏附导航与滚动渐隐背景、深色沉浸首屏、分层景观及嵌入式产品窗口构图，并提供完整功能叙事和响应式媒体占位槽。
 
+- [agent/desktop] Plan 模式最终方案升级为结构化提交：主 Agent 通过新的生命周期工具 `submit_plan` 提交固定 schema（标题、摘要、按区域分组的实现变更、接口变化、测试、假设），Agent 以该对象为真源并确定性派生 Markdown 供审批、复制、分叉历史与旧客户端继续消费，未成功提交时仍兼容 `<proposed_plan>` 标签回退且同一回复中的标签计划会被忽略；新增可选 `structured` 字段随计划项与计划审批投影，非法或旧数据只回退 Markdown，桌面计划卡按固定章节渲染结构化内容并隐藏空章节，并新增 `plan.structured.v1` capability 供客户端判断支持情况。
+
 ### Changed
 
 - [desktop/renderer] 会话运行状态收敛为单一来源：canonical 线程投影的状态随会话 store 一起推送，侧栏、命令面板、系统通知与桌宠统一读取合并后的状态，正文时间线已完成而侧栏仍显示运行中的分歧被消除；canonical 未覆盖的后台会话仍由会话目录与生命周期事件提供同一份值。
@@ -22,6 +24,10 @@
 - [desktop/renderer] 插件 Logo 与其浅色/深色图片改为跟随所在图标槽位 100% 等比显示；同步调整图标尺寸浏览器测试按槽位校验 Logo，并更新设计文档中品牌/插件 Logo 的尺寸说明。
 
 ### Fixed
+
+- [desktop] 修复结构化计划从主对话打开到右侧栏时丢失正文的问题，计划标签直接保留已投影的 Markdown 内容，并兼容旧标签的数据源回退。
+
+- [agent] 修复 Plan 模式回答提问后恢复同一 Turn 必然失败的问题：运行时组合快照恢复（rebind）改为直接复用生命周期工具的单一清单，`submit_plan` 与 `request_user_input`、`update_plan` 等动态生命周期工具不再被误当作普通工具去查询 `toolCatalog`，因此不再返回 `RUNTIME_COMPOSITION_UNAVAILABLE`（“Runtime composition resources are unavailable”）；真正普通工具缺失时仍保持 fail-closed，模型、工作区、Skill、MCP 与 Prompt 一致性校验不变。
 
 - [desktop/renderer] 后台会话新增限频状态对账：只要有会话处于排队、等待或运行中，就每 30 秒用 `thread/list` 校正一次，因此事件投递缺失导致的“已完成却仍显示运行中”会在下一次对账自愈，空闲时不再产生额外请求。
 
