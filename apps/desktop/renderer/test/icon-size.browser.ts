@@ -55,7 +55,7 @@ try {
     <svg id="content-graphic" width="120" height="70"><rect width="120" height="70"/></svg>
   </body></html>`)
   const checkIcons = async () => {
-    const dimensions = await page.locator('svg:not(#content-graphic), .ui-spinner, .plugin-logo__image:visible').evaluateAll(elements =>
+    const dimensions = await page.locator('svg:not(#content-graphic), .ui-spinner').evaluateAll(elements =>
       elements.map(element => {
         const { width, height } = element.getBoundingClientRect()
         return { name: `${element.parentElement?.outerHTML.slice(0, 120)} / ${element.tagName}`, width, height }
@@ -64,6 +64,24 @@ try {
     for (const { name, width, height } of dimensions) {
       assert.equal(width, 14, `${name}: width`)
       assert.equal(height, 14, `${name}: height`)
+    }
+    // 品牌/插件 Logo 使用真实图片资源，等比铺满所在图标槽位，不再固定 14×14。
+    const logos = await page.locator('.plugin-logo__image:visible').evaluateAll(elements =>
+      elements.map(element => {
+        const { width, height } = element.getBoundingClientRect()
+        const slot = element.parentElement!.getBoundingClientRect()
+        return {
+          name: element.parentElement?.parentElement?.outerHTML.slice(0, 120) ?? '',
+          width,
+          height,
+          slotWidth: slot.width,
+          slotHeight: slot.height,
+        }
+      }))
+    for (const { name, width, height, slotWidth, slotHeight } of logos) {
+      assert.equal(width, slotWidth, `${name}: logo slot width`)
+      assert.equal(height, slotHeight, `${name}: logo slot height`)
+      assert.ok(width > 14 && height > 14, `${name}: logo fills a slot larger than the 14px icon size`)
     }
     for (const [size, height] of sizes) {
       assert.equal(await page.locator(`#button-${size}`).evaluate(element => element.getBoundingClientRect().height), height, `${size}: click target height`)
@@ -89,7 +107,7 @@ try {
     assert.equal(await page.locator('.plugin-logo__image--dark').isVisible(), theme === 'dark-theme')
     assert.equal(await page.locator('.plugin-logo__image:visible').evaluate(element => getComputedStyle(element).objectFit), 'contain')
   }
-  console.log('14×14 rendered icons verified: button variants/states, sidebar, menus, file fallback/lazy wrapper, empty state and themed logo; click target heights and content SVG retained.')
+  console.log('14×14 rendered icons verified: button variants/states, sidebar, menus, file fallback/lazy wrapper and empty state; themed plugin logo fills its slot; click target heights and content SVG retained.')
 } finally {
   await browser.close()
 }

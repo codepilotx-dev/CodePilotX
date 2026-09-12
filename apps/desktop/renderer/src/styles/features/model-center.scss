@@ -158,8 +158,8 @@
 
 .provider-card-logo {
   img {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: 100%;
+    height: 100%;
     border-radius: inherit;
     object-fit: contain;
     filter: var(--model-center-provider-logo-filter, none);
@@ -167,8 +167,8 @@
 }
 
 .provider-card-logo > .ui-remote-image {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: 100%;
+  height: 100%;
 }
 
 .provider-card-heading {
