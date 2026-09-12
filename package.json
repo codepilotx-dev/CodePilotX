@@ -7,6 +7,7 @@
     "apps/agent",
     "apps/auth-broker",
     "apps/desktop/*",
+    "apps/website",
     "packages/*"
   ],
   "trustedDependencies": [
@@ -18,6 +19,7 @@
     "dev": "bun run scripts/dev.ts",
     "dev:agent": "bun run scripts/dev-agent.ts",
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
+    "dev:website": "bun run --cwd apps/website dev",
     "dev:desktop": "bun run scripts/dev-desktop.ts",
     "dev:electron": "bun run --cwd apps/desktop/electron dev",
     "debug:mcp:stdio": "bun apps/agent/scripts/mcp-debug-server.ts --transport=stdio",
@@ -28,8 +30,9 @@
     "debug:mcp:config:oauth": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=oauth",
     "test:unit": "bun test --max-concurrency 1",
     "security:audit": "bun scripts/security/security-audit.ts",
-    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
+    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck && bun run --cwd apps/website typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
+    "build:website": "bun run --cwd apps/website build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
     "test:desktop:smoke": "bun run --cwd apps/desktop/electron test:smoke",
