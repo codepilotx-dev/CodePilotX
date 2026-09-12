@@ -1,4 +1,7 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../components/ui/iconTokens.js'
 import {
   desktopClient,
   desktopClipboard,
@@ -21,6 +24,7 @@ import { useDesktopSettings } from "../settings/useDesktopSettings.js";
 import { fullErrorMessage } from "../../utils/errors.js";
 import {
   Cable,
+  ChevronRight,
   Pencil,
   Plus,
   RefreshCw,
@@ -654,115 +658,140 @@ export function ModelCenterWorkbench({
       )
     : null;
 
+  const detailActions = selectedProvider ? (
+    <>
+      <Button
+        color="secondary"
+        disabled={refreshingProviderData}
+        loading={refreshingProviderData}
+        onClick={() => void refreshProviderData()}
+        title="刷新供应商信息"
+      >
+        {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
+        <span className="model-center-header-action-label">刷新</span>
+      </Button>
+
+      {canEditProviderConfig(selectedProvider, deepSeekProtocolSupported) ? (
+        <>
+          <Button
+            color="secondary"
+            onClick={() => {
+              setProviderEditorProviderId(selectedProvider.providerID);
+              setProviderEditorOpen(true);
+            }}
+          >
+            <Pencil size={APP_ICON_SIZE} aria-hidden />
+            <span className="model-center-header-action-label">编辑 Provider</span>
+          </Button>
+          {selectedProvider?.providerKind === "custom" ? (
+            <Button
+              color="danger"
+              onClick={() => void deleteCustomProvider()}
+            >
+              <Trash2 size={APP_ICON_SIZE} aria-hidden />
+              <span className="model-center-header-action-label">删除 Provider</span>
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+
+      {providerSection === "connection" ? (
+        <Button
+          color="secondary"
+          aria-label="测试连接"
+          disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
+          onClick={() => void testConnection()}
+          title="测试当前连接"
+        >
+          <Cable size={APP_ICON_SIZE} aria-hidden />
+          <span className="model-center-header-action-label">测试连接</span>
+        </Button>
+      ) : null}
+
+      {providerSection === "models" ? (
+        <Button
+          color="secondary"
+          aria-label="刷新目录"
+          disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
+          onClick={() => void fetchModels()}
+          title="刷新模型目录"
+        >
+          <RefreshCw size={APP_ICON_SIZE} aria-hidden className={busy ? "spin" : undefined} />
+          <span className="model-center-header-action-label">刷新目录</span>
+        </Button>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <div className="model-center-shell">
-      <div className="settings-page-header">
-        <h2 className="settings-page-title">供应商</h2>
-        <p className="settings-page-desc">
-          管理模型服务、账户连接、凭据与可用模型。
-        </p>
-      </div>
-
-      <WorkspaceHeaderItem
-        align="end"
-        id="models.actions"
-        order={100}
-        slot="right"
-      >
-        <div className="model-center-header-actions">
-          {!showInitialSkeleton ? (
+      {showingProviderDetail && selectedProvider ? (
+        <WorkspaceHeaderItem align="start" id="models.navigation" order={0} slot="left">
+          <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb">
             <Button
-              color="primary"
-              disabled={refreshingProviderData}
-              loading={refreshingProviderData}
-              onClick={() => void refreshProviderData()}
+              color="ghostSecondary"
+              onClick={showProviderCatalog}
+              size="toolbar"
+              title="返回供应商列表"
             >
-              {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
-              <span className="model-center-header-action-label">刷新</span>
+              供应商
             </Button>
-          ) : null}
+            <ChevronRight
+              aria-hidden="true"
+              className="model-center-breadcrumb-separator"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+            <span className="model-center-breadcrumb-current">{selectedProvider.displayName}</span>
+          </div>
+        </WorkspaceHeaderItem>
+      ) : null}
 
-          {!showInitialSkeleton &&
-          !showingProviderDetail ? (
-            <Button
-              color="primary"
-              onClick={() => {
-                setProviderEditorProviderId(null);
-                setProviderEditorOpen(true);
-              }}
-            >
-              <Plus size={APP_ICON_SIZE} aria-hidden />
-              <span className="model-center-header-action-label">
-                新增自定义 Provider
-              </span>
-            </Button>
-          ) : null}
+      {!showingProviderDetail ? (
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">供应商</h2>
+          <p className="settings-page-desc">
+            管理模型服务、账户连接、凭据与可用模型。
+          </p>
+        </div>
+      ) : null}
 
-          {!showInitialSkeleton &&
-          showingProviderDetail &&
-          canEditProviderConfig(selectedProvider, deepSeekProtocolSupported) ? (
-            <>
-              <Button
-                color="secondary"
-                onClick={() => {
-                  setProviderEditorProviderId(selectedProvider.providerID);
-                  setProviderEditorOpen(true);
-                }}
-              >
-                <Pencil size={APP_ICON_SIZE} aria-hidden />
-                <span className="model-center-header-action-label">
-                  编辑 Provider
-                </span>
-              </Button>
-              {selectedProvider?.providerKind === "custom" ? (
+      {!showingProviderDetail ? (
+        <WorkspaceHeaderItem
+          align="end"
+          id="models.actions"
+          order={100}
+          slot="right"
+        >
+          <div className="model-center-header-actions">
+            {!showInitialSkeleton ? (
+              <>
                 <Button
-                  color="danger"
-                  onClick={() => void deleteCustomProvider()}
+                  color="secondary"
+                  disabled={refreshingProviderData}
+                  loading={refreshingProviderData}
+                  onClick={() => void refreshProviderData()}
                 >
-                  <Trash2 size={APP_ICON_SIZE} aria-hidden />
+                  {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
+                  <span className="model-center-header-action-label">刷新</span>
+                </Button>
+                <Button
+                  color="primary"
+                  onClick={() => {
+                    setProviderEditorProviderId(null);
+                    setProviderEditorOpen(true);
+                  }}
+                >
+                  <Plus size={APP_ICON_SIZE} aria-hidden />
                   <span className="model-center-header-action-label">
-                    删除 Provider
+                    新增自定义 Provider
                   </span>
                 </Button>
-              ) : null}
-            </>
-          ) : null}
-
-          {!showInitialSkeleton &&
-          showingProviderDetail &&
-          providerSection === "connection" ? (
-            <Button
-              color="secondary"
-              aria-label="测试连接"
-              disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
-              onClick={() => void testConnection()}
-              title="测试当前连接"
-            >
-              <Cable size={APP_ICON_SIZE} aria-hidden />
-              <span className="model-center-header-action-label">
-                测试连接
-              </span>
-            </Button>
-          ) : null}
-
-          {!showInitialSkeleton &&
-          showingProviderDetail &&
-          providerSection === "models" ? (
-            <Button
-              color="secondary"
-              aria-label="刷新目录"
-              disabled={busy || !selectedProvider || !isExecutableDesktopProvider(selectedProvider)}
-              onClick={() => void fetchModels()}
-              title="刷新模型目录"
-            >
-              <RefreshCw size={APP_ICON_SIZE} aria-hidden className={busy ? "spin" : undefined} />
-              <span className="model-center-header-action-label">
-                刷新目录
-              </span>
-            </Button>
-          ) : null}
-        </div>
-      </WorkspaceHeaderItem>
+              </>
+            ) : null}
+          </div>
+        </WorkspaceHeaderItem>
+      ) : null}
 
       {showInitialSkeleton ? (
         <ModelCenterInitialSkeleton
@@ -771,6 +800,7 @@ export function ModelCenterWorkbench({
         />
       ) : showingProviderDetail && selectedProvider ? (
         <ProviderDetail
+          actions={detailActions}
           activeTab={providerSection}
           onBack={showProviderCatalog}
           onTabChange={(tab) =>

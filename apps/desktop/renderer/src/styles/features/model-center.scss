@@ -250,6 +250,29 @@
 
 /* ===== Provider Detail ===== */
 
+.model-center-detail-breadcrumb {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+  margin-bottom: var(--cpx-sys-space-1);
+}
+
+.model-center-breadcrumb-separator {
+  flex-shrink: 0;
+  color: var(--cpx-sys-color-fg-tertiary);
+  opacity: 0.6;
+}
+
+.model-center-breadcrumb-current {
+  overflow: hidden;
+  color: var(--cpx-sys-color-fg-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-center-provider-detail {
   min-width: 0;
   display: grid;
@@ -259,8 +282,10 @@
 .model-center-provider-detail-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--cpx-sys-space-4);
   padding: 0;
+  flex-wrap: wrap;
 }
 
 .model-center-provider-back {
@@ -273,6 +298,12 @@
   align-items: center;
   gap: var(--cpx-sys-space-3);
   flex: 1;
+}
+
+.model-center-provider-tab-bar {
+  display: flex;
+  align-items: center;
+  padding: var(--cpx-sys-space-1) 0;
 }
 
 .model-center-provider-identity-logo {

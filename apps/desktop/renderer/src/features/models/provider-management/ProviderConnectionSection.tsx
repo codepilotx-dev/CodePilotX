@@ -10,7 +10,6 @@ import {
   Plus,
   RefreshCw,
   Server,
-  Zap,
 } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
@@ -45,7 +44,7 @@ export type ProviderConnectionSectionProps = {
   group: ConfiguredProviderGroup | undefined
   apiKeys: readonly DesktopApiKeySummary[]
   busy: boolean
-  onTestConnection: () => Promise<void>
+  onTestConnection?: () => Promise<void>
   onOpenNewKey: () => void
   onEditKey: (key: DesktopApiKeySummary) => void
   onDeleteKey: (key: DesktopApiKeySummary) => void
@@ -349,25 +348,6 @@ export function ProviderConnectionSection({
           </div>
         </section>
       ) : null}
-
-      {/* 6. Quick Connectivity Test Footer */}
-      <section className="model-center-detail-card model-center-test-banner-card">
-        <div className="model-center-test-banner-info">
-          <Zap aria-hidden size={APP_ICON_SIZE} />
-          <div>
-            <strong>快速连通性诊断</strong>
-            <span>发送一个最小测试请求验证当前配置与凭据是否可用。</span>
-          </div>
-        </div>
-        <Button
-          color="secondary"
-          disabled={busy || !isExecutableDesktopProvider(provider)}
-          onClick={() => void onTestConnection()}
-        >
-          <Cable aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          测试连接
-        </Button>
-      </section>
     </div>
   )
 }
