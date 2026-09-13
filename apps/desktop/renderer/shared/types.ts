@@ -24,7 +24,9 @@ import type {
   SubagentTask,
   ThreadCreationSurface,
   ThreadListItem,
+  ThreadExecutionEnvironment,
   ThreadSnapshot,
+  ThreadGoal,
 } from '@codepilotx/shared/thread'
 import type {
   DesktopDataLocationChange,
@@ -121,6 +123,8 @@ export interface DesktopWorkspace extends AgentWorkspace {
   projectSettings?: {
     defaultModel: ModelRef | null
     instructions: string
+    /** `auto` follows the project type; `local` always uses the local directory. */
+    executionEnvironment?: 'auto' | 'local'
     version: number
   }
   pinnedAt?: string | null
@@ -1189,6 +1193,11 @@ export type DesktopSessionListItem = {
   isScheduledSession?: boolean
   isFork?: boolean
   projectId?: string | null
+  /** Canonical workflow membership; `sessionGroupId` remains a one-generation alias. */
+  workflowId?: string | null
+  /** Agent-projected execution location; the only source of truth for where a task runs. */
+  executionEnvironment?: ThreadExecutionEnvironment | null
+  /** @deprecated Read `workflowId` instead. */
   sessionGroupId?: string | null
   appServerThreadId?: string | null
   sessionName: string | null
@@ -1324,7 +1333,6 @@ export type DesktopSessionStoreChange = {
 
 export type DesktopSessionCatalogStatus = {
   state: 'loading' | 'ready' | 'unavailable'
-  error: string | null
 }
 
 export type DesktopSettingsChange = {
@@ -1339,14 +1347,19 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 
 export type DesktopWorkflowEvent = ThreadEvent
 
-export type CreateDesktopSessionOptions = {
-  creationSurface?: ThreadCreationSurface
+export type DesktopWorktreeEligibility = {
+  isGitRepository: boolean
+  availableModes: ReadonlyArray<'local' | 'worktree'>
+  defaultMode: 'local' | 'worktree'
+}
+
+export type CreateDesktopSessionOptions = {  creationSurface?: ThreadCreationSurface
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   projectId?: string
   workspacePath?: string
-  /** Optional cross-project context group for the new thread. */
-  sessionGroupId?: string
+  /** Optional workflow the new thread joins. */
+  workflowId?: string
   /** First submitted text used to name/materialize a projectless workspace. */
   projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig
@@ -1371,24 +1384,7 @@ export type CreateDesktopSessionResult = {
   standalone: boolean
 }
 
-export type DesktopThreadGoalStatus =
-  | 'active'
-  | 'paused'
-  | 'blocked'
-  | 'usageLimited'
-  | 'budgetLimited'
-  | 'complete'
-
-export type DesktopThreadGoal = {
-  threadId: string
-  objective: string
-  status: DesktopThreadGoalStatus
-  tokenBudget: number | null
-  tokensUsed: number
-  timeUsedSeconds: number
-  createdAt: number
-  updatedAt: number
-}
+export type DesktopThreadGoal = ThreadGoal
 
 export type DesktopRuntimePermissionProfile = {
   id: string
@@ -1780,6 +1776,15 @@ export type DesktopApi = {
   saveModelProvider(
     options: SaveDesktopModelProviderOptions,
   ): Promise<DesktopModelProviderState>
+  /** 新建任务一级页记住的最近一次模型选择；无记录或记录失效时返回 null。 */
+  getRecentNewThreadModel(): Promise<ModelRef | null>
+  saveRecentNewThreadModel(model: {
+    providerID: string
+    id: string
+    variant?: string
+  }): Promise<void>
+  /** 按 Provider/模型目录稳定顺序返回第一个启用且 Provider 可用的模型。 */
+  resolveFirstAvailableModel(): Promise<ModelRef | null>
   saveProviderApiKey(
     providerID: ModelProviderID,
     apiKey: string,
@@ -1878,6 +1883,7 @@ export type DesktopApi = {
     projectId: string
     instructions?: string
     defaultModel?: ModelRef | null
+    executionEnvironment?: 'auto' | 'local'
     expectedVersion: number
   }): Promise<DesktopWorkspace>
   listProjectSources(projectId: string): Promise<DesktopProjectSource[]>
@@ -2060,6 +2066,7 @@ export type DesktopApi = {
     input: {
       objective?: string
       status?: 'active' | 'paused' | 'complete'
+      tokenBudget?: number | null
     },
   ): Promise<DesktopThreadGoal>
   clearSessionGoal(sessionId: string): Promise<boolean>
@@ -2107,6 +2114,7 @@ export type DesktopApi = {
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
   onSessionStoreChange(callback: (change: DesktopSessionStoreChange) => void): () => void
+  onReconciliationError?(callback: (error: unknown) => void): () => void
   onDesktopSettingsChange(callback: (change: DesktopSettingsChange) => void): () => void
   checkForUpdates(): Promise<void>
   downloadUpdate(): Promise<void>

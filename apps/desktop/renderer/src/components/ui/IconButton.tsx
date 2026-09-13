@@ -7,6 +7,7 @@ import {
 } from './Button.js'
 
 export type IconButtonSize =
+  | 'compact'
   | 'composer'
   | 'composerSm'
   | 'composerUtility'

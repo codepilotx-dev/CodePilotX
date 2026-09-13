@@ -78,11 +78,33 @@ export const threadHandlers = {
         const executionValue = workspaceValue.kind === "project" && workspaceValue.execution !== undefined
           ? record(workspaceValue.execution, "workspace.execution")
           : undefined
+        let createdWorktree: Awaited<ReturnType<typeof runtime.dependencies.worktrees.create>> | undefined
         const execution = executionValue
           ? executionValue.kind === "local"
             ? { kind: "local" as const }
             : executionValue.kind === "worktree"
-              ? { kind: "worktree" as const, worktreeId: stringParam(executionValue, "worktreeId") }
+              ? typeof executionValue.worktreeId === "string"
+                ? { kind: "worktree" as const, worktreeId: executionValue.worktreeId }
+                : executionValue.startingState && typeof executionValue.startingState === "object"
+                  ? await (async () => {
+                      const starting = record(executionValue.startingState, "workspace.execution.startingState")
+                      const type = enumValue(starting.type, ["branch", "working-tree"] as const, "startingState.type")
+                      createdWorktree = await runtime.dependencies.worktrees.create({
+                        projectId: stringParam(workspaceValue, "projectId"),
+                        operationId: `${stringParam(params, "operationId")}:worktree`,
+                        startingState: type === "branch"
+                          ? { type, branchName: stringParam(starting, "branchName") }
+                          : { type },
+                      })
+                      runtime.dependencies.db.repositories.threadWorktreeOperations.recordCreated({
+                        threadOperationId: stringParam(params, "operationId"),
+                        worktreeOperationId: `${stringParam(params, "operationId")}:worktree`,
+                        worktreeId: createdWorktree.worktree.id,
+                        timestamp: Date.now(),
+                      })
+                      return { kind: "worktree" as const, worktreeId: createdWorktree.worktree.id }
+                    })()
+                  : (() => { throw new AgentError("INVALID_REQUEST", "worktree execution 缺少 worktreeId 或 startingState", 400) })()
               : (() => { throw new AgentError("INVALID_REQUEST", "workspace.execution.kind 参数无效", 400) })()
           : undefined
         const workspace = workspaceValue.kind === "project"
@@ -113,14 +135,20 @@ export const threadHandlers = {
             ...(settings ? { settings } : {}),
             workspace,
             operationID: stringParam(params, "operationId"),
-            ...(typeof params.sessionGroupId === "string" ? { sessionGroupID: params.sessionGroupId } : {}),
+            ...(typeof params.workflowId === "string"
+              ? { sessionGroupID: params.workflowId }
+              : typeof params.sessionGroupId === "string" ? { sessionGroupID: params.sessionGroupId } : {}),
             ...(prepared ? { bindExecution: prepared.bind } : {}),
           })
         } catch (cause) {
+          if (createdWorktree) runtime.dependencies.db.repositories.threadWorktreeOperations.markFailed(stringParam(params, "operationId"), Date.now())
           await prepared?.abort()
           throw cause
         }
         await prepared?.reconcile(created.id)
+        if (createdWorktree) runtime.dependencies.db.repositories.threadWorktreeOperations.markPublished(
+          stringParam(params, "operationId"), created.id, Date.now(),
+        )
         return runtime.threadSnapshotResult(created.id)
       }
       case "thread/read":
@@ -227,6 +255,11 @@ export const threadHandlers = {
           start.inputId,
           start.attachmentIds ?? [],
           start.contextReferenceIds ?? [],
+          start.goal ? {
+            objective: start.goal.objective,
+            expectedVersion: start.goal.expectedVersion,
+            ...(start.goal.tokenBudget === undefined ? {} : { tokenBudget: start.goal.tokenBudget }),
+          } : undefined,
         )
         const sequence = globalEventSequence(db)
         return {

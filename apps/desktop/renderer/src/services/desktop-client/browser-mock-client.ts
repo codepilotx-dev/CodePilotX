@@ -723,6 +723,24 @@ export function createBrowserMockDesktopClient(
       }
       return providerState()
     },
+    getRecentNewThreadModel: async () =>
+      settings.model
+        ? ({ providerID: settings.providerID, id: settings.model } as ModelRef)
+        : null,
+    saveRecentNewThreadModel: async model => {
+      settings = {
+        ...settings,
+        providerID: model.providerID,
+        model: model.id,
+      }
+    },
+    resolveFirstAvailableModel: async () =>
+      provider.defaultModels.length > 0
+        ? ({
+            providerID: settings.providerID,
+            id: provider.defaultModels[0]!,
+          } as ModelRef)
+        : null,
     saveProviderApiKey: async () => providerState(),
     deleteProviderApiKey: async () => providerState(),
     listProviderCredentials: async () => [],
@@ -930,6 +948,7 @@ export function createBrowserMockDesktopClient(
       projectSettings: {
         defaultModel: input.defaultModel ?? null,
         instructions: input.instructions ?? '',
+        executionEnvironment: input.executionEnvironment ?? 'auto',
         version: input.expectedVersion + 1,
       },
     }),
@@ -1133,7 +1152,7 @@ export function createBrowserMockDesktopClient(
           : !snapshot.item.archivedAt
       ),
     ),
-    getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
+    getSessionCatalogStatus: async () => ({ state: 'ready' }),
     getSession: async sessionId => {
       if (visualSessionReadDelayMs > 0) {
         await new Promise(resolve =>
@@ -1303,6 +1322,7 @@ export function createBrowserMockDesktopClient(
         sessionStoreListeners.delete(callback)
       }
     },
+    onReconciliationError: () => noop,
     onDesktopSettingsChange: callback => {
       settingsListeners.add(callback)
       return () => {
@@ -1344,12 +1364,15 @@ export function createBrowserMockDesktopClient(
     }),
     getSessionGoal: async () => null,
     setSessionGoal: async () => ({
+      id: 'goal:mock',
       threadId: 'mock',
       objective: '',
       status: 'active',
       tokenBudget: null,
       tokensUsed: 0,
       timeUsedSeconds: 0,
+      version: 1,
+      completedAt: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }),

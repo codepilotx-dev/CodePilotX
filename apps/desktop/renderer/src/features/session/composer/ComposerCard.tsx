@@ -436,7 +436,7 @@ export function ComposerCard({
       setSessionGroupEditorOpen(false)
     } catch (cause) {
       setSessionGroupCreateError(
-        cause instanceof Error ? cause.message : '会话组创建失败，请重试。',
+        cause instanceof Error ? cause.message : '工作流创建失败，请重试。',
       )
     } finally {
       setSessionGroupSaving(false)
@@ -1753,8 +1753,8 @@ export function ComposerCard({
               <MetaChip
                 active={openDropdown === "session-group"}
                 icon={<MessagesSquare size={APP_ICON_SIZE} />}
-                label={selectedSessionGroup?.name ?? "会话组"}
-                title={selectedSessionGroup ? `使用会话组：${selectedSessionGroup.name}` : "选择会话组（可不使用）"}
+                label={selectedSessionGroup?.name ?? "工作流"}
+                title={selectedSessionGroup ? `使用工作流：${selectedSessionGroup.name}` : "选择工作流（可不使用）"}
               />
             }
           />
@@ -1779,7 +1779,11 @@ export function ComposerCard({
                             ? "目标已暂停"
                             : threadGoal.status === "complete"
                               ? "目标已完成"
-                              : "目标"
+                              : threadGoal.status === "blocked"
+                                ? "目标受阻"
+                                : threadGoal.status === "usage-limited"
+                                  ? "用量受限"
+                                  : "预算已用完"
                       }
                       title={threadGoal.objective}
                     />
@@ -1792,6 +1796,7 @@ export function ComposerCard({
                     </div>
                     <div className="popover-item-meta">
                       已用 Tokens: {threadGoal.tokensUsed}
+                      {threadGoal.tokenBudget === null ? " / 不限额" : ` / ${threadGoal.tokenBudget}`}
                       {threadGoal.timeUsedSeconds > 0
                         ? ` | 用时: ${Math.round(threadGoal.timeUsedSeconds / 60)}分`
                         : ""}
@@ -1809,7 +1814,7 @@ export function ComposerCard({
                         暂停
                       </PopoverItem>
                     ) : null}
-                    {threadGoal.status === "paused" ? (
+                    {["paused", "blocked", "usage-limited", "budget-limited"].includes(threadGoal.status) ? (
                       <PopoverItem
                         icon={<Target size={APP_ICON_SIZE} />}
                         onClick={() => {
@@ -1833,6 +1838,7 @@ export function ComposerCard({
                     ) : null}
                     <PopoverItem
                       icon={<X size={APP_ICON_SIZE} />}
+                      disabled={threadGoal.status === "active"}
                       onClick={() => {
                         closeDropdown();
                         onGoalClear?.();

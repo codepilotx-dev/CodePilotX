@@ -128,7 +128,7 @@ const WORKSPACE_HEADER_ICON_SIZE = APP_ICON_SIZE;
 async function chooseSessionGroupForThread(threadId: string): Promise<void> {
   const groups = await desktopClient.listSessionGroups()
   const choices = groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n')
-  const answer = globalThis.prompt(`输入会话组序号；输入 0 移出会话组：\n${choices}`)?.trim()
+  const answer = globalThis.prompt(`输入工作流序号；输入 0 移出工作流：\n${choices}`)?.trim()
   if (answer === undefined) return
   const index = Number(answer)
   const groupId = index === 0 ? null : groups[index - 1]?.id
@@ -1017,7 +1017,7 @@ export function ConversationPage(): React.ReactNode {
           >
             {effectiveSessionStatus === "running" || effectiveSessionStatus === "waiting" || effectiveSessionStatus === "queued"
               ? "当前 Turn 结束后可切换"
-              : "加入或切换会话组"}
+              : "加入或切换工作流"}
           </PopoverItem>
           <PopoverSeparator />
           <PopoverItem

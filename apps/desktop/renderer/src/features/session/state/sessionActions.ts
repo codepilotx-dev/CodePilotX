@@ -1,5 +1,6 @@
 import { sessionModelSelections } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { toUserErrorMessage, type ErrorContext } from '../../../utils/errors.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
@@ -137,16 +138,16 @@ export async function createSessionForWorkspaceAction(
 ): Promise<string | null> {
   try {
     const preferredSessionGroupId = readPreferredSessionGroupId()
-    let sessionGroupId: string | undefined
+    let workflowId: string | undefined
     if (preferredSessionGroupId) {
       const groups = await desktopClient.listSessionGroups().catch(() => [])
-      if (groups.some(group => group.id === preferredSessionGroupId)) sessionGroupId = preferredSessionGroupId
+      if (groups.some(group => group.id === preferredSessionGroupId)) workflowId = preferredSessionGroupId
     }
-    if (preferredSessionGroupId && !sessionGroupId) writePreferredSessionGroupId(null)
+    if (preferredSessionGroupId && !workflowId) writePreferredSessionGroupId(null)
     const session = await desktopClient.createSession({
       projectId: target?.projectId,
       workspacePath: target?.path,
-      sessionGroupId,
+      workflowId,
       creationSurface: settings.creationSurface,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,
@@ -211,7 +212,7 @@ export async function createSessionForWorkspaceAction(
     )
     return session.sessionId
   } catch (error) {
-    context.onErrorRef.current(errorMessageOf(error))
+    context.onErrorRef.current(errorMessageOf(error, 'thread-create'))
     if (options?.propagateError) throw error
     return null
   }
@@ -269,7 +270,7 @@ export async function submitSessionMessageAction(
     )
     return 'sent'
   } catch (error) {
-    onErrorRef.current(errorMessageOf(error))
+    onErrorRef.current(errorMessageOf(error, 'thread-send'))
     if (options?.propagateError) throw error
     return null
   }
@@ -621,6 +622,6 @@ export async function setSessionPlanModeActiveAction(
   }
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function errorMessageOf(error: unknown, context?: ErrorContext): string {
+  return toUserErrorMessage(error, context)
 }

@@ -62,6 +62,7 @@ export function createAgentTurnQueueClient({
     options?: {
       inputId?: string
       model?: string | DesktopModelSelection
+      goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }
     },
   ): Promise<AgentMessageAdmission> {
     await awaitPendingSettingsUpdate(sessionId)
@@ -95,6 +96,7 @@ export function createAgentTurnQueueClient({
         attachmentIds,
         contextReferenceIds,
         options?.model,
+        options?.goal,
       )
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
@@ -130,6 +132,7 @@ export function createAgentTurnQueueClient({
       attachmentIds,
       contextReferenceIds,
       options?.model,
+      options?.goal,
     )
     await refreshSession(sessionId).catch(() => null)
     emitSessionStoreChange()
@@ -174,6 +177,7 @@ export function createAgentTurnQueueClient({
     attachmentIds: string[],
     contextReferenceIds: string[],
     model: string | DesktopModelSelection | undefined,
+    goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null },
   ): Promise<void> {
     await rpc.call('turn/start', {
       threadId: sessionId,
@@ -182,6 +186,7 @@ export function createAgentTurnQueueClient({
       model: await resolveModelRef(model, sessionId),
       permissionConfig: permissionConfigForSession(sessionId),
       taskMode: taskModeForSession(sessionId),
+      ...(goal ? { goal } : {}),
       ...(attachmentIds.length ? { attachmentIds } : {}),
       ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
     })

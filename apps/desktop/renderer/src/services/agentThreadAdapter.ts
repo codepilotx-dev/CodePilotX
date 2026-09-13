@@ -71,6 +71,8 @@ export function agentThreadListItemToDesktop(
   return {
     id: thread.id,
     projectId: thread.projectID,
+    workflowId: thread.workflowId ?? thread.sessionGroupId ?? null,
+    executionEnvironment: thread.executionEnvironment ?? null,
     sessionGroupId: thread.sessionGroupId ?? null,
     sessionName: thread.title || null,
     customTitle: null,
@@ -155,6 +157,8 @@ export function agentThreadSnapshotToDesktop(
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
+    workflowId: snapshot.thread.workflowId ?? snapshot.thread.sessionGroupId ?? null,
+    executionEnvironment: snapshot.thread.executionEnvironment ?? null,
     sessionGroupId: snapshot.thread.sessionGroupId ?? null,
     sessionName: snapshot.thread.title || null,
     customTitle: null,
@@ -183,6 +187,7 @@ export function agentThreadSnapshotToDesktop(
     status: agentTurnStatusToDesktopStatus(latestTurn?.status),
     latestTurnStatus: latestTurn?.status ?? null,
     pendingPlanApproval: snapshot.pendingPlanApproval?.status === 'pending',
+    threadGoal: snapshot.goal,
     lastMessageAt: iso(snapshot.thread.updatedAt),
     createdAt: iso(snapshot.thread.createdAt),
   }
@@ -779,6 +784,7 @@ export function projectToDesktopWorkspace(project: Project | null | undefined, p
         ? {
             defaultModel: value.settings.defaultModel,
             instructions: value.settings.instructions ?? '',
+            executionEnvironment: value.settings.executionEnvironment === 'local' ? 'local' : 'auto',
             version: value.settings.version ?? 0,
           }
         : undefined,

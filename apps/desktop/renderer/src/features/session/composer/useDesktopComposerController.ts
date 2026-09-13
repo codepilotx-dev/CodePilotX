@@ -11,6 +11,7 @@ import type {
   ThreadCreationSurface,
 } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { getVisiblePermissionModeOptions } from '../../settings/settingsStorage.js'
 import type { Message } from '../../../uiTypes.js'
@@ -26,7 +27,7 @@ import type {
   WorkingPlugin,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
-import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
+import { createTaskSession, executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
 import {
   createComposerDocumentWithSkill,
@@ -82,6 +83,8 @@ type ControllerOptions = {
     projectlessPrompt?: string,
     creationSurface?: ThreadCreationSurface,
   ) => Promise<string | null>
+  /** Global error notification for failures that block sending. */
+  onError?: (message: string) => void
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
@@ -161,6 +164,7 @@ export function useDesktopComposerController({
   onProviderModelChange,
   createSessionForWorkspace,
   submitToSession,
+  onError,
 }: ControllerOptions) {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -267,6 +271,7 @@ export function useDesktopComposerController({
     }
   }, [])
 
+  // Execution location is only offered when creating a task in a project. A failed
   useEffect(
     () =>
       composerDraftStore.subscribe(() => {
@@ -431,10 +436,14 @@ export function useDesktopComposerController({
         composerDraftStore.clearSubmitOutcome(sourceDraftKey)
       } catch (error) {
         console.error('Failed to set session goal:', error)
+        const message = errorMessageOf(error)
+        // A version conflict already refreshed canonical state in the client; tell the
+        // user through the global channel instead of an inline composer error.
+        onError?.(message)
         const failureOutcome: ComposerSubmitOutcome = {
           status: 'failed',
           phase: 'send',
-          message: errorMessageOf(error),
+          message,
           sessionId: routedSessionId,
         }
         setLastSubmitOutcome(failureOutcome)
@@ -456,12 +465,16 @@ export function useDesktopComposerController({
       targetSessionId: isNewSession ? null : routedSessionId,
       createSession: isNewSession
         ? (initialSessionName, projectlessPrompt) =>
-            createSessionForWorkspace(
-              workspace,
-              initialSessionName,
-              projectlessPrompt,
-              surface === 'working' || surface === 'chat' || surface === 'coding' ? surface : undefined,
-            )
+            createTaskSession({
+              onError,
+              create: () =>
+                createSessionForWorkspace(
+                  workspace,
+                  initialSessionName,
+                  projectlessPrompt,
+                  surface === 'working' || surface === 'chat' || surface === 'coding' ? surface : undefined,
+                ),
+            })
         : undefined,
       // Keep navigation before submission so the routed page owns all
       // streaming state from the first response event onward.
@@ -493,6 +506,9 @@ export function useDesktopComposerController({
         ? `session:${outcome.sessionId}`
         : sourceDraftKey
       composerDraftStore.setSubmitOutcome(failureDraftKey, outcome)
+      if (outcome.phase === 'send') {
+        onError?.(outcome.message)
+      }
       return
     }
 
@@ -616,6 +632,7 @@ export function useDesktopComposerController({
   return {
     branchName,
     canSubmit,
+
     effectivePermissionMode,
     fileAttachmentsAvailable,
     goalModeEnabled,
@@ -771,7 +788,7 @@ function sessionPath(sessionId: string): string {
 }
 
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return toUserErrorMessage(error, 'thread-send')
 }
 
 function restoreSkillToken(

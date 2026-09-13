@@ -240,7 +240,10 @@ export function mockThreadHistoryPage(
     queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
     olderCursor: null,
     hasOlder: false,
-    streamPosition: { streamId: `mock-thread:${threadId}`, sequence: 0 },
+    // 与真实 thread/history/read 一致：同一个会话的 stream 就是会话本身。
+    // 性能用例需要把 live delta 直接喂给 canonical coordinator，streamId 必须
+    // 与订阅使用的 threadId 相同，否则事件会被投影按 stream 过滤掉。
+    streamPosition: { streamId: threadId, sequence: 0 },
   } as unknown as RpcResult<'thread/history/read'>
 }
 

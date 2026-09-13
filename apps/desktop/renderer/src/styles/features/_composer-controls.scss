@@ -522,6 +522,11 @@
   color: var(--cpx-sys-color-fg-tertiary);
 }
 
+/* Compact execution-location selector for a new task in a project. */
+.composer-execution-mode-select {
+  font: var(--cpx-sys-type-body-sm);
+}
+
 .composer-model-chip-label {
   color: var(--cpx-sys-color-fg-primary);
 }

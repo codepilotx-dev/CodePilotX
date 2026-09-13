@@ -68,6 +68,7 @@ import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentD
 import type { SpeechTranscriptionService } from "../../speech/SpeechTranscriptionService"
 import type { ThreadExecutionPreparationService } from "../../worktree/ThreadExecutionPreparationService"
 import type { SessionGroupService } from "../../session-group/SessionGroupService"
+import type { ThreadGoalService } from "../../session/ThreadGoalService"
 import type { AutomationService } from "../../automation"
 import type { CalendarService, SchedulePlanService, ScheduledTaskService } from "../../calendar"
 import type { ThreadMessageForkService } from "../../session/fork/ThreadMessageForkService"
@@ -172,6 +173,7 @@ export type RpcRouterDependencies = {
   speech: SpeechTranscriptionService
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
+  threadGoals: ThreadGoalService
   automation: AutomationService
   calendar?: CalendarService
   scheduledTasks?: ScheduledTaskService
@@ -501,19 +503,26 @@ export class RpcRouter {
   private async configuredModels() {
     const source = await this.loadCatalogSource()
     const config = this.dependencies.config.snapshot()
-    const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
     const specializedModels = config.specialized_models && typeof config.specialized_models === "object" && !Array.isArray(config.specialized_models)
       ? config.specialized_models as Record<string, unknown>
       : {}
-    const configuredDefault = providerID && typeof config.model === "string"
+    const desktop = config.desktop && typeof config.desktop === "object" && !Array.isArray(config.desktop)
+      ? config.desktop as Record<string, unknown>
+      : {}
+    const recent = desktop.recent_new_thread_model && typeof desktop.recent_new_thread_model === "object" && !Array.isArray(desktop.recent_new_thread_model)
+      ? desktop.recent_new_thread_model as Record<string, unknown>
+      : {}
+    const recentProviderID = typeof recent.providerID === "string" ? recent.providerID : ""
+    const legacyProviderID = typeof config.model_provider === "string" ? config.model_provider : ""
+    const recentVariant = typeof recent.variant === "string" && recent.variant && !DESKTOP_THINKING_MODES.has(recent.variant)
+      ? recent.variant as Model.VariantID
+      : undefined
+    // 兼容外壳：wire 字段仍叫 defaultModel，语义是新建任务最近选择。
+    const recentSelection = recentProviderID && typeof recent.id === "string" && recent.id
       ? {
-          providerID,
-          id: config.model,
-          ...(typeof config.model_reasoning_effort === "string"
-            && config.model_reasoning_effort
-            && !DESKTOP_THINKING_MODES.has(config.model_reasoning_effort)
-            ? { variant: config.model_reasoning_effort as Model.VariantID }
-            : {}),
+          providerID: recentProviderID,
+          id: recent.id,
+          ...(recentVariant ? { variant: recentVariant } : {}),
         } as Model.Ref
       : null
     const security = typeof specializedModels.security === "string"
@@ -522,7 +531,7 @@ export class RpcRouter {
     const separator = security.indexOf("/")
     const configuredReviewer = security
       ? {
-          providerID: separator > 0 ? security.slice(0, separator) : providerID,
+          providerID: separator > 0 ? security.slice(0, separator) : legacyProviderID,
           id: separator > 0 ? security.slice(separator + 1) : security,
         } as Model.Ref
       : null
@@ -534,7 +543,7 @@ export class RpcRouter {
       return ref
     }
     return {
-      defaultModel: available(configuredDefault),
+      defaultModel: available(recentSelection),
       reviewerModel: available(configuredReviewer),
     }
   }

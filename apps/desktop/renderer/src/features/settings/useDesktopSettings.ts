@@ -1011,7 +1011,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
   const saveFirstUseSetupCompleted = useCallback(
     async (value: 0 | 1): Promise<void> => {
       // 先读取 Agent 当前投影，避免向导完成期间用旧的 Renderer snapshot
-      // 覆盖刚由 saveModelProvider 写入的默认模型与 Provider。
+      // 覆盖刚由模型向导写入的 Provider 与最近模型选择。
       const current = await desktopClient.getDesktopSettings()
       const saved = await desktopClient.saveDesktopSettings({
         ...current,

@@ -368,6 +368,7 @@ export const ProjectFolderMutationResultSchema = Schema.Struct({
 export const ProjectSettingsPatchSchema = Schema.Struct({
   defaultModel: Schema.optional(Schema.NullOr(Model.Ref)),
   instructions: Schema.optional(Schema.String),
+  executionEnvironment: Schema.optional(AgentThread.ProjectExecutionEnvironmentSchema),
 })
 
 export const ProjectSettingsUpdateParamsSchema = Schema.Struct({
@@ -539,6 +540,13 @@ export const ThreadCreateWorkspaceSchema = Schema.Union([
     execution: Schema.optional(Schema.Union([
       Schema.Struct({ kind: Schema.Literal("local") }),
       Schema.Struct({ kind: Schema.Literal("worktree"), worktreeId: OpaqueIDSchema }),
+      Schema.Struct({
+        kind: Schema.Literal("worktree"),
+        startingState: Schema.Union([
+          Schema.Struct({ type: Schema.Literal("working-tree") }),
+          Schema.Struct({ type: Schema.Literal("branch"), branchName: NonEmptyStringSchema }),
+        ]),
+      }),
     ])),
   }),
   Schema.Struct({
@@ -549,6 +557,7 @@ export const ThreadCreateWorkspaceSchema = Schema.Union([
 
 const ThreadCreateFields = {
   sessionGroupId: Schema.optional(OpaqueIDSchema),
+  workflowId: Schema.optional(OpaqueIDSchema),
   creationSurface: Schema.optional(AgentThread.ThreadCreationSurfaceSchema),
   title: Schema.optional(Schema.String),
   settings: Schema.optional(AgentThread.ThreadSettingsSchema),
@@ -847,6 +856,11 @@ export const TurnStartParamsSchema = Schema.Struct({
   model: Model.Ref,
   permissionConfig: AgentThread.PermissionConfigSchema,
   taskMode: AgentThread.TaskModeSchema,
+  goal: Schema.optional(Schema.Struct({
+    objective: NonEmptyStringSchema,
+    tokenBudget: Schema.optional(Schema.NullOr(NonNegativeIntSchema)),
+    expectedVersion: Schema.NullOr(SequenceSchema),
+  })),
 })
 
 export const QueueAddParamsSchema = Schema.Struct({

@@ -197,6 +197,7 @@ export class SubagentRepository {
       this.db.sqlite.query("UPDATE agent_executions SET status = 'running', updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, agentRow.id)
       this.db.sqlite.query("UPDATE turns SET status = 'running', started_at = COALESCE(started_at, ?), updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, timestamp, agentRow.turn_id)
       this.db.sqlite.query("UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'").run(agentRow.turn_id)
+      this.db.repositories.threadGoalLedger.openInterval({ threadId: task.parentThreadId, agentId: agentRow.id })
       return { task: this.task(task.id)!, run: this.run(runID)!, agent: this.db.getAgentExecution(agentRow.id)! }
     })
   }
@@ -214,6 +215,8 @@ export class SubagentRepository {
   setWaiting(runID: string, status: "waiting_question" | "waiting_permission") {
     const run = this.run(runID)
     if (!run || terminalStatuses.has(run.status)) return null
+    const waitingAgent = this.latestExecution(runID)
+    if (waitingAgent) this.db.repositories.threadGoalLedger.closeAgentIntervals(waitingAgent.id)
     const timestamp = now()
     this.db.sqlite.query("UPDATE subagent_runs SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, runID)
     this.db.sqlite.query("UPDATE subagent_tasks SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, run.taskId)
@@ -224,6 +227,11 @@ export class SubagentRepository {
   setRunning(runID: string) {
     const run = this.run(runID)
     if (!run || terminalStatuses.has(run.status)) return null
+    const resumedAgent = this.latestExecution(runID)
+    const resumedTask = this.task(run.taskId)
+    if (resumedAgent && resumedTask) {
+      this.db.repositories.threadGoalLedger.openInterval({ threadId: resumedTask.parentThreadId, agentId: resumedAgent.id })
+    }
     const timestamp = now()
     this.db.sqlite.query("UPDATE subagent_runs SET status = 'running', updated_at = ? WHERE id = ?").run(timestamp, runID)
     this.db.sqlite.query("UPDATE subagent_tasks SET status = 'running', updated_at = ? WHERE id = ?").run(timestamp, run.taskId)

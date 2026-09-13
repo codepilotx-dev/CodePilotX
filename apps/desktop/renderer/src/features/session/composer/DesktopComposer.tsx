@@ -176,6 +176,8 @@ export type DesktopComposerProps = {
   onFollowUpRemove?: (followUpId: string) => void
   onFollowUpResume?: () => void
   threadGoal?: DesktopThreadGoal | null
+  /** Global error notification for failures that block sending. */
+  onError?: (message: string) => void
   onGoalPause?: () => void
   onGoalResume?: () => void
   onGoalComplete?: () => void
@@ -260,6 +262,7 @@ export function DesktopComposer({
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
+  onError,
   queuedFollowUps,
   queuePauseReason,
   onFollowUpEdit,
@@ -338,6 +341,7 @@ export function DesktopComposer({
     onProviderModelChange,
     createSessionForWorkspace,
     submitToSession,
+    onError,
   })
 
   useEffect(() => {

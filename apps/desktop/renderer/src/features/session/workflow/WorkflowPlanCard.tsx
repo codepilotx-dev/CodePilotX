@@ -11,7 +11,30 @@ export type OpenPlanInDockRequest = {
   eventId: string;
   title: string;
   content: string;
+  /**
+   * 计划是否已生成完成。右栏计划 tab 的内容是打开瞬间的快照，因此流式期间
+   * 打开会冻结半成品；打开入口必须据此拒绝，而不是只隐藏按钮。
+   */
+  openable: boolean;
 };
+
+/**
+ * 构造右栏打开请求。`openable` 只在计划生成完成后为真：右栏 tab 的内容是打开
+ * 瞬间的快照，流式期间打开会冻结半成品。打开入口据此拒绝，而不是只隐藏按钮。
+ */
+export function createPlanDockRequest(input: {
+  eventId: string;
+  title: string;
+  content: string;
+  streaming: boolean;
+}): OpenPlanInDockRequest {
+  return {
+    eventId: input.eventId,
+    title: input.title,
+    content: input.content,
+    openable: !input.streaming,
+  };
+}
 
 export function WorkflowPlanCard({
   eventId,
@@ -30,7 +53,7 @@ export function WorkflowPlanCard({
 }): React.ReactNode {
   const title = structured?.title ?? planTitleFromSummary(summary);
   const presentation = planCardPresentation({ streaming, isDocked });
-  const plan = { eventId, title, content: summary };
+  const plan = createPlanDockRequest({ eventId, title, content: summary, streaming });
 
   if (presentation.compact) {
     return (
