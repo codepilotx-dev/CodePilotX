@@ -8,6 +8,7 @@ import type {
   Message,
   SubagentProjection,
   Thread,
+  ThreadExecutionEnvironment,
   ThreadListItem,
   ThreadSnapshot,
   PlanApproval,
@@ -16,7 +17,7 @@ import type {
 } from "@codepilotx/shared/thread"
 import { realpathSync } from "node:fs"
 import { resolve } from "node:path"
-import { decodeApprovalPolicy, decodeStructuredPlan, InteractionQuestionSchema, InteractionQuestionAnswerSchema } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy, decodeStructuredPlan, InteractionQuestionSchema, InteractionQuestionAnswerSchema, WorktreeStatusSchema } from "@codepilotx/shared/thread"
 import { Schema } from "effect"
 import type { AgentExecution, EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -204,11 +205,115 @@ export type ThreadHistoryPage = {
   hasOlder: boolean
 }
 
+/** Raw binding projection row; every column is unvalidated storage input. */
+type ExecutionBindingRow = {
+  thread_id: string
+  kind: string
+  cwd: string
+  revision: number
+  worktree_id: string | null
+  branch_name: string | null
+  status: string | null
+}
+
 export class ThreadProjection {
   private readonly subagents: SubagentRepository
+  private executionBindingsAvailable: boolean | null = null
+  private managedWorktreesAvailable: boolean | null = null
 
   constructor(private readonly db: AgentDatabase) {
     this.subagents = new SubagentRepository(db)
+  }
+
+  private hasTable(name: string): boolean {
+    return Boolean(this.db.sqlite.query(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    ).get(name))
+  }
+
+  /**
+   * Bindings and worktrees are probed separately. A store with bindings but no
+   * worktree table still resolves local bindings authoritatively; only worktree
+   * bindings need the join partner.
+   */
+  private hasExecutionBindings(): boolean {
+    if (this.executionBindingsAvailable === null) {
+      this.executionBindingsAvailable = this.hasTable("thread_execution_bindings")
+    }
+    return this.executionBindingsAvailable
+  }
+
+  private hasManagedWorktrees(): boolean {
+    if (this.managedWorktreesAvailable === null) {
+      this.managedWorktreesAvailable = this.hasTable("managed_worktrees")
+    }
+    return this.managedWorktreesAvailable
+  }
+
+  /**
+   * Runtime-validated projection. Unknown enum values or malformed revisions from a
+   * newer schema omit the environment instead of failing the whole thread read.
+   */
+  private toExecutionEnvironment(row: ExecutionBindingRow): ThreadExecutionEnvironment | null {
+    const revision = Number(row.revision)
+    if (!Number.isInteger(revision) || revision < 1) return null
+    if (row.kind === "local") return { kind: "local", cwd: row.cwd, revision }
+    if (row.kind !== "worktree" || !row.worktree_id) return null
+    if (!Schema.is(WorktreeStatusSchema)(row.status)) return null
+    return {
+      kind: "worktree",
+      worktreeId: row.worktree_id,
+      cwd: row.cwd,
+      branchName: row.branch_name,
+      status: row.status,
+      revision,
+    }
+  }
+
+  /** Authoritative workspace fallback for threads that predate execution bindings. */
+  private workspaceExecutionEnvironment(
+    workspace: { readonly cwd: string } | null | undefined,
+  ): ThreadExecutionEnvironment | undefined {
+    if (!workspace?.cwd) return undefined
+    return { kind: "local", cwd: workspace.cwd, revision: 1 }
+  }
+
+  /**
+   * Batch-loads bindings. A present-but-unreadable row maps to `null` so callers can
+   * tell it apart from a thread that has no binding at all. Without the worktree
+   * table the join columns are NULL, which makes every worktree binding unresolvable
+   * while local bindings still project from the binding row itself.
+   */
+  private executionEnvironments(threadIds: readonly string[]): Map<string, ThreadExecutionEnvironment | null> {
+    const environments = new Map<string, ThreadExecutionEnvironment | null>()
+    if (threadIds.length === 0 || !this.hasExecutionBindings()) return environments
+    const worktreesAvailable = this.hasManagedWorktrees()
+    const placeholders = threadIds.map(() => "?").join(",")
+    const rows = this.db.sqlite.query(`
+      SELECT binding.thread_id, binding.kind, binding.cwd, binding.revision, binding.worktree_id,
+        ${worktreesAvailable ? "worktree.branch_name, worktree.status" : "NULL AS branch_name, NULL AS status"}
+      FROM thread_execution_bindings AS binding
+      ${worktreesAvailable ? "LEFT JOIN managed_worktrees AS worktree ON worktree.id = binding.worktree_id" : ""}
+      WHERE binding.thread_id IN (${placeholders})
+    `).all(...threadIds) as ExecutionBindingRow[]
+    for (const row of rows) {
+      environments.set(String(row.thread_id), this.toExecutionEnvironment(row))
+    }
+    return environments
+  }
+
+  /**
+   * A thread with a binding always uses it, even when its stored values are
+   * unreadable — falling back to the workspace there would misreport the actual
+   * execution environment. Only threads with no binding row use the workspace.
+   */
+  private resolveExecutionEnvironment(
+    bindings: ReadonlyMap<string, ThreadExecutionEnvironment | null>,
+    threadId: string,
+    workspace: { readonly cwd: string } | null | undefined,
+  ): ThreadExecutionEnvironment | undefined {
+    if (bindings.has(threadId)) return bindings.get(threadId) ?? undefined
+    return this.workspaceExecutionEnvironment(workspace)
   }
 
   private projectAgent(row: Record<string, string | number | null>): WireAgentExecution {
@@ -255,13 +360,21 @@ export class ThreadProjection {
 
 
   private projectThreadRow(row: Record<string, string | number | null>, workspace: Thread["workspace"] | undefined): Thread {
-    const sessionGroupId = this.db.repositories.sessionGroups.membership(String(row.id))?.group_id ?? null
+    const threadId = String(row.id)
+    const sessionGroupId = this.db.repositories.sessionGroups.membership(threadId)?.group_id ?? null
+    const executionEnvironment = this.resolveExecutionEnvironment(
+      this.executionEnvironments([threadId]),
+      threadId,
+      workspace,
+    )
     return {
       id: String(row.id),
       title: String(row.title),
       projectID: row.project_id == null ? null : String(row.project_id),
       gitBranch: row.git_branch == null ? null : String(row.git_branch),
       sessionGroupId,
+      workflowId: sessionGroupId,
+      ...(executionEnvironment ? { executionEnvironment } : {}),
       hasScheduledRun: Boolean(row.has_scheduled_run),
       isScheduledSession: Boolean(row.is_scheduled_session),
       isFork: Boolean(row.is_fork),
@@ -306,6 +419,7 @@ export class ThreadProjection {
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
       delivery: inputDelivery(row.strategy),
+      ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {
@@ -367,7 +481,7 @@ export class ThreadProjection {
     if (!turnRow) return null
     const inputRows = this.db.sqlite.query(`
       SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy,
-        approvals_reviewer, strategy, task_mode, status, created_at
+        approvals_reviewer, strategy, task_mode, status, created_at, origin
       FROM inputs WHERE turn_id = ? ORDER BY created_at, id
     `).all(turnID) as Array<Record<string, string | number | null>>
     const inputs = inputRows.map((row) => this.projectInput(row))
@@ -424,12 +538,13 @@ export class ThreadProjection {
     `).all(threadId) as Array<{ input_id: string; id: string; name: string; path: string; kind: LocalContextReference["kind"]; created_at: number }>
     const contextIDsByInput = new Map<string, string[]>()
     for (const row of contextRows) contextIDsByInput.set(row.input_id, [...(contextIDsByInput.get(row.input_id) ?? []), row.id])
-    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
+    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
       turnId: row.turn_id ? String(row.turn_id) : null,
       content: String(row.content),
       delivery: inputDelivery(row.strategy),
+      ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {
@@ -500,6 +615,7 @@ export class ThreadProjection {
       messages,
       items,
       approvals,
+      goal: this.db.repositories.threadGoals.get(threadId),
       pendingPlanApproval: this.db.repositories.planApprovals.pending(threadId),
       contextReferences: contextRows.map((row) => ({ id: row.id, name: row.name, path: row.path, kind: row.kind, status: localContextStatus(row.path), createdAt: row.created_at })),
       queue: this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null },
@@ -538,7 +654,7 @@ export class ThreadProjection {
     const placeholders = allTurnIDs.map(() => "?").join(",")
 
     const inputRows = allTurnIDs.length
-      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`).all(...allTurnIDs) as Array<Record<string, string | number | null>>
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin FROM inputs WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`).all(...allTurnIDs) as Array<Record<string, string | number | null>>
       : []
     const inputIDs = inputRows.map((row) => String(row.id))
     const inputPlaceholders = inputIDs.map(() => "?").join(",")
@@ -585,6 +701,7 @@ export class ThreadProjection {
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
       delivery: inputDelivery(row.strategy),
+      ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {
@@ -722,15 +839,19 @@ export class ThreadProjection {
     `
     values.push(params.limit ?? 100)
     const rows = this.db.sqlite.query(sql).all(...values) as Array<Record<string, string | number | null>>
+    const bindings = this.executionEnvironments(rows.map(row => String(row.id)))
     return rows.map((row): ThreadListItem => {
       const id = String(row.id)
       const workspace = this.db.threadWorkspace(id)
       const sessionGroupId = this.db.repositories.sessionGroups.membership(id)?.group_id ?? null
+      const executionEnvironment = this.resolveExecutionEnvironment(bindings, id, workspace)
       return {
         id,
         projectID: row.project_id == null ? null : String(row.project_id),
         gitBranch: row.git_branch == null ? null : String(row.git_branch),
         sessionGroupId,
+        workflowId: sessionGroupId,
+        ...(executionEnvironment ? { executionEnvironment } : {}),
         hasScheduledRun: Boolean(row.has_scheduled_run),
         isScheduledSession: Boolean(row.is_scheduled_session),
         isFork: Boolean(row.is_fork),

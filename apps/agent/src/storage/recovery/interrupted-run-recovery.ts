@@ -3,6 +3,8 @@ export const recoverInterruptedRuns = (database: AgentDatabase) => {
   const timestamp = Date.now()
   database.repositories.interactions.convergeHookTrustDecisions()
   database.transaction(() => {
+    // Offline time must not be billed as goal run time.
+    database.repositories.threadGoalLedger.closeOpenIntervals(timestamp)
     database.repositories.interactions.recoverInterruptedInteractions(timestamp)
     database.repositories.executions.recoverInterruptedExecutions(timestamp)
     database.repositories.interactions.finalizeInterruptedQuestions(timestamp)

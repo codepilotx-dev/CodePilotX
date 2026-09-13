@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite"
 import { isAbsolute, relative } from "node:path"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, type ThreadSettings } from "@codepilotx/shared/thread"
+import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, type ProjectExecutionEnvironment, type ThreadSettings } from "@codepilotx/shared/thread"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -13,6 +13,7 @@ import type {
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
   instructions: string
+  executionEnvironment: ProjectExecutionEnvironment
   version: number
 }
 
