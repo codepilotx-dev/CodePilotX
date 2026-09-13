@@ -15,6 +15,7 @@ import { ModelSetupPage } from './features/models/setup/ModelSetupPage.js'
 import { SettingsLayout } from './features/settings/SettingsLayout.js'
 import { PetCatalogPage } from './features/pet/PetCatalogPage.js'
 import { SessionGroupsView } from './features/session-groups/SessionGroupsView.js'
+import { legacyWorkflowRedirectPath } from './features/routing/workflowRoutes.js'
 import { legacyModelCenterSettingsTarget } from './features/models/modelCenterState.js'
 
 const PetOverlayPage = lazy(() =>
@@ -31,6 +32,11 @@ function LegacyModelsRedirect(): ReactNode {
       to={legacyModelCenterSettingsTarget(location.search)}
     />
   )
+}
+
+function LegacyWorkflowRedirect(): ReactNode {
+  const location = useLocation()
+  return <Navigate replace to={legacyWorkflowRedirectPath(location.pathname, location.search)} />
 }
 
 const routeErrorElement = <RouteErrorPage />
@@ -73,8 +79,10 @@ const router = createHashRouter([
           { path: 'threads/:threadId', element: <ConversationPage /> },
           { path: 'projects', element: <ProjectsView /> },
           { path: 'projects/:projectId', element: <ProjectsView /> },
-          { path: 'session-groups', element: <SessionGroupsView /> },
-          { path: 'session-groups/:groupId', element: <SessionGroupsView /> },
+          { path: 'workflows', element: <SessionGroupsView /> },
+          { path: 'workflows/:groupId', element: <SessionGroupsView /> },
+          { path: 'session-groups', element: <LegacyWorkflowRedirect /> },
+          { path: 'session-groups/:groupId', element: <LegacyWorkflowRedirect /> },
           { path: 'models', element: <LegacyModelsRedirect /> },
           { path: 'plugins', element: <PluginsView /> },
           { path: 'pull-requests', element: <PullRequestsPlaceholder /> },

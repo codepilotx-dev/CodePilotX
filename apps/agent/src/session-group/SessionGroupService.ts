@@ -48,8 +48,8 @@ export class SessionGroupService {
 
   private changedEvent(groupId: string, reason: string, input: { threadId?: string; stepId?: string } = {}) {
     const group = this.repository().read(groupId)
-    return this.db.insertEvent(input.threadId ?? null, null, "session-group/changed", {
-      groupId, reason, ...input, revision: group?.version ?? 0, changedAt: Date.now(),
+    return this.db.insertEvent(input.threadId ?? null, null, "workflow/changed", {
+      workflowId: groupId, reason, ...input, revision: group?.version ?? 0, changedAt: Date.now(),
     })
   }
 
@@ -159,7 +159,7 @@ export class SessionGroupService {
       return replay.result
     }
     const event = this.db.transaction(() => {
-      const stored = this.db.insertEvent(null, null, "session-group/changed", { groupId: input.groupId, reason: "deleted", revision: group.version + 1, changedAt: Date.now() })
+      const stored = this.db.insertEvent(null, null, "workflow/changed", { workflowId: input.groupId, reason: "deleted", revision: group.version + 1, changedAt: Date.now() })
       this.repository().recordOperation(input.operationId, "session-group/delete", request, { groupId: input.groupId, deletedAt: stored.createdAt })
       this.repository().delete(input.groupId)
       return stored

@@ -57,6 +57,7 @@ import { normalizeShellSecurityLevel } from "../security/ShellRiskClassifier"
 import type { SpeechTranscriptionService } from "../speech/SpeechTranscriptionService"
 import type { ThreadExecutionPreparationService } from "../worktree/ThreadExecutionPreparationService"
 import type { SessionGroupService } from "../session-group/SessionGroupService"
+import type { ThreadGoalService } from "../session/ThreadGoalService"
 import type { AutomationService } from "../automation"
 import type { CalendarService, SchedulePlanService, ScheduledTaskService } from "../calendar"
 import type { MemoryManager } from "../resource/MemoryManager"
@@ -113,6 +114,7 @@ export interface TransportDependencies {
   speech: SpeechTranscriptionService
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
+  threadGoals: ThreadGoalService
   automation: AutomationService
   calendar: CalendarService
   scheduledTasks: ScheduledTaskService
@@ -152,6 +154,26 @@ export const eventDeliveryAllowed = (
 }
 
 /**
+ * Projects the single durable workflow event onto whichever shape the client can
+ * decode. The superseded key is dropped outright rather than set to `undefined`,
+ * so a strict `exactResult` decoder on the other side never sees an unknown field.
+ */
+export const projectWorkflowEvent = (
+  event: StoredEventEnvelope,
+  capabilities: ReadonlySet<ProtocolCapability>,
+): StoredEventEnvelope => {
+  if (capabilities.has("workflow.v1") && event.method === "session-group/changed") {
+    const { groupId, ...rest } = event.params as Record<string, unknown>
+    return { ...event, method: "workflow/changed", params: { ...rest, workflowId: groupId } }
+  }
+  if (!capabilities.has("workflow.v1") && capabilities.has("session-group.v1") && event.method === "workflow/changed") {
+    const { workflowId, ...rest } = event.params as Record<string, unknown>
+    return { ...event, method: "session-group/changed", params: { ...rest, groupId: workflowId } }
+  }
+  return event
+}
+
+/**
  * Live event gate: eventDeliveryAllowed + durability="live" + liveEventTypes.
  * Clients that never negotiated e.g. model.health.v1 must not receive
  * model/health/updated even when they omit liveEventTypes.
@@ -184,9 +206,10 @@ export const deliverDurablePage = async (input: {
     if (event.id > input.target) break
     lastCursor = event.id
     input.updateCursor(event.id)
-    if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
-    if (!eventDeliveryAllowed(event, input.subscription)) continue
-    if (await input.deliver(event)) delivered += 1
+    const projected = projectWorkflowEvent(event, input.subscription.capabilities)
+    if (!(projected.method in EventManifest) || EventManifest[projected.method as EventType].durability === "live") continue
+    if (!eventDeliveryAllowed(projected, input.subscription)) continue
+    if (await input.deliver(projected)) delivered += 1
   }
   return { lastCursor, delivered }
 }
@@ -394,7 +417,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ planApprovals: dependencies.planApprovals, config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, automation: dependencies.automation, calendar: dependencies.calendar, scheduledTasks: dependencies.scheduledTasks, schedulePlans: dependencies.schedulePlans, memoryManager: dependencies.memoryManager })
+  const rpc = new RpcRouter({ planApprovals: dependencies.planApprovals, config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, artifacts, localContextPaths: dependencies.localContextPaths, projectSources, providers, piModels, apiKeys, modelHealth, providerCredentials, providerCredentialStore, authSessions, memory, hooks, review, github, git, tooling, pets, releaseNotes, skills, plugins, minimaxCli, suggestions, usage: dependencies.usage, mcp: dependencies.mcp, turnPatches: dependencies.turnPatches, terminalContext: dependencies.terminalContext, terminalOutput: dependencies.terminalOutput, localEnvironment: dependencies.localEnvironment, worktrees: dependencies.worktrees, handoff: dependencies.handoff, threadFork: dependencies.threadFork, sideChats: dependencies.sideChats, executionBindings: dependencies.executionBindings, worktreeRepository: dependencies.worktreeRepository, environmentDeltas: dependencies.environmentDeltas, speech: dependencies.speech, threadExecutions: dependencies.threadExecutions, sessionGroups: dependencies.sessionGroups, threadGoals: dependencies.threadGoals, automation: dependencies.automation, calendar: dependencies.calendar, scheduledTasks: dependencies.scheduledTasks, schedulePlans: dependencies.schedulePlans, memoryManager: dependencies.memoryManager })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

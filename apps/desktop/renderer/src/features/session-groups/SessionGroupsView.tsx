@@ -112,7 +112,7 @@ export function SessionGroupsView(): React.ReactNode {
         setSteps([])
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '会话组加载失败')
+      setError(cause instanceof Error ? cause.message : '工作流加载失败')
     } finally {
       setLoading(false)
     }
@@ -165,7 +165,7 @@ export function SessionGroupsView(): React.ReactNode {
       if (editorMode === 'create') {
         const group = await desktopClient.createSessionGroup({ name, description: draftDescription.trim() })
         setEditorMode(null)
-        navigate(`/session-groups/${encodeURIComponent(group.id)}`)
+        navigate(`/workflows/${encodeURIComponent(group.id)}`)
       } else if (editorMode === 'edit' && detail) {
         await desktopClient.updateSessionGroup({
           groupId: detail.group.id,
@@ -177,7 +177,7 @@ export function SessionGroupsView(): React.ReactNode {
         await refresh()
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '会话组保存失败')
+      setError(cause instanceof Error ? cause.message : '工作流保存失败')
     } finally {
       setSaving(false)
     }
@@ -190,9 +190,9 @@ export function SessionGroupsView(): React.ReactNode {
     try {
       await desktopClient.deleteSessionGroup(detail.group.id, detail.group.version)
       setDeleteDialogOpen(false)
-      navigate('/session-groups')
+      navigate('/workflows')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '会话组删除失败')
+      setError(cause instanceof Error ? cause.message : '工作流删除失败')
     } finally {
       setSaving(false)
     }
@@ -214,16 +214,16 @@ export function SessionGroupsView(): React.ReactNode {
     <>
       {groupId ? (
         <WorkspaceHeaderItem align="start" id="session-groups.back" order={0} slot="left">
-          <Link className="session-groups-back" to="/session-groups">
+          <Link className="session-groups-back" to="/workflows">
             <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
-            <span>会话组</span>
+            <span>工作流</span>
           </Link>
         </WorkspaceHeaderItem>
       ) : null}
       <WorkspaceHeaderItem align="end" id="session-groups.actions" order={100} slot="right">
-        <Button aria-label="新建会话组" color="primary" size="compact" onClick={openCreateDialog}>
+        <Button aria-label="新建工作流" color="primary" size="compact" onClick={openCreateDialog}>
           <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          <span>新建会话组</span>
+          <span>新建工作流</span>
         </Button>
       </WorkspaceHeaderItem>
       <SessionGroupEditorDialog
@@ -240,7 +240,7 @@ export function SessionGroupsView(): React.ReactNode {
       <ConfirmationDialog
         actionDisabled={saving}
         actionLabel={saving ? '删除中…' : '删除组'}
-        description="聊天、Turn 和 Diff 不会被删除，但会话组上下文将无法恢复。"
+        description="聊天、Turn 和 Diff 不会被删除，但工作流上下文将无法恢复。"
         open={deleteDialogOpen}
         title={`删除“${detail?.group.name ?? ''}”？`}
         tone="danger"
@@ -252,15 +252,15 @@ export function SessionGroupsView(): React.ReactNode {
           {error ? (
             <div className="session-group-detail-message" role="alert">
               <AlertCircle size={APP_ICON_SIZE} />
-              <h1>无法打开会话组</h1>
+              <h1>无法打开工作流</h1>
               <p>{error}</p>
               <div>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
                   <RefreshCw size={APP_ICON_SIZE} />
                   <span>重试</span>
                 </Button>
-                <Button color="secondary" size="compact" onClick={() => navigate('/session-groups')}>
-                  返回会话组
+                <Button color="secondary" size="compact" onClick={() => navigate('/workflows')}>
+                  返回工作流
                 </Button>
               </div>
             </div>
@@ -268,7 +268,7 @@ export function SessionGroupsView(): React.ReactNode {
           {loading && !detail ? (
             <div className="session-group-loading">
               <Spinner size="medium" />
-              <span>正在加载会话组…</span>
+              <span>正在加载工作流…</span>
             </div>
           ) : null}
           {detail ? (
@@ -324,18 +324,18 @@ export function SessionGroupsView(): React.ReactNode {
               <section className="session-group-section">
                 <div className="session-group-section__title-row">
                   <Users size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                  <h3>成员会话</h3>
+                  <h3>成员任务</h3>
                   <span className="session-group-section-count">{detail.members.length}</span>
                 </div>
                 <div className="session-group-member-add">
                   <div className="session-group-member-select-wrap">
                     <Select
-                      ariaLabel="选择已有会话"
-                      emptyText="没有可添加的会话"
+                      ariaLabel="选择已有任务"
+                      emptyText="没有可添加的任务"
                       onValueChange={setSessionToAdd}
                       options={sessionSelectOptions}
-                      placeholder="选择已有会话并加入组…"
-                      searchPlaceholder="搜索会话名称或项目…"
+                      placeholder="选择已有任务并加入工作流…"
+                      searchPlaceholder="搜索任务名称或项目…"
                       searchable
                       value={sessionToAdd}
                     />
@@ -382,7 +382,7 @@ export function SessionGroupsView(): React.ReactNode {
                   ))}
                   {detail.members.length === 0 ? (
                     <p className="session-group-empty-subtle">
-                      当前组暂无成员会话，请在上方选择已有会话加入。
+                      当前工作流暂无成员任务，请在上方选择已有任务加入。
                     </p>
                   ) : null}
                 </div>
@@ -411,16 +411,16 @@ export function SessionGroupsView(): React.ReactNode {
       ) : (
         <PrimaryPageLayout
           className="session-groups-primary-page"
-          description="组织相关会话，共享修复上下文、决策摘要和验证记录。"
+          description="组织相关任务，共享修复上下文、决策摘要和验证记录。"
           search={(
             <SearchInput
-              aria-label="搜索会话组"
+              aria-label="搜索工作流"
               onChange={setSearch}
               placeholder="搜索名称或说明…"
               value={search}
             />
           )}
-          title="会话组"
+          title="工作流"
         >
           <main aria-live="polite" className="session-groups-index">
             {error ? (
@@ -436,13 +436,13 @@ export function SessionGroupsView(): React.ReactNode {
             {loading ? (
               <div className="session-group-loading">
                 <Spinner size="medium" />
-                <span>正在加载会话组…</span>
+                <span>正在加载工作流…</span>
               </div>
             ) : null}
             {!loading && !error && filtered.length > 0 ? (
               <div className="session-groups-table">
                 <div className="session-groups-table__header" aria-hidden="true">
-                  <span>会话组</span>
+                  <span>工作流</span>
                   <span>项目</span>
                   <span>最近更新</span>
                 </div>
@@ -451,12 +451,12 @@ export function SessionGroupsView(): React.ReactNode {
                     <Link
                       className="session-group-row"
                       key={group.id}
-                      to={`/session-groups/${encodeURIComponent(group.id)}`}
+                      to={`/workflows/${encodeURIComponent(group.id)}`}
                     >
                       <span className="session-group-row__main">
                         <strong>{group.name}</strong>
                         <small>
-                          {group.memberCount} 个会话
+                          {group.memberCount} 个任务
                           {group.description ? ` · ${group.description}` : ''}
                         </small>
                       </span>
@@ -475,16 +475,16 @@ export function SessionGroupsView(): React.ReactNode {
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state">
                 <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                <h2>暂无会话组</h2>
-                <p>将相关会话组织在一起，共享上下文并追踪每一步验证。</p>
-                <Button color="secondary" onClick={openCreateDialog}>创建新会话组</Button>
+                <h2>暂无工作流</h2>
+                <p>将相关任务组织在一起，共享上下文并追踪每一步验证。</p>
+                <Button color="secondary" onClick={openCreateDialog}>创建新工作流</Button>
               </div>
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state">
                 <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                <h2>未找到会话组</h2>
-                <p>没有与“{search}”匹配的会话组。</p>
+                <h2>未找到工作流</h2>
+                <p>没有与“{search}”匹配的工作流。</p>
                 <Button color="secondary" size="compact" onClick={() => setSearch('')}>清除搜索</Button>
               </div>
             ) : null}

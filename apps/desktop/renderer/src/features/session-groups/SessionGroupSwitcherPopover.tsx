@@ -58,18 +58,18 @@ export function SessionGroupSwitcherPopover({
   return (
     <SearchablePopoverContent
       className="popover-session-group"
-      contentLabel="选择会话组"
-      emptyLabel="没有匹配的会话组"
+      contentLabel="选择工作流"
+      emptyLabel="没有匹配的工作流"
       footer={onCreate ? (
         <SearchablePopoverAction
           icon={<Plus size={APP_ICON_SIZE} />}
           withArrow
           onClick={() => { onCreate(); onOpenChange(false) }}
         >
-          新建会话组
+          新建工作流
         </SearchablePopoverAction>
       ) : undefined}
-      listLabel="会话组"
+      listLabel="工作流"
       open={open && !disabled}
       options={options}
       renderOption={(option, selected) => (
@@ -81,18 +81,18 @@ export function SessionGroupSwitcherPopover({
             <span className="popover-item-label popover-item-label--rich">
               <span className="popover-item-title">{option.group.name}</span>
               <span className="popover-item-description">
-                {option.group.memberCount} 个会话 · {option.group.projectLabels.length} 个项目
+                {option.group.memberCount} 个任务 · {option.group.projectLabels.length} 个项目
               </span>
             </span>
           ) : (
-            <span className="popover-item-label">不使用会话组</span>
+            <span className="popover-item-label">不使用工作流</span>
           )}
           <span className="popover-item-trailing">{selected ? <Check size={APP_ICON_SIZE} /> : null}</span>
         </>
       )}
       search={search}
-      searchLabel="搜索会话组"
-      searchPlaceholder="搜索会话组"
+      searchLabel="搜索工作流"
+      searchPlaceholder="搜索工作流"
       selectedValue={value ?? '__none__'}
       side={side}
       trigger={trigger}

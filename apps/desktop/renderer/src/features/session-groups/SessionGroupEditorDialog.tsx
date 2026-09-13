@@ -59,10 +59,10 @@ export function SessionGroupEditorDialog({
             <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
               <div className="tw:min-w-0 tw:flex-1">
                 <Dialog.Title className="u-type-title-sm tw:text-app-text">
-                  {creating ? '新建会话组' : '编辑会话组'}
+                  {creating ? '新建工作流' : '编辑工作流'}
                 </Dialog.Title>
                 <Dialog.Description className="u-type-body-sm tw:mt-1 tw:text-app-text-soft">
-                  {creating ? '为相关会话建立一个共享上下文。' : '修改会话组的名称和说明。'}
+                  {creating ? '为相关任务建立一个共享上下文。' : '修改工作流的名称和说明。'}
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild disabled={saving}>
@@ -89,7 +89,7 @@ export function SessionGroupEditorDialog({
                 className="u-type-control tw:min-h-24 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={4000}
                 onChange={event => onDescriptionChange(event.currentTarget.value)}
-                placeholder="说明这个会话组要共同解决的问题（可选）"
+                placeholder="说明这个工作流要共同解决的问题（可选）"
                 value={description}
               />
             </label>
