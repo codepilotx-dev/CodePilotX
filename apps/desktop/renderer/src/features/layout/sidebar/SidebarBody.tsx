@@ -658,11 +658,6 @@ export function SidebarBody({
             >
               {projectCatalogState.status === 'loading' ? (
                 <SidebarEmptyRow role="status">正在加载项目…</SidebarEmptyRow>
-              ) : projectCatalogState.status === 'unavailable' &&
-                projectCatalogState.projects.length === 0 ? (
-                <SidebarEmptyRow role="status">
-                  {projectCatalogState.error || '项目目录暂时不可用。'}
-                </SidebarEmptyRow>
               ) : null}
               {projectWorkspaces.length > 0 ? (
                 <>
@@ -692,7 +687,7 @@ export function SidebarBody({
                     />
                   ) : null}
                 </>
-              ) : projectCatalogState.status === 'ready' ? (
+              ) : projectCatalogState.status !== 'loading' ? (
                 <SidebarEmptyRow>暂无项目</SidebarEmptyRow>
               ) : null}
             </SidebarSection>

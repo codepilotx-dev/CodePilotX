@@ -115,6 +115,7 @@ import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 
@@ -249,7 +250,7 @@ export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopRuntimeSettings()
   const {
     values: {
-      model: defaultModel,
+      model: settingsModel,
       codingModel,
       sessionName,
       thinkingMode: defaultThinkingMode,
@@ -375,8 +376,23 @@ export function DesktopLayout(): React.ReactNode {
     }),
     [rightDockState, rightDockVisible],
   )
-  const handleErrorMessage = useCallback((message: string): void => {
-    setErrorMessage(message || null)
+  const lastErrorRef = useRef<{ message: string; timestamp: number } | null>(null)
+  const handleErrorMessage = useCallback((raw: unknown): void => {
+    if (!raw) {
+      setErrorMessage(null)
+      return
+    }
+    const message = toUserErrorMessage(raw)
+    const now = Date.now()
+    if (
+      lastErrorRef.current &&
+      lastErrorRef.current.message === message &&
+      now - lastErrorRef.current.timestamp < 1000
+    ) {
+      return
+    }
+    lastErrorRef.current = { message, timestamp: now }
+    setErrorMessage(message)
   }, [])
   const [titleLoadingIds, regenerateSessionTitle] =
     useSessionTitleRegeneration()
@@ -428,7 +444,7 @@ export function DesktopLayout(): React.ReactNode {
     localRouterMode: homeLocalRouterMode,
     providerID: defaultProviderID,
     providerBaseURL,
-    model: defaultModel,
+    model: settingsModel,
     sessionName,
     thinkingMode: defaultThinkingMode,
     systemPrompt,
@@ -437,7 +453,7 @@ export function DesktopLayout(): React.ReactNode {
     installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
-    onError: (message: string) => setErrorMessage(message),
+    onError: handleErrorMessage,
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
       const target = session.sessionId === sessionId ? currentWorkspace : null
@@ -1918,6 +1934,7 @@ export function DesktopLayout(): React.ReactNode {
       onRenameSession={async (targetSessionId, title) =>
         Boolean(await renameSession(targetSessionId, title))
       }
+      onError={handleErrorMessage}
       onReport={setNoticeMessage}
     />
   )
@@ -2007,6 +2024,7 @@ export function DesktopLayout(): React.ReactNode {
           modelVariantOptions: variantOptions,
           onModelVariantChange: handleVariantChange,
           modelSelectionError: session.modelSelectionError ?? selectedModelUnavailableMessage,
+          threadGoal: activeSessionItem?.threadGoal ?? null,
           onRetryModelSelection: () => {
             session.reloadModelSelection()
             void refreshProviderState()
@@ -2055,6 +2073,7 @@ export function DesktopLayout(): React.ReactNode {
           onThinkingChange: handleThinkingChange,
           createSessionForWorkspace,
           submitToSession,
+          onError: handleErrorMessage,
           queuedFollowUps,
           queuePauseReason,
           onFollowUpEdit: (followUpId, value) =>

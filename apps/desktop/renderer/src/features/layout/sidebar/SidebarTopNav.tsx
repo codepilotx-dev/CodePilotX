@@ -58,19 +58,19 @@ export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
 export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "new",
-    label: "新建对话",
+    label: "新建任务",
     icon: <SquarePen size={APP_ICON_SIZE} />,
     path: "/new",
     availability: { kind: 'always' },
   },
   {
     view: 'sessionGroups',
-    label: '会话组',
+    label: '工作流',
     icon: <MessagesSquare size={APP_ICON_SIZE} />,
-    path: '/session-groups',
+    path: '/workflows',
     availability: {
       kind: 'any-capability',
-      capabilities: ['session-group.v1' as ProtocolCapability],
+      capabilities: ['workflow.v1' as ProtocolCapability, 'session-group.v1' as ProtocolCapability],
     },
   },
   {

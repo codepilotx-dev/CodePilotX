@@ -283,7 +283,7 @@ function reportCommandActionError(cause: unknown): void {
   window.dispatchEvent(new CustomEvent('desktop:error', { detail }))
 }
 
-function CommandMenuTaskGroup({
+export function CommandMenuTaskGroup({
   catalogStatus,
   query,
   tasks,
@@ -300,8 +300,6 @@ function CommandMenuTaskGroup({
     <Command.Group className="command-menu-group" heading="任务">
       {catalogStatus.state === 'loading' ? (
         <CommandMenuStatus busy>正在加载任务目录…</CommandMenuStatus>
-      ) : catalogStatus.state === 'unavailable' ? (
-        <CommandMenuStatus>任务目录暂不可用，请稍后重试。</CommandMenuStatus>
       ) : tasks.length === 0 ? (
         <CommandMenuStatus>{emptyLabel}</CommandMenuStatus>
       ) : (

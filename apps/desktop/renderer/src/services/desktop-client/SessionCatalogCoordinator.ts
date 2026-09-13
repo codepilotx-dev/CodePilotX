@@ -5,6 +5,10 @@ const THREAD_CATALOG_EVENT_TYPES: ReadonlySet<EventEnvelope['type']> = new Set([
   'thread/created',
   'thread/updated',
   'thread/settings/updated',
+  // Goal state is part of the canonical thread projection, so a goal change must
+  // refresh the catalog on its own rather than waiting for an unrelated event.
+  'thread/goal/updated',
+  'thread/goal/cleared',
   'turn/queued',
   'queue/updated',
   'turn/started',

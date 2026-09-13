@@ -20,6 +20,11 @@ import {
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
+import type { DesktopResizeActivityPhase } from '@codepilotx/shared/desktop-window-ipc'
+import {
+  getResizeActivityCoordinator,
+  resizeActivityFromLegacy,
+} from './resizeActivityCoordinator.js'
 import { useSidebarShellController } from '../sidebarShellState.js'
 import { useLiveResizeValue } from '../useLiveResizeValue.js'
 import {
@@ -142,9 +147,9 @@ export function useWorkbenchShellController() {
   const rightDockStateRef = useRef(rightDockState)
   const rightPanelLiveResizeRef = useRef(rightPanelLiveResize)
   const bottomPanelLiveResizeRef = useRef(bottomPanelLiveResize)
-  const nativeResizeActiveRef = useRef(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const settleFrameRef = useRef<number | null>(null)
+  const resizeActivityCoordinator = getResizeActivityCoordinator()
 
   rightDockWidthRatioRef.current = rightDockWidthRatio
   bottomPanelHeightRatioRef.current = bottomPanelHeightRatio
@@ -420,6 +425,9 @@ export function useWorkbenchShellController() {
 
   const handleOpenPlanDock = useCallback(
     (plan: OpenPlanInDockRequest): void => {
+      // 计划未生成完成时不允许在右栏打开：tab 内容取自打开瞬间的快照，流式
+      // 期间打开会冻结半成品。这是所有 renderer 打开路径的唯一汇聚点。
+      if (!plan.openable) return
       openRightDockTab({
         id: `plan:${plan.eventId}`,
         kind: 'plan',
@@ -547,12 +555,11 @@ export function useWorkbenchShellController() {
       bottomPanelLiveResizeRef.current.previewSize(null)
     }
 
-    const settleOnNextFrame = (finishNativeResize = false): void => {
+    const settleOnNextFrame = (): void => {
       clearPendingSettlement()
       settleFrameRef.current = requestAnimationFrame(() => {
         settleFrameRef.current = null
         commitWorkspaceSize()
-        if (finishNativeResize) nativeResizeActiveRef.current = false
       })
     }
 
@@ -658,18 +665,32 @@ export function useWorkbenchShellController() {
       if (liveBottomPanelHeight !== null) {
         bottomPanelLiveResizeRef.current.previewSize(liveBottomPanelHeight)
       }
-      if (!nativeResizeActiveRef.current) scheduleFallbackSettlement()
+      if (!resizeActivityCoordinator.isResizing()) scheduleFallbackSettlement()
     }
 
+    // 原生缩放状态统一进入 resizeActivityCoordinator（按窗口 + revision + 看门狗），
+    // 终端等其他消费者读取同一份状态，不再共用一个易失布尔值。
+    const handleResizePhase = (phase: DesktopResizeActivityPhase): void => {
+      if (phase === 'start') {
+        clearPendingSettlement()
+        return
+      }
+      settleOnNextFrame()
+    }
+    let legacyRevision = 0
+    const bridge = window.codePilotXDesktop
     const unsubscribeResizeState =
-      window.codePilotXDesktop?.onWindowResizeStateChanged?.(resizing => {
-        if (resizing) {
-          nativeResizeActiveRef.current = true
-          clearPendingSettlement()
-          return
-        }
-        if (!nativeResizeActiveRef.current) return
-        settleOnNextFrame(true)
+      bridge?.onWindowResizeActivity?.(activity => {
+        resizeActivityCoordinator.applyNativeActivity(activity)
+        handleResizePhase(activity.phase)
+      })
+      ?? bridge?.onWindowResizeStateChanged?.(resizing => {
+        // 旧版 Electron 只有布尔信号：合成带 revision 的活动事件，保持同等行为。
+        legacyRevision += 1
+        resizeActivityCoordinator.applyNativeActivity(
+          resizeActivityFromLegacy(resizing, legacyRevision),
+        )
+        handleResizePhase(resizing ? 'start' : 'end')
       })
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
@@ -682,7 +703,8 @@ export function useWorkbenchShellController() {
     observer.observe(workspaceElement)
     return () => {
       disposed = true
-      nativeResizeActiveRef.current = false
+      // 卸载后不再有原生事件：清空状态，避免其他消费者永久停留在降载。
+      resizeActivityCoordinator.reset()
       unsubscribeResizeState?.()
       observer.disconnect()
       clearPendingSettlement()

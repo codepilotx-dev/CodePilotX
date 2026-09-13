@@ -1,3 +1,4 @@
+import { resolveTaskExecution } from '../../features/session/taskExecutionMode.js'
 import {
   DESKTOP_AGENT_EVENT_CHANNEL,
   DESKTOP_API_METHODS,
@@ -9,6 +10,7 @@ import {
 } from '../../../shared/ipcChannels.js'
 import { encodeDesktopBridgeArgs } from '../../../shared/desktopBridgeArgs.js'
 import { arePathsEqual } from '../../utils/pathUtils.js'
+import { toUserErrorMessage } from '../../utils/errors.js'
 import {
   defaultDesktopStoredSettings,
   normalizeDesktopStoredSettings,
@@ -53,6 +55,7 @@ import { resolvePreferredOpenTarget } from './openTargetSelection.js'
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
+  DesktopWorktreeEligibility,
   DesktopApi,
   DesktopMessageDelivery,
   DesktopFileEntry,
@@ -94,6 +97,7 @@ import {
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
 import {
+  AgentRpcError,
   createAgentRpcClient,
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
@@ -280,6 +284,31 @@ export function createAgentSessionDesktopClient(
   >()
   let desktopSettingsSaveTail: Promise<void> = Promise.resolve()
   let sessionStoreReconcile: Promise<void> | null = null
+  let backgroundReconcileFailed = false
+  const reconciliationErrorListeners = new Set<(error: unknown) => void>()
+
+  function notifyReconciliationError(error: unknown): void {
+    if (backgroundReconcileFailed) return
+    backgroundReconcileFailed = true
+    for (const listener of reconciliationErrorListeners) {
+      try {
+        listener(error)
+      } catch (err) {
+        console.error('对账错误监听器执行失败：', err)
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('desktop:error', {
+          detail: toUserErrorMessage(error, 'thread-read'),
+        }),
+      )
+    }
+  }
+
+  function notifyReconciliationSuccess(): void {
+    backgroundReconcileFailed = false
+  }
   let speechInstallProbeStarted = false
   let speechApiPromise: Promise<ReturnType<typeof import('./agent-speech-api.js')['createAgentSpeechApi']>> | null = null
 
@@ -359,6 +388,27 @@ export function createAgentSessionDesktopClient(
         : new Error('Agent RPC 当前不可用。')
     }
     return operation()
+  }
+
+  /**
+   * Goal mutations are optimistic-concurrency guarded. On conflict we refresh the
+   * canonical snapshot and surface a retryable message instead of overwriting the
+   * newer version the other writer produced.
+   */
+  async function runGoalMutation<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation()
+    } catch (error) {
+      if (error instanceof AgentRpcError && error.errorCode === 'CONFLICT') {
+        await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+        const conflict = new Error(
+          '目标已被其他操作更新，已刷新为最新状态，请重试。',
+        ) as Error & { code: string }
+        conflict.code = 'GOAL_VERSION_CONFLICT'
+        throw conflict
+      }
+      throw error
+    }
   }
 
   function unsupportedAgentOperation(operation: string): never {
@@ -682,8 +732,7 @@ export function createAgentSessionDesktopClient(
         .filter(issue => issue.providerId === provider.id)
         .map(issue => `${issue.code}:${issue.path}`),
     }
-    // 只有 Agent 显式配置且属于当前 Provider 的默认模型才算“已配置”；
-    // 目录第一项仅用于列表和预览展示，不能完成门禁。
+    // 最近新建任务模型必须属于当前 Provider 且可用，才视为已配置。
     const configuredModel =
       directory.defaultModel?.providerID === provider.id
         ? directory.defaultModel
@@ -718,7 +767,7 @@ export function createAgentSessionDesktopClient(
         ? '未连接凭据，请先配置 API 密钥或完成授权。'
         : configuredModel
           ? undefined
-          : '已连接供应商，请选择并保存默认模型。',
+          : '已连接供应商，请选择模型。',
       models: summary.defaultModels,
       modelMetadata: summary.modelMetadata,
     }
@@ -1059,6 +1108,13 @@ export function createAgentSessionDesktopClient(
       reloadActive: true,
       reconcileInteractions: true,
     })
+      .then(() => {
+        notifyReconciliationSuccess()
+      })
+      .catch(error => {
+        console.error('会话目录对账失败：', error)
+        notifyReconciliationError(error)
+      })
       .finally(() => {
         sessionStoreReconcile = null
       })
@@ -1134,11 +1190,14 @@ export function createAgentSessionDesktopClient(
         ),
       )
       if (!hasNonTerminalSessionStatus(published)) return
-      void refreshAgentSessionStoreChange({ reloadActive: false }).catch(
-        error => {
+      void refreshAgentSessionStoreChange({ reloadActive: false })
+        .then(() => {
+          notifyReconciliationSuccess()
+        })
+        .catch(error => {
           console.error('会话状态对账失败：', error)
-        },
-      )
+          notifyReconciliationError(error)
+        })
     }, SESSION_STATUS_RECONCILE_INTERVAL_MS)
   }
 
@@ -1788,9 +1847,14 @@ export function createAgentSessionDesktopClient(
         await refreshAgentSessionStoreChange({
           reconcileInteractions: true,
           reloadActive: true,
-        }).catch(error => {
-          console.error('会话目录对账失败：', error)
         })
+          .then(() => {
+            notifyReconciliationSuccess()
+          })
+          .catch(error => {
+            console.error('会话目录对账失败：', error)
+            notifyReconciliationError(error)
+          })
       },
     })
     unsubscribeSessionCatalog = rpc.subscribeEnvelope({
@@ -2951,11 +3015,96 @@ export function createAgentSessionDesktopClient(
       invalidateModelCatalog()
       return providerState(options.providerID)
     },
+    getRecentNewThreadModel: () =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.manage.v1')
+          const result = await rpc.call('config/read', {})
+          const desktop = result.config.desktop
+          if (!desktop || typeof desktop !== 'object' || Array.isArray(desktop)) {
+            return null
+          }
+          const recent = (desktop as Record<string, unknown>).recent_new_thread_model
+          if (!recent || typeof recent !== 'object' || Array.isArray(recent)) {
+            return null
+          }
+          const record = recent as Record<string, unknown>
+          const providerID =
+            typeof record.providerID === 'string' ? record.providerID : ''
+          const id = typeof record.id === 'string' ? record.id : ''
+          if (!providerID || !id) return null
+          return ModelRefSchema.make({
+            providerID: ModelRefSchema.fields.providerID.make(providerID),
+            id: ModelRefSchema.fields.id.make(id),
+            ...(typeof record.variant === 'string' && record.variant
+              ? { variant: ModelRefSchema.fields.variant.from.make(record.variant) }
+              : {}),
+          })
+        },
+        () => mockClient.getRecentNewThreadModel(),
+      ),
+    saveRecentNewThreadModel: model =>
+      withAgentOrMock(
+        async () => {
+          const directory = await loadProviderCatalog()
+          const provider = directory.providers.find(item => item.id === model.providerID)
+          if (!provider) throw new Error(`未找到模型提供商：${model.providerID}`)
+          const page = await loadProviderModelPage({
+            providerID: model.providerID,
+            query: model.id,
+            limit: 100,
+          })
+          const selectedModel = page.providers
+            .find(item => item.provider.id === provider.id)
+            ?.models.find(item => item.id === model.id)
+          if (!selectedModel) {
+            throw new Error(`未找到模型：${model.providerID}/${model.id}`)
+          }
+          const selectedVariant = model.variant
+            ? selectedModel.variants.find(variant => variant.id === model.variant)?.id
+            : undefined
+          await rpc.call('model/setDefault', {
+            model: ModelRefSchema.make({
+              providerID: ModelRefSchema.fields.providerID.make(String(provider.id)),
+              id: ModelRefSchema.fields.id.make(String(selectedModel.id)),
+              ...(selectedVariant
+                ? { variant: ModelRefSchema.fields.variant.from.make(String(selectedVariant)) }
+                : {}),
+            }),
+            operationId: crypto.randomUUID(),
+          })
+          invalidateModelCatalog()
+        },
+        () => mockClient.saveRecentNewThreadModel(model),
+      ),
+    resolveFirstAvailableModel: () =>
+      withAgentOrMock(
+        async () => {
+          const directory = await loadProviderCatalog()
+          for (const provider of directory.providers) {
+            if (provider.disabled === true) continue
+            if (provider.availability?.status === 'unavailable') continue
+            const requiresAuth =
+              provider.auth?.apiKey === true || provider.auth?.oauth === true
+            if (requiresAuth && provider.authConfigured !== true) continue
+            const page = await loadProviderModelPage({
+              providerID: provider.id,
+              limit: 100,
+            })
+            const models = page.providers
+              .find(item => item.provider.id === provider.id)?.models ?? []
+            // 只接受启用模型；当前 Provider 没有启用模型时继续检查下一个。
+            const first = models.find(candidate => candidate.enabled)
+            if (first) return { providerID: provider.id, id: first.id }
+          }
+          return null
+        },
+        () => mockClient.resolveFirstAvailableModel(),
+      ),
     saveProviderApiKey: (providerID, apiKey) =>
       loadAgentProviderCredentialApi().then(api =>
         api.saveProviderApiKey(providerID, apiKey),
-      ),
-    deleteProviderApiKey: providerID =>
+      ),    deleteProviderApiKey: providerID =>
       loadAgentProviderCredentialApi().then(api =>
         api.deleteProviderApiKey(providerID),
       ),
@@ -3090,9 +3239,21 @@ export function createAgentSessionDesktopClient(
           }
           const supportsCreationSurface = agentCapabilities.has('thread.creation-surface.v1')
           const creationSurface = supportsCreationSurface && options.creationSurface ? options.creationSurface : undefined
+          // The execution location is automatic: the project setting wins, otherwise the
+          // project type decides. A failed probe is silently Local, and an older agent
+          // that never negotiated thread.execution.v2 keeps the legacy Local behaviour.
+          const execution = project
+            ? resolveTaskExecution({
+                supportsExecution: agentCapabilities.has('thread.execution.v2'),
+                projectExecutionEnvironment: project.settings?.executionEnvironment,
+                eligibility: agentCapabilities.has('thread.execution.v2')
+                  ? await rpc.call('worktree/eligibility', { projectId: project.id }).catch(() => null)
+                  : null,
+              })
+            : undefined
           const { snapshot: sharedSnapshot } = await rpc.call('thread/create', {
             workspace: project
-              ? { kind: 'project', projectId: project.id }
+              ? { kind: 'project', projectId: project.id, ...(execution ? { execution } : {}) }
               : {
                   kind: 'projectless',
                   ...(options.projectlessPrompt?.trim()
@@ -3101,7 +3262,7 @@ export function createAgentSessionDesktopClient(
                 },
             settings,
             ...(creationSurface ? { creationSurface } : {}),
-            ...(options.sessionGroupId ? { sessionGroupId: options.sessionGroupId } : {}),
+            ...(options.workflowId ? { workflowId: options.workflowId } : {}),
             title: options.sessionName,
             operationId: crypto.randomUUID(),
           })
@@ -3123,14 +3284,10 @@ export function createAgentSessionDesktopClient(
         () => mockClient.listSessions(options),
       ),
     getSessionCatalogStatus: async (): Promise<DesktopSessionCatalogStatus> => {
-      if (await isAgentAvailable()) return { state: 'ready', error: null }
+      if (await isAgentAvailable()) return { state: 'ready' }
       if (allowBrowserMockFallback) return mockClient.getSessionCatalogStatus()
       return {
         state: 'unavailable',
-        error:
-          readinessError instanceof Error
-            ? readinessError.message
-            : 'Agent RPC 当前不可用。',
       }
     },
     getSession: async sessionId =>
@@ -3461,18 +3618,55 @@ export function createAgentSessionDesktopClient(
         () => mockClient.rollbackSession(input),
       ),
     getSessionGoal: sessionId =>
-      withUnsupportedAgentFallback(
-        'getSessionGoal',
+      withAgentOrMock(
+        async () => {
+          if (!agentCapabilities.has('thread.goal.v1')) unsupportedAgentOperation('getSessionGoal (thread.goal.v1)')
+          return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
+        },
         () => mockClient.getSessionGoal(sessionId),
       ),
     setSessionGoal: (sessionId, input) =>
-      withUnsupportedAgentFallback(
-        'setSessionGoal',
+      withAgentOrMock(
+        async () => runGoalMutation(async () => {
+          if (!agentCapabilities.has('thread.goal.v1')) unsupportedAgentOperation('setSessionGoal (thread.goal.v1)')
+          const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
+          const snapshot = (await rpc.call('thread/read', { threadId: sessionId })).snapshot
+          const running = snapshot.turns.some(turn => [
+            'queued', 'running', 'waiting-permission', 'waiting-question', 'waiting-subagents',
+          ].includes(turn.status))
+          if (input.objective?.trim() && input.status !== 'paused' && !running) {
+            await turnQueueClient.submitMessage(sessionId, { text: input.objective.trim() }, 'start', {
+              goal: {
+                objective: input.objective.trim(),
+                expectedVersion: current?.version ?? null,
+                ...(input.tokenBudget === undefined ? {} : { tokenBudget: input.tokenBudget }),
+              },
+            })
+            return (await rpc.call('thread/goal/get', { threadId: sessionId })).goal!
+          }
+          const result = await rpc.call('thread/goal/set', {
+            threadId: sessionId,
+            expectedVersion: current?.version ?? null,
+            operationId: crypto.randomUUID(),
+            ...(input.objective === undefined ? {} : { objective: input.objective }),
+            ...(input.status === undefined ? {} : { status: input.status }),
+            ...(input.tokenBudget === undefined ? {} : { tokenBudget: input.tokenBudget }),
+          })
+          await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+          return result.goal
+        }),
         () => mockClient.setSessionGoal(sessionId, input),
       ),
     clearSessionGoal: sessionId =>
-      withUnsupportedAgentFallback(
-        'clearSessionGoal',
+      withAgentOrMock(
+        async () => runGoalMutation(async () => {
+          if (!agentCapabilities.has('thread.goal.v1')) unsupportedAgentOperation('clearSessionGoal (thread.goal.v1)')
+          const current = (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
+          if (!current) return true
+          await rpc.call('thread/goal/clear', { threadId: sessionId, expectedVersion: current.version, operationId: crypto.randomUUID() })
+          await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+          return true
+        }),
         () => mockClient.clearSessionGoal(sessionId),
       ),
     startSessionReview: (sessionId, target) =>
@@ -3616,6 +3810,12 @@ export function createAgentSessionDesktopClient(
           stopSessionCatalogSubscription()
         }
         unsubscribeMock()
+      }
+    },
+    onReconciliationError: callback => {
+      reconciliationErrorListeners.add(callback)
+      return () => {
+        reconciliationErrorListeners.delete(callback)
       }
     },
     onDesktopSettingsChange: callback => {

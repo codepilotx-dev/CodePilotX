@@ -11,7 +11,7 @@ import {
   Keyboard,
   LogOut,
   PawPrint,
-  Settings2,
+  Settings,
   Sparkles,
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
@@ -230,7 +230,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             leading={
               <span className="popover-account-avatar" aria-hidden="true">
                 {!githubAuthenticated ? (
-                  <Settings2 size={APP_ICON_SIZE} />
+                  <Settings size={APP_ICON_SIZE} />
                 ) : githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
@@ -382,7 +382,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           </PopoverItem>
           <PopoverItem
             active={settingsActive}
-            icon={<Settings2 size={APP_ICON_SIZE} />}
+            icon={<Settings size={APP_ICON_SIZE} />}
             shortcut="Ctrl+,"
             onClick={() => {
               setMenuOpen(false);
@@ -467,7 +467,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               键盘快捷键
             </PopoverItem>
             <PopoverItem
-              icon={<Settings2 size={APP_ICON_SIZE} />}
+              icon={<Settings size={APP_ICON_SIZE} />}
               onClick={() => {
                 setHelpMenuOpen(false)
                 navigate('/settings/general')

@@ -1,5 +1,6 @@
 import { sessionModelSelections, type SessionModelSelection } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
@@ -145,6 +146,7 @@ export type UseSessionStateResult = {
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
     projectlessPrompt?: string,
+    creationSurface?: ThreadCreationSurface,
   ) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
@@ -162,7 +164,8 @@ export type UseSessionStateResult = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: {    },
+    decisionExtras?: {
+    },
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
@@ -220,16 +223,20 @@ export function useSessionState(
     () => sessionModelSelections.getSnapshot(sessionId),
   )
   const reloadModelSelection = useCallback(() => {
-    void sessionModelSelections.load(sessionId).catch(error => onErrorRef.current(errorMessageOf(error)))
+    void sessionModelSelections.load(sessionId).catch(error => onErrorRef.current(toUserErrorMessage(error)))
   }, [sessionId])
   useEffect(() => { reloadModelSelection() }, [reloadModelSelection])
   const setModelSelection = useCallback((selection: SessionModelSelection) => {
     sessionModelSelections.set(sessionId, selection)
+    // 一级页切换模型立即记住；已有任务保持任务级隔离。
+    // 只有最后一次选择保存失败时才提示，中间失败不覆盖更新的选择。
+    void sessionModelSelections
+      .persistRecent(sessionId, selection)
+      .catch(error => onErrorRef.current(toUserErrorMessage(error)))
   }, [sessionId])
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [catalogStatus, setCatalogStatus] = useState<DesktopSessionCatalogStatus>({
     state: 'loading',
-    error: null,
   })
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [sessionFallbackTitles, setSessionFallbackTitles] = useState<
@@ -574,6 +581,15 @@ export function useSessionState(
   }, [viewSetters])
 
   useEffect(() => {
+    const unsubscribe = desktopClient.onReconciliationError?.(error => {
+      onErrorRef.current(toUserErrorMessage(error, 'thread-read'))
+    })
+    return () => {
+      unsubscribe?.()
+    }
+  }, [])
+
+  useEffect(() => {
     let disposed = false
     async function hydrateSessions(): Promise<void> {
       try {
@@ -637,9 +653,8 @@ export function useSessionState(
       } catch (error) {
         setCatalogStatus({
           state: 'unavailable',
-          error: 'The app-server is unavailable. Please try again.',
         })
-        onErrorRef.current(errorMessageOf(error))
+        onErrorRef.current(toUserErrorMessage(error, 'thread-read'))
         setSessionsHydrated(true)
       }
     }
@@ -818,7 +833,7 @@ export function useSessionState(
       selection = await sessionModelSelections.load(targetSessionId)
       if (!selection.providerID || !selection.model) throw new Error('请先选择会话模型')
     } catch (error) {
-      onErrorRef.current(errorMessageOf(error))
+      onErrorRef.current(toUserErrorMessage(error))
       if (options?.propagateError) throw error
       return null
     }
@@ -860,7 +875,8 @@ export function useSessionState(
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
-      decisionExtras?: {        grantScope?: DesktopPermissionDecision['grantScope']
+      decisionExtras?: {
+        grantScope?: DesktopPermissionDecision['grantScope']
       },
     ): Promise<void> => {
       await decidePermissionAction(

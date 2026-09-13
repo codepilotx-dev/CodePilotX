@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { subscribeProjectCatalogChanges } from '../../projects/projectCatalogEvents.js'
 
 export type SidebarProjectCatalogState =
@@ -9,14 +10,16 @@ export type SidebarProjectCatalogState =
   | {
       status: 'unavailable'
       projects: readonly DesktopWorkspace[]
-      error: string
+      error?: string
     }
 
 export function useSidebarProjectCatalog({
   onReport,
+  onError,
 }: {
-  onReport: (message: string) => void
-}): {
+  onReport?: (message: string) => void
+  onError?: (message: string) => void
+} = {}): {
   projectCatalogState: SidebarProjectCatalogState
   removeCatalogProject: (project: DesktopWorkspace) => void
 } {
@@ -39,13 +42,16 @@ export function useSidebarProjectCatalog({
         })
         .catch(error => {
           if (cancelled || currentRequest !== requestVersion) return
-          const message = error instanceof Error ? error.message : String(error)
+          const message = toUserErrorMessage(error, 'project-list')
           setProjectCatalogState(current => ({
             status: 'unavailable',
             projects: current.projects,
-            error: message,
           }))
-          onReport(message)
+          if (onError) {
+            onError(message)
+          } else if (onReport) {
+            onReport(message)
+          }
         })
     }
 
@@ -55,7 +61,7 @@ export function useSidebarProjectCatalog({
       cancelled = true
       unsubscribe()
     }
-  }, [onReport])
+  }, [onReport, onError])
 
   const removeCatalogProject = useCallback((target: DesktopWorkspace): void => {
     setProjectCatalogState(current => ({

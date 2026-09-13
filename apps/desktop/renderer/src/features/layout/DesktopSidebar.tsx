@@ -69,6 +69,7 @@ type Props = {
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onReport: (message: string) => void
+  onError?: (message: string) => void
 };
 
 export function DesktopSidebar({
@@ -94,6 +95,7 @@ export function DesktopSidebar({
   onRenameSession,
   onUnpinWorkspace,
   onReport,
+  onError,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
@@ -141,7 +143,7 @@ export function DesktopSidebar({
     [],
   )
   const { projectCatalogState, removeCatalogProject } =
-    useSidebarProjectCatalog({ onReport })
+    useSidebarProjectCatalog({ onError: onError ?? onReport, onReport })
 
   useEffect(() => {
     const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
@@ -300,7 +302,7 @@ export function DesktopSidebar({
 
   function isActiveView(view: AppView): boolean {
     if (view === "new") return location.pathname === "/new";
-    if (view === 'sessionGroups') return location.pathname.startsWith('/session-groups');
+    if (view === 'sessionGroups') return location.pathname.startsWith('/workflows');
     if (view === "projects") return location.pathname.startsWith("/projects");
     if (view === "pullRequests") return location.pathname.startsWith("/pull-requests");
     return location.pathname === `/${view}`;
@@ -470,10 +472,6 @@ export function DesktopSidebar({
             />
             {catalogStatus.state === 'loading' ? (
               <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
-            ) : catalogStatus.state === 'unavailable' ? (
-              <SidebarEmptyRow role="status">
-                {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
-              </SidebarEmptyRow>
             ) : null}
           </>
         }
