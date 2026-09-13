@@ -7,8 +7,13 @@ import type {
   MarkdownParseResult,
   MarkdownRenderBlock,
   MarkdownStreamingCodeToken,
+  MarkdownStreamingTextToken,
   MarkdownToken,
 } from './types.js'
+
+/** 超过该长度的未完成文本块在流式期间不再反复执行完整 Markdown 解析。 */
+export const STREAMING_RICH_PENDING_MAX_CHARACTERS = 4 * 1024
+export const STREAMING_TEXT_CHUNK_CHARACTERS = 4 * 1024
 import { normalizeDirectiveName } from './directives.js'
 
 const TOKEN_CACHE = new LruCache<string, MarkdownToken[]>(100, {
@@ -41,7 +46,26 @@ export function parseMarkdown(
     }
     tokens.push(pendingCode)
   } else if (segment.pendingText) {
-    tokens.push(...lexMarkdown(completePendingMarkdown(segment.pendingText)))
+    if (segment.pendingText.length > STREAMING_RICH_PENDING_MAX_CHARACTERS) {
+      for (
+        let offset = 0;
+        offset < segment.pendingText.length;
+        offset += STREAMING_TEXT_CHUNK_CHARACTERS
+      ) {
+        const text = segment.pendingText.slice(
+          offset,
+          offset + STREAMING_TEXT_CHUNK_CHARACTERS,
+        )
+        const pendingText: MarkdownStreamingTextToken = {
+          type: 'streaming_text',
+          raw: text,
+          text,
+        }
+        tokens.push(pendingText)
+      }
+    } else {
+      tokens.push(...lexMarkdown(completePendingMarkdown(segment.pendingText)))
+    }
   }
   return {
     tokens,
@@ -89,7 +113,9 @@ export function buildMarkdownBlocks(
     // Pending tokens are produced from a parse-only completed copy. Keep the
     // block identity/source tied to the model output, never to synthetic
     // delimiters (or to the label-only fallback used for partial links).
-    candidates[pendingIndex].raw = parsed.pendingText
+    if (candidates[pendingIndex].tokens[0]?.type !== 'streaming_text') {
+      candidates[pendingIndex].raw = parsed.pendingText
+    }
   }
   return candidates.map((candidate, index) => {
     const old = canReuse ? previous[index] : undefined
@@ -100,7 +126,7 @@ export function buildMarkdownBlocks(
 }
 
 function visibleTextForToken(token: MarkdownToken): string {
-  if (token.type === 'streaming_code') return token.text
+  if (token.type === 'streaming_code' || token.type === 'streaming_text') return token.text
   if ('tokens' in token && Array.isArray(token.tokens)) {
     return token.tokens.map(child => visibleTextForToken(child)).join('')
   }

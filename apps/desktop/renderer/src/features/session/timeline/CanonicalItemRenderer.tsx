@@ -50,6 +50,8 @@ import { CollapsibleUserMarkdown } from "../conversation/CollapsibleUserMarkdown
 import { subagentStatusLabel } from "../subagents/subagentStatusLabel.js";
 import { useScrollEdgeState } from "../../../hooks/useScrollEdgeState.js";
 import { useConversationItemContext } from "./ConversationItemContext.js";
+import { useLiveItemTail } from "../state/useLiveItemTail.js";
+import { countStreamingItemRender } from "../state/streamingPerfCounters.js";
 import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
@@ -442,6 +444,36 @@ export function CanonicalItemRenderer({
   return <CanonicalItemRendererContent {...props} />;
 }
 
+type CanonicalItemRendererContentProps = Omit<CanonicalItemRendererProps, "disclosure"> & {
+  disclosure?: ResolvedCanonicalItemDisclosure;
+};
+
+/**
+ * 流式期间同一 turn 会整体重渲染；只有 item 引用变化的条目才真正需要重渲染。
+ * 比较器只比较会影响输出的字段，且依赖上层传入稳定回调（disclosure 由
+ * SubscribedCanonicalItemRenderer 的 useMemo 固定），否则 memo 会失效。
+ */
+const CanonicalItemRendererContent = React.memo(
+  CanonicalItemRendererContentComponent,
+  areCanonicalItemRendererPropsEqual,
+);
+
+function areCanonicalItemRendererPropsEqual(
+  previous: CanonicalItemRendererContentProps,
+  next: CanonicalItemRendererContentProps,
+): boolean {
+  return previous.item === next.item
+    && previous.threadId === next.threadId
+    && previous.presentation === next.presentation
+    && previous.rightDockPlanEventId === next.rightDockPlanEventId
+    && previous.showAssistantActions === next.showAssistantActions
+    && previous.disclosure === next.disclosure
+    && previous.onApplyPatch === next.onApplyPatch
+    && previous.onOpenPatchReview === next.onOpenPatchReview
+    && previous.onOpenPlanInRightDock === next.onOpenPlanInRightDock
+    && previous.onOpenSubagent === next.onOpenSubagent;
+}
+
 function SubscribedCanonicalItemRenderer({
   disclosure,
   ...props
@@ -460,7 +492,7 @@ function SubscribedCanonicalItemRenderer({
   return <CanonicalItemRendererContent {...props} disclosure={resolvedDisclosure} />;
 }
 
-function CanonicalItemRendererContent({
+function CanonicalItemRendererContentComponent({
   disclosure,
   item,
   onApplyPatch,
@@ -471,14 +503,12 @@ function CanonicalItemRendererContent({
   showAssistantActions = false,
   presentation = "standalone",
   threadId,
-}: Omit<CanonicalItemRendererProps, "disclosure"> & {
-  disclosure?: ResolvedCanonicalItemDisclosure;
-}): React.ReactNode {
+}: CanonicalItemRendererContentProps): React.ReactNode {
   switch (item.type) {
     case "text":
-      return <TextItemView item={item} showAssistantActions={showAssistantActions} />;
+      return <TextItemView item={item} showAssistantActions={showAssistantActions} threadId={threadId} />;
     case "reasoning":
-      return <ReasoningItemView disclosure={disclosure} item={item} />;
+      return <ReasoningItemView disclosure={disclosure} item={item} threadId={threadId} />;
     case "activity":
       return <ActivityItemView disclosure={disclosure} item={item} />;
     case "tool":
@@ -522,9 +552,11 @@ function CanonicalItemRendererContent({
 function TextItemView({
   item,
   showAssistantActions,
+  threadId,
 }: {
   item: ItemOf<"text">;
   showAssistantActions: boolean;
+  threadId?: string;
 }): React.ReactNode {
   const {
     canCopyFileReferenceContents,
@@ -533,21 +565,24 @@ function TextItemView({
     onForkFromMessage,
     workspacePath,
   } = useConversationItemContext();
+  const tail = useLiveItemTail(threadId, item.id);
+  const text = tail ? item.text + tail : item.text;
 
-  if (!item.text.trim()) return null;
+  if (item.status === "streaming") countStreamingItemRender();
+  if (!text.trim()) return null;
   return (
     <article
       className={`canonical-text-item canonical-text-item--${item.placement}`}
       data-streaming={item.status === "streaming" ? "true" : undefined}
     >
-      <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${item.text}`}>
+      <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${text}`}>
         <MarkdownMessage
           canCopyFileReferenceContents={canCopyFileReferenceContents}
           cwd={workspacePath}
           onCopyFileReferenceContents={onCopyFileReferenceContents}
           onOpenFileReference={onOpenFileReference}
           streaming={item.status === "streaming"}
-          text={item.text}
+          text={text}
         />
       </ConversationMarkdownErrorBoundary>
       {showAssistantActions && item.status !== "streaming" ? (
@@ -579,11 +614,15 @@ function TextItemView({
   );
 }
 
-function ReasoningItemView({ disclosure, item }: {
+function ReasoningItemView({ disclosure, item, threadId }: {
   disclosure?: ResolvedCanonicalItemDisclosure;
   item: ItemOf<"reasoning">;
+  threadId?: string;
 }): React.ReactNode {
   const streaming = item.status === "streaming";
+  const tail = useLiveItemTail(threadId, item.id);
+  const text = tail ? item.text + tail : item.text;
+  if (streaming) countStreamingItemRender();
   const [localExpanded, setLocalExpanded] = React.useState(streaming);
   const expanded = disclosure?.expanded ?? localExpanded;
   const contentId = React.useId();
@@ -623,8 +662,8 @@ function ReasoningItemView({ disclosure, item }: {
         id={contentId}
         mountPolicy="until-exit"
       >
-        <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${item.text}`}>
-          <MarkdownMessage text={item.text || "正在整理思路…"} streaming={streaming} />
+        <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${text}`}>
+          <MarkdownMessage text={text || "正在整理思路…"} streaming={streaming} />
         </ConversationMarkdownErrorBoundary>
       </DisclosureContent>
     </div>

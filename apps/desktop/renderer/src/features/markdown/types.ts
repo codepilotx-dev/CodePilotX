@@ -25,11 +25,18 @@ export type MarkdownStreamingCodeToken = {
   text: string
 }
 
+export type MarkdownStreamingTextToken = {
+  type: 'streaming_text'
+  raw: string
+  text: string
+}
+
 export type MarkdownToken =
   | Token
   | MarkdownMathToken
   | MarkdownDirectiveToken
   | MarkdownStreamingCodeToken
+  | MarkdownStreamingTextToken
 
 export type MarkdownDirectiveRenderProps = {
   argument: string

@@ -60,6 +60,7 @@ import type {
   MarkdownDirectiveToken,
   MarkdownMathToken,
   MarkdownStreamingCodeToken,
+  MarkdownStreamingTextToken,
   MarkdownToken,
   MarkdownRenderBlock,
 } from './types.js'
@@ -380,6 +381,19 @@ function renderToken(
   if (token.type === 'streaming_code') {
     const code = token as MarkdownStreamingCodeToken
     return renderCode(code.text, code.lang, true, context, key)
+  }
+  if (token.type === 'streaming_text') {
+    const pending = token as MarkdownStreamingTextToken
+    return (
+      <React.Fragment key={key}>
+        {pending.text.split(/\r?\n/u).map((line, index, lines) => (
+          <React.Fragment key={index}>
+            {line}
+            {index < lines.length - 1 ? <br /> : null}
+          </React.Fragment>
+        ))}
+      </React.Fragment>
+    )
   }
 
   switch (token.type) {

@@ -13,9 +13,11 @@ const outputDirectory = resolve(
 
 export type InteractionMetrics = {
   durationMs: number
+  frameCount: number
   frameP95Ms: number
   maxFrameMs: number
   maxLongTaskMs: number
+  longTaskP95Ms: number
 }
 
 export async function recordRendererSample(
@@ -113,12 +115,19 @@ export async function stopInteractionProbe(
     probe.observer?.disconnect()
     const sorted = [...probe.frameGaps].sort((left, right) => left - right)
     const p95Index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1)
+    const sortedLongTasks = [...probe.longTasks].sort((left, right) => left - right)
+    const longTaskP95Index = Math.max(
+      0,
+      Math.ceil(sortedLongTasks.length * 0.95) - 1,
+    )
     delete target.__codePilotXPerformanceProbe
     return {
       durationMs: performance.now() - probe.startedAt,
+      frameCount: sorted.length,
       frameP95Ms: sorted[p95Index] ?? 0,
       maxFrameMs: sorted.at(-1) ?? 0,
       maxLongTaskMs: Math.max(0, ...probe.longTasks),
+      longTaskP95Ms: sortedLongTasks[longTaskP95Index] ?? 0,
     }
   })
 }

@@ -12,6 +12,7 @@ import {
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
 import { canonicalThreadCache } from '../state/canonicalThreadCache.js'
+import { installStreamingPerfHarness } from '../state/streamingPerfHarness.js'
 import { CanonicalThreadIngestionCoordinator } from './CanonicalThreadIngestionCoordinator.js'
 
 const INITIAL_TURN_PAGE_SIZE = 10
@@ -246,8 +247,17 @@ export function useCanonicalThreadConversation(
       generationRef.current += 1
       unsubscribeRef.current?.()
       unsubscribeRef.current = null
+      // 切换会话或卸载前提交已入队 delta：既不把尾部缓冲留在旧会话，也不让
+      // 等待提交的批次悬空。
+      coordinator?.dispose()
     }
-  }, [reload])
+  }, [coordinator, reload])
+
+  React.useEffect(() => {
+    if (!coordinator) return
+    // 仅在 DEV / performance 构建里暴露流式注入钩子；生产构建为空实现。
+    return installStreamingPerfHarness(coordinator)
+  }, [coordinator])
 
   const loadOlder = React.useCallback(async (): Promise<void> => {
     const current = coordinator?.getSnapshot() ?? null
