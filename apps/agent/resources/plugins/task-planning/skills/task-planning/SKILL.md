@@ -11,8 +11,8 @@ Break the work into concrete milestones and tasks. Make dependencies and orderin
 
 When the user asks to arrange the result on their calendar:
 
-1. Confirm whether the planning horizon is a day, week, month, or year.
-2. Confirm the goal, project or target chat, time zone, unattended permission boundary, and whether each item is one-off or recurring.
+1. Resolve the planning horizon, goal, project or target chat, time zone, unattended permission boundary, and recurrence from the request and available context.
+2. Ask only for fields that remain missing and would materially change the schedule.
 3. Produce concrete items with an execution time, prompt, dependencies, risks, and acceptance criteria. Use recurring rules only when repetition is intentional.
 4. Call `schedule_plan_propose` once with the complete draft. This creates only a reviewable proposal.
 5. Tell the user to review the inline card. Do not call `automation_create`, claim that anything was scheduled, or claim that execution will occur before the user confirms the card.

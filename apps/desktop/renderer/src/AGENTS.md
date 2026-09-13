@@ -11,7 +11,7 @@
 - Review 代码按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护。
 - Layout 代码按 `shell/`、`dock/`、`tabs/`、`panels/` 维护。
 - Review diff 解析、inline/split 展示、虚拟列表和评论逻辑只能有一个实现来源。
-- 新代码不得继续扩大 2000 行以上的聚合组件。修改现有超大组件时，必须优先抽出本次涉及的独立职责。
+- 不继续显著扩大 2000 行以上的聚合组件；仅当抽取是本次行为所需，或能直接降低本次修改风险时，抽出涉及的独立职责。
 - 必须复用 `components/ui/`、design-system token 和已有 feature 组件，禁止创建局部视觉体系。
 
 ## 状态与副作用

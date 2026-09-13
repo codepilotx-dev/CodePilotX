@@ -54,4 +54,4 @@
 - 运行受影响 package 的 typecheck。
 - 只有行为变化或存在相关回归风险时才运行 package 测试。
 - 公共契约变化时，必须同时验证所有受影响的 Agent、Electron 和 Renderer 消费者，并运行根目录 `bun run typecheck`。
-- 交付前必须搜索 v3、legacy、migration export 和旧路径残留。
+- 仅当修改协议、兼容层、导出或相关路径时，搜索对应 v3、legacy、migration export 和旧路径残留。

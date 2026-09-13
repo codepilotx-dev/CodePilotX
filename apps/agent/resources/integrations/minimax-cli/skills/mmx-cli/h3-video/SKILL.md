@@ -12,8 +12,8 @@ Rules:
 1. Run `mmx auth status --output json --quiet` before the first paid request. H3 may require a Pay-as-you-go/Credit API key rather than a Token Plan key.
 2. Never put a literal API key in the command.
 3. Always pass `--model MiniMax-H3`.
-4. For a completed file, run one blocking command and wait on that exact process. Never resubmit merely because polling or downloading was interrupted.
-5. Use `--async` only when the user explicitly asks for a task ID without waiting.
+4. Submit a paid generation once and preserve its task ID. After creation, use bounded 30–60 second status/download waits against that same task; never resubmit merely because polling or downloading was interrupted.
+5. Return the task ID when an interruption prevents completion, so a later turn can resume the existing task instead of creating another paid task.
 
 ```bash
 mmx video generate \
@@ -22,7 +22,7 @@ mmx video generate \
   --duration <4-15> \
   --download "<output.mp4>" \
   --poll-interval 10 \
-  --timeout 1800 \
+  --timeout 60 \
   --non-interactive \
   --quiet
 ```

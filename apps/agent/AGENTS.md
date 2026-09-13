@@ -44,13 +44,13 @@
 
 - `src/tool/ToolRegistry.ts`、`ToolExecutor.ts` 和 `ToolExposurePlan.ts` 只维护通用工具定义、注册、暴露、执行与权限基础设施。禁止继续向这些文件堆入可独立拆分的工具业务逻辑。
 - 新增一等内建工具时，以 `src/tool/<ToolName>/` 作为垂直边界，按实际需要放置 definition、schema、prompt、formatter、安全校验和辅助逻辑。禁止为了目录数量制造空壳文件。
-- 修改现有集中式工具时，本次职责能够独立时必须同步抽到对应工具目录。优先移动、复用或改造现有实现，禁止创建平行实现。
+- 不继续显著扩大集中式工具文件；仅当抽取是本次行为所需，或能直接降低本次修改风险时，将涉及职责抽到对应工具目录。优先移动、复用或改造现有实现，禁止创建平行实现。
 - 工具 UI 归 Renderer 所有。Agent 只输出稳定、可投影的工具结果和进度数据，禁止放置 React 展示组件。
 - 提问、Skills、Plan 和子 Agent 等产品生命周期工具继续由对应领域 service 持有，并通过 orchestration adapter callback 暴露。禁止在 `src/tool/` 中复制状态机或 checkpoint 实现。
 - 新增工具必须接入 `ToolRegistry -> ToolExposurePlan -> ToolExecutor -> PermissionDecisionEngine` 链路，并保持审批、沙箱、幂等、延迟暴露和中断恢复语义。
 - Harness 内置或适配的工具也必须回到产品执行链路，禁止以独立工具工厂绕过注册、权限和审批。
 - 参考成熟工具实现时，必须先映射 CodePilotX 现有领域边界、权限模型和桌面架构，禁止机械复制目录、命名或重复逻辑。
-- 新增工具能力时，默认先补齐 MCP 工具、资源读取与认证闭环，再实现 Web Search/Web Fetch，最后建设 LSP 代码智能。更低优先级工具必须有明确产品需求后再加入。
+- MCP、Web Search/Web Fetch 与 LSP 的建设顺序属于产品规划，不约束已明确范围的单项工具需求；新增能力仍须遵守既有领域、权限和认证边界。
 
 ## 验证
 
