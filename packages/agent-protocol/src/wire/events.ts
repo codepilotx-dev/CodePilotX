@@ -9,6 +9,7 @@ import {
   ItemSchema,
   QueueActionSchema,
   SubagentProjectionSchema,
+  ThreadGoalSchema,
   ThreadSchema,
   ThreadSettingsSchema,
   ToolItemSchema,
@@ -171,6 +172,21 @@ export const EventManifest = {
     capability: "session-group.v1",
     reconcilesWith: "session-group/list",
   }),
+  "workflow/changed": defineEvent({
+    payload: Schema.Struct({
+      workflowId: OpaqueIDSchema,
+      reason: Schema.Literals(["created", "updated", "deleted", "membership_changed", "step_changed", "context_changed"]),
+      threadId: Schema.optional(OpaqueIDSchema),
+      stepId: Schema.optional(OpaqueIDSchema),
+      revision: VersionSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "global",
+    capability: "workflow.v1",
+    reconcilesWith: "workflow/list",
+  }),
   "tooling/updated": defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,
@@ -266,6 +282,30 @@ export const EventManifest = {
     durability: "durable",
     stream: "global",
     capability: "events.replay.v1",
+  }),
+  "thread/goal/updated": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      goal: ThreadGoalSchema,
+      version: VersionSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "thread.goal.v1",
+    reconcilesWith: "thread/goal/get",
+  }),
+  "thread/goal/cleared": defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      goalId: OpaqueIDSchema,
+      clearedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "thread.goal.v1",
+    reconcilesWith: "thread/goal/get",
   }),
   "turn/queued": defineEvent({
     payload: Schema.Struct({ turn: TurnSchema, input: InputSchema }),

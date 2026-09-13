@@ -2,6 +2,10 @@ import { Database } from "bun:sqlite"
 import { createHash } from "node:crypto"
 import { resolve } from "node:path"
 import { PLAN_APPROVAL_SCHEMA } from "../repositories/plan-approval-repository"
+import { THREAD_GOAL_SCHEMA, THREAD_GOAL_SCHEMA_V45, migrateThreadGoals45To46 } from "../repositories/thread-goal-repository"
+import { THREAD_GOAL_LEDGER_SCHEMA } from "../repositories/thread-goal-ledger-repository"
+import { THREAD_GOAL_CONTINUATION_SCHEMA } from "../repositories/thread-goal-continuation-repository"
+import { THREAD_WORKTREE_OPERATION_SCHEMA } from "../repositories/thread-worktree-operation-repository"
 
 import {
   PROFILE_APPLICATION_ID,
@@ -84,7 +88,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE thread_context_paths (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          name TEXT NOT NULL,\n          path TEXT NOT NULL,\n          path_key TEXT NOT NULL,\n          kind TEXT NOT NULL CHECK(kind IN ('file','directory')),\n          created_at INTEGER NOT NULL,\n          UNIQUE(thread_id, path_key)\n        )",
   "CREATE TABLE input_context_paths (\n          input_id TEXT NOT NULL REFERENCES inputs(id) ON DELETE CASCADE,\n          context_path_id TEXT NOT NULL REFERENCES thread_context_paths(id) ON DELETE CASCADE,\n          sort_order INTEGER NOT NULL DEFAULT 0,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY(input_id, context_path_id)\n        )",
   "CREATE TABLE context_path_operations (\n          operation_id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          request_hash TEXT NOT NULL,\n          reference_ids TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL,\n        origin TEXT CHECK(origin IS NULL OR origin IN ('user','goal-continuation'))\n      )",
   "CREATE TABLE item_artifacts (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n          item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,\n          name TEXT NOT NULL,\n          mime_type TEXT NOT NULL,\n          size_bytes INTEGER NOT NULL DEFAULT 0,\n          storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed')),\n          storage_path TEXT NOT NULL,\n          sha256 TEXT,\n          created_at INTEGER NOT NULL\n        )",
   "CREATE TABLE integration_credential_bindings (\n          integration_id TEXT PRIMARY KEY,\n          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE interaction_operations (\n          operation_id TEXT PRIMARY KEY,\n          interaction_id TEXT NOT NULL,\n          response TEXT NOT NULL,\n          result TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
@@ -100,7 +104,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE \"pi_session_entries\" (\n          session_id TEXT NOT NULL REFERENCES \"pi_sessions\"(id) ON DELETE CASCADE,\n          sequence INTEGER NOT NULL,\n          id TEXT NOT NULL,\n          parent_id TEXT,\n          type TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          PRIMARY KEY (session_id, sequence),\n          UNIQUE (session_id, id)\n        )",
   "CREATE TABLE runtime_composition_plans (\n        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        composition_id TEXT NOT NULL UNIQUE,\n        snapshot_version INTEGER NOT NULL,\n        snapshot_json TEXT NOT NULL,\n        snapshot_hash TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE \"pi_sessions\" (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          agent_id TEXT NOT NULL,\n          leaf_id TEXT,\n          name TEXT,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        instructions TEXT NOT NULL DEFAULT '',\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE project_settings (\n        project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,\n        default_model TEXT,\n        instructions TEXT NOT NULL DEFAULT '',\n        execution_environment TEXT NOT NULL DEFAULT 'auto' CHECK(execution_environment IN ('auto','local')),\n        version INTEGER NOT NULL DEFAULT 1,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE projects (\n        id TEXT PRIMARY KEY,\n        name TEXT NOT NULL,\n        removed_at INTEGER,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        last_opened_at INTEGER NOT NULL\n      )",
   "CREATE TABLE project_folders (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        path TEXT NOT NULL,\n        path_key TEXT NOT NULL,\n        role TEXT NOT NULL CHECK(role IN ('primary', 'secondary')),\n        sort_order INTEGER NOT NULL DEFAULT 0,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        UNIQUE(project_id, path_key)\n      )",
   "CREATE TABLE project_sources (\n        id TEXT PRIMARY KEY,\n        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,\n        storage_kind TEXT NOT NULL CHECK(storage_kind IN ('managed', 'workspace-file')),\n        content_kind TEXT NOT NULL CHECK(content_kind IN ('text', 'image')),\n        name TEXT NOT NULL,\n        media_type TEXT,\n        size_bytes INTEGER,\n        sha256 TEXT,\n        storage_path TEXT,\n        folder_id TEXT REFERENCES project_folders(id) ON DELETE CASCADE,\n        relative_path TEXT,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL,\n        CHECK((storage_kind = 'managed' AND media_type IS NOT NULL AND size_bytes IS NOT NULL AND sha256 IS NOT NULL AND storage_path IS NOT NULL AND folder_id IS NULL AND relative_path IS NULL) OR (storage_kind = 'workspace-file' AND folder_id IS NOT NULL AND relative_path IS NOT NULL AND storage_path IS NULL))\n      )",
@@ -146,6 +150,10 @@ export const FINAL_SCHEMA = [
   ...AUTOMATION_SCHEMA,
   ...SCHEDULE_CALENDAR_SCHEMA,
   ...PLAN_APPROVAL_SCHEMA,
+  ...THREAD_GOAL_SCHEMA,
+  ...THREAD_GOAL_LEDGER_SCHEMA,
+  ...THREAD_GOAL_CONTINUATION_SCHEMA,
+  ...THREAD_WORKTREE_OPERATION_SCHEMA,
   "CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)",
   "CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)",
   "CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL",
@@ -395,6 +403,15 @@ const legacyProjectMemoryKey = (workspacePath: string) =>
 const projectPathKey = (workspacePath: string) => {
   const normalized = resolve(workspacePath).replaceAll("\\", "/").replace(/\/+$/, "")
   return process.platform === "win32" ? normalized.toLocaleLowerCase("en-US") : normalized
+}
+
+const migrateProfile3To4 = (sqlite: Database) => {
+  const columns = new Set(
+    (sqlite.query("PRAGMA table_info(project_settings)").all() as Array<{ name: string }>).map(column => column.name),
+  )
+  if (columns.size === 0 || columns.has("execution_environment")) return
+  // Additive with a default, so existing projects keep their previous behaviour.
+  sqlite.exec("ALTER TABLE project_settings ADD COLUMN execution_environment TEXT NOT NULL DEFAULT 'auto' CHECK(execution_environment IN ('auto','local'))")
 }
 
 const migrateProfile2To3 = (sqlite: Database) => {
@@ -1284,7 +1301,13 @@ class SchemaInitializer {
       ? SCHEMA_VERSION
       : PROFILE_SCHEMA_VERSION
     const currentVersion = (this.sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version
-    if (currentVersion === expectedVersion) return
+    if (currentVersion === expectedVersion) {
+      // A prerelease profile build could advance user_version to 4 before the
+      // additive execution_environment column was installed. Repair that
+      // known compatible shape instead of leaving every project read broken.
+      if (this.kind === "profile" && currentVersion === 4) migrateProfile3To4(this.sqlite)
+      return
+    }
     if (currentVersion > expectedVersion) {
       // Schema 21/profile 3 are forward-compatible baselines. A patched older
       // client uses only its known tables and columns, leaving future additive
@@ -1338,12 +1361,22 @@ class SchemaInitializer {
           41: () => migrateHistory41To42(this.sqlite),
           42: () => migrateHistory42To43(this.sqlite),
           43: () => this.sqlite.exec(PLAN_APPROVAL_SCHEMA.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")).join(";")),
+          44: () => this.sqlite.exec(THREAD_GOAL_SCHEMA_V45.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")).join(";")),
+          45: () => migrateThreadGoals45To46(this.sqlite),
+          46: () => this.sqlite.exec(THREAD_GOAL_LEDGER_SCHEMA.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")).join(";")),
+          47: () => {
+            this.sqlite.exec(THREAD_GOAL_CONTINUATION_SCHEMA.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ").replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")).join(";"))
+            const inputColumns = new Set((this.sqlite.query("PRAGMA table_info(inputs)").all() as Array<{ name: string }>).map(({ name }) => name))
+            if (inputColumns.size > 0 && !inputColumns.has("origin")) this.sqlite.exec("ALTER TABLE inputs ADD COLUMN origin TEXT CHECK(origin IS NULL OR origin IN ('user','goal-continuation'))")
+          },
+          48: () => this.sqlite.exec(THREAD_WORKTREE_OPERATION_SCHEMA.map(statement => statement.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")).join(";")),
         }
       : {
           // v2 moved durable preferences to the external configuration file. The file migration
           // runs after both profile/config paths are available in bootstrap.
           1: () => undefined,
           2: () => migrateProfile2To3(this.sqlite),
+          3: () => migrateProfile3To4(this.sqlite),
         }
     let version = from
     while (version < target) {
@@ -1356,6 +1389,8 @@ class SchemaInitializer {
           migration()
           this.sqlite.exec(`PRAGMA user_version = ${version + 1}`)
         })()
+      } catch (cause) {
+        throw new Error(`${this.kind} 数据库 ${version} → ${version + 1} 迁移失败`, { cause })
       } finally {
         if (rebuildsProfileProjects) this.sqlite.exec("PRAGMA foreign_keys = ON")
       }

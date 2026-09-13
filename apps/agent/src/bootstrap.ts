@@ -7,6 +7,7 @@ import { ConfigMigrationRepository } from "./storage/repositories/config-migrati
 import { AgentDatabase } from "./storage/database/AgentDatabase";
 import { InterruptedRunRecoveryCoordinator } from "./storage/recovery/interrupted-run-recovery";
 import { StartupRecoveryCoordinator } from "./storage/recovery/StartupRecoveryCoordinator";
+import { recoverThreadWorktreeOperations } from "./storage/recovery/thread-worktree-recovery";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
@@ -110,6 +111,7 @@ import { TaskExecutionBindingService } from "./worktree/TaskExecutionBindingServ
 import { ManagedWorktreeService } from "./worktree/ManagedWorktreeService";
 import { ThreadExecutionPreparationService } from "./worktree/ThreadExecutionPreparationService";
 import { SessionGroupService } from "./session-group/SessionGroupService";
+import { DEFAULT_GOAL_TOKEN_BUDGET, ThreadGoalService } from "./session/ThreadGoalService";
 import { createAutomationDefinitions } from "./tool/Automation/definitions";
 import { createSchedulePlanDefinition } from "./tool/SchedulePlan/definition";
 import {
@@ -248,6 +250,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const hub = yield* EventHub.make;
     const sessionGroups = new SessionGroupService(db, hub);
     queueMicrotask(() => { void sessionGroups.recoverMissingSteps() });
+    const threadGoals = new ThreadGoalService(db, hub, () => {
+      const agent = configService.snapshot().agent as Record<string, unknown> | undefined;
+      const goal = agent?.goal as Record<string, unknown> | undefined;
+      const budget = goal?.default_token_budget;
+      // Unknown or malformed configuration falls back to the documented default
+      // instead of disabling the budget or throwing during startup.
+      return typeof budget === "number" && Number.isSafeInteger(budget) && budget > 0
+        ? budget
+        : DEFAULT_GOAL_TOKEN_BUDGET;
+    });
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, "speech/statusChanged", { status });
     });
@@ -837,6 +849,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       false,
       localContextPaths,
       sessionGroups,
+      threadGoals,
     );
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite);
     const planApprovals = new PlanApprovalService(db, hub, threads);
@@ -1030,6 +1043,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       recoverForks: async () => {
         for (const operationId of threadForkOperations.runningOperationIDs()) await threadFork.recover(operationId);
       },
+      recoverThreadWorktrees: async () => {
+        await recoverThreadWorktreeOperations({
+          database: db.repositories.threadWorktreeOperations,
+          deleteWorktree: input => worktrees.delete(input),
+        });
+      },
       recoverAutomations: async () => {
         if (automationEnabled) await automationRuns.recover();
         if (calendarEnabled) await scheduledTaskRuns.recover();
@@ -1092,6 +1111,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       speech,
       threadExecutions,
       sessionGroups,
+      threadGoals,
       automation,
       calendar,
       scheduledTasks,

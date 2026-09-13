@@ -7,6 +7,7 @@ export const PI_LIFECYCLE_TOOLS = [
   "request_user_input", "request_permissions", "update_plan", "submit_plan",
   "spawn_agents", "wait_agents", "send_agent", "stop_agent",
   "finalize_result",
+  "update_goal",
 ] as const
 
 export interface ToolExposureInput {
@@ -19,6 +20,7 @@ export interface ToolExposureInput {
   delegationEnabled?: boolean
   allowedTools?: readonly string[]
   activeDeferredTools?: readonly string[]
+  hasActiveGoal?: boolean
 }
 
 export interface ToolExposurePlan {
@@ -46,6 +48,7 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
     if (input.taskMode === "chat") {
       // Chat 主 Agent 可选用结构化交付收尾；Plan 的最终方案由 submit_plan 负责。
       lifecycle.push("request_permissions", "update_plan", "finalize_result")
+      if (input.hasActiveGoal) lifecycle.push("update_goal")
     }
     if (input.delegationEnabled !== false) lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")
   }

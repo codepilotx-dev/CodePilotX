@@ -13,6 +13,10 @@ import {
  * 集中探测 history 库中的可选存储能力：
  * - `threads.creation_surface` 列存在：返回完整 `Capabilities`；缺失时剔除
  *   `thread.creation-surface.v1`，避免在无法持久化的库上虚假广告。
+ * - `thread_goals`、`thread_goal_history`、`thread_goal_operations` 三张表齐全且
+ *   schema 46 必要字段可读、存量 Goal 行全部符合共享 schema 时：保留
+ *   `thread.goal.v1`；部分表、未知形状或存在无法校验的 Goal 行时剔除，库保持
+ *   只读降级，不广告不可执行的 mutation（绝不 ALTER 或降级 user_version）。
  * - `item_artifacts` 表存在：保留 `artifacts.read.v1`；缺失时剔除，保持旧库
  *   只读兼容（绝不 ALTER 或降级 user_version）。
  */
@@ -25,6 +29,11 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
     (capability): capability is ProtocolCapability =>
       (capability !== "thread.creation-surface.v1" || creationSurface)
       && (capability !== "plan.approval.v1" || db.repositories.planApprovals.available())
+      && (capability !== "thread.goal.v1"
+        || (db.repositories.threadGoals.available()
+          && db.repositories.threadGoalLedger.available()
+          && db.repositories.threadGoalContinuations.available()
+          && db.repositories.threadGoals.visibleGoalsValid()))
       && (capability !== "artifacts.read.v1" || itemArtifactsTable)
       && (capability !== "automation.manage.v1" || (automations && automationRuns))
       && (capability !== "calendar.manage.v1" || (automations && automationRuns && scheduledTasks && schedulePlanProposals)),

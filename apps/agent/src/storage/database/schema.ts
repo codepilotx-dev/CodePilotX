@@ -3,7 +3,7 @@
  * read/write contract of schema 21 so patched older clients can ignore features
  * they do not understand.
  */
-export const SCHEMA_VERSION = 44
+export const SCHEMA_VERSION = 49
 
 /**
  * Stable ownership marker for CodePilotX history storage. This is not a schema
@@ -18,5 +18,5 @@ export const LEGACY_HISTORY_APPLICATION_IDS: ReadonlySet<number> = new Set([2])
 export const DATA_EPOCH = HISTORY_APPLICATION_ID
 
 /** Profile schema 3 is the forward-compatible profile baseline. */
-export const PROFILE_SCHEMA_VERSION = 3
+export const PROFILE_SCHEMA_VERSION = 4
 export const PROFILE_APPLICATION_ID = 0x43505850

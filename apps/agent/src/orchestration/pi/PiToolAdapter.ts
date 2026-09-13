@@ -220,6 +220,14 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
       return callbacks.updatePlan!(parsed.data, id, signal)
     }))
   }
+  if (callbacks.updateGoal && request.taskMode === "chat" && (request.profile ?? "main") === "main") {
+    add(lifecycleTool(
+      "update_goal",
+      "更新当前 Goal 的终态。只有目标确实完成时使用 complete；只有必须等待用户输入或外部状态变化时使用 blocked。调用后再用 finalize_result 收尾。",
+      Type.Object({ status: Type.Union([Type.Literal("complete"), Type.Literal("blocked")]) }),
+      async (input, id, signal) => callbacks.updateGoal!({ status: input.status as "complete" | "blocked" }, id, signal),
+    ))
+  }
   if (callbacks.submitPlan && request.taskMode === "plan" && (request.profile ?? "main") === "main") {
     add(lifecycleTool(
       "submit_plan",
@@ -281,7 +289,7 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
 }
 
 export function createPiTools(options: PiToolAdapterOptions, callbacks: PiLifecycleCallbacks = {}): PiTool[] {
-  const special = new Set(["skill_list", "skill_read", "project_source_list", "project_source_read", "request_user_input", "request_permissions", "update_plan", "submit_plan", "spawn_agents", "wait_agents", "send_agent", "stop_agent", "finalize_result"])
+  const special = new Set(["skill_list", "skill_read", "project_source_list", "project_source_read", "request_user_input", "request_permissions", "update_plan", "update_goal", "submit_plan", "spawn_agents", "wait_agents", "send_agent", "stop_agent", "finalize_result"])
   const regular = options.request.exposedTools
     .filter((name) => !special.has(name))
     .map((name) => adaptToolDefinition(options.executor.definition(name, options.request.toolCatalog), options))

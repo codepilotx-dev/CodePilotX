@@ -5,11 +5,13 @@ import { BaseRpcMethods } from "./base"
 import { CalendarRpcMethods } from "./calendar"
 import { PlanApprovalRpcMethods } from "./plan-approval"
 import { HandoffRpcMethods } from "./handoff"
+import { ThreadGoalRpcMethods } from "./goal"
 import { LocalEnvironmentRpcMethods } from "./local-environment"
 import { ThreadForkRpcMethods } from "./thread-fork"
 import { SideChatRpcMethods } from "./side-chat"
 import { WorktreeRpcMethods } from "./worktree"
 import { SessionGroupRpcMethods } from "./session-group"
+import { WorkflowRpcMethods } from "./workflow"
 import type { TerminalRpcMethodMap } from "./terminal"
 import type { LocalEnvironmentHostRpcMethodMap } from "./local-environment"
 
@@ -19,11 +21,13 @@ export const RpcMethods = {
   ...CalendarRpcMethods,
   ...PlanApprovalRpcMethods,
   ...HandoffRpcMethods,
+  ...ThreadGoalRpcMethods,
   ...LocalEnvironmentRpcMethods,
   ...ThreadForkRpcMethods,
   ...SideChatRpcMethods,
   ...WorktreeRpcMethods,
   ...SessionGroupRpcMethods,
+  ...WorkflowRpcMethods,
 } as const
 export { BaseRpcMethods } from "./base"
 export const RpcMethodMap = RpcMethods
@@ -53,6 +57,7 @@ export * from "./config"
 export * from "./extended"
 export * from "./git"
 export * from "./github"
+export * from "./goal"
 export * from "./handoff"
 export * from "./mcp"
 export * from "./minimax-cli"
@@ -70,3 +75,4 @@ export * from "./side-chat"
 export * from "./usage"
 export * from "./worktree"
 export * from "./session-group"
+export * from "./workflow"

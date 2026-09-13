@@ -24,6 +24,8 @@ export interface SubmitMessage {
   permissionConfig: PermissionConfig
   strategy: StoredInputDelivery
   taskMode: TaskMode
+  /** Omitted historical inputs are user-authored. */
+  origin?: "user" | "goal-continuation"
 }
 
 export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "execution-plan" | "question" | "patch" | "subagent"

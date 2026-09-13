@@ -1100,6 +1100,7 @@ export class AgentRuntimeService implements AgentRuntime {
         "send_agent",
         "stop_agent",
         "update_plan",
+        "update_goal",
         "finalize_result",
       ]);
       if (!alreadySettled &&
@@ -1387,6 +1388,12 @@ export class AgentRuntimeService implements AgentRuntime {
             throw new Error("update_plan 仅允许 Chat 模式的主 Agent 使用");
           if (!request.updatePlan) throw new Error("当前 turn 未配置执行计划服务");
           return request.updatePlan(input, toolCallID);
+        },
+        updateGoal: async (input, toolCallID) => {
+          if (request.taskMode !== "chat" || (request.profile ?? "main") !== "main")
+            throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "update_goal 仅允许 Chat 模式的主 Agent 使用", 403);
+          if (!request.updateGoal) throw new AgentError("TOOL_NOT_AVAILABLE", "当前任务没有可更新的 Goal", 409);
+          return request.updateGoal(input.status, toolCallID);
         },
         submitPlan: async (input) => {
           if (request.taskMode !== "plan" || (request.profile ?? "main") !== "main")

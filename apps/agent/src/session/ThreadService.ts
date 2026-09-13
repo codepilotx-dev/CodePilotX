@@ -33,6 +33,7 @@ import { TurnCoordinator, type TurnTerminalStatus } from "./TurnCoordinator"
 import { TurnRunner } from "./TurnRunner"
 import type { ThreadTitleService } from "./ThreadTitleService"
 import type { SessionGroupService } from "../session-group/SessionGroupService"
+import type { ThreadGoalService } from "./ThreadGoalService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -103,21 +104,6 @@ export class ThreadService {
   private readonly runner: TurnRunner
   private readonly resumeCheckpoints: ResumeCheckpointResolver
 
-  private configuredDefaultModel(): Model.Ref | null {
-    const config = this.configService?.snapshot()
-    return typeof config?.model === "string" && typeof config.model_provider === "string"
-      ? { providerID: config.model_provider, id: config.model } as Model.Ref
-      : null
-  }
-
-  private async effectiveDefaultModel(cwd?: string): Promise<Model.Ref | null> {
-    if (!this.configService) return this.configuredDefaultModel()
-    const config = (await this.configService.read(cwd ? { cwd } : {})).config
-    return typeof config.model === "string" && typeof config.model_provider === "string"
-      ? { providerID: config.model_provider, id: config.model } as Model.Ref
-      : null
-  }
-
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
@@ -141,6 +127,7 @@ export class ThreadService {
     resumeOnConstruct = true,
     private readonly localContextPaths?: LocalContextPathService,
     private readonly sessionGroups?: SessionGroupService,
+    private readonly threadGoals?: ThreadGoalService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals, {
       resolvedSubagentWait: (turnID) => subagents.resolvedWaitCheckpoint(turnID),
@@ -265,7 +252,7 @@ export class ThreadService {
         input.bindExecution?.(record.id)
         if (input.sessionGroupID) {
           this.db.repositories.sessionGroups.setMembership(record.id, input.sessionGroupID)
-          groupEvent = this.db.insertEvent(record.id, null, "session-group/changed", { groupId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
+          groupEvent = this.db.insertEvent(record.id, null, "workflow/changed", { workflowId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
         }
         return record
       })
@@ -302,7 +289,7 @@ export class ThreadService {
         })
         if (input.sessionGroupID) {
           this.db.repositories.sessionGroups.setMembership(record.id, input.sessionGroupID)
-          groupEvent = this.db.insertEvent(record.id, null, "session-group/changed", { groupId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
+          groupEvent = this.db.insertEvent(record.id, null, "workflow/changed", { workflowId: input.sessionGroupID, reason: "membership_changed", threadId: record.id, revision: this.db.repositories.sessionGroups.read(input.sessionGroupID)!.version, changedAt: Date.now() })
         }
         return record
       })
@@ -453,10 +440,7 @@ export class ThreadService {
     let cacheMode = inferPromptCacheCapability("")
     try {
       const latestModel = latest?.model_ref ? JSON.parse(latest.model_ref) as Model.Ref : null
-      const selected = await this.resolveAvailableModel([
-        latestModel,
-        await this.effectiveDefaultModel(runtime.workspaceRoot),
-      ])
+      const selected = await this.resolveAvailableModel([latestModel])
       cacheMode = inferPromptCacheCapability(String(selected.providerID))
     } catch {
       // Preview must remain available even when the snapshotted model/provider is no longer configured.
@@ -525,8 +509,40 @@ export class ThreadService {
     await Effect.runPromise(this.hub.publish(created.agentEvent))
   }
 
-  async startTurn(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = []) {
-    return this.coordinator.exclusive(threadID, () => this.startTurnLocked(threadID, input, inputID, attachmentIDs, contextReferenceIDs))
+  async startTurn(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = [], goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }) {
+    return this.coordinator.exclusive(threadID, () => this.startTurnLocked(threadID, input, inputID, attachmentIDs, contextReferenceIDs, undefined, goal))
+  }
+
+  async resumeGoalContinuation(threadID: string): Promise<void> {
+    await this.coordinator.exclusive(threadID, async () => {
+      const goal = this.db.repositories.threadGoals.get(threadID)
+      if (goal?.status !== "active" || this.coordinator.active(threadID) || this.db.activeTurn(threadID)) return
+      if (this.db.queueStateMeta(threadID)?.pauseReason) return
+      if (this.db.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID)) return
+      const source = this.db.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'completed' ORDER BY finished_at DESC, created_at DESC LIMIT 1").get(threadID) as { id: string } | null
+      if (!source || this.db.repositories.threadGoalContinuations.hasSourceTurn(source.id)) return
+      const previous = this.db.getTurnInput(source.id)
+      if (!previous) return
+      const created = this.db.transaction(() => {
+        const value = this.db.createTurn(threadID, {
+          content: `继续推进当前 Goal，基于已有任务上下文自主完成下一步。不要重复已完成的工作。\n\nGoal：${goal.objective}`,
+          model: previous.model,
+          permissionConfig: previous.permissionConfig,
+          strategy: "queue",
+          taskMode: previous.taskMode,
+          origin: "goal-continuation",
+        }, "queued")
+        this.db.repositories.threadGoalContinuations.record({
+          sourceTurnId: source.id, threadId: threadID, goalId: goal.id,
+          continuationTurnId: value.turnID, continuationInputId: value.inputID,
+          triggerReason: "goal-resumed-idle", timestamp: Date.now(),
+        })
+        return value
+      })
+      await this.publishCreatedTurn(created)
+      this.coordinator.reserve(threadID, created.turnID)
+      void this.executeTurn(threadID, created.turnID)
+    })
   }
 
   /** Plan decisions share the normal admission lock and transaction, never a second execution path. */
@@ -542,7 +558,7 @@ export class ThreadService {
       }))
   }
 
-  private async startTurnLocked(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[], transition?: { beforeCreate: () => void; afterCreate: (turnID: string) => void }) {
+  private async startTurnLocked(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[], transition?: { beforeCreate: () => void; afterCreate: (turnID: string) => void }, goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }) {
       const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
@@ -553,8 +569,13 @@ export class ThreadService {
       }
       await this.validateInputAttachments(inputID, attachmentIDs, input.model)
       let created
+      let goalEvent: EventEnvelope | null = null
       created = this.db.transaction(() => {
         transition?.beforeCreate()
+        if (goal) {
+          if (!this.threadGoals) throw new AgentError("GOAL_NOT_AVAILABLE", "当前 Agent 不支持 Goal", 409)
+          goalEvent = this.threadGoals.admitInTransaction({ threadId: threadID, ...goal }).event
+        }
         const value = this.db.createTurn(threadID, { ...input, strategy: "start" }, "queued", { inputID })
         transition?.afterCreate(value.turnID)
         this.db.bindInputAttachments(inputID, attachmentIDs)
@@ -562,6 +583,7 @@ export class ThreadService {
         return value
       })
       await this.publishCreatedTurn(created)
+      if (goalEvent) await Effect.runPromise(this.hub.publish(goalEvent))
       if (!this.sideChat(threadID)) void this.threadTitles?.generateForFirstMessage(threadID, input.content)
       this.coordinator.reserve(threadID, created.turnID)
       void this.executeTurn(threadID, created.turnID)
@@ -864,6 +886,7 @@ export class ThreadService {
       const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
       const effectivePermissionConfig = resolveEffectivePermissionConfig(input.taskMode, input.permissionConfig)
+      const currentGoal = this.db.repositories.threadGoals.get(threadID)
       const exposedTools = this.orchestrator.toolExposure({
         taskMode: input.taskMode,
         sandboxMode: effectivePermissionConfig.sandboxMode,
@@ -874,6 +897,7 @@ export class ThreadService {
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
+        ...(currentGoal?.status === "active" ? { hasActiveGoal: true } : {}),
       }).exposed
       const executionPolicy = executionPolicyFromV4(effectivePermissionConfig)
       const permissionInstructions = [
@@ -908,6 +932,20 @@ export class ThreadService {
         ],
         userMessage: content,
       })
+      if (currentGoal) {
+        promptSections.splice(promptSections.length - 1, 0, {
+          id: "thread.goal",
+          role: "developer",
+          cache: "dynamic",
+          authority: "builtin",
+          source: { type: "runtime", name: "goal" },
+          content: [
+            `当前 Goal：${currentGoal.objective}`,
+            `状态：${currentGoal.status}；token：${currentGoal.tokensUsed}/${currentGoal.tokenBudget ?? "不限额"}；实际运行：${currentGoal.timeUsedSeconds} 秒。`,
+            "只有真正完成时先调用 update_goal(complete)，必须等待用户或外部状态变化时调用 update_goal(blocked)，然后再用 finalize_result 收尾。",
+          ].join("\n"),
+        })
+      }
       const projectSettingsInstructions = project?.settings?.instructions?.trim()
       if (projectSettingsInstructions) {
         const projectInstructionIndex = promptSections.findIndex(({ id }) =>
@@ -945,8 +983,10 @@ export class ThreadService {
         ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
       )
       const contextManager = new ContextManager(this.db)
-      const configuredDefault = await this.effectiveDefaultModel(runtime.workspaceRoot)
-      const selectedInfo = await this.resolveAvailableModel([activeModel, configuredDefault])
+      if (!activeModel?.providerID || !activeModel.id) {
+        throw new AgentError("MODEL_REQUIRED", "任务缺少模型配置，请先选择模型", 409)
+      }
+      const selectedInfo = await this.resolveAvailableModel([activeModel])
       const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}) })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
@@ -1034,6 +1074,18 @@ export class ThreadService {
             plan: update.plan,
           }
         },
+        ...(currentGoal?.status === "active" && this.threadGoals ? {
+          updateGoal: async (status: "complete" | "blocked", toolCallID: string) => {
+            const latest = this.db.repositories.threadGoals.get(threadID)
+            if (!latest) throw new AgentError("GOAL_NOT_FOUND", "当前任务没有 Goal", 409)
+            return this.threadGoals!.set({
+              threadId: threadID,
+              status,
+              expectedVersion: latest.version,
+              operationId: `goal-tool:${turnID}:${toolCallID}`,
+            })
+          },
+        } : {}),
         resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
         onRuntimeReady: async () => {
           await this.coordinator.exclusive(threadID, async () => {
@@ -1105,6 +1157,15 @@ export class ThreadService {
         return
       }
       const message = cause instanceof Error ? cause.message : String(cause)
+      const failedGoal = this.db.repositories.threadGoals.get(threadID)
+      if (failedGoal?.status === "active" && this.threadGoals) {
+        await this.threadGoals.set({
+          threadId: threadID,
+          status: cause instanceof AgentError && cause.status === 429 ? "usage-limited" : "blocked",
+          expectedVersion: failedGoal.version,
+          operationId: `goal-failure:${turnID}`,
+        }).catch(() => undefined)
+      }
       await this.sessionGroups?.captureTurn({ threadId: threadID, turnId: turnID, status: "failed", summary: "Turn 执行失败；修改可能已经发生，请结合 Diff 核对。", failure: message }).catch(() => undefined)
       terminalStatus = await this.runner.terminalize({
         threadID,
@@ -1158,10 +1219,7 @@ export class ThreadService {
       seen.add(key)
       try { return await this.providers.resolve(candidate) } catch (cause) { lastError = cause }
     }
-    for (const model of await this.providers.models()) {
-      try { return await this.providers.resolve({ providerID: model.providerID, id: model.id }) } catch (cause) { lastError = cause }
-    }
-    throw new AgentError("MODEL_UNAVAILABLE", "没有可用的模型，请先连接 Provider 或调整项目模型设置", 409, lastError)
+    throw new AgentError("MODEL_UNAVAILABLE", "当前任务模型不可用，请重新选择模型", 409, lastError)
   }
 
   async stop(threadID: string, expectedTurnID: string) {

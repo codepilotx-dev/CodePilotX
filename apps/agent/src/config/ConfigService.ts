@@ -140,6 +140,7 @@ const KNOWN_CONFIG_ROOTS = new Set([
   "desktop",
   "cli",
   "features",
+  "agent",
   "model_catalog",
   "auto_review",
   "telemetry",

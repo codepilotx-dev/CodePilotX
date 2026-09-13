@@ -7,6 +7,9 @@ import { now, parse, permissionConfigFromRow, stringify } from "./repository-cor
 
 import { ThreadRepositoryDatabase } from "./thread-repository"
 import { PlanApprovalRepository } from "./plan-approval-repository"
+import { ThreadGoalLedgerRepository } from "./thread-goal-ledger-repository"
+import { ThreadGoalRepository } from "./thread-goal-repository"
+import { ThreadGoalContinuationRepository } from "./thread-goal-continuation-repository"
 
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
   bindInputAttachments(inputID: string, attachmentIDs: readonly string[]) {
@@ -163,7 +166,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           timestamp,
           timestamp,
         )
-        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
           inputID,
           threadID,
           turnID,
@@ -176,6 +179,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           input.taskMode,
           status === "queued" ? "queued" : "active",
           timestamp,
+          input.origin ?? null,
         )
         this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
         const method = status === "queued" ? "turn/queued" : "turn/started"
@@ -298,6 +302,8 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         if (started.changes === 0) throw new Error(`Turn ${turnID} claim 失败`)
         this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'`).run(turnID)
         this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = (SELECT thread_id FROM turns WHERE id = ?)").run(turnID)
+        const claimedThread = this.sqlite.query("SELECT thread_id FROM turns WHERE id = ?").get(turnID) as { thread_id: string }
+        this.goalLedger().openInterval({ threadId: claimedThread.thread_id, agentId: turn.root_agent_id })
         return this.getAgentExecution(turn.root_agent_id)
       })
     }
@@ -314,6 +320,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         this.sqlite.query("UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'").run(turnID)
         this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(row.thread_id)
         const agent = this.getAgentExecution(row.root_agent_id)!
+        this.goalLedger().openInterval({ threadId: row.thread_id, agentId: agent.id })
         const events = [
           this.insertEvent(row.thread_id, turnID, "agent/upserted", { agent }),
           this.insertEvent(row.thread_id, turnID, "turn/started", { turnId: turnID, rootAgentId: agent.id, startedAt: timestamp, input }),
@@ -424,6 +431,47 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           ).run(input.status === "completed" ? "completed" : "interrupted", timestamp, input.turnID)
         }
         if (input.status === "completed") new PlanApprovalRepository(this).recover(input.threadID)
+        const visibleGoal = new ThreadGoalRepository(this).get(input.threadID)
+        const goalMeasurement = visibleGoal
+          ? new ThreadGoalLedgerRepository(this).measureTurnForGoal({
+              threadId: input.threadID,
+              turnId: input.turnID,
+              goal: { id: visibleGoal.id, createdAt: visibleGoal.createdAt },
+            })
+          : null
+        const continuationRepository = new ThreadGoalContinuationRepository(this)
+        const settledGoal = new ThreadGoalRepository(this).get(input.threadID)
+        let continuation: ReturnType<ExecutionRepositoryDatabase["createTurn"]> | null = null
+        if (
+          input.status === "completed"
+          && settledGoal?.status === "active"
+          && continuationRepository.available()
+          && !continuationRepository.hasSourceTurn(input.turnID)
+          && !this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(input.threadID)
+          && Boolean(this.sqlite.query("SELECT 1 FROM threads WHERE id = ? AND archived_at IS NULL AND queue_pause_reason IS NULL").get(input.threadID))
+        ) {
+          const previous = this.getTurnInput(input.turnID)
+          if (previous) {
+            const continuationInputId = crypto.randomUUID()
+            continuation = this.createTurn(input.threadID, {
+              content: `继续推进当前 Goal，基于已有任务上下文自主完成下一步。不要重复已完成的工作。\n\nGoal：${settledGoal.objective}`,
+              model: previous.model,
+              permissionConfig: previous.permissionConfig,
+              strategy: "queue",
+              taskMode: previous.taskMode,
+              origin: "goal-continuation",
+            }, "queued", { inputID: continuationInputId })
+            continuationRepository.record({
+              sourceTurnId: input.turnID,
+              threadId: input.threadID,
+              goalId: settledGoal.id,
+              continuationTurnId: continuation.turnID,
+              continuationInputId,
+              triggerReason: "turn-completed-goal-active",
+              timestamp,
+            })
+          }
+        }
         const events: EventEnvelope[] = [
           this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent }),
           ...requeuedSteers.flatMap((queued) => [
@@ -446,6 +494,8 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
             ...(input.message ? { message: input.message } : {}),
             finishedAt: timestamp,
           }),
+          ...(goalMeasurement ? [goalMeasurement.event] : []),
+          ...(continuation ? [continuation.event, continuation.queueEvent, continuation.agentEvent].filter((event): event is EventEnvelope => event !== null) : []),
         ]
         if (input.pauseReason && this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(input.threadID)) {
           const current = this.queueStateMeta(input.threadID)
@@ -503,9 +553,13 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return row?.root_agent_id ? this.getAgentExecution(row.root_agent_id) : null
     }
 
+  private goalLedger() { return new ThreadGoalLedgerRepository(this) }
+
   updateAgentStatus(agentID: string, status: AgentExecution["status"], error: string | null = null) {
       const result = this.sqlite.query("UPDATE agent_executions SET status = ?, error = ?, updated_at = ? WHERE id = ?").run(status, error, now(), agentID)
       if (result.changes === 0) throw new Error(`Agent ${agentID} 不存在`)
+      // Waiting, paused and terminal states all stop counting as active run time.
+      if (status !== "running") this.goalLedger().closeAgentIntervals(agentID)
       return this.getAgentExecution(agentID)!
     }
 

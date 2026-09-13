@@ -172,6 +172,7 @@ export interface PiLifecycleCallbacks {
   requestUserInput?(input: RequestUserInput & { question?: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   updatePlan?(input: ExecutionPlanInput, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  updateGoal?(input: { status: "complete" | "blocked" }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   submitPlan?(input: StructuredPlan, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   waitAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>

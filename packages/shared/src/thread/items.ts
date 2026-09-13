@@ -30,12 +30,16 @@ import { TurnSchema } from "./schema"
 export const InputDeliverySchema = Schema.Literals(["start", "steer", "follow-up"])
 export type InputDelivery = typeof InputDeliverySchema.Type
 
+export const InputOriginSchema = Schema.Literals(["user", "goal-continuation"])
+export type InputOrigin = typeof InputOriginSchema.Type
+
 export const InputSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
   turnId: Schema.NullOr(Schema.String),
   content: Schema.String,
   delivery: InputDeliverySchema,
+  origin: Schema.optional(InputOriginSchema),
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,

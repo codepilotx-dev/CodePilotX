@@ -24,11 +24,13 @@ import { worktreeHandlers } from "./handlers/worktree"
 import { handoffHandlers } from "./handlers/handoff"
 import { threadForkHandlers } from "./handlers/thread-fork"
 import { sideChatHandlers } from "./handlers/side-chat"
+import { threadGoalHandlers } from "./handlers/thread-goal"
 import { threadHandlers } from "./handlers/thread"
 import { toolingHandlers } from "./handlers/tooling"
 import { usageHandlers } from "./handlers/usage"
 import { speechHandlers } from "./handlers/speech"
 import { sessionGroupHandlers } from "./handlers/session-group"
+import { workflowHandlers } from "./handlers/workflow"
 import { automationHandlers } from "./handlers/automation"
 import { calendarHandlers } from "./handlers/calendar"
 import { planApprovalHandlers } from "./handlers/plan-approval"
@@ -66,11 +68,13 @@ const groups: readonly RpcHandlerGroup[] = [
   handoffHandlers,
   threadForkHandlers,
   sideChatHandlers,
+  threadGoalHandlers,
   providerHandlers,
   toolingHandlers,
   usageHandlers,
   speechHandlers,
   sessionGroupHandlers,
+  workflowHandlers,
   automationHandlers,
   calendarHandlers,
   planApprovalHandlers,

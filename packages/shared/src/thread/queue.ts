@@ -8,6 +8,7 @@ import {
   MessageSchema,
   ThreadTurnBundleSchema,
 } from "./items"
+import { ThreadGoalSchema } from "./goal"
 import { ThreadListItemSchema, ThreadSchema, TurnSchema } from "./schema"
 import { AgentExecutionSchema, SubagentProjectionSchema } from "./subagent"
 import { PlanApprovalSchema } from "./plan-approval"
@@ -35,6 +36,8 @@ export const ThreadSnapshotSchema = Schema.Struct({
   messages: Schema.Array(MessageSchema),
   items: Schema.Array(ItemSchema),
   approvals: Schema.Array(ApprovalRequestSchema),
+  /** Null once the goal is cleared; omitted by older writers. */
+  goal: Schema.optional(Schema.NullOr(ThreadGoalSchema)),
   pendingPlanApproval: Schema.optional(Schema.NullOr(PlanApprovalSchema)),
   contextReferences: Schema.optional(Schema.Array(LocalContextReferenceSchema)),
   queue: Schema.optional(Schema.Struct({

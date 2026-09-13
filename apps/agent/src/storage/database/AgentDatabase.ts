@@ -19,6 +19,10 @@ import { ArtifactRepository } from "../repositories/artifact-repository"
 import { workspaceRepository } from "../repositories/workspace-repository"
 import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
 import { SessionGroupRepository } from "../repositories/session-group-repository"
+import { ThreadGoalRepository } from "../repositories/thread-goal-repository"
+import { ThreadGoalLedgerRepository } from "../repositories/thread-goal-ledger-repository"
+import { ThreadGoalContinuationRepository } from "../repositories/thread-goal-continuation-repository"
+import { ThreadWorktreeOperationRepository } from "../repositories/thread-worktree-operation-repository"
 import { configureConnection, shrinkDatabaseMemory } from "./connection"
 import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
 import { HISTORY_APPLICATION_ID } from "./schema"
@@ -78,6 +82,10 @@ export class AgentDatabase extends RepositoryDatabase {
       turnPatches: new TurnPatchRepository(this),
       runtimeCompositions: new RuntimeCompositionRepository(this),
       sessionGroups: new SessionGroupRepository(this),
+      threadGoals: new ThreadGoalRepository(this),
+      threadGoalLedger: new ThreadGoalLedgerRepository(this),
+      threadGoalContinuations: new ThreadGoalContinuationRepository(this),
+      threadWorktreeOperations: new ThreadWorktreeOperationRepository(this),
       automations: new AutomationRepository(this),
       scheduledTasks: new ScheduledTaskRepository(this),
       schedulePlanProposals: new SchedulePlanProposalRepository(this),
