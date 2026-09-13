@@ -5,6 +5,7 @@ import {
   type DesktopOpenWindowInput,
   type DesktopPageZoomAction,
   type DesktopPageZoomState,
+  type DesktopResizeActivityPhase,
 } from "@codepilotx/shared/desktop-window-ipc"
 import {
   app,
@@ -44,6 +45,8 @@ import {
 import { createWindowsTitleBarOverlay } from "./title-bar-overlay.js"
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
+/** 取消拖拽后 "resized" 不再触发，用静默间隔补齐一次 resize end。 */
+const RESIZE_SETTLE_MS = 300
 
 export interface WindowManagerOptions {
   initialWindowState: DesktopWindowStateV1
@@ -410,25 +413,61 @@ export class WindowManager {
       this.#scheduleWindowState(false)
     }
     let manualResizeActive = false
+    let resizeActivityRevision = 0
+    let resizeSettleTimer: NodeJS.Timeout | undefined
+    const clearResizeSettleTimer = (): void => {
+      if (resizeSettleTimer) clearTimeout(resizeSettleTimer)
+      resizeSettleTimer = undefined
+    }
+    const sendResizeActivity = (phase: DesktopResizeActivityPhase): void => {
+      if (window.webContents.isDestroyed()) return
+      resizeActivityRevision += 1
+      window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity, {
+        windowId: window.id,
+        phase,
+        revision: resizeActivityRevision,
+      })
+    }
+    const finishManualResize = (): void => {
+      if (!manualResizeActive) return
+      manualResizeActive = false
+      clearResizeSettleTimer()
+      if (window.webContents.isDestroyed()) return
+      window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, false)
+      sendResizeActivity("end")
+    }
+    // 取消拖拽时 "resized" 不会再触发；最后一次 resize 之后静默一段时间即视为
+    // 结束，保证 start/end 始终配对，渲染端不会卡在降载状态。
+    const armResizeSettleTimer = (): void => {
+      clearResizeSettleTimer()
+      resizeSettleTimer = setTimeout(() => {
+        resizeSettleTimer = undefined
+        finishManualResize()
+      }, RESIZE_SETTLE_MS)
+      resizeSettleTimer.unref()
+    }
     window.on("will-resize", () => {
       if (manualResizeActive || window.webContents.isDestroyed()) return
       manualResizeActive = true
-      window.webContents.send(
-        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
-        true,
-      )
+      window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, true)
+      sendResizeActivity("start")
+      armResizeSettleTimer()
     })
     window.on("resized", () => {
       if (!manualResizeActive || window.webContents.isDestroyed()) return
       manualResizeActive = false
-      window.webContents.send(
-        DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged,
-        false,
-      )
+      clearResizeSettleTimer()
+      window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, false)
+      sendResizeActivity("end")
     })
-    window.on("resize", rememberNormalBounds)
+    const onWindowResize = (): void => {
+      if (manualResizeActive) armResizeSettleTimer()
+      rememberNormalBounds()
+    }
+    window.on("resize", onWindowResize)
     window.on("move", rememberNormalBounds)
     window.on("closed", () => {
+      clearResizeSettleTimer()
       this.#applicationWindows.delete(window.id)
       if (this.#focusedWindowId === window.id) this.#focusedWindowId = undefined
       if (this.#primaryWindowId === window.id) this.#promotePrimaryWindow()

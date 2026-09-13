@@ -24,6 +24,7 @@ import type {
   DesktopUpdateStatus,
 } from "@codepilotx/shared/desktop-update-ipc"
 import type {
+  AckDesktopTerminalOutputInput,
   AttachDesktopTerminalInput,
   CloseDesktopTerminalForThreadInput,
   CloseDesktopTerminalInput,
@@ -70,10 +71,13 @@ import type {
 import type {
   DesktopMicrophoneIpcBridge,
 } from "@codepilotx/shared/desktop-microphone-ipc"
+// 注意：preload.cjs 不参与打包，只能使用 type-only import；一旦引入运行时代码，
+// 编译产物会 require workspace 的 TS 源并导致 preload 加载失败（整个桥消失）。
 import type {
   DesktopOpenWindowInput,
   DesktopPageZoomAction,
   DesktopPageZoomState,
+  DesktopResizeActivity,
   DesktopWindowIpcBridge,
 } from "@codepilotx/shared/desktop-window-ipc"
 import type { DesktopWorkspaceIpcBridge } from "@codepilotx/shared/desktop-workspace-ipc"
@@ -144,6 +148,7 @@ const DESKTOP_TERMINAL_IPC_CHANNELS = {
   closeThread: "desktop-terminal:close-thread",
   runAction: "desktop-terminal:run-action",
   event: "desktop-terminal:event",
+  ack: "desktop-terminal:ack",
 } as const satisfies typeof import("@codepilotx/shared/desktop-terminal-ipc").DESKTOP_TERMINAL_IPC_CHANNELS
 
 const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
@@ -189,6 +194,7 @@ const DESKTOP_WINDOW_IPC_CHANNELS = {
   changePageZoom: "window:page-zoom:change",
   pageZoomChanged: "window:page-zoom:changed",
   resizeStateChanged: "window:resize-state-changed",
+  resizeActivity: "window:resize-activity",
 } as const satisfies typeof import("@codepilotx/shared/desktop-window-ipc").DESKTOP_WINDOW_IPC_CHANNELS
 
 const DESKTOP_WORKSPACE_IPC_CHANNELS = {
@@ -409,6 +415,22 @@ const desktop = {
         handler,
       )
   },
+  onWindowResizeActivity: (
+    listener: (activity: DesktopResizeActivity) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      activity: unknown,
+    ): void => {
+      if (isDesktopResizeActivity(activity)) listener(activity)
+    }
+    ipcRenderer.on(DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity,
+        handler,
+      )
+  },
   pickWorkspaceDirectory: (): Promise<string | null> => ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory),
   getDataLocation: () =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
@@ -475,6 +497,8 @@ const desktop = {
     ipcRenderer.send(DESKTOP_TERMINAL_IPC_CHANNELS.write, input),
   resizeTerminal: (input: ResizeDesktopTerminalInput): void =>
     ipcRenderer.send(DESKTOP_TERMINAL_IPC_CHANNELS.resize, input),
+  ackTerminalOutput: (input: AckDesktopTerminalOutputInput): void =>
+    ipcRenderer.send(DESKTOP_TERMINAL_IPC_CHANNELS.ack, input),
   closeTerminal: (
     input: CloseDesktopTerminalInput,
   ): Promise<DesktopTerminalSnapshot> =>
@@ -848,6 +872,19 @@ function isDesktopTerminalChunk(value: unknown): boolean {
     && Number(value.sequence) >= 0
     && typeof value.data === "string"
     && new TextEncoder().encode(value.data).byteLength <= 1_048_576
+}
+
+/** 与 @codepilotx/shared/desktop-window-ipc 的校验保持一致（preload 不能运行时引用它）。 */
+function isDesktopResizeActivity(
+  value: unknown,
+): value is DesktopResizeActivity {
+  if (!isRecord(value)) return false
+  if (Object.keys(value).length !== 3) return false
+  return (
+    Number.isSafeInteger(value.windowId)
+    && (value.phase === "start" || value.phase === "end")
+    && Number.isSafeInteger(value.revision)
+  )
 }
 
 function isIdentifier(value: unknown): value is string {

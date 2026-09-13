@@ -11,6 +11,11 @@ export type TerminalOutputState = {
   nextSequence: number
   state: DesktopTerminalState
   exitCode: number | null
+  /**
+   * 主进程缓冲因有界容量丢弃过最旧输出。渲染端据此给出明确的"已截断"提示，
+   * 而不是让用户以为丢了数据或终端坏了。
+   */
+  truncated: boolean
 }
 
 export type TerminalOutputUpdate = {
@@ -27,6 +32,7 @@ export function createTerminalOutputState(): TerminalOutputState {
     nextSequence: 0,
     state: 'starting',
     exitCode: null,
+    truncated: false,
   }
 }
 
@@ -53,6 +59,7 @@ export function consumeTerminalSnapshot(
           nextSequence: expected,
           state: snapshot.state,
           exitCode: snapshot.exitCode,
+          truncated: snapshot.truncated,
         },
         chunks,
         reset,
@@ -70,6 +77,7 @@ export function consumeTerminalSnapshot(
       nextSequence: Math.max(expected, snapshot.nextSequence),
       state: snapshot.state,
       exitCode: snapshot.exitCode,
+      truncated: snapshot.truncated,
     },
     chunks,
     reset,
