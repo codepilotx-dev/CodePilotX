@@ -62,6 +62,24 @@ const stringArray = (value: unknown, name: string): string[] => {
   return value as string[]
 }
 
+const recentNewThreadModel = (
+  snapshot: Record<string, unknown>,
+): { providerID: string; id: string; variant?: string } | null => {
+  const desktop = snapshot.desktop
+  if (!desktop || typeof desktop !== "object" || Array.isArray(desktop)) return null
+  const recent = (desktop as Record<string, unknown>).recent_new_thread_model
+  if (!recent || typeof recent !== "object" || Array.isArray(recent)) return null
+  const record = recent as Record<string, unknown>
+  const providerID = typeof record.providerID === "string" ? record.providerID : ""
+  const id = typeof record.id === "string" ? record.id : ""
+  if (!providerID || !id) return null
+  return {
+    providerID,
+    id,
+    ...(typeof record.variant === "string" && record.variant ? { variant: record.variant } : {}),
+  }
+}
+
 const emitCredentialUpdated = async (runtime: RpcRouter, providerID: string) => {
   await runtime.emit("provider/credential/updated", { providerId: providerID })
   await runtime.dependencies.minimaxCli.credentialChanged(providerID)
@@ -155,18 +173,18 @@ export const providerHandlers = {
       case "model/setDefault": {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
+        // 兼容外壳：旧客户端的“默认模型”语义现在映射为新建任务最近选择。
         await config.batchWrite({
-          edits: model
-            ? [
-                { keyPath: ["model"], value: String(model.id) },
-                { keyPath: ["model_provider"], value: String(model.providerID) },
-                { keyPath: ["model_reasoning_effort"], value: model.variant ? String(model.variant) : null },
-              ]
-            : [
-                { keyPath: ["model"], value: null },
-                { keyPath: ["model_provider"], value: null },
-                { keyPath: ["model_reasoning_effort"], value: null },
-              ],
+          edits: [{
+            keyPath: ["desktop", "recent_new_thread_model"],
+            value: model
+              ? {
+                  providerID: String(model.providerID),
+                  id: String(model.id),
+                  ...(model.variant ? { variant: String(model.variant) } : {}),
+                }
+              : null,
+          }],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
         return { defaultModel: model, settingsVersion: catalog.catalogVersion }
@@ -194,31 +212,21 @@ export const providerHandlers = {
         const testedAt = Date.now()
         let ref = explicitModel
         if (!ref) {
-          const snapshot = config.snapshot()
-          const defaultProviderID =
-            typeof snapshot.model_provider === "string"
-              ? snapshot.model_provider
-              : ""
-          const defaultModel =
-            defaultProviderID === providerID
-            && typeof snapshot.model === "string"
-              ? modelRefOrNull({
-                  providerID: defaultProviderID,
-                  id: snapshot.model,
-                  ...(typeof snapshot.model_reasoning_effort === "string"
-                    && snapshot.model_reasoning_effort
-                    && snapshot.model_reasoning_effort !== "default"
-                    ? { variant: snapshot.model_reasoning_effort }
-                    : {}),
-                })
-              : null
+          const recent = recentNewThreadModel(config.snapshot())
+          const recentForProvider = recent && recent.providerID === providerID
+            ? modelRefOrNull({
+                providerID: recent.providerID,
+                id: recent.id,
+                ...(recent.variant ? { variant: recent.variant } : {}),
+              })
+            : null
           const models = await providers.models(Provider.ID.make(providerID))
           const firstEnabled = models.find((model) => model.enabled)
-          const defaultAvailable =
-            defaultModel && models.some((model) => String(model.id) === String(defaultModel.id))
-              ? defaultModel
+          const recentAvailable =
+            recentForProvider && models.some((model) => String(model.id) === String(recentForProvider.id))
+              ? recentForProvider
               : null
-          ref = defaultAvailable ?? (firstEnabled
+          ref = recentAvailable ?? (firstEnabled
             ? modelRefOrNull({ providerID, id: firstEnabled.id })
             : null)
         }
@@ -335,13 +343,13 @@ export const providerHandlers = {
         const specializedModels = snapshot.specialized_models && typeof snapshot.specialized_models === "object"
           ? snapshot.specialized_models as Record<string, unknown>
           : {}
+        // 裸模型 ID 已由迁移改写为完整引用，这里只认真实的 providerID/modelID 引用。
         const specializedReferencesProvider = Object.values(specializedModels).some((value) =>
-          typeof value === "string"
-          && (value.startsWith(`${providerID}/`)
-            || (!value.includes("/") && snapshot.model_provider === providerID)),
+          typeof value === "string" && value.startsWith(`${providerID}/`),
         )
-        if (snapshot.model_provider === providerID || specializedReferencesProvider) {
-          throw new AgentError("CONFLICT", "Provider 仍被默认模型或专用模型引用", 409)
+        const recent = recentNewThreadModel(snapshot)
+        if (recent?.providerID === providerID || specializedReferencesProvider) {
+          throw new AgentError("CONFLICT", "Provider 仍被最近模型或专用模型引用", 409)
         }
         await config.batchWrite({
           edits: [{ keyPath: ["model_providers", providerID], value: null }],

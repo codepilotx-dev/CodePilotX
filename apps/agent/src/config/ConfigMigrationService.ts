@@ -13,6 +13,13 @@ import { join } from "node:path"
 import { createHash } from "node:crypto"
 import { planPiProviderConfigMigration } from "../provider/pi/PiProviderConfigMigration"
 
+const SPECIALIZED_MODEL_PURPOSES = [
+  "generation",
+  "organization",
+  "coding",
+  "security",
+] as const
+
 const DESKTOP_RUNTIME_KEYS = new Set([
   "recentWorkspaces",
   "lastActiveWorkspacePath",
@@ -192,6 +199,8 @@ export class ConfigMigrationService {
     if (legacy.completed) {
       await this.migratePortableDesktopRuntimeState()
       await this.migratePiProviderConfig()
+      await this.migrateRecentNewThreadModel()
+      await this.migrateSpecializedModelReferences()
       return
     }
     const read = await this.config.read({ includeLayers: true })
@@ -358,6 +367,86 @@ export class ConfigMigrationService {
     }
     await this.migratePortableDesktopRuntimeState()
     await this.migratePiProviderConfig()
+    await this.migrateRecentNewThreadModel()
+    await this.migrateSpecializedModelReferences()
+  }
+
+  /**
+   * 把仍使用裸模型 ID 的专用模型解析为完整 providerID/modelID 引用。
+   * 这样 Provider 删除保护只需检查真实专用模型引用，不再依赖遗留的 model_provider。
+   * 无法确定 Provider 或已是完整引用时保持原值。
+   */
+  private async migrateSpecializedModelReferences() {
+    if (this.repository.specializedModelReferencesMigrated()) return
+    const read = await this.config.read({ includeLayers: true })
+    if (read.diagnostics.some((item) =>
+      item.scope === "user" && item.severity === "error")) return
+    const user = read.layers?.find((layer) => layer.kind === "user")
+    const current = user?.config ?? {}
+    const providerID = typeof current.model_provider === "string"
+      ? current.model_provider.trim()
+      : ""
+    const specialized = isObject(current.specialized_models)
+      ? current.specialized_models as Record<string, unknown>
+      : {}
+    const edits: ConfigEdit[] = []
+    if (providerID) {
+      for (const purpose of SPECIALIZED_MODEL_PURPOSES) {
+        const value = specialized[purpose]
+        if (typeof value !== "string") continue
+        const reference = value.trim()
+        if (!reference || reference.includes("/")) continue
+        edits.push({
+          keyPath: ["specialized_models", purpose],
+          value: `${providerID}/${reference}`,
+        })
+      }
+    }
+    if (edits.length) {
+      await this.config.batchWrite({
+        edits,
+        ...(user?.version ? { expectedVersion: user.version } : {}),
+      })
+    }
+    this.repository.markSpecializedModelReferencesMigrated()
+  }
+
+  /**
+   * 把旧的全局默认模型一次性导入新建任务最近选择。
+   * 项目默认模型保持原样存储但不再被消费。写入后用版本标记阻止重复导入，
+   * 因此用户后续清空或更换最近选择不会被旧值覆盖。
+   */
+  private async migrateRecentNewThreadModel() {
+    if (this.repository.recentNewThreadModelMigrated()) return
+    const read = await this.config.read({ includeLayers: true })
+    if (read.diagnostics.some((item) =>
+      item.scope === "user" && item.severity === "error")) return
+    const user = read.layers?.find((layer) => layer.kind === "user")
+    const current = user?.config ?? {}
+    const desktop = isObject(current.desktop)
+      ? current.desktop as Record<string, unknown>
+      : {}
+    if (desktop.recent_new_thread_model !== undefined) {
+      this.repository.markRecentNewThreadModelMigrated()
+      return
+    }
+    const providerID = typeof current.model_provider === "string" ? current.model_provider.trim() : ""
+    const id = typeof current.model === "string" ? current.model.trim() : ""
+    if (providerID && id) {
+      const variant = typeof current.model_reasoning_effort === "string"
+        && current.model_reasoning_effort.trim()
+        && current.model_reasoning_effort !== "default"
+        ? current.model_reasoning_effort.trim()
+        : undefined
+      await this.config.batchWrite({
+        edits: [{
+          keyPath: ["desktop", "recent_new_thread_model"],
+          value: { providerID, id, ...(variant ? { variant } : {}) },
+        }],
+        ...(user?.version ? { expectedVersion: user.version } : {}),
+      })
+    }
+    this.repository.markRecentNewThreadModelMigrated()
   }
 
   private async migratePortableDesktopRuntimeState() {

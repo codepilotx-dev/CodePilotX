@@ -1,4 +1,3 @@
-import type { ModelRef } from '@codepilotx/shared'
 import {
   ArrowLeft,
   ChevronRight,
@@ -201,7 +200,7 @@ function EnvironmentList({
         </WorkspaceHeaderItem>
         <PrimaryPageLayout
           className="projects-primary-page"
-          description="管理项目环境、默认模型、项目指令和共享来源。"
+          description="管理项目环境、项目指令和共享来源。"
           search={(
             <SearchInput
               aria-label="搜索项目"
@@ -253,7 +252,7 @@ function EnvironmentList({
           <div>
             <h1 className="settings-page-title">环境</h1>
             <p className="settings-page-desc">
-              管理项目的默认模型、项目指令和共享来源。
+              管理项目的项目指令和共享来源。
             </p>
           </div>
         </header>
@@ -287,8 +286,7 @@ function EnvironmentDetail({
   const [project, setProject] = useState<DesktopWorkspace | null>(null)
   const [draftName, setDraftName] = useState('')
   const [instructions, setInstructions] = useState('')
-  const [defaultModelKey, setDefaultModelKey] = useState('')
-  const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
+  const [executionEnvironment, setExecutionEnvironment] = useState<'auto' | 'local'>('auto')
   const [sources, setSources] = useState<DesktopProjectSource[]>([])
   const [sourceFolderId, setSourceFolderId] = useState('')
   const [sourcePath, setSourcePath] = useState('')
@@ -307,7 +305,7 @@ function EnvironmentDetail({
     if (next && !preserveDraft) {
       setDraftName(next.name)
       setInstructions(next.projectSettings?.instructions ?? '')
-      setDefaultModelKey(modelKey(next.projectSettings?.defaultModel ?? null))
+      setExecutionEnvironment(next.projectSettings?.executionEnvironment ?? 'auto')
       setSourceFolderId(next.primaryFolderId ?? next.folders?.[0]?.id ?? '')
       setRelinkSourceId(null)
     }
@@ -319,28 +317,7 @@ function EnvironmentDetail({
     try {
       const next = await loadProject(false)
       if (next) {
-        const [nextSources, providerState] = await Promise.all([
-          desktopClient.listProjectSources(projectId),
-          desktopClient.getModelProviderState(),
-        ])
-        setSources(nextSources)
-        const models = providerState.models.map(id => ({
-          providerID: String(providerState.selectedProviderID),
-          id,
-        }))
-        const configured = next.projectSettings?.defaultModel
-        if (
-          configured
-          && !models.some(model =>
-            model.providerID === configured.providerID
-            && model.id === configured.id)
-        ) {
-          models.unshift({
-            providerID: configured.providerID,
-            id: configured.id,
-          })
-        }
-        setModelOptions(models)
+        setSources(await desktopClient.listProjectSources(projectId))
       }
     } catch (error) {
       onError(errorMessage(error))
@@ -385,23 +362,22 @@ function EnvironmentDetail({
           expectedVersion: project.projectVersion ?? 0,
         })
       }
-      const selectedModel = parseModelKey(defaultModelKey)
-      const currentModel = next.projectSettings?.defaultModel ?? null
+      const currentExecution = next.projectSettings?.executionEnvironment ?? 'auto'
       if (
         instructions !== (next.projectSettings?.instructions ?? '')
-        || !sameModel(selectedModel, currentModel)
+        || executionEnvironment !== currentExecution
       ) {
         next = await desktopClient.updateProjectSettings({
           projectId,
           instructions,
-          defaultModel: selectedModel,
+          executionEnvironment,
           expectedVersion: next.projectSettings?.version ?? 0,
         })
       }
       setProject(next)
       setDraftName(next.name)
       setInstructions(next.projectSettings?.instructions ?? '')
-      setDefaultModelKey(modelKey(next.projectSettings?.defaultModel ?? null))
+      setExecutionEnvironment(next.projectSettings?.executionEnvironment ?? 'auto')
       notifyProjectCatalogChanged()
       onNotice?.('项目设置已保存。')
     } catch (error) {
@@ -546,7 +522,7 @@ function EnvironmentDetail({
 
         <SettingsSection
           title="基本信息"
-          description="名称、默认模型与项目任务的共享指令一起保存。"
+          description="名称与项目任务的共享指令一起保存。"
         >
           <label className="environment-field">
             <span>项目名称</span>
@@ -557,27 +533,21 @@ function EnvironmentDetail({
             />
           </label>
           <div className="environment-field">
-            <span>默认模型</span>
+            <span>任务执行环境</span>
+            <small>
+              仅影响该项目之后新建的任务；已有任务保持创建时的执行环境不变。
+            </small>
             <SettingsDropdown
-              ariaLabel="默认模型"
-              maxWidth="calc(100vw - 32px)"
+              ariaLabel="任务执行环境"
               options={[
-                {
-                  value: '',
-                  label: '继承全局默认模型',
-                },
-                ...modelOptions.map(model => ({
-                  value: `${model.providerID}\u0000${model.id}`,
-                  label: `${model.providerID} / ${model.id}`,
-                })),
+                { value: 'auto', label: '自动（推荐）' },
+                { value: 'local', label: '本地目录' },
               ]}
-              searchable
-              searchPlaceholder="搜索模型"
               showSelectedIndicator
               triggerClassName="environment-settings-dropdown"
-              value={defaultModelKey}
-              width={360}
-              onChange={setDefaultModelKey}
+              value={executionEnvironment}
+              width={240}
+              onChange={value => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
             />
           </div>
           <label className="environment-field environment-field-textarea">
@@ -790,24 +760,6 @@ function EnvironmentEmpty({
   children: React.ReactNode
 }): React.ReactNode {
   return <p className="environment-empty">{children}</p>
-}
-
-type ModelOption = {
-  providerID: string
-  id: string
-}
-
-function modelKey(model: ModelRef | null): string {
-  return model ? `${model.providerID}\u0000${model.id}` : ''
-}
-
-function parseModelKey(value: string): ModelRef | null {
-  const [providerID, id] = value.split('\u0000')
-  return providerID && id ? { providerID, id } as ModelRef : null
-}
-
-function sameModel(left: ModelRef | null, right: ModelRef | null): boolean {
-  return left?.providerID === right?.providerID && left?.id === right?.id
 }
 
 function errorMessage(error: unknown): string {

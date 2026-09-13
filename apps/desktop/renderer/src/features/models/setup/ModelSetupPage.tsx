@@ -19,6 +19,7 @@ import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
+import { persistRecentNewThreadModel } from '../recentNewThreadModel.js'
 import { WindowControls } from '../../layout/MenuBar.js'
 import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
@@ -30,6 +31,7 @@ import {
 import { OAuthConnection } from '../provider-management/OAuthConnection.js'
 import { ProviderEditorDialog } from '../provider-management/ProviderEditorDialog.js'
 import {
+  hasUsableTaskModel,
   resolveModelSetupLoadingLabel,
   SetupBootState,
   SetupRecoveryState,
@@ -129,7 +131,10 @@ export function ModelSetupPage(): React.ReactNode {
       || !snapshot.currentProviderState
       || settings.firstUseSetupCompleted !== undefined
     ) return
-    const inferred = snapshot.currentProviderState.modelConfigured ? 1 : 0
+    const inferred = hasUsableTaskModel(
+      snapshot.currentProviderState,
+      snapshot.providers,
+    ) ? 1 : 0
     void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
   }, [
     settings.firstUseSetupCompleted,
@@ -137,6 +142,7 @@ export function ModelSetupPage(): React.ReactNode {
     settings.settingsLoaded,
     snapshot.configurationError,
     snapshot.currentProviderState,
+    snapshot.providers,
     snapshot.loaded,
   ])
 
@@ -151,7 +157,11 @@ export function ModelSetupPage(): React.ReactNode {
     const fullGuideRequested = settings.firstUseSetupCompleted === 0
       || (
         settings.firstUseSetupCompleted === undefined
-        && snapshot.currentProviderState?.modelConfigured !== true
+        && (
+          snapshot.currentProviderState === null
+          || snapshot.currentProviderState === undefined
+          || !hasUsableTaskModel(snapshot.currentProviderState, snapshot.providers)
+        )
       )
     setStep(
       !fullGuideRequested && isProviderConnected(preferred, snapshot)
@@ -226,7 +236,7 @@ export function ModelSetupPage(): React.ReactNode {
     )
   }
   const effectiveFirstUseSetupCompleted = settings.firstUseSetupCompleted
-    ?? (snapshot.currentProviderState.modelConfigured ? 1 : 0)
+    ?? (hasUsableTaskModel(snapshot.currentProviderState, snapshot.providers) ? 1 : 0)
   if (effectiveFirstUseSetupCompleted === 1) {
     return <Navigate replace to="/new" />
   }
@@ -306,15 +316,17 @@ export function ModelSetupPage(): React.ReactNode {
     setError(null)
     let modelSaved = false
     try {
-      const nextState = await desktopClient.saveModelProvider({
+      await persistRecentNewThreadModel({
         providerID: selectedProvider.providerID,
         id: modelId,
-        variant: variant || undefined,
+        ...(variant ? { variant } : {}),
       })
-      const sameSelection = nextState.modelConfigured
-        && nextState.selectedProviderID === selectedProvider.providerID
+      const nextState = await desktopClient.getModelProviderState(
+        selectedProvider.providerID,
+      )
+      const sameSelection = nextState.selectedProviderID === selectedProvider.providerID
+        && nextState.apiKeyConfigured
         && nextState.model === modelId
-        && (nextState.variant ?? '') === (variant ?? '')
       if (!sameSelection) {
         setError('保存结果与所选不一致，请重试。')
         setStatus('error')
@@ -324,8 +336,7 @@ export function ModelSetupPage(): React.ReactNode {
       settings.syncExternalSettingsPatch({
         providerID: nextState.selectedProviderID,
         providerBaseURL: nextState.baseURL ?? '',
-        model: nextState.model,
-        selectedModelPreset: nextState.model,
+        selectedModelPreset: modelId,
       })
       await providerManagementStore.refresh()
       await settings.saveFirstUseSetupCompleted(1)
@@ -366,10 +377,10 @@ export function ModelSetupPage(): React.ReactNode {
             </div>
             <div>
               <p className="model-setup-eyebrow">{step === 'provider' ? '1 / 2 · 连接供应商' : '2 / 2 · 选择模型'}</p>
-              <h1 id="model-setup-title">{step === 'provider' ? '先连接一个模型供应商' : '选择默认模型'}</h1>
+              <h1 id="model-setup-title">{step === 'provider' ? '先连接一个模型供应商' : '选择模型'}</h1>
               <p>{step === 'provider'
                 ? '凭据只会保存到现有安全凭据仓库。连接测试可稍后进行。'
-                : `CodePilotX 将在新任务中默认使用 ${selectedProvider?.displayName ?? '此供应商'}。`}</p>
+                : '新任务会记住你最近选择的模型，之后仍可在任务中随时切换。'}</p>
             </div>
           </header>
 

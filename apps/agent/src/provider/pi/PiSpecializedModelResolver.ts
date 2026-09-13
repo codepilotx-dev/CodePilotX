@@ -35,7 +35,18 @@ const specializedRef = (
   return modelRef(specialized[purpose], config.model_provider)
 }
 
-const mainRef = (config: ConfigObject) => modelRef(config.model, config.model_provider)
+const recentNewThreadRef = (config: ConfigObject): Model.Ref | null => {
+  const recent = object(object(config.desktop).recent_new_thread_model)
+  const providerID = typeof recent.providerID === "string" ? recent.providerID.trim() : ""
+  const id = typeof recent.id === "string" ? recent.id.trim() : ""
+  if (!providerID || !id) return null
+  const variant = typeof recent.variant === "string" ? recent.variant.trim() : ""
+  return Model.Ref.make({
+    providerID: Provider.ID.make(providerID),
+    id: Model.ID.make(id),
+    ...(variant ? { variant: Model.VariantID.make(variant) } : {}),
+  })
+}
 
 export async function resolveSpecializedPiModel(input: {
   purpose: SpecializedModelPurpose
@@ -58,7 +69,7 @@ export async function resolveSpecializedPiModel(input: {
     ...(input.fallbackRefs ?? []),
     ...(input.includeMainFallback === false
       ? []
-      : [mainRef(effectiveConfig), mainRef(globalConfig)]),
+      : [recentNewThreadRef(effectiveConfig), recentNewThreadRef(globalConfig)]),
   ].filter((ref): ref is Model.Ref => ref !== null)
   const seen = new Set<string>()
   for (const ref of refs) {

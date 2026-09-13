@@ -926,6 +926,8 @@ function normalizeProjectSettings(
   return {
     defaultModel: value.defaultModel ?? null,
     instructions: value.instructions,
+    // Older persisted settings predate the field and mean the automatic default.
+    executionEnvironment: value.executionEnvironment === 'local' ? 'local' : 'auto',
     version: value.version,
   }
 }

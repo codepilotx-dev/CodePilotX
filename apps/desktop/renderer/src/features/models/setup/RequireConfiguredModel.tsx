@@ -5,6 +5,8 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '../../../components/ui/Button.js'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import type { DesktopModelProviderSummary } from '../../../../shared/types.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
 import type { ProviderManagementSnapshot } from '../../provider-management/types.js'
 import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
@@ -16,10 +18,27 @@ export type ModelSetupGateDecision =
   | 'setup'
   | 'workbench'
 
+/**
+ * 跨 Provider 判断是否存在可用任务模型：当前 Provider 已连接且有模型，
+ * 或其他 Provider 已启用、可执行且认证可用。避免当前 Provider 不可用时误判为需要重新配置。
+ */
+export function hasUsableTaskModel(
+  state: {
+    apiKeyConfigured: boolean
+    models: readonly string[]
+  },
+  providers: readonly DesktopModelProviderSummary[] = [],
+): boolean {
+  if (state.apiKeyConfigured === true && state.models.length > 0) return true
+  return providers.some(provider =>
+    provider.apiKeyConfigured === true && isExecutableDesktopProvider(provider),
+  )
+}
+
 export function resolveModelSetupGate(
   snapshot: Pick<
     ProviderManagementSnapshot,
-    'loaded' | 'configurationError' | 'currentProviderState'
+    'loaded' | 'configurationError' | 'currentProviderState' | 'providers'
   >,
   settings: {
     settingsLoaded: boolean
@@ -30,7 +49,9 @@ export function resolveModelSetupGate(
   if (snapshot.configurationError || !snapshot.currentProviderState) return 'recovery'
   if (settings.firstUseSetupCompleted === 0) return 'setup'
   if (settings.firstUseSetupCompleted === 1) return 'workbench'
-  return snapshot.currentProviderState.modelConfigured ? 'workbench' : 'setup'
+  return hasUsableTaskModel(snapshot.currentProviderState, snapshot.providers)
+    ? 'workbench'
+    : 'setup'
 }
 
 export function RequireConfiguredModel(): React.ReactNode {
@@ -47,7 +68,10 @@ export function RequireConfiguredModel(): React.ReactNode {
       || !snapshot.currentProviderState
       || settings.firstUseSetupCompleted !== undefined
     ) return
-    const inferred = snapshot.currentProviderState.modelConfigured ? 1 : 0
+    const inferred = hasUsableTaskModel(
+      snapshot.currentProviderState,
+      snapshot.providers,
+    ) ? 1 : 0
     void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
   }, [
     settings.firstUseSetupCompleted,
@@ -55,6 +79,7 @@ export function RequireConfiguredModel(): React.ReactNode {
     settings.settingsLoaded,
     snapshot.configurationError,
     snapshot.currentProviderState,
+    snapshot.providers,
     snapshot.loaded,
   ])
 
