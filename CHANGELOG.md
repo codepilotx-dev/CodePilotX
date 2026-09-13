@@ -9,11 +9,57 @@
 
 ### Added
 
+- [agent/desktop] 补齐 Goal 自动执行闭环：history schema 48 新增幂等 continuation 记录，成功 Turn 在 Goal 仍为 active、无用户排队、任务未归档且队列未暂停时，于终态计量事务内创建下一 Turn；自动输入使用 `goal-continuation` 来源并复用模型、权限与任务模式。Chat 主 Agent 新增 `update_goal` 生命周期工具，Goal 目标、状态、预算及用量注入 Prompt；失败按 Provider 配额或普通阻塞派生 `usage-limited`／`blocked`，运行中禁止清除 Goal，`turn/start.goal` 支持首 Turn 原子附加 Goal。
+
+- [agent/desktop] 新增 `thread.execution.v2` 与 `worktree/eligibility`，`thread/create.workspace.execution` 支持从 working tree 或指定分支创建并绑定托管 Worktree；history schema 49 记录线程创建与 Worktree 子 operation 的阶段。新版 Desktop 对 Git 项目默认请求 working-tree Worktree，非 Git 项目回落 Local，旧客户端省略 execution 时仍保持 Local。
+
+- [agent] 线程创建与 Worktree 子 operation 的启动恢复改为独立可测单元：绑定一致时补记 `thread-published`；从未发布 Thread 的孤立 Worktree 用确定性的 `<worktree-operation>:orphan-cleanup` operation 清理并标记 `cleaned`；Thread 已存在但绑定缺失或不匹配时保留资源并标记 `failed`，避免删除用户可能仍在使用的目录；三种结果均为终态，重复启动恢复不再重复清理。
+
+- [agent/desktop] 新增 canonical `Workflow` 共享类型、`workflow.v1`、完整 `workflow/*` RPC 与 `workflow/changed` 事件，继续复用 `session_group_*` Repository 和 Service；事件投递按协商能力在 Workflow 与一代 SessionGroup 之间投影。Desktop 改用 `/workflows` 与 canonical RPC，旧 `/session-groups` 路由保留选择并重定向。
+
+- [agent/protocol] Workflow 兼容事件投影改为真正移除被取代的字段名（不再保留 `workflowId: undefined`／`groupId: undefined`），使另一代客户端在严格 `exactResult` 解码下不会收到未知字段；canonical 与 legacy 客户端各自只收到一个对应事件。
+
+- [desktop/renderer] 新任务接入执行位置选择：新增只读 `getWorktreeEligibility` 客户端方法与 Composer 执行位置控件，Git 项目默认选中「新 Worktree」并可显式切换「本地项目」，非 Git 项目固定 Local 且禁用 Worktree 选项，projectless 任务不展示该控件；eligibility 探测失败安全回退 Local 并提供重试，创建完成后一律以服务端 `executionEnvironment` 为准。Goal 乐观并发冲突时重新对账 Thread snapshot、刷新缓存并提示重试，不再静默覆盖他人写入；`thread/goal/updated` 与 `thread/goal/cleared` 纳入目录刷新事件集，Goal 状态与用量由事件自身驱动刷新，不再依赖 mutation 后的偶然对账。Renderer 只读写 canonical `workflowId`（`sessionGroupId` 保留为一代读取别名），线程创建选项由 `sessionGroupId` 更名为 `workflowId`。用户可见的「会话组」文案统一为「工作流」，旧 `/session-groups` 重定向保留所选 Workflow 标识与 query。
+
+- [desktop/renderer] 执行位置界面收敛为 Codex 式紧凑控件：Composer 顶部只保留一个执行位置下拉，Git 项目默认 `Worktree` 并可切换 `Local`，非 Git 项目只显示 `Local` 且不解释、不警告，projectless 与探测中不渲染控件；移除常驻的「无法探测执行位置／将使用本地目录／重试」文案与内联错误区域，eligibility 请求失败静默回退 Local 且不阻止发送。阻止发送的创建失败改走现有全局错误通知，只给出简短可行动文案（如「无法创建任务，请重试或选择本地目录。」），再次提交即重新探测与创建，不在 Composer 放置独立重试入口；Goal 版本冲突同样通过全局通知告知已刷新。任务创建后以服务端 `executionEnvironment` 投影为准展示真实执行位置（Local 或 `Worktree · 分支`），不再依据用户选择或分支名推测，同时补齐 `threadGoal` 与执行环境到 Composer 的传递。
+
+- [agent/desktop] 任务执行环境改为自动选择并收敛项目级覆盖：Composer 不再提供任何 Local/Worktree 选择器、检测状态或内联提示，创建项目任务前由客户端调用 `worktree/eligibility` —— Git 项目自动发送 `{ kind: "worktree", startingState: { type: "working-tree" } }`（继承当前 checkout 与 staged/unstaged/untracked 状态），非 Git 项目、探测失败与未协商 `thread.execution.v2` 的旧 Agent 一律使用 Local 且不提示用户。新增项目高级设置「任务执行环境」（`自动（推荐）` 默认 / `本地目录`），按 `projectId` 持久化于 `project_settings.execution_environment`（profile schema 3→4 前向迁移，新增列带 `auto` 默认值，已有项目行为不变），不提供「强制 Worktree」选项；设置只影响之后新建的任务，已有任务的执行绑定不被改写。自动模式下 Worktree 创建、绑定或 setup 失败会阻止任务创建，不静默降级 Local，并通过全局错误通知给出简短文案「无法创建任务，请重试或选择本地目录。」；Composer 不再有独立重试入口，再次提交即重新探测与创建。
+
 - [website] 新增纯静态英文产品官网 workspace (`apps/website`)，采用 1600px 宽幅黑色画布、全宽三段式黏附导航与滚动渐隐背景、深色沉浸首屏、分层景观及嵌入式产品窗口构图，并提供完整功能叙事和响应式媒体占位槽。
+
+- [agent/protocol] Goal 计量真源：新增 schema 47 的 `thread_goal_usage_ledger` 与 `thread_goal_active_intervals`（含 46→47 前向迁移），以 `(goal_id, source_kind, source_entry_id)` 唯一约束记录实测用量，主 Agent 与全部层级子代理通过 `parent_agent_id` 递归归集，重复终结、恢复与重放都不会重复计费；token 按 input+output+cacheRead+cacheWrite 累计（cache 与既有实测口径一致并入 input，reasoning 仅留档不计费），时间按运行区间并集计算，并行子代理不重复计入墙钟时间，等待审批/提问/暂停与离线时段不计时，崩溃恢复先关闭陈旧区间再重新开区间。计量写入、Goal 汇总、派生状态与 `thread/goal/updated` 事件在终态的同一事务内提交，仅在确实变化时才推进版本并发布事件。新增配置 `agent.goal.default_token_budget`（默认 `200000`，key-path 局部读写、保留未知键），未显式指定预算的 Goal 创建时采用该默认值，显式 `null` 表示不限额；达到预算时在机器可管理的状态区间内派生 `budget-limited`，提高预算后回到 `active`，人工设置的 `paused`/`complete` 与其他子系统负责的 `blocked`/`usage-limited` 不会被覆盖。
 
 - [agent/desktop] Plan 模式最终方案升级为结构化提交：主 Agent 通过新的生命周期工具 `submit_plan` 提交固定 schema（标题、摘要、按区域分组的实现变更、接口变化、测试、假设），Agent 以该对象为真源并确定性派生 Markdown 供审批、复制、分叉历史与旧客户端继续消费，未成功提交时仍兼容 `<proposed_plan>` 标签回退且同一回复中的标签计划会被忽略；新增可选 `structured` 字段随计划项与计划审批投影，非法或旧数据只回退 Markdown，桌面计划卡按固定章节渲染结构化内容并隐藏空章节，并新增 `plan.structured.v1` capability 供客户端判断支持情况。
 
+- [agent/protocol] 新增 Thread Goal 真源：新增 `thread_goals`、`thread_goal_history` 与 `thread_goal_operations` 独立表（history schema 46，含 44→45→46 前向迁移，schema 45 的 Goal 行原地回填稳定 `goalId`，已清除行迁入历史表），每个 Goal 实例拥有稳定 `id`；清除会把当前 Goal 归档进历史，之后重新创建会生成新 `goalId` 并重置 token、运行时间与 `createdAt`，不复用旧目标消耗，更新 objective／预算／暂停状态则保留同一 `goalId` 与累计量。新增 `ThreadGoalRepository` 与 `ThreadGoalService`（`operationId` 幂等重放、`expectedVersion` 乐观并发，`blocked`/`usage-limited`/`budget-limited` 由 Agent 派生而用户仅可设置 `active`/`paused`/`complete`）；新增 `thread/goal/get|set|clear` RPC、`thread/goal/updated|cleared` 持久事件与 `thread.goal.v1` capability，并把 `goal` 纳入 Thread snapshot；Goal 完成不归档线程，线程仍可继续启动 Turn。
+
+- [agent/protocol] Thread 与 ThreadListItem 新增 `executionEnvironment` 投影：Local 提供 `cwd`/`revision`，Worktree 另提供 `worktreeId`/`branchName`/`status`，由 `thread_execution_bindings` 与 `managed_worktrees` 组合派生；客户端不再根据 workspace、分支或 standalone 自行猜测执行环境。同时新增 `workflowId` 字段，与保留的历史读取字段 `sessionGroupId` 取同一成员关系值，新客户端只使用 `workflowId`。Desktop Goal 已改为真实 `thread/goal/*` RPC 与共享 `ThreadGoal`，从 Thread snapshot 对账并保留稳定 id、version、completedAt 及连字符状态值。
+
 ### Changed
+
+- [desktop/renderer] 精简已安排任务创建入口与日程空状态：移除日程区域重复的「添加任务」按钮与行内快速创建表单，空状态升级为日历图标配合「当日暂无任务」轻量提示；右上角「+ 创建 ⌵」统一收敛为「使用 CPX 创建」（MessageCircle 图标）与「手动设置」（Settings 图标）唯二入口，手动设置直接唤起右侧创建抽屉并支持在单次执行与周期重复模式间无缝切换，兼顾日历排期与自动化场景并彻底降低多重创建入口的心智负担。
+
+- [desktop/renderer] 侧栏底部的设置图标由 `Settings2` 换成 `Settings`：设置行入口（未登录时的占位图标）、「设置」菜单项与「帮助与设置」菜单项统一使用同一图标，并移除不再使用的 `Settings2` import；帮助按钮继续使用 `HelpCircle`。
+
+- [desktop/renderer] 移除任务会话 Composer 底部重复的 `Local`／`Worktree` 执行环境标识；实际执行位置继续由右侧「环境信息」承载，输入区只保留发送所需控件。
+
+- [desktop/agent] 移除全局与项目「默认模型」：新建任务一级页改为记住用户最近一次选择的模型（`config.json` 的 `desktop.recent_new_thread_model`，只保存 `providerID`、`id` 与可选 `variant`），切换模型立即写回、重新进入仍显示该模型；已有任务继续使用任务级模型，切换不影响最近选择。无记录或记录失效（Provider 被禁用/删除、凭据丢失）时按 Provider/模型目录稳定顺序回退到首个启用且 Provider 可用的模型并覆盖保存。删除环境设置中的项目默认模型控件与文案，首次引导由「选择默认模型」改为「选择模型」，模型门禁只检查是否存在可用于创建任务的模型。Agent 执行不再读取全局或项目默认模型作为 fallback：正常 Turn 必须携带任务模型，辅助与专用模型回退改用最近选择，缺失或不可用时返回清晰配置错误；`model/setDefault` 与 `model/list.defaultModel` 保留 thread-rpc-v4 兼容外壳但语义映射为最近选择，新增带版本标记的一次性迁移把旧全局默认模型导入最近选择（不重复导入、不覆盖用户后续选择），旧 SQLite `project_settings.default_model` 与旧 `config.json` 键原样保留但不再展示、写入或消费。自动化新建草稿优先使用最近模型，不再硬编码 OpenAI/GPT-5。
+
+- [agent/desktop] 精简 Agent 与 Skill 指令加载：外部 Coding Agent 规则改为按需文档，Renderer 设计细则改为按需路由；计划、日历排期、MiniMax 视频等待和文档共创流程仅在相关任务中展开，减少无关询问、阻塞等待与验证范围。
+
+- [desktop/renderer] 任务日历工具栏底端与基线双重对齐：调整工具栏及标题组为底端对齐，精细校准「年月下拉」与「当月任务」按钮内边距与基准线，消除垂直居中造成的悬空高低差，并将右侧导航翻页按钮升级为 compact 等高规格。
+
+- [desktop/renderer] 任务视图拆分为日历与执行记录双页面：将顶层导航提升至窗口 Header 左侧（[日历 | 执行记录]），移除日历页二级分段控制栏以释放月历高度，并在执行记录页提供专属的任务运行历史列表展示与即时搜索过滤。
+
+- [desktop/renderer] 任务日历工具栏交互增强：年月标题升级为支持年份切换与 12 个月网格选择的下拉弹层，当月任务统计升级为紧凑按钮并可点击弹出当月全部任务的浮层清单（点击任务快速定位具体日期），并将翻页导航顺序统一调整为「上个月、今天、下个月」。
+
+- [desktop/renderer] 统一 Agent 与 Thread 基础设施错误为全局提示：首页初始化、Agent RPC 和 Thread 目录错误不再暴露在侧栏、Command Menu 或 Composer 等局部界面，catalogStatus 精简为 loading/ready/unavailable 三态并不再携带或渲染错误正文；RPC 方法名、数据库底层报错与调用堆栈等技术细节统一清洗映射为简短可行动提示；支持初始化周期并发请求防抖去重与后台定时对账失败受控单次告警与成功恢复，创建与发送失败在全局报错的同时完整保留草稿内容与附件。
+
+- [desktop] 重构任务日历为上方全宽紧凑月历与下方所选日期常驻议程，支持最多 4 个状态圆点与溢出徽标，内嵌轻量创建入口并直接预填任务创建面板。
+
+- [agent/protocol] `thread.goal.v1` capability 收紧为全量校验：必须同时存在 `thread_goals`、`thread_goal_history`、`thread_goal_operations` 三张表且 schema 46 必要字段可读、存量 Goal 行全部通过共享 schema 安全校验，否则该 capability 关闭、mutation fail-closed，存储只读降级；Goal 数据从 SQLite 投影前统一校验，未知 status、缺失 `id` 或非法计数的行只被省略，不再破坏 `thread/read`，也不会被 mutation 盲目覆盖。并修正 Goal 清除语义的过时 soft-clear 注释（现行为归档进历史表）。
+
+- [agent/protocol] 托管 Worktree 状态枚举收敛为 `@codepilotx/shared/thread` 的单一 `WorktreeStatusSchema` 来源，`@codepilotx/agent-protocol/worktree` 继续按原名导出，避免线程执行环境投影与 Worktree RPC 的状态枚举漂移。
 
 - [desktop/renderer] 会话运行状态收敛为单一来源：canonical 线程投影的状态随会话 store 一起推送，侧栏、命令面板、系统通知与桌宠统一读取合并后的状态，正文时间线已完成而侧栏仍显示运行中的分歧被消除；canonical 未覆盖的后台会话仍由会话目录与生命周期事件提供同一份值。
 
@@ -23,7 +69,33 @@
 
 - [desktop/renderer] 插件 Logo 与其浅色/深色图片改为跟随所在图标槽位 100% 等比显示；同步调整图标尺寸浏览器测试按槽位校验 Logo，并更新设计文档中品牌/插件 Logo 的尺寸说明。
 
+- [desktop/renderer] 流式输出改为按 50ms 窗口提交 canonical 投影：live delta 进入单一有序有界队列（512 条或 256KiB 立即提交，另有线程切换/卸载兜底），每个窗口只提交一次，durable 与终态事件仍立即提交；`deliverBatch` 的 promise 在对应 checkpoint 提交后才 resolve，因此 `event/ack` 依旧只在该批次进入 canonical 后发出，SSE cursor replay 与历史对账语义不变。未提交的 delta 后缀进入按 item 的独立尾部缓冲并只订阅流式中的尾部 Block，`CanonicalItemRenderer` 按 item 引用 memo 化，streaming 阶段不再整 turn 重渲染。投影层新增按 turn 的增量分组索引（items/agents/approvals 与 subagentRunId），选择器由按条目全量重分组改为按 turn 遍历，100k 条目下选择器 P95 由约 5.5ms 降至 0.5ms；索引与整体重建输出逐项等价的用例已补齐。新增 `streaming-throughput` 性能场景与预算（每帧提交数 ≤1.5、流式 item 每帧渲染数 ≤4、待提交 delta 字符数为 0、流式文本与注入字符数完全一致、长任务 P95 ≤50ms），并把性能 fixture 的 `streamPosition.streamId` 对齐为会话 id，使 live delta 能按真实契约进入投影。
+
+- [desktop/renderer] 计划未生成完成前不得在右侧边栏打开：打开请求新增 `openable`（流式期间为 false），唯一的打开入口 `handleOpenPlanDock` 直接拒绝非 openable 请求，任务摘要也不再选取仍在流式的计划，避免右栏冻结半成品快照。
+
+- [desktop] 集成终端改为端到端输出背压：新增 `desktop-terminal:ack` 通道与 `ackTerminalOutput` 桥接（纯新增，旧版 Electron 缺少该方法时渲染端自动退化为无流量控制），renderer 用 `xterm.write` 回调按 32KiB 或 50ms 合并上报已解析位置；主进程以既有 1MiB 序列缓冲为唯一队列，新增 256KiB/64KiB credit 窗口，窗口打满时 `pty.pause()`、确认降到低水位后 `resume()` 并补发积压，不再把积压转嫁到 IPC 队列。ack 只能单调推进，重复、乱序或非法输入不释放额度；面板隐藏或卸载（无活跃消费者）时不暂停 PTY，避免后台构建被静默卡住，此时积压由有界缓冲明确截断并在终端上方显示「输出已截断，更早内容不可用。」，绝不静默丢弃或重排。
+
+- [desktop] 原生窗口缩放状态收敛为按窗口维度的统一降载信号：新增 `window:resize-activity`（`{ windowId, phase, revision }`，保留旧 `resize-state-changed` 通道）与 `onWindowResizeActivity` 桥接，主进程在 `will-resize`/`resized` 之外增加最后一次 resize 后 300ms 的结算定时器，取消拖拽也能补齐 end，保证 start/end 始终配对；Renderer 用 `resizeActivityCoordinator`（按 windowId + 单调 revision + 5s 看门狗）取代原先的易失布尔 ref，重复或陈旧事件被丢弃，主进程事件丢失时兜底恢复渲染，工作台布局与终端消费同一份状态。终端在拖拽期间把 PTY resize 节流到 150ms，缩放结束后只执行一次 fit 与一次最终尺寸下发，不再逐帧触发 ConPTY 重排；标题栏 36px 契约与既有布局写入语义不变。
+
 ### Fixed
+
+- [desktop/renderer] 修复长回复流式阶段重复完整解析、替换持续增长的单一 Markdown 文本节点，导致 CPU 随消息长度显著上升的问题：未完成文本块超过 4KiB 后暂以可复用的轻量分块展示，只有末块随流式内容更新，完成后恢复完整 Markdown；live delta 的投影提交与尾部通知统一按 50ms 合并，durable 与终态事件仍立即提交。
+
+- [desktop/renderer] 修正最近模型机制：新建任务页不再复用长期缓存，每次进入都重新校验 Provider 已启用且可执行、认证可用、模型 `enabled=true` 与 variant 合法，记录失效时按 Provider 顺序回退到首个启用模型并立即覆盖保存，内存中的选择仍可用时优先保留、目录暂不可读时不清空可选模型。最近模型写入收敛为单一串行队列并 latest-write-wins，快速切换时旧选择即使延迟完成或失败也不会覆盖最新选择，只有最后一次选择保存失败才通过现有全局错误通知提示。自动化草稿改用同一解析流程，不再读取任意历史任务模型，也不接受未经验证的配置记录。首次引导与模型门禁改为跨 Provider 判断可用性，避免当前 Provider 不可用但其他 Provider 可用时误要求重新配置。`resolveFirstAvailableModel` 只返回 `enabled=true` 的模型，当前 Provider 没有启用模型时继续检查下一个 Provider。
+
+- [agent] 修正 Provider 删除保护与专用模型引用：删除自定义 Provider 不再因遗留 `model_provider` 值阻塞，只检查最近模型与真实 `providerID/modelID` 专用模型引用；新增带版本标记的一次性迁移，把仍使用裸模型 ID 的专用模型按 `model_provider` 解析为完整引用，无法确定 Provider 或已是完整引用时保持原值，迁移只运行一次且不覆盖用户后续改动。
+
+- [desktop/renderer] 修复任务日历页面无法垂直滚动的问题：移除外层 `.automation-primary-page` 的 `overflow-y: hidden`、`.automation-page-stage` 的 `overflow: hidden` 与 `.automation-calendar` 的固定 100% 高度限制，使页面内容超出视口时由 `PrimaryPageLayout` 自然滚动，确保日历下方常驻议程完整可达。
+
+- [desktop/renderer] 任务日历移除独立的双列页头覆盖，现与项目、工作流等一级页面共用纵向标题、说明、搜索和筛选布局。
+
+- [agent] 修复 profile schema 4 标记已写入但 `project_settings.execution_environment` 增量列缺失时，首页 `project/list` 与 `thread/list` 返回“Agent 内部错误”的问题；启动时会安全补齐兼容列并保留原项目设置。
+
+- [agent] 修复 `thread-history.test.ts` 计划待审批列表投影失败：该用例此前用 `chat` 模式轮次加裸状态写入构造夹具，而计划审批只从最新 Plan 模式已完成轮次派生并随轮次完成写入 `plan_approvals`，因此断言永远不可能成立。夹具改为按真实语义使用 Plan 模式并通过 `finalizeTurn` 完成轮次，断言本身未弱化；同文件的反向用例也改为 Plan 模式并显式执行同一派生，使“非最新轮次／计划未完成／无计划／存在活动轮次”四个否定断言不再是空跑。
+
+- [agent] 修复执行环境投影缺陷：`thread_execution_bindings` 与 `managed_worktrees` 改为分开探测，部分 schema 不再走不安全查询；Local binding 的投影不再依赖 `managed_worktrees`，Worktree binding 无法完整解析（worktree 表缺失、行不存在或未知状态）时省略该投影而不误报 Local；`kind`、`status`、`revision` 改为运行时校验，遇到更高版本写入的未知枚举值时仅省略该投影，不再让整个 `thread/list`／`thread/read` 解码失败；存在绑定行但数据不可读时省略投影而不再回退成 workspace Local（回退只用于确实没有绑定行的旧 Thread），无绑定行的旧 Thread 才按权威 workspace 投影为 Local；列表改为一次批量读取绑定，消除按行查询的 N+1。同时为迁移失败补充 `N → N+1` 版本上下文，便于定位。
+
+- [agent] 修复 schema 45→46 Goal 迁移：迁移改用先读取、再 `DROP TABLE` 重建而非 `ALTER TABLE ... RENAME`。重命名会重新解析全部 schema 对象，在仍带 workspace 校验触发器但尚未补齐 workspace 列的旧库上会直接报错；重建路径对已是目标形态的库（例如 user_version 被回滚的当前库）为幂等空操作。
 
 - [desktop] 修复结构化计划从主对话打开到右侧栏时丢失正文的问题，计划标签直接保留已投影的 Markdown 内容，并兼容旧标签的数据源回退。
 
