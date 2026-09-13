@@ -48,6 +48,17 @@ describe('AutomationView primary page hierarchy', () => {
     expect(viewSource).toContain('composerDraftStore.prefillTextIfEmpty')
   })
 
+  test('automation drafts use only the unified recent-model resolution', () => {
+    // 自动化草稿只能来自统一解析结果，不能读取任意历史任务模型或未验证的最近记录。
+    expect(viewSource).toContain('resolveRecentNewThreadModel()')
+    expect(viewSource).toContain('hasDraftModel')
+    expect(viewSource).toContain("if (!hasDraftModel) {")
+    expect(viewSource).toContain("navigate('/setup')")
+    expect(viewSource).not.toContain('getRecentNewThreadModel')
+    expect(viewSource).not.toContain('controller.sessions.find(item => item.providerID && item.model)')
+    expect(viewSource).not.toContain('hasDefaultModel')
+  })
+
   test('derives completed tasks without treating an active run as completed', () => {
     const automation = {
       id: 'automation-1',
@@ -136,5 +147,24 @@ describe('AutomationView primary page hierarchy', () => {
     // Calendar selected day uses accent border instead of dull solid gray
     expect(calendarStyleSource).toContain(".automation-calendar__day[aria-selected='true']")
     expect(calendarStyleSource).toContain('outline: 1.5px solid var(--cpx-sys-color-accent-fg);')
+  })
+
+  test('converges creation to top-right menu with CPX planning and manual settings', () => {
+    expect(viewSource).toContain('使用 CPX 创建')
+    expect(viewSource).toContain('手动设置')
+    expect(viewSource).toContain('openManualCreate')
+    expect(viewSource).toContain('scheduledFor: scheduledTimeForDate(selectedDate)')
+    expect(viewSource).not.toContain('onQuickCreate')
+    expect(viewSource).not.toContain('setQuickDraft')
+  })
+
+  test('mounts top-level header navigation for calendar and execution records and dedicated runs list', () => {
+    expect(viewSource).toContain('id="automation.navigation"')
+    expect(viewSource).toContain("{ value: 'calendar', label: '日历' }")
+    expect(viewSource).toContain("{ value: 'runs', label: '执行记录' }")
+    expect(viewSource).toContain('<AutomationRunsList')
+    expect(styleSource).toContain('.automation-runs-page-list')
+    expect(styleSource).toContain('.automation-runs-page-item')
+    expect(styleSource).toContain('.automation-runs-page-button')
   })
 })

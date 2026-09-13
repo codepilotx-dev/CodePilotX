@@ -32,6 +32,11 @@ export const desktopClient = {
   sendUserMessage: async (id, input, model, inputId) => { window.records.push({ id, input, model, inputId, delivery: 'start' }); },
   submitSessionFollowUp: async (id, input, delivery, inputId, model) => { window.records.push({ id, input, model, inputId, delivery }); return delivery === 'steer' ? 'steered' : 'queued'; },
   saveModelProvider: async () => { throw Error('Default model must not be changed'); },
+  listModelProviders: async () => [],
+  fetchProviderModels: async () => ({ models: [] }),
+  getRecentNewThreadModel: async () => null,
+  saveRecentNewThreadModel: async () => {},
+  resolveFirstAvailableModel: async () => ({ providerID: 'home-provider', id: 'home-draft' }),
 };
 `
 const harness = `

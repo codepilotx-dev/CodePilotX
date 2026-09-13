@@ -19,7 +19,7 @@ const model = Model.Ref.make({
   id: Model.ID.make("vision-model"),
 })
 
-async function fixture() {
+async function fixture(providersOverride?: unknown) {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-thread-attachment-"))
   roots.push(root)
   const db = new AgentDatabase(join(root, "agent.sqlite"))
@@ -32,9 +32,9 @@ async function fixture() {
   const service = new ThreadService(
     db,
     { publish: () => Effect.void } as never,
-    {
+    (providersOverride ?? {
       resolve: async () => ({ capabilities: { input: ["text", "image"], tools: true } }),
-    } as never,
+    }) as never,
     null as never,
     questions as never,
     { clearTurnPermissionGrants: () => undefined } as never,
@@ -67,6 +67,29 @@ async function imageAttachment(attachments: AttachmentService) {
 }
 
 describe("ThreadService 附件 admission", () => {
+  test("Turn 模型不可用时返回清晰配置错误且不回退到目录其它模型", async () => {
+    const otherModel = Model.Info.empty(
+      Provider.ID.make("other-provider"),
+      Model.ID.make("other-model"),
+    )
+    const { db, service } = await fixture({
+      resolve: async () => { throw new Error("model unavailable") },
+      models: async () => [otherModel],
+    })
+    const thread = db.createThread()
+    await expect(service.startTurn(thread.id, {
+      content: "hello",
+      model: Model.Ref.make({
+        providerID: Provider.ID.make("missing-provider"),
+        id: Model.ID.make("missing-model"),
+      }),
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      strategy: "start",
+      taskMode: "chat",
+    }, "input:missing-model")).rejects.toMatchObject({ code: "MODEL_UNAVAILABLE" })
+    db.close()
+  })
+
   test("排队追问创建 input 后在同一事务绑定图片", async () => {
     const { db, attachments, service } = await fixture()
     const thread = db.createThread()

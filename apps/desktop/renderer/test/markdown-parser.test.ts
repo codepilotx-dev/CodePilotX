@@ -8,6 +8,10 @@ import {
   segmentStreamingMarkdown,
 } from '../src/features/markdown/index.js'
 import { buildMarkdownBlocks } from '../src/features/markdown/parser.js'
+import {
+  STREAMING_RICH_PENDING_MAX_CHARACTERS,
+  STREAMING_TEXT_CHUNK_CHARACTERS,
+} from '../src/features/markdown/parser.js'
 import { completePendingMarkdown } from '../src/features/markdown/streaming.js'
 import type {
   MarkdownDirectiveToken,
@@ -162,6 +166,27 @@ describe('markdown parser', () => {
     const parsed = parseMarkdown(source, true)
     expect(parsed.pendingText).toBe(source)
     expect(buildMarkdownBlocks(source, true)[0]?.raw).toBe(source)
+  })
+
+  test('uses lightweight text for a long unfinished streaming block', () => {
+    const source = 'a'.repeat(STREAMING_TEXT_CHUNK_CHARACTERS * 2 + 1)
+    const parsed = parseMarkdown(source, true)
+
+    expect(parsed.tokens).toHaveLength(3)
+    expect(parsed.tokens.every(token => token.type === 'streaming_text')).toBe(true)
+    expect(parsed.tokens.map(token => token.raw).join('')).toBe(source)
+    expect(parseMarkdown(source, false).tokens[0]?.type).toBe('paragraph')
+  })
+
+  test('reuses completed lightweight chunks while streaming text grows', () => {
+    const firstText = 'a'.repeat(STREAMING_RICH_PENDING_MAX_CHARACTERS * 2)
+    const first = buildMarkdownBlocks(firstText, true)
+    const nextText = `${firstText}more`
+    const next = buildMarkdownBlocks(nextText, true, first, firstText)
+
+    expect(next[0]).toBe(first[0])
+    expect(next[1]).toBe(first[1])
+    expect(next[2]).toBeDefined()
   })
 })
 

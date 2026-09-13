@@ -364,8 +364,8 @@ describe("Thread 历史", () => {
   test("列表投影：最新已完成轮次含已完成 plan item 时返回计划待审批", async () => {
     const { db, projection } = await makeHistory()
     const thread = db.createThread("计划待审批会话")
-    const turn = db.createTurn(thread.id, input("制定计划"))
-    db.updateTurnStatus(turn.turnID, "completed")
+    // 计划审批只从最新的 Plan 模式已完成轮次派生，并随轮次完成写入 plan_approvals。
+    const turn = db.createTurn(thread.id, { ...input("制定计划"), taskMode: "plan" })
     db.upsertItem(thread.id, {
       id: "plan-item-1",
       turnID: turn.turnID,
@@ -376,6 +376,13 @@ describe("Thread 历史", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
+    db.claimTurnExecution(turn.turnID)
+    db.finalizeTurn({
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      status: "completed",
+    })
 
     const item = projection.list().find(entry => entry.id === thread.id)
     expect(item?.latestTurnStatus).toBe("completed")
@@ -385,11 +392,11 @@ describe("Thread 历史", () => {
   test("列表投影：无 plan、未完成 plan、存在更新轮次或活动轮次时计划待审批为 false", async () => {
     const { db, projection } = await makeHistory()
     const planless = db.createThread("无计划会话")
-    const planlessTurn = db.createTurn(planless.id, input("没有计划"))
+    const planlessTurn = db.createTurn(planless.id, { ...input("没有计划"), taskMode: "plan" })
     db.updateTurnStatus(planlessTurn.turnID, "completed")
 
     const streaming = db.createThread("流式计划会话")
-    const streamingTurn = db.createTurn(streaming.id, input("正在生成计划"))
+    const streamingTurn = db.createTurn(streaming.id, { ...input("正在生成计划"), taskMode: "plan" })
     db.updateTurnStatus(streamingTurn.turnID, "completed")
     db.upsertItem(streaming.id, {
       id: "plan-streaming",
@@ -403,7 +410,7 @@ describe("Thread 历史", () => {
     })
 
     const superseded = db.createThread("已有更新轮次会话")
-    const oldTurn = db.createTurn(superseded.id, input("第一轮计划"))
+    const oldTurn = db.createTurn(superseded.id, { ...input("第一轮计划"), taskMode: "plan" })
     db.updateTurnStatus(oldTurn.turnID, "completed")
     db.upsertItem(superseded.id, {
       id: "plan-old",
@@ -421,7 +428,7 @@ describe("Thread 历史", () => {
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now(), newerTurn.turnID)
 
     const active = db.createThread("活动轮次会话")
-    const activePlanTurn = db.createTurn(active.id, input("计划已完成"))
+    const activePlanTurn = db.createTurn(active.id, { ...input("计划已完成"), taskMode: "plan" })
     db.updateTurnStatus(activePlanTurn.turnID, "completed")
     db.upsertItem(active.id, {
       id: "plan-active",
@@ -437,6 +444,9 @@ describe("Thread 历史", () => {
     db.updateTurnStatus(runningTurn.turnID, "running")
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now() - 1000, activePlanTurn.turnID)
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now(), runningTurn.turnID)
+
+    // 与轮次完成和启动恢复一致，从 turn/item 真源派生待审批状态。
+    db.repositories.planApprovals.recover()
 
     const byId = new Map(projection.list().map(item => [item.id, item]))
     expect(byId.get(planless.id)?.pendingPlanApproval).toBe(false)

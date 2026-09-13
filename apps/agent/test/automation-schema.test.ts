@@ -32,7 +32,7 @@ describe("automation schema", () => {
 
     const migrated = new AgentDatabase({ historyPath, profilePath })
     expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    expect(SCHEMA_VERSION).toBe(44)
+    expect(SCHEMA_VERSION).toBe(49)
     expect(probeAutomationStorageCapabilities(migrated.sqlite)).toEqual({
       automations: true,
       automationRuns: true,

@@ -85,6 +85,33 @@ describe("desktop multi-window contract", () => {
     expect(source).toContain("DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged")
   })
 
+  test("原生缩放发出配对的 resize activity 并带 revision", async () => {
+    const source = await readSource("../src/windows/window-manager.ts")
+    expect(source).toContain("DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity")
+    expect(source).toContain("windowId: window.id")
+    expect(source).toContain("revision: resizeActivityRevision")
+    expect(source).toContain('sendResizeActivity("start")')
+    expect(source).toContain('sendResizeActivity("end")')
+    // 取消拖拽时 resized 不再触发，必须由静默间隔补齐一次 end，保证 start/end 配对。
+    expect(source).toContain("RESIZE_SETTLE_MS")
+    expect(source).toContain("const armResizeSettleTimer")
+    expect(source).toContain("if (manualResizeActive) armResizeSettleTimer()")
+    expect(source).toContain("const finishManualResize")
+    // 窗口关闭时停止结算定时器，避免已销毁窗口继续发事件。
+    expect(source).toContain("clearResizeSettleTimer()")
+  })
+
+  test("resize activity 通道在共享契约与 preload 中一致", async () => {
+    const preload = await readSource("../src/preload.cts")
+    expect(DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity).toBe(
+      "window:resize-activity",
+    )
+    expect(preload).toContain('resizeActivity: "window:resize-activity"')
+    expect(preload).toContain("onWindowResizeActivity:")
+    expect(preload).toContain("isDesktopResizeActivity(activity)")
+    expect(preload).toContain("DESKTOP_WINDOW_IPC_CHANNELS.resizeActivity")
+  })
+
   test("window controls and dialogs resolve the invoking managed window", async () => {
     const source = await readSource("../src/ipc/register-desktop-ipc.ts")
     const handlers = source.slice(

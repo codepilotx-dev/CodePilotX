@@ -1,47 +1,20 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { AutomationCalendar } from '../src/features/automation/AutomationCalendar.js'
+import {
+  AutomationCalendar,
+  defaultTimeStringForDate,
+  parseDateTimeToTimestamp,
+} from '../src/features/automation/AutomationCalendar.js'
 import {
   calendarDates,
   calendarOccurrencesByDate,
-  calendarWeekDates,
   filterCalendarOccurrences,
-  groupOccurrencesForList,
 } from '../src/features/automation/calendarDates.js'
 
-describe('automation calendar projection', () => {
-  test('renders up to 5 occurrences in month view, and folds beyond 5 into +N items button', () => {
-    // 5 occurrences: all 5 displayed, no +N button
-    const html5 = renderToStaticMarkup(createElement(AutomationCalendar, {
-      defaultSelectedDate: '2026-09-05',
-      occurrences: Array.from({ length: 5 }, (_, index) =>
-        occurrence(`task-${index}`, new Date(2026, 8, 5, 9 + index).getTime()),
-      ),
-      onOccurrenceSelect: () => {},
-    }))
-
-    expect(html5.match(/role="gridcell"/g)).toHaveLength(42)
-    expect(html5.match(/class="automation-calendar__day-item"/g)).toHaveLength(5)
-    expect(html5).not.toContain('automation-calendar__day-more')
-
-    // 7 occurrences: 5 items displayed + "+2 项" button
-    const html7 = renderToStaticMarkup(createElement(AutomationCalendar, {
-      defaultSelectedDate: '2026-09-05',
-      occurrences: Array.from({ length: 7 }, (_, index) =>
-        occurrence(`task-${index}`, new Date(2026, 8, 5, 9 + index).getTime()),
-      ),
-      onOccurrenceSelect: () => {},
-    }))
-
-    expect(html7.match(/class="automation-calendar__day-item"/g)).toHaveLength(5)
-    expect(html7).toMatch(/<button[^>]*class="[^"]*automation-calendar__day-more[^"]*"[^>]*>\+2 项<\/button>/)
-    expect(html7).not.toContain('<aside')
-    expect(html7).not.toContain('收起当日议程')
-    expect(html7).not.toContain('automation-calendar__focus-popover')
-  })
-
+describe('automation calendar compact month & residing agenda', () => {
   test('builds a Monday-first 6 × 7 month and groups occurrences in time order', () => {
     const dates = calendarDates(new Date(2026, 8, 18), new Date(2026, 8, 5))
 
@@ -67,30 +40,6 @@ describe('automation calendar projection', () => {
     ).toEqual(['earlier', 'later'])
   })
 
-  test('builds Monday-first 7-day week dates for week view', () => {
-    // 2026-09-05 is Saturday
-    const week = calendarWeekDates(new Date(2026, 8, 5), new Date(2026, 8, 5))
-    expect(week).toHaveLength(7)
-    expect(week[0]).toMatchObject({ value: '2026-08-31', day: 31 })
-    expect(week[5]).toMatchObject({ value: '2026-09-05', day: 5, today: true })
-    expect(week[6]).toMatchObject({ value: '2026-09-06', day: 6 })
-  })
-
-  test('groups occurrences chronologically for list view', () => {
-    const occurrences = [
-      occurrence('task-2', new Date(2026, 8, 6, 10).getTime()),
-      occurrence('task-1', new Date(2026, 8, 5, 9).getTime()),
-    ]
-    const groups = groupOccurrencesForList(occurrences, new Date(2026, 8, 5))
-    expect(groups).toHaveLength(2)
-    expect(groups[0].dateValue).toBe('2026-09-05')
-    expect(groups[0].isToday).toBe(true)
-    expect(groups[0].occurrences[0].id).toBe('task-1')
-    expect(groups[1].dateValue).toBe('2026-09-06')
-    expect(groups[1].isTomorrow).toBe(true)
-    expect(groups[1].occurrences[0].id).toBe('task-2')
-  })
-
   test('filters the loaded range locally by source, execution, and title', () => {
     const planned = occurrence('Review API', new Date(2026, 8, 5, 9).getTime())
     const automation = {
@@ -110,6 +59,133 @@ describe('automation calendar projection', () => {
     expect(filterCalendarOccurrences(occurrences, '', 'automation')).toEqual([automation])
     expect(filterCalendarOccurrences(occurrences, '', 'execution')).toEqual([execution])
     expect(filterCalendarOccurrences(occurrences, 'review', 'all')).toEqual([planned, execution])
+  })
+
+  test('renders 42 Monday-first gridcells, max 4 status dots per date, and +N overflow', () => {
+    const occurrences = Array.from({ length: 6 }, (_, index) =>
+      occurrence(`task-${index}`, new Date(2026, 8, 5, 9 + index).getTime()),
+    )
+    const html = renderToStaticMarkup(
+      createElement(AutomationCalendar, {
+        defaultSelectedDate: '2026-09-05',
+        occurrences,
+        onOccurrenceSelect: () => {},
+      }),
+    )
+
+    expect(html.match(/role="gridcell"/g)).toHaveLength(42)
+    // 4 visible dots + 1 overflow "+2"
+    expect(html).toContain('+2')
+    expect(html).toContain('2026年9月5日 星期六，6 项任务')
+
+    // Regression assertions: no view mode switcher, no popup agenda
+    expect(html).not.toContain('automation-calendar__view-segmented')
+    expect(html).not.toContain('automation-calendar__focus-popover')
+    expect(html).not.toContain('automation-agenda')
+    expect(html).not.toContain('收起当日议程')
+    expect(html).not.toContain('automation-calendar__week-stream')
+    expect(html).not.toContain('automation-calendar__day-timeline')
+  })
+
+  test('renders residing agenda for selected date with chronological tasks, meta, and actions', () => {
+    const occAfternoon = occurrence('下午审查', new Date(2026, 8, 5, 14, 0).getTime())
+    const occMorning = occurrence('早间同步', new Date(2026, 8, 5, 9, 30).getTime())
+    const occOtherDay = occurrence('明日任务', new Date(2026, 8, 6, 10, 0).getTime())
+
+    const html = renderToStaticMarkup(
+      createElement(AutomationCalendar, {
+        selectedDate: '2026-09-05',
+        occurrences: [occAfternoon, occMorning, occOtherDay],
+        onOccurrenceSelect: () => {},
+      }),
+    )
+
+    expect(html).toContain('automation-calendar__residing-agenda')
+    expect(html).toContain('2026年9月5日 星期六')
+    expect(html).toContain('2 项任务')
+
+    const morningIndex = html.indexOf('早间同步')
+    const afternoonIndex = html.indexOf('下午审查')
+    expect(morningIndex).toBeGreaterThan(0)
+    expect(afternoonIndex).toBeGreaterThan(morningIndex)
+    expect(html).not.toContain('明日任务')
+    expect(html).toContain('09:30')
+    expect(html).toContain('14:00')
+    expect(html).toContain('计划任务')
+  })
+
+  test('renders empty state with calendar icon and text when selected date has no occurrences', () => {
+    const html = renderToStaticMarkup(
+      createElement(AutomationCalendar, {
+        selectedDate: '2026-09-05',
+        occurrences: [],
+        onOccurrenceSelect: () => {},
+      }),
+    )
+
+    expect(html).toContain('当日暂无任务')
+    expect(html).toContain('automation-calendar__agenda-empty-icon')
+    expect(html).not.toContain('添加任务')
+  })
+
+  test('combines quick create title, date, and time into correct timestamp', () => {
+    const dateValue = '2026-09-05'
+    const defaultTime = defaultTimeStringForDate(dateValue)
+    expect(defaultTime).toBe('09:00')
+
+    const customTime = '14:30'
+    const timestamp = parseDateTimeToTimestamp(dateValue, customTime)
+    expect(timestamp).toBe(new Date(2026, 8, 5, 14, 30).getTime())
+  })
+
+  test('renders month dropdown trigger, monthly tasks button, and [上个月] [今天] [下个月] navigation order', () => {
+    const occurrences = [
+      occurrence('task-1', new Date(2026, 8, 5, 10).getTime()),
+      occurrence('task-2', new Date(2026, 8, 12, 14).getTime()),
+      occurrence('other-month-task', new Date(2026, 9, 1, 9).getTime()),
+    ]
+    const html = renderToStaticMarkup(
+      createElement(AutomationCalendar, {
+        defaultSelectedDate: '2026-09-05',
+        occurrences,
+        onOccurrenceSelect: () => {},
+      }),
+    )
+
+    // Month dropdown trigger
+    expect(html).toContain('automation-calendar__month-trigger')
+    expect(html).toContain('2026年9月')
+
+    // Monthly tasks button with secondary compact style
+    expect(html).toContain('automation-calendar__tasks-trigger')
+    expect(html).toContain('data-color="secondary"')
+    expect(html).toContain('data-size="compact"')
+    expect(html).toContain('2 项任务')
+
+    // Navigation buttons order: [上个月] -> [今天] -> [下个月]
+    const prevIndex = html.indexOf('aria-label="上个月"')
+    const todayIndex = html.indexOf('>今天</button>')
+    const nextIndex = html.indexOf('aria-label="下个月"')
+
+    expect(prevIndex).toBeGreaterThan(0)
+    expect(todayIndex).toBeGreaterThan(prevIndex)
+    expect(nextIndex).toBeGreaterThan(todayIndex)
+
+    // Navigation buttons are compact uniform height
+    const prevSnippet = html.slice(prevIndex, prevIndex + 200)
+    expect(prevSnippet).toContain('data-size="compact"')
+    expect(prevSnippet).toContain('data-uniform="true"')
+    const nextSnippet = html.slice(nextIndex, nextIndex + 200)
+    expect(nextSnippet).toContain('data-size="compact"')
+    expect(nextSnippet).toContain('data-uniform="true"')
+
+    // Toolbar and title-group use flex-end baseline alignment
+    const calendarStyles = readFileSync(
+      new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
+      'utf8',
+    )
+    expect(calendarStyles).toContain('.automation-calendar__toolbar {\n  display: flex;\n  align-items: flex-end;')
+    expect(calendarStyles).toContain('.automation-calendar__title-group {\n  display: flex;\n  align-items: flex-end;')
   })
 })
 

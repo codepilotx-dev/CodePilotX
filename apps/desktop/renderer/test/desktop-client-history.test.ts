@@ -46,6 +46,7 @@ const project: Project = {
   settings: {
     defaultModel: null,
     instructions: '',
+    executionEnvironment: 'auto' as const,
     version: 1,
   },
 }

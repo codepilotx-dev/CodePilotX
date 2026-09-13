@@ -132,7 +132,7 @@ describe('composer surface variant', () => {
       />,
     )
     expect(html).toContain('Alpha 工作区')
-    expect(html).toContain('会话组')
+    expect(html).toContain('工作流')
     expect(html).toContain('feature/working-surface')
     expect(html).toContain('选择分支')
   })
@@ -145,7 +145,7 @@ describe('composer surface variant', () => {
     )
     expect(html).toContain('class="composer-bottom composer-utility-bar')
     expect(html).not.toContain('Alpha 工作区')
-    expect(html).toContain('会话组')
+    expect(html).toContain('工作流')
     expect(html).toContain('composer-input-surface')
     expect(html).toContain('aria-label="发送"')
   })

@@ -26,6 +26,7 @@ describe("resolveSpecializedPiModel", () => {
     const config = new ConfigService(join(root, "config.json"), {
       model_provider: "provider:main",
       model: "main",
+      desktop: { recent_new_thread_model: { providerID: "provider:main", id: "main" } },
       specialized_models: { generation: "provider:special/models/generate" },
     })
     await config.initialize()

@@ -127,7 +127,7 @@ test("旧 schema43 升级恢复最新完整计划，保留历史数据与未知�
   db.sqlite.exec("DROP TABLE plan_approvals; PRAGMA user_version = 43; CREATE TABLE future_fixture(value TEXT); INSERT INTO future_fixture VALUES ('retained')")
   db.close(); databases.splice(databases.indexOf(db), 1)
   const upgraded = new AgentDatabase(path); databases.push(upgraded)
-  expect(upgraded.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 44 })
+  expect(upgraded.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 49 })
   expect(upgraded.repositories.planApprovals.pending(thread.id)?.markdown).toBe(approval.markdown)
   expect(upgraded.sqlite.query("SELECT value FROM future_fixture").get()).toEqual({ value: "retained" })
   upgraded.repositories.planApprovals.recover()

@@ -116,9 +116,9 @@ describe('Codex 侧栏导航', () => {
 
   test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
-      { view: 'new', label: '新建对话', path: '/new' },
-      { view: 'sessionGroups', label: '会话组', path: '/session-groups' },
-      { view: 'automations', label: '自动化', path: '/automations' },
+      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'sessionGroups', label: '工作流', path: '/workflows' },
+      { view: 'automations', label: '已安排', path: '/automations' },
       { view: 'plugins', label: '插件', path: '/plugins' },
     ])
     expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
@@ -134,7 +134,7 @@ describe('Codex 侧栏导航', () => {
         path: item.path,
       })),
     ).toEqual([
-      { view: 'new', label: '新建对话', path: '/new' },
+      { view: 'new', label: '新建任务', path: '/new' },
       { view: 'projects', label: '项目', path: '/projects' },
       ...TOP_NAV_ITEMS
         .filter(item => item.availability.kind === 'always')
@@ -157,10 +157,10 @@ describe('Codex 侧栏导航', () => {
     ])
   })
 
-  test('新建对话链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
+  test('新建任务链接跟随当前 Surface，未指定时保留 /new 兼容入口', () => {
     expect(sidebarNavItems(false, 'working')[0]).toMatchObject({
       view: 'new',
-      label: '新建对话',
+      label: '新建任务',
       path: '/new?surface=working',
     })
     expect(
@@ -182,7 +182,7 @@ describe('Codex 侧栏导航', () => {
     expect(sidebarNavItems(false)[0]!.path).toBe('/new')
   })
 
-  test('普通组织模式下固定分组只包含新建对话', () => {
+  test('普通组织模式下固定分组只包含新建任务', () => {
     const { fixedItems, scrollableItems } = splitSidebarTopNavItems(
       sidebarNavItems(false),
     )

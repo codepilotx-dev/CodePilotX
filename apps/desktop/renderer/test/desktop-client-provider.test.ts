@@ -472,6 +472,67 @@ describe('desktop provider client', () => {
     })
   })
 
+  test('resolveFirstAvailableModel 只返回启用模型并跳过没有启用模型的 Provider', async () => {
+    const providerInfo = (id: string, enabled: boolean) => ({
+      ...provider.provider,
+      id,
+      name: id,
+      disabled: !enabled,
+      config: { ...provider.provider.config, id, name: id, enabled },
+    })
+    const modelInfo = (id: string, providerID: string, enabled: boolean) => ({
+      ...provider.models[0]!,
+      id,
+      providerID,
+      name: id,
+      enabled,
+      api: { ...provider.models[0]!.api, id, name: 'openai-completions' },
+    })
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [
+            { ...providerInfo('provider-a', true), authConfigured: true, modelCount: 1 },
+            { ...providerInfo('provider-b', false), authConfigured: true, modelCount: 1 },
+            { ...providerInfo('provider-c', true), authConfigured: true, modelCount: 1 },
+          ],
+          issues: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 3,
+        })
+      }
+      if (body.method === 'model/list') {
+        return rpc(body.id, {
+          providers: [
+            {
+              provider: providerInfo('provider-a', true),
+              models: [modelInfo('a-disabled', 'provider-a', false)],
+            },
+            {
+              provider: providerInfo('provider-c', true),
+              models: [modelInfo('c-enabled', 'provider-c', true)],
+            },
+          ],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 3,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    expect(await client.resolveFirstAvailableModel()).toEqual({
+      providerID: 'provider-c',
+      id: 'c-enabled',
+    })
+  })
+
   test('手动刷新使用 model/refresh 并清理 Provider、模型与凭据缓存', async () => {
     const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {

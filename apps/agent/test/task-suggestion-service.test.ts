@@ -184,12 +184,14 @@ describe("TaskSuggestionService", () => {
       snapshot: () => ({
         model_provider: "provider:test",
         model: "fast",
+        desktop: { recent_new_thread_model: { providerID: "provider:test", id: "fast" } },
         specialized_models: { generation: "provider:test/small" },
       }),
       read: async () => ({
         config: {
           model_provider: "provider:test",
           model: "fast",
+          desktop: { recent_new_thread_model: { providerID: "provider:test", id: "fast" } },
           specialized_models: { generation: "provider:test/small" },
         },
       }),

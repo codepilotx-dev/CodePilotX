@@ -702,7 +702,7 @@ describe("数据库兼容与迁移", () => {
       PRAGMA user_version = 17;
       INSERT INTO app_settings VALUES ('desktop.settings.v1', '{"theme":"dark"}', 1);
       INSERT INTO projects VALUES ('project:1', '项目', NULL, 1, 1, 1);
-      INSERT INTO project_settings VALUES ('project:1', NULL, '', 1, 1);
+      INSERT INTO project_settings (project_id, default_model, instructions, execution_environment, version, updated_at) VALUES ('project:1', NULL, '', 'auto', 1, 1);
       INSERT INTO project_folders VALUES ('folder:1', 'project:1', 'F:\\workspace', 'f:/workspace', 'primary', 0, 1, 1);
       INSERT INTO threads (
         id, title, project_id, workspace_kind, workspace_cwd, workspace_roots,

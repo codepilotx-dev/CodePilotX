@@ -5,6 +5,7 @@ import type {
   IPtyForkOptions,
   IWindowsPtyForkOptions,
 } from "node-pty"
+import type { DesktopTerminalEvent } from "@codepilotx/shared/desktop-terminal-ipc"
 import { ShellProfileService } from "../src/terminal/shell-profile-service"
 import {
   TerminalManager,
@@ -456,8 +457,115 @@ describe("终端管理器", () => {
   })
 })
 
-class FakePtyFactory implements TerminalPtyFactory {
-  readonly ptys: FakePty[] = []
+describe("终端输出 credit 窗口", () => {
+  const CHUNK = "x".repeat(65_536)
+
+  function setup() {
+    const events: DesktopTerminalEvent[] = []
+    const factory = new FakePtyFactory()
+    const manager = new TerminalManager({
+      contextResolver: { resolve: async threadId => context(threadId) },
+      ptyFactory: factory,
+      processTreeKiller: { kill: async () => undefined },
+      onEvent: event => events.push(event),
+    })
+    return { events, factory, manager }
+  }
+
+  async function ensureTerminal(manager: TerminalManager) {
+    return manager.ensure({
+      threadId: "task-flow",
+      profileId: null,
+      cols: 80,
+      rows: 24,
+    })
+  }
+
+  test("初始窗口内直接发送输出，不需要 ack", async () => {
+    const { events, factory, manager } = setup()
+    await ensureTerminal(manager)
+    factory.ptys[0]!.emitData("hello")
+
+    await waitFor(() => outputSequences(events).length === 1)
+    expect(outputSequences(events)).toEqual([0])
+    expect(factory.ptys[0]!.pauseCount).toBe(0)
+    await manager.stopAll()
+  })
+
+  test("窗口打满时暂停 PTY，ack 降到低水位后恢复并补发积压", async () => {
+    const { events, factory, manager } = setup()
+    const snapshot = await ensureTerminal(manager)
+    const pty = factory.ptys[0]!
+    // attach 代表渲染端已挂载，是允许暂停 PTY 的前提。
+    manager.attach(snapshot.terminalId, snapshot.instanceId, -1)
+    for (let index = 0; index < 5; index += 1) pty.emitData(CHUNK)
+
+    await waitFor(() => outputSequences(events).length === 4)
+    expect(pty.pauseCount).toBe(1)
+
+    // 确认前 4 个 chunk（4 × 65536 = 262144 字符）后窗口重新打开并补发第 5 个。
+    manager.ack(snapshot.terminalId, snapshot.instanceId, 3, 4 * 65_536)
+    await waitFor(() => outputSequences(events).length === 5)
+    expect(pty.resumeCount).toBe(1)
+    expect(outputSequences(events)).toEqual([0, 1, 2, 3, 4])
+    await manager.stopAll()
+  })
+
+  test("没有活跃消费者时不暂停 PTY，积压由有界缓冲明确截断", async () => {
+    const { events, factory, manager } = setup()
+    const snapshot = await ensureTerminal(manager)
+    const pty = factory.ptys[0]!
+    // 24 × 64KiB 超过 1MiB 缓冲：淘汰最旧并标记截断，但绝不暂停后台进程。
+    for (let index = 0; index < 24; index += 1) pty.emitData(CHUNK)
+
+    await waitFor(() => outputSequences(events).length >= 4)
+    expect(pty.pauseCount).toBe(0)
+    // 发送顺序严格连续、无重复无跳跃：有界内存不等于丢序。
+    expect(outputSequences(events)).toEqual([0, 1, 2, 3])
+    const replay = manager.attach(snapshot.terminalId, snapshot.instanceId, -1)
+    expect(replay.truncated).toBe(true)
+    expect(replay.chunks.length).toBeLessThanOrEqual(16)
+    expect(replay.chunks.length).toBeGreaterThan(0)
+    // 回放序号同样严格连续。
+    expect(replay.chunks.map(chunk => chunk.sequence)).toEqual(
+      replay.chunks.map((_, index) => replay.oldestSequence + index),
+    )
+    await manager.stopAll()
+  })
+
+  test("重复或非法 ack 不释放窗口额度", async () => {
+    const { events, factory, manager } = setup()
+    const snapshot = await ensureTerminal(manager)
+    const pty = factory.ptys[0]!
+    manager.attach(snapshot.terminalId, snapshot.instanceId, -1)
+    for (let index = 0; index < 5; index += 1) pty.emitData(CHUNK)
+    await waitFor(() => outputSequences(events).length === 4)
+    expect(pty.pauseCount).toBe(1)
+
+    manager.ack(snapshot.terminalId, snapshot.instanceId, 3, -1)
+    manager.ack(snapshot.terminalId, snapshot.instanceId, 3.5, 1_000)
+    manager.ack(snapshot.terminalId, snapshot.instanceId, 4, 4 * 65_536)
+    await waitFor(() => pty.resumeCount === 1)
+
+    // 同一序号的重复 ack 不能二次释放额度，也不再触发一次恢复。
+    manager.ack(snapshot.terminalId, snapshot.instanceId, 4, 4 * 65_536)
+    await Promise.resolve()
+    expect(pty.resumeCount).toBe(1)
+    expect(pty.pauseCount).toBe(1)
+    await manager.stopAll()
+  })
+})
+
+function outputSequences(events: readonly DesktopTerminalEvent[]): number[] {
+  return events
+    .filter(
+      (event): event is Extract<DesktopTerminalEvent, { type: "output" }> =>
+        event.type === "output",
+    )
+    .map(event => event.chunk.sequence)
+}
+
+class FakePtyFactory implements TerminalPtyFactory {  readonly ptys: FakePty[] = []
   readonly spawns: Array<{
     file: string
     args: string[]
@@ -482,6 +590,9 @@ class FakePty implements IPty {
   readonly writes: string[] = []
   readonly resizes: Array<[number, number]> = []
   killed = false
+  pauseCount = 0
+  resumeCount = 0
+  paused = false
   #dataListeners = new Set<(data: string) => void>()
   #exitListeners = new Set<(event: { exitCode: number; signal?: number }) => void>()
 
@@ -509,9 +620,15 @@ class FakePty implements IPty {
 
   clear(): void {}
 
-  pause(): void {}
+  pause(): void {
+    this.pauseCount += 1
+    this.paused = true
+  }
 
-  resume(): void {}
+  resume(): void {
+    this.resumeCount += 1
+    this.paused = false
+  }
 
   kill(): void {
     this.killed = true

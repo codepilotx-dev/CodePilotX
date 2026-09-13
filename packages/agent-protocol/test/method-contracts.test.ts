@@ -48,7 +48,7 @@ const project = {
   lastOpenedAt: 1,
   createdAt: 1,
   updatedAt: 1,
-  settings: { defaultModel: null, instructions: "", version: 1 },
+  settings: { defaultModel: null, instructions: "", executionEnvironment: "auto" as const, version: 1 },
 }
 
 const threadListItem = {
@@ -978,12 +978,12 @@ const fixtures = {
   }, { project, changed: false }),
   "project/settings/update": methodFixture("project/settings/update", {
     projectId: project.id,
-    settings: { defaultModel: modelRef, instructions: "Project instructions" },
+    settings: { defaultModel: modelRef, instructions: "Project instructions", executionEnvironment: "local" as const },
     expectedVersion: 1,
     operationId: "operation:project-settings",
   }, {
     projectId: project.id,
-    settings: { defaultModel: modelRef, instructions: "Project instructions", version: 2 },
+    settings: { defaultModel: modelRef, instructions: "Project instructions", executionEnvironment: "local" as const, version: 2 },
     version: 2,
   }),
   "project/source/list": methodFixture("project/source/list", {
@@ -2567,6 +2567,13 @@ const fixtures = {
     revision: "a".repeat(64),
     actions: [{ name: "Dev", icon: "play", availability: "available" }],
   }),
+  "worktree/eligibility": methodFixture("worktree/eligibility", {
+    projectId: "project:1",
+  }, {
+    isGitRepository: true,
+    availableModes: ["local", "worktree"],
+    defaultMode: "worktree",
+  }),
   "worktree/create": methodFixture("worktree/create", {
     projectId: "project:1",
     startingState: { type: "branch", branchName: "feature/fixture" },
@@ -3167,6 +3174,26 @@ const fixtures = {
     mode: "continue_primary",
     authorizeBacklog: true,
   }, { operation: taskboardStartOperation }),
+  "thread/goal/get": methodFixture("thread/goal/get", {
+    threadId: "thread:1",
+  }, { goal: null }),
+  "thread/goal/set": methodFixture("thread/goal/set", {
+    threadId: "thread:1",
+    objective: "修复登录失败",
+    status: "active",
+    expectedVersion: null,
+    operationId: "operation:thread-goal-set",
+  }, {
+    goal: {
+      id: "goal:1", threadId: "thread:1", objective: "修复登录失败", status: "active", tokenBudget: null,
+      tokensUsed: 0, timeUsedSeconds: 0, version: 1, createdAt: 1, updatedAt: 1,
+    },
+  }),
+  "thread/goal/clear": methodFixture("thread/goal/clear", {
+    threadId: "thread:1",
+    expectedVersion: 1,
+    operationId: "operation:thread-goal-clear",
+  }, { threadId: "thread:1", goalId: "goal:1", clearedAt: 2 }),
   "session-group/list": methodFixture("session-group/list", {
     query: "登录",
     limit: 20,
@@ -3225,6 +3252,22 @@ const fixtures = {
   "session-group/step/diff": methodFixture("session-group/step/diff", {
     groupId: "session-group:1", stepId: "session-group-step:1", path: "src/index.ts",
   }, { stepId: "session-group-step:1", files: [] }),
+  "workflow/list": methodFixture("workflow/list", { query: "登录", limit: 20 }, { workflows: [], nextCursor: null }),
+  "workflow/read": methodFixture("workflow/read", { workflowId: "workflow:1" }, {
+    workflow: { id: "workflow:1", name: "登录修复", description: "跨项目排查", version: 1, memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1 }, memberships: [],
+  }),
+  "workflow/create": methodFixture("workflow/create", { name: "登录修复", operationId: "operation:workflow-create" }, {
+    workflow: { id: "workflow:1", name: "登录修复", description: "", version: 1, memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 1 },
+  }),
+  "workflow/update": methodFixture("workflow/update", { workflowId: "workflow:1", expectedVersion: 1, patch: { name: "登录修复流" }, operationId: "operation:workflow-update" }, {
+    workflow: { id: "workflow:1", name: "登录修复流", description: "", version: 2, memberCount: 0, projectLabels: [], latestStepAt: null, createdAt: 1, updatedAt: 2 },
+  }),
+  "workflow/delete": methodFixture("workflow/delete", { workflowId: "workflow:1", expectedVersion: 2, operationId: "operation:workflow-delete" }, { workflowId: "workflow:1", deletedAt: 3 }),
+  "workflow/membership/set": methodFixture("workflow/membership/set", { threadId: "thread:1", workflowId: "workflow:1", operationId: "operation:workflow-membership" }, { membership: { workflowId: "workflow:1", threadId: "thread:1", joinedAt: 2 } }),
+  "workflow/context/read": methodFixture("workflow/context/read", { workflowId: "workflow:1", sections: ["objective"] }, { state: { workflowId: "workflow:1", contextRevision: 1, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 1 }, entries: [] }),
+  "workflow/context/update": methodFixture("workflow/context/update", { workflowId: "workflow:1", expectedContextRevision: 1, changes: [{ op: "add", section: "objective", title: "目标", content: "修复登录" }], operationId: "operation:workflow-context" }, { state: { workflowId: "workflow:1", contextRevision: 2, summarizedThroughSequence: 0, latestSequence: 0, digest: "", createdAt: 1, updatedAt: 2 }, entries: [] }),
+  "workflow/step/list": methodFixture("workflow/step/list", { workflowId: "workflow:1", limit: 20 }, { steps: [], nextCursor: null }),
+  "workflow/step/diff": methodFixture("workflow/step/diff", { workflowId: "workflow:1", stepId: "workflow-step:1", path: "src/index.ts" }, { stepId: "workflow-step:1", files: [] }),
   "usage/source/list": methodFixture("usage/source/list", {}, {
     sources: [{
       sourceId: "fixture-key",
@@ -3431,7 +3474,7 @@ describe("RPC method schema contracts", () => {
 
   test("keeps valid params and results for every formal method decodable", () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(242)
+    expect(methods).toHaveLength(256)
     const activeFixtureKeys = Object.keys(fixtures).filter(method => !method.startsWith("taskboard/"))
     expect(activeFixtureKeys.sort()).toEqual([...methods].sort())
 
@@ -3762,7 +3805,7 @@ describe("RPC method schema contracts", () => {
   })
 
   test("公共 runtime 方法表不包含 desktop host terminal schema", () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(236)
+    expect(Object.keys(RpcMethods)).toHaveLength(250)
     expect("terminal/host/context" in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain("terminal/host/context")
   })

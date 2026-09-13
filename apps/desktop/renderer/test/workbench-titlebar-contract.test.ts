@@ -84,12 +84,15 @@ describe('workbench resize commit contract', () => {
     expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(')
     expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(')
     expect(controller).toContain('settleTimerRef.current = setTimeout(')
+    // 原生缩放状态由 resizeActivityCoordinator 统一维护（按窗口 + revision +
+    // 看门狗），不再是易失布尔 ref；旧版 Electron 的布尔信号在入口处合成事件。
+    expect(controller).not.toContain('nativeResizeActiveRef')
+    expect(controller).toContain('resizeActivityCoordinator.applyNativeActivity(activity)')
+    expect(controller).toContain('handleResizePhase(activity.phase)')
     expect(controller).toContain('onWindowResizeStateChanged?.(resizing =>')
-    expect(controller).toContain('nativeResizeActiveRef.current = true')
-    expect(controller).toContain('settleOnNextFrame(true)')
-    expect(controller).toContain(
-      'if (finishNativeResize) nativeResizeActiveRef.current = false',
-    )
+    expect(controller).toContain('resizeActivityFromLegacy(resizing, legacyRevision)')
+    expect(controller).toContain('if (!resizeActivityCoordinator.isResizing()) scheduleFallbackSettlement()')
+    expect(controller).toContain('resizeActivityCoordinator.reset()')
     expect(controller).toContain('NON_NATIVE_RESIZE_SETTLE_MS = 500')
     expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(null)')
     expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(null)')

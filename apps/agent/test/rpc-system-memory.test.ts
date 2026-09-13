@@ -68,6 +68,7 @@ const fixture = async (overrides: Partial<RpcRouterDependencies> = {}) => {
     speech: {} as never,
     threadExecutions: {} as never,
     sessionGroups: {} as never,
+    threadGoals: {} as never,
     automation: {} as never,
     ...overrides,
   })

@@ -998,7 +998,7 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
-  test("model/list.defaultModel 只反映显式配置且当前可用的默认模型", async () => {
+  test("model/list.defaultModel 只反映最近新建任务模型且当前可用", async () => {
     const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:test")
     const otherProviderID = Schema.decodeUnknownSync(Provider.ID)("provider:other")
     const modelID = Schema.decodeUnknownSync(Model.ID)("alpha")
@@ -1017,16 +1017,16 @@ describe("RPC v4 Router", () => {
     })
     await value.initialize()
 
-    // 有可用目录模型但没有显式配置：不再把第一个 enabled 模型伪装成 defaultModel。
+    // 有可用目录模型但没有最近选择：不再把第一个 enabled 模型伪装成 defaultModel。
     const unconfigured = await value.call("model/list", {})
     expect(unconfigured.error).toBeUndefined()
     expect(unconfigured.result.defaultModel).toBeNull()
     expect(unconfigured.result.reviewerModel).toBeNull()
 
-    // 显式默认模型有效时返回原 ref 和 variant（variant 来自 model_reasoning_effort）。
-    value.configDocument.model_provider = "provider:test"
-    value.configDocument.model = "alpha"
-    value.configDocument.model_reasoning_effort = "reasoning"
+    // 最近选择有效时返回原 ref 和 variant（兼容外壳：读取语义仍叫 defaultModel）。
+    value.configDocument.desktop = {
+      recent_new_thread_model: { providerID: "provider:test", id: "alpha", variant: "reasoning" },
+    }
     value.configDocument.specialized_models = { security: "provider:test/alpha" }
     const configured = await value.call("model/list", {})
     expect(configured.result.defaultModel).toEqual({
@@ -1040,30 +1040,93 @@ describe("RPC v4 Router", () => {
     })
 
     for (const thinkingMode of ["default", "enabled", "adaptive", "disabled"] as const) {
-      value.configDocument.model_reasoning_effort = thinkingMode
+      value.configDocument.desktop = {
+        recent_new_thread_model: { providerID: "provider:test", id: "alpha", variant: thinkingMode },
+      }
       expect((await value.call("model/list", {})).result.defaultModel).toEqual({
         providerID: "provider:test",
         id: "alpha",
       })
     }
 
-    // 显式默认模型存在但 variant 无效：返回 null。
-    value.configDocument.model_reasoning_effort = "invalid-variant"
+    // 最近选择存在但 variant 无效：返回 null。
+    value.configDocument.desktop = {
+      recent_new_thread_model: { providerID: "provider:test", id: "alpha", variant: "invalid-variant" },
+    }
     const invalidVariant = await value.call("model/list", {})
     expect(invalidVariant.result.defaultModel).toBeNull()
     expect(invalidVariant.result.reviewerModel).toEqual({
       providerID: "provider:test",
       id: "alpha",
     })
-    value.configDocument.model_reasoning_effort = "reasoning"
 
-    // 显式模型存在但被禁用：返回 null。
-    value.configDocument.model = "disabled"
+    // 最近选择存在但模型被禁用：返回 null。
+    value.configDocument.desktop = {
+      recent_new_thread_model: { providerID: "provider:test", id: "disabled" },
+    }
     expect((await value.call("model/list", {})).result.defaultModel).toBeNull()
 
-    // 显式模型在目录中不存在：返回 null。
-    value.configDocument.model = "missing"
+    // 最近选择在目录中不存在：返回 null。
+    value.configDocument.desktop = {
+      recent_new_thread_model: { providerID: "provider:test", id: "missing" },
+    }
     expect((await value.call("model/list", {})).result.defaultModel).toBeNull()
+    value.db.close()
+  })
+
+  test("provider/delete 不再被遗留 model_provider 阻塞", async () => {
+    const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:custom")
+    const value = await fixture({
+      providers: {
+        list: async () => [],
+        models: async () => [],
+        reload: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+    })
+    await value.initialize()
+    value.configDocument.model_providers = {
+      [String(providerID)]: { kind: "custom", id: String(providerID), enabled: true },
+    }
+    // 遗留的全局默认模型仍指向该 Provider：只保留兼容数据，不再阻塞删除。
+    value.configDocument.model_provider = String(providerID)
+    value.configDocument.model = "legacy-model"
+
+    const deleted = await value.call("provider/delete", {
+      providerId: String(providerID),
+      operationId: "operation:provider-delete",
+    })
+    expect(deleted.error).toBeUndefined()
+    expect(deleted.result).toMatchObject({ providerId: String(providerID), deleted: true })
+    expect(value.configDocument.model_providers).toEqual({})
+    expect(value.configDocument.model_provider).toBe(String(providerID))
+    value.db.close()
+  })
+
+  test("provider/delete 仍被真实专用模型引用阻塞", async () => {
+    const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:custom")
+    const value = await fixture({
+      providers: {
+        list: async () => [],
+        models: async () => [],
+        reload: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+    })
+    await value.initialize()
+    value.configDocument.model_providers = {
+      [String(providerID)]: { kind: "custom", id: String(providerID), enabled: true },
+    }
+    value.configDocument.specialized_models = { security: `${String(providerID)}/alpha` }
+
+    const blocked = await value.call("provider/delete", {
+      providerId: String(providerID),
+      operationId: "operation:provider-delete",
+    })
+    expect(blocked.error).toMatchObject({
+      code: -32000,
+      data: { code: "CONFLICT" },
+      message: "Provider 仍被最近模型或专用模型引用",
+    })
+    expect(value.configDocument.model_providers).toHaveProperty(String(providerID))
     value.db.close()
   })
 

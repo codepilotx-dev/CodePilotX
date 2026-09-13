@@ -5,6 +5,7 @@ import type { StructuredPlan } from "@codepilotx/shared/thread";
 import {
   StructuredPlanView,
   WorkflowPlanCard,
+  createPlanDockRequest,
   planTitleFromSummary,
 } from "../src/features/session/workflow/WorkflowPlanCard";
 import {
@@ -102,5 +103,36 @@ describe("WorkflowPlanCard structured plans", () => {
 
     expect(html).toContain("右侧计划正文");
     expect(html).not.toContain("暂无计划");
+  });
+
+  test("计划未生成完成时不可在右侧打开，也不渲染打开入口", () => {
+    const streaming = renderToStaticMarkup(
+      <WorkflowPlanCard
+        eventId="turn-2:plan"
+        summary="# 正在写的计划"
+        streaming
+        isDocked={false}
+        onOpenInRightDock={() => undefined}
+      />,
+    );
+    expect(streaming).not.toContain("在右侧打开计划");
+    expect(streaming).toContain("编写计划");
+
+    // 打开请求本身携带可打开性，供唯一的打开入口拒绝半成品快照。
+    expect(createPlanDockRequest({
+      eventId: "turn-2:plan",
+      title: "正在写的计划",
+      content: "# 正在写的计划",
+      streaming: true,
+    })).toMatchObject({ openable: false });
+    expect(createPlanDockRequest({
+      eventId: "turn-2:plan",
+      title: "计划",
+      content: "# 计划",
+      streaming: false,
+    })).toMatchObject({ openable: true });
+
+    const completed = renderCard(structuredPlan());
+    expect(completed).toContain("在右侧打开计划");
   });
 });

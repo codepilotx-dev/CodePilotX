@@ -151,6 +151,7 @@ describe("thread summary view model", () => {
       eventId: "plan-2",
       title: "新计划",
       content: "# 新计划\n\n内容",
+      openable: true,
     });
     expect(model.sources).toHaveLength(1);
     expect(model.subagents).toEqual([
@@ -158,8 +159,7 @@ describe("thread summary view model", () => {
     ]);
   });
 
-  test("hides empty sections and ignores malformed plans", () => {
-    const model = deriveThreadSummaryViewModel({
+  test("hides empty sections and ignores malformed plans", () => {    const model = deriveThreadSummaryViewModel({
       additions: 0,
       branchName: null,
       changedFileCount: 0,
@@ -178,6 +178,34 @@ describe("thread summary view model", () => {
       subagents: [],
     });
     expect(findLatestThreadSummaryPlan([])).toBeNull();
+  });
+
+  test("skips a plan that is still streaming and falls back to the latest completed one", () => {
+    const events = [
+      { id: "plan-done", type: "proposed_plan", content: "# 已完成计划" },
+      {
+        id: "plan-streaming",
+        type: "proposed_plan",
+        content: "# 正在生成",
+        metadata: { streaming: true },
+      },
+    ];
+
+    // 流式中的计划还没有生成完成，右栏只能拿完成态快照。
+    expect(findLatestThreadSummaryPlan(events)).toEqual({
+      eventId: "plan-done",
+      title: "已完成计划",
+      content: "# 已完成计划",
+      openable: true,
+    });
+    expect(findLatestThreadSummaryPlan([
+      {
+        id: "only-streaming",
+        type: "proposed_plan",
+        content: "# 正在生成",
+        metadata: { streaming: true },
+      },
+    ])).toBeNull();
   });
 
   test("keeps the changes entry for a workspace with no changes and explains disabled Git actions", () => {

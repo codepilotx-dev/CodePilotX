@@ -56,8 +56,8 @@ describe('AutomationView', () => {
     ])
   })
 
-  test('renders the task calendar shell and calendar filters inside a router', () => {
-    const html = renderToStaticMarkup(
+  test('renders the task calendar shell and execution records inside a router', () => {
+    const calendarHtml = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/automations?date=2026-09-05']}>
         <WorkspaceHeaderProvider routeScope="/automations">
           <AutomationView />
@@ -65,17 +65,28 @@ describe('AutomationView', () => {
       </MemoryRouter>,
     )
 
-    expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('任务日历')
-    expect(html).toContain('placeholder="搜索已安排任务"')
-    expect(html).toContain('role="tablist"')
-    expect(html).toContain('全部')
-    expect(html).toContain('计划任务')
-    expect(html).toContain('自动化')
-    expect(html).toContain('执行记录')
-    expect(html).toContain('正在载入任务日历')
-    expect(html).not.toContain('automation-detail-presence')
-    expect(html).not.toContain('收起当日议程')
-    expect(html).not.toContain('展开当日议程')
+    expect(calendarHtml.match(/<h1/g)).toHaveLength(1)
+    expect(calendarHtml).toContain('任务日历')
+    expect(calendarHtml).toContain('placeholder="搜索已安排任务"')
+    expect(calendarHtml).toContain('id="automation-calendar-panel"')
+    expect(calendarHtml).toContain('正在载入任务日历')
+    expect(calendarHtml).not.toContain('primary-page-layout__navigation')
+    expect(calendarHtml).not.toContain('automation-detail-presence')
+    expect(calendarHtml).not.toContain('收起当日议程')
+    expect(calendarHtml).not.toContain('展开当日议程')
+
+    const runsHtml = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/automations?tab=runs']}>
+        <WorkspaceHeaderProvider routeScope="/automations">
+          <AutomationView />
+        </WorkspaceHeaderProvider>
+      </MemoryRouter>,
+    )
+
+    expect(runsHtml.match(/<h1/g)).toHaveLength(1)
+    expect(runsHtml).toContain('执行记录')
+    expect(runsHtml).toContain('placeholder="搜索执行记录"')
+    expect(runsHtml).toContain('id="automation-runs-panel"')
+    expect(runsHtml).toContain('正在载入执行记录')
   })
 })
