@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import type React from 'react'
 import { ArrowLeft, AlertTriangle, CalendarClock, Play, Trash2, X } from 'lucide-react'
+import type { AutomationSchedule, AutomationWeekday } from '@codepilotx/shared/automation'
 import type { ScheduledTask, ScheduledTaskDefinition } from '@codepilotx/shared/scheduled-task'
 import type { DesktopSessionListItem, DesktopWorkspace } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
@@ -11,6 +12,27 @@ import { Textarea } from '../../components/ui/Textarea.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { calendarStatusLabel } from './calendarDates.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+
+type ScheduleMode = 'once' | 'daily' | 'weekdays' | 'weekly' | 'hourly' | 'custom'
+
+const SCHEDULE_MODE_OPTIONS = [
+  { value: 'once', label: '仅一次（单次执行）' },
+  { value: 'daily', label: '每天' },
+  { value: 'weekdays', label: '工作日' },
+  { value: 'weekly', label: '每周' },
+  { value: 'hourly', label: '每小时' },
+  { value: 'custom', label: '自定义 RRULE' },
+] as const
+
+const WEEKDAY_OPTIONS = [
+  { value: 'MO', label: '周一' },
+  { value: 'TU', label: '周二' },
+  { value: 'WE', label: '周三' },
+  { value: 'TH', label: '周四' },
+  { value: 'FR', label: '周五' },
+  { value: 'SA', label: '周六' },
+  { value: 'SU', label: '周日' },
+] as const
 
 type Props = {
   creating: boolean
@@ -23,12 +45,17 @@ type Props = {
   onBack?: () => void
   onUnsavedChange: (unsaved: boolean) => void
   onChanged: (task: ScheduledTask) => void
+  onAutomationCreated?: (id: string) => void
   onDeleted: () => void
   onOpenThread: (id: string) => void
 }
 
 export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
   const [draft, setDraft] = useState<ScheduledTaskDefinition>(props.initialDraft)
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('once')
+  const [weeklyDay, setWeeklyDay] = useState<AutomationWeekday>('MO')
+  const [hourlyInterval, setHourlyInterval] = useState(60)
+  const [customRrule, setCustomRrule] = useState('')
   const [executionDate, setExecutionDate] = useState(() => toLocalDateTime(props.initialDraft.scheduledFor).slice(0, 10))
   const [executionTime, setExecutionTime] = useState(() => toLocalDateTime(props.initialDraft.scheduledFor).slice(11, 16))
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -61,7 +88,9 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
   if (draft.targetThreadId && !sessionOptions.some(session => session.value === draft.targetThreadId)) {
     sessionOptions.push({ value: draft.targetThreadId, label: '聊天不可用' })
   }
-  const validation = validate(draft)
+  const validation = props.creating && scheduleMode !== 'once'
+    ? validateAutomationDraft(draft, scheduleMode, customRrule)
+    : validate(draft)
   const unsaved = props.creating || Boolean(validation || error) ||
     Boolean(props.task && JSON.stringify(draft) !== JSON.stringify(taskDefinition(props.task)))
   useEffect(() => {
@@ -73,14 +102,47 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
     setSaving(true)
     setError(null)
     try {
-      const result = props.creating
-        ? await desktopClient.createScheduledTask(draft)
-        : await desktopClient.updateScheduledTask({
-            id: props.task!.id,
-            expectedRevision: props.task!.revision,
-            ...draft,
+      if (props.creating) {
+        if (scheduleMode === 'once') {
+          const result = await desktopClient.createScheduledTask(draft)
+          props.onChanged(result.scheduledTask)
+        } else {
+          let schedule: AutomationSchedule
+          if (scheduleMode === 'daily') {
+            schedule = { mode: 'daily', time: executionTime || '09:00' }
+          } else if (scheduleMode === 'weekdays') {
+            schedule = { mode: 'weekdays', time: executionTime || '09:00' }
+          } else if (scheduleMode === 'weekly') {
+            schedule = { mode: 'weekly', weekdays: [weeklyDay], time: executionTime || '09:00' }
+          } else if (scheduleMode === 'hourly') {
+            schedule = { mode: 'hourly', intervalMinutes: hourlyInterval }
+          } else {
+            schedule = { mode: 'custom', rrule: customRrule.trim() || 'FREQ=DAILY;INTERVAL=1' }
+          }
+          const result = await desktopClient.createAutomation({
+            kind: draft.kind,
+            name: draft.name,
+            prompt: draft.prompt,
+            projectId: draft.projectId,
+            targetThreadId: draft.targetThreadId,
+            execution: draft.execution,
+            model: draft.model,
+            reasoningEffort: draft.reasoningEffort,
+            permissionConfig: draft.permissionConfig,
+            schedule,
+            timeZone: draft.timeZone,
+            notificationPolicy: draft.notificationPolicy,
           })
-      props.onChanged(result.scheduledTask)
+          props.onAutomationCreated?.(result.automation.id)
+        }
+      } else {
+        const result = await desktopClient.updateScheduledTask({
+          id: props.task!.id,
+          expectedRevision: props.task!.revision,
+          ...draft,
+        })
+        props.onChanged(result.scheduledTask)
+      }
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {
@@ -106,7 +168,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
   }
 
   return (
-    <section className="automation-detail" aria-label={props.creating ? '创建计划任务' : '计划任务详情'}>
+    <section className="automation-detail" aria-label={props.creating ? '创建任务' : '计划任务详情'}>
       <header className="automation-detail-header">
         <div className="automation-detail-title-group">
           {props.onBack ? (
@@ -123,7 +185,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               {props.exitPending === 'back' ? '再按一次返回' : null}
             </Button>
           ) : null}
-          <h2 title={props.creating ? '创建计划任务' : props.task?.name}>{props.creating ? '创建计划任务' : props.task?.name}</h2>
+          <h2 title={props.creating ? '创建任务' : props.task?.name}>{props.creating ? '创建任务' : props.task?.name}</h2>
         </div>
         <div className="automation-detail-header-actions">
           {!props.creating && props.task ? (
@@ -148,13 +210,65 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           <Field label="任务说明">
             <Textarea readOnly={!editable} rows={3} value={draft.prompt} onChange={event => update({ prompt: event.currentTarget.value })} />
           </Field>
-          <div className="automation-field" role="group" aria-label="执行时间">
-            <span className="automation-field-label">执行时间</span>
-            <div className="automation-execution-inputs">
-              <Input aria-label="执行日期" readOnly={!editable} type="date" value={executionDate} onChange={event => updateExecution(event.currentTarget.value, executionTime)} />
-              <Input aria-label="执行时刻" readOnly={!editable} type="time" step={60} value={executionTime} onChange={event => updateExecution(executionDate, event.currentTarget.value)} />
+          {props.creating ? (
+            <Field label="排期">
+              <Select
+                ariaLabel="排期"
+                value={scheduleMode}
+                options={SCHEDULE_MODE_OPTIONS}
+                onValueChange={mode => setScheduleMode(mode as ScheduleMode)}
+              />
+            </Field>
+          ) : null}
+          {(!props.creating || scheduleMode === 'once') ? (
+            <div className="automation-field" role="group" aria-label="执行时间">
+              <span className="automation-field-label">执行时间</span>
+              <div className="automation-execution-inputs">
+                <Input aria-label="执行日期" readOnly={!editable} type="date" value={executionDate} onChange={event => updateExecution(event.currentTarget.value, executionTime)} />
+                <Input aria-label="执行时刻" readOnly={!editable} type="time" step={60} value={executionTime} onChange={event => updateExecution(executionDate, event.currentTarget.value)} />
+              </div>
             </div>
-          </div>
+          ) : scheduleMode === 'daily' || scheduleMode === 'weekdays' ? (
+            <div className="automation-field" role="group" aria-label="执行时间">
+              <span className="automation-field-label">执行时间</span>
+              <div className="automation-execution-inputs">
+                <Input aria-label="执行时刻" readOnly={!editable} type="time" step={60} value={executionTime} onChange={event => updateExecution(executionDate, event.currentTarget.value)} />
+              </div>
+            </div>
+          ) : scheduleMode === 'weekly' ? (
+            <div className="automation-form-grid">
+              <Field label="每周执行日">
+                <Select
+                  ariaLabel="每周执行日"
+                  value={weeklyDay}
+                  options={WEEKDAY_OPTIONS}
+                  onValueChange={v => setWeeklyDay(v as AutomationWeekday)}
+                />
+              </Field>
+              <div className="automation-field" role="group" aria-label="执行时间">
+                <span className="automation-field-label">执行时间</span>
+                <div className="automation-execution-inputs">
+                  <Input aria-label="执行时刻" readOnly={!editable} type="time" step={60} value={executionTime} onChange={event => updateExecution(executionDate, event.currentTarget.value)} />
+                </div>
+              </div>
+            </div>
+          ) : scheduleMode === 'hourly' ? (
+            <Field label="间隔（分钟）">
+              <Input
+                type="number"
+                min={15}
+                value={hourlyInterval}
+                onChange={event => setHourlyInterval(Math.max(15, Number(event.currentTarget.value) || 15))}
+              />
+            </Field>
+          ) : scheduleMode === 'custom' ? (
+            <Field label="RFC 5545 RRULE">
+              <Input
+                value={customRrule}
+                onChange={event => setCustomRrule(event.currentTarget.value)}
+              />
+            </Field>
+          ) : null}
             {draft.kind === 'standalone' ? (
               <Field label="项目"><Select triggerClassName={!editable ? 'automation-readonly-control' : undefined} ariaLabel="项目" disabled={!editable} searchable value={draft.projectId ?? ''} options={projectOptions} onValueChange={projectId => update({ projectId: projectId || null })} /></Field>
             ) : (
@@ -198,7 +312,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                 {editable ? <Button color="primary" disabled={Boolean(validation)} loading={saving} onClick={() => void save()}>保存</Button> : null}
                 {editable ? <IconButton color="danger" size="toolbar" title="删除计划任务" onClick={() => void desktopClient.deleteScheduledTask({ id: props.task!.id, expectedRevision: props.task!.revision }).then(props.onDeleted).catch(cause => setError(errorMessage(cause)))}><Trash2 aria-hidden="true" size={APP_ICON_SIZE} /></IconButton> : null}
               </>
-            ) : <Button color="primary" disabled={Boolean(validation)} loading={saving} onClick={() => void save()}><CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />创建计划任务</Button>}
+            ) : <Button color="primary" disabled={Boolean(validation)} loading={saving} onClick={() => void save()}><CalendarClock aria-hidden="true" size={APP_ICON_SIZE} />创建任务</Button>}
           </footer>
 
     </section>
@@ -212,6 +326,19 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export function taskDefinition(task: ScheduledTaskDefinition): ScheduledTaskDefinition {
   const { kind, name, prompt, projectId, targetThreadId, execution, model, reasoningEffort, permissionConfig, scheduledFor, timeZone, notificationPolicy } = task
   return { kind, name, prompt, projectId, targetThreadId, execution, model, reasoningEffort, permissionConfig, scheduledFor, timeZone, notificationPolicy }
+}
+
+function validateAutomationDraft(
+  draft: ScheduledTaskDefinition,
+  mode: ScheduleMode,
+  rrule: string,
+): string | null {
+  if (!draft.name.trim()) return '请输入计划任务名称。'
+  if (!draft.prompt.trim()) return '请输入要执行的任务。'
+  if (draft.kind === 'standalone' && !draft.projectId) return '请选择项目。'
+  if (draft.kind === 'thread' && !draft.targetThreadId) return '请选择目标聊天。'
+  if (mode === 'custom' && !rrule.trim()) return '请输入 RRULE 规则。'
+  return null
 }
 
 function validate(draft: ScheduledTaskDefinition): string | null {

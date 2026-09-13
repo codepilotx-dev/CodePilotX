@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { AlarmClock, CalendarClock, CheckCircle2, ChevronDown, FileSearch, LoaderCircle, MoreHorizontal, Pause, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { AlarmClock, ArrowUpRight, CalendarClock, CheckCircle2, ChevronDown, FileSearch, LoaderCircle, MessageCircle, MoreHorizontal, Pause, Play, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
 import type { Automation, AutomationRun } from '@codepilotx/shared/automation'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
 import type { ScheduledTask, ScheduledTaskDefinition } from '@codepilotx/shared/scheduled-task'
@@ -19,10 +19,9 @@ import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import { resolveRecentNewThreadModel } from '../models/recentNewThreadModel.js'
 import { AutomationDetailPanel } from './AutomationDetailPanel.js'
-import { AutomationCalendar, type CalendarOpenRequest } from './AutomationCalendar.js'
-import { AutomationAgenda } from './AutomationAgenda.js'
-import { AutomationFocusPages } from './AutomationFocusPages.js'
+import { AutomationCalendar } from './AutomationCalendar.js'
 import { ScheduledTaskDetailPanel, taskDefinition } from './ScheduledTaskDetailPanel.js'
 import {
   AUTOMATION_TEMPLATES,
@@ -30,14 +29,24 @@ import {
   automationToDraft,
   defaultAutomationDraft,
   formatAutomationRelativeTime,
+  formatAutomationTime,
   hasActiveAutomationRun,
   isCompletedAutomation,
+  runStatusLabel,
+  runTriggerLabel,
   type AutomationFilter,
   type AutomationTemplate,
   type AutomationTemplateId,
 } from './automationModel.js'
 import { useAutomationController } from './useAutomationController.js'
-import { type CalendarFilter, useCalendarController } from './useCalendarController.js'
+import { useCalendarController } from './useCalendarController.js'
+
+export type AutomationTab = 'calendar' | 'runs'
+
+const TAB_OPTIONS = [
+  { value: 'calendar', label: '日历' },
+  { value: 'runs', label: '执行记录' },
+] as const
 
 type ConfirmState = { kind: 'delete'; automation: Automation } | null
 const FILTER_OPTIONS: Array<{ value: AutomationFilter; label: string }> = [
@@ -46,53 +55,71 @@ const FILTER_OPTIONS: Array<{ value: AutomationFilter; label: string }> = [
   { value: 'paused', label: '已暂停' },
   { value: 'completed', label: '已完成' },
 ]
-const CALENDAR_FILTER_OPTIONS: Array<{ value: CalendarFilter; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'scheduled-task', label: '计划' + '任务' },
-  { value: 'automation', label: '自动化' },
-  { value: 'execution', label: '执行记录' },
-]
 
 export function AutomationView(): React.ReactNode {
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const tab: AutomationTab = params.get('tab') === 'runs' ? 'runs' : 'calendar'
   const selectedId = params.get('automationId')
   const creating = params.get('automationMode') === 'create'
   const scheduledTaskId = params.get('scheduledTaskId')
   const creatingScheduledTask = params.get('scheduledTaskMode') === 'create'
   const controller = useAutomationController(selectedId)
-  const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>('all')
-  const calendar = useCalendarController(controller.query, calendarFilter)
+  const calendar = useCalendarController(controller.query, 'all')
   const [scheduledTask, setScheduledTask] = useState<ScheduledTask | null>(null)
   const [scheduledTaskLoading, setScheduledTaskLoading] = useState(false)
   const [planningPluginDisabled, setPlanningPluginDisabled] = useState(false)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [rowMenuId, setRowMenuId] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<ConfirmState>(null)
-  const [agenda, setAgenda] = useState<CalendarOpenRequest | null>(null)
-  const [returning, setReturning] = useState(false)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const anchorRectRef = useRef<DOMRect | null>(null)
-  const agendaVisitedRef = useRef(false)
   const [scheduledTaskUnsaved, setScheduledTaskUnsaved] = useState(false)
-  const [pendingExit, setPendingExit] = useState<'close' | 'back' | null>(null)
+  const [pendingExit, setPendingExit] = useState<'close' | null>(null)
   const createButtonRef = useRef<HTMLButtonElement | null>(null)
   const detailOpen = creating || creatingScheduledTask || Boolean(selectedId) || Boolean(scheduledTaskId)
-  const surfaceOpen = detailOpen || Boolean(agenda)
-  const showingAgenda = Boolean(agenda) && (!detailOpen || returning)
+  const surfaceOpen = detailOpen
   const returnFocusRef = useRef<HTMLElement | null>(null)
-  const defaultModel = useMemo(() => {
-    const session = controller.sessions.find(item => item.providerID && item.model)
-    return { providerID: session?.providerID ?? 'openai', id: session?.model ?? 'gpt-5' } as Automation['model']
-  }, [controller.sessions])
+  const [resolvedModel, setResolvedModel] = useState<Automation['model'] | null>(null)
+  useEffect(() => {
+    let active = true
+    // 自动化只使用统一解析出的有效最近模型：记录失效时回退首个可用模型，
+    // 不读取任意历史任务模型，也不接受未经验证的配置记录。
+    void resolveRecentNewThreadModel()
+      .then(resolved => {
+        if (!active) return
+        setResolvedModel(
+          resolved
+            ? ({
+                providerID: resolved.providerID,
+                id: resolved.id,
+                ...(resolved.variant ? { variant: resolved.variant } : {}),
+              } as Automation['model'])
+            : null,
+        )
+      })
+      .catch(() => {
+        if (active) setResolvedModel(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+  const draftModel = useMemo<Automation['model']>(
+    () => resolvedModel ?? ({ providerID: '', id: '' } as Automation['model']),
+    [resolvedModel],
+  )
+  const hasDraftModel = Boolean(draftModel.providerID && draftModel.id)
   const selectedDate = params.get('date') ?? localDateValue(new Date())
-  const scheduledTaskDraft = useMemo<ScheduledTaskDefinition>(() => taskDefinition({
-    ...defaultAutomationDraft({
-      projectId: controller.projects[0]?.projectId ?? null,
-      model: defaultModel,
-    }),
-    scheduledFor: scheduledTimeForDate(selectedDate),
-  }), [controller.projects, defaultModel, selectedDate])
+  const scheduledTaskDraft = useMemo<ScheduledTaskDefinition>(() => {
+    return taskDefinition({
+      ...defaultAutomationDraft({
+        projectId: controller.projects[0]?.projectId ?? null,
+        model: draftModel,
+      }),
+      scheduledFor: scheduledTimeForDate(selectedDate),
+    })
+  }, [controller.projects, draftModel, selectedDate])
   const visibleSuggestions = useMemo(() => {
     if (controller.filter !== 'all') return []
     const needle = controller.query.trim().toLocaleLowerCase()
@@ -122,12 +149,12 @@ export function AutomationView(): React.ReactNode {
     controller.automations.length === 0
 
   useEffect(() => {
-    if (!creating || controller.draft || controller.loading) return
+    if (!creating || controller.draft || controller.loading || !hasDraftModel) return
     controller.beginCreate(defaultAutomationDraft({
       projectId: controller.projects[0]?.projectId ?? null,
-      model: defaultModel,
+      model: draftModel,
     }))
-  }, [controller, creating, defaultModel])
+  }, [controller, creating, draftModel, hasDraftModel])
 
   useEffect(() => {
     let active = true
@@ -171,11 +198,6 @@ export function AutomationView(): React.ReactNode {
   }, [surfaceOpen])
 
   useEffect(() => {
-    if (agenda && showingAgenda && !returning && !calendar.occurrences.some(item =>
-      agenda.occurrences.some(previous => previous.id === item.id))) closeDetail(true)
-  }, [calendar.occurrences, agenda, showingAgenda, returning])
-
-  useEffect(() => {
     setPendingExit(null)
   }, [selectedId, scheduledTaskId, creating, creatingScheduledTask])
 
@@ -184,17 +206,15 @@ export function AutomationView(): React.ReactNode {
   }, [controller.saveState])
 
   useEffect(() => {
-    if (!detailOpen || showingAgenda) return
+    if (!detailOpen) return
     const root = surfaceRef.current
-    if (root && !root.querySelector('[data-direction]') && !root.contains(document.activeElement)) {
+    if (root && !root.contains(document.activeElement)) {
       root.querySelector<HTMLElement>('.automation-detail button, .automation-detail input, .automation-state button')?.focus({ preventScroll: true })
     }
-  }, [detailOpen, showingAgenda, scheduledTaskLoading, controller.loading])
+  }, [detailOpen, scheduledTaskLoading, controller.loading])
 
   function rememberFocus(): void {
-    setReturning(false)
     anchorRectRef.current = null
-    agendaVisitedRef.current = false
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
   }
   function restoreFocus(): void {
@@ -206,13 +226,36 @@ export function AutomationView(): React.ReactNode {
       else fallback?.focus()
     })
   }
+  function showTab(nextTab: AutomationTab): void {
+    controller.setQuery('')
+    setParams(current => {
+      const next = new URLSearchParams(current)
+      if (nextTab === 'calendar') {
+        next.delete('tab')
+      } else {
+        next.set('tab', nextTab)
+        next.delete('automationId')
+        next.delete('automationMode')
+        next.delete('scheduledTaskId')
+        next.delete('scheduledTaskMode')
+      }
+      return next
+    })
+  }
+  function openManualCreate(): void {
+    openScheduledTask(selectedDate)
+  }
   function openCreate(template?: AutomationTemplateId): void {
-    setAgenda(null)
+    if (!hasDraftModel) {
+      // 没有可用模型时不允许硬编码兜底，先让用户完成模型选择。
+      navigate('/setup')
+      return
+    }
     rememberFocus()
     if (!template) returnFocusRef.current = createButtonRef.current
     controller.beginCreate(defaultAutomationDraft({
       projectId: controller.projects[0]?.projectId ?? null,
-      model: defaultModel,
+      model: draftModel,
       template,
     }))
     setParams(current => {
@@ -237,10 +280,16 @@ export function AutomationView(): React.ReactNode {
     composerDraftStore.prefillTextIfEmpty('home', '请帮我规划任务。先确认规划一天、一周、一月还是一年，再生成可编辑的日程草案供我确认。')
     navigate('/new')
   }
-  function openScheduledTask(targetDate?: string, trigger?: HTMLElement | null, fromAgenda = false): void {
-    if (!fromAgenda) { setAgenda(null); rememberFocus() }
+  function openScheduledTask(targetDate?: string, trigger?: HTMLElement | null): void {
+    if (!hasDraftModel) {
+      navigate('/setup')
+      return
+    }
+    rememberFocus()
     if (trigger) returnFocusRef.current = trigger
-    if (!targetDate) returnFocusRef.current = createButtonRef.current
+    if (!targetDate) {
+      returnFocusRef.current = createButtonRef.current
+    }
     setParams(current => {
       const next = new URLSearchParams(current)
       next.delete('automationId')
@@ -254,7 +303,6 @@ export function AutomationView(): React.ReactNode {
     })
   }
   function selectAutomation(id: string): void {
-    setAgenda(null)
     rememberFocus()
     setParams(current => {
       const next = new URLSearchParams(current)
@@ -265,17 +313,8 @@ export function AutomationView(): React.ReactNode {
       return next
     })
   }
-  function openCalendar(request: CalendarOpenRequest): void {
+  function selectOccurrence(occurrence: CalendarOccurrence): void {
     rememberFocus()
-    returnFocusRef.current = request.trigger
-    if (request.occurrence && request.occurrences.length === 1) {
-      setAgenda(null)
-      selectOccurrence(request.occurrences[0]!, true)
-    } else setAgenda(request)
-  }
-  function selectOccurrence(occurrence: CalendarOccurrence, fromAgenda = false): void {
-    if (!fromAgenda) { setAgenda(null); rememberFocus() }
-    else if (agenda) setAgenda({ ...agenda, occurrence })
     setParams(current => {
       const next = new URLSearchParams(current)
       next.delete('automationId')
@@ -287,19 +326,16 @@ export function AutomationView(): React.ReactNode {
       return next
     })
   }
-  function closeDetail(force = false, back = false): void {
+  function closeDetail(force = false): void {
     const automationUnsaved = Boolean(controller.draft) && (
       creating || shouldConfirmDiscard(controller.saveState, controller.draftError) ||
       Boolean(controller.selected && JSON.stringify(controller.draft) !== JSON.stringify(automationToDraft(controller.selected)))
     )
     if (!force && (creatingScheduledTask || scheduledTaskId ? scheduledTaskUnsaved : automationUnsaved)) {
-      setPendingExit(back ? 'back' : 'close')
+      setPendingExit('close')
       return
     }
     setPendingExit(null)
-    if (back && agenda) { setReturning(true); return }
-    setReturning(false)
-    setAgenda(null)
     clearDetail()
   }
   function clearDetail(): void {
@@ -315,22 +351,27 @@ export function AutomationView(): React.ReactNode {
     })
   }
 
-  function pageSettled(page: 'agenda' | 'detail'): void {
-    if (page === 'agenda' && returning) { setReturning(false); clearDetail() }
+  function pageSettled(): void {
     const root = surfaceRef.current
     if (!root) return
-    if (page === 'agenda') {
-      const target = Array.from(root.querySelectorAll<HTMLElement>('[data-agenda-occurrence-id]'))
-        .find(element => element.dataset.agendaOccurrenceId === agenda?.occurrence?.id)
-        ?? root.querySelector<HTMLElement>('.automation-calendar__agenda-content')
-      target?.focus({ preventScroll: true })
-      if (!agendaVisitedRef.current) target?.scrollIntoView({ block: 'nearest' })
-      agendaVisitedRef.current = true
-    } else root.querySelector<HTMLElement>('.automation-detail button, .automation-detail input, .automation-state button')?.focus({ preventScroll: true })
+    root.querySelector<HTMLElement>('.automation-detail button, .automation-detail input, .automation-state button')?.focus({ preventScroll: true })
   }
 
   return (
     <>
+      <WorkspaceHeaderItem align="start" id="automation.navigation" order={0} slot="left">
+        <SegmentedControl<AutomationTab>
+          ariaLabel="任务视图"
+          className="automation-segmented-tabs"
+          getPanelId={value => `automation-${value}-panel`}
+          getTabId={value => `automation-${value}-tab`}
+          onChange={showTab}
+          options={TAB_OPTIONS}
+          semantics="tabs"
+          value={tab}
+        />
+      </WorkspaceHeaderItem>
+
       <WorkspaceHeaderItem align="end" id="automation.actions" order={100} slot="right">
         <PopoverMenu
           align="end"
@@ -345,58 +386,36 @@ export function AutomationView(): React.ReactNode {
             </Button>
           )}
         >
-          <PopoverItem icon={<Sparkles size={APP_ICON_SIZE} />} onClick={() => void planThroughChat()}>规划任务</PopoverItem>
-          <PopoverItem icon={<CalendarClock size={APP_ICON_SIZE} />} onClick={() => openScheduledTask()}>计划任务</PopoverItem>
-          <PopoverItem icon={<AlarmClock size={APP_ICON_SIZE} />} onClick={() => openCreate()}>自动化执行</PopoverItem>
+          <PopoverItem icon={<MessageCircle size={APP_ICON_SIZE} />} onClick={() => void planThroughChat()}>使用 CPX 创建</PopoverItem>
+          <PopoverItem icon={<Settings size={APP_ICON_SIZE} />} onClick={() => openManualCreate()}>手动设置</PopoverItem>
         </PopoverMenu>
       </WorkspaceHeaderItem>
 
       <PrimaryPageLayout
         className="automation-primary-page"
-        title="任务日历"
-        description="规划任务、安排执行，并在同一日历查看运行结果。"
+        title={tab === 'runs' ? '执行记录' : '任务日历'}
+        description={tab === 'runs' ? '查看计划任务与自动化的历史执行状态与运行结果。' : '规划任务、安排执行，并在同一日历查看运行结果。'}
         bodyClassName="automation-view"
         search={(
           <SearchInput
-            aria-label="搜索已安排任务"
-            placeholder="搜索已安排任务"
+            aria-label={tab === 'runs' ? '搜索执行记录' : '搜索已安排任务'}
+            placeholder={tab === 'runs' ? '搜索执行记录' : '搜索已安排任务'}
             value={controller.query}
             onChange={controller.setQuery}
           />
         )}
-        navigation={(
-          <div className="automation-page-navigation">
-            {calendar.supported === false ? (
-              <SegmentedControl<AutomationFilter>
-                ariaLabel="筛选自动化"
-                getPanelId={value => `automation-${value}-panel`}
-                getTabId={value => `automation-${value}-tab`}
-                value={controller.filter}
-                options={FILTER_OPTIONS}
-                semantics="tabs"
-                onChange={controller.setFilter}
-              />
-            ) : (
-              <SegmentedControl<CalendarFilter>
-                ariaLabel="筛选任务日历"
-                getPanelId={value => `calendar-${value}-panel`}
-                getTabId={value => `calendar-${value}-tab`}
-                value={calendarFilter}
-                options={CALENDAR_FILTER_OPTIONS}
-                semantics="tabs"
-                onChange={setCalendarFilter}
-              />
-            )}
-            {controller.unreadCount ? (
-              <Button color="ghostSecondary" size="compact" onClick={() => void controller.markAllRunsRead()}>
-                全部标为已读
-              </Button>
-            ) : null}
-          </div>
-        )}
       >
         {controller.supported === false ? (
           <StatePanel title="当前 Agent 不支持自动化" description="更新并重启 Agent 后，即可创建本地计划任务。" />
+        ) : tab === 'runs' ? (
+          <AutomationRunsList
+            runs={controller.runs}
+            automations={controller.automations}
+            loading={controller.loading}
+            query={controller.query}
+            onClearQuery={() => controller.setQuery('')}
+            onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
+          />
         ) : calendar.supported === false && controller.error && !controller.automations.length ? (
           <StatePanel
             title="无法载入自动化"
@@ -407,9 +426,9 @@ export function AutomationView(): React.ReactNode {
           <div className="automation-page-stage">
             <main
               className="automation-page-content"
-              id={`calendar-${calendarFilter}-panel`}
+              id="automation-calendar-panel"
               role="tabpanel"
-              aria-labelledby={`calendar-${calendarFilter}-tab`}
+              aria-labelledby="automation-calendar-tab"
             >
               {calendar.initialLoading ? (
                 <SkeletonRegion className="automation-loading" label="正在载入任务日历">
@@ -433,8 +452,6 @@ export function AutomationView(): React.ReactNode {
                   onVisibleRangeChange={calendar.setRange}
                   onRefresh={() => void calendar.refresh()}
                   onOccurrenceSelect={occurrence => selectOccurrence(occurrence)}
-                  onAgendaOpen={openCalendar}
-                  onQuickCreate={(date, trigger) => openScheduledTask(date, trigger)}
                   onRunOccurrence={occurrence => {
                     if (occurrence.source.kind === 'automation') {
                       void controller.runNow(occurrence.source.id)
@@ -515,7 +532,7 @@ export function AutomationView(): React.ReactNode {
         <Popover.Portal>
           <div>
           <div className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop"
-            data-state="open" aria-hidden="true" onClick={() => { if (showingAgenda) closeDetail(true) }} />
+            data-state="open" aria-hidden="true" onClick={() => closeDetail(true)} />
           <Popover.Content
             ref={surfaceRef}
             className="popover-surface ui-dialog-surface automation-focus-shell"
@@ -524,17 +541,16 @@ export function AutomationView(): React.ReactNode {
             sideOffset={0}
             avoidCollisions={false}
             collisionPadding={{ top: 44, right: 16, bottom: 16, left: 16 }}
-            aria-label={showingAgenda ? '任务议程' : creatingScheduledTask ? '创建计划任务' : scheduledTaskId ? '计划任务详情' : creating ? '创建自动化' : '自动化详情'}
+            aria-label={creatingScheduledTask ? '创建计划任务' : scheduledTaskId ? '计划任务详情' : creating ? '创建自动化' : '自动化详情'}
             aria-describedby={undefined}
             onInteractOutside={event => event.preventDefault()}
             onEscapeKeyDown={event => {
               event.preventDefault()
-              if (showingAgenda) closeDetail(true)
-              else setPendingExit(null)
+              closeDetail(true)
             }}
             onOpenAutoFocus={event => {
               event.preventDefault()
-              pageSettled(showingAgenda ? 'agenda' : 'detail')
+              pageSettled()
             }}
             onCloseAutoFocus={event => {
               event.preventDefault()
@@ -542,17 +558,6 @@ export function AutomationView(): React.ReactNode {
               restoreFocus()
             }}
           >
-            <AutomationFocusPages page={showingAgenda ? 'agenda' : 'detail'} onSettled={pageSettled}
-              agenda={agenda ? <AutomationAgenda
-                dateValue={agenda.dateValue}
-                occurrences={calendar.occurrences.filter(item => agenda.occurrences.some(previous => previous.id === item.id))}
-                highlightedOccurrenceId={agenda.occurrence?.id ?? null}
-                onOccurrenceSelect={occurrence => selectOccurrence(occurrence, true)}
-                onQuickCreate={() => openScheduledTask(agenda.dateValue, undefined, true)}
-                onClose={() => closeDetail(true)}
-                onRunOccurrence={occurrence => { if (occurrence.source.kind === 'automation') void controller.runNow(occurrence.source.id) }}
-                onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
-              /> : null}>
             <div className="automation-focus-dialog">
               {(creating || controller.selected) && controller.draft ? (
                   <AutomationDetailPanel
@@ -560,7 +565,6 @@ export function AutomationView(): React.ReactNode {
                     controller={controller}
                     exitPending={pendingExit}
                     onClose={() => closeDetail(pendingExit === 'close')}
-                    {...(agenda ? { onBack: () => closeDetail(pendingExit === 'back', true) } : {})}
                     onCreated={id => setParams(current => {
                       const next = new URLSearchParams(current)
                       next.delete('automationMode')
@@ -579,7 +583,6 @@ export function AutomationView(): React.ReactNode {
                     exitPending={pendingExit}
                     onClose={() => closeDetail(pendingExit === 'close')}
                     onUnsavedChange={setScheduledTaskUnsaved}
-                    {...(agenda ? { onBack: () => closeDetail(pendingExit === 'back', true) } : {})}
                     onChanged={task => {
                       setPendingExit(null)
                       setScheduledTask(task)
@@ -591,15 +594,25 @@ export function AutomationView(): React.ReactNode {
                       })
                       void calendar.refresh()
                     }}
+                    onAutomationCreated={id => {
+                      setPendingExit(null)
+                      setParams(current => {
+                        const next = new URLSearchParams(current)
+                        next.delete('scheduledTaskMode')
+                        next.set('automationId', id)
+                        return next
+                      })
+                      void calendar.refresh()
+                      void controller.refresh()
+                    }}
                     onDeleted={() => {
                       closeDetail(true)
                       void calendar.refresh()
                     }}
                     onOpenThread={id => navigate(`/threads/${encodeURIComponent(id)}`)}
                   />
-              ) : <StatePanel title={controller.loading || scheduledTaskLoading ? '正在载入任务详情' : '未找到任务'} description="" action={<Button color="ghostSecondary" onClick={() => closeDetail(true, Boolean(agenda))}>{agenda ? '返回当日议程' : '关闭'}</Button>} />}
+              ) : <StatePanel title={controller.loading || scheduledTaskLoading ? '正在载入任务详情' : '未找到任务'} description="" action={<Button color="ghostSecondary" onClick={() => closeDetail(true)}>关闭</Button>} />}
             </div>
-            </AutomationFocusPages>
           </Popover.Content>
           </div>
         </Popover.Portal>
@@ -632,6 +645,128 @@ export function AutomationView(): React.ReactNode {
         }}
       />
     </>
+  )
+}
+
+function AutomationRunsList({
+  runs,
+  automations,
+  loading,
+  query,
+  onClearQuery,
+  onOpenThread,
+}: {
+  runs: readonly AutomationRun[]
+  automations: readonly Automation[]
+  loading: boolean
+  query: string
+  onClearQuery: () => void
+  onOpenThread: (threadId: string) => void
+}): React.ReactNode {
+  const automationNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of automations) {
+      map.set(item.id, item.name)
+    }
+    return map
+  }, [automations])
+
+  const sortedRuns = useMemo(() => {
+    return [...runs].sort((a, b) => {
+      const aTime = a.completedAt ?? a.startedAt ?? a.createdAt
+      const bTime = b.completedAt ?? b.startedAt ?? b.createdAt
+      return bTime - aTime
+    })
+  }, [runs])
+
+  const needle = query.trim().toLocaleLowerCase()
+  const filteredRuns = useMemo(() => {
+    if (!needle) return sortedRuns
+    return sortedRuns.filter(run => {
+      const taskName = (automationNameMap.get(run.automationId) ?? '').toLocaleLowerCase()
+      const status = runStatusLabel(run.status).toLocaleLowerCase()
+      const trigger = runTriggerLabel(run.trigger).toLocaleLowerCase()
+      return taskName.includes(needle) || status.includes(needle) || trigger.includes(needle)
+    })
+  }, [sortedRuns, needle, automationNameMap])
+
+  return (
+    <div className="automation-page-stage">
+      <main
+        className="automation-page-content"
+        id="automation-runs-panel"
+        role="tabpanel"
+        aria-labelledby="automation-runs-tab"
+      >
+        {loading && !runs.length ? (
+          <SkeletonRegion className="automation-loading" label="正在载入执行记录">
+            <SkeletonBlock />
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </SkeletonRegion>
+        ) : !sortedRuns.length ? (
+          <div className="automation-empty-state" role="status">
+            <CalendarClock size={APP_ICON_SIZE} aria-hidden="true" />
+            <h2>暂无执行记录</h2>
+            <p>任务在计划时间或手动触发运行后，执行记录会显示在这里。</p>
+          </div>
+        ) : !filteredRuns.length ? (
+          <div className="automation-filter-empty" role="status">
+            <span>未找到匹配的执行记录</span>
+            <Button color="secondary" size="compact" onClick={onClearQuery}>
+              清除搜索
+            </Button>
+          </div>
+        ) : (
+          <div className="automation-runs-page-container">
+            <ol className="automation-runs-page-list" aria-label="执行记录列表">
+              {filteredRuns.map(run => {
+                const taskName = automationNameMap.get(run.automationId) ?? '已安排任务'
+                const time = formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)
+                const hasThread = Boolean(run.threadId)
+                return (
+                  <li
+                    key={run.id}
+                    className="automation-runs-page-item"
+                    data-status={run.status}
+                  >
+                    <button
+                      type="button"
+                      className="automation-runs-page-button"
+                      disabled={!hasThread}
+                      onClick={() => {
+                        if (run.threadId) onOpenThread(run.threadId)
+                      }}
+                    >
+                      <div className="automation-runs-page-info">
+                        <div className="automation-runs-page-topline">
+                          <span className="automation-run-status" data-status={run.status}>
+                            <span className="automation-status-dot" aria-hidden="true" />
+                            <span>{runStatusLabel(run.status)}</span>
+                          </span>
+                          <strong className="automation-runs-page-name">{taskName}</strong>
+                          <span className="automation-runs-page-trigger">
+                            {runTriggerLabel(run.trigger)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="automation-runs-page-meta">
+                        <time className="automation-runs-page-time">{time}</time>
+                        {hasThread ? (
+                          <span className="automation-runs-page-link" aria-label="查看对话">
+                            <ArrowUpRight size={APP_ICON_SIZE} aria-hidden="true" />
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        )}
+      </main>
+    </div>
   )
 }
 

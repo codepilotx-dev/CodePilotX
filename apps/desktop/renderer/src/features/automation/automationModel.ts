@@ -207,3 +207,24 @@ export function formatAutomationRelativeTime(value: number | null): string {
   if (Math.abs(hours) < 24) return formatter.format(hours, 'hour')
   return formatter.format(Math.round(hours / 24), 'day')
 }
+
+export function runStatusLabel(status: AutomationRun['status']): string {
+  return {
+    claimed: '已领取',
+    preparing: '准备中',
+    queued: '排队中',
+    running: '运行中',
+    completed: '已完成',
+    failed: '失败',
+    interrupted: '已中断',
+  }[status]
+}
+
+export function runTriggerLabel(trigger: AutomationRun['trigger']): string {
+  return {
+    scheduled: '计划运行',
+    'startup-catch-up': '启动补跑',
+    'overlap-catch-up': '重叠补跑',
+    manual: '手动运行',
+  }[trigger]
+}
