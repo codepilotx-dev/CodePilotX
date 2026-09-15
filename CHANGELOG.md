@@ -79,6 +79,10 @@
 
 ### Fixed
 
+- [agent] 文件工具依据真实目标路径统一识别配置、环境文件及 Git 保护路径，修复完全访问模式下绝对路径绕过配置校验与审批规则的问题，覆盖新文件父目录链接及批量补丁。
+
+- [agent] 修复「完全访问权限」下文件工具被工作区边界拦截、又无法申请权限的死结：`WorkspaceService` 新增调用级文件访问上下文（`withFileAccess`，默认仍是 `workspace-write`），工具执行链按有效策略传入由 `danger-full-access` 解释出的 `full-access`，读取、写入预检与实际执行统一放行工作区外的绝对路径（相对路径仍以工作区解析，外部路径返回可识别绝对路径），Glob/Grep 可直接搜索工作区外目录，apply_patch 的授权范围不再把外部目标折叠为 `<workspace-file>`；作用域按调用隔离且共享根目录与授权，不修改共享实例，因此并发调用、子 Agent 与随后切回默认权限都不会继承完全访问。真实路径解析、快照与写入冲突校验、配置文档校验、显式只读目录（`writable: false`）与 Plan 模式禁写规则保持不变。同时把审批策略纳入统一工具暴露计划：`never` 与关闭 `requestPermissions` 的细粒度策略不再向模型暴露 `request_permissions`，Pi 生命周期工具直接复用注册表已有描述与参数 schema（`scope` 枚举、必填 `justification`、可申请路径与网络字段），执行端对禁止的审批请求仍然拒绝。完全访问模式下工作区外文件访问无需再次申请权限。
+
 - [desktop/renderer] 修复长回复流式阶段重复完整解析、替换持续增长的单一 Markdown 文本节点，导致 CPU 随消息长度显著上升的问题：未完成文本块超过 4KiB 后暂以可复用的轻量分块展示，只有末块随流式内容更新，完成后恢复完整 Markdown；live delta 的投影提交与尾部通知统一按 50ms 合并，durable 与终态事件仍立即提交。
 
 - [desktop/renderer] 修正最近模型机制：新建任务页不再复用长期缓存，每次进入都重新校验 Provider 已启用且可执行、认证可用、模型 `enabled=true` 与 variant 合法，记录失效时按 Provider 顺序回退到首个启用模型并立即覆盖保存，内存中的选择仍可用时优先保留、目录暂不可读时不清空可选模型。最近模型写入收敛为单一串行队列并 latest-write-wins，快速切换时旧选择即使延迟完成或失败也不会覆盖最新选择，只有最后一次选择保存失败才通过现有全局错误通知提示。自动化草稿改用同一解析流程，不再读取任意历史任务模型，也不接受未经验证的配置记录。首次引导与模型门禁改为跨 Provider 判断可用性，避免当前 Provider 不可用但其他 Provider 可用时误要求重新配置。`resolveFirstAvailableModel` 只返回 `enabled=true` 的模型，当前 Provider 没有启用模型时继续检查下一个 Provider。

@@ -248,6 +248,7 @@ export function composeRuntimeComposition(input: RuntimeCompositionInput): Compo
   const exposureInput: ToolExposureInput = {
     taskMode: input.taskMode,
     sandboxMode: input.taskMode === "plan" ? "read-only" : effectivePermissionConfig.sandboxMode,
+    approvalPolicy: effectivePermissionConfig.approvalPolicy,
     profile: input.profile,
     hasSkillService: true,
     hasProjectSources: false,

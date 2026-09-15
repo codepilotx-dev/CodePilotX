@@ -169,7 +169,7 @@ describe("核心工具面", () => {
 
   test("只暴露规范名称，并用同一计划收紧 Skill allowlist", async () => {
     const { executor, context } = await fixture()
-    const plan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main", allowedTools: ["Read", "workspace_search"] })
+    const plan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", approvalPolicy: "on-request", profile: "main", allowedTools: ["Read", "workspace_search"] })
     expect(plan.exposed).toEqual(["Read"])
     expect(executor.definition("workspace.read").sdkName).toBe("Read")
     const properties = (name: string) => Object.keys(executor.definition(name).inputSchema.properties as Record<string, unknown>)
@@ -193,7 +193,7 @@ describe("核心工具面", () => {
     await expect(executor.execute<any>("workspace.read", { file_path: "internal.txt" }, context).then((result) => result.content)).resolves.toBe("internal")
     expect(() => executor.definition("workspace_read")).toThrow()
     expect(() => executor.definition("shell")).toThrow()
-    const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
+    const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", approvalPolicy: "on-request", profile: "main" })
     expect(defaultPlan.eager).toContain("Edit")
     expect(defaultPlan.exposed).toContain("spawn_agents")
     expect(defaultPlan.eager).not.toContain("apply_patch")
@@ -201,6 +201,7 @@ describe("核心工具面", () => {
     const sideChatPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
       profile: "main",
       delegationEnabled: false,
     })
@@ -211,6 +212,7 @@ describe("核心工具面", () => {
     const editSkillPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
       profile: "main",
       allowedTools: ["Edit"],
     })

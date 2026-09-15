@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { filePathProtection } from "../../permission/FilePathProtection"
 import { relative } from "node:path"
 import { z } from "zod"
 import {
@@ -95,7 +96,11 @@ const safeWorkspacePath = (
 ) => {
   if (inspection.path.startsWith("@")) return inspection.path
   const owner = context.workspace.rootForPath(inspection.canonicalPath)
-  if (!owner) return "<workspace-file>"
+  if (!owner) {
+    // Full access resolves the target to an absolute display path, which is the
+    // only identifiable label for a file outside every workspace root.
+    return context.workspace.allowsOutsideWorkspace() ? inspection.path : "<workspace-file>"
+  }
   const child = relative(owner.path, inspection.canonicalPath).replaceAll("\\", "/")
   if (owner.path === context.workspace.rootPath) return child
   const rootIndex = context.workspace.workspaceRoots.findIndex((root) =>
@@ -104,52 +109,10 @@ const safeWorkspacePath = (
   return `@workspace/${rootLabel}/${child}`
 }
 
-const relativeOwnerPath = (
-  context: ToolContext,
-  canonicalPath: string,
-) => {
-  const owner = context.workspace.rootForPath(canonicalPath)
-  return owner
-    ? relative(owner.path, canonicalPath).replaceAll("\\", "/").toLowerCase()
-    : ""
-}
-
-const isSensitiveEnvironmentPath = (path: string) => {
-  const name = path.split("/").at(-1) ?? ""
-  return /^\.env(?:\..+)?$/.test(name)
-    && !/^\.env\.(?:example|template)$/.test(name)
-}
-
-const isProtectedGitPath = (path: string) => {
-  const normalized = path.replaceAll("\\", "/").toLowerCase()
-  return /(?:^|\/)\.git\/config$/.test(normalized)
-    || /(?:^|\/)\.git\/hooks(?:\/|$)/.test(normalized)
-}
-
 const protectedPath = (
-  context: ToolContext,
+  _context: ToolContext,
   inspection: WorkspaceMutationPathInspection,
-) => {
-  const ownerPath = relativeOwnerPath(context, inspection.canonicalPath)
-  const userConfig = inspection.path === "@codepilotx/config.json"
-  const projectConfig = ownerPath === ".codepilotx/config.json"
-  return {
-    requiresApproval:
-      isSensitiveEnvironmentPath(ownerPath)
-      || isProtectedGitPath(inspection.canonicalPath)
-      || ownerPath === ".git/config"
-      || ownerPath.endsWith("/.git/config")
-      || ownerPath.startsWith(".git/hooks/")
-      || ownerPath.includes("/.git/hooks/")
-      || userConfig
-      || projectConfig,
-    configScope: userConfig
-      ? "user" as const
-      : projectConfig
-        ? "project" as const
-        : null,
-  }
-}
+) => filePathProtection(inspection.canonicalPath, inspection.path)
 
 const countAddedFileLines = (content: string) =>
   content.endsWith("\n")
@@ -388,6 +351,7 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   name: "workspace.apply_patch",
   description: [
     "按需使用确定性的多文件补丁新增或更新工作区 UTF-8 文本文件。普通单文件编辑应优先使用 Edit；Update File 必须先 Read 每个目标文件。",
+    "完全访问模式下补丁也可作用于工作区外的绝对路径。",
     "格式必须以 *** Begin Patch 开始、以 *** End Patch 结束；支持 *** Add File: path、*** Update File: path、多个 @@ hunk 和 *** End of File。",
     "新补丁的 hunk 头必须使用不含行号计数的 @@ 或 @@ <精确上下文>；不要生成 @@ -旧行,+新行 @@。",
     "上下文必须精确且唯一；只等价处理 LF/CRLF，不进行空白、缩进或 Unicode 模糊匹配。",

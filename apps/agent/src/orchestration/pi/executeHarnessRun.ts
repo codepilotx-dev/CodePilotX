@@ -73,6 +73,7 @@ export async function executeHarnessRun(options: HarnessRuntimeOptions, request:
     const deferredDefinitions = options.toolExecutor.deferredDefinitions({
       taskMode: request.taskMode,
       sandboxMode: request.permissionConfig.sandboxMode,
+      approvalPolicy: request.permissionConfig.approvalPolicy,
       profile: request.profile ?? "main",
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
       ...(request.frozenDeferredToolNames

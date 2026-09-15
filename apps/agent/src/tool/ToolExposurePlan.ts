@@ -1,5 +1,6 @@
 import type { SubagentProfile, TaskMode } from "../domain"
 import type { SandboxMode } from "@codepilotx/shared/thread"
+import { isGranularApprovalPolicy, type PermissionConfig } from "@codepilotx/shared/thread"
 import type { ToolCatalog } from "./ToolRegistry"
 
 export const PI_LIFECYCLE_TOOLS = [
@@ -13,6 +14,12 @@ export const PI_LIFECYCLE_TOOLS = [
 export interface ToolExposureInput {
   taskMode: TaskMode
   sandboxMode: SandboxMode
+  /**
+   * Approval policy of the effective permission config. It decides whether the
+   * model may even ask for temporary permissions, so exposure and execution
+   * share one answer instead of advertising a tool every call would deny.
+   */
+  approvalPolicy: PermissionConfig["approvalPolicy"]
   profile?: SubagentProfile
   hasSkillService?: boolean
   hasProjectSources?: boolean
@@ -22,6 +29,14 @@ export interface ToolExposureInput {
   activeDeferredTools?: readonly string[]
   hasActiveGoal?: boolean
 }
+
+/**
+ * `request_permissions` can only ever be answered when the policy permits
+ * approvals: `never` forbids waiting, and a granular policy that switches the
+ * capability off is a hard denial rather than a review.
+ */
+export const approvalAllowsPermissionRequests = (policy: PermissionConfig["approvalPolicy"]) =>
+  policy !== "never" && !(isGranularApprovalPolicy(policy) && !policy.requestPermissions)
 
 export interface ToolExposurePlan {
   eager: readonly string[]
@@ -47,7 +62,9 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
     if (input.taskMode === "plan") lifecycle.push("submit_plan")
     if (input.taskMode === "chat") {
       // Chat 主 Agent 可选用结构化交付收尾；Plan 的最终方案由 submit_plan 负责。
-      lifecycle.push("request_permissions", "update_plan", "finalize_result")
+      // 权限申请工具只在审批策略真的能应答时暴露。
+      if (approvalAllowsPermissionRequests(input.approvalPolicy)) lifecycle.push("request_permissions")
+      lifecycle.push("update_plan", "finalize_result")
       if (input.hasActiveGoal) lifecycle.push("update_goal")
     }
     if (input.delegationEnabled !== false) lifecycle.push("spawn_agents", "wait_agents", "send_agent", "stop_agent")

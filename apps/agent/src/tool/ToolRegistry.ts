@@ -183,7 +183,14 @@ const searchPaths = async (context: ToolContext, value?: string) => {
   }
   const canonical = await context.workspace.resolveDirectory(requested)
   const owner = context.workspace.rootForPath(canonical)
-  if (!owner) throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不在当前工作区内", 403)
+  if (!owner) {
+    // Only full access can reach a directory outside every root; it becomes its
+    // own search root so the absolute path stays identifiable in results.
+    if (!context.workspace.allowsOutsideWorkspace()) {
+      throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不在当前工作区内", 403)
+    }
+    return [{ root: canonical, target: ".", nativeTarget: context.workspace.displayPath(canonical) }]
+  }
   const child = relative(owner.path, canonical)
   return [{
     root: owner.path,
@@ -300,9 +307,66 @@ export const lineChangeSummary = (before: string, after: string) => {
   return { additions, deletions }
 }
 
+const requestPermissionsSchema = z.object({ scope: z.enum(["tool-call", "turn", "session"]), readPaths: z.array(z.string()).optional(), writePaths: z.array(z.string()).optional(), networkDomains: z.array(z.string()).optional(), escalationToken: z.string().uuid().optional(), justification: z.string().min(1) }).strict().superRefine((input, context) => {
+  if (!input.escalationToken && !input.readPaths?.length && !input.writePaths?.length && !input.networkDomains?.length) {
+    context.addIssue({ code: "custom", message: "至少需要申请一项路径、网络或 sandbox escalation 权限" })
+  }
+})
+
+export type RequestPermissionsInput = z.infer<typeof requestPermissionsSchema>
+
+/**
+ * Canonical contract of the permission-request tool. The Pi lifecycle adapter
+ * binds this same description and argument schema, so the model always sees the
+ * scope enum, the required justification and the requestable path fields.
+ */
+export const requestPermissionsDefinition: ToolDefinition<RequestPermissionsInput, RequestPermissionsInput & { granted: true }> = {
+  sdkName: "request_permissions",
+  name: "request_permissions",
+  description: [
+    "为下一次工具调用、当前 turn 或当前运行会话请求临时权限，并等待用户或自动审核的决定。",
+    "完全访问模式下工作区外的文件读写已经直接可用，不需要为此申请权限；该工具只用于网络域名、敏感路径规则或 MCP 等仍受审批控制的能力。",
+    "每条申请都必须给出 justification，并至少包含一项 readPaths、writePaths 或 networkDomains；没有可申请权限时不要调用本工具。",
+  ].join("\n"),
+  schema: requestPermissionsSchema,
+  inputSchema: jsonObject({
+    scope: {
+      enum: ["tool-call", "turn", "session"],
+      description: "临时权限的生效范围：仅下一次工具调用、当前 turn，或当前运行会话。",
+    },
+    readPaths: {
+      type: "array",
+      items: { type: "string" },
+      description: "需要额外读取的绝对路径。完全访问模式下工作区外文件无需在此申请。",
+    },
+    writePaths: {
+      type: "array",
+      items: { type: "string" },
+      description: "需要额外写入的绝对路径。完全访问模式下工作区外文件无需在此申请。",
+    },
+    networkDomains: {
+      type: "array",
+      items: { type: "string" },
+      description: "需要 Shell 访问的域名，例如 npmjs.org；这是完全访问模式下仍然需要审批的主要能力。",
+    },
+    escalationToken: { type: "string", format: "uuid" },
+    justification: {
+      type: "string",
+      description: "必填。向用户说明为什么当前任务需要这些权限。",
+    },
+  }, ["scope", "justification"]),
+  capabilities: { ...noCapabilities(), userInteraction: true },
+  allowedModes: allModes,
+  allowedProfiles: allProfiles,
+  approvalStrategy: "always-review",
+  visibility: "internal",
+  executionMode: "sequential",
+  execute: async (input) => ({ granted: true, ...input }),
+}
+
 const builtinTools = (): ToolDefinition<any, any>[] => [
   {
-    sdkName: "Read", name: "workspace.read", description: "读取工作区内的 UTF-8 文本文件，并保存完整快照供后续写入使用。",
+    sdkName: "Read", name: "workspace.read", description: "读取工作区内的 UTF-8 文本文件，并保存完整快照供后续写入使用；完全访问模式下也直接读取工作区外的绝对路径。",
     schema: z.object({ file_path: z.string().min(1), offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(10_000).optional() }).strict(),
     inputSchema: jsonObject({ file_path: { type: "string", description: "已确认存在的工作区 UTF-8 文本文件路径；只接受文件，不接受目录或未经确认的猜测路径。" }, offset: { type: "number", minimum: 0 }, limit: { type: "number", minimum: 1, maximum: 10_000 } }, ["file_path"]),
     capabilities: { ...noCapabilities(), filesystem: "read" }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
@@ -317,7 +381,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   },
   applyPatchDefinition,
   {
-    sdkName: "Write", name: "workspace.write", description: "创建或完整覆写工作区文件。已有文件必须先 Read，快照由执行器自动维护。",
+    sdkName: "Write", name: "workspace.write", description: "创建或完整覆写工作区文件。已有文件必须先 Read，快照由执行器自动维护。完全访问模式下也可创建或覆写工作区外的绝对路径。",
     schema: z.object({ file_path: z.string().min(1), content: z.string() }).strict(),
     inputSchema: jsonObject({ file_path: { type: "string", description: "工作区文件路径；更新已有文件前必须先成功 Read 同一路径，创建新文件可直接写入。" }, content: { type: "string" } }, ["file_path", "content"]),
     capabilities: { ...noCapabilities(), filesystem: "workspace-write", externalState: true }, allowedModes: ["chat"], allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
@@ -375,7 +439,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     }),
   },
   {
-    sdkName: "Edit", name: "workspace.edit", description: "对已 Read 的工作区文件执行一组精确且原子的文本编辑。每项 oldText 必须在原文件中唯一匹配，所有编辑均基于同一份原文定位。",
+    sdkName: "Edit", name: "workspace.edit", description: "对已 Read 的工作区文件执行一组精确且原子的文本编辑。每项 oldText 必须在原文件中唯一匹配，所有编辑均基于同一份原文定位；完全访问模式下同样适用于工作区外的绝对路径。",
     schema: editInputSchema,
     inputSchema: jsonObject({
       path: { type: "string", description: "已存在的工作区文件路径；必须先成功 Read 同一路径，并基于最新完整原文编辑。" },
@@ -421,7 +485,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     }),
   },
   {
-    sdkName: "Glob", name: "workspace.glob", description: "优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径。",
+    sdkName: "Glob", name: "workspace.glob", description: "优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；完全访问模式下可搜索工作区外的绝对目录。",
     schema: z.object({ pattern: z.string().min(1).max(1_000), path: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).strict(),
     inputSchema: jsonObject({ pattern: { type: "string", maxLength: 1_000, description: "用于筛选文件名或相对路径的 glob 模式。" }, path: { type: "string", description: "可选的已存在工作区目录；不得传文件路径，文件筛选请写入 pattern。" }, limit: { type: "number", minimum: 1, maximum: 500 } }, ["pattern"]),
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
@@ -449,7 +513,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     },
   },
   {
-    sdkName: "Grep", name: "workspace.grep", description: "优先使用受管或本机 ripgrep 在工作区内执行有界正则搜索；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；支持文件过滤、上下文和多种输出模式。",
+    sdkName: "Grep", name: "workspace.grep", description: "优先使用受管或本机 ripgrep 在工作区内执行有界正则搜索；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；支持文件过滤、上下文和多种输出模式，完全访问模式下可搜索工作区外的绝对目录。",
     schema: z.object({ pattern: z.string().min(1).max(10_000), path: z.string().optional(), glob: z.string().max(1_000).optional(), output_mode: z.enum(["content", "files_with_matches", "count"]).default("content"), "-A": z.number().int().min(0).max(100).optional(), "-B": z.number().int().min(0).max(100).optional(), "-C": z.number().int().min(0).max(100).optional(), context: z.number().int().min(0).max(100).optional(), "-n": z.boolean().optional(), "-i": z.boolean().optional(), type: z.string().max(100).optional(), head_limit: z.number().int().min(1).max(1_000).default(200), offset: z.number().int().min(0).default(0), multiline: z.boolean().default(false) }).strict(),
     inputSchema: jsonObject({ pattern: { type: "string", maxLength: 10_000 }, path: { type: "string", description: "可选的已存在工作区目录；不得传文件路径，限制文件范围请使用 glob。" }, glob: { type: "string", maxLength: 1_000, description: "可选的文件 glob 过滤器；不要把文件路径传给 path。" }, output_mode: { enum: ["content", "files_with_matches", "count"], default: "content" }, "-A": { type: "integer", minimum: 0, maximum: 100 }, "-B": { type: "integer", minimum: 0, maximum: 100 }, "-C": { type: "integer", minimum: 0, maximum: 100 }, context: { type: "integer", minimum: 0, maximum: 100 }, "-n": { type: "boolean" }, "-i": { type: "boolean" }, type: { type: "string", maxLength: 100 }, head_limit: { type: "integer", minimum: 1, maximum: 1_000, default: 200 }, offset: { type: "integer", minimum: 0, default: 0 }, multiline: { type: "boolean", default: false } }, ["pattern"]),
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
@@ -482,17 +546,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     },
     formatResult: (output) => ({ content: JSON.stringify(output, null, 2), details: output, addedToolNames: output.addedToolNames }),
   },
-  {
-    sdkName: "request_permissions", name: "request_permissions", description: "为下一次工具调用、当前 turn 或当前运行会话请求临时权限。",
-    schema: z.object({ scope: z.enum(["tool-call", "turn", "session"]), readPaths: z.array(z.string()).optional(), writePaths: z.array(z.string()).optional(), networkDomains: z.array(z.string()).optional(), escalationToken: z.string().uuid().optional(), justification: z.string().min(1) }).strict().superRefine((input, context) => {
-      if (!input.escalationToken && !input.readPaths?.length && !input.writePaths?.length && !input.networkDomains?.length) {
-        context.addIssue({ code: "custom", message: "至少需要申请一项路径、网络或 sandbox escalation 权限" })
-      }
-    }),
-    inputSchema: jsonObject({ scope: { enum: ["tool-call", "turn", "session"] }, readPaths: { type: "array", items: { type: "string" } }, writePaths: { type: "array", items: { type: "string" } }, networkDomains: { type: "array", items: { type: "string" } }, escalationToken: { type: "string", format: "uuid" }, justification: { type: "string" } }, ["scope", "justification"]),
-    capabilities: { ...noCapabilities(), userInteraction: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "always-review", visibility: "internal", executionMode: "sequential",
-    execute: async (input) => ({ granted: true, ...input }),
-  },
+  requestPermissionsDefinition,
 ]
 
 export const toolMayMutate = (tool: ToolCatalogEntry) => tool.capabilities.filesystem === "workspace-write" || tool.capabilities.filesystem === "host-write" || tool.capabilities.externalState

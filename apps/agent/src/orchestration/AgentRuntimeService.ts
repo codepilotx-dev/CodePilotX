@@ -1538,6 +1538,9 @@ export class AgentRuntimeService implements AgentRuntime {
         : "permissionConfig" in request
           ? request.permissionConfig.sandboxMode
           : request.sandboxMode,
+      approvalPolicy: "permissionConfig" in request
+        ? request.permissionConfig.approvalPolicy
+        : request.approvalPolicy,
       ...(request.profile ? { profile: request.profile } : {}),
       ...(runtime.skillService ? { hasSkillService: true } : "hasSkillService" in request && request.hasSkillService ? { hasSkillService: true } : {}),
       ...(runtime.projectSources ? { hasProjectSources: true } : "hasProjectSources" in request && request.hasProjectSources ? { hasProjectSources: true } : {}),

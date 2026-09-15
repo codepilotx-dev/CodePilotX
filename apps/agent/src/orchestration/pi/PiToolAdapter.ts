@@ -2,7 +2,7 @@ import type { AgentToolResult } from "../harness/agent-types"
 import { Type, type TSchema } from "@earendil-works/pi-ai"
 import { AgentError } from "../../domain"
 import { secretScrubber } from "../../security/SecretScrubber"
-import type { ToolDefinition } from "../../tool/ToolRegistry"
+import { requestPermissionsDefinition, type ToolDefinition } from "../../tool/ToolRegistry"
 import { executionPlanInputSchema } from "../plan/ExecutionPlanInput"
 import { parseStructuredPlan, structuredPlanParameters } from "../plan/structured-plan"
 import type { HarnessRuntimeRequest, PiLifecycleCallbacks, PiTool, PiToolAdapterOptions } from "./types"
@@ -20,7 +20,7 @@ const textResult = (value: unknown, terminate = false): AgentToolResult<unknown>
   return { content: [{ type: "text", text: text ?? "null" }], details: safe, ...(terminate ? { terminate: true } : {}) }
 }
 
-const descriptionFor = (definition: ToolDefinition, request: HarnessRuntimeRequest) => typeof definition.description === "string"
+const descriptionFor = (definition: Pick<ToolDefinition, "description">, request: HarnessRuntimeRequest) => typeof definition.description === "string"
   ? definition.description
   : definition.description({
       signal: request.signal,
@@ -199,7 +199,17 @@ export function createLifecycleTools(callbacks: PiLifecycleCallbacks, request: H
     (input, id, signal) => callbacks.requestUserInput!(requestUserInputSchema.parse(input), id, signal),
     true,
   ))
-  if (callbacks.requestPermissions && request.taskMode !== "plan") add(lifecycleTool("request_permissions", "请求当前工具调用或 turn 所需的临时权限。", Type.Unsafe({ type: "object", additionalProperties: true }), callbacks.requestPermissions, true))
+  if (callbacks.requestPermissions) {
+    // Exposure is decided once by ToolExposurePlan, which already accounts for
+    // task mode and approval policy; the argument contract stays the registry's.
+    add(lifecycleTool(
+      "request_permissions",
+      descriptionFor(requestPermissionsDefinition, request),
+      Type.Unsafe(requestPermissionsDefinition.inputSchema),
+      callbacks.requestPermissions,
+      true,
+    ))
+  }
   if (callbacks.updatePlan && request.taskMode === "chat" && (request.profile ?? "main") === "main") {
     add(lifecycleTool("update_plan", "更新当前 Chat turn 的执行步骤快照。每次调用必须提交完整计划。", Type.Object({
       explanation: Type.Optional(Type.String({ minLength: 1 })),

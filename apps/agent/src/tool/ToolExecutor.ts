@@ -18,6 +18,7 @@ import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
+import { filePathProtection, resolveProtectionPath } from "../permission/FilePathProtection"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { pathContains } from "../permission/PathPermissions"
 import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRiskClassifier"
@@ -251,18 +252,21 @@ export class ToolExecutor {
   ) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
+    // Call-scoped file access: only this invocation sees the effective policy, so
+    // concurrent calls, subagents and later policy switches stay isolated from it.
+    const workspace = context.workspace.withFileAccess(executionPolicyFromV4(permissionConfig).fileAccess)
     const skipProjectHooks = context.skipHooks || context.taskMode === "plan"
     if (this.options?.userConfigPath) {
-      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
+      workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
     }
     const definition = catalog.get(name)
-    const fileSnapshots = this.fileSnapshots(context)
+    const fileSnapshots = this.fileSnapshots(context, workspace)
     const inspection = definition.inspectInput
       ? this.validateToolInputInspection(await definition.inspectInput(input, {
           signal: context.signal,
           taskMode: context.taskMode,
           profile: context.profile ?? "main",
-          workspace: context.workspace,
+          workspace,
           permissionConfig,
           model,
           fileSnapshots,
@@ -274,28 +278,28 @@ export class ToolExecutor {
     }
     const authorizationScope = inspection?.authorizationScope
     const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
-    const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
-    if (
-      typeof pathValue === "string"
-      && pathValue === "@codepilotx/config.json"
-      && this.options?.userConfigPath
-    ) {
-      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
-    }
-    const sensitiveEnvironment = /^\.env(?:\..+)?$/.test(relativeToolPath) && !/^\.env\.(?:example|template)$/.test(relativeToolPath)
-    const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
-    const protectedConfigWrite = (name === "Write" || name === "Edit")
-      && (relativeToolPath === ".codepilotx/config.json" || relativeToolPath === "@codepilotx/config.json")
+    const fileTool = name === "Read" || name === "Write" || name === "Edit"
+    const targetPath = pathValue === "@codepilotx/config.json" ? this.options?.userConfigPath : pathValue
+    const canonicalTarget = fileTool && typeof targetPath === "string" && !targetPath.startsWith("@")
+      ? await resolveProtectionPath(resolve(workspace.rootPath, targetPath))
+      : undefined
+    const protection = canonicalTarget
+      ? filePathProtection(canonicalTarget, workspace.displayPath(canonicalTarget))
+      : undefined
+    const sensitiveEnvironment = protection?.sensitiveEnvironment ?? false
+    const protectedGitWrite = (name === "Write" || name === "Edit") && protection?.protectedGit
+    const configScope = protection?.configScope
+    const protectedConfigWrite = (name === "Write" || name === "Edit") && configScope
     if (protectedConfigWrite && this.options?.validateConfigDocument) {
       let nextContent = typeof input.content === "string" ? input.content : undefined
       if (name === "Edit") {
-        const current = await context.workspace.readEditorFile(String(pathValue))
+        const current = await workspace.readEditorFile(String(pathValue))
         nextContent = applyEditsText(current.content, input.edits as EditOperation[])
       }
       if (nextContent !== undefined) {
         this.options.validateConfigDocument(
           nextContent,
-          relativeToolPath.startsWith("@") ? "user" : "project",
+          configScope,
         )
       }
     }
@@ -382,10 +386,11 @@ export class ToolExecutor {
         : name === "Edit" && typeof input.path === "string"
           ? input.path
           : null
-      const snapshotKey = await this.snapshotKey(context, filePath)
+      const snapshotKey = await this.snapshotKey(context, workspace, filePath)
       const deferredTools = this.deferredDefinitions({
         taskMode: context.taskMode,
         sandboxMode: permissionConfig.sandboxMode,
+        approvalPolicy: permissionConfig.approvalPolicy,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
         ...(context.frozenDeferredToolNames
@@ -399,7 +404,7 @@ export class ToolExecutor {
         signal: context.signal,
         taskMode: context.taskMode,
         profile: context.profile ?? "main",
-        workspace: context.workspace,
+        workspace,
         permissionConfig,
         model,
         deferredTools,
@@ -473,9 +478,9 @@ export class ToolExecutor {
         }
       }
       if (filePath && ["Read", "Write", "Edit"].includes(name)) {
-        const savedSnapshotKey = await this.snapshotKey(context, filePath)
+        const savedSnapshotKey = await this.snapshotKey(context, workspace, filePath)
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
-          ?? (await context.workspace.readEditorFile(filePath)).revision
+          ?? (await workspace.readEditorFile(filePath)).revision
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
       const safeOutput = secretScrubber.scrub(output)
@@ -792,11 +797,11 @@ export class ToolExecutor {
     this.permissionGrants.clearThread(threadID)
   }
 
-  private async snapshotKey(context: ToolExecutionContext, path: string | null) {
+  private async snapshotKey(context: ToolExecutionContext, workspace: WorkspaceService, path: string | null) {
     if (!path) return null
     let normalized: string
     try {
-      normalized = await context.workspace.resolveEditorFilePath(path)
+      normalized = await workspace.resolveEditorFilePath(path)
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === "WORKSPACE_PATH_NOT_FOUND") return null
       throw cause
@@ -805,19 +810,19 @@ export class ToolExecutor {
     return `${context.threadID}:${context.agentID ?? context.turnID}:${process.platform === "win32" ? normalized.toLowerCase() : normalized}`
   }
 
-  private fileSnapshots(context: ToolExecutionContext): ToolFileSnapshots {
+  private fileSnapshots(context: ToolExecutionContext, workspace: WorkspaceService): ToolFileSnapshots {
     return {
       get: async (path) => {
-        const key = await this.snapshotKey(context, path)
+        const key = await this.snapshotKey(context, workspace, path)
         return key ? this.readSnapshots.get(key) : undefined
       },
       set: async (path, revision) => {
-        const key = await this.snapshotKey(context, path)
+        const key = await this.snapshotKey(context, workspace, path)
         if (key) this.readSnapshots.set(key, revision)
       },
       invalidate: async (paths) => {
         for (const path of paths) {
-          const key = await this.snapshotKey(context, path)
+          const key = await this.snapshotKey(context, workspace, path)
           if (key) this.readSnapshots.delete(key)
         }
       },

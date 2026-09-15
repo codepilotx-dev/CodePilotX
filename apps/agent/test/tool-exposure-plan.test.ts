@@ -2,15 +2,18 @@ import { describe, expect, test } from "bun:test"
 import { createToolExposurePlan } from "../src/tool/ToolExposurePlan"
 import { ToolCatalog } from "../src/tool/ToolRegistry"
 import type { SubagentProfile, TaskMode } from "../src/domain"
+import type { ApprovalPolicy } from "@codepilotx/shared/thread"
 
 const exposure = (input: {
   taskMode: TaskMode
   profile?: SubagentProfile
   sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
+  approvalPolicy?: ApprovalPolicy
   allowedTools?: readonly string[]
 }) => createToolExposurePlan(new ToolCatalog(), {
   taskMode: input.taskMode,
   sandboxMode: input.sandboxMode ?? "workspace-write",
+  approvalPolicy: input.approvalPolicy ?? "on-request",
   ...(input.profile ? { profile: input.profile } : {}),
   ...(input.allowedTools ? { allowedTools: input.allowedTools } : {}),
 })
