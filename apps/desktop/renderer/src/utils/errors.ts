@@ -20,11 +20,11 @@ export function toUserErrorMessage(
 
   // 1. Internal Error (Highest priority for server-side exceptions)
   if (
-    errorCode === 'INTERNAL_ERROR' ||
     numericCode === -32603 ||
     message.includes('INTERNAL_ERROR') ||
     message.includes('Agent 内部错误') ||
-    isDatabaseError(message)
+    isDatabaseError(message) ||
+    (errorCode === 'INTERNAL_ERROR' && !message.includes('会话标题'))
   ) {
     return 'Agent 发生内部错误，请重试。'
   }

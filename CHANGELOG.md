@@ -85,6 +85,12 @@
 
 - [agent/desktop] 修复新增与编辑自定义 Provider 时因 RPC 契约遗漏 INVALID_REQUEST 导致校验失败被屏蔽为“Agent 内部错误”的问题：为 `provider/create` 与 `provider/update` 补齐 `INVALID_REQUEST` 声明，并根据具体校验问题（内置 ID 冲突、Base URL 格式、敏感凭据头等）返回明确的错误原因；放宽 `ProviderModelCostSchema` 支持浮点数 Token 计费；修复预设列表中 `deepseek` 与 `openrouter` 默认 ID 撞库问题；在 Provider 编辑弹窗中增加 Base URL 协议、非本地明文 HTTP、环境变量名格式与模型 ID 唯一性即时校验。
 
+- [agent] 修复标题和任务建议在请求发出前因结构化 schema 无法克隆而失败：直接传入 Zod 生成的纯 JSON Schema，避免 Type.Unsafe 注入函数元数据，并用 DeepSeek 真实请求构造覆盖回归。
+
+- [agent] 补充会话标题生成的安全诊断，区分模型解析、请求、JSON 解析与结构校验阶段，记录可提取的 HTTP 状态码和固定失败类别；不记录模型原始响应、异常正文或凭据，并将无效结果正确归类为输出错误。
+
+- [agent/desktop] 修复显式更新会话标题在未配置模型、超时、Provider 失败或输出无效时静默回退并冒充成功的问题：显式更新失败时保留原标题并返回安全明确的 RPC 错误（MODEL_UNAVAILABLE / INTERNAL_ERROR），界面结束加载状态并触发全局错误通知；自动首条消息标题继续保留本地确定性回退；默认超时提升至 15 秒。
+
 - [desktop/renderer] 修复长回复流式阶段重复完整解析、替换持续增长的单一 Markdown 文本节点，导致 CPU 随消息长度显著上升的问题：未完成文本块超过 4KiB 后暂以可复用的轻量分块展示，只有末块随流式内容更新，完成后恢复完整 Markdown；live delta 的投影提交与尾部通知统一按 50ms 合并，durable 与终态事件仍立即提交。
 
 - [desktop/renderer] 修正最近模型机制：新建任务页不再复用长期缓存，每次进入都重新校验 Provider 已启用且可执行、认证可用、模型 `enabled=true` 与 variant 合法，记录失效时按 Provider 顺序回退到首个启用模型并立即覆盖保存，内存中的选择仍可用时优先保留、目录暂不可读时不清空可选模型。最近模型写入收敛为单一串行队列并 latest-write-wins，快速切换时旧选择即使延迟完成或失败也不会覆盖最新选择，只有最后一次选择保存失败才通过现有全局错误通知提示。自动化草稿改用同一解析流程，不再读取任意历史任务模型，也不接受未经验证的配置记录。首次引导与模型门禁改为跨 Provider 判断可用性，避免当前 Provider 不可用但其他 Provider 可用时误要求重新配置。`resolveFirstAvailableModel` 只返回 `enabled=true` 的模型，当前 Provider 没有启用模型时继续检查下一个 Provider。

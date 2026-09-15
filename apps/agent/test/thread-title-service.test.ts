@@ -326,7 +326,7 @@ describe("ThreadTitleService", () => {
     expect((decoded.payload as { thread: { title: string } }).thread.title.length).toBeGreaterThan(0)
   })
 
-  test("explicit regeneration keeps the current title on fallback and concurrent rename", async () => {
+  test("explicit regeneration does not overwrite concurrent rename", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread("原手工标题")
     const turn = addUserMessage(db, thread.id, "# 最新用户内容用于确定性回退")
@@ -354,17 +354,94 @@ describe("ThreadTitleService", () => {
 
     expect(updated.title).toBe("并发手工标题")
     expect(history.getListItem(thread.id)?.title).toBe("并发手工标题")
+  })
 
-    const fallback = new ThreadTitleService(
+  test("explicit regeneration rejects on failure and keeps the current title unchanged", async () => {
+    const { db, history, logger } = await fixture()
+    const thread = db.createThread("原手工标题")
+    const turn = addUserMessage(db, thread.id, "完成的会话内容")
+    db.updateTurnStatus(turn.turnID, "completed")
+
+    // 1. 未配置模型 -> MODEL_UNAVAILABLE
+    const unconfigured = new ThreadTitleService(
       db,
       history,
       { pi: {}, getPiModel: async () => { throw new Error("unavailable") } } as never,
       logger,
     )
-    const eventCount = db.eventsAfter(0).length
-    const fallbackUpdated = await fallback.regenerateFromConversation(thread.id)
-    expect(fallbackUpdated.title).toBe("并发手工标题")
-    expect(db.eventsAfter(0)).toHaveLength(eventCount)
+    const eventCountBefore = db.eventsAfter(0).length
+    await expect(unconfigured.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "MODEL_UNAVAILABLE",
+      message: "未配置可用的会话标题生成模型",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 2. 超时 -> INTERNAL_ERROR
+    const timeoutService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      {
+        timeoutMs: 5,
+        generate: async ({ signal }) => new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+        }),
+      },
+    )
+    await expect(timeoutService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题超时，请重试",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 3. Provider 失败 -> INTERNAL_ERROR
+    const providerFailureService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      {
+        generate: async () => {
+          throw new Error("internal provider error: credentials or network failed")
+        },
+      },
+    )
+    await expect(providerFailureService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题失败，模型服务暂不可用",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 4. 无效输出 -> INTERNAL_ERROR
+    const invalidOutputService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      { generate: async () => ({ title: "   " }) },
+    )
+    await expect(invalidOutputService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题失败，模型未返回有效标题",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
   })
 
   test("rejects regeneration unless the latest turn completed successfully", async () => {

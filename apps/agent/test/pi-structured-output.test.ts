@@ -8,9 +8,11 @@ import {
   type Models,
 } from "@earendil-works/pi-ai"
 import { z } from "zod"
+import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek"
 import {
   generatePiObject,
   PiStructuredOutputError,
+  type PiGenerationDiagnostic,
 } from "../src/provider/pi/PiStructuredOutput"
 
 const schema = z.object({
@@ -18,6 +20,48 @@ const schema = z.object({
 })
 
 describe("PiStructuredOutput", () => {
+  test("DeepSeek 真实请求构造能复制 JSON schema 并到达发送前回调", async () => {
+    const provider = deepseekProvider();
+    const model = provider.getModels().find(candidate => candidate.id === "deepseek-v4-flash")!;
+    let reachedPayload = false;
+    const models = {
+      completeSimple: async (selected: PiModel<Api>, context: Context) => provider.streamSimple(
+        selected as Parameters<typeof provider.streamSimple>[0], context, {
+          apiKey: "fixture-only",
+          onPayload: () => { reachedPayload = true; throw new Error("fixture-stop-before-network") },
+        },
+      ).result(),
+    } as unknown as Models;
+    await expect(generatePiObject({
+      models, model, schema: z.object({ title: z.string().trim().min(1).max(80) }),
+      schemaName: "thread_title", system: "test", prompt: "test",
+    })).rejects.toThrow("fixture-stop-before-network");
+    expect(reachedPayload).toBe(true);
+  });
+
+  test("诊断区分请求、JSON 和结构错误，且不携带敏感原文", async () => {
+    const sensitive = "private-response credential=fixture-secret C:\\private\\file";
+    const cases: Array<{ complete: () => Promise<ReturnType<typeof fauxAssistantMessage>>; expected: PiGenerationDiagnostic }> = [
+      { complete: async () => { throw new TypeError(sensitive) }, expected: { stage: "request", reason: "runtime-type" } },
+      { complete: async () => fauxAssistantMessage("", { stopReason: "error", errorMessage: `No API key for provider: ${sensitive}` }), expected: { stage: "request", reason: "authentication" } },
+      { complete: async () => { throw Object.assign(new Error(sensitive), { status: 401 }) }, expected: { stage: "request", reason: "authentication", status: 401 } },
+      { complete: async () => fauxAssistantMessage("", { stopReason: "error", errorMessage: `429 ${sensitive}` }), expected: { stage: "request", reason: "rate-limit", status: 429 } },
+      { complete: async () => fauxAssistantMessage(sensitive), expected: { stage: "json", reason: "invalid-json" } },
+      { complete: async () => fauxAssistantMessage('{"value":42}'), expected: { stage: "validation", reason: "invalid-schema" } },
+    ];
+    for (const fixture of cases) {
+      const diagnostics: PiGenerationDiagnostic[] = [];
+      await expect(generatePiObject({
+        models: { completeSimple: fixture.complete } as unknown as Models,
+        model: { provider: "compatible", api: "openai-responses", baseUrl: "https://example.com/v1" } as PiModel<Api>,
+        schema, schemaName: "example", system: "test", prompt: "test",
+        onFailure: diagnostic => diagnostics.push(diagnostic),
+      })).rejects.toThrow();
+      expect(diagnostics).toEqual([fixture.expected]);
+      expect(JSON.stringify(diagnostics)).not.toContain(sensitive);
+    }
+  });
+
   const officialOpenAIModel = {
     provider: "openai",
     api: "openai-responses",
