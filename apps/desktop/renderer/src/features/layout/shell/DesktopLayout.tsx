@@ -1936,6 +1936,14 @@ export function DesktopLayout(): React.ReactNode {
       }
       onError={handleErrorMessage}
       onReport={setNoticeMessage}
+      dockedPanesState={workbenchPanelState.sidebar}
+      dockedTabsById={workbenchPanelState.tabsById}
+      workspaceFiles={workspaceFiles}
+      onSelectDockedTab={tabId => handleSelectPanelTab('sidebar', tabId)}
+      onCloseDockedTab={tabId => closePanelTab('sidebar', tabId)}
+      onMoveDockedTab={movePanelTab}
+      onOpenFile={file => handleOpenFilePreview('sidebar', file)}
+      onAddComposerFiles={handleAddComposerFiles}
     />
   )
 

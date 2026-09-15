@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { MoveDown, MoveRight, Pin, Plus, X } from 'lucide-react'
+import { MoveDown, MoveRight, PanelLeft, Pin, Plus, X } from 'lucide-react'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import {
@@ -12,6 +12,7 @@ import {
   PopoverRadioItem,
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { getAvailableMoveTargets } from '../dock/compositeViews.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
@@ -174,23 +175,24 @@ export function WorkbenchTabStrip({
                       disabled: !canCloseRight,
                       onSelect: () => onCloseTabsToRight(tab.id),
                     },
-                    { kind: 'separator' },
-                    {
-                      kind: 'item',
-                      label: `移到${target === 'right' ? '底部' : '右侧'}面板`,
-                      icon:
-                        target === 'right' ? (
-                          <MoveDown size={APP_ICON_SIZE} />
-                        ) : (
-                          <MoveRight size={APP_ICON_SIZE} />
-                        ),
-                      onSelect: () =>
-                        onMoveTab(
-                          target,
-                          target === 'right' ? 'bottom' : 'right',
-                          tab.id,
-                        ),
-                    },
+                    ...(getAvailableMoveTargets(target, tab.kind).length > 0
+                      ? [
+                          { kind: 'separator' as const },
+                          ...getAvailableMoveTargets(target, tab.kind).map(destTarget => ({
+                            kind: 'item' as const,
+                            label: `移到${destTarget === 'sidebar' ? '侧边栏' : destTarget === 'bottom' ? '底部面板' : '右侧面板'}`,
+                            icon:
+                              destTarget === 'sidebar' ? (
+                                <PanelLeft size={APP_ICON_SIZE} />
+                              ) : destTarget === 'bottom' ? (
+                                <MoveDown size={APP_ICON_SIZE} />
+                              ) : (
+                                <MoveRight size={APP_ICON_SIZE} />
+                              ),
+                            onSelect: () => onMoveTab(target, destTarget, tab.id),
+                          })),
+                        ]
+                      : []),
                   ]}
                   layout="grid"
                   trigger={
@@ -406,7 +408,9 @@ function readTabDragPayload(
       tabId?: unknown
     }
     if (
-      (value.source === 'right' || value.source === 'bottom') &&
+      (value.source === 'right' ||
+        value.source === 'bottom' ||
+        value.source === 'sidebar') &&
       typeof value.tabId === 'string'
     ) {
       return {

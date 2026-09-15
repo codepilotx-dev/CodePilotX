@@ -292,9 +292,12 @@ export function useWorkbenchShellController() {
       index?: number,
     ): void => {
       if (target === 'right') updateRightDockManualState('manualOpen')
+      if (target === 'sidebar' && sidebarCollapsed) {
+        setSidebarCollapsed(false)
+      }
       dispatchPanelAction({ type: 'moveTab', source, target, tabId, index })
     },
-    [dispatchPanelAction, updateRightDockManualState],
+    [dispatchPanelAction, setSidebarCollapsed, sidebarCollapsed, updateRightDockManualState],
   )
 
   const reorderPanelTab = useCallback(

@@ -1,6 +1,10 @@
-export type WorkbenchPanelTarget = 'right' | 'bottom'
+export type WorkbenchPanelTarget = 'right' | 'bottom' | 'sidebar'
 
-export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel'
+export type WorkbenchFocusArea =
+  | 'main'
+  | 'right-panel'
+  | 'bottom-panel'
+  | 'sidebar-panel'
 
 export type MarkdownFileViewMode = 'rich' | 'source'
 
@@ -154,6 +158,7 @@ export type WorkbenchTabsState = {
   tabsById: Partial<Record<WorkbenchTabId, WorkbenchTabDescriptor>>
   right: WorkbenchPanelSnapshot
   bottom: WorkbenchPanelSnapshot
+  sidebar?: WorkbenchPanelSnapshot
   rightFullWidth: boolean
   restoreRightFullWidthOnNextOpen: boolean
   focusArea: WorkbenchFocusArea
@@ -231,6 +236,7 @@ export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
     tabsById: {},
     right: createEmptyPanel(),
     bottom: createEmptyPanel(),
+    sidebar: createEmptyPanel(),
     rightFullWidth: false,
     restoreRightFullWidthOnNextOpen: false,
     focusArea: 'main',
@@ -245,10 +251,14 @@ export function applyWorkbenchPanelAction(
   action: WorkbenchPanelAction,
 ): WorkbenchTabsState {
   if (action.type === 'focusPanel') {
+    const targetPanel =
+      action.target === 'main'
+        ? null
+        : (state[action.target] ?? createEmptyPanel())
     const focusArea: WorkbenchFocusArea =
       action.target === 'main' ||
-      !state[action.target].open ||
-      !state[action.target].activeTabId
+      !targetPanel?.open ||
+      !targetPanel?.activeTabId
         ? 'main'
         : `${action.target}-panel`
     return focusArea === state.focusArea ? state : { ...state, focusArea }
@@ -273,13 +283,15 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'togglePanel') {
-    return state[action.target].open
+    const targetPanel = state[action.target] ?? createEmptyPanel()
+    return targetPanel.open
       ? closeWorkbenchPanel(state, action.target)
       : openWorkbenchPanel(state, action.target)
   }
 
   if (action.type === 'closePanel') {
-    if (!state[action.target].open) return state
+    const targetPanel = state[action.target] ?? createEmptyPanel()
+    if (!targetPanel.open) return state
     if (
       action.target === 'right' &&
       action.responsive &&
@@ -312,11 +324,12 @@ export function applyWorkbenchPanelAction(
         reopenedTab.kind === 'file-preview'
           ? { ...reopenedTab, preview: false }
           : reopenedTab
+      const targetPanel = state[existingTarget] ?? createEmptyPanel()
       return {
         ...state,
         tabsById: { ...state.tabsById, [tab.id]: tab },
         [existingTarget]: {
-          ...state[existingTarget],
+          ...targetPanel,
           open: true,
           activeTabId: tab.id,
         },
@@ -332,6 +345,7 @@ export function applyWorkbenchPanelAction(
       }
     }
 
+    const destPanel = next[action.target] ?? createEmptyPanel()
     return {
       ...next,
       tabsById: {
@@ -339,7 +353,7 @@ export function applyWorkbenchPanelAction(
         [action.tab.id]: action.tab,
       },
       [action.target]: {
-        ...insertTab(next[action.target], action.tab.id, action.index),
+        ...insertTab(destPanel, action.tab.id, action.index),
         open: true,
         activeTabId: action.tab.id,
       },
@@ -369,11 +383,12 @@ export function applyWorkbenchPanelAction(
       tabsById,
       right: replaceInPanel(state.right),
       bottom: replaceInPanel(state.bottom),
+      ...(state.sidebar ? { sidebar: replaceInPanel(state.sidebar) } : {}),
     }
   }
 
   if (action.type === 'selectTab') {
-    const panel = state[action.target]
+    const panel = state[action.target] ?? createEmptyPanel()
     if (!panel.tabIds.includes(action.tabId)) return state
     return {
       ...state,
@@ -387,12 +402,13 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'closeTab') {
-    if (!state[action.target].tabIds.includes(action.tabId)) return state
+    const panel = state[action.target] ?? createEmptyPanel()
+    if (!panel.tabIds.includes(action.tabId)) return state
     return removeTabEverywhere(state, action.tabId)
   }
 
   if (action.type === 'closeOtherTabs') {
-    const panel = state[action.target]
+    const panel = state[action.target] ?? createEmptyPanel()
     if (!panel.tabIds.includes(action.tabId)) return state
     return removeTabsFromPanel(
       state,
@@ -403,7 +419,7 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'closeTabsToRight') {
-    const panel = state[action.target]
+    const panel = state[action.target] ?? createEmptyPanel()
     const index = panel.tabIds.indexOf(action.tabId)
     if (index < 0 || index === panel.tabIds.length - 1) return state
     return removeTabsFromPanel(
@@ -444,19 +460,21 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'moveTab') {
-    if (!state[action.source].tabIds.includes(action.tabId)) return state
+    const sourcePanel = state[action.source] ?? createEmptyPanel()
+    if (!sourcePanel.tabIds.includes(action.tabId)) return state
     if (action.source === action.target) {
       return applyWorkbenchPanelAction(state, {
         type: 'reorderTab',
         target: action.target,
         tabId: action.tabId,
-        index: action.index ?? state[action.target].tabIds.length - 1,
+        index: action.index ?? sourcePanel.tabIds.length - 1,
       })
     }
     const source = closeEmptyPanel(
-      removeTab(state[action.source], action.tabId),
+      removeTab(sourcePanel, action.tabId),
     )
-    const target = insertTab(state[action.target], action.tabId, action.index)
+    const targetPanel = state[action.target] ?? createEmptyPanel()
+    const target = insertTab(targetPanel, action.tabId, action.index)
     const rightBecameEmpty =
       action.source === 'right' && source.tabIds.length === 0
     return {
@@ -475,7 +493,7 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'reorderTab') {
-    const panel = state[action.target]
+    const panel = state[action.target] ?? createEmptyPanel()
     if (!panel.tabIds.includes(action.tabId)) return state
     return {
       ...state,
@@ -506,9 +524,10 @@ function openWorkbenchPanel(
 ): WorkbenchTabsState {
   const restoringFullWidth =
     target === 'right' && state.restoreRightFullWidthOnNextOpen
+  const targetPanel = state[target] ?? createEmptyPanel()
   return {
     ...state,
-    [target]: { ...openPanelWithFallback(state[target]), open: true },
+    [target]: { ...openPanelWithFallback(targetPanel), open: true },
     rightFullWidth: restoringFullWidth ? true : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen:
       target === 'right' ? false : state.restoreRightFullWidthOnNextOpen,
@@ -521,9 +540,10 @@ function closeWorkbenchPanel(
   target: WorkbenchPanelTarget,
 ): WorkbenchTabsState {
   const wasFullWidth = target === 'right' && state.rightFullWidth
+  const targetPanel = state[target] ?? createEmptyPanel()
   return {
     ...state,
-    [target]: { ...state[target], open: false },
+    [target]: { ...targetPanel, open: false },
     rightFullWidth: wasFullWidth ? false : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen:
       target === 'right' ? wasFullWidth : state.restoreRightFullWidthOnNextOpen,
@@ -550,13 +570,19 @@ function findTabTarget(
 ): WorkbenchPanelTarget | null {
   if (state.right.tabIds.includes(tabId)) return 'right'
   if (state.bottom.tabIds.includes(tabId)) return 'bottom'
+  if (state.sidebar?.tabIds.includes(tabId)) return 'sidebar'
   return null
 }
 
 function findReplaceablePreviewTab(
   state: WorkbenchTabsState,
 ): WorkbenchTabId | null {
-  for (const tabId of [...state.right.tabIds, ...state.bottom.tabIds]) {
+  const allTabIds = [
+    ...state.right.tabIds,
+    ...state.bottom.tabIds,
+    ...(state.sidebar?.tabIds ?? []),
+  ]
+  for (const tabId of allTabIds) {
     const tab = state.tabsById[tabId]
     if (tab?.kind === 'file-preview' && tab.preview) return tabId
   }
@@ -601,19 +627,25 @@ function removeTabEverywhere(
   delete tabsById[tabId]
   const right = closeEmptyPanel(removeTab(state.right, tabId))
   const bottom = closeEmptyPanel(removeTab(state.bottom, tabId))
+  const sidebar = state.sidebar
+    ? closeEmptyPanel(removeTab(state.sidebar, tabId))
+    : undefined
   const rightClosed = state.right.open && !right.open
   const bottomClosed = state.bottom.open && !bottom.open
+  const sidebarClosed = state.sidebar?.open && !sidebar?.open
   return {
     ...state,
     tabsById,
     right,
     bottom,
+    ...(sidebar !== undefined ? { sidebar } : {}),
     rightFullWidth: rightClosed ? false : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen:
       rightClosed ? false : state.restoreRightFullWidthOnNextOpen,
     focusArea:
       (rightClosed && state.focusArea === 'right-panel') ||
-      (bottomClosed && state.focusArea === 'bottom-panel')
+      (bottomClosed && state.focusArea === 'bottom-panel') ||
+      (sidebarClosed && state.focusArea === 'sidebar-panel')
         ? 'main'
         : state.focusArea,
   }
@@ -636,7 +668,7 @@ function removeTabsFromPanel(
   const removeSet = new Set(tabIdsToRemove)
   const tabsById = { ...state.tabsById }
   for (const tabId of removeSet) delete tabsById[tabId]
-  const panel = state[target]
+  const panel = state[target] ?? createEmptyPanel()
   return {
     ...state,
     tabsById,
