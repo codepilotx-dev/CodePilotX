@@ -11,6 +11,7 @@ export interface CompositeViewDefinition {
   readonly canMove: boolean
   readonly canClose: boolean
   readonly isSingleton: boolean
+  readonly canFloat?: boolean
 }
 
 /**
@@ -22,100 +23,110 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'file-browser',
     title: '打开文件',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom'],
+    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
+    canFloat: true,
   },
   terminal: {
     id: 'workbench.view.terminal',
     kind: 'terminal',
     title: '终端',
     defaultLocation: 'bottom',
-    allowedLocations: ['sidebar', 'right', 'bottom'],
+    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
+    canFloat: true,
   },
   review: {
     id: 'workbench.view.review',
     kind: 'review',
     title: '审查',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom'],
+    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
+    canFloat: true,
   },
   browser: {
     id: 'workbench.view.browser',
     kind: 'browser',
     title: '浏览器',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
+    canFloat: true,
   },
   'file-preview': {
     id: 'workbench.view.filePreview',
     kind: 'file-preview',
     title: '文件预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
+    canFloat: true,
   },
   plan: {
     id: 'workbench.view.plan',
     kind: 'plan',
     title: '计划',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom'],
+    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
+    canFloat: true,
   },
   'side-chat': {
     id: 'workbench.view.sideChat',
     kind: 'side-chat',
     title: '副会话',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
+    canFloat: true,
   },
   'side-task': {
     id: 'workbench.view.sideTask',
     kind: 'side-task',
     title: '后台任务',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom'],
+    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
+    canFloat: true,
   },
   'skill-preview': {
     id: 'workbench.view.skillPreview',
     kind: 'skill-preview',
     title: '技能预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
+    canFloat: true,
   },
   'attachment-preview': {
     id: 'workbench.view.attachmentPreview',
     kind: 'attachment-preview',
     title: '附件预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
+    canFloat: true,
   },
 }
 
@@ -129,6 +140,15 @@ export function isViewAllowedAtLocation(
   const definition = BUILTIN_COMPOSITE_VIEWS[kind]
   if (!definition) return location === 'right' || location === 'bottom'
   return definition.allowedLocations.includes(location)
+}
+
+/**
+ * 校验指定视图是否支持弹出为独立浮动窗口
+ */
+export function canViewFloat(kind: WorkbenchTabKind): boolean {
+  const definition = BUILTIN_COMPOSITE_VIEWS[kind]
+  if (!definition) return false
+  return Boolean(definition.canFloat ?? definition.allowedLocations.includes('floating'))
 }
 
 /**

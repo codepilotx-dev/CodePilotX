@@ -148,3 +148,28 @@
 .window-restore-icon {
   transform: scaleX(-1);
 }
+
+.auxiliary-titlebar {
+  width: 100%;
+  height: var(--desktop-titlebar-height, 36px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 0 var(--cpx-sys-space-3);
+  background: var(--cpx-sys-color-workbench-titlebar-bg);
+  border-bottom: 0.5px solid var(--cpx-sys-color-border-subtle);
+  user-select: none;
+  -webkit-app-region: drag;
+
+  button {
+    -webkit-app-region: no-drag;
+  }
+}
+
+.auxiliary-window-controls-spacer {
+  width: 138px;
+  height: 100%;
+  flex-shrink: 0;
+  pointer-events: none;
+}

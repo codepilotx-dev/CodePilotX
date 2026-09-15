@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import { MoveDown, MoveRight, PanelLeft, Pin, Plus, X } from 'lucide-react'
+import { ExternalLink, MoveDown, MoveRight, PanelLeft, Pin, Plus, X } from 'lucide-react'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import {
@@ -12,7 +12,7 @@ import {
   PopoverRadioItem,
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { getAvailableMoveTargets } from '../dock/compositeViews.js'
+import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
@@ -53,6 +53,10 @@ export type WorkbenchTabStripProps = {
     index: number,
   ) => void
   onPinTab: (tabId: WorkbenchTabId) => void
+  onPopOutTab?: (
+    source: WorkbenchPanelTarget,
+    tabId: WorkbenchTabId,
+  ) => void
 }
 
 export function WorkbenchTabStrip({
@@ -71,6 +75,7 @@ export function WorkbenchTabStrip({
   onMoveTab,
   onReorderTab,
   onPinTab,
+  onPopOutTab,
 }: WorkbenchTabStripProps): React.ReactNode {
   const tabRefs = useRef(new Map<WorkbenchTabId, HTMLButtonElement>())
   const [menuOpen, setMenuOpen] = useState(false)
@@ -191,6 +196,17 @@ export function WorkbenchTabStrip({
                               ),
                             onSelect: () => onMoveTab(target, destTarget, tab.id),
                           })),
+                        ]
+                      : []),
+                    ...(canViewFloat(tab.kind) && onPopOutTab
+                      ? [
+                          { kind: 'separator' as const },
+                          {
+                            kind: 'item' as const,
+                            label: '弹出到独立窗口',
+                            icon: <ExternalLink size={APP_ICON_SIZE} />,
+                            onSelect: () => onPopOutTab(target, tab.id),
+                          },
                         ]
                       : []),
                   ]}
