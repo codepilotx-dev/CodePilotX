@@ -99,7 +99,7 @@ test.describe('animation contracts', () => {
       const recentTransition = await readDisclosureTransition(recentDisclosure)
       expect(recentTransition.opacity).toBe('1')
       expect(recentTransition.property).toBe('grid-template-rows')
-      expect(recentTransition.duration).toBe(motion === 'off' ? '0.24s' : '0s')
+      expect(recentTransition.duration).toBe(motion === 'off' ? '0.1s' : '0s')
 
       // 会话扩展：展开/折叠额外排序项。
       const showMore = page.getByRole('button', { name: '展开显示' })
@@ -219,7 +219,7 @@ test.describe('animation contracts', () => {
       const processTransition = await readDisclosureTransition(processDisclosure)
       expect(processTransition.opacity).toBe('1')
       expect(processTransition.property).toBe('grid-template-rows')
-      expect(processTransition.duration).toBe(motion === 'off' ? '0.24s' : '0s')
+      expect(processTransition.duration).toBe(motion === 'off' ? '0.1s' : '0s')
       const processSamples = motion === 'off'
         ? await sampleDisclosureCollapse(processSummary)
         : (await processSummary.click(), null)

@@ -34,7 +34,7 @@ type ComposerChangeSummaryProps = {
 };
 
 const PLAN_PREVIEW_CLOSE_DELAY_MS = 120;
-const RETURN_BUTTON_ENTER_DELAY_SECONDS = 0.16;
+const RETURN_BUTTON_ENTER_DELAY_SECONDS = 0.06;
 
 type ComposerPlanLifecycle = ExecutionPlanItem["status"] | "failed";
 type ComposerSummaryPreview =

@@ -1,11 +1,11 @@
 import { getEffectiveReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 
 // 单行状态窗的文字滑动参数，与 CodingHeadingTransition 的两段 WAAPI 行为一致：
-// 旧文案上滑（180ms）、新文案从下方滑入（280ms）。快速连续更新时进行中的
+// 旧文案上滑（80ms）、新文案从下方滑入（80ms）。快速连续更新时进行中的
 // 退出动画只落定最新文案，不排队中间状态；reduced-motion 下直接替换文字。
 const STATUS_SWAP_EASE = 'cubic-bezier(0.23, 1, 0.32, 1)'
-const STATUS_EXIT_MS = 180
-const STATUS_ENTER_MS = 280
+const STATUS_EXIT_MS = 80
+const STATUS_ENTER_MS = 80
 
 type StatusTextSwapState = {
   pending: string | null

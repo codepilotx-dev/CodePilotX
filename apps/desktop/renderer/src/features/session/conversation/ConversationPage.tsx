@@ -354,7 +354,7 @@ export function ConversationPage(): React.ReactNode {
     (item: ConversationTurnNavItem, reason: TurnNavigationReason): void => {
       const didNavigate = timelineNavigationRef.current?.revealTurn(
         item.rowIndex,
-        reason === "scrub" || reduceMotion ? "instant" : "smooth",
+        "instant",
       );
       if (!didNavigate) return;
       if (reduceMotion) return;
@@ -390,7 +390,7 @@ export function ConversationPage(): React.ReactNode {
             },
           ],
           {
-            duration: 1400,
+            duration: 100,
             easing: "cubic-bezier(0.23, 1, 0.32, 1)",
           },
         );

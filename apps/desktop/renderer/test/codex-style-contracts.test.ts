@@ -357,10 +357,10 @@ describe('Codex CPX design system token contract', () => {
     for (const [role, duration] of [
       ['instant', '0ms'],
       ['feedback', '60ms'],
-      ['exit', '90ms'],
-      ['state', '100ms'],
-      ['enter', '120ms'],
-      ['panel', '120ms'],
+      ['exit', '80ms'],
+      ['state', '60ms'],
+      ['enter', '80ms'],
+      ['panel', '100ms'],
       ['loading', '900ms'],
     ]) {
       expect(systemTokens).toContain(
@@ -368,9 +368,9 @@ describe('Codex CPX design system token contract', () => {
       )
     }
 
+    expect(motionTransitions).toContain('duration: 0.06,')
+    expect(motionTransitions.match(/duration: 0\.08,/g)).toHaveLength(2)
     expect(motionTransitions).toContain('duration: 0.1,')
-    expect(motionTransitions.match(/duration: 0\.12,/g)).toHaveLength(2)
-    expect(motionTransitions).toContain('duration: 0.09,')
     expect(motionTransitions).toContain("duration: 0.9,\n  ease: 'linear',")
 
     expect(modelMenu).not.toContain('260ms')

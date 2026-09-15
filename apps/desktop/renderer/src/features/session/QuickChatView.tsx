@@ -263,7 +263,7 @@ function CodingQuickChatView(): React.ReactNode {
         { transform: "scale(1) rotate(360deg)" },
       ],
       {
-        duration: 420,
+        duration: 100,
         easing: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
     );

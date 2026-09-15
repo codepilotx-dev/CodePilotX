@@ -2378,7 +2378,7 @@ function WorkspaceReviewSidebarImpl({
     const sectionRect = section.getBoundingClientRect();
     viewport.scrollTo({
       top: viewport.scrollTop + sectionRect.top - viewportRect.top,
-      behavior: "smooth",
+      behavior: "auto",
     });
   }
 

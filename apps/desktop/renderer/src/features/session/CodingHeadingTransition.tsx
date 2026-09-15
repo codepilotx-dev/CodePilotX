@@ -42,7 +42,7 @@ export function CodingHeadingTransition({
         { opacity: 0, transform: "translateY(-4px)" },
       ],
       {
-        duration: 180,
+        duration: 80,
         easing: "cubic-bezier(0.23, 1, 0.32, 1)",
         fill: "forwards",
       },
@@ -71,7 +71,7 @@ export function CodingHeadingTransition({
         { opacity: 1, transform: "translateY(0)" },
       ],
       {
-        duration: 280,
+        duration: 80,
         easing: "cubic-bezier(0.23, 1, 0.32, 1)",
       },
     );

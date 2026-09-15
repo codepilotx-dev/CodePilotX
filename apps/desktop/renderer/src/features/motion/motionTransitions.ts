@@ -7,22 +7,22 @@ export const instantTween: Transition = {
 }
 
 export const stateTween: Transition = {
-  duration: 0.1,
+  duration: 0.06,
   ease: standardEase,
 }
 
 export const enterTween: Transition = {
-  duration: 0.12,
+  duration: 0.08,
   ease: standardEase,
 }
 
 export const exitTween: Transition = {
-  duration: 0.09,
+  duration: 0.08,
   ease: standardEase,
 }
 
 export const layoutTween: Transition = {
-  duration: 0.12,
+  duration: 0.1,
   ease: standardEase,
 }
 

@@ -101,7 +101,7 @@ Composer 必须将首页工具条结构、实际输入布局和圆角角色分�
 
 ### 动效
 
-时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 90 / 100 / 120 / 120 / 900ms`：直接指针 hover 背景与拖拽跟随使用 `instant`，hover 按压及文本颜色反馈使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。全局 Tooltip 遵循首次延迟 350ms (`delayDuration`) 与组内快速切换 300ms (`skipDelayDuration`) 规则。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
+时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 80 / 60 / 80 / 100 / 900ms`：直接指针 hover 背景与拖拽跟随使用 `instant`，hover 按压及文本颜色反馈使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，折叠展开使用 `disclosure (100ms)`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。全局 Tooltip 遵循首次延迟 350ms (`delayDuration`) 与组内快速切换 300ms (`skipDelayDuration`) 规则。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
 
 ### 阴影与层级
 

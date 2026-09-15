@@ -129,14 +129,14 @@ test('model picker matches the Codex simple, advanced, and flyout behavior', asy
     }
   })).toEqual({
     feedback: '60ms',
-    exit: '90ms',
-    state: '100ms',
-    enter: '120ms',
-    panel: '120ms',
-    menuDuration: '0.12s',
-    trackDuration: '0.12s',
+    exit: '80ms',
+    state: '60ms',
+    enter: '80ms',
+    panel: '100ms',
+    menuDuration: '0.1s',
+    trackDuration: '0.1s',
     panelDuration: '0s',
-    toggleIconDuration: '0.1s',
+    toggleIconDuration: '0.06s',
   })
 
   const controls = picker.locator('.rm-intelligence-view-controls')

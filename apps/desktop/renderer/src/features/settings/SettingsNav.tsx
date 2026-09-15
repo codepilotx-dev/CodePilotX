@@ -336,13 +336,13 @@ function scrollToSettingsTarget(result: SettingsSearchDocument): void {
       } else if (!result.rowTitle) {
         document
           .querySelector<HTMLElement>(".settings-content-area")
-          ?.scrollTo({ behavior: "smooth", top: 0 });
+          ?.scrollTo({ behavior: "auto", top: 0 });
       }
       return;
     }
     target.id = result.targetId;
     target.tabIndex = -1;
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.scrollIntoView({ behavior: "auto", block: "center" });
     target.focus({ preventScroll: true });
   };
   window.setTimeout(locate, 0);

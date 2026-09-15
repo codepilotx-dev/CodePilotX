@@ -31,24 +31,24 @@ const SLIDER_TRACK_PADDING_PX = 14
 const SLIDER_MAGNET_RADIUS = 0.28
 const SLIDER_MAGNET_STRENGTH = 0.45
 const SLIDER_POSITION_TRANSITION = {
-  duration: 0.15,
+  duration: 0.08,
   ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
 } as const
 const SLIDER_EXTERNAL_POSITION_TRANSITION = {
-  duration: 0.3,
+  duration: 0.1,
   ease: [0.23, 1, 0.32, 1] as [number, number, number, number],
 } as const
 const SLIDER_THUMB_ACTIVE_SPRING = {
   type: 'spring',
-  stiffness: 420,
-  damping: 38,
-  mass: 1,
+  stiffness: 800,
+  damping: 45,
+  mass: 0.2,
 } as const
 const SLIDER_THUMB_REST_SPRING = {
   type: 'spring',
-  stiffness: 220,
-  damping: 26,
-  mass: 1,
+  stiffness: 700,
+  damping: 40,
+  mass: 0.2,
 } as const
 
 const DEEPSEEK_THINKING_OPTIONS: ThinkingOption[] = [

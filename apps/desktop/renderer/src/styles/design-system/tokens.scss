@@ -213,11 +213,11 @@
   // System Motion (Semantic Roles)
   --cpx-sys-motion-instant: 0ms;
   --cpx-sys-motion-feedback: 60ms;
-  --cpx-sys-motion-exit: 90ms;
-  --cpx-sys-motion-state: 100ms;
-  --cpx-sys-motion-enter: 120ms;
-  --cpx-sys-motion-panel: 120ms;
-  --cpx-sys-motion-disclosure: 240ms;
+  --cpx-sys-motion-exit: 80ms;
+  --cpx-sys-motion-state: 60ms;
+  --cpx-sys-motion-enter: 80ms;
+  --cpx-sys-motion-panel: 100ms;
+  --cpx-sys-motion-disclosure: 100ms;
   --cpx-sys-motion-loading: 900ms;
 
   // Legacy alias
