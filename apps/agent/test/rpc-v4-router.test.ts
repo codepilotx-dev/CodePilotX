@@ -1306,8 +1306,34 @@ describe("RPC v4 Router", () => {
     ).toMatchObject({
       name: "Fixture provider",
       base_url: "https://example.com/v1",
-      kind: "custom",
     })
+
+    const invalidCreate = await call("provider/create", {
+      definition: {
+        kind: "custom",
+        id: "google",
+        name: "Google Gemini",
+        enabled: true,
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+        auth: "none",
+        env: [],
+        allowInsecureHttp: false,
+        headers: {},
+        models: [{
+          id: "gemini-model",
+          api: "openai-completions",
+        }],
+      },
+      operationId: "operation:provider-create-invalid",
+    })
+    expect(invalidCreate.error).toMatchObject({
+      code: -32000,
+      data: {
+        code: "INVALID_REQUEST",
+      },
+    })
+    expect(invalidCreate.error?.message).toContain("与系统内置 Provider 重名")
+    expect(invalidCreate.error?.message).not.toBe("Agent 内部错误")
     db.close()
   })
 

@@ -53,6 +53,49 @@ const API_OPTIONS = [
   { value: 'anthropic-messages', label: 'Anthropic Messages' },
 ] as const
 
+const BUILTIN_PROVIDER_IDS: ReadonlySet<string> = new Set([
+  'amazon-bedrock',
+  'ant-ling',
+  'anthropic',
+  'azure-openai-responses',
+  'baseten',
+  'cerebras',
+  'cloudflare-ai-gateway',
+  'cloudflare-workers-ai',
+  'deepseek',
+  'fireworks',
+  'github-copilot',
+  'google',
+  'google-vertex',
+  'groq',
+  'huggingface',
+  'kimi-coding',
+  'minimax',
+  'minimax-cn',
+  'mistral',
+  'moonshotai',
+  'moonshotai-cn',
+  'nvidia',
+  'openai',
+  'openai-codex',
+  'opencode',
+  'opencode-go',
+  'openrouter',
+  'qwen-token-plan',
+  'qwen-token-plan-cn',
+  'qwen-token-plan-individual',
+  'radius',
+  'together',
+  'vercel-ai-gateway',
+  'xai',
+  'xiaomi',
+  'xiaomi-token-plan-ams',
+  'xiaomi-token-plan-cn',
+  'xiaomi-token-plan-sgp',
+  'zai',
+  'zai-coding-cn',
+])
+
 type Api = DesktopProviderModelDefinition['api']
 
 type EditableModel = {
@@ -217,23 +260,60 @@ export function ProviderEditorDialog({
         ...(compat ? { compat } : {}),
       } as unknown as DesktopProviderModelDefinition)
     }
-    if (!id.trim() || !name.trim() || !baseUrl.trim()) {
+    const trimmedId = id.trim()
+    const trimmedName = name.trim()
+    const trimmedBaseUrl = baseUrl.trim()
+    if (!trimmedId || !trimmedName || !trimmedBaseUrl) {
       return new Error('Provider ID、名称和 Base URL 不能为空。')
     }
+    if (!editing && BUILTIN_PROVIDER_IDS.has(trimmedId.toLowerCase())) {
+      return new Error(`Provider ID "${trimmedId}" 与系统内置 Provider 重名，请添加前缀（如 custom-${trimmedId}）。`)
+    }
+    if (!editing && !/^[A-Za-z0-9_.-]+$/.test(trimmedId)) {
+      return new Error('Provider ID 只能包含英文字母、数字、下划线、短横线与点。')
+    }
+    let parsedUrl: URL
+    try {
+      parsedUrl = new URL(trimmedBaseUrl)
+    } catch {
+      return new Error('Base URL 格式无效，请填写完整的 URL（如 https://api.example.com/v1）。')
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return new Error('Base URL 必须以 http:// 或 https:// 开头。')
+    }
+    if (
+      parsedUrl.protocol === 'http:' &&
+      !isLoopbackUrl(trimmedBaseUrl) &&
+      !allowInsecureHttp
+    ) {
+      return new Error('检测到非本地明文 HTTP 端点，请在“高级与网络”中开启“允许非 loopback 明文 HTTP”，或使用 HTTPS。')
+    }
+    const envList = env.split(',').map(item => item.trim()).filter(Boolean)
+    if (auth === 'api-key') {
+      for (const entry of envList) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry)) {
+          return new Error(`环境变量名 "${entry}" 格式无效。此处应填写环境变量名称（如 GEMINI_API_KEY），而非 API Key 密钥本身。`)
+        }
+      }
+    }
     if (normalizedModels.length === 0) return new Error('至少添加一个有效模型。')
+    const modelIds = normalizedModels.map(item => item.id)
+    if (new Set(modelIds).size !== modelIds.length) {
+      return new Error('模型列表中存在重复的模型 ID。')
+    }
     return {
       kind: 'custom',
-      id: id.trim(),
-      name: name.trim(),
+      id: trimmedId,
+      name: trimmedName,
       enabled,
-      baseUrl: baseUrl.trim(),
+      baseUrl: trimmedBaseUrl,
       auth,
-      env: env.split(',').map(item => item.trim()).filter(Boolean),
+      env: envList,
       allowInsecureHttp,
       headers: headerEntries,
       models: normalizedModels,
     } as unknown as DesktopCustomProviderDefinition
-  }, [allowInsecureHttp, auth, baseUrl, enabled, env, headers, id, models, name])
+  }, [allowInsecureHttp, auth, baseUrl, editing, enabled, env, headers, id, models, name])
 
   async function save(): Promise<void> {
     if (managed) {

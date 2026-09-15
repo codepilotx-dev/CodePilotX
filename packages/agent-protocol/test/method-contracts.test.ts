@@ -391,6 +391,7 @@ const customProviderDefinition = {
     id: modelId,
     name: "Fixture model",
     api: "openai-completions" as const,
+    cost: { input: 0.15, output: 0.6, cacheRead: 0.0375, cacheWrite: 0.15 },
     headers: { "x-model-profile": "fixture" },
     thinkingLevelMap: { low: "low", max: null },
     compat: { supportsStore: false },

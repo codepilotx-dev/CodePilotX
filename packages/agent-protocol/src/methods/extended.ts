@@ -75,11 +75,13 @@ export const PiProviderApiSchema = Schema.Literals([
   "anthropic-messages",
 ])
 
+const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
+
 const ProviderModelCostSchema = Schema.Struct({
-  input: Schema.optional(NonNegativeIntSchema),
-  output: Schema.optional(NonNegativeIntSchema),
-  cacheRead: Schema.optional(NonNegativeIntSchema),
-  cacheWrite: Schema.optional(NonNegativeIntSchema),
+  input: Schema.optional(NonNegativeNumberSchema),
+  output: Schema.optional(NonNegativeNumberSchema),
+  cacheRead: Schema.optional(NonNegativeNumberSchema),
+  cacheWrite: Schema.optional(NonNegativeNumberSchema),
 })
 
 const ThinkingLevelMapSchema = Schema.Struct({
@@ -642,7 +644,7 @@ export const ExtendedRpcMethods = {
       providerId: Provider.ID,
       catalogVersion: SequenceSchema,
     }),
-    errors: ["CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    errors: ["CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INVALID_REQUEST", "INTERNAL_ERROR"] as const,
     capability: "provider.config.pi.v1",
     exactParams: true,
     exactResult: true,
@@ -659,7 +661,7 @@ export const ExtendedRpcMethods = {
       providerId: Provider.ID,
       catalogVersion: SequenceSchema,
     }),
-    errors: ["PROVIDER_NOT_FOUND", "CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    errors: ["PROVIDER_NOT_FOUND", "CONFLICT", "PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INVALID_REQUEST", "INTERNAL_ERROR"] as const,
     capability: "provider.config.pi.v1",
     exactParams: true,
     exactResult: true,

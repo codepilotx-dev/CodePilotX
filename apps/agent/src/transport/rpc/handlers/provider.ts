@@ -304,9 +304,20 @@ export const providerHandlers = {
           )
         } catch (cause) {
           if (cause instanceof PiProviderConfigValidationError) {
+            const firstIssue = cause.issues[0]
+            const detail =
+              firstIssue?.code === "BUILTIN_OVERRIDE"
+                ? `Provider ID "${providerID}" 与系统内置 Provider 重名，请使用其他 ID（如 custom-${providerID}）`
+                : firstIssue?.code === "UNSAFE_URL"
+                  ? "Base URL 格式无效，或明文 HTTP 需要开启允许非 loopback 明文 HTTP"
+                  : firstIssue?.code === "SENSITIVE_HEADER"
+                    ? "自定义 Provider 请求头中不能包含敏感认证凭据"
+                    : firstIssue?.code === "INVALID_MODEL"
+                      ? "模型配置不合法，请检查模型 ID 与参数设置"
+                      : "Provider 配置不合法"
             throw new AgentError(
               "INVALID_REQUEST",
-              "Provider 配置不合法",
+              `Provider 配置不合法：${detail}`,
               400,
               {
                 issues: cause.issues.map((issue) => ({

@@ -67,7 +67,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     label: 'DeepSeek',
     description: 'DeepSeek 官方 API（https://api.deepseek.com/v1）',
     defaultValues: {
-      id: 'deepseek',
+      id: 'custom-deepseek',
       name: 'DeepSeek',
       baseUrl: 'https://api.deepseek.com/v1',
       auth: 'api-key',
@@ -98,7 +98,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     label: 'OpenRouter',
     description: '聚合网关（https://openrouter.ai/api/v1）',
     defaultValues: {
-      id: 'openrouter',
+      id: 'custom-openrouter',
       name: 'OpenRouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       auth: 'api-key',
