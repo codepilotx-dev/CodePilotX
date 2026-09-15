@@ -10,7 +10,15 @@ import type {
 import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
 import { SidebarFooter } from "./sidebar/SidebarFooter.js";
+import { SidebarDockedPanes } from "./sidebar/SidebarDockedPanes.js";
 import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
+import type { DesktopFileEntry } from "../../../shared/types.js";
+import type {
+  WorkbenchPanelSnapshot,
+  WorkbenchPanelTarget,
+  WorkbenchTabId,
+  WorkbenchTabsState,
+} from "./dock/rightDockState.js";
 import {
   SidebarHeader,
   SidebarNewTaskNav,
@@ -70,6 +78,18 @@ type Props = {
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onReport: (message: string) => void
   onError?: (message: string) => void
+  dockedPanesState?: WorkbenchPanelSnapshot
+  dockedTabsById?: WorkbenchTabsState['tabsById']
+  workspaceFiles?: DesktopFileEntry[]
+  onSelectDockedTab?: (tabId: WorkbenchTabId) => void
+  onCloseDockedTab?: (tabId: WorkbenchTabId) => void
+  onMoveDockedTab?: (
+    source: WorkbenchPanelTarget,
+    target: WorkbenchPanelTarget,
+    tabId: WorkbenchTabId,
+  ) => void
+  onOpenFile?: (file: DesktopFileEntry) => void
+  onAddComposerFiles?: (files: string[]) => void
 };
 
 export function DesktopSidebar({
@@ -96,6 +116,14 @@ export function DesktopSidebar({
   onUnpinWorkspace,
   onReport,
   onError,
+  dockedPanesState,
+  dockedTabsById,
+  workspaceFiles,
+  onSelectDockedTab,
+  onCloseDockedTab,
+  onMoveDockedTab,
+  onOpenFile,
+  onAddComposerFiles,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
@@ -532,6 +560,19 @@ export function DesktopSidebar({
         onMarkAttentionRead={() => void markAttentionRead()}
         onRequestArchiveAttention={requestArchiveAttention}
       />
+      {dockedPanesState && dockedPanesState.tabIds.length > 0 ? (
+        <SidebarDockedPanes
+          files={workspaceFiles ?? []}
+          state={dockedPanesState}
+          tabsById={dockedTabsById ?? {}}
+          workspace={workspace}
+          onAddComposerFiles={onAddComposerFiles}
+          onCloseTab={onCloseDockedTab ?? (() => undefined)}
+          onMoveTab={onMoveDockedTab ?? (() => undefined)}
+          onOpenFile={onOpenFile}
+          onSelectTab={onSelectDockedTab ?? (() => undefined)}
+        />
+      ) : null}
       <SidebarFooter
         sidebarWidth={sidebarWidth}
         onOpenWhatsNew={onOpenWhatsNew}
