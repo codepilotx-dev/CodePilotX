@@ -472,7 +472,33 @@ export class WindowManager {
       if (this.#focusedWindowId === window.id) this.#focusedWindowId = undefined
       if (this.#primaryWindowId === window.id) this.#promotePrimaryWindow()
     })
-    window.webContents.setWindowOpenHandler(({ url }) => {
+    window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+      if (url === "about:blank" || url === "" || frameName?.startsWith("auxiliary:")) {
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            frame: false,
+            titleBarStyle: "hidden",
+            titleBarOverlay: process.platform === "win32"
+              ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
+              : false,
+            backgroundColor: this.#options.startupTheme.theme.surface,
+            minWidth: 400,
+            minHeight: 300,
+            autoHideMenuBar: true,
+            title: "CodePilotX",
+            icon: this.#resolveWindowIconPath(),
+            webPreferences: {
+              preload: join(this.#moduleDirectory, "preload.cjs"),
+              contextIsolation: true,
+              nodeIntegration: false,
+              sandbox: true,
+              webSecurity: true,
+              devTools: true,
+            },
+          },
+        }
+      }
       if (
         !isAllowedApplicationUrl(url, this.#allowedApplicationOrigin)
         && isSafeExternalUrl(url)
@@ -480,6 +506,20 @@ export class WindowManager {
         void shell.openExternal(url)
       }
       return { action: "deny" }
+    })
+    window.webContents.on("did-create-window", (childWindow) => {
+      childWindow.webContents.setZoomFactor(this.#pageZoomPercent / 100)
+      this.#applicationWindows.set(childWindow.id, childWindow)
+      this.#registerWindowShortcuts(childWindow)
+      childWindow.on("focus", () => {
+        this.#focusedWindowId = childWindow.id
+      })
+      childWindow.on("closed", () => {
+        this.#applicationWindows.delete(childWindow.id)
+        if (this.#focusedWindowId === childWindow.id) {
+          this.#focusedWindowId = undefined
+        }
+      })
     })
     window.webContents.on("will-navigate", (event, url) => {
       if (!isAllowedApplicationUrl(url, this.#allowedApplicationOrigin)) {

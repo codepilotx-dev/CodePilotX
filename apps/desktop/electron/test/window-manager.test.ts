@@ -133,6 +133,7 @@ describe("desktop multi-window contract", () => {
   })
 })
 
-function readSource(relativePath: string): Promise<string> {
-  return readFile(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8")
+async function readSource(relativePath: string): Promise<string> {
+  const content = await readFile(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8")
+  return content.replace(/\r\n/g, "\n")
 }
