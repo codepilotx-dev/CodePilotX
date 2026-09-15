@@ -4,7 +4,7 @@ import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
-  Boxes,
+  Blocks,
   ChevronDown,
   Clock3,
   FolderKanban,
@@ -83,7 +83,7 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "plugins",
     label: "插件",
-    icon: <Boxes size={APP_ICON_SIZE} />,
+    icon: <Blocks size={APP_ICON_SIZE} />,
     path: "/plugins",
     availability: {
       kind: 'any-capability',
