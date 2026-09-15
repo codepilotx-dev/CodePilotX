@@ -19,6 +19,9 @@ import {
   type WorkbenchTabId,
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
+import { auxiliaryWindowService } from '../auxiliary/auxiliaryWindowService.js'
+import { BUILTIN_COMPOSITE_VIEWS } from '../dock/compositeViews.js'
+import { getWorkbenchTabDisplayTitle } from '../tabs/workbenchTabRegistry.js'
 import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { DesktopResizeActivityPhase } from '@codepilotx/shared/desktop-window-ipc'
 import {
@@ -299,6 +302,39 @@ export function useWorkbenchShellController() {
     },
     [dispatchPanelAction, setSidebarCollapsed, sidebarCollapsed, updateRightDockManualState],
   )
+
+  const popOutPanelTab = useCallback(
+    (source: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      const tab = workbenchPanelState.tabsById[tabId]
+      const title = tab ? getWorkbenchTabDisplayTitle(tab, null) : 'CodePilotX'
+      const entry = auxiliaryWindowService.open(tabId, title)
+      if (entry) {
+        dispatchPanelAction({ type: 'popOutTab', source, tabId })
+      }
+    },
+    [dispatchPanelAction, workbenchPanelState.tabsById],
+  )
+
+  const dockBackPanelTab = useCallback(
+    (tabId: WorkbenchTabId, target?: WorkbenchPanelTarget): void => {
+      const tab = workbenchPanelState.tabsById[tabId]
+      const definition = tab ? BUILTIN_COMPOSITE_VIEWS[tab.kind] : undefined
+      const resolvedTarget =
+        target ??
+        ((definition?.defaultLocation !== 'floating' && definition?.defaultLocation)
+          ? definition.defaultLocation
+          : 'right') as WorkbenchPanelTarget
+      auxiliaryWindowService.close(tabId)
+      dispatchPanelAction({ type: 'dockBackTab', target: resolvedTarget, tabId })
+    },
+    [dispatchPanelAction, workbenchPanelState.tabsById],
+  )
+
+  useEffect(() => {
+    auxiliaryWindowService.setDockBackHandler(tabId => {
+      dockBackPanelTab(tabId)
+    })
+  }, [dockBackPanelTab])
 
   const reorderPanelTab = useCallback(
     (
@@ -854,6 +890,8 @@ export function useWorkbenchShellController() {
     togglePanel,
     closePanel,
     movePanelTab,
+    popOutPanelTab,
+    dockBackPanelTab,
     reorderPanelTab,
     closeOtherTabs,
     closeTabsToRight,

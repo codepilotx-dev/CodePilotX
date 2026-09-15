@@ -3,6 +3,7 @@ import { memo } from 'react'
 import {
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   MoveDown,
   MoveRight,
   X,
@@ -24,7 +25,7 @@ import {
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
 } from '../tabs/workbenchTabRegistry.js'
-import { getAvailableMoveTargets } from '../dock/compositeViews.js'
+import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
 import { WorkspaceFileTree } from '../WorkspaceFileTree.js'
 import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/types.js'
 
@@ -40,6 +41,10 @@ export interface SidebarDockedPanesProps {
     target: WorkbenchPanelTarget,
     tabId: WorkbenchTabId,
   ) => void
+  onPopOutTab?: (
+    source: WorkbenchPanelTarget,
+    tabId: WorkbenchTabId,
+  ) => void
   onAddComposerFiles?: (files: string[]) => void
   onOpenFile?: (file: DesktopFileEntry) => void
 }
@@ -52,6 +57,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
   onSelectTab,
   onCloseTab,
   onMoveTab,
+  onPopOutTab,
   onAddComposerFiles,
   onOpenFile,
 }: SidebarDockedPanesProps): React.ReactNode {
@@ -102,6 +108,17 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                     ),
                   onSelect: () => onMoveTab('sidebar', destTarget, tab.id),
                 })),
+                ...(canViewFloat(tab.kind) && onPopOutTab
+                  ? [
+                      { kind: 'separator' as const },
+                      {
+                        kind: 'item' as const,
+                        label: '弹出到独立窗口',
+                        icon: <ExternalLink size={APP_ICON_SIZE} />,
+                        onSelect: () => onPopOutTab('sidebar', tab.id),
+                      },
+                    ]
+                  : []),
               ]}
               layout="grid"
               trigger={

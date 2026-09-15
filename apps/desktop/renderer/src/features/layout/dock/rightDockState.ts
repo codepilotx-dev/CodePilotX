@@ -159,6 +159,7 @@ export type WorkbenchTabsState = {
   right: WorkbenchPanelSnapshot
   bottom: WorkbenchPanelSnapshot
   sidebar?: WorkbenchPanelSnapshot
+  floatingTabIds?: WorkbenchTabId[]
   rightFullWidth: boolean
   restoreRightFullWidthOnNextOpen: boolean
   focusArea: WorkbenchFocusArea
@@ -216,6 +217,16 @@ export type WorkbenchPanelAction =
       index?: number
     }
   | {
+      type: 'popOutTab'
+      source?: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+    }
+  | {
+      type: 'dockBackTab'
+      target?: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+    }
+  | {
       type: 'reorderTab'
       target: WorkbenchPanelTarget
       tabId: WorkbenchTabId
@@ -237,6 +248,7 @@ export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
     right: createEmptyPanel(),
     bottom: createEmptyPanel(),
     sidebar: createEmptyPanel(),
+    floatingTabIds: [],
     rightFullWidth: false,
     restoreRightFullWidthOnNextOpen: false,
     focusArea: 'main',
@@ -402,6 +414,9 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'closeTab') {
+    if (state.floatingTabIds?.includes(action.tabId)) {
+      return removeTabEverywhere(state, action.tabId)
+    }
     const panel = state[action.target] ?? createEmptyPanel()
     if (!panel.tabIds.includes(action.tabId)) return state
     return removeTabEverywhere(state, action.tabId)
@@ -502,6 +517,51 @@ export function applyWorkbenchPanelAction(
         action.tabId,
         action.index,
       ),
+    }
+  }
+
+  if (action.type === 'popOutTab') {
+    const source = action.source ?? findTabTarget(state, action.tabId)
+    if (!source) return state
+    const sourcePanel = state[source] ?? createEmptyPanel()
+    if (!sourcePanel.tabIds.includes(action.tabId)) return state
+    const updatedSource = closeEmptyPanel(removeTab(sourcePanel, action.tabId))
+    const floatingTabIds = Array.from(
+      new Set([...(state.floatingTabIds ?? []), action.tabId]),
+    )
+    const rightBecameEmpty =
+      source === 'right' && updatedSource.tabIds.length === 0
+    return {
+      ...state,
+      [source]: updatedSource,
+      floatingTabIds,
+      rightFullWidth: rightBecameEmpty ? false : state.rightFullWidth,
+      restoreRightFullWidthOnNextOpen:
+        rightBecameEmpty ? false : state.restoreRightFullWidthOnNextOpen,
+      focusArea:
+        state.focusArea === `${source}-panel` ? 'main' : state.focusArea,
+    }
+  }
+
+  if (action.type === 'dockBackTab') {
+    const floatingTabIds = (state.floatingTabIds ?? []).filter(
+      id => id !== action.tabId,
+    )
+    const tab = state.tabsById[action.tabId]
+    const defaultTarget: WorkbenchPanelTarget =
+      tab?.kind === 'terminal' ? 'bottom' : 'right'
+    const target = action.target ?? defaultTarget
+    const targetPanel = state[target] ?? createEmptyPanel()
+    const updatedTarget = insertTab(targetPanel, action.tabId)
+    return {
+      ...state,
+      floatingTabIds,
+      [target]: {
+        ...updatedTarget,
+        open: true,
+        activeTabId: action.tabId,
+      },
+      focusArea: `${target}-panel`,
     }
   }
 
@@ -630,6 +690,7 @@ function removeTabEverywhere(
   const sidebar = state.sidebar
     ? closeEmptyPanel(removeTab(state.sidebar, tabId))
     : undefined
+  const floatingTabIds = (state.floatingTabIds ?? []).filter(id => id !== tabId)
   const rightClosed = state.right.open && !right.open
   const bottomClosed = state.bottom.open && !bottom.open
   const sidebarClosed = state.sidebar?.open && !sidebar?.open
@@ -639,6 +700,7 @@ function removeTabEverywhere(
     right,
     bottom,
     ...(sidebar !== undefined ? { sidebar } : {}),
+    floatingTabIds,
     rightFullWidth: rightClosed ? false : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen:
       rightClosed ? false : state.restoreRightFullWidthOnNextOpen,

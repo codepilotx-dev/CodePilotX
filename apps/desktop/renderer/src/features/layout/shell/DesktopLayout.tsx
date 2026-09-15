@@ -111,6 +111,8 @@ import {
 import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
 import { SubagentDockContent } from '../../session/subagents/SubagentDockContent.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
+import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
+import type { WorkbenchTabRenderContext } from '../tabs/workbenchTabRegistry.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
@@ -354,6 +356,8 @@ export function DesktopLayout(): React.ReactNode {
     togglePanel,
     closePanel,
     movePanelTab,
+    popOutPanelTab,
+    dockBackPanelTab,
     reorderPanelTab,
     closeOtherTabs,
     closeTabsToRight,
@@ -1942,6 +1946,7 @@ export function DesktopLayout(): React.ReactNode {
       onSelectDockedTab={tabId => handleSelectPanelTab('sidebar', tabId)}
       onCloseDockedTab={tabId => closePanelTab('sidebar', tabId)}
       onMoveDockedTab={movePanelTab}
+      onPopOutDockedTab={popOutPanelTab}
       onOpenFile={file => handleOpenFilePreview('sidebar', file)}
       onAddComposerFiles={handleAddComposerFiles}
     />
@@ -2743,6 +2748,7 @@ export function DesktopLayout(): React.ReactNode {
         onResetWidth={handleResetRightDockWidth}
         onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
         onMoveTab={movePanelTab}
+        onPopOutTab={popOutPanelTab}
         onReorderTab={reorderPanelTab}
         onPinTab={pinTab}
         onSetFileMarkdownViewMode={setFileMarkdownViewMode}
@@ -2802,6 +2808,163 @@ export function DesktopLayout(): React.ReactNode {
       />
     )
   }
+
+  const auxiliaryPanelContext = useMemo<WorkbenchTabRenderContext>(
+    () => ({
+      review: {
+        activeSessionId: sessionId,
+        defaultBranch: derivedDefaultBranch,
+        gitStatus,
+        isRefreshing: false,
+        projectId: currentWorkspace?.projectId ?? null,
+        diffMarkerStyle,
+        reviewView,
+        reviewTabState,
+        sessionStatus,
+        workspacePath: currentWorkspace?.path ?? null,
+        onAppendComposerText: handleAppendComposerText,
+        onClose: () => undefined,
+        onCreateBranch: handleCreateBranch,
+        onOpenWorkspacePath: handleOpenWorkspacePath,
+        onRefreshDiff: handleRefreshDiff,
+        onReviewTabStateChange: setReviewTabState,
+        onToggleReviewView: () =>
+          setReviewView(reviewView === 'inline' ? 'split' : 'inline'),
+      },
+      browser: {
+        availability: {
+          status: browserAvailability,
+          ...(browserAvailability === 'unavailable'
+            ? {
+                reason:
+                  '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+              }
+            : {}),
+        },
+        state: browserState,
+        onAppendAnnotation: handleBrowserAnnotation,
+        onAppendComposerText: handleAppendComposerText,
+        onStateChange: setBrowserState,
+      },
+      files: {
+        files: workspaceFiles,
+        selectedFile,
+        workspace: currentWorkspace,
+        onOpenFileFromBrowser: file => handleOpenFileFromBrowser('right', file),
+        onPreviewFile: file => handleOpenFilePreview('right', file),
+        onAppendComposerText: handleAppendComposerText,
+        onAddComposerFiles: handleAddComposerFiles,
+        onPinFileTab: pinTab,
+        onSetFileMarkdownViewMode: setFileMarkdownViewMode,
+        onLoadError: (tab, error, phase) =>
+          handleFileLoadError({ error, phase, tab, target: 'right' }),
+      },
+      planContentByEventId,
+      sideChat: {
+        activeTabId: null,
+        available: sideChatSupported,
+        focusVersion: sideChatFocusVersion,
+        isCreating: isCreatingSideChat,
+        getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+        getModelSelection: tab => getSideChatSettings(tab.id),
+        onInteractionError: message => setErrorMessage(message),
+        itemContext: (tab, status) => ({
+          modelProviderNames: Object.fromEntries(
+            modelProviders.map(provider => [
+              provider.providerID,
+              provider.displayName,
+            ]),
+          ),
+          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+          onOpenFileReference: handleOpenMarkdownFileReference,
+          onOpenAttachment: handleOpenThreadAttachment,
+          onOpenLocalContext: handleOpenThreadLocalContext,
+          onSubmitEditedUserMessage: async input => {
+            await sideChatSubmitToSession(tab.threadId, input)
+          },
+          sessionStatus: status,
+          workspacePath: currentWorkspace?.path ?? null,
+        }),
+        onOpenPatchReview: handleOpenPatchReview,
+        onOpenPlan: handleOpenPlanDock,
+        onStateChange: reportSideChatState,
+        renderComposer: renderSideChatComposer,
+        onRecreate: () => void createSideChat(),
+      },
+      sideTask: {
+        activeTaskId: activeSideTaskId,
+        availability: {
+          status: subagentAvailability,
+          ...(subagentAvailability === 'unavailable'
+            ? { reason: '当前 Agent 不支持子智能体工作台。' }
+            : {}),
+        },
+        content: subagentThreadContent,
+      },
+      terminal: {
+        availability: terminalAvailable
+          ? { status: 'available' }
+          : sessionId
+            ? {
+                status: 'unavailable',
+                reason: '当前桌面运行环境没有提供集成终端桥接。',
+              }
+            : { status: 'available' },
+        threadId: sessionId,
+        onDisplayPathChange: () => undefined,
+      },
+    }),
+    [
+      activeSideTaskId,
+      browserAvailability,
+      browserState,
+      canCopyMarkdownFileReferenceContents,
+      createSideChat,
+      currentWorkspace,
+      derivedDefaultBranch,
+      diffMarkerStyle,
+      gitStatus,
+      handleAddComposerFiles,
+      handleAppendComposerText,
+      handleBrowserAnnotation,
+      handleCopyMarkdownFileReferenceContents,
+      handleCreateBranch,
+      handleFileLoadError,
+      handleOpenFileFromBrowser,
+      handleOpenFilePreview,
+      handleOpenMarkdownFileReference,
+      handleOpenPatchReview,
+      handleOpenPlanDock,
+      handleOpenThreadAttachment,
+      handleOpenThreadLocalContext,
+      handleOpenWorkspacePath,
+      handleRefreshDiff,
+      isCreatingSideChat,
+      modelProviders,
+      pinTab,
+      planContentByEventId,
+      renderSideChatComposer,
+      reportSideChatState,
+      reviewTabState,
+      reviewView,
+      selectedFile,
+      sessionId,
+      sessionStatus,
+      setBrowserState,
+      setErrorMessage,
+      setFileMarkdownViewMode,
+      setReviewTabState,
+      setReviewView,
+      sideChatFocusVersion,
+      sideChatSubmitToSession,
+      sideChatSupported,
+      subagentAvailability,
+      subagentThreadContent,
+      terminalAvailable,
+      workspaceFiles,
+    ],
+  )
 
   const rightDockNode = renderWorkbenchPanel('right')
   const bottomPanelNode = renderWorkbenchPanel('bottom')
@@ -3137,6 +3300,12 @@ export function DesktopLayout(): React.ReactNode {
           />
         </WorkspaceHeaderProvider>
       </QuickChatContext.Provider>
+      <AuxiliaryWindowsHost
+        floatingTabIds={workbenchPanelState.floatingTabIds}
+        tabsById={workbenchPanelState.tabsById}
+        panelContext={auxiliaryPanelContext}
+        onDockBack={dockBackPanelTab}
+      />
     </div>
   )
 }

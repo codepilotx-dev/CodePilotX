@@ -130,6 +130,10 @@ type Props = {
     index: number,
   ) => void
   onPinTab: (tabId: WorkbenchTabId) => void
+  onPopOutTab?: (
+    source: WorkbenchPanelTarget,
+    tabId: WorkbenchTabId,
+  ) => void
   onSetFileMarkdownViewMode: (
     tabId: WorkbenchTabId,
     mode: MarkdownFileViewMode,
@@ -342,6 +346,7 @@ export function WorkbenchPanel({
   onSetWidth,
   onSetHeight,
   onMoveTab,
+  onPopOutTab,
   onReorderTab,
   onPinTab,
   onSetFileMarkdownViewMode,
@@ -548,6 +553,7 @@ export function WorkbenchPanel({
                 onCloseTab={onCloseTab}
                 onCloseTabsToRight={onCloseTabsToRight}
                 onMoveTab={onMoveTab}
+                onPopOutTab={onPopOutTab}
                 onOpenTab={stableOnOpenTab}
                 onCreateSideChat={onCreateSideChat}
                 sideChatAvailable={sideChat.available}

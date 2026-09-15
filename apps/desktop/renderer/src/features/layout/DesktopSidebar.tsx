@@ -88,6 +88,10 @@ type Props = {
     target: WorkbenchPanelTarget,
     tabId: WorkbenchTabId,
   ) => void
+  onPopOutDockedTab?: (
+    source: WorkbenchPanelTarget,
+    tabId: WorkbenchTabId,
+  ) => void
   onOpenFile?: (file: DesktopFileEntry) => void
   onAddComposerFiles?: (files: string[]) => void
 };
@@ -122,6 +126,7 @@ export function DesktopSidebar({
   onSelectDockedTab,
   onCloseDockedTab,
   onMoveDockedTab,
+  onPopOutDockedTab,
   onOpenFile,
   onAddComposerFiles,
 }: Props): React.ReactNode {
@@ -569,6 +574,7 @@ export function DesktopSidebar({
           onAddComposerFiles={onAddComposerFiles}
           onCloseTab={onCloseDockedTab ?? (() => undefined)}
           onMoveTab={onMoveDockedTab ?? (() => undefined)}
+          onPopOutTab={onPopOutDockedTab}
           onOpenFile={onOpenFile}
           onSelectTab={onSelectDockedTab ?? (() => undefined)}
         />
