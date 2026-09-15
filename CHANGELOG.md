@@ -9,6 +9,8 @@
 
 ### Added
 
+- [desktop/renderer] 演进工作台布局系统第一阶段：引入复合视图体系（PaneComposite），抽象标准化 ViewLocation 与 CompositeViewDefinition 注册表，打通主侧边栏（Sidebar）、右侧栏（Right Dock）与底部面板（Bottom Panel）三向视图流转与灵活停靠，支持工作区文件树等面板跨区域流转与状态自适应维护。
+
 - [agent/desktop] 补齐 Goal 自动执行闭环：history schema 48 新增幂等 continuation 记录，成功 Turn 在 Goal 仍为 active、无用户排队、任务未归档且队列未暂停时，于终态计量事务内创建下一 Turn；自动输入使用 `goal-continuation` 来源并复用模型、权限与任务模式。Chat 主 Agent 新增 `update_goal` 生命周期工具，Goal 目标、状态、预算及用量注入 Prompt；失败按 Provider 配额或普通阻塞派生 `usage-limited`／`blocked`，运行中禁止清除 Goal，`turn/start.goal` 支持首 Turn 原子附加 Goal。
 
 - [agent/desktop] 新增 `thread.execution.v2` 与 `worktree/eligibility`，`thread/create.workspace.execution` 支持从 working tree 或指定分支创建并绑定托管 Worktree；history schema 49 记录线程创建与 Worktree 子 operation 的阶段。新版 Desktop 对 Git 项目默认请求 working-tree Worktree，非 Git 项目回落 Local，旧客户端省略 execution 时仍保持 Local。
