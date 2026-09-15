@@ -57,6 +57,7 @@ export function agentTurnStatusToDesktopStatus(
   if (status === 'completed') return 'done'
   if (status === 'failed') return 'error'
   if (status === 'interrupted' || status === 'stopped') return 'interrupted'
+  if (status === 'cancelled') return 'cancelled'
   return 'idle'
 }
 
@@ -70,13 +71,21 @@ export function agentThreadListItemToDesktop(
   return {
     id: thread.id,
     projectId: thread.projectID,
+    workflowId: thread.workflowId ?? thread.sessionGroupId ?? null,
+    executionEnvironment: thread.executionEnvironment ?? null,
+    sessionGroupId: thread.sessionGroupId ?? null,
     sessionName: thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview: thread.preview ?? null,
     firstPrompt: thread.firstUserMessage ?? thread.preview,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     gitBranch: thread.gitBranch,
+    creationSurface: thread.creationSurface,
+    hasScheduledRun: thread.hasScheduledRun,
+    isScheduledSession: thread.isScheduledSession,
+    isFork: thread.isFork,
     standalone,
     archivedAt: isoOrNull(thread.archivedAt),
     permissionMode: permissionModeFromPermissionConfig(thread.settings.permissionConfig),
@@ -127,6 +136,11 @@ export function agentThreadSnapshotToDesktop(
   project?: Project | null,
 ): DesktopSessionSnapshot {
   const latestTurn = latestDisplayTurn(snapshot.turns)
+  const latestModel = [...snapshot.turns].reverse().find(turn => turn.status !== 'queued')?.model
+  const variant = latestModel?.variant
+  const thinkingMode = variant === 'enabled' ? 'enabled'
+    : variant === 'adaptive' ? 'adaptive'
+      : variant === 'disabled' ? 'disabled' : 'default'
   const latestInput = snapshot.inputs.at(-1) ?? null
   const workspace = threadWorkspaceToDesktopWorkspace(
     snapshot.thread.workspace,
@@ -135,30 +149,45 @@ export function agentThreadSnapshotToDesktop(
   const standalone = snapshot.thread.workspace.kind === 'projectless'
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
+  const latestMessage = events
+    .slice()
+    .reverse()
+    .find(e => (e.type === 'message' || e.type === 'assistant_delta') && typeof e.content === 'string' && e.content.trim())
+  const preview = latestMessage?.content?.slice(0, 180) ?? latestInput?.content?.slice(0, 180) ?? null
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
     projectId: snapshot.thread.projectID,
+    workflowId: snapshot.thread.workflowId ?? snapshot.thread.sessionGroupId ?? null,
+    executionEnvironment: snapshot.thread.executionEnvironment ?? null,
+    sessionGroupId: snapshot.thread.sessionGroupId ?? null,
     sessionName: snapshot.thread.title || null,
     customTitle: null,
     aiTitle: null,
+    preview,
     firstPrompt: snapshot.inputs[0]?.content ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     gitBranch: snapshot.thread.gitBranch,
+    creationSurface: snapshot.thread.creationSurface,
+    hasScheduledRun: snapshot.thread.hasScheduledRun,
+    isScheduledSession: snapshot.thread.isScheduledSession,
+    isFork: snapshot.thread.isFork,
     standalone,
+    archivedAt: isoOrNull(snapshot.thread.archivedAt),
     permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
-    providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,
-    model: latestTurn?.model.id ?? latestInput?.model.id ?? null,
+    providerID: latestModel?.providerID,
+    model: latestModel?.id ?? null,
     reviewModel: null,
-    thinkingMode: 'default',
+    thinkingMode,
     hasSystemPrompt: false,
     hasAppendSystemPrompt: false,
     additionalDirectoryCount: 0,
     status: agentTurnStatusToDesktopStatus(latestTurn?.status),
     latestTurnStatus: latestTurn?.status ?? null,
-    pendingPlanApproval: pendingPlanApprovalFromSnapshot(latestTurn, snapshot.items),
+    pendingPlanApproval: snapshot.pendingPlanApproval?.status === 'pending',
+    threadGoal: snapshot.goal,
     lastMessageAt: iso(snapshot.thread.updatedAt),
     createdAt: iso(snapshot.thread.createdAt),
   }
@@ -169,9 +198,10 @@ export function agentThreadSnapshotToDesktop(
       permissionConfig: snapshot.thread.settings.permissionConfig,
       collaborationMode: item.collaborationMode,
       planModeActive,
-      providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,
-      model: latestTurn?.model.id ?? latestInput?.model.id,
-      thinkingMode: 'default',
+      providerID: latestModel?.providerID,
+      model: latestModel?.id,
+      variant,
+      thinkingMode,
       sessionName: item.sessionName ?? undefined,
       additionalDirectories: [],
     },
@@ -211,19 +241,6 @@ function latestDisplayTurn(turns: ThreadSnapshot['turns']): Turn | null {
     .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
   if (active) return active
   return [...turns].reverse().find(turn => turn.status !== 'queued') ?? turns.at(-1) ?? null
-}
-
-function pendingPlanApprovalFromSnapshot(
-  latestTurn: Turn | null,
-  items: ThreadSnapshot['items'],
-): boolean {
-  if (!latestTurn || latestTurn.status !== 'completed') return false
-  return items.some(
-    item =>
-      item.turnId === latestTurn.id &&
-      item.type === 'plan' &&
-      item.status === 'completed',
-  )
 }
 
 export function agentQueuedFollowUpsToDesktop(
@@ -654,22 +671,26 @@ function permissionParamsToRequest(params: Record<string, unknown>): DesktopPerm
 }
 
 export function questionToRequest(question: QuestionItem): DesktopPermissionRequest {
-  const options = questionOptions(question.choices)
-  return { requestId: agentQuestionRequestId(question.id), toolName: 'AskUserQuestion', toolUseId: question.id, input: { question: question.prompt, header: '问题', options, questions: [{ id: question.id, question: question.prompt, header: '问题', options }], answer: question.answer }, description: question.prompt, requestKind: 'tool' }
+  return questionParamsToRequest({
+    interactionId: question.id,
+    questions: question.questions?.length ? question.questions : [{
+      id: question.id, prompt: question.prompt, header: '问题', choices: question.choices,
+    }],
+  })
 }
 
 function questionParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
   const rawQuestions = Array.isArray(params.questions) ? params.questions.map(record) : []
   const first = rawQuestions[0] ?? params
-  const id = stringValue(first.id) || stringValue(params.interactionId) || stringValue(params.id)
+  const id = stringValue(params.interactionId) || stringValue(params.id)
   const question = stringValue(first.prompt) || stringValue(first.question) || stringValue(params.question) || '需要你的确认'
   const mappedQuestions = (rawQuestions.length ? rawQuestions : [first]).map((candidate, index) => {
     const choices = Array.isArray(candidate.choices) ? candidate.choices.map(record) : []
     const options = questionOptions(choices.map((choice, choiceIndex) => ({ id: stringValue(choice.id) || String(choiceIndex), label: stringValue(choice.label) || String(choice.value ?? ''), description: stringValue(choice.description), recommended: choice.recommended === true || choiceIndex === 0 })))
-    return { id: stringValue(candidate.id) || `${id}:${index}`, question: stringValue(candidate.prompt) || stringValue(candidate.question) || question, header: stringValue(candidate.header) || '问题', options }
+    return { id: stringValue(candidate.id) || `${id}:${index}`, question: stringValue(candidate.prompt) || stringValue(candidate.question) || question, header: stringValue(candidate.header) || '问题', options, multiSelect: typeof candidate.maxAnswers === 'number' && candidate.maxAnswers > 1 }
   })
   const primary = mappedQuestions[0]!
-  return { requestId: agentQuestionRequestId(primary.id), toolName: 'AskUserQuestion', toolUseId: primary.id, input: { question: primary.question, header: primary.header, options: primary.options, questions: mappedQuestions }, description: primary.question, requestKind: 'tool' }
+  return { requestId: agentQuestionRequestId(id), toolName: 'AskUserQuestion', toolUseId: id, input: { question: primary.question, header: primary.header, options: primary.options, questions: mappedQuestions }, description: primary.question, requestKind: 'tool' }
 }
 
 function liveItemMetadata(params: Record<string, unknown>, kind: 'text' | 'reasoning' | 'plan'): Record<string, unknown> {
@@ -682,7 +703,7 @@ function liveItemMetadata(params: Record<string, unknown>, kind: 'text' | 'reaso
 }
 
 function questionOptions(choices: ReadonlyArray<{ label: string; description?: string; recommended: boolean }>) {
-  if (choices.length >= 2) return choices.map(choice => ({ label: choice.recommended && !choice.label.includes('(Recommended)') ? `${choice.label} (Recommended)` : choice.label, description: choice.description ?? choice.label }))
+  if (choices.length >= 2) return choices.map(choice => ({ label: choice.recommended && !choice.label.includes('(Recommended)') ? `${choice.label} (Recommended)` : choice.label, description: choice.description ?? '' }))
   return [{ label: '继续 (Recommended)', description: '提交回答并继续执行。' }, { label: '忽略', description: '跳过这个问题。' }]
 }
 
@@ -763,6 +784,7 @@ export function projectToDesktopWorkspace(project: Project | null | undefined, p
         ? {
             defaultModel: value.settings.defaultModel,
             instructions: value.settings.instructions ?? '',
+            executionEnvironment: value.settings.executionEnvironment === 'local' ? 'local' : 'auto',
             version: value.settings.version ?? 0,
           }
         : undefined,

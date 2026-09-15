@@ -16,6 +16,8 @@ describe("工作区工具", () => {
     const plan = executor.exposurePlan({
       taskMode: "plan",
       sandboxMode: "danger-full-access",
+      approvalPolicy: "on-request",
+
       profile: "main",
     })
   expect(plan.exposed).not.toContain("PowerShell")
@@ -29,6 +31,8 @@ describe("工作区工具", () => {
     const chat = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
+
       profile: "main",
     })
     expect(chat.exposed).toContain("update_plan")
@@ -36,17 +40,23 @@ describe("工作区工具", () => {
     expect(executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
+
       profile: "main",
       defaultModeRequestUserInput: true,
     }).exposed).toContain("request_user_input")
     expect(executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
+
       profile: "worker",
     }).exposed).not.toContain("update_plan")
     expect(executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
+
       profile: "worker",
       defaultModeRequestUserInput: true,
     }).exposed).not.toContain("request_user_input")

@@ -1,5 +1,5 @@
 import { isAbsolute, normalize } from "node:path"
-import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import type { AgentHarnessEvent } from "../orchestration/harness/types"
 import type { EventEnvelope } from "../domain"
 import type { EventHubSignal } from "../storage/events/EventHub"
 import type { AgentLogger, LogContext, LogLevel } from "./AgentLogger"

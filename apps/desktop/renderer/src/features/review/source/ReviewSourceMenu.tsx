@@ -54,7 +54,7 @@ export function ReviewSourceMenu({
       trigger={
         <button
           aria-label="切换变更范围"
-          className="interactive-row interactive-row--toolbar review-scope-trigger"
+          className="review-scope-trigger"
           type="button"
         >
           <span className="review-scope-trigger-label">
@@ -167,6 +167,7 @@ function ReviewCommitSourceSubmenu({
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
+          data-theme-component="dropdown-surface"
           alignOffset={-4}
           className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
           collisionPadding={6}

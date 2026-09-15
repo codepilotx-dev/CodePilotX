@@ -9,6 +9,7 @@ export type DesktopApiMethod = Exclude<
   | 'onSessionStoreChange'
   | 'onDesktopSettingsChange'
   | 'onUpdateStatusChange'
+  | 'publishCanonicalSessionStatus'
 >
 
 export const DESKTOP_API_METHODS = [
@@ -41,8 +42,6 @@ export const DESKTOP_API_METHODS = [
   'closeBrowser',
   'setBrowserBounds',
   'clearBrowserAllowedSites',
-  'listBuiltinPlugins',
-  'setBuiltinPluginEnabled',
   'listSkillsCatalog',
   'installSkill',
   'listMcpServers',
@@ -91,9 +90,6 @@ export const DESKTOP_API_METHODS = [
   'listWorkspaceFiles',
   'readWorkspaceFile',
   'readOptionalWorkspaceFile',
-  'chooseComposerFiles',
-  'authorizeComposerFilePaths',
-  'readComposerFiles',
   'getWorkspaceDiff',
   'getThemeSettings',
   'saveThemeSettings',

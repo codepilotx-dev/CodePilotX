@@ -13,6 +13,7 @@ const operation = (params: Record<string, unknown>) => ({
 export const worktreeHandlers = {
   name: "worktree",
   methods: [
+    "worktree/eligibility",
     "worktree/create",
     "worktree/list",
     "worktree/read",
@@ -27,6 +28,8 @@ export const worktreeHandlers = {
     const service = runtime.dependencies.worktrees
     const params = optionalRecord(rawParams)
     switch (method) {
+      case "worktree/eligibility":
+        return service.eligibility(stringParam(params, "projectId"))
       case "worktree/create": {
         const starting = record(params.startingState, "startingState")
         const type = enumValue(starting.type, ["branch", "working-tree"] as const, "startingState.type")

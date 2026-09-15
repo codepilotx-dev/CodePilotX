@@ -9,6 +9,7 @@ import type {
   DesktopExternalOpenTarget,
   DesktopWorkspace,
 } from '../../../../shared/types.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -20,32 +21,34 @@ import {
   PopoverSeparator,
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { OpenTargetIcon } from '../../../components/ui/openTargetIcon.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
 } from '../../../services/externalOpenTargetsStore.js'
-import { FileTypeIcon } from '../FileTypeIcon.js'
 import type { MarkdownFileViewMode } from '../dock/rightDockState.js'
 
 export type FileBreadcrumbToolbarProps = {
   path: string
   readonly?: boolean
   treeAvailable: boolean
+  treeToggleRef?: React.Ref<HTMLButtonElement>
   treeVisible: boolean
   markdownViewMode?: MarkdownFileViewMode
   switching?: boolean
   workspace: DesktopWorkspace | null
   workspacePath: string
   onToggleTree: () => void
-  onToggleMarkdownViewMode?: () => void
+  onToggleMarkdownViewMode?: (mode: MarkdownFileViewMode) => void
 }
 
 export function FileBreadcrumbToolbar({
   path,
   readonly = false,
   treeAvailable,
+  treeToggleRef,
   treeVisible,
   markdownViewMode,
   switching = false,
@@ -121,12 +124,6 @@ export function FileBreadcrumbToolbar({
                   className="file-breadcrumb-toolbar__filename"
                   title={path}
                 >
-                  <FileTypeIcon
-                    aria-hidden="true"
-                    path={path}
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
                   <strong>{segment.label}</strong>
                 </span>
               ) : (
@@ -143,29 +140,27 @@ export function FileBreadcrumbToolbar({
       </div>
       <div className="file-breadcrumb-toolbar__actions">
         {markdownViewMode && onToggleMarkdownViewMode ? (
-          <button
-            aria-busy={switching}
+          <SegmentedControl<MarkdownFileViewMode>
+            ariaLabel="Markdown 查看模式"
             className="file-breadcrumb-toolbar__view-mode"
-            disabled={switching}
-            type="button"
-            onClick={onToggleMarkdownViewMode}
-          >
-            {markdownViewMode === 'rich' ? '查看源代码' : '查看预览'}
-          </button>
+            onChange={onToggleMarkdownViewMode}
+            options={[
+              { value: 'rich', label: '预览', disabled: switching },
+              { value: 'source', label: '源码', disabled: switching },
+            ]}
+            overflowMode="fit"
+            value={markdownViewMode}
+          />
         ) : null}
         {readonly ? <small>只读</small> : null}
-        <button
-          aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
+        <IconButton
+          ref={treeToggleRef}
           aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"
+          color="ghostSecondary"
           disabled={!treeAvailable}
-          title={
-            treeAvailable
-              ? treeVisible
-                ? '隐藏文件树'
-                : '显示文件树'
-              : '面板过窄，无法显示文件树'
-          }
+          size="toolbar"
+          title={treeVisible ? '隐藏文件树' : '显示文件树'}
           type="button"
           onClick={onToggleTree}
         >
@@ -174,9 +169,11 @@ export function FileBreadcrumbToolbar({
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
-        </button>
+        </IconButton>
         <div className="file-breadcrumb-toolbar__open-group">
-          <button
+          <IconButton
+            color="ghostSecondary"
+            size="toolbar"
             className="file-breadcrumb-toolbar__open"
             disabled={!absolutePath || !preferredOpenTarget}
             title={
@@ -197,8 +194,7 @@ export function FileBreadcrumbToolbar({
                 targetId={preferredOpenTarget.id}
               />
             ) : null}
-            <span>打开</span>
-          </button>
+          </IconButton>
           <PopoverMenu
             align="end"
             className="file-breadcrumb-open-popover popover-menu--grid"
@@ -207,10 +203,11 @@ export function FileBreadcrumbToolbar({
             sideOffset={4}
             width={220}
             trigger={
-              <button
-                aria-label="选择外部打开方式"
+              <IconButton
                 className="file-breadcrumb-toolbar__open-menu"
+                color="ghostSecondary"
                 disabled={!absolutePath || openTargets.length === 0}
+                size="toolbar"
                 title="选择外部打开方式"
                 type="button"
               >
@@ -219,7 +216,7 @@ export function FileBreadcrumbToolbar({
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </button>
+              </IconButton>
             }
             onOpenChange={setOpenTargetMenu}
           >
@@ -248,7 +245,7 @@ export function FileBreadcrumbToolbar({
                 </PopoverRadioItem>
               ))}
             </PopoverRadioGroup>
-            <PopoverSeparator className="sidebar-context-menu-separator" />
+            <PopoverSeparator />
             <PopoverItem
               icon={
                 <FolderOpen

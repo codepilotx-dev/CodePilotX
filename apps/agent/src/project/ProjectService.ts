@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 import { realpath, stat } from "node:fs/promises"
+import type { ProjectExecutionEnvironment } from "@codepilotx/shared/thread"
 import type { ModelRef } from "../domain"
 import { AgentError } from "../domain"
 import type { RepositoryDatabase } from "../storage/repositories/RepositoryDatabase"
@@ -140,7 +141,11 @@ export class ProjectService {
 
   updateSettings(input: {
     projectID: string
-    settings: { defaultModel?: ModelRef | null; instructions?: string }
+    settings: {
+      defaultModel?: ModelRef | null
+      instructions?: string
+      executionEnvironment?: ProjectExecutionEnvironment
+    }
     expectedVersion: number
     operationID: string
   }) {
@@ -158,6 +163,7 @@ export class ProjectService {
     const saved = this.db.saveProjectSettings(input.projectID, {
       defaultModel: input.settings.defaultModel === undefined ? current.defaultModel : input.settings.defaultModel,
       instructions: input.settings.instructions ?? current.instructions,
+      executionEnvironment: input.settings.executionEnvironment ?? current.executionEnvironment,
     }, input.expectedVersion)
     const result = { projectId: input.projectID, settings: saved, version: saved.version }
     this.db.completeProjectOperation(input.operationID, result)

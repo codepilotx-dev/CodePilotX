@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { decodeApprovalPolicy, encodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { ToolInvocation } from "../src/domain"
+import { executionPolicyFromV4 } from "../src/permission/ExecutionPolicy"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
 import { secretScrubber } from "../src/security/SecretScrubber"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
@@ -23,6 +24,27 @@ const invocation = (overrides: Partial<ToolInvocation> = {}): ToolInvocation => 
 })
 
 describe("统一权限真值", () => {
+  test("旧 sandboxMode 只映射文件访问范围且 Shell 环境固定为宿主机", () => {
+    const catalog = new ToolRegistry()
+    const cases = [
+      ["read-only", "read-only"],
+      ["workspace-write", "workspace-write"],
+      ["danger-full-access", "full-access"],
+    ] as const
+
+    for (const [sandboxMode, fileAccess] of cases) {
+      expect(executionPolicyFromV4({
+        sandboxMode,
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+      })).toMatchObject({
+        fileAccess,
+        shellEnvironment: "host",
+      })
+      expect(catalog.list("chat", sandboxMode).map((tool) => tool.sdkName)).toContain("PowerShell")
+    }
+  })
+
   test("approval policy 与 reviewer 决策矩阵", () => {
     const engine = new PermissionDecisionEngine()
     const shell = new ToolRegistry().get("PowerShell")

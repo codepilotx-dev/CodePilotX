@@ -50,6 +50,20 @@ export class ComposerDraftStore {
     return this.set(key, update(this.get(key)))
   }
 
+  prefillTextIfEmpty(key: ComposerDraftKey, text: string): ComposerDraft {
+    const current = this.get(key)
+    if (current.document.text.trim()) return current
+    const next = this.set(key, {
+      ...current,
+      document: {
+        text,
+        tokens: [],
+      },
+    })
+    this.#emit()
+    return next
+  }
+
   setSkillInvocation(
     key: ComposerDraftKey,
     skillInvocation: ComposerSkillInvocation | undefined,
@@ -81,6 +95,24 @@ export class ComposerDraftStore {
   clear(key: ComposerDraftKey): ComposerDraft {
     const next = createEmptyComposerDraft(this.#createClientId())
     this.#drafts.set(key, next)
+    return cloneDraft(next)
+  }
+
+  completeSubmission(
+    key: ComposerDraftKey,
+    consumedClientId: string,
+    options: { clearContent: boolean },
+  ): ComposerDraft {
+    const current = this.#drafts.get(key)
+    if (!current || current.clientId !== consumedClientId) {
+      return current ? cloneDraft(current) : this.get(key)
+    }
+    const nextClientId = this.#createClientId()
+    const next = options.clearContent
+      ? createEmptyComposerDraft(nextClientId)
+      : { ...current, clientId: nextClientId }
+    this.#drafts.set(key, next)
+    this.#emit()
     return cloneDraft(next)
   }
 
@@ -123,6 +155,13 @@ export function createEmptyComposerDraft(clientId: string): ComposerDraft {
     attachments: [],
     collaborationMode: 'default',
   }
+}
+
+export function resolveActivatedSessionComposerInput(
+  currentInput: string | undefined,
+  draftText: string | undefined,
+): string {
+  return currentInput?.trim() ? currentInput : draftText ?? currentInput ?? ''
 }
 
 function cloneDocument(document: ComposerDocument): ComposerDocument {

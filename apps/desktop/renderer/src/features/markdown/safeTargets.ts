@@ -1,8 +1,10 @@
+import { parseThreadDeepLink } from '@codepilotx/shared/thread-reference'
 import type { MarkdownFileReference } from './types.js'
 
 export type SafeMarkdownTarget =
   | { kind: 'external'; url: string }
   | { kind: 'anchor'; href: string }
+  | { kind: 'thread'; threadId: string }
   | ({ kind: 'file' } & MarkdownFileReference)
   | { kind: 'unsafe' }
 
@@ -21,6 +23,11 @@ export function classifyMarkdownTarget(target: string): SafeMarkdownTarget {
   }
   if (BARE_FILE_PATH.test(value)) {
     return { kind: 'file', ...parseMarkdownFileReference(value) }
+  }
+
+  const threadId = parseThreadDeepLink(value)
+  if (threadId !== null) {
+    return { kind: 'thread', threadId }
   }
 
   try {

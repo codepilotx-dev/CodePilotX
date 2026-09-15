@@ -13,13 +13,17 @@ import type {
   DesktopThemeVariant,
 } from '../../../shared/types.js'
 import {
-  DEFAULT_DESKTOP_THEME_SETTINGS,
   getCodeThemeSelectionForVariant,
   getDesktopThemeForSelection,
   getDesktopThemeIdForVariant,
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { deriveThemeVariables } from './themeVariables.js'
+import { applyThemeFontFaceStyles } from './themeFontFaces.js'
+import {
+  resolveStartupThemeSettings,
+  withStartupThemeSeed,
+} from '../../startup/startupThemeSeed.js'
 import {
   DesktopThemeContext,
   type DesktopThemeContextValue,
@@ -27,23 +31,20 @@ import {
 } from './themeContext.js'
 
 const SETTINGS_THEME_VARIABLES = [
-  '--font-family-sans',
-  '--font-family-mono',
-  '--font-size-ui',
-  '--font-size-code',
-  '--font-size-11',
-  '--font-size-12',
-  '--font-size-13',
-  '--font-size-14',
-  '--font-size-15',
-  '--font-size-16',
-  '--font-size-17',
-  '--font-size-18',
-  '--font-size-20',
-  '--font-size-24',
-  '--font-size-26',
-  '--vscode-font-size',
-  '--vscode-editor-font-size',
+  '--cpx-sys-font-family-sans',
+  '--cpx-sys-font-family-mono',
+  '--cpx-sys-font-size-ui',
+  '--cpx-sys-font-size-code',
+  '--cpx-sys-font-size-xs',
+  '--cpx-sys-font-size-sm',
+  '--cpx-sys-font-size-md',
+  '--cpx-sys-font-size-lg',
+  '--cpx-sys-font-size-xl',
+  '--cpx-sys-font-size-2xl',
+  '--cpx-sys-font-size-3xl',
+  '--cpx-sys-font-size-4xl',
+  '--cpx-sys-font-family-mono',
+  '--cpx-sys-font-family-sans',
 ]
 
 export function DesktopThemeProvider({
@@ -51,12 +52,12 @@ export function DesktopThemeProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  const [settings, setSettings] = useState<DesktopThemeSettings>(
-    DEFAULT_DESKTOP_THEME_SETTINGS,
+  const [startupSettings] = useState(() =>
+    resolveStartupThemeSettings(window.location.href),
   )
-  const [draftSettings, setDraftSettings] = useState<DesktopThemeSettings>(
-    DEFAULT_DESKTOP_THEME_SETTINGS,
-  )
+  const [settings, setSettings] = useState<DesktopThemeSettings>(startupSettings)
+  const [draftSettings, setDraftSettings] =
+    useState<DesktopThemeSettings>(startupSettings)
   const draftSettingsRef = useRef(draftSettings)
   draftSettingsRef.current = draftSettings
   const committedSettingsRef = useRef(settings)
@@ -82,13 +83,7 @@ export function DesktopThemeProvider({
         setSettings(normalized)
         setDraftSettings(normalized)
       })
-      .catch(() => {
-        if (!mounted) return
-        committedSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
-        draftSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
-        setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-        setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-      })
+      .catch(() => undefined)
     return () => {
       mounted = false
     }
@@ -129,6 +124,10 @@ export function DesktopThemeProvider({
 
   const draftResolvedVariant =
     draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
+  const reducedMotion =
+    draftSettings.reduceMotion === 'system'
+      ? systemReduceMotion
+      : draftSettings.reduceMotion === 'on'
   const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
   const activeTheme = useMemo(
     () => getDesktopThemeForSelection(draftSettings, draftResolvedVariant),
@@ -136,16 +135,47 @@ export function DesktopThemeProvider({
   )
 
   useEffect(() => {
+    if (!window.codePilotXDesktop) return
+    const committedVariant = settings.mode === 'system'
+      ? systemVariant
+      : settings.mode
+    const committedTheme = settings.chromeThemes[committedVariant]
+    const nextUrl = withStartupThemeSeed(window.location.href, {
+      version: 1,
+      variant: committedVariant,
+      surface: committedTheme.surface,
+      ink: committedTheme.ink,
+    })
+    window.history.replaceState(
+      window.history.state,
+      '',
+      relativeApplicationUrl(nextUrl),
+    )
+  }, [settings, systemVariant])
+
+  useEffect(() => {
     applyDesktopTheme(
       draftSettings,
       draftResolvedVariant,
-      systemReduceMotion,
+      reducedMotion,
     )
   }, [
     draftResolvedVariant,
     draftSettings,
-    systemReduceMotion,
+    reducedMotion,
   ])
+
+  useEffect(() => {
+    // Inject dynamic @font-face rules that bind local font sources and
+    // font-variation-settings ('wght') to dedicated application font aliases.
+    const config = getDesktopThemeForSelection(
+      draftSettings,
+      draftResolvedVariant,
+    )
+    const uiFace = config.theme.fonts.uiFace ?? null
+    const codeFace = config.theme.fonts.codeFace ?? null
+    applyThemeFontFaceStyles(uiFace, codeFace)
+  }, [draftResolvedVariant, draftSettings])
 
   const persistSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<DesktopThemeSettings> => {
@@ -288,6 +318,7 @@ export function DesktopThemeProvider({
         draftSettings,
         draftResolvedVariant,
       ),
+      reducedMotion,
       draft,
       setMode,
       saveSettings,
@@ -297,6 +328,7 @@ export function DesktopThemeProvider({
       draft,
       draftResolvedVariant,
       draftSettings,
+      reducedMotion,
       saveSettings,
       setMode,
       settings,
@@ -313,13 +345,9 @@ export function DesktopThemeProvider({
 function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
-  systemReduceMotion: boolean,
+  reduceMotion: boolean,
 ): void {
   const root = document.documentElement
-  const reduceMotion =
-    settings.reduceMotion === 'system'
-      ? systemReduceMotion
-      : settings.reduceMotion === 'on'
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.dataset.windowType = window.codePilotXDesktop ? 'electron' : 'browser-mock'
@@ -348,21 +376,28 @@ function applyDesktopTheme(
 
   const uiFontSize = clamp(settings.fontSizes.ui, 11, 16)
   const codeFontSize = clamp(settings.fontSizes.code, 8, 24)
-  root.style.setProperty('--font-size-ui', `${uiFontSize}px`)
-  root.style.setProperty('--font-size-code', `${codeFontSize}px`)
-  root.style.setProperty('--vscode-font-size', `${uiFontSize}px`)
-  root.style.setProperty('--vscode-editor-font-size', `${codeFontSize}px`)
-  root.style.setProperty('--font-size-11', `${uiFontSize - 3}px`)
-  root.style.setProperty('--font-size-12', `${uiFontSize - 2}px`)
-  root.style.setProperty('--font-size-13', `${uiFontSize - 1}px`)
-  root.style.setProperty('--font-size-14', `${uiFontSize}px`)
-  root.style.setProperty('--font-size-15', `${uiFontSize + 1}px`)
-  root.style.setProperty('--font-size-16', `${uiFontSize + 2}px`)
-  root.style.setProperty('--font-size-17', `${uiFontSize + 3}px`)
-  root.style.setProperty('--font-size-18', `${uiFontSize + 4}px`)
-  root.style.setProperty('--font-size-20', `${uiFontSize + 6}px`)
-  root.style.setProperty('--font-size-24', `${uiFontSize + 10}px`)
-  root.style.setProperty('--font-size-26', `${uiFontSize + 12}px`)
+  const delta = uiFontSize - 14
+  const scale = {
+    xs: 12,
+    sm: 13,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    '2xl': 20,
+    '3xl': 24,
+    '4xl': 28,
+  }
+
+  root.style.setProperty('--cpx-sys-font-size-ui', `${uiFontSize}px`)
+  root.style.setProperty('--cpx-sys-font-size-code', `${codeFontSize}px`)
+  for (const [name, base] of Object.entries(scale)) {
+    root.style.setProperty(`--cpx-sys-font-size-${name}`, `${base + delta}px`)
+  }
+}
+
+function relativeApplicationUrl(url: string): string {
+  const parsed = new URL(url)
+  return parsed.pathname + parsed.search + parsed.hash
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {

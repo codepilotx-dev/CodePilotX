@@ -38,7 +38,6 @@ export function useHighlightedCode({
     )
   })
   const requestGenerationRef = useRef(0)
-  const lastStreamingRequestAtRef = useRef(0)
 
   useEffect(() => {
     const requestGeneration = ++requestGenerationRef.current
@@ -52,17 +51,13 @@ export function useHighlightedCode({
       return
     }
 
-    const now = Date.now()
-    const delay = streaming
-      ? Math.max(
-          0,
-          STREAMING_HIGHLIGHT_INTERVAL_MS -
-            (now - lastStreamingRequestAtRef.current),
-        )
-      : 0
+    // Streaming updates use a quiet-period debounce: each new chunk cancels the
+    // pending request, so continuously growing code stays on the synchronous
+    // plain-text presentation until generation pauses. A completed code block
+    // skips the delay and receives its final highlight immediately.
+    const delay = streaming ? STREAMING_HIGHLIGHT_INTERVAL_MS : 0
 
     const timeout = window.setTimeout(() => {
-      if (streaming) lastStreamingRequestAtRef.current = Date.now()
       void highlightCode({
         code,
         language: requestedLanguage,

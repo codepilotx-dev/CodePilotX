@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { normalizeLiveResizeSize } from './useLiveResizeValue.js'
 
 export const SIDEBAR_COLLAPSE_HOLD_MS = 600
 export const SIDEBAR_COLLAPSE_TARGET_SIZE = 72
@@ -24,6 +25,8 @@ type ResizeStart = {
   x: number
   width: number
 }
+
+type StopResizeOutcome = 'commit' | 'restore' | 'collapse'
 
 type ComputeSidebarResizeCollapseConfirmInput = {
   rawWidth: number
@@ -157,8 +160,13 @@ export function useSidebarResizeCollapseConfirm({
   const holdTimerRef = useRef<number | null>(null)
   const pointerIdRef = useRef<number | null>(null)
   const pointerTargetRef = useRef<HTMLDivElement | null>(null)
-  const previewFrameRef = useRef<number | null>(null)
   const previewWidthRef = useRef<number | null>(null)
+  const lastEmittedPreviewRef = useRef<number | null>(null)
+  const pointerMoveFrameRef = useRef<number | null>(null)
+  const pendingPointerMoveRef = useRef<{
+    x: number
+    y: number
+  } | null>(null)
   const settlementFrameRef = useRef<number | null>(null)
   const settlementPaintFrameRef = useRef<number | null>(null)
   const pendingCommitWidthRef = useRef<number | null>(null)
@@ -202,30 +210,25 @@ export function useSidebarResizeCollapseConfirm({
     }
   }, [])
 
-  const flushPreview = useCallback((): void => {
-    if (previewFrameRef.current !== null) {
-      window.cancelAnimationFrame(previewFrameRef.current)
-      previewFrameRef.current = null
-    }
-    if (previewWidthRef.current !== null) {
-      onResizePreviewRef.current?.(previewWidthRef.current)
-    }
+  const emitPreview = useCallback((nextWidth: number): void => {
+    const normalizedWidth = normalizeLiveResizeSize(nextWidth)
+    previewWidthRef.current = normalizedWidth
+    if (normalizedWidth === lastEmittedPreviewRef.current) return
+    lastEmittedPreviewRef.current = normalizedWidth
+    onResizePreviewRef.current?.(normalizedWidth)
   }, [])
 
-  const queuePreview = useCallback((nextWidth: number): void => {
-    previewWidthRef.current = nextWidth
-    if (!onResizePreviewRef.current || previewFrameRef.current !== null) return
-    previewFrameRef.current = window.requestAnimationFrame(() => {
-      previewFrameRef.current = null
-      if (previewWidthRef.current !== null) {
-        onResizePreviewRef.current?.(previewWidthRef.current)
-      }
-    })
+  const clearPointerMoveFrame = useCallback((): void => {
+    if (pointerMoveFrameRef.current !== null) {
+      window.cancelAnimationFrame(pointerMoveFrameRef.current)
+      pointerMoveFrameRef.current = null
+    }
+    pendingPointerMoveRef.current = null
   }, [])
 
-  const stopResize = useCallback((commit: boolean): void => {
+  const stopResize = useCallback((outcome: StopResizeOutcome): void => {
     if (resizePhaseRef.current !== 'dragging') {
-      if (!commit && resizePhaseRef.current === 'settling') {
+      if (outcome !== 'commit' && resizePhaseRef.current === 'settling') {
         pendingCommitWidthRef.current = null
         clearSettlementFrames()
         onResizePreviewRef.current?.(null)
@@ -245,11 +248,13 @@ export function useSidebarResizeCollapseConfirm({
     ) {
       pointerTarget.releasePointerCapture(pointerId)
     }
-    flushPreview()
+    clearPointerMoveFrame()
     previewWidthRef.current = null
+    lastEmittedPreviewRef.current = null
     setResizing(false)
     clearCollapseConfirm()
     document.body.classList.remove(
+      'workbench-is-resizing',
       'right-dock-is-resizing',
       'bottom-panel-is-resizing',
     )
@@ -261,7 +266,13 @@ export function useSidebarResizeCollapseConfirm({
       return
     }
 
-    if (!commit || finalWidth === null) {
+    if (outcome === 'collapse') {
+      pendingCommitWidthRef.current = null
+      setResizePhase('idle')
+      return
+    }
+
+    if (outcome !== 'commit' || finalWidth === null) {
       pendingCommitWidthRef.current = null
       onResizePreviewRef.current(null)
       setResizePhase('idle')
@@ -274,10 +285,18 @@ export function useSidebarResizeCollapseConfirm({
   }, [
     clearCollapseConfirm,
     clearSettlementFrames,
-    flushPreview,
+    clearPointerMoveFrame,
     onSetWidth,
     setResizePhase,
   ])
+
+  const collapseFromResize = useCallback((): void => {
+    stopResize('collapse')
+    onCollapse()
+    window.requestAnimationFrame(() => {
+      onResizePreviewRef.current?.(null)
+    })
+  }, [onCollapse, stopResize])
 
   useEffect(() => {
     const pendingWidth = pendingCommitWidthRef.current
@@ -304,10 +323,9 @@ export function useSidebarResizeCollapseConfirm({
     clearHoldTimer()
     setCollapseConfirmKey(current => current + 1)
     holdTimerRef.current = window.setTimeout(() => {
-      stopResize(false)
-      onCollapse()
+      collapseFromResize()
     }, SIDEBAR_COLLAPSE_HOLD_MS)
-  }, [clearHoldTimer, onCollapse, stopResize])
+  }, [clearHoldTimer, collapseFromResize])
 
   const processPointerMove = useCallback(
     (pointerX: number, pointerY: number): void => {
@@ -324,12 +342,11 @@ export function useSidebarResizeCollapseConfirm({
           maxWidth,
           Math.max(minWidth, rawWidth),
         )
-        if (onResizePreview) queuePreview(nextWidth)
+        if (onResizePreview) emitPreview(nextWidth)
         return
       }
       if (shouldCollapseSidebarResize(rawWidth, collapseBehavior)) {
-        stopResize(false)
-        onCollapse()
+        collapseFromResize()
         return
       }
       if (collapseBehavior.kind === 'threshold') {
@@ -337,7 +354,7 @@ export function useSidebarResizeCollapseConfirm({
           maxWidth,
           Math.max(minWidth, rawWidth),
         )
-        if (onResizePreview) queuePreview(nextWidth)
+        if (onResizePreview) emitPreview(nextWidth)
         else onSetWidth(nextWidth)
         clearCollapseConfirm()
         return
@@ -352,7 +369,7 @@ export function useSidebarResizeCollapseConfirm({
       })
 
       const nextWidth = Math.min(maxWidth, result.width)
-      if (onResizePreview) queuePreview(nextWidth)
+      if (onResizePreview) emitPreview(nextWidth)
       else onSetWidth(nextWidth)
 
       if (!result.armed) {
@@ -372,20 +389,45 @@ export function useSidebarResizeCollapseConfirm({
       direction,
       maxWidth,
       minWidth,
-      onCollapse,
+      collapseFromResize,
       onResizePreview,
       onSetWidth,
-      queuePreview,
+      emitPreview,
       scheduleCollapseHold,
       stopResize,
     ],
   )
 
+  const flushPointerMove = useCallback((): void => {
+    if (pointerMoveFrameRef.current !== null) {
+      window.cancelAnimationFrame(pointerMoveFrameRef.current)
+      pointerMoveFrameRef.current = null
+    }
+    const pending = pendingPointerMoveRef.current
+    pendingPointerMoveRef.current = null
+    if (pending) processPointerMove(pending.x, pending.y)
+  }, [processPointerMove])
+
+  const queuePointerMove = useCallback(
+    (pointerX: number, pointerY: number): void => {
+      pendingPointerMoveRef.current = { x: pointerX, y: pointerY }
+      if (pointerMoveFrameRef.current !== null) return
+      pointerMoveFrameRef.current = window.requestAnimationFrame(() => {
+        pointerMoveFrameRef.current = null
+        const pending = pendingPointerMoveRef.current
+        pendingPointerMoveRef.current = null
+        if (pending) processPointerMove(pending.x, pending.y)
+      })
+    },
+    [processPointerMove],
+  )
+
   useEffect(() => {
     if (!resizing) return
 
-    const handleWindowBlur = (): void => stopResize(false)
+    const handleWindowBlur = (): void => stopResize('restore')
     window.addEventListener('blur', handleWindowBlur)
+    document.body.classList.add('workbench-is-resizing')
     if (direction === 'bottom') {
       document.body.classList.add('bottom-panel-is-resizing')
     } else if (direction === 'right') {
@@ -397,19 +439,18 @@ export function useSidebarResizeCollapseConfirm({
     return () => {
       window.removeEventListener('blur', handleWindowBlur)
       document.body.classList.remove(
+        'workbench-is-resizing',
         'right-dock-is-resizing',
         'bottom-panel-is-resizing',
       )
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       clearHoldTimer()
-      if (previewFrameRef.current !== null) {
-        window.cancelAnimationFrame(previewFrameRef.current)
-        previewFrameRef.current = null
-      }
+      clearPointerMoveFrame()
     }
   }, [
     clearHoldTimer,
+    clearPointerMoveFrame,
     direction,
     resizing,
     stopResize,
@@ -418,18 +459,15 @@ export function useSidebarResizeCollapseConfirm({
   useEffect(() => {
     return () => {
       clearSettlementFrames()
-      if (previewFrameRef.current !== null) {
-        window.cancelAnimationFrame(previewFrameRef.current)
-        previewFrameRef.current = null
-      }
+      clearPointerMoveFrame()
       onResizePreviewRef.current?.(null)
       resizePhaseRef.current = 'idle'
     }
-  }, [clearSettlementFrames])
+  }, [clearPointerMoveFrame, clearSettlementFrames])
 
   useEffect(() => {
     if (collapsed) {
-      stopResize(false)
+      stopResize('restore')
     }
   }, [collapsed, stopResize])
 
@@ -444,8 +482,10 @@ export function useSidebarResizeCollapseConfirm({
       x: direction === 'bottom' ? event.clientY : event.clientX,
       width,
     }
-    previewWidthRef.current = width
-    onResizePreview?.(width)
+    const normalizedWidth = normalizeLiveResizeSize(width)
+    previewWidthRef.current = normalizedWidth
+    lastEmittedPreviewRef.current = normalizedWidth
+    onResizePreview?.(normalizedWidth)
     setResizePhase('dragging')
     setResizing(true)
   }
@@ -454,28 +494,29 @@ export function useSidebarResizeCollapseConfirm({
     event: React.PointerEvent<HTMLDivElement>,
   ): void {
     if (pointerIdRef.current !== event.pointerId) return
-    processPointerMove(event.clientX, event.clientY)
+    queuePointerMove(event.clientX, event.clientY)
   }
 
   function handlePointerUp(
     event: React.PointerEvent<HTMLDivElement>,
   ): void {
     if (pointerIdRef.current !== event.pointerId) return
-    stopResize(true)
+    flushPointerMove()
+    stopResize('commit')
   }
 
   function handlePointerCancel(
     event: React.PointerEvent<HTMLDivElement>,
   ): void {
     if (pointerIdRef.current !== event.pointerId) return
-    stopResize(false)
+    stopResize('restore')
   }
 
   function handleLostPointerCapture(
     event: React.PointerEvent<HTMLDivElement>,
   ): void {
     if (pointerIdRef.current !== event.pointerId) return
-    stopResize(false)
+    stopResize('restore')
   }
 
   function handleResizeKey(event: React.KeyboardEvent<HTMLDivElement>): void {

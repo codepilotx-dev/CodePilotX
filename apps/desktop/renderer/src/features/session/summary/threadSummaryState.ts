@@ -1,12 +1,9 @@
 import * as React from "react";
 
-export const THREAD_SUMMARY_PANEL_WIDTH = 272;
+export const THREAD_SUMMARY_PANEL_WIDTH = 260;
 export const THREAD_SUMMARY_PANEL_GAP = 16;
-export const THREAD_SUMMARY_READING_WIDTH = 640;
 export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959;
 export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535;
-export const THREAD_SUMMARY_SHIFT_PX =
-  -(THREAD_SUMMARY_PANEL_WIDTH + THREAD_SUMMARY_PANEL_GAP) / 2;
 
 export type ThreadSummaryDisplayMode = "overlay" | "shift" | "gutter";
 
@@ -18,7 +15,6 @@ export type ThreadSummaryPreferenceState = {
 export type ThreadSummaryState = ThreadSummaryPreferenceState & {
   displayMode: ThreadSummaryDisplayMode;
   shouldShowInline: boolean;
-  contentShift: number;
 };
 
 const DEFAULT_PREFERENCE: ThreadSummaryPreferenceState = {
@@ -55,36 +51,33 @@ export function resolveThreadSummaryDisplayMode(
   return "gutter";
 }
 
+export function resolveThreadSummaryDisplayModeUpdate(
+  currentMode: ThreadSummaryDisplayMode,
+  containerWidth: number,
+): ThreadSummaryDisplayMode | null {
+  const nextMode = resolveThreadSummaryDisplayMode(containerWidth);
+  return nextMode === currentMode ? null : nextMode;
+}
+
 export function deriveThreadSummaryState(
   containerWidth: number,
   preference: ThreadSummaryPreferenceState,
 ): ThreadSummaryState {
   const displayMode = resolveThreadSummaryDisplayMode(containerWidth);
+  return deriveThreadSummaryStateForMode(displayMode, preference);
+}
+
+function deriveThreadSummaryStateForMode(
+  displayMode: ThreadSummaryDisplayMode,
+  preference: ThreadSummaryPreferenceState,
+): ThreadSummaryState {
   return {
     ...preference,
     displayMode,
     isPopoverOpen:
       displayMode === "overlay" ? preference.isPopoverOpen : false,
     shouldShowInline: preference.isPinned && displayMode !== "overlay",
-    contentShift:
-      preference.isPinned && displayMode === "shift"
-        ? resolveThreadSummaryContentShift(containerWidth)
-        : 0,
   };
-}
-
-export function resolveThreadSummaryContentShift(
-  containerWidth: number,
-): number {
-  const centeredContentInset =
-    (containerWidth - THREAD_SUMMARY_READING_WIDTH) / 2;
-  const shiftForMinimumGap =
-    centeredContentInset -
-    (THREAD_SUMMARY_PANEL_WIDTH + THREAD_SUMMARY_PANEL_GAP * 2);
-  return Math.min(
-    0,
-    Math.max(THREAD_SUMMARY_SHIFT_PX, shiftForMinimumGap),
-  );
 }
 
 export function toggleThreadSummaryPreference(
@@ -127,10 +120,12 @@ export function useThreadSummaryController(
     () => preferenceSnapshot,
     () => DEFAULT_PREFERENCE,
   );
-  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [displayMode, setDisplayMode] =
+    React.useState<ThreadSummaryDisplayMode>("overlay");
+  const displayModeRef = React.useRef(displayMode);
   const state = React.useMemo(
-    () => deriveThreadSummaryState(containerWidth, preference),
-    [containerWidth, preference],
+    () => deriveThreadSummaryStateForMode(displayMode, preference),
+    [displayMode, preference],
   );
   const previousModeRef = React.useRef(state.displayMode);
 
@@ -138,10 +133,17 @@ export function useThreadSummaryController(
     const container = containerRef.current;
     if (!container) return;
 
-    const updateWidth = (width: number): void => {
-      if (Number.isFinite(width)) setContainerWidth(Math.max(0, width));
+    const updateDisplayMode = (width: number): void => {
+      if (!Number.isFinite(width)) return;
+      const nextMode = resolveThreadSummaryDisplayModeUpdate(
+        displayModeRef.current,
+        Math.max(0, width),
+      );
+      if (nextMode === null) return;
+      displayModeRef.current = nextMode;
+      setDisplayMode(nextMode);
     };
-    updateWidth(container.getBoundingClientRect().width);
+    updateDisplayMode(container.getBoundingClientRect().width);
 
     let observer: ResizeObserver | null = null;
     try {
@@ -152,7 +154,7 @@ export function useThreadSummaryController(
           entry.borderBoxSize?.[0]?.inlineSize ??
           entry.contentBoxSize?.[0]?.inlineSize ??
           entry.contentRect.width;
-        updateWidth(width);
+        updateDisplayMode(width);
       });
       observer.observe(container);
     } catch {

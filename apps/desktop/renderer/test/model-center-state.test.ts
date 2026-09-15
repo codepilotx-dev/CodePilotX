@@ -3,6 +3,7 @@ import type { DesktopApiKeySummary } from '../shared/types.js'
 import {
   filterApiKeys,
   getApiKeyDeleteConfirmation,
+  legacyModelCenterSettingsTarget,
   parseModelCenterSearchParams,
   projectProviderDirectory,
   updateModelCenterSearchParams,
@@ -36,43 +37,62 @@ const keys: DesktopApiKeySummary[] = [
 ]
 
 describe('model center URL state', () => {
-  test('parses valid workspace, provider and section', () => {
+  test('redirects legacy routes to settings while dropping only the obsolete view', () => {
+    expect(legacyModelCenterSettingsTarget(
+      '?view=health&provider=anthropic&section=models&debug=1',
+    )).toEqual({
+      pathname: '/settings/providers',
+      search: '?provider=anthropic&section=models&debug=1',
+    })
+    expect(legacyModelCenterSettingsTarget('?view=keys')).toEqual({
+      pathname: '/settings/providers',
+      search: '',
+    })
+  })
+
+  test('parses valid provider and section', () => {
+    const state = parseModelCenterSearchParams(
+      new URLSearchParams('view=providers&provider=anthropic&section=models'),
+      ['openai', 'anthropic'],
+    )
+
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
+  })
+
+  test('ignores legacy view while preserving provider details', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=keys&provider=anthropic&section=models'),
       ['openai', 'anthropic'],
-      'openai',
     )
 
-    expect(state).toEqual({ view: 'keys', providerId: 'anthropic', section: 'models' })
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
   })
 
   test('falls back for invalid parameters and provider', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=other&provider=missing&section=usage'),
       ['openai', 'anthropic'],
-      'anthropic',
     )
 
-    expect(state).toEqual({ view: 'providers', providerId: null, section: 'connection' })
+    expect(state).toEqual({ providerId: null, section: 'connection' })
   })
 
   test('keeps the provider catalog open when provider is missing', () => {
-    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai'], 'openai'))
-      .toEqual({ view: 'providers', providerId: null, section: 'connection' })
-    expect(parseModelCenterSearchParams(new URLSearchParams(), [], 'missing').providerId)
+    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai']))
+      .toEqual({ providerId: null, section: 'connection' })
+    expect(parseModelCenterSearchParams(new URLSearchParams(), []).providerId)
       .toBeNull()
   })
 
   test('updates model-center params without mutating unrelated params', () => {
-    const current = new URLSearchParams('debug=1&view=providers&section=connection')
+    const current = new URLSearchParams('debug=1&section=connection')
     const next = updateModelCenterSearchParams(current, {
-      view: 'keys',
       providerId: 'openai',
       section: null,
     })
 
-    expect(next.toString()).toBe('debug=1&view=keys&provider=openai')
-    expect(current.toString()).toBe('debug=1&view=providers&section=connection')
+    expect(next.toString()).toBe('debug=1&provider=openai')
+    expect(current.toString()).toBe('debug=1&section=connection')
   })
 })
 
@@ -89,6 +109,12 @@ describe('model center Provider directory', () => {
       gatewaySource: true,
     }),
     provider({ providerID: 'local', displayName: '本地模型' }),
+    provider({
+      providerID: 'models-dev-compatible',
+      displayName: 'Models.dev Compatible',
+      providerKind: 'models-dev',
+      catalogOrigin: 'models-dev',
+    }),
   ]
 
   test('searches name, id and Pi catalog source', () => {
@@ -100,6 +126,27 @@ describe('model center Provider directory', () => {
       .toEqual(['openai'])
     expect(projectProviderDirectory(providers, { query: '内置' }).map(item => item.provider.providerID))
       .toEqual(['local'])
+  })
+
+  test('supports filtering by configured and unconfigured status', () => {
+    const all = projectProviderDirectory(providers, {
+      filter: 'all',
+      apiKeys: keys,
+    })
+    expect(all).toHaveLength(4)
+
+    const configured = projectProviderDirectory(providers, {
+      filter: 'configured',
+      apiKeys: keys,
+    })
+    expect(configured.map(item => item.provider.providerID)).toEqual(['openai'])
+
+    const unconfigured = projectProviderDirectory(providers, {
+      filter: 'unconfigured',
+      apiKeys: keys,
+    })
+    expect(unconfigured.map(item => item.provider.providerID))
+      .toEqual(['vercel', 'local', 'models-dev-compatible'])
   })
 
   test('projects current and stored Key status', () => {
@@ -114,6 +161,14 @@ describe('model center Provider directory', () => {
       statuses: ['current', 'stored-key'],
     })
     expect(projected[1]).toMatchObject({ current: false, connectionStatus: 'unconfigured' })
+  })
+
+  test('searches models.dev providers by catalog source', () => {
+    const projected = projectProviderDirectory(providers, { query: 'models.dev' })
+
+    expect(projected.map(item => item.provider.providerID))
+      .toEqual(['models-dev-compatible'])
+    expect(projected[0]?.sources).toEqual(['models-dev'])
   })
 
   test('keeps a provider configured when its saved Key is disabled', () => {
@@ -211,8 +266,9 @@ function apiKey(
 function provider(overrides: {
   providerID: string
   displayName: string
-  providerKind?: 'builtin' | 'custom'
+  providerKind?: 'builtin' | 'custom' | 'models-dev'
   gatewaySource?: boolean
+  catalogOrigin?: 'models-dev' | 'user' | 'pi-bundled'
   apiKeyConfigured?: boolean
 }) {
   return {

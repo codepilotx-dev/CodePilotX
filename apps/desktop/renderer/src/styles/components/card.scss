@@ -7,23 +7,57 @@
 .message-card,
 .placeholder-card,
 .plugins-empty {
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-card);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-resting);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-lg);
+  corner-shape: var(--cpx-sys-corner-shape);
+  background: var(--cpx-comp-surface-panel);
+  box-shadow: none;
 }
 
 /* --- Elevated Surface (popover / raised card level) --- */
+.ds-surface-raised,
+.thread-summary-panel,
+.thread-summary-error {
+  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-comp-surface-raised);
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-sys-shadow-raised);
+}
+
+.composer {
+  border: 0;
+  background: var(--cpx-comp-surface-raised);
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-comp-composer-shadow);
+}
+
 .ds-surface-raised {
-  border-color: var(--color-token-border-light);
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-raised);
+  border-radius: var(--cpx-sys-radius-xl);
+  corner-shape: var(--cpx-sys-corner-shape);
+}
+
+.desktop-sidebar.is-floating {
+  border: var(--cpx-comp-surface-edge);
+  background: var(--cpx-comp-glass-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-sys-shadow-floating);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-surface-raised,
+  .composer,
+  .thread-summary-panel,
+  .thread-summary-error,
+  .desktop-sidebar.is-floating {
+    backdrop-filter: none;
+    background: var(--cpx-comp-surface-floating);
+  }
 }
 
 /* --- Product / Code Surface --- */
 .ds-product-surface,
 .ds-product-surface code {
-  border-color: var(--color-token-border);
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-button-foreground);
+  border-color: var(--cpx-sys-color-border-default);
+  background: var(--cpx-sys-color-surface-recessed);
+  color: var(--cpx-comp-button-fg);
 }

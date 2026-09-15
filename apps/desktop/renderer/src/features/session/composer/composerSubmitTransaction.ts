@@ -1,5 +1,6 @@
 import type { DesktopUserMessageInput } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import type {
   ComposerDraft,
   ComposerSubmitOutcome,
@@ -28,7 +29,7 @@ export function prepareComposerSubmission(
   draft: ComposerDraft,
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
-  const text = snapshot.document.text
+  const text = serializeComposerDocument(snapshot.document)
   const hasContent =
     Boolean(text.trim()) ||
     snapshot.attachments.length > 0 ||
@@ -57,6 +58,20 @@ export function prepareComposerSubmission(
       ? `$${snapshot.skillInvocation.name} ${text}`.trim()
       : undefined,
   }
+}
+
+export function serializeComposerDocument(
+  document: ComposerDraft['document'],
+): string {
+  const references = document.tokens
+    .filter(token => token.kind === 'thread' || token.kind === 'browser')
+    .map(token => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
+  if (references.length === 0) return document.text
+  return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/([\\\[\]])/gu, '\\$1')
 }
 
 export async function executeComposerSubmitTransaction({
@@ -113,6 +128,25 @@ function failed(
   }
 }
 
+/**
+ * Creates the task for a new-session submit. A failure here blocks sending, so it is
+ * reported exactly once through the global error channel; recovery is another submit,
+ * never an inline control.
+ */
+export async function createTaskSession(input: {
+  create: () => Promise<string | null>
+  onError?: (message: string) => void
+}): Promise<string | null> {
+  try {
+    const sessionId = await input.create()
+    if (!sessionId) input.onError?.('无法创建任务，请重试或选择本地目录。')
+    return sessionId
+  } catch (error) {
+    input.onError?.(toUserErrorMessage(error, 'thread-create'))
+    throw error
+  }
+}
+
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return toUserErrorMessage(error)
 }

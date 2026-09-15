@@ -46,7 +46,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'context_usage':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'context_usage',
         createdAt,
@@ -78,7 +78,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'permission_request':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'permission_request',
         content: event.request.description,
@@ -88,7 +88,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'guardian_review':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'guardian_review',
         content:
@@ -110,7 +110,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'status':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'status',
         content: event.status,
@@ -119,7 +119,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'diff':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'file_patch',
         content: summarizePatch(event.patch),
@@ -134,7 +134,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'error':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'error',
         role: 'system',
@@ -143,7 +143,7 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'done':
       return {
-        id: randomId(),
+        id: crypto.randomUUID(),
         sessionId: event.sessionId,
         type: 'checkpoint',
         content: 'done',
@@ -231,7 +231,7 @@ function stableEventId(event: DesktopAgentEvent, suffix: string): string {
   if ('toolUseId' in event && typeof event.toolUseId === 'string' && event.toolUseId) {
     return `${event.toolUseId}:${suffix}`
   }
-  return randomId()
+  return crypto.randomUUID()
 }
 
 function summarizePatch(patch: string): string {
@@ -287,8 +287,4 @@ function parsePatchStats(patch: string): {
 function parseDiffPath(line: string): string {
   const match = /^diff --git a\/(.+?) b\/(.+)$/.exec(line)
   return match?.[2] ?? line.replace(/^diff --git\s+/, '').trim()
-}
-
-function randomId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 }

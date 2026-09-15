@@ -451,8 +451,8 @@ export class ToolingManager {
     const validationScript = [
       "$ErrorActionPreference='Stop'",
       "Add-Type -AssemblyName System.IO.Compression.FileSystem",
-      "$zip=[IO.Compression.ZipFile]::OpenRead($args[0])",
-      "$root=[IO.Path]::GetFullPath($args[1] + [IO.Path]::DirectorySeparatorChar)",
+      "$zip=[IO.Compression.ZipFile]::OpenRead($env:CODEPILOTX_ZIP_VALIDATION_ARCHIVE)",
+      "$root=[IO.Path]::GetFullPath($env:CODEPILOTX_ZIP_VALIDATION_DESTINATION + [IO.Path]::DirectorySeparatorChar)",
       "try { foreach($e in $zip.Entries) {",
       "  $name=$e.FullName.Replace('/', [IO.Path]::DirectorySeparatorChar)",
       "  $target=[IO.Path]::GetFullPath([IO.Path]::Combine($root,$name))",
@@ -462,7 +462,11 @@ export class ToolingManager {
       "} } finally { $zip.Dispose() }",
     ].join("; ")
     const shell = process.env.SystemRoot ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : "powershell.exe"
-    await this.runChecked(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", validationScript, archivePath, destination], 30_000, signal)
+    await this.runChecked(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", validationScript], 30_000, signal, {
+      ...process.env,
+      CODEPILOTX_ZIP_VALIDATION_ARCHIVE: archivePath,
+      CODEPILOTX_ZIP_VALIDATION_DESTINATION: destination,
+    })
     if (signal?.aborted) throw new ToolingError("TOOLING_ABORTED", "工具安装已取消")
     await extractZip(archivePath, {
       dir: destination,
@@ -575,9 +579,9 @@ export class ToolingManager {
     } catch { return null }
   }
 
-  private runCapture(executable: string, args: string[], timeoutMs: number, signal?: AbortSignal) {
+  private runCapture(executable: string, args: string[], timeoutMs: number, signal?: AbortSignal, env?: NodeJS.ProcessEnv) {
     return new Promise<string>((resolvePromise, reject) => {
-      const child = spawn(executable, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] })
+      const child = spawn(executable, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...(env ? { env } : {}) })
       const chunks: Buffer[] = []
       let bytes = 0
       const stop = () => child.kill("SIGKILL")
@@ -594,8 +598,8 @@ export class ToolingManager {
     })
   }
 
-  private async runChecked(executable: string, args: string[], timeoutMs: number, signal?: AbortSignal) {
-    await this.runCapture(executable, args, timeoutMs, signal)
+  private async runChecked(executable: string, args: string[], timeoutMs: number, signal?: AbortSignal, env?: NodeJS.ProcessEnv) {
+    await this.runCapture(executable, args, timeoutMs, signal, env)
   }
 
   private installDir(id: ManagedToolID) { return join(this.root, id, TOOLING_CATALOG[id].version) }

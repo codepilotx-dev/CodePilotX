@@ -252,7 +252,7 @@ export class ApprovalService {
     }
     if (result.state !== "resolved") throw new AgentError("APPROVAL_CHECKPOINT_INVALID", "审批 checkpoint 状态无效", 409)
     const checkpoint = result.checkpoint
-    for (const event of result.events) await Effect.runPromise(this.hub.publish(event))
+    await Promise.allSettled(result.events.map((event) => Effect.runPromise(this.hub.publish(event))))
     return checkpoint
   }
 
@@ -283,7 +283,7 @@ export class ApprovalService {
   }
 
   claimResume(turnID: string): StoredApprovalCheckpoint | null {
-    const candidate = this.db.sqlite.query("SELECT id FROM approval_requests WHERE turn_id = ? AND status = 'resolved' ORDER BY resolved_at, created_at LIMIT 1").get(turnID) as { id: string } | null
+    const candidate = this.db.repositories.interactions.resolvedApprovalForResume(turnID)
     if (!candidate) return null
     try {
       const loaded = this.load(candidate.id)

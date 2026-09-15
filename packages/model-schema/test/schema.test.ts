@@ -25,6 +25,37 @@ describe("model and provider schemas", () => {
     expect(Schema.is(Provider.Info)(provider)).toBe(true)
     expect(Schema.is(Model.Info)(model)).toBe(true)
   })
+
+  test("describes models.dev provider origin, availability, and catalog status", () => {
+    const provider = Schema.decodeUnknownSync(Provider.Info)({
+      id: "deepseek",
+      name: "DeepSeek",
+      source: {
+        type: "pi",
+        kind: "models-dev",
+        apis: ["openai-completions"],
+        baseUrl: "https://api.deepseek.com",
+      },
+      catalogOrigin: "models-dev",
+      availability: { status: "ready" },
+      auth: { apiKey: true, oauth: false },
+    })
+    const unavailable = Schema.decodeUnknownSync(Provider.Availability)({
+      status: "unavailable",
+      reason: "unsupported-protocol",
+    })
+    const status = Schema.decodeUnknownSync(Provider.CatalogSourceStatus)({
+      source: "models-dev",
+      mode: "cache",
+      stale: true,
+      refreshedAt: 1,
+      issue: "offline",
+    })
+
+    expect(provider.source.kind).toBe("models-dev")
+    expect(unavailable.reason).toBe("unsupported-protocol")
+    expect(status.mode).toBe("cache")
+  })
 })
 
 describe("credential schemas", () => {

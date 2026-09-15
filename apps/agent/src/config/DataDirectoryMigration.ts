@@ -28,6 +28,7 @@ const RELOCATION_DIRECTORIES = [
   "tooling",
   "workspaces",
   "logs",
+  "speech",
 ] as const
 const RELOCATION_FILES = [
   "models.cache.json",
@@ -201,6 +202,7 @@ async function migrateDataRoot(
   )
   await migratePets(join(sourceRoot, "pets"), join(targetRoot, "pets"))
   await migrateAgentLogs(join(sourceRoot, "logs"), join(targetRoot, "logs"))
+  await copyTreeIfMissing(join(sourceRoot, "speech"), join(targetRoot, "speech"))
 }
 
 async function migrateDatabaseGroup(

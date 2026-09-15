@@ -34,7 +34,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'bun run dev:performance -- --port 47174 --strictPort',
+      'bunx vite build --mode performance && bunx vite preview --host 127.0.0.1 --port 47174 --strictPort',
     cwd: rendererRoot,
     reuseExistingServer:
       process.env.CODEPILOTX_PERFORMANCE_REUSE_SERVER === '1',

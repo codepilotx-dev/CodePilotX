@@ -6,13 +6,16 @@ export type EmptyParams = typeof EmptyParamsSchema.Type
 export const JsonValueSchema = Schema.Json
 export type JsonValue = typeof JsonValueSchema.Type
 
-export const OpaqueIDSchema = Schema.String.check(Schema.isMinLength(1))
+export const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+export const OpaqueIDSchema = NonEmptyStringSchema
 export const RpcIDSchema = Schema.Union([Schema.String, Schema.Number])
 export type RpcID = typeof RpcIDSchema.Type
 
 export const CursorSchema = Schema.String.check(Schema.isMinLength(1))
 export const LimitSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 500 }))
-export const SequenceSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+export const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+export const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
+export const SequenceSchema = NonNegativeIntSchema
 export const TimestampSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 
 export const OperationParamsSchema = Schema.Struct({
@@ -65,12 +68,33 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "TOOLING_DOWNLOAD_FAILED",
   "TOOLING_INTEGRITY_FAILED",
   "TOOLING_ABORTED",
+  "SPEECH_PLATFORM_UNSUPPORTED",
+  "SPEECH_RUNTIME_NOT_READY",
+  "SPEECH_INSTALL_FAILED",
+  "SPEECH_AUDIO_INVALID",
+  "SPEECH_AUDIO_TOO_LARGE",
+  "SPEECH_DURATION_LIMIT",
+  "SPEECH_BUSY",
+  "SPEECH_TIMEOUT",
+  "SPEECH_CANCELLED",
+  "SPEECH_TRANSCRIPTION_FAILED",
   "PERMISSION_DENIED",
   "ATTACHMENT_NOT_FOUND",
   "ATTACHMENT_LIMIT",
+  "ARTIFACT_NOT_FOUND",
+  "ARTIFACT_LOCATION_INVALID",
+  "ARTIFACT_TOO_LARGE",
+  "LOCAL_CONTEXT_NOT_FOUND",
   "MEMORY_NOT_FOUND",
   "MEMORY_REJECTED",
   "SKILL_NOT_FOUND",
+  "PLUGIN_NOT_FOUND",
+  "PLUGIN_NOT_INSTALLED",
+  "PLUGIN_INVALID",
+  "MINIMAX_CLI_PREREQUISITE_MISSING",
+  "MINIMAX_CLI_INSTALL_FAILED",
+  "MINIMAX_CLI_UNINSTALL_FAILED",
+  "MINIMAX_CLI_CONFIG_FAILED",
   "SUGGESTION_UNAVAILABLE",
   "MCP_CONFIG_INVALID",
   "MCP_SERVER_NOT_FOUND",
@@ -164,8 +188,18 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "WORKTREE_APPLY_CONFLICT",
   "WORKTREE_CLEANUP_FAILED",
   "WORKTREE_RESTORE_FAILED",
+  "AUTOMATION_NOT_FOUND",
+  "AUTOMATION_RUN_NOT_FOUND",
+  "SCHEDULED_TASK_NOT_FOUND",
+  "SCHEDULE_PLAN_NOT_FOUND",
+  "SESSION_GROUP_NOT_FOUND",
+  "SESSION_GROUP_STEP_NOT_FOUND",
+  "SESSION_GROUP_CONTEXT_ENTRY_NOT_FOUND",
+  "SESSION_GROUP_CONTEXT_REVISION_CONFLICT",
+  "SESSION_GROUP_THREAD_BUSY",
   "CONFLICT",
   "RATE_LIMITED",
+  "INVALID_REQUEST",
   "INTERNAL_ERROR",
 ])
 export type ApplicationErrorCode = typeof ApplicationErrorCodeSchema.Type

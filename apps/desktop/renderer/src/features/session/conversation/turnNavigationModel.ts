@@ -1,4 +1,5 @@
 import type { RenderTurnEntry } from "@codepilotx/session-view";
+import { normalizePathForComparison } from "../../../utils/pathUtils.js";
 
 export type ConversationTurnNavOutput = {
   type: "file";
@@ -60,7 +61,7 @@ function collectFileOutputs(
 }
 
 function normalizePathForCompare(path: string): string {
-  return path.replace(/\\/gu, "/").replace(/\/+$/u, "").toLowerCase();
+  return normalizePathForComparison(path);
 }
 
 function fileName(path: string): string {

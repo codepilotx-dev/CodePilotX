@@ -1,8 +1,8 @@
 import type {
   EventAckParamsSchema,
   EventSubscribeParamsSchema,
+  ProtocolCapability,
 } from "@codepilotx/agent-protocol"
-import type { Schema } from "effect"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { AgentError } from "../domain"
 import { globalEventSequence } from "../storage/events/EventPublisher"
@@ -16,6 +16,8 @@ export type EventSubscription = {
   streams: Map<string, number>
   acknowledged: Map<string, number>
   liveEventTypes: ReadonlySet<string> | null
+  /** Capabilities negotiated by the owning connection at initialize time. */
+  capabilities: ReadonlySet<ProtocolCapability>
   createdAt: number
 }
 
@@ -32,7 +34,7 @@ export class EventSubscriptionRegistry {
     private readonly limits = { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
   ) {}
 
-  subscribe(connectionId: string, params: SubscribeParams) {
+  subscribe(connectionId: string, params: SubscribeParams, capabilities: ReadonlySet<ProtocolCapability> = new Set()) {
     const connectionSubscriptions = [...this.subscriptions.values()].filter((subscription) => subscription.connectionId === connectionId).length
     if (connectionSubscriptions >= this.limits.maxSubscriptions) {
       throw new AgentError("SUBSCRIPTION_OVERFLOW", "事件订阅数量已达到上限", 409)
@@ -63,6 +65,7 @@ export class EventSubscriptionRegistry {
       streams,
       acknowledged: new Map(streams),
       liveEventTypes: params.liveEventTypes ? new Set(params.liveEventTypes) : null,
+      capabilities,
       createdAt: Date.now(),
     }
     this.subscriptions.set(id, subscription)
@@ -104,6 +107,34 @@ export class EventSubscriptionRegistry {
   get(subscriptionId: string, connectionId: string) {
     const subscription = this.subscriptions.get(subscriptionId)
     return subscription?.connectionId === connectionId ? subscription : null
+  }
+
+  validateLastEventID(subscription: EventSubscription, raw: string | undefined) {
+    if (raw === undefined || raw === "") return
+    if (subscription.acknowledged.size !== 1) {
+      throw new AgentError("CONFLICT", "多 stream 订阅不能使用单一 Last-Event-ID", 409)
+    }
+    if (!/^\d+$/.test(raw)) throw new AgentError("INVALID_REQUEST", "Last-Event-ID 格式无效", 400)
+    const cursor = Number(raw)
+    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new AgentError("INVALID_REQUEST", "Last-Event-ID 超出安全范围", 400)
+    const [streamID] = subscription.acknowledged.keys()
+    const bounds = this.cursorBounds(streamID!)
+    if (cursor > bounds.high) throw new AgentError("CONFLICT", "Last-Event-ID 超过 stream 高水位", 409)
+    if (bounds.low !== null && cursor < bounds.low - 1) {
+      throw new AgentError("CURSOR_EXPIRED", "Last-Event-ID 已超出可重放范围", 409, {
+        streamId: streamID,
+        lowWatermark: bounds.low,
+        highWatermark: bounds.high,
+      })
+    }
+    if (streamID !== "global") {
+      const acknowledged = subscription.acknowledged.get(streamID!) ?? 0
+      if (cursor === 0 || cursor === acknowledged || (bounds.low !== null && cursor === bounds.low - 1)) return
+      const event = this.db.sqlite.query("SELECT thread_id FROM events WHERE id = ?").get(cursor) as { thread_id: string | null } | null
+      if (!event || (event.thread_id !== null && event.thread_id !== streamID)) {
+        throw new AgentError("CONFLICT", "Last-Event-ID 不属于当前 stream", 409)
+      }
+    }
   }
 
   closeConnection(connectionId: string) {

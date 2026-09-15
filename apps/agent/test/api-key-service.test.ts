@@ -10,6 +10,7 @@ import {
   type MasterKeyStore,
 } from "../src/auth/EncryptedCredentialRepository"
 import { ApiKeyService } from "../src/provider/ApiKeyService"
+import { ModelHealthService } from "../src/provider/ModelHealthService"
 import type { PiModelService } from "../src/provider/pi"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
@@ -56,12 +57,13 @@ const setup = async (
   const service = new ApiKeyService(
     providers,
     credentials,
+    new ModelHealthService(providers, () => {}),
   )
   return { credentials, key, service, credentialID: String(summary.id) }
 }
 
 describe("API Key 测试", () => {
-  test("鉴权失败作为普通结果返回并脱敏厂商回显的当前 Key", async () => {
+  test("鉴权失败作为普通结果返回并使用安全固定文案", async () => {
     let currentKey = ""
     const fixture = await setup(async () => ({
       stopReason: "error",
@@ -71,15 +73,11 @@ describe("API Key 测试", () => {
 
     const result = await fixture.service.test(fixture.credentialID)
 
-    expect(result).toMatchObject({
-      ok: false,
-      message: "API Key 鉴权失败：401 unauthorized: invalid API key <redacted>",
-      credential: {
-        health: {
-          status: "auth-failed",
-          errorCategory: "authentication",
-        },
-      },
+    expect(result.ok).toBeFalse()
+    expect(result.message).toBe("凭据鉴权失败")
+    expect(result.credential.health).toMatchObject({
+      status: "auth-failed",
+      errorCategory: "authentication",
     })
     expect(result.message).not.toContain(fixture.key)
   })
@@ -92,7 +90,7 @@ describe("API Key 测试", () => {
     const result = await fixture.service.test(fixture.credentialID)
 
     expect(result.ok).toBeFalse()
-    expect(result.message).toBe("API Key 当前受到限流：429 rate limit exceeded")
+    expect(result.message).toBe("请求受到限流")
     expect(result.credential.health).toMatchObject({
       status: "rate-limited",
       errorCategory: "rate-limit",
@@ -108,15 +106,11 @@ describe("API Key 测试", () => {
 
     const result = await fixture.service.test(fixture.credentialID)
 
-    expect(result).toMatchObject({
-      ok: false,
-      message: "API Key 网络请求失败：request timeout",
-      credential: {
-        health: {
-          status: "error",
-          errorCategory: "network",
-        },
-      },
+    expect(result.ok).toBeFalse()
+    expect(result.message).toBe("请求在 15 秒内未完成")
+    expect(result.credential.health).toMatchObject({
+      status: "error",
+      errorCategory: "unknown",
     })
   })
 
@@ -125,11 +119,9 @@ describe("API Key 测试", () => {
 
     const result = await fixture.service.test(fixture.credentialID)
 
-    expect(result).toMatchObject({
-      ok: true,
-      message: "API Key 可用。",
-      credential: { health: { status: "healthy" } },
-    })
+    expect(result.ok).toBeTrue()
+    expect(result.message).toBe("API Key 可用。")
+    expect(result.credential.health).toMatchObject({ status: "healthy" })
     expect(result.credential.health).not.toHaveProperty("lastUsedAt")
   })
 
@@ -142,11 +134,8 @@ describe("API Key 测试", () => {
 
     const result = await fixture.service.test(fixture.credentialID)
 
-    expect(result).toMatchObject({
-      ok: false,
-      message: "配置不可用：Provider openai 没有可用模型",
-      credential: { health: { status: "untested" } },
-    })
+    expect(result.ok).toBeFalse()
+    expect(result.message).toBe("配置不可用：Provider openai 没有可用模型")
     expect(requests).toBe(0)
   })
 })

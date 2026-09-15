@@ -1,8 +1,8 @@
-import type { SessionTreeEntry } from "@codepilotx/pi-agent-core"
+import type { SessionTreeEntry } from "../../orchestration/harness/types"
 import type { LocalUsageResult } from "@codepilotx/agent-protocol"
 import { Model, Provider } from "@codepilotx/model-schema"
 import type { AgentDatabase } from "../database/AgentDatabase"
-import { parsePiSessionEntry } from "../pi-session-entry"
+import { parsePiSessionEntry } from "../pi-session/pi-session-entry"
 
 export type LocalUsageRange = "7d" | "30d" | "all"
 

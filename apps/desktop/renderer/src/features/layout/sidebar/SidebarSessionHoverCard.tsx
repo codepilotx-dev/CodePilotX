@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
+  sessionResolvedTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
@@ -20,6 +21,7 @@ export type SidebarSessionHoverCardModel = {
   projectLabel: string
   gitBranch: string | null
   unread: boolean
+  isRunning: boolean
 }
 
 export function formatSidebarSessionRelativeTime(
@@ -47,8 +49,9 @@ export function buildSidebarSessionHoverCardModel(
     ? '会话'
     : session.workspaceName.trim() || '会话'
   const gitBranch = session.gitBranch?.trim() || null
+  const resolved = sessionResolvedTitle(session, fallbackTitle)?.trim()
   return {
-    title: sessionDisplayTitle(session, fallbackTitle),
+    title: resolved || sessionDisplayTitle(session, fallbackTitle),
     relativeTime: formatSidebarSessionRelativeTime(
       session.lastMessageAt ?? session.createdAt,
       now,
@@ -56,6 +59,7 @@ export function buildSidebarSessionHoverCardModel(
     projectLabel,
     gitBranch,
     unread: Boolean(session.unreadAt),
+    isRunning: session.status === 'running',
   }
 }
 
@@ -76,6 +80,10 @@ export function SidebarSessionHoverCard({
   session,
   onRename,
 }: Props): React.ReactNode {
+  if (regeneratingTitle) {
+    return children
+  }
+
   const model = buildSidebarSessionHoverCardModel(
     session,
     fallbackTitle,

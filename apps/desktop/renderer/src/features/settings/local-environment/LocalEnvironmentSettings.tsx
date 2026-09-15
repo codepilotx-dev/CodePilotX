@@ -1,8 +1,7 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
-import * as Popover from '@radix-ui/react-popover'
+import { AnchoredPopover } from '../../../components/ui/AnchoredPopover.js'
 import { Button } from '../../../components/ui/Button.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
 import { environmentDomainClient, type EnvironmentReadResult } from '../../../services/desktop-client/environment-domain-client.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { SettingsSection } from '../SettingsSection.js'
@@ -91,13 +90,13 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
       <SettingsSection
         title="Local environment"
         description={`${source.filePath}。按 key-path 保存，文件中的注释和未知键由 Agent 保留。`}
-        actions={<Button loading={saving} onClick={() => void save()}>保存</Button>}
+        actions={<Button color="primary" loading={saving} onClick={() => void save()}>保存</Button>}
       >
         <SettingsRow title="名称" control={<input className="confirmation-dialog-input" value={name} onChange={event => setName(event.target.value)} />} />
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:p-3">
           <div>
             <strong>Setup</strong>
-            <p className="tw:m-0 tw:text-xs tw:text-app-text-soft">
+            <p className="u-type-caption tw:m-0 tw:text-app-text-soft">
               创建托管工作树时在新工作树目录下运行。
             </p>
           </div>
@@ -107,15 +106,15 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <CommandRows label="Cleanup" value={cleanup} onChange={setCleanup} />
         <div className="tw:grid tw:gap-2 tw:p-3">
           <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-            <div><strong>Actions</strong><p className="tw:text-xs tw:text-app-text-soft">每个 Action 可提供默认命令和三平台覆盖。</p></div>
-            <Button disabled={saving} onClick={() => setActions(current => [...current, { ...EMPTY_ENVIRONMENT_ACTION }])}>添加 Action</Button>
+            <div><strong>Actions</strong><p className="u-type-caption tw:text-app-text-soft">每个 Action 可提供默认命令和三平台覆盖。</p></div>
+            <Button color="primary" disabled={saving} onClick={() => setActions(current => [...current, { ...EMPTY_ENVIRONMENT_ACTION }])}>添加 Action</Button>
           </div>
           {actions.map((action, index) => (
             <article className="settings-card tw:grid tw:gap-2 tw:p-3" key={index}>
               <div className="tw:grid tw:grid-cols-2 tw:gap-2">
                 {(['name', 'icon', 'command', 'windows', 'macos', 'linux'] as const).map(field => (
                   <label className={field === 'command' ? 'tw:col-span-2 tw:grid tw:gap-1' : 'tw:grid tw:gap-1'} key={field}>
-                    <span className="tw:text-xs tw:text-app-text-soft">{actionFieldLabel[field]}</span>
+                    <span className="u-type-caption tw:text-app-text-soft">{actionFieldLabel[field]}</span>
                     <input
                       className="confirmation-dialog-input"
                       value={action[field]}
@@ -124,7 +123,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
                   </label>
                 ))}
               </div>
-              <div className="tw:flex tw:justify-end"><Button disabled={saving} tone="danger" onClick={() => setActions(current => current.filter((_, itemIndex) => itemIndex !== index))}>删除 Action</Button></div>
+              <div className="tw:flex tw:justify-end"><Button color="danger" disabled={saving} onClick={() => setActions(current => current.filter((_, itemIndex) => itemIndex !== index))}>删除 Action</Button></div>
             </article>
           ))}
           {actions.length === 0 ? <p className="settings-empty-copy">暂无 Action。</p> : null}
@@ -134,8 +133,8 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <SettingsRow
           title={source.executionTrusted ? '当前配置已信任' : '当前配置未信任'}
           control={source.executionTrusted
-            ? <Button disabled={saving} onClick={() => void updateTrust('revoke')}>撤销信任</Button>
-            : <Button disabled={saving} onClick={() => void updateTrust('allow')}>允许执行当前版本</Button>}
+            ? <Button color="danger" disabled={saving} onClick={() => void updateTrust('revoke')}>撤销信任</Button>
+            : <Button color="primary" disabled={saving} onClick={() => void updateTrust('allow')}>允许执行当前版本</Button>}
         />
       </SettingsSection>
     </SettingsContentArea>
@@ -144,31 +143,26 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
 
 function SetupVariablesPopover(): React.ReactNode {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <Button>变量</Button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="end"
-          className="popover-surface popover tw:grid tw:gap-3 tw:p-3 tw:text-app-text"
-          collisionPadding={8}
-          sideOffset={6}
-          style={buildPopoverSizingStyle({ width: 320, maxWidth: 'calc(100vw - 2rem)' })}
-        >
-          <div>
-            <strong className="tw:text-sm">设置脚本环境变量</strong>
-            <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-app-text-soft">
-              创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
-            </p>
-          </div>
-          {WORKTREE_SETUP_VARIABLES.map(variable => (
-            <EnvironmentVariable {...variable} key={variable.name} />
-          ))}
-          <Popover.Arrow className="popover-arrow" />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <AnchoredPopover
+      align="end"
+      arrow
+      className="tw:grid tw:gap-3 tw:p-3"
+      collisionPadding={8}
+      maxWidth="calc(100vw - 2rem)"
+      sideOffset={6}
+      trigger={<Button color="secondary">变量</Button>}
+      width={320}
+    >
+      <div>
+        <strong className="u-type-control">设置脚本环境变量</strong>
+        <p className="u-type-caption tw:m-0 tw:mt-1 tw:text-app-text-soft">
+          创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
+        </p>
+      </div>
+      {WORKTREE_SETUP_VARIABLES.map(variable => (
+        <EnvironmentVariable {...variable} key={variable.name} />
+      ))}
+    </AnchoredPopover>
   )
 }
 
@@ -181,8 +175,8 @@ function EnvironmentVariable({
 }): React.ReactNode {
   return (
     <div className="tw:grid tw:gap-1">
-      <span className="tw:text-xs tw:text-app-text-soft">{description}</span>
-      <code className="tw:rounded-md tw:bg-app-canvas tw:px-2 tw:py-1 tw:font-mono tw:text-xs">
+      <span className="u-type-caption tw:text-app-text-soft">{description}</span>
+      <code className="local-environment-code tw:rounded-xs tw:bg-app-canvas tw:px-2 tw:py-1">
         {name}
       </code>
     </div>
@@ -195,7 +189,7 @@ function CommandRows({ label, value, onChange }: { label: string; value: Platfor
       <SettingsRow
         key={`${label}-${field}`}
         title={`${label} ${field}`}
-        control={<textarea className="confirmation-dialog-input tw:min-h-20 tw:min-w-96 tw:font-mono" value={value[field] ?? ''} onChange={event => onChange({ ...value, [field]: event.target.value })} />}
+        control={<textarea className="confirmation-dialog-input local-environment-code tw:min-h-20 tw:min-w-96" value={value[field] ?? ''} onChange={event => onChange({ ...value, [field]: event.target.value })} />}
       />
     ))}
   </>

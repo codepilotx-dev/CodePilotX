@@ -22,8 +22,8 @@ import {
   createCanonicalThreadState,
   pageFromThreadSnapshot,
   selectRenderTurnEntries,
-  selectVisibleTurnEntries,
 } from '@codepilotx/session-view'
+import type { VirtualizerHandle } from 'virtua'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -32,12 +32,14 @@ import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
-import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
-import type { DesktopPermissionGrantScope } from '../../../../shared/types.js'
+import { InlineApprovalCard, type InlineApprovalCardProps } from '../approvals/InlineApprovalCard.js'
+import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
+import { selectCanonicalConversationAuxiliaryState } from '../conversation/canonicalConversationSelectors.js'
 import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
 } from '../timeline/CanonicalThreadView.js'
+import { SessionTimelineView } from '../timeline/SessionTimelineView.js'
 import { normalizePatchActionError } from '../timeline/patchActionError.js'
 import { subagentStatusLabel } from './subagentStatusLabel.js'
 
@@ -46,6 +48,7 @@ export interface SubagentThreadCapabilities {
   canRetry: boolean
   canRespondToApprovals: boolean
   canRespondToQuestions: boolean
+  canRespondToPlan?: boolean
   canApplyWorktree: boolean
   canDiscardWorktree: boolean
   canRestoreWorkspace: boolean
@@ -60,19 +63,8 @@ export interface SubagentThreadCallbacks {
   onRestoreWorkspace?: (task: SubagentTask, run: SubagentRun) => void
   onOpenSubagent?: (item: Extract<Item, { type: 'subagent' }>) => void
   onOpenPatchReview?: (path?: string) => void
-  onApprovalRespond?: (
-    approval: ApprovalRequest,
-    decision: 'allow-once' | 'deny' | 'stop',
-  ) => void
-  onPermissionRespond?: (
-    approval: ApprovalRequest,
-    behavior: 'allow' | 'deny',
-    grantScope?: DesktopPermissionGrantScope,
-  ) => void
-  onQuestionRespond?: (
-    question: Extract<Item, { type: 'question' }>,
-    response: { answer: string | null; ignored: boolean },
-  ) => void
+  onRequestRespond?: InlineApprovalCardProps['onDecide']
+  onInterrupt?: () => Promise<void>
 }
 
 export interface SubagentThreadPanelProps {
@@ -93,6 +85,7 @@ export function SubagentThreadPanel({
   onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const listRef = React.useRef<VirtualizerHandle | null>(null)
   const disclosureState = useTimelineDisclosureState(task.childThreadId)
   const canonicalState = React.useMemo(
     () => createCanonicalThreadState(pageFromThreadSnapshot(snapshot)),
@@ -102,44 +95,70 @@ export function SubagentThreadPanel({
     () => selectRenderTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
     [canonicalState, run.id],
   )
-  const visibleTurns = React.useMemo(
-    () => selectVisibleTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
-    [canonicalState, run.id],
+  const pendingRequests = React.useMemo(
+    () => selectCanonicalConversationAuxiliaryState(canonicalState).pendingPermissions,
+    [canonicalState],
   )
-  const pendingApprovals = React.useMemo(
-    () => visibleTurns.flatMap((turn) => turn.approvals).filter((approval) => approval.status === 'pending'),
-    [visibleTurns],
+  const pendingRequest = pendingRequests[0]
+  const canRespond = Boolean(callbacks.onRequestRespond) && isActiveRun(run) && (
+    pendingRequest?.toolName === 'AskUserQuestion'
+      ? capabilities.canRespondToQuestions
+      : capabilities.canRespondToApprovals
   )
-  const permissionApprovals = React.useMemo(
-    () => pendingApprovals.filter((approval) => Boolean(approval.permissionGrant)),
-    [pendingApprovals],
-  )
-  const approvalApprovals = React.useMemo(
-    () => pendingApprovals.filter((approval) => !approval.permissionGrant),
-    [pendingApprovals],
-  )
-  const pendingQuestions = React.useMemo(
-    () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'question' }> => item.type === 'question' && item.status === 'pending'),
-    [visibleTurns],
-  )
-  const viewBlocked = pendingApprovals.length + pendingQuestions.length > 0
+  const viewBlocked = pendingRequests.length > 0
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
-
-  React.useEffect(() => {
-    const element = scrollRef.current
-    if (!element) return
-    const key = `codepilotx.subagent.scroll.${task.childThreadId}`
-    const stored = Number(window.sessionStorage.getItem(key) ?? 0)
-    if (Number.isFinite(stored)) element.scrollTop = stored
-    const persist = () => window.sessionStorage.setItem(key, String(element.scrollTop))
-    element.addEventListener('scroll', persist, { passive: true })
-    return () => {
-      persist()
-      element.removeEventListener('scroll', persist)
+  const scrollStorageKey = `codepilotx.subagent.scroll.${task.childThreadId}`
+  const initialScrollOffset = React.useMemo(() => {
+    try {
+      const stored = Number(window.sessionStorage.getItem(scrollStorageKey) ?? 0)
+      return Number.isFinite(stored) ? stored : 0
+    } catch {
+      return 0
     }
-  }, [task.childThreadId])
+  }, [scrollStorageKey])
+  const persistScroll = React.useCallback((scrollTop: number): void => {
+    try {
+      window.sessionStorage.setItem(scrollStorageKey, String(scrollTop))
+    } catch {
+      // Session storage can be unavailable; scrolling remains functional.
+    }
+  }, [scrollStorageKey])
+  const renderTurn = React.useCallback((turn: (typeof canonicalTurns)[number]) => (
+    <div
+      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
+      data-component="conversation-turn"
+      key={turn.id}
+    >
+      <CanonicalConversationTurn
+        disclosureState={disclosureState}
+        entry={turn}
+        onApplyPatch={async (itemId, action, expectedVersion) => {
+          try {
+            await desktopClient.applyThreadPatch({
+              threadId: task.childThreadId,
+              itemId,
+              action,
+              expectedVersion,
+            })
+            await callbacks.onPatchApplied?.()
+          } catch (error) {
+            throw normalizePatchActionError(error, action)
+          }
+        }}
+        onOpenPatchReview={callbacks.onOpenPatchReview}
+        onOpenPlanInRightDock={() => undefined}
+        onOpenSubagent={(taskId) => {
+          const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
+          if (item) callbacks.onOpenSubagent?.(item)
+        }}
+        rightDockPlanEventId={null}
+        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+        threadId={task.childThreadId}
+      />
+    </div>
+  ), [callbacks, disclosureState, snapshot.items, task.childThreadId])
 
   return (
     <section
@@ -153,15 +172,16 @@ export function SubagentThreadPanel({
           {onBackToParent ? (
             <IconButton
               className="subagent-thread-panel__back"
+              color="ghostSecondary"
+              size="toolbar"
               title="返回主对话"
-              variant="plain"
               onClick={onBackToParent}
             >
               <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
           <span className="subagent-thread-panel__avatar" aria-hidden="true">
-            <Bot size={16} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Bot size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </span>
           <div className="subagent-thread-panel__title-block">
             <h2>{task.displayName}</h2>
@@ -170,41 +190,41 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <button aria-label="应用子智能体变更" className="subagent-thread-panel__icon-button" title="应用变更" type="button" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
+            <IconButton aria-label="应用子智能体变更" color="ghostSecondary" size="toolbar" title="应用子智能体变更" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <button aria-label="丢弃子智能体工作树" className="subagent-thread-panel__icon-button is-danger" title="丢弃工作树" type="button" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
+            <IconButton aria-label="丢弃子智能体工作树" color="danger" size="toolbar" title="丢弃子智能体工作树" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
               <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <button aria-label="恢复子智能体共享变更" className="subagent-thread-panel__icon-button" title="恢复共享变更" type="button" onClick={() => callbacks.onRestoreWorkspace?.(task, run)}>
+            <IconButton aria-label="恢复子智能体共享变更" color="ghostSecondary" size="toolbar" title="恢复共享变更" onClick={() => callbacks.onRestoreWorkspace?.(task, run)}>
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {canRetry ? (
-            <button
+            <IconButton
               aria-label="重试子智能体"
-              className="subagent-thread-panel__icon-button"
+              color="ghostSecondary"
+              size="toolbar"
               title="重试"
-              type="button"
               onClick={() => callbacks.onRetry?.(task, run)}
             >
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
           {canStop ? (
-            <button
+            <IconButton
               aria-label="停止子智能体"
-              className="subagent-thread-panel__icon-button is-danger"
+              color="danger"
+              size="toolbar"
               title="停止"
-              type="button"
               onClick={() => callbacks.onStop?.(task, run)}
             >
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </button>
+            </IconButton>
           ) : null}
         </div>
       </header>
@@ -220,35 +240,21 @@ export function SubagentThreadPanel({
 
           {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
-              {canonicalTurns.map((turn) => (
-                 <CanonicalConversationTurn
-                   disclosureState={disclosureState}
-                   entry={turn}
-                  key={turn.id}
-                  onApplyPatch={async (itemId, action, expectedVersion) => {
-                    try {
-                      await desktopClient.applyThreadPatch({
-                        threadId: task.childThreadId,
-                        itemId,
-                        action,
-                        expectedVersion,
-                      })
-                      await callbacks.onPatchApplied?.()
-                    } catch (error) {
-                      throw normalizePatchActionError(error, action)
-                    }
-                  }}
-                  onOpenPatchReview={callbacks.onOpenPatchReview}
-                  onOpenPlanInRightDock={() => undefined}
-                  onOpenSubagent={(taskId) => {
-                    const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
-                    if (item) callbacks.onOpenSubagent?.(item)
-                  }}
-                  rightDockPlanEventId={null}
-                  readThreadPatchDiff={desktopClient.readThreadPatchDiff}
-                  threadId={task.childThreadId}
-                />
-              ))}
+              {typeof document === 'undefined'
+                ? canonicalTurns.map(renderTurn)
+                : (
+                  <SessionTimelineView
+                    count={canonicalTurns.length}
+                    initialScrollOffset={initialScrollOffset}
+                    items={canonicalTurns}
+                    listRef={listRef}
+                    onScroll={persistScroll}
+                    renderItem={renderTurn}
+                    scrollRef={scrollRef}
+                    scrollToBottom={isActiveRun(run)}
+                    sessionKey={task.childThreadId}
+                  />
+                )}
             </div>
           ) : (
             <div className="subagent-thread-panel__empty" role="status">
@@ -258,37 +264,20 @@ export function SubagentThreadPanel({
             </div>
           )}
 
-          {permissionApprovals.map((approval) => (
+          {pendingRequest ? (
             <InlineApprovalCard
-              key={approval.id}
-              request={approvalToRequest(approval)}
-              onDecide={(_request, behavior, _alwaysAllow, _updatedInput, extras) =>
-                callbacks.onPermissionRespond?.(
-                  approval,
-                  behavior,
-                  extras?.grantScope,
-                )
-              }
+              key={pendingRequest.requestId}
+              request={pendingRequest}
+              identity={task.displayName}
+              disabledReason={canRespond ? undefined : '此子智能体当前不可操作，请通过父任务继续。'}
+              onDecide={callbacks.onRequestRespond ?? (() => Promise.reject(new Error('此子智能体当前不可操作。')))}
+              onInterrupt={canStop ? callbacks.onInterrupt : undefined}
             />
-          ))}
-
-          {approvalApprovals.map((approval) => (
-            <ApprovalCard
-              key={approval.id}
-              approval={approval}
-              enabled={capabilities.canRespondToApprovals}
-              onRespond={callbacks.onApprovalRespond}
-            />
-          ))}
-
-          {pendingQuestions.map((question) => (
-            <QuestionRow
-              key={`response:${question.id}`}
-              item={question}
-              enabled={capabilities.canRespondToQuestions}
-              onRespond={callbacks.onQuestionRespond}
-            />
-          ))}
+          ) : snapshot.pendingPlanApproval ? (
+            <PlanApprovalCard approval={snapshot.pendingPlanApproval} identity={task.displayName}
+              disabledReason="此子智能体没有计划续跑入口，请返回父任务处理。"
+              onRespond={() => Promise.reject(new Error('此子智能体不支持计划操作。'))} />
+          ) : null}
 
           {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
           {run.error ? (
@@ -301,122 +290,6 @@ export function SubagentThreadPanel({
         </div>
       </div>
     </section>
-  )
-}
-
-function QuestionRow({
-  item,
-  enabled,
-  onRespond,
-}: {
-  item: Extract<Item, { type: 'question' }>
-  enabled: boolean
-  onRespond?: SubagentThreadCallbacks['onQuestionRespond']
-}): React.ReactNode {
-  const [selected, setSelected] = React.useState(item.choices[0]?.label ?? '')
-  const [custom, setCustom] = React.useState('')
-  if (item.status !== 'pending') {
-    return (
-      <article className="subagent-thread-row subagent-thread-row--answer">
-        <strong>{item.prompt}</strong>
-        <p>{item.answer ?? (item.status === 'ignored' ? '已跳过' : '未回答')}</p>
-      </article>
-    )
-  }
-  const answer = custom.trim() || selected
-  return (
-    <article className="subagent-thread-row subagent-thread-row--question">
-      <header>
-        <span>子智能体提问</span>
-        <strong>{item.prompt}</strong>
-      </header>
-      {item.choices.length > 0 ? (
-        <div className="subagent-thread-row__choices">
-          {item.choices.map((choice) => (
-            <label key={choice.id}>
-              <input
-                checked={selected === choice.label && !custom}
-                disabled={!enabled}
-                name={`subagent-question:${item.id}`}
-                type="radio"
-                value={choice.label}
-                onChange={() => {
-                  setSelected(choice.label)
-                  setCustom('')
-                }}
-              />
-              <span>
-                <strong>{choice.label}</strong>
-                {choice.description ? <small>{choice.description}</small> : null}
-              </span>
-            </label>
-          ))}
-        </div>
-      ) : null}
-      <textarea
-        aria-label="自定义回答"
-        disabled={!enabled}
-        placeholder="输入其他回答"
-        rows={2}
-        value={custom}
-        onChange={(event) => setCustom(event.target.value)}
-      />
-      <div className="subagent-thread-row__actions">
-        <Button
-          disabled={!enabled || !onRespond}
-          onClick={() => onRespond?.(item, { answer: null, ignored: true })}
-        >
-          跳过
-        </Button>
-        <Button
-          disabled={!enabled || !onRespond || !answer}
-          onClick={() => onRespond?.(item, { answer, ignored: false })}
-        >
-          <Send size={APP_ICON_SIZE} />
-          提交
-        </Button>
-      </div>
-    </article>
-  )
-}
-
-function ApprovalCard({
-  approval,
-  enabled,
-  onRespond,
-}: {
-  approval: ApprovalRequest
-  enabled: boolean
-  onRespond?: SubagentThreadCallbacks['onApprovalRespond']
-}): React.ReactNode {
-  return (
-    <article className="subagent-thread-row subagent-thread-row--approval" aria-label="审批请求">
-      <header>
-        <AlertCircle size={APP_ICON_SIZE} />
-        <span>
-          <strong>{approval.tool}</strong>
-          <small>{approval.reason}</small>
-        </span>
-        <em data-risk={approval.risk}>{riskLabel(approval.risk)}</em>
-      </header>
-      {approval.command ? <pre>{approval.command}</pre> : null}
-      {approval.paths.length > 0 ? <p>{approval.paths.join('\n')}</p> : null}
-      <div className="subagent-thread-row__actions">
-        <Button
-          disabled={!enabled || !onRespond}
-          tone="danger"
-          onClick={() => onRespond?.(approval, 'deny')}
-        >
-          拒绝
-        </Button>
-        <Button
-          disabled={!enabled || !onRespond}
-          onClick={() => onRespond?.(approval, 'allow-once')}
-        >
-          允许一次
-        </Button>
-      </div>
-    </article>
   )
 }
 
@@ -469,12 +342,12 @@ function StatusBadge({ status }: { status: SubagentRun['status'] }): React.React
   return (
     <span className="subagent-thread-panel__status-badge" data-status={status}>
       {isActiveRunStatus(status)
-        ? <LoaderCircle className="is-spinning" size={12} />
+        ? <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
         : status === 'completed'
-          ? <Check size={12} />
+          ? <Check size={APP_ICON_SIZE} />
           : status === 'failed'
-            ? <X size={12} />
-            : <Circle size={12} />}
+            ? <X size={APP_ICON_SIZE} />
+            : <Circle size={APP_ICON_SIZE} />}
       {subagentStatusLabel(status)}
     </span>
   )
@@ -484,10 +357,6 @@ function queueReasonLabel(reason: NonNullable<SubagentRun['queueReason']>): stri
   if (reason === 'parent-limit') return '等待同一父智能体释放并发名额'
   if (reason === 'global-limit') return '等待全局并发名额'
   return '等待共享工作区写入锁'
-}
-
-function riskLabel(risk: ApprovalRequest['risk']): string {
-  return { low: '低风险', medium: '中风险', high: '高风险', critical: '严重风险' }[risk]
 }
 
 function isBlockedRun(run: SubagentRun): boolean {

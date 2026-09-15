@@ -10,7 +10,7 @@ import {
   type ElectronApplication,
   type Page,
 } from "@playwright/test"
-import type { DesktopThemeSettingsV6 } from "@codepilotx/shared/desktop-theme"
+import type { DesktopThemeSettingsV7 } from "@codepilotx/shared/desktop-theme"
 import type { DesktopPetPresentation } from "@codepilotx/shared/desktop-pet-overlay"
 import type { DesktopSettingsPayload } from "@codepilotx/shared/desktop-settings-ipc"
 import type { DesktopDataLocationState } from "@codepilotx/shared/desktop-data-location-ipc"
@@ -18,9 +18,14 @@ import type { DesktopEditIpcBridge } from "@codepilotx/shared/desktop-edit-ipc"
 
 declare global {
   interface Window {
+    __codePilotXStartupThemeSamples?: Array<{
+      background: string
+      label: string
+      theme: string | null
+    }>
     codePilotXDesktop: {
-      getAppearanceSettings(): Promise<DesktopThemeSettingsV6>
-      saveAppearanceSettings(settings: DesktopThemeSettingsV6): Promise<void>
+      getAppearanceSettings(): Promise<DesktopThemeSettingsV7>
+      saveAppearanceSettings(settings: DesktopThemeSettingsV7): Promise<void>
       getDataLocation(): Promise<DesktopDataLocationState>
       openPetOverlay(): Promise<void>
       hidePetOverlay(): Promise<void>
@@ -69,7 +74,7 @@ test.describe("真实 Electron 宿主", () => {
     await rm(userDataDirectory, { force: true, recursive: true })
   })
 
-  test("使用 preload 应用并持久化 V6 主题，且新路由均可达", async () => {
+  test("使用 preload 应用并持久化 V7 主题，且新路由均可达", async () => {
     application = await launchDesktop(userDataDirectory, logDirectory)
     let page = await application.firstWindow()
     await waitForApplication(page)
@@ -118,7 +123,7 @@ test.describe("真实 Electron 宿主", () => {
     const settings = await page.evaluate(async () =>
       window.codePilotXDesktop.getAppearanceSettings(),
     )
-    expect(settings.version).toBe(6)
+    expect(settings.version).toBe(7)
     expect(await page.evaluate(() =>
       window.codePilotXDesktop.getDataLocation(),
     )).toMatchObject({
@@ -127,7 +132,12 @@ test.describe("真实 Electron 宿主", () => {
       isEnvControlled: true,
     })
 
-    await page.evaluate(() => window.codePilotXDesktop.openPetOverlay())
+    await page.evaluate(() =>
+      Promise.all([
+        window.codePilotXDesktop.openPetOverlay(),
+        window.codePilotXDesktop.openPetOverlay(),
+      ]),
+    )
     await expect
       .poll(() =>
         application
@@ -136,6 +146,11 @@ test.describe("真实 Electron 宿主", () => {
           ?.url() ?? null,
       )
       .toMatch(/\/#\/pet-overlay$/)
+    expect(
+      application
+        .windows()
+        .filter(candidate => candidate.url().endsWith("/#/pet-overlay")),
+    ).toHaveLength(1)
     const overlayPage = application
       .windows()
       .find(candidate => candidate.url().endsWith("/#/pet-overlay"))
@@ -292,9 +307,47 @@ test.describe("真实 Electron 宿主", () => {
       })
     }, settings)
 
+    await page.addInitScript(() => {
+      const samples: NonNullable<Window["__codePilotXStartupThemeSamples"]> = []
+      window.__codePilotXStartupThemeSamples = samples
+      let frames = 0
+      const sample = (): void => {
+        const splash = document.getElementById("startup-splash")
+        if (splash) {
+          samples.push({
+            background: getComputedStyle(splash).backgroundColor,
+            label: splash.querySelector(
+              ".full-screen-whale-loader__status",
+            )?.textContent ?? "",
+            theme: document.documentElement.dataset.theme ?? null,
+          })
+        }
+        frames += 1
+        if (frames < 600 && (splash || document.readyState !== "complete")) {
+          requestAnimationFrame(sample)
+        }
+      }
+      requestAnimationFrame(sample)
+    })
     await page.reload()
     await waitForApplication(page)
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+    const startupThemeSamples = await page.evaluate(
+      () => window.__codePilotXStartupThemeSamples ?? [],
+    )
+    expect(startupThemeSamples.length).toBeGreaterThan(0)
+    expect(startupThemeSamples.some(sample =>
+      sample.label === "正在加载桌面界面…"
+      || sample.label === "正在读取模型配置…"
+    )).toBe(true)
+    expect(startupThemeSamples.every(sample => sample.theme === "dark")).toBe(
+      true,
+    )
+    expect(startupThemeSamples.every(sample => {
+      const channels = sample.background.match(/\d+(?:\.\d+)?/g)?.slice(0, 3)
+        .map(Number) ?? []
+      return channels.length === 3 && Math.max(...channels) < 128
+    })).toBe(true)
     await expect(page.locator("html")).toHaveAttribute(
       "data-pointer-cursor",
       "on",
@@ -317,12 +370,13 @@ test.describe("真实 Electron 宿主", () => {
       "/new",
       "/settings/general",
       "/labs",
-      "/not-a-real-route",
     ]) {
       await page.evaluate(nextRoute => {
         location.hash = `#${nextRoute}`
       }, route)
-      await expect.poll(() => page.evaluate(() => location.hash)).toBe(`#${route}`)
+      await expect
+        .poll(() => page.evaluate(() => location.hash.slice(1).split("?", 1)[0]))
+        .toBe(route)
     }
     await expect(
       page.getByRole("heading", { name: "这个页面不存在" }),
@@ -367,7 +421,7 @@ test.describe("真实 Electron 宿主", () => {
       window.codePilotXDesktop.getAppearanceSettings(),
     )
     expect(persisted).toMatchObject({
-      version: 6,
+      version: 7,
       mode: "dark",
       pointerCursorEnabled: true,
       reduceMotion: "on",
@@ -494,7 +548,7 @@ async function expectHostContract(page: Page): Promise<void> {
     hasDesktopBridge: true,
     hasEditBridge: true,
     hasNodeRequire: "undefined",
-    tokenCount: 117,
+    tokenCount: 121,
   })
 }
 

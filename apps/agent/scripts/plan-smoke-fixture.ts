@@ -23,6 +23,7 @@ export function initializePlanSmokeDatabase(db: {
   })
   db.setSetting("desktop.settings.v1", {
     enableFullAccessPermissionMode: true,
+    firstUseSetupCompleted: 1,
     permissionConfig: {
       sandboxMode: "danger-full-access",
       approvalPolicy: "never",
@@ -34,6 +35,12 @@ export function initializePlanSmokeDatabase(db: {
 export function createPlanSmokeModels() {
   const faux = fauxProvider({
     provider: PLAN_SMOKE_PROVIDER_ID,
+    models: [{
+      id: "faux-1",
+      input: ["text"],
+      contextWindow: 64_000,
+      reasoning: true,
+    }],
     tokenSize: { min: 1, max: 1 },
   })
   const response = (context: Context) => responseForContext(context)

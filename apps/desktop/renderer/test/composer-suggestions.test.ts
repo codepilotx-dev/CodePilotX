@@ -7,6 +7,7 @@ import {
 } from '../src/features/session/composer/ComposerCard.js'
 import {
   filterComposerCommands,
+  getActiveSlashCommandQuery,
   getActiveSkillTokenQuery,
   mergeSlashCommands,
   parseSlashInvocation,
@@ -20,9 +21,16 @@ import {
   showNewSessionSuggestionTemplates,
   syncNewSessionSuggestionState,
 } from '../src/features/session/newSessionSuggestionState.js'
-import { buildContextualTaskSuggestions } from '../src/features/session/newSessionSuggestions.js'
-import { shouldApplyGeneratedSuggestions } from '../src/features/session/useContextualTaskSuggestions.js'
 import {
+  buildContextualTaskSuggestions,
+} from '../src/features/session/newSessionSuggestions.js'
+import {
+  normalizeGeneratedSuggestionsForSurface,
+  sanitizeTaskSuggestionContextText,
+  shouldApplyGeneratedSuggestions,
+} from '../src/features/session/useContextualTaskSuggestions.js'
+import {
+  buildWorkingContextualTaskSuggestions,
   createWorkingSuggestionState,
   returnToWorkingSuggestionRoot,
   selectWorkingSuggestionCategory,
@@ -76,6 +84,26 @@ describe('composer suggestions', () => {
     expect(filterComposerCommands(merged, '上下文').map(item => item.id)).toEqual([
       'status',
     ])
+  })
+
+  test('keeps temporarily disabled commands and hides commands outside the environment', () => {
+    const disabled = builtin('compact', '压缩', '压缩上下文', false)
+    const hidden = {
+      ...builtin('side', '侧边聊天', '打开侧边聊天'),
+      availability: { visible: false, enabled: true },
+    }
+    expect(mergeSlashCommands([disabled, hidden], []).map(item => item.id)).toEqual([
+      'compact',
+    ])
+  })
+
+  test('detects a slash command query at the cursor without replacing the draft', () => {
+    expect(getActiveSlashCommandQuery('继续处理 /rev 后续', 9)).toEqual({
+      start: 5,
+      end: 9,
+      query: 'rev',
+    })
+    expect(getActiveSlashCommandQuery('https://example.com', 8)).toBeNull()
   })
 
   test('parses only exact registered slash commands', async () => {
@@ -188,6 +216,95 @@ describe('composer suggestions', () => {
     )
   })
 
+  test('uses generic prompts without assuming repository when hasWorkspace is false', () => {
+    const suggestions = buildContextualTaskSuggestions({
+      recentTasks: [],
+      git: null,
+      hasWorkspace: false,
+    })
+    expect(suggestions).toHaveLength(4)
+    expect(suggestions.every(item => !item.prompt.includes('this codebase'))).toBe(true)
+  })
+
+  test('builds three Working suggestions from unfinished, Git, and completed work', () => {
+    const suggestions = buildWorkingContextualTaskSuggestions({
+      workspaceName: 'CodePilotX',
+      recentTasks: [
+        {
+          id: 'thread:failed',
+          title: '整理发布说明',
+          firstPrompt: '补齐本周发布说明',
+          status: 'interrupted',
+          updatedAt: 3,
+        },
+        {
+          id: 'thread:done',
+          title: '自动生成周报',
+          firstPrompt: 'Automate weekly report',
+          status: 'done',
+          updatedAt: 2,
+        },
+      ],
+      git: {
+        clean: false,
+        ahead: 0,
+        behind: 0,
+        totalFiles: 6,
+        files: [],
+      },
+    })
+
+    expect(suggestions).toHaveLength(3)
+    expect(suggestions.map(item => item.id)).toEqual([
+      'working-recent-unfinished:thread:failed',
+      'working-git:working-tree',
+      'working-recent-completed:thread:done',
+    ])
+    expect(suggestions[2]?.categoryId).toBe('automate')
+  })
+
+  test('keeps three project-specific Working fallbacks without context', () => {
+    const suggestions = buildWorkingContextualTaskSuggestions({
+      workspaceName: '演示项目',
+      recentTasks: [],
+      git: null,
+    })
+
+    expect(suggestions).toHaveLength(3)
+    expect(suggestions.map(item => item.categoryId)).toEqual([
+      'create',
+      'research',
+      'automate',
+    ])
+    expect(suggestions.every(item => item.label.includes('演示项目'))).toBeTrue()
+  })
+
+  test('accepts only the generated categories and count for each surface', () => {
+    const working = [
+      generatedSuggestion('create', '创建交付物'),
+      generatedSuggestion('research', '规划下一步'),
+      generatedSuggestion('automate', '自动生成周报'),
+    ]
+    expect(
+      normalizeGeneratedSuggestionsForSurface(working, 'working'),
+    ).toHaveLength(3)
+    expect(
+      normalizeGeneratedSuggestionsForSurface(working.slice(0, 2), 'working'),
+    ).toBeNull()
+    expect(
+      normalizeGeneratedSuggestionsForSurface(working, 'coding'),
+    ).toBeNull()
+  })
+
+  test('removes absolute Windows paths before building suggestion context', () => {
+    const sanitized = sanitizeTaskSuggestionContextText(
+      '检查 C:\\Users\\XiaoHi\\repo\\secret.txt 和 \\\\server\\share\\plan.md',
+      500,
+    )
+    expect(sanitized).toBe('检查 [路径] 和 [路径]')
+    expect(sanitized).not.toContain('XiaoHi')
+  })
+
   test('supports contextual, template, and category navigation states', () => {
     expect(showNewSessionSuggestionTemplates()).toEqual({ kind: 'templates' })
     expect(showContextualNewSessionSuggestions()).toEqual({ kind: 'root' })
@@ -267,8 +384,8 @@ describe('composer suggestions', () => {
 
 describe('working suggestions', () => {
   const categoryState = selectWorkingSuggestionCategory(
-    'today',
-    '规划今天的工作',
+    'create',
+    '创建',
   )
 
   test('空输入进入第一层，键入内容隐藏建议', () => {
@@ -283,94 +400,116 @@ describe('working suggestions', () => {
   test('第一层到第二层的状态转换并记录 starter', () => {
     expect(categoryState).toEqual({
       kind: 'category',
-      categoryId: 'today',
-      generatedStarter: '规划今天的工作',
+      categoryId: 'create',
+      generatedStarter: '创建',
     })
-    expect(syncWorkingSuggestionState(categoryState, '继续编辑')).toEqual(
+    expect(syncWorkingSuggestionState(categoryState, '创建')).toEqual(
       categoryState,
     )
+    expect(syncWorkingSuggestionState(categoryState, '创建一个文档')).toEqual({
+      kind: 'hidden',
+      reason: 'custom-input',
+    })
   })
 
-  test('starter 仅在未被用户修改时移除', () => {
+  test('返回时只移除草稿开头的系统 starter，保留用户补写内容', () => {
     expect(
-      returnToWorkingSuggestionRoot(categoryState, '规划今天的工作'),
+      returnToWorkingSuggestionRoot(categoryState, '创建'),
     ).toEqual({ state: { kind: 'root' }, composerValue: '' })
     expect(
-      returnToWorkingSuggestionRoot(categoryState, '规划今天的工作。补充'),
-    ).toEqual({ state: { kind: 'root' }, composerValue: '规划今天的工作。补充' })
+      returnToWorkingSuggestionRoot(categoryState, '创建一个项目说明'),
+    ).toEqual({ state: { kind: 'root' }, composerValue: '一个项目说明' })
     expect(
       returnToWorkingSuggestionRoot({ kind: 'root' }, '自定义'),
     ).toEqual({ state: { kind: 'root' }, composerValue: '自定义' })
   })
 
-  test('九个第二层选项映射到正确提示词，并自动选择规划任务插件', () => {
-    const prompts = WORKING_SUGGESTION_CATEGORIES.flatMap(category =>
-      category.tasks.map(task => ({
-        category: category.id,
-        ...task,
+  test('使用三类 Codex Work 直接任务，不包含第三级插件占位符', () => {
+    expect(
+      WORKING_SUGGESTION_CATEGORIES.map(category => ({
+        id: category.id,
+        label: category.label,
+        starterPrompt: category.starterPrompt,
+        taskCount: category.tasks.length,
       })),
+    ).toEqual([
+      {
+        id: 'create',
+        label: '创建文件或搭建网站',
+        starterPrompt: '创建',
+        taskCount: 4,
+      },
+      {
+        id: 'research',
+        label: '调研并规划后续步骤',
+        starterPrompt: '确定下一步',
+        taskCount: 4,
+      },
+      {
+        id: 'automate',
+        label: '自动处理日常和重复性工作',
+        starterPrompt: '自动化',
+        taskCount: 4,
+      },
+    ])
+    const prompts = WORKING_SUGGESTION_CATEGORIES.flatMap(category =>
+      category.tasks.map(task => task.prompt),
     )
-    expect(prompts).toHaveLength(9)
-    const today = prompts.filter(item => item.category === 'today')
-    expect(today.map(item => item.prompt)).toEqual([
-      '请帮我安排今天全部任务。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
-      '请帮我安排带固定时间的事项。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
-      '请根据当前工作情况重新规划今天剩余的任务。保留已经完成和固定时间的事项，先向我确认缺失的预计耗时或时间约束，再调整剩余任务。',
-    ])
-    expect(
-      prompts.filter(item => item.category === 'complex').map(item => item.prompt),
-    ).toEqual([
-      '请帮我拆解目标和交付物。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
-      '请帮我识别依赖和阻塞。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
-      '请帮我制定分阶段推进计划。先确认工作目标、交付标准、已有资料、依赖和截止时间，再把它拆成可以逐步执行的工作安排。',
-    ])
-    expect(
-      prompts
-        .filter(item => item.category === 'multi-project')
-        .map(item => item.prompt),
-    ).toEqual([
-      '请帮我平衡多个项目优先级。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
-      '请帮我安排跨项目工作时间。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
-      '请帮我检查截止时间与冲突。先确认各项目的目标、优先级、截止时间、预计耗时和固定约束，再协调冲突并生成整体工作安排。',
-    ])
-    expect(new Set(prompts.map(item => item.prompt)).size).toBe(9)
+    expect(prompts.some(prompt => /\{(?:artifact|plugin)\}/.test(prompt))).toBeFalse()
   })
 
-  test('最终建议选择规划任务插件但不自动发送（只替换 Composer）', () => {
-    const result = selectWorkingSuggestionTask(categoryState, 'today-all')
-    expect(result).toEqual({
+  test('每类最终建议映射直接提示词并选择规划任务插件', () => {
+    expect(
+      selectWorkingSuggestionTask(
+        categoryState,
+        'new-chat-page-create-document',
+      ),
+    ).toEqual({
       state: { kind: 'hidden', reason: 'prompt-filled' },
-      prompt:
-        '请帮我安排今天全部任务。先询问我要完成的任务、今天的可用时间、固定事项和每项预计耗时，再为我生成可以执行的时间安排。',
-      plugin: 'task-planning',
+      prompt: '创建一个新文档。先问我它应该是什么主题。',
+      plugin: null,
     })
+    expect(
+      selectWorkingSuggestionTask(
+        selectWorkingSuggestionCategory('research', '确定下一步'),
+        'new-chat-page-research-options-and-tradeoffs',
+      )?.prompt,
+    ).toBe('比较选项后确定下一步')
+    expect(
+      selectWorkingSuggestionTask(
+        selectWorkingSuggestionCategory('automate', '自动化'),
+        'new-chat-page-monitor-changes',
+      )?.prompt,
+    ).toBe('自动监控重要变更')
   })
 
   test('未知任务或非分类状态返回 null', () => {
     expect(selectWorkingSuggestionTask(categoryState, 'missing')).toBeNull()
-    expect(selectWorkingSuggestionTask({ kind: 'root' }, 'today-all')).toBeNull()
+    expect(
+      selectWorkingSuggestionTask(
+        { kind: 'root' },
+        'new-chat-page-create-document',
+      ),
+    ).toBeNull()
   })
 
-  test('建议只在 Composer 交互区域聚焦时显示', () => {
-    expect(shouldShowWorkingSuggestions({ kind: 'root' }, true)).toBeTrue()
-    expect(shouldShowWorkingSuggestions(categoryState, true)).toBeTrue()
-    expect(shouldShowWorkingSuggestions({ kind: 'root' }, false)).toBeFalse()
-    expect(shouldShowWorkingSuggestions(categoryState, false)).toBeFalse()
+  test('空草稿时默认显示建议，用户输入后隐藏，清空后恢复根分类', () => {
+    expect(shouldShowWorkingSuggestions({ kind: 'root' })).toBeTrue()
+    expect(shouldShowWorkingSuggestions(categoryState)).toBeTrue()
+    const hidden = syncWorkingSuggestionState({ kind: 'root' }, '自定义')
+    expect(shouldShowWorkingSuggestions(hidden)).toBeFalse()
+    expect(syncWorkingSuggestionState(hidden, '')).toEqual({ kind: 'root' })
   })
 
-  test('hidden 状态即使聚焦也不显示建议', () => {
+  test('最终任务填充后隐藏建议，清空草稿时恢复', () => {
+    const promptFilled = { kind: 'hidden', reason: 'prompt-filled' } as const
     expect(
-      shouldShowWorkingSuggestions(
-        { kind: 'hidden', reason: 'custom-input' },
-        true,
-      ),
+      shouldShowWorkingSuggestions(promptFilled),
     ).toBeFalse()
-    expect(
-      shouldShowWorkingSuggestions(
-        { kind: 'hidden', reason: 'prompt-filled' },
-        true,
-      ),
-    ).toBeFalse()
+    expect(syncWorkingSuggestionState(promptFilled, '自动监控重要变更')).toEqual(
+      promptFilled,
+    )
+    expect(syncWorkingSuggestionState(promptFilled, '')).toEqual({ kind: 'root' })
   })
 })
 
@@ -383,6 +522,18 @@ function installedSkill(name: string) {
     source: 'workspace' as const,
     format: 'agents' as const,
     enabled: true,
+  }
+}
+
+function generatedSuggestion(
+  categoryId: 'create' | 'research' | 'automate',
+  label: string,
+) {
+  return {
+    id: `generated:${categoryId}`,
+    categoryId,
+    label,
+    prompt: `${label}的完整提示词`,
   }
 }
 

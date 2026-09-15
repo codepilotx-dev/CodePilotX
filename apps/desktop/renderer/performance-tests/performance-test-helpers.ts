@@ -13,9 +13,11 @@ const outputDirectory = resolve(
 
 export type InteractionMetrics = {
   durationMs: number
+  frameCount: number
   frameP95Ms: number
   maxFrameMs: number
   maxLongTaskMs: number
+  longTaskP95Ms: number
 }
 
 export async function recordRendererSample(
@@ -113,19 +115,38 @@ export async function stopInteractionProbe(
     probe.observer?.disconnect()
     const sorted = [...probe.frameGaps].sort((left, right) => left - right)
     const p95Index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1)
+    const sortedLongTasks = [...probe.longTasks].sort((left, right) => left - right)
+    const longTaskP95Index = Math.max(
+      0,
+      Math.ceil(sortedLongTasks.length * 0.95) - 1,
+    )
     delete target.__codePilotXPerformanceProbe
     return {
       durationMs: performance.now() - probe.startedAt,
+      frameCount: sorted.length,
       frameP95Ms: sorted[p95Index] ?? 0,
       maxFrameMs: sorted.at(-1) ?? 0,
       maxLongTaskMs: Math.max(0, ...probe.longTasks),
+      longTaskP95Ms: sortedLongTasks[longTaskP95Index] ?? 0,
     }
   })
 }
 
-export async function waitForFixture(page: Page, turns: number, sessions: number) {
+export async function waitForFixture(
+  page: Page,
+  turns: number,
+  sessions: number,
+  options: { nestedScroll?: boolean } = {},
+) {
+  const search = new URLSearchParams({
+    performanceCase: options.nestedScroll
+      ? 'nested-scroll-edge-fade'
+      : 'desktop-ux',
+    performanceSessions: String(sessions),
+    performanceTurns: String(turns),
+  })
   await page.goto(
-    `/?performanceCase=desktop-ux&performanceTurns=${turns}&performanceSessions=${sessions}#/threads/performance-session-001`,
+    `/?${search.toString()}#/threads/performance-session-001`,
   )
   await waitForPerformanceThread(page, 1, turns)
   await page.evaluate(async () => {
@@ -170,6 +191,12 @@ export async function measurePerformanceThreadSwitch(
           && getComputedStyle(node).visibility !== 'hidden',
         )
       }
+      const readyThread = (index: number, expectedTurns: number): boolean =>
+        document
+          .querySelector<HTMLElement>(
+            `[data-canonical-thread-id="${threadId(index)}"]`,
+          )
+          ?.dataset.canonicalTurnCount === String(expectedTurns)
       const startedAt = performance.now()
       let contentVisibleMs: number | null = null
       let staleVisibleMs: number | null = null
@@ -207,8 +234,7 @@ export async function measurePerformanceThreadSwitch(
         }
         if (
           contentVisibleMs !== null &&
-          document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-            turns
+          readyThread(nextIndex, turns)
         ) {
           return {
             contentVisibleMs,
@@ -240,12 +266,11 @@ export async function waitForPerformanceThread(
     .locator(`[data-canonical-thread-id="${sessionId}"]`)
     .waitFor({ state: 'visible' })
   await page.locator('.composer-editor-content').waitFor()
-  await page.waitForFunction(
-    expected =>
-      document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-      expected,
-    turnCount,
-  )
+  await page
+    .locator(
+      `[data-canonical-thread-id="${sessionId}"][data-canonical-turn-count="${turnCount}"]`,
+    )
+    .waitFor({ state: 'visible' })
 }
 
 export function nearestRankP95(values: readonly number[]): number {

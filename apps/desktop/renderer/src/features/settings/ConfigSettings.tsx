@@ -16,22 +16,10 @@ import type {
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
-import { TaskModelSelect } from './TaskModelSelect.js'
+import { SpecializedModelSelect } from './SpecializedModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
-
-function LearnMoreLink() {
-  return (
-    <a
-      className="settings-row-link"
-      href="#"
-      onClick={event => event.preventDefault()}
-    >
-      了解更多
-    </a>
-  )
-}
 
 export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -135,7 +123,6 @@ export function ConfigSettings(): React.ReactNode {
           <h2 className="settings-page-title">配置</h2>
           <p className="settings-page-desc">
             配置审批策略和命令执行范围。
-            <LearnMoreLink />
           </p>
         </div>
 
@@ -183,7 +170,7 @@ export function ConfigSettings(): React.ReactNode {
               />
             </div>
             <div className="config-settings-source-actions">
-              <Button
+              <Button color="secondary"
                 type="button"
                 disabled={!configProfiles?.profilesDirectory}
                 onClick={() => {
@@ -195,7 +182,7 @@ export function ConfigSettings(): React.ReactNode {
                 <ExternalLink size={APP_ICON_SIZE} />
                 打开 Profiles 目录
               </Button>
-              <Button
+              <Button color="secondary"
                 type="button"
                 disabled={!selectedConfigLayer?.filePath}
                 onClick={() => {
@@ -241,17 +228,17 @@ export function ConfigSettings(): React.ReactNode {
               }
             />
             <SettingsRow
-              title="工具权限范围"
-              description="该范围约束结构化文件工具和审批信号，不是 Shell 子进程的操作系统隔离边界。"
+              title="文件访问范围"
+              description="选择结构化文件工具的访问范围；终端命令始终在本机执行，并经过风险、Hook 和审批门禁。"
               control={
                 <SettingsDropdown
                   width={260}
-                  ariaLabel="工具权限范围"
+                  ariaLabel="文件访问范围"
                   value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
                   options={[
-                    { value: ':read-only', label: '文件工具只读', detail: '结构化文件工具只读；非计划模式 Shell 仍在本机执行' },
-                    { value: ':workspace', label: '文件工具限工作区', detail: '结构化文件工具仅写工作区；Shell 没有 OS 文件边界' },
-                    { value: ':danger-full-access', label: '完全访问', detail: '所有工具以当前 Windows 用户权限执行（风险很高）' },
+                    { value: ':read-only', label: '只读', detail: '结构化文件工具只读；终端命令在本机执行并经过风险、Hook 和审批' },
+                    { value: ':workspace', label: '当前工作区', detail: '结构化文件工具仅写当前工作区；终端命令在本机执行并经过风险、Hook 和审批' },
+                    { value: ':danger-full-access', label: '完全访问', detail: '结构化文件工具可访问本机路径；终端命令在本机执行并经过风险、Hook 和审批' },
                   ]}
                   onChange={value => {
                     const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
@@ -369,7 +356,7 @@ export function ConfigSettings(): React.ReactNode {
             title="完整提示词诊断"
             description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
             control={
-              <Button
+              <Button color="secondary"
                 type="button"
                 onClick={() => void (async () => {
                   try {
@@ -398,94 +385,64 @@ export function ConfigSettings(): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection
-          title="任务模型"
-          description="这些模型对应轻量、常规和深度任务入口；留空时会使用上面的会话主模型。"
+          title="专用模型"
+          description="按用途为辅助能力选择模型；留空时使用上面的会话主模型。"
         >
           <SettingsRow
-            title="快速模型"
-            description="用于标题、摘要、Hook、检索等轻量辅助任务；未配置时使用主模型。"
+            title="生成模型"
+            description="用于任务建议和会话标题生成与更新。"
             control={
-              <TaskModelSelect
-                value={draft.values.smallFastModel}
+              <SpecializedModelSelect
+                value={draft.values.generationModel}
                 mainModel={settings.model}
-                taskModelKey="smallFastModel"
+                specializedModelKey="generationModel"
                 onChange={v => {
-                  draft.setValue('smallFastModel', v)
+                  draft.setValue('generationModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="快速任务模型"
-            description="用于低成本子任务、轻量 Agent 和辅助生成；未配置时使用主模型。"
+            title="整理模型"
+            description="用于记忆提取和任务上下文整理。"
             control={
-              <TaskModelSelect
-                value={draft.values.fastModel}
+              <SpecializedModelSelect
+                value={draft.values.organizationModel}
                 mainModel={settings.model}
-                taskModelKey="fastModel"
+                specializedModelKey="organizationModel"
                 onChange={v => {
-                  draft.setValue('fastModel', v)
+                  draft.setValue('organizationModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="默认任务模型"
-            description="用于常规 Agent、计划外的主力任务入口；未配置时使用主模型。"
+            title="代码模型"
+            description="用于计划实施和 AI 代码审查。"
             control={
-              <TaskModelSelect
-                value={draft.values.defaultModel}
+              <SpecializedModelSelect
+                value={draft.values.codingModel}
                 mainModel={settings.model}
-                taskModelKey="defaultModel"
+                specializedModelKey="codingModel"
                 onChange={v => {
-                  draft.setValue('defaultModel', v)
+                  draft.setValue('codingModel', v)
                   draft.autoSave()
                 }}
               />
             }
           />
           <SettingsRow
-            title="深度任务模型"
-            description="用于高质量推理、复杂修改和深度审查；未配置时使用主模型。"
+            title="安全模型（实验）"
+            description="用于 Shell 和工具权限自动审核。"
             control={
-              <TaskModelSelect
-                value={draft.values.deepModel}
+              <SpecializedModelSelect
+                value={draft.values.securityModel}
                 mainModel={settings.model}
-                taskModelKey="deepModel"
+                specializedModelKey="securityModel"
                 onChange={v => {
-                  draft.setValue('deepModel', v)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="计划执行模型"
-            description="批准计划后用于实施阶段；未配置时使用默认任务模型。"
-            control={
-              <TaskModelSelect
-                value={draft.values.planExecutionModel}
-                mainModel={settings.model}
-                taskModelKey="planExecutionModel"
-                onChange={v => {
-                  draft.setValue('planExecutionModel', v)
-                  draft.autoSave()
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            title="权限审核模型（实验）"
-            description="仅用于 Shell 和工具权限的自动审核；自定义模型不兼容时会回退人工审批。"
-            control={
-              <TaskModelSelect
-                value={draft.values.reviewModel}
-                mainModel={settings.model}
-                taskModelKey="reviewModel"
-                onChange={v => {
-                  draft.setValue('reviewModel', v)
+                  draft.setValue('securityModel', v)
                   draft.autoSave()
                 }}
               />
@@ -559,7 +516,7 @@ export function ConfigSettings(): React.ReactNode {
                 : '选择父目录后会创建 .codepilotx，并立即重启完成安全迁移。旧目录不会删除。'
             }
             control={
-              <Button
+              <Button color="primary"
                 disabled={
                   changingLocation ||
                   dataLocation?.isEnvControlled

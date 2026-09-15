@@ -91,6 +91,47 @@ async function resolveTextColorToken(
   }, token)
 }
 
+test('appearance cards share the settings content grid', async ({ page }) => {
+  await page.setViewportSize(COMPACT_VIEWPORT)
+  await prepareVisualTheme(page, 'light')
+  await page.goto('/?visualCase=empty#/settings/appearance')
+  await waitForVisualPage(
+    page,
+    'light',
+    page.getByRole('heading', { name: '外观' }),
+  )
+
+  const cardAlignment = await page.evaluate(() => {
+    const themeCard = document.querySelector<HTMLElement>(
+      '.appearance-theme-editor',
+    )!
+    const preferenceCard = document.querySelector<HTMLElement>(
+      '.appearance-settings > .settings-section:last-child .settings-card',
+    )!
+    const themeRows = [
+      themeCard.querySelector<HTMLElement>(':scope > .settings-row')!,
+      themeCard.querySelector<HTMLElement>(
+        '.appearance-theme-editor-rows > .settings-row',
+      )!,
+    ]
+    const preferenceRow = preferenceCard.querySelector<HTMLElement>(
+      '.settings-row',
+    )!
+    const themeBounds = themeCard.getBoundingClientRect()
+    const preferenceBounds = preferenceCard.getBoundingClientRect()
+    return {
+      leftDelta: Math.abs(themeBounds.left - preferenceBounds.left),
+      widthDelta: Math.abs(themeBounds.width - preferenceBounds.width),
+      themePadding: themeRows.map(row => getComputedStyle(row).paddingInline),
+      preferencePadding: getComputedStyle(preferenceRow).paddingInline,
+    }
+  })
+  expect(cardAlignment.leftDelta).toBeLessThan(0.5)
+  expect(cardAlignment.widthDelta).toBeLessThan(0.5)
+  expect(cardAlignment.themePadding).toEqual(['16px', '16px'])
+  expect(cardAlignment.preferencePadding).toBe('16px')
+})
+
 for (const mode of VISUAL_MODES) {
   for (const tab of SETTINGS_TABS) {
     visualTest(`settings ${tab.id} ${mode}`, async ({ page }) => {
@@ -130,7 +171,7 @@ for (const mode of VISUAL_MODES) {
         name: '打开宠物商店',
       },
       {
-        route: '/?visualCase=empty#/models',
+        route: '/?visualCase=empty#/settings/providers',
         name: '新增自定义 Provider',
       },
     ] as const
@@ -225,6 +266,49 @@ for (const mode of VISUAL_MODES) {
       mode,
       page.getByRole('heading', { name: '外观' }),
     )
+
+    const selectedThemeVisual = page.locator(
+      '.appearance-mode-card[data-state="checked"] .appearance-mode-visual',
+    )
+    await expect(selectedThemeVisual).toHaveCSS('border-top-width', '2px')
+    await expect(selectedThemeVisual).toHaveCSS('box-shadow', 'none')
+
+    const diffMarkerGroup = page.getByRole('radiogroup', {
+      name: '差异标记选项',
+    })
+    await expect(diffMarkerGroup).toHaveAttribute('data-variant', 'default')
+    const diffMarkerChrome = await diffMarkerGroup.evaluate(element => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        paddingTop: style.paddingTop,
+      }
+    })
+    expect(diffMarkerChrome.paddingTop).toBe('0px')
+    expect(diffMarkerChrome.backgroundColor).toBe('rgba(0, 0, 0, 0)')
+
+    const selectedDiffMarker = diffMarkerGroup.locator(
+      '.segmented-control-item[data-state="on"]',
+    )
+    await expect(selectedDiffMarker).toHaveCSS('border-radius', '8px')
+    await expect(selectedDiffMarker).toHaveCSS(
+      'background-color',
+      await resolveColorToken(
+        page,
+        '--color-token-list-active-selection-background',
+      ),
+    )
+    await expect(selectedDiffMarker).toHaveCSS('box-shadow', 'none')
+
+    const pointerSwitchThumb = page
+      .getByRole('switch', { name: '使用指针光标' })
+      .locator('.toggle-knob')
+    await expect
+      .poll(() =>
+        pointerSwitchThumb.evaluate(element => getComputedStyle(element).boxShadow),
+      )
+      .not.toBe('none')
+
     await expect(page.locator('body')).toHaveScreenshot(
       `settings-appearance-${mode}-960x640.png`,
       {
@@ -235,6 +319,103 @@ for (const mode of VISUAL_MODES) {
     await expectNoHorizontalOverflow(page)
   })
 }
+
+for (const mode of VISUAL_MODES) {
+  visualTest(`appearance controls and previews stay stable ${mode}`, async ({ page }) => {
+    await page.setViewportSize(COMPACT_VIEWPORT)
+    await prepareVisualTheme(page, mode)
+    await page.goto('/?visualCase=empty#/settings/appearance')
+    await waitForVisualPage(
+      page,
+      mode,
+      page.getByRole('heading', { name: '外观' }),
+    )
+
+    const modeCards = page.locator('.appearance-mode-card')
+    await expect(modeCards).toHaveCount(3)
+    for (let index = 0; index < 3; index += 1) {
+      const card = modeCards.nth(index)
+      const beforeHover = await card.evaluate(element => {
+        const visual = element.querySelector<HTMLElement>('.appearance-mode-visual')!
+        const label = element.querySelector<HTMLElement>('.appearance-mode-label')!
+        const visualStyle = getComputedStyle(visual)
+        return {
+          backgroundColor: visualStyle.backgroundColor,
+          backgroundImage: visualStyle.backgroundImage,
+          borderColor: visualStyle.borderColor,
+          labelColor: getComputedStyle(label).color,
+        }
+      })
+      await card.hover()
+      await expect
+        .poll(() =>
+          card.evaluate(element => {
+            const visual = element.querySelector<HTMLElement>('.appearance-mode-visual')!
+            const label = element.querySelector<HTMLElement>('.appearance-mode-label')!
+            const visualStyle = getComputedStyle(visual)
+            return {
+              backgroundColor: visualStyle.backgroundColor,
+              backgroundImage: visualStyle.backgroundImage,
+              borderColor: visualStyle.borderColor,
+              labelColor: getComputedStyle(label).color,
+            }
+          }),
+        )
+        .toEqual(beforeHover)
+    }
+
+    const pointerSwitch = page.getByRole('switch', { name: '使用指针光标' })
+    const pointerSwitchThumb = pointerSwitch.locator('.toggle-knob')
+    const expectCenteredThumb = async (): Promise<void> => {
+      await expect
+        .poll(() =>
+          pointerSwitch.evaluate(element => {
+            const track = element.getBoundingClientRect()
+            const thumb = element.querySelector<HTMLElement>('.toggle-knob')!
+              .getBoundingClientRect()
+            const checked = element.getAttribute('data-state') === 'checked'
+            return {
+              edgeGap: checked
+                ? track.right - thumb.right
+                : thumb.left - track.left,
+              topGap: thumb.top - track.top,
+              bottomGap: track.bottom - thumb.bottom,
+            }
+          }),
+        )
+        .toEqual({
+          edgeGap: 2,
+          topGap: 2,
+          bottomGap: 2,
+        })
+    }
+    const expectedThumbColor = 'rgb(255, 255, 255)'
+    await expect(pointerSwitchThumb).toHaveCSS(
+      'background-color',
+      expectedThumbColor,
+    )
+    await expectCenteredThumb()
+    await pointerSwitch.click()
+    await expect(pointerSwitch).toHaveAttribute('data-state', 'checked')
+    await expect(pointerSwitchThumb).toHaveCSS(
+      'background-color',
+      expectedThumbColor,
+    )
+    await expectCenteredThumb()
+
+    const contrastSlider = page.getByRole('slider', {
+      name: mode === 'light' ? '浅色对比度' : '深色对比度',
+    })
+    await expect
+      .poll(() =>
+        contrastSlider.evaluate(element =>
+          getComputedStyle(element).getPropertyValue('--control-thumb-fill').trim(),
+        ),
+      )
+      .toBe('#ffffff')
+  })
+}
+
 const CONTRAST_BOUNDARIES = [0, 45, 60, 100] as const
 
 for (const contrast of CONTRAST_BOUNDARIES) {

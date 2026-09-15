@@ -13,13 +13,15 @@ const reviewer = (
 ) => {
   const configured = getSetting<Model.Ref>("reviewerModel")
   return new ReviewerService(
-    { getSetting } as AgentDatabase,
+    { getSetting, threadProjectID: () => null } as unknown as AgentDatabase,
     providers,
     {
       snapshot: () => configured
         ? {
             model_provider: String(configured.providerID),
-            task_models: { reviewer: String(configured.id) },
+            specialized_models: {
+              security: `${String(configured.providerID)}/${String(configured.id)}`,
+            },
           }
         : {},
     } as never,

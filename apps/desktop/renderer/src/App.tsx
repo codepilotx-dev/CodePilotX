@@ -5,9 +5,12 @@ import { DesktopThemeProvider } from './features/theme/DesktopThemeProvider.js'
 import { TooltipProvider } from './components/ui/Tooltip.js'
 import { AppContextMenu } from './components/ui/AppContextMenu.js'
 import { EditCommandProvider } from './components/ui/EditCommandProvider.js'
-import { lazy, Suspense, useEffect, useState } from 'react'
-
-const GlobalErrorModal = lazy(() => import('./components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
+import { Suspense, useEffect, useState } from 'react'
+import { useEverOpened } from './hooks/usePresenceRetention.js'
+import { PageZoomCapsule } from './components/PageZoomCapsule.js'
+import { PET_OVERLAY_HASH_PREFIX } from './startup/startupSplashHandoff.js'
+import { GlobalErrorModal } from './components/GlobalErrorModal.js'
+import { fullErrorMessage } from './utils/errors.js'
 
 function isResizeObserverLoopError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
@@ -16,12 +19,11 @@ function isResizeObserverLoopError(error: unknown): boolean {
 
 export function App(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const errorModalMounted = useEverOpened(errorMessage !== null)
 
   useEffect(() => {
     const showError = (error: unknown): void => {
-      void import('./utils/errors.js').then(module => {
-        setErrorMessage(module.fullErrorMessage(error))
-      })
+      setErrorMessage(fullErrorMessage(error))
     }
     const handleError = (event: ErrorEvent): void => {
       if (
@@ -71,7 +73,7 @@ export function App(): React.ReactNode {
             width={240}
             trigger={
               <div className="app-global-context-menu-trigger">
-                {errorMessage ? (
+                {errorModalMounted ? (
                   <Suspense fallback={null}>
                     <GlobalErrorModal
                       message={errorMessage}
@@ -79,6 +81,9 @@ export function App(): React.ReactNode {
                     />
                   </Suspense>
                 ) : null}
+                {window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX)
+                  ? null
+                  : <PageZoomCapsule />}
                 <RouterProvider router={router} />
               </div>
             }

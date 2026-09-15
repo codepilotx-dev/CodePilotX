@@ -5,7 +5,6 @@ import type {
   McpSanitizedError,
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
-import type { Schema } from "effect"
 import { createHash } from "node:crypto"
 import { AgentError } from "../domain"
 import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from "../tool/ToolRegistry"
@@ -58,6 +57,8 @@ export type McpTurnLease = {
   serverInstructions: readonly McpServerInstruction[]
   catalog: ToolCatalog
   release(): Promise<void>
+  listServers(): Array<{ name: string; scope: string; type: string; required: boolean; loaded: boolean }>
+  loadServer(name: string): Promise<void>
 }
 
 export type McpServerInstruction = {
@@ -199,17 +200,82 @@ export class McpConnectionManager {
     }
     generation.leases += 1
     let released = false
+    const pendingLoads = new Map<string, Promise<void>>()
+
     return {
       generation: generation.id,
       definitions: generation.definitions,
       serverInstructions: generation.serverInstructions,
       catalog: new TurnToolCatalog(this.baseCatalog, generation.definitions),
+      listServers: () => {
+        return [...generation.handles.entries()].map(([name, handle]) => ({
+          name,
+          scope: handle.server.scope,
+          type: handle.server.transport.type,
+          required: handle.server.required === true,
+          loaded: handle.state === "connected",
+        }))
+      },
+      loadServer: async (name: string) => {
+        if (generation.handles.get(name)?.state === "connected") return
+        const existing = pendingLoads.get(name)
+        if (existing) return existing
+        const promise = this.loadServerImpl(runtime, generation, name)
+        pendingLoads.set(name, promise)
+        try {
+          await promise
+        } finally {
+          pendingLoads.delete(name)
+        }
+      },
       release: async () => {
         if (released) return
         released = true
         generation.leases = Math.max(0, generation.leases - 1)
         await this.disposeRetired(generation)
       },
+    }
+  }
+
+  private async loadServerImpl(
+    runtime: WorkspaceRuntime,
+    generation: RuntimeGeneration,
+    name: string,
+  ): Promise<void> {
+    const handle = generation.handles.get(name)
+    if (!handle || handle.state === "connected") return
+    if (handle.server.required !== true) {
+      try {
+        handle.connected = await this.factory.connect(
+          handle.server,
+          () => { void this.catalogChanged(runtime, name) },
+          () => { void this.connectionClosed(runtime, name, handle) },
+          {
+            workspaceHash: runtime.key,
+            onAuthenticationRequired: () => {
+              void this.authenticationRequired(runtime, name, handle)
+            },
+          },
+        )
+        handle.state = "connected"
+        generation.definitions = new McpToolAdapter(
+          generation.id,
+          generation.handles,
+          this.diagnosticContext,
+        ).definitions()
+        generation.serverInstructions = generationInstructions(generation.handles)
+      } catch (cause) {
+        const error = cause instanceof McpConnectionError
+          ? cause
+          : new McpConnectionError({
+              code: "MCP_CONNECTION_FAILED",
+              message: "MCP server 连接失败",
+              retryable: true,
+            })
+        handle.state = error.needsAuth ? "needs_auth" : "failed"
+        handle.error = error.safe
+        throw new AgentError("MCP_OPTIONAL_SERVER_FAILED", `MCP server "${name}" 连接失败: ${error.safe.message}`, 200)
+      }
     }
   }
 

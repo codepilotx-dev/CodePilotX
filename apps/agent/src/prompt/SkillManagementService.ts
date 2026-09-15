@@ -7,11 +7,17 @@ import {
   SkillSettingsConflictError,
   SkillSettingsRepository,
 } from "../storage/repositories/skill-settings-repository"
-import { SkillService, type SkillMetadata, type SkillScanOptions } from "./SkillService"
+import {
+  SkillService,
+  type PluginSkillRoot,
+  type SkillMetadata,
+  type SkillScanOptions,
+} from "./SkillService"
 
 type SkillStorageRoots = {
   dataRoot: string
   userHome: string
+  builtinSkillsRoot?: string
 }
 
 export class SkillManagementError extends Error {
@@ -25,9 +31,14 @@ export class SkillManagementError extends Error {
 }
 
 const normalizedIdentityPath = (path: string) => {
+  if (path.startsWith("builtin://") || path.startsWith("plugin://")) {
+    return path.toLowerCase()
+  }
   const absolute = resolve(path)
   return process.platform === "win32" ? absolute.toLowerCase() : absolute
 }
+
+const builtinPath = (path: string) => path.startsWith("builtin://")
 
 const workspaceRootForSkill = (path: string) => {
   const normalized = resolve(path).replaceAll("\\", "/")
@@ -48,7 +59,8 @@ const toInstalledSkill = (
   name: skill.name,
   description: skill.description,
   path: skill.path,
-  scope: skill.origin,
+  // Keep thread-rpc-v4 wire-compatible while the desktop maps builtin:// to “内置”.
+  scope: skill.origin === "builtin" ? "user" : skill.origin,
   format: skill.format,
   enabled: !disabled.has(skillPathIdentity(skill.path)),
 })
@@ -60,6 +72,7 @@ export class SkillManagementService {
     private readonly settings: SkillSettingsRepository,
     private readonly roots: SkillStorageRoots,
     private readonly configService?: ConfigService,
+    private readonly pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>,
   ) {}
 
   runtimeService() {
@@ -68,6 +81,10 @@ export class SkillManagementService {
       this.configService?.snapshot() ?? {},
     )
     return new SkillService({
+      ...(this.roots.builtinSkillsRoot
+        ? { builtinSkillsRoot: this.roots.builtinSkillsRoot }
+        : {}),
+      ...(this.pluginSkillRoots ? { pluginSkillRoots: this.pluginSkillRoots } : {}),
       enabled: (skill) => !disabled.has(skillPathIdentity(skill.path)),
     })
   }
@@ -118,7 +135,7 @@ export class SkillManagementService {
         enabled: input.enabled,
         operationId: input.operationId,
       })
-      if (this.configService) {
+      if (this.configService && !builtinPath(skill.path)) {
         const workspaceRoot = skill.origin === "workspace"
           ? workspaceRootForSkill(skill.path)
           : null
@@ -193,12 +210,19 @@ export class SkillManagementService {
       workspaceRoot: workspace ?? this.roots.userHome,
       dataRoot: this.roots.dataRoot,
       userHome: this.roots.userHome,
+      ...(this.roots.builtinSkillsRoot
+        ? { builtinSkillsRoot: this.roots.builtinSkillsRoot }
+        : {}),
       includeWorkspace: workspace !== undefined,
     }
   }
 
   private async scanService(workspace?: string) {
-    const service = new SkillService()
+    const service = new SkillService(
+      this.roots.builtinSkillsRoot
+        ? { builtinSkillsRoot: this.roots.builtinSkillsRoot }
+        : {},
+    )
     try {
       const catalog = await service.scan(this.scanOptions(workspace))
       return { service, catalog }
@@ -223,7 +247,9 @@ export class SkillManagementService {
   }
 
   private async resolveDiscoveredSkill(path: string, workspace?: string) {
-    const canonical = await this.canonicalRequestedPath(path)
+    const canonical = builtinPath(path)
+      ? normalizedIdentityPath(path)
+      : await this.canonicalRequestedPath(path)
     const catalog = await this.scan(workspace)
     const skill = catalog.skills.find((candidate) =>
       normalizedIdentityPath(candidate.path) === normalizedIdentityPath(canonical))
@@ -233,7 +259,9 @@ export class SkillManagementService {
   }
 
   private async resolveKnownSkill(path: string) {
-    const canonical = await this.canonicalRequestedPath(path)
+    const canonical = builtinPath(path)
+      ? normalizedIdentityPath(path)
+      : await this.canonicalRequestedPath(path)
     const skill = this.knownSkills.get(normalizedIdentityPath(canonical))
     if (!skill) throw new SkillManagementError("SKILL_NOT_FOUND", "技能不存在或尚未发现", 404)
     return skill

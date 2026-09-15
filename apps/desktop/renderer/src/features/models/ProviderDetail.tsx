@@ -1,15 +1,15 @@
-import { ArrowLeft, Server } from 'lucide-react'
+import { Server } from 'lucide-react'
 import type React from 'react'
-import { useId, useRef } from 'react'
+import { useId } from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
-import { IconButton } from '../../components/ui/IconButton.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 
-export const PROVIDER_DETAIL_TABS = ['connection', 'models', 'router'] as const
+export const PROVIDER_DETAIL_TABS = ['connection', 'models'] as const
 export type ProviderDetailTab = (typeof PROVIDER_DETAIL_TABS)[number]
 export type ProviderDetailStatusTone = 'positive' | 'warning' | 'danger' | 'neutral'
 
@@ -34,57 +34,24 @@ export type ProviderDetailProps = {
   children: React.ReactNode
 }
 
-const TAB_LABELS: Record<ProviderDetailTab, string> = {
-  connection: '连接',
-  models: '模型',
-  router: 'Router',
-}
+const TAB_OPTIONS: ReadonlyArray<{ value: ProviderDetailTab; label: string }> = [
+  { value: 'connection', label: '连接与凭据' },
+  { value: 'models', label: '模型与测速' },
+]
 
 export function ProviderDetail({
   provider,
   activeTab,
   onTabChange,
-  onBack,
   actions,
   feedback,
   children,
 }: ProviderDetailProps): React.ReactNode {
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const titleId = useId()
   const panelId = useId()
 
-  function handleTabKeyDown(
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    currentIndex: number,
-  ): void {
-    let nextIndex: number | null = null
-    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % PROVIDER_DETAIL_TABS.length
-    if (event.key === 'ArrowLeft') {
-      nextIndex = (currentIndex - 1 + PROVIDER_DETAIL_TABS.length) % PROVIDER_DETAIL_TABS.length
-    }
-    if (event.key === 'Home') nextIndex = 0
-    if (event.key === 'End') nextIndex = PROVIDER_DETAIL_TABS.length - 1
-    if (nextIndex === null) return
-    event.preventDefault()
-    const nextTab = PROVIDER_DETAIL_TABS[nextIndex]
-    if (!nextTab) return
-    onTabChange(nextTab)
-    tabRefs.current[nextIndex]?.focus()
-  }
-
   return (
-    <section className="model-center-provider-detail" aria-labelledby={titleId}>
+    <section className="model-center-provider-detail" aria-label={`${provider.name} 详情`}>
       <header className="model-center-provider-detail-header">
-        {onBack ? (
-          <IconButton
-            className="model-center-provider-back"
-            title="返回 Provider 列表"
-            onClick={onBack}
-          >
-            <ArrowLeft aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-        ) : null}
-
         <div className="model-center-provider-identity">
           {provider.logoURL ? (
             <RemoteImage
@@ -93,7 +60,7 @@ export function ProviderDetail({
               fallback={(
                 <Server
                   aria-hidden
-                  size={APP_ICON_SIZE + 6}
+                  size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
@@ -103,14 +70,14 @@ export function ProviderDetail({
             <span className="model-center-provider-identity-logo">
               <Server
                 aria-hidden
-                size={APP_ICON_SIZE + 6}
+                size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>
           )}
           <div className="model-center-provider-identity-copy">
             <div className="model-center-provider-identity-heading">
-              <h2 id={titleId}>{provider.name}</h2>
+              <h2>{provider.name}</h2>
               <span
                 className="model-center-provider-status"
                 data-tone={provider.status.tone}
@@ -125,25 +92,19 @@ export function ProviderDetail({
         {actions ? <div className="model-center-provider-context-actions">{actions}</div> : null}
       </header>
 
-      <nav className="model-center-provider-tabs" aria-label="Provider 详情" role="tablist">
-        {PROVIDER_DETAIL_TABS.map((tab, index) => (
-          <button
-            aria-controls={panelId}
-            aria-selected={activeTab === tab}
-            className="model-center-provider-tab"
-            id={`${panelId}-tab-${tab}`}
-            key={tab}
-            ref={element => { tabRefs.current[index] = element }}
-            role="tab"
-            tabIndex={activeTab === tab ? 0 : -1}
-            type="button"
-            onClick={() => onTabChange(tab)}
-            onKeyDown={event => handleTabKeyDown(event, index)}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
-      </nav>
+      <div className="model-center-provider-tab-bar">
+        <SegmentedControl<ProviderDetailTab>
+          ariaLabel="供应商详情功能切换"
+          className="model-center-provider-segmented-tabs"
+          getPanelId={tab => `${panelId}-panel-${tab}`}
+          getTabId={tab => `${panelId}-tab-${tab}`}
+          onChange={onTabChange}
+          options={TAB_OPTIONS}
+          overflowMode="fit"
+          semantics="tabs"
+          value={activeTab}
+        />
+      </div>
 
       {feedback ? (
         <div className="model-center-provider-feedback" role="status">{feedback}</div>
@@ -152,7 +113,7 @@ export function ProviderDetail({
       <div
         aria-labelledby={`${panelId}-tab-${activeTab}`}
         className="model-center-provider-panel"
-        id={panelId}
+        id={`${panelId}-panel-${activeTab}`}
         role="tabpanel"
         tabIndex={0}
       >

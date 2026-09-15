@@ -58,7 +58,7 @@ export function resolveBunExecutable(
   const executable = firstExisting(candidates)
   if (executable) return executable
 
-  throw new Error("未找到 Bun 可执行文件。请通过 bun run dev:desktop 启动完整开发环境，或设置 CODEPILOTX_BUN_PATH。")
+  throw new Error("未找到 Bun 可执行文件。请先运行 bun run dev:agent，再运行 bun run dev:desktop，或设置 CODEPILOTX_BUN_PATH。")
 }
 
 export function resolveSidecarCommand(input: {

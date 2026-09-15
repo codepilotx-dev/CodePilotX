@@ -30,6 +30,7 @@ export type DesktopThemeContextValue = {
   resolvedVariant: DesktopThemeVariant
   activeTheme: DesktopThemeConfigV1
   codeThemeId: string
+  reducedMotion: boolean
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>

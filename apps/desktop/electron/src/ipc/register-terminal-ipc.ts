@@ -1,6 +1,7 @@
 import { ipcMain, type WebContents } from "electron"
 import {
   DESKTOP_TERMINAL_IPC_CHANNELS,
+  type AckDesktopTerminalOutputInput,
   type AttachDesktopTerminalInput,
   type CloseDesktopTerminalForThreadInput,
   type CloseDesktopTerminalInput,
@@ -60,6 +61,18 @@ export function registerTerminalIpc(dependencies: TerminalIpcDependencies): void
         manager.resize(value.terminalId, value.instanceId, value.cols, value.rows)
       } catch {
         // A stale resize is expected while a terminal is closing.
+      }
+    },
+  )
+  ipcMain.on(
+    DESKTOP_TERMINAL_IPC_CHANNELS.ack,
+    (event, input: unknown) => {
+      try {
+        requireMainWindowSender(event.sender, isMainWindowSender)
+        const value = requireAckInput(input)
+        manager.ack(value.terminalId, value.instanceId, value.sequence, value.characters)
+      } catch {
+        // Fire-and-forget 流量控制确认：非法输入只丢弃，不影响终端内容与顺序。
       }
     },
   )
@@ -125,6 +138,19 @@ function requireResizeInput(value: unknown): ResizeDesktopTerminalInput {
     || !isTerminalSize(value.cols, value.rows)
   ) invalidInput()
   return value as unknown as ResizeDesktopTerminalInput
+}
+
+function requireAckInput(value: unknown): AckDesktopTerminalOutputInput {
+  if (
+    !isExactRecord(value, ["terminalId", "instanceId", "sequence", "characters"])
+    || !isIdentifier(value.terminalId)
+    || !isIdentifier(value.instanceId)
+    || !Number.isSafeInteger(value.sequence)
+    || Number(value.sequence) < 0
+    || !Number.isSafeInteger(value.characters)
+    || Number(value.characters) < 0
+  ) invalidInput()
+  return value as unknown as AckDesktopTerminalOutputInput
 }
 
 function requireCloseInput(value: unknown): CloseDesktopTerminalInput {

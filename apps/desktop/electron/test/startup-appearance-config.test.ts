@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { tmpdir } from "node:os"
 import {
@@ -67,7 +67,7 @@ describe("startup appearance config", () => {
       legacyConfigPath,
       legacyPath,
     )).toMatchObject({
-      version: 6,
+      version: 7,
       mode: "dark",
     })
   })
@@ -126,5 +126,26 @@ describe("startup appearance config", () => {
     )).toMatchObject({
       mode: "light",
     })
+  })
+
+  test("高版本 config.json 保持原文件且只使用安全回退值", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-startup-theme-"))
+    roots.push(root)
+    const configPath = join(root, "config.json")
+    const source = JSON.stringify({
+      desktop: {
+        appearance: {
+          version: 8,
+          mode: "light",
+          futureField: "must-survive",
+        },
+      },
+    })
+    await writeFile(configPath, source, "utf8")
+
+    expect(await readStartupAppearanceConfig(configPath)).toEqual(
+      DEFAULT_APPEARANCE_SETTINGS,
+    )
+    expect(await readFile(configPath, "utf8")).toBe(source)
   })
 })

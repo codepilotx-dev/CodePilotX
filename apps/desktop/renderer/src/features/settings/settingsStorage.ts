@@ -37,7 +37,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "custom",
     label: "CodePilotX 自定义策略",
-    detail: "使用配置页中的工具权限范围、approval policy、reviewer 与 granular controls。",
+    detail: "使用配置页中的文件访问范围、approval policy、reviewer 与 granular controls。",
   },
 ];
 

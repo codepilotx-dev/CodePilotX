@@ -18,7 +18,7 @@ export function registerNotificationIpc(
   service: DesktopNotificationService,
 ): void {
   const handler = createShowNotificationHandler({
-    isMainSender: sender => windows.isMainSender(sender as Electron.WebContents),
+    isMainSender: sender => windows.isApplicationSender(sender as Electron.WebContents),
     service,
   })
   ipcMain.handle(
@@ -58,5 +58,5 @@ export function publishNotificationActivation(
   windows: WindowManager | undefined,
   activation: { notificationId: string; threadId: string },
 ): void {
-  windows?.send(DESKTOP_NOTIFICATION_IPC_CHANNELS.activated, activation)
+  windows?.sendToFocused(DESKTOP_NOTIFICATION_IPC_CHANNELS.activated, activation)
 }

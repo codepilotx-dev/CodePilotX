@@ -26,6 +26,7 @@ describe("window state", () => {
       version: 1,
       bounds: { x: 240, y: 80, width: 1440, height: 920 },
       maximized: false,
+      zoomPercent: 100,
     })
   })
 
@@ -36,6 +37,7 @@ describe("window state", () => {
           version: 1,
           bounds: { x: 2100, y: 80, width: 1600, height: 1200 },
           maximized: true,
+          zoomPercent: 157,
         },
         [PRIMARY_DISPLAY, SECONDARY_DISPLAY],
         PRIMARY_DISPLAY,
@@ -44,6 +46,7 @@ describe("window state", () => {
       version: 1,
       bounds: { x: 1920, y: 0, width: 1280, height: 1024 },
       maximized: true,
+      zoomPercent: 160,
     })
   })
 
@@ -62,6 +65,7 @@ describe("window state", () => {
       version: 1,
       bounds: { x: 240, y: 80, width: 1440, height: 920 },
       maximized: true,
+      zoomPercent: 100,
     })
   })
 
@@ -95,11 +99,13 @@ describe("window state", () => {
       version: 1,
       bounds: { x: 10, y: 20, width: 1100, height: 700 },
       maximized: false,
+      zoomPercent: 90,
     })
     const latest = {
       version: 1 as const,
       bounds: { x: 30, y: 40, width: 1300, height: 800 },
       maximized: true,
+      zoomPercent: 150,
     }
     store.scheduleSave(latest)
     await store.flush()

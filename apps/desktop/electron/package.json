@@ -1,6 +1,6 @@
 {
   "name": "@codepilotx/desktop-electron",
-  "version": "0.2.0-beta.4",
+  "version": "0.2.0-beta.5",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -57,6 +57,18 @@
         "to": "agent/codepilotx-agent.exe"
       },
       {
+        "from": "../../agent/resources/skills",
+        "to": "agent/skills"
+      },
+      {
+        "from": "../../agent/resources/plugins",
+        "to": "agent/plugins"
+      },
+      {
+        "from": "../../agent/resources/integrations",
+        "to": "agent/integrations"
+      },
+      {
         "from": "../../../dist/renderer",
         "to": "renderer"
       },
@@ -69,8 +81,16 @@
         "to": "third_party"
       },
       {
-        "from": "../../../packages/pi-agent-core/LICENSE",
-        "to": "packages/pi-agent-core/LICENSE"
+        "from": "../../agent/third_party/pi-agent-core/LICENSE",
+        "to": "agent/third_party/pi-agent-core/LICENSE"
+      }
+    ],
+    "protocols": [
+      {
+        "name": "CodePilotX Deep Link",
+        "schemes": [
+          "codepilotx"
+        ]
       }
     ],
     "win": {

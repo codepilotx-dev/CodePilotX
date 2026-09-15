@@ -1,0 +1,33 @@
+.ui-spinner {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--cpx-comp-icon-size-sm);
+  height: var(--cpx-comp-icon-size-sm);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--cpx-sys-radius-full);
+  animation: ui-spinner-spin var(--cpx-sys-motion-loading) linear infinite;
+}
+
+.ui-spinner[data-size='medium'] {
+  width: var(--cpx-comp-icon-size-md);
+  height: var(--cpx-comp-icon-size-md);
+}
+
+.ui-spinner[data-size='large'] {
+  width: var(--cpx-comp-icon-size-lg);
+  height: var(--cpx-comp-icon-size-lg);
+}
+
+.ui-button-spinner {
+  width: var(--button-icon-size, var(--button-icon-size-xs));
+  height: var(--button-icon-size, var(--button-icon-size-xs));
+}
+
+@keyframes ui-spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+:root[data-reduce-motion='on'] .ui-spinner {
+  animation: none;
+}

@@ -1,6 +1,7 @@
 import { Effect } from "effect"
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 export interface AgentConfig {
   host: string
@@ -13,6 +14,7 @@ export interface AgentConfig {
   profileDatabasePath: string
   legacyDatabasePath: string
   piModelCachePath: string
+  modelsDevCatalogCachePath: string
   rendererDir: string | null
   rendererDevURL: string | null
   githubAuthBrokerURL: string | null
@@ -23,6 +25,9 @@ export interface AgentConfig {
   relocationSourceDir: string | null
   relocationOperationId: string | null
   legacyAppearanceSettingsPath: string | null
+  builtinSkillsRoot: string
+  builtinPluginsRoot: string
+  builtinIntegrationsRoot: string
   storage: AgentStorageLayout
 }
 
@@ -33,11 +38,16 @@ export interface AgentStorageLayout {
   profileDatabase: string
   legacyDatabase: string
   piModelCache: string
+  modelsDevCatalogCache: string
   hooksFile: string
   skillsRoot: string
+  pluginsRoot: string
+  pluginCacheRoot: string
+  pluginInstallStagingRoot: string
   attachmentsRoot: string
   petsRoot: string
   toolingRoot: string
+  speechRoot: string
   workspacesRoot: string
   logsRoot: string
 }
@@ -78,6 +88,42 @@ export const resolveAgentPetsDirectory = (
   )
 }
 
+export const resolveBuiltinSkillsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_SKILLS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "skills")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/skills")
+}
+
+export const resolveBuiltinPluginsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_PLUGINS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "plugins")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/plugins")
+}
+
+export const resolveBuiltinIntegrationsDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const configured = environment.CODEPILOTX_BUILTIN_INTEGRATIONS_DIR?.trim()
+  if (configured) return resolve(configured)
+
+  const executableSibling = resolve(dirname(process.execPath), "integrations")
+  if (existsSync(executableSibling)) return executableSibling
+
+  return resolve(import.meta.dir, "../../resources/integrations")
+}
+
 export const resolveAgentStorageLayout = (
   environment: NodeJS.ProcessEnv = process.env,
   userHome = homedir(),
@@ -90,14 +136,19 @@ export const resolveAgentStorageLayout = (
     profileDatabase: resolve(dataRoot, "profile.sqlite"),
     legacyDatabase: resolve(dataRoot, "agent.sqlite"),
     piModelCache: resolve(dataRoot, "pi-models.cache.json"),
+    modelsDevCatalogCache: resolve(dataRoot, "models-dev-catalog.cache.json"),
     hooksFile: resolve(dataRoot, "hooks.json"),
     skillsRoot: resolve(dataRoot, "skills"),
+    pluginsRoot: resolve(dataRoot, "plugins"),
+    pluginCacheRoot: resolve(dataRoot, "plugins", "cache"),
+    pluginInstallStagingRoot: resolve(dataRoot, "plugins", ".install-staging"),
     attachmentsRoot: resolve(dataRoot, "attachments"),
     petsRoot: resolveAgentPetsDirectory(environment, userHome),
     toolingRoot: resolve(
       environment.CODEPILOTX_TOOLING_HOME?.trim()
         || join(dataRoot, "tooling"),
     ),
+    speechRoot: resolve(dataRoot, "speech"),
     workspacesRoot: resolve(dataRoot, "workspaces"),
     logsRoot: resolveAgentLogDirectory(environment, userHome),
   }
@@ -117,6 +168,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     profileDatabasePath: storage.profileDatabase,
     legacyDatabasePath: storage.legacyDatabase,
     piModelCachePath: storage.piModelCache,
+    modelsDevCatalogCachePath: storage.modelsDevCatalogCache,
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
     githubAuthBrokerURL:
@@ -141,6 +193,9 @@ export const loadConfig = Effect.sync((): AgentConfig => {
       process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH?.trim()
         ? resolve(process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH)
         : null,
+    builtinSkillsRoot: resolveBuiltinSkillsDirectory(),
+    builtinPluginsRoot: resolveBuiltinPluginsDirectory(),
+    builtinIntegrationsRoot: resolveBuiltinIntegrationsDirectory(),
     storage,
   }
 })

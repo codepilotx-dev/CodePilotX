@@ -1,12 +1,11 @@
 import React, {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react'
-import * as Popover from '@radix-ui/react-popover'
 import * as Slider from '@radix-ui/react-slider'
 
+import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
@@ -28,11 +27,12 @@ import {
   deriveThemeVariables,
   ensureThemePreviewContrast,
 } from '../theme/themeVariables.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { ThemeFontPicker } from './ThemeFontPicker.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 
 type Props = {
@@ -118,66 +118,6 @@ function NumberInput({
   )
 }
 
-function FontInput({
-  ariaLabel,
-  placeholder,
-  value,
-  onCommit,
-}: {
-  ariaLabel: string
-  placeholder: string
-  value: string | null
-  onCommit: (value: string | null) => void
-}) {
-  const [draft, setDraft] = useState(value ?? '')
-  const focusedRef = useRef(false)
-  const skipBlurCommitRef = useRef(false)
-  const latestValueRef = useRef(value)
-
-  useEffect(() => {
-    latestValueRef.current = value
-    if (!focusedRef.current) setDraft(value ?? '')
-  }, [value])
-
-  const commit = (): void => {
-    const next = draft.trim() || null
-    setDraft(next ?? '')
-    if (next !== latestValueRef.current) {
-      latestValueRef.current = next
-      onCommit(next)
-    }
-  }
-
-  return (
-    <Input
-      aria-label={ariaLabel}
-      className="appearance-font-input"
-      placeholder={placeholder}
-      value={draft}
-      onBlur={() => {
-        focusedRef.current = false
-        if (skipBlurCommitRef.current) {
-          skipBlurCommitRef.current = false
-          return
-        }
-        commit()
-      }}
-      onChange={event => setDraft(event.target.value)}
-      onFocus={() => {
-        focusedRef.current = true
-      }}
-      onKeyDown={event => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-        if (event.key === 'Escape') {
-          skipBlurCommitRef.current = true
-          setDraft(latestValueRef.current ?? '')
-          event.currentTarget.blur()
-        }
-      }}
-    />
-  )
-}
-
 function ColorControl({
   ariaLabel,
   value,
@@ -211,8 +151,12 @@ function ColorControl({
         color: foreground,
       }}
     >
-      <Popover.Root>
-        <Popover.Trigger asChild>
+      <AnchoredPopover
+        align="end"
+        className="appearance-color-popover"
+        contentLabel={`${ariaLabel}颜色选项`}
+        contentRole="dialog"
+        trigger={(
           <button
             aria-label={`${ariaLabel}颜色选择器`}
             className="appearance-color-swatch"
@@ -221,31 +165,24 @@ function ColorControl({
             } as React.CSSProperties}
             type="button"
           />
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            align="end"
-            aria-label={`${ariaLabel}颜色选项`}
-            className="popover-surface appearance-color-popover"
-            collisionPadding={6}
-            role="dialog"
-            sideOffset={4}
-          >
-            <ColorPalette
-              value={normalizedValue}
-              onChange={next => {
-                setDraft(next)
-                onCommit(next)
-              }}
-            />
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-      <Input
+        )}
+        width="auto"
+      >
+        <ColorPalette
+          value={normalizedValue}
+          onChange={next => {
+            setDraft(next)
+            onCommit(next)
+          }}
+        />
+      </AnchoredPopover>
+      <input
         aria-label={ariaLabel}
-        invalid={!HEX_COLOR.test(draft)}
+        aria-invalid={!HEX_COLOR.test(draft) || undefined}
+        className="appearance-color-input"
         maxLength={7}
         spellCheck={false}
+        type="text"
         value={draft}
         onBlur={commit}
         onChange={event => {
@@ -264,7 +201,13 @@ function ColorControl({
             event.currentTarget.blur()
           }
         }}
-        style={{ color: foreground }}
+        style={{
+          background: 'transparent',
+          border: 0,
+          borderRadius: 0,
+          color: foreground,
+          outline: 'none',
+        }}
       />
     </div>
   )
@@ -708,27 +651,6 @@ function ThemePreview({
   const variables = deriveThemeVariables({ codeThemeId, theme, variant })
   const style = {
     ...variables,
-    '--color-token-editor-background':
-      'var(--color-background-editor-opaque)',
-    '--color-token-editor-foreground': 'var(--color-text-foreground)',
-    '--color-token-foreground': 'var(--color-text-foreground)',
-    '--color-token-border-light': 'var(--color-border-light)',
-    '--color-token-text-tertiary':
-      'var(--color-text-foreground-tertiary)',
-    '--color-token-elevated-background':
-      'var(--color-background-elevated-secondary-opaque)',
-    '--color-token-diff-editor-inserted-line-background':
-      'var(--color-diff-added-line-background)',
-    '--color-token-diff-editor-inserted-text-background':
-      'var(--color-diff-added-text-background)',
-    '--color-token-diff-editor-removed-line-background':
-      'var(--color-diff-removed-line-background)',
-    '--color-token-diff-editor-removed-text-background':
-      'var(--color-diff-removed-text-background)',
-    '--color-token-git-decoration-added-resource-foreground':
-      'var(--color-diff-added-foreground)',
-    '--color-token-git-decoration-deleted-resource-foreground':
-      'var(--color-diff-removed-foreground)',
   } as React.CSSProperties
 
   return (
@@ -869,7 +791,10 @@ function VariantThemeEditor({
   }
 
   return (
-    <article aria-busy={!themeSeedsReady} className="appearance-theme-editor">
+    <article
+      aria-busy={!themeSeedsReady}
+      className="appearance-theme-editor settings-card"
+    >
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
@@ -952,11 +877,13 @@ function VariantThemeEditor({
           title="UI 字体"
           size="compact"
           control={
-            <FontInput
+            <ThemeFontPicker
               ariaLabel={`${variantLabel}界面字体`}
+              kind="ui"
               placeholder="ui-sans-serif, system-ui, sans-serif"
-              value={chromeTheme.fonts.ui}
-              onCommit={ui => updateFonts({ ui })}
+              face={chromeTheme.fonts.uiFace ?? null}
+              family={chromeTheme.fonts.ui}
+              onCommit={(ui, uiFace) => updateFonts({ ui, uiFace })}
             />
           }
         />
@@ -964,11 +891,13 @@ function VariantThemeEditor({
           title="代码字体"
           size="compact"
           control={
-            <FontInput
+            <ThemeFontPicker
               ariaLabel={`${variantLabel}代码字体`}
+              kind="code"
               placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-              value={chromeTheme.fonts.code}
-              onCommit={code => updateFonts({ code })}
+              face={chromeTheme.fonts.codeFace ?? null}
+              family={chromeTheme.fonts.code}
+              onCommit={(code, codeFace) => updateFonts({ code, codeFace })}
             />
           }
         />
@@ -984,8 +913,6 @@ function VariantThemeEditor({
                 style={{
                   '--appearance-slider-accent': chromeTheme.accent,
                   '--appearance-slider-surface': chromeTheme.surface,
-                  '--appearance-slider-thumb':
-                    variant === 'light' ? '#000' : '#fff',
                 } as React.CSSProperties}
                 type="range"
                 value={chromeTheme.contrast}
@@ -1123,6 +1050,26 @@ export function AppearanceSettings({
         <SettingsSection title="偏好设置">
           <SettingsRow
             autoSave
+            title="页面宽度"
+            description="设置所有一级页面主内容区域的最大宽度"
+            control={
+              <SegmentedControl
+                ariaLabel="页面宽度"
+                options={[
+                  { value: 'default', label: '默认' },
+                  { value: 'narrow', label: '窄' },
+                  { value: 'wide', label: '宽' },
+                ]}
+                value={desktopSettings.draft.values.conversationWidth}
+                onChange={conversationWidth => {
+                  desktopSettings.draft.setValue('conversationWidth', conversationWidth)
+                  desktopSettings.draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            autoSave
             title="使用指针光标"
             description="悬停按钮、菜单等交互元素时显示手形指针"
             control={
@@ -1137,17 +1084,18 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="差异标记"
-            description="使用彩色背景，或在更改行显示 + / - 符号"
+            title="减少动态效果"
+            description="跟随系统，或始终开启、关闭界面动画"
             control={
               <SegmentedControl
-                ariaLabel="差异标记选项"
+                ariaLabel="减少动态效果选项"
                 options={[
-                  { value: 'color', label: '颜色' },
-                  { value: 'symbol', label: '+/-' },
+                  { value: 'system', label: '系统' },
+                  { value: 'on', label: '开启' },
+                  { value: 'off', label: '关闭' },
                 ]}
-                value={desktopSettings.draft.values.diffMarkerStyle}
-                onChange={updateDiffMarkerStyle}
+                value={settings.reduceMotion}
+                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
               />
             }
           />
@@ -1187,18 +1135,17 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="减少动态效果"
-            description="跟随系统，或始终开启、关闭界面动画"
+            title="差异标记"
+            description="使用彩色背景，或在更改行显示 + / - 符号"
             control={
               <SegmentedControl
-                ariaLabel="减少动态效果选项"
+                ariaLabel="差异标记选项"
                 options={[
-                  { value: 'system', label: '系统' },
-                  { value: 'on', label: '开启' },
-                  { value: 'off', label: '关闭' },
+                  { value: 'color', label: '颜色' },
+                  { value: 'symbol', label: '+/-' },
                 ]}
-                value={settings.reduceMotion}
-                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
+                value={desktopSettings.draft.values.diffMarkerStyle}
+                onChange={updateDiffMarkerStyle}
               />
             }
           />

@@ -17,12 +17,29 @@ export const CUSTOM_PROVIDER_APIS = [
 
 export type CustomProviderApi = (typeof CUSTOM_PROVIDER_APIS)[number];
 
+/** The only builtin provider whose wire protocol is user selectable. */
+export const DEEPSEEK_PROVIDER_ID = "deepseek";
+
+export type DeepSeekProtocol = CustomProviderApi;
+
+export const DEFAULT_DEEPSEEK_PROTOCOL: DeepSeekProtocol = "openai-completions";
+
+/** Endpoints DeepSeek documents for each supported wire protocol. */
+export const DEEPSEEK_PROTOCOL_ENDPOINTS: Readonly<
+  Record<DeepSeekProtocol, string>
+> = {
+  "openai-completions": "https://api.deepseek.com",
+  "openai-responses": "https://api.deepseek.com",
+  "anthropic-messages": "https://api.deepseek.com/anthropic",
+};
+
 export interface PiBuiltinProviderConfig {
   readonly kind: "builtin";
   readonly enabled: boolean;
   readonly allowModels: readonly string[];
   readonly denyModels: readonly string[];
   readonly models: Readonly<Record<string, { readonly enabled: boolean }>>;
+  readonly protocol?: DeepSeekProtocol;
 }
 
 export interface PiCustomModelConfig {
@@ -98,6 +115,7 @@ export type PiProviderDefinitionInput =
         readonly id: string;
         readonly enabled: boolean;
       }[];
+      readonly protocol?: DeepSeekProtocol;
     }
   | {
       readonly kind: "custom";
@@ -352,7 +370,26 @@ const parseCustomModel = (
   };
 };
 
-const parseBuiltin = (value: Record<string, unknown>) => {
+const parseBuiltinProtocol = (
+  providerID: string,
+  value: unknown,
+): DeepSeekProtocol | undefined => {
+  if (value === undefined) return undefined;
+  if (providerID !== DEEPSEEK_PROVIDER_ID) {
+    throw new Error(
+      "Builtin provider protocol is only configurable for the DeepSeek provider",
+    );
+  }
+  if (
+    typeof value !== "string" ||
+    !(CUSTOM_PROVIDER_APIS as readonly string[]).includes(value)
+  ) {
+    throw new Error("Builtin provider protocol is unsupported");
+  }
+  return value as DeepSeekProtocol;
+};
+
+const parseBuiltin = (providerID: string, value: Record<string, unknown>) => {
   const modelDeclarations = isObject(value.models) ? value.models : {};
   const models = Object.fromEntries(
     Object.entries(modelDeclarations).flatMap(([id, model]) =>
@@ -361,13 +398,36 @@ const parseBuiltin = (value: Record<string, unknown>) => {
         : [],
     ),
   );
+  const protocol = parseBuiltinProtocol(providerID, value.protocol);
   return {
     kind: "builtin" as const,
     enabled: bool(value.enabled, !bool(value.disabled, false)),
     allowModels: strings(value.allow_models ?? value.allowModels),
     denyModels: strings(value.deny_models ?? value.denyModels),
     models,
+    ...(protocol ? { protocol } : {}),
   };
+};
+
+/**
+ * Protocol every DeepSeek model must use. Absent configuration keeps the
+ * Chat Completions default for compatibility, while a rejected DeepSeek block
+ * returns undefined so callers keep the provider that is already running
+ * instead of half-applying a new protocol.
+ */
+export const resolveDeepSeekProtocol = (
+  catalog: Pick<ParsedPiProviderCatalog, "providers" | "issues">,
+): DeepSeekProtocol | undefined => {
+  if (
+    catalog.issues.some(
+      (issue) => issue.providerID === DEEPSEEK_PROVIDER_ID,
+    )
+  ) {
+    return undefined;
+  }
+  const provider = catalog.providers[DEEPSEEK_PROVIDER_ID];
+  if (provider?.kind !== "builtin") return DEFAULT_DEEPSEEK_PROTOCOL;
+  return provider.protocol ?? DEFAULT_DEEPSEEK_PROTOCOL;
 };
 
 const parseCustom = (
@@ -475,6 +535,7 @@ export const parsePiProviderCatalog = (
           "deny_models",
           "denyModels",
           "models",
+          ...(providerID === DEEPSEEK_PROVIDER_ID ? ["protocol"] : []),
         ]);
         const modelOverrides = isObject(raw.models) ? raw.models : {};
         const hasUnsupportedModelOverride = Object.values(modelOverrides).some(
@@ -493,7 +554,7 @@ export const parsePiProviderCatalog = (
           });
           continue;
         }
-        output[providerID] = parseBuiltin(raw);
+        output[providerID] = parseBuiltin(providerID, raw);
         continue;
       }
       issues.push({
@@ -554,6 +615,7 @@ export const serializePiProviderDefinition = (
               { enabled: model.enabled },
             ]),
           ),
+          ...(definition.protocol ? { protocol: definition.protocol } : {}),
         }
       : {
           kind: "custom",
@@ -635,6 +697,7 @@ export const serializePiProviderDefinition = (
               { enabled: model.enabled },
             ]),
           ),
+          ...(provider.protocol ? { protocol: provider.protocol } : {}),
         }
       : {
           kind: "custom",
