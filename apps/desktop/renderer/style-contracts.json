@@ -55,7 +55,9 @@
     "--radix-select-content-transform-origin",
     "--radix-select-content-available-height",
     "--radix-select-trigger-width",
-    "--radix-tooltip-content-transform-origin"
+    "--radix-tooltip-content-transform-origin",
+    "--simple-view-height",
+    "--advanced-view-height"
   ],
   "forbiddenCustomPropertyPatterns": [
     "^--color-bg(?:-|$)",

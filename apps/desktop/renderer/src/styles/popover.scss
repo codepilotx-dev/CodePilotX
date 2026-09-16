@@ -279,7 +279,8 @@
 [data-radix-popper-content-wrapper]:has(.permission-select-content),
 [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
 [data-radix-popper-content-wrapper]:has(.rm-model-menu),
-[data-radix-popper-content-wrapper]:has(.thread-summary-popover) {
+[data-radix-popper-content-wrapper]:has(.thread-summary-popover),
+[data-radix-popper-content-wrapper]:has(.composer-model-panel-content) {
   // Radix portals sit outside the app stacking context.
   z-index: var(--cpx-sys-z-popover) !important;
   border-radius: var(--cpx-comp-dropdown-menu-radius);
