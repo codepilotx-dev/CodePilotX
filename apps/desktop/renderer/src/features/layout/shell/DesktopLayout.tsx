@@ -90,6 +90,7 @@ import {
 } from './useIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
 import { isDeepSeekThinkingModel, useModelProviderController } from '../useModelProviderController.js'
+import { buildVariantOptions } from '../../models/reasoningVariantLabels.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
@@ -2073,6 +2074,7 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+          onOpenModelSettings: () => navigate('/settings/providers'),
           onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: invocation => {
             void handleActivateComposerSkill(invocation)
@@ -2158,10 +2160,7 @@ export function DesktopLayout(): React.ReactNode {
         modelSelectionError={sideModelError}
         onRetryModelSelection={() => { reloadSideChatModel(tab.id); void refreshProviderState() }}
         modelVariant={sideSettings.variant ?? 'default'}
-        modelVariantOptions={[
-          { value: 'default', label: '默认' },
-          ...(sideModelMetadata?.variants ?? []).filter(id => id !== 'default').map(id => ({ value: id, label: id })),
-        ]}
+        modelVariantOptions={buildVariantOptions(sideModelMetadata?.variants)}
         onModelVariantChange={variant => updateSideChatSettings(tab.id, {
           variant: variant === 'default' ? undefined : variant,
           thinkingMode: variant === 'enabled' || variant === 'adaptive' || variant === 'disabled' ? variant : 'default',
@@ -2219,6 +2218,7 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
+        onOpenModelSettings={() => navigate('/settings/providers')}
         onSkillTokenActivate={invocation => {
           void handleActivateComposerSkill(invocation)
         }}

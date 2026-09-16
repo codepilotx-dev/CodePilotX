@@ -110,6 +110,11 @@ function isProviderApi(
 
 const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos/'
 
-function modelsDevLogoURL(providerID: string): string {
+/**
+ * Shapes the catalogue logo URL for a models.dev provider. Exported so
+ * discovery surfaces that list providers by their models.dev id can resolve the
+ * same logo instead of duplicating the URL contract.
+ */
+export function modelsDevLogoURL(providerID: string): string {
   return `${MODELS_DEV_LOGO_BASE_URL}${encodeURIComponent(providerID)}.svg`
 }

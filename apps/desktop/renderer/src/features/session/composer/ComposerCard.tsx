@@ -223,6 +223,7 @@ type Props = {
   onCloneGithub?: () => void;
   onClearWorkspace: () => void;
   onOpenMcpSettings?: () => void;
+  onOpenModelSettings?: () => void;
   onOpenSideChat?: () => void;
   onForkConversation?: () => void;
   canForkConversation?: boolean;
@@ -344,6 +345,7 @@ export function ComposerCard({
   onCloneGithub,
   onClearWorkspace,
   onOpenMcpSettings,
+  onOpenModelSettings,
   onOpenSideChat,
   onForkConversation,
   canForkConversation = false,
@@ -1523,6 +1525,17 @@ export function ComposerCard({
                 </button>
               </>
             ) : null}
+
+            {capabilities.dictation ? (
+              <Suspense fallback={null}>
+                <ComposerDictationControl
+                  draftKey={draftKey}
+                  editorRef={editorRef}
+                  enabled
+                  registerToggle={registerDictationToggle}
+                />
+              </Suspense>
+            ) : null}
           </div>
 
           <div className="toolbar-right tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
@@ -1633,23 +1646,13 @@ export function ComposerCard({
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
               onProviderSearch={onProviderSearch}
+              onOpenModelSettings={onOpenModelSettings}
               onThinkingChange={value => {
                 if (onModelVariantChange) onModelVariantChange(value);
                 else if (value === 'default' || value === 'enabled' || value === 'adaptive' || value === 'disabled') onThinkingChange(value);
               }}
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
-
-            {capabilities.dictation ? (
-              <Suspense fallback={null}>
-                <ComposerDictationControl
-                  draftKey={draftKey}
-                  editorRef={editorRef}
-                  enabled
-                  registerToggle={registerDictationToggle}
-                />
-              </Suspense>
-            ) : null}
 
             <button
               aria-label={

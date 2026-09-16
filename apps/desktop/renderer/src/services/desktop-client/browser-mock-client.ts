@@ -242,11 +242,13 @@ export function createBrowserMockDesktopClient(
     ...(modelPickerVisualFixture
       ? {
           apiKeyConfigured: true,
+          logoURL: '/favicon.png',
           modelMetadata: {
             mock: {
               id: 'mock',
               name: 'Browser Mock',
               reasoning: true,
+              variants: ['low', 'medium', 'high'],
             },
           },
         }

@@ -10,6 +10,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../services/desktop-client/provider-adapters.js'
 import { useModelCatalogLoading, withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
 import { buildModelPresets, resolveModelPresetId } from '../../modelPresets.js'
+import { buildVariantOptions } from '../models/reasoningVariantLabels.js'
 import type { SessionModelSelection } from '../session/state/sessionModelSelectionStore.js'
 
 export function useModelProviderController({
@@ -72,6 +73,7 @@ export function useModelProviderController({
             displayName: provider.displayName,
             modelPresets: buildModelPresets(models),
             baseURL: provider.baseURL,
+            logoURL: provider.logoURL,
           }
         })
     },
@@ -96,10 +98,7 @@ export function useModelProviderController({
     (providerState && providerState.selectedProviderID === selectedProviderID ? providerState.modelMetadata?.[model] : undefined)
     ?? selectedProviderSummary?.modelMetadata?.[model]
   const selectedVariant = selection?.variant ?? 'default'
-  const variantOptions = [
-    { value: 'default', label: '默认' },
-    ...(selectedModelMetadata?.variants ?? []).filter(id => id !== 'default').map(id => ({ value: id, label: id })),
-  ]
+  const variantOptions = buildVariantOptions(selectedModelMetadata?.variants)
   const deepSeekThinkingControls = isDeepSeekThinkingModel({
     providerID: selectedProviderID,
     model,
