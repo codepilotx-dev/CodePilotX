@@ -41,6 +41,10 @@
 
 ### Changed
 
+- [desktop/renderer] Provider 图标改为按品牌解析 models.dev 在线图标：新增 Renderer 统一图标解析模块维护品牌分组并生成查询映射，每组显式列出完整 Provider ID（OpenAI、OpenAI Codex → `openai`；Z.AI、Z.AI Coding CN → `zai`；MiniMax、MiniMax CN → `minimax`；Moonshot AI、Moonshot AI CN、Kimi Coding → `moonshotai`；Xiaomi 与 AMS/CN/SGP Token Plan → `xiaomi`；Cloudflare AI Gateway、Workers AI → `cloudflare-workers-ai`；Qwen Token Plan 三个入口 → `alibaba`；Azure OpenAI → `azure`），其余内置提供商继续使用自身 ID，自定义 Provider 保持默认图标。`google-vertex` 与 `opencode-go` 在 models.dev 上各有独立图标，因此不并入 `google`／`opencode` 品牌组。此前 `openai-codex`、`zai-coding-cn`、`kimi-coding`、`qwen-token-plan`、`qwen-token-plan-cn`、`qwen-token-plan-individual`、`azure-openai-responses` 在 models.dev 上没有对应图标，而服务端对缺失图标仍返回 HTTP 200 通用占位图，因此不按名称模糊匹配、不做后缀截断、也不通过请求结果推断品牌，未知内置 ID 使用自身地址。仅调整展示映射，各入口的模型、凭据、配置与 Pi 原生目录保持独立，模型中心、提供商详情、首次配置页与模型选择器共用同一条 `logoURL` 数据链路。
+
+- [desktop/renderer] Pi 内置提供商接入 models.dev 在线图标：为 Pi 内置提供商生成 models.dev 官方 SVG URL（`https://models.dev/logos/{providerID}.svg`），取消对 `catalogOrigin === 'models-dev'` 的依赖；自定义 Provider 保持默认图标回退，图标加载失败或网络离线时复用现有 `RemoteImage` 安全回退通用 `Server` 图标，不恢复模型目录接入。
+
 - [provider/catalog] 切回 Pi 原生提供商与模型目录机制：统一使用 @earendil-works/pi-ai 0.85.1 的 builtinModels、原生刷新与本地缓存，继续完整支持现有自定义 Provider、OAuth 凭据仓库与 DeepSeek 协议切换；移除 models.dev 远程拉取、缓存读写、Provider 自动生成与元数据覆盖；模型中心与选择器 Hub 列表改为从 Agent 真实目录动态派生。
 
 - [desktop/renderer] Composer 模型选择器的服务商标识统一改为渲染 Provider 目录的 `logoURL`：`providerModelOptions` 投影补上此前被丢弃的 `logoURL`，轨道与模型中心复用设置页同一个 `RemoteImage`（加载骨架与错误兜底一致），移除本地硬编码的品牌 SVG 与首字母兜底（缺失目录图标时统一回落到通用 Provider 图标）；模型中心目录条目的图标也按其 models.dev id 从同一条 URL 契约解析，`modelsDevLogoURL` 由客户端适配层导出以避免重复实现。修复模型触发胶囊缺少展开态的问题：`ChipButton` 的 `active` 只映射为 `aria-expanded`，而共享 chip 样式仅为 `meta-chip` 定义了展开样式，现为 `.composer .chip-button[aria-expanded='true']` 补上选中背景与 180° 箭头翻转（含状态态动效 token），与参考稿的 `#model-trigger` 行为一致。

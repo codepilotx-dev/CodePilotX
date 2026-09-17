@@ -5,6 +5,7 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
+import { modelsDevLogoURL } from './providerLogoBrands.js'
 
 export function catalogProviderToDesktop(
   catalogProvider: CatalogProvider,
@@ -49,7 +50,7 @@ export function catalogProviderToDesktop(
     providerKind: provider.source.kind,
     catalogOrigin: extendedProvider.catalogOrigin,
     availability: extendedProvider.availability,
-    logoURL: extendedProvider.catalogOrigin === 'models-dev'
+    logoURL: provider.source.kind === 'builtin'
       ? modelsDevLogoURL(provider.id)
       : undefined,
     providerApis: provider.source.apis.filter(isProviderApi),
@@ -106,15 +107,4 @@ function isProviderApi(
   return value === 'openai-completions'
     || value === 'openai-responses'
     || value === 'anthropic-messages'
-}
-
-const MODELS_DEV_LOGO_BASE_URL = 'https://models.dev/logos/'
-
-/**
- * Shapes the catalogue logo URL for a models.dev provider. Exported so
- * discovery surfaces that list providers by their models.dev id can resolve the
- * same logo instead of duplicating the URL contract.
- */
-export function modelsDevLogoURL(providerID: string): string {
-  return `${MODELS_DEV_LOGO_BASE_URL}${encodeURIComponent(providerID)}.svg`
 }

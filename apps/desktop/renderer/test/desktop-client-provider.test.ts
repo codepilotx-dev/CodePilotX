@@ -5,6 +5,11 @@ import {
   desktopProviderExecutionError,
   isExecutableDesktopProvider,
 } from '../src/services/desktop-client/provider-adapters.js'
+import {
+  PROVIDER_LOGO_BRANDS,
+  modelsDevLogoURL,
+  providerLogoBrandID,
+} from '../src/services/desktop-client/providerLogoBrands.js'
 
 const provider = {
   provider: {
@@ -62,15 +67,15 @@ const provider = {
 }
 
 describe('desktop provider client', () => {
-  test('preserves models.dev origin and availability while filtering unavailable providers', () => {
+  test('preserves provider origin and availability while filtering unavailable providers', () => {
     const ready = catalogProviderToDesktop({
       provider: {
         ...provider.provider,
         source: {
           ...provider.provider.source,
-          kind: 'models-dev',
+          kind: 'builtin',
         },
-        catalogOrigin: 'models-dev',
+        catalogOrigin: 'pi-bundled',
         availability: { status: 'ready' },
       },
       models: provider.models,
@@ -84,9 +89,10 @@ describe('desktop provider client', () => {
     }
 
     expect(ready).toMatchObject({
-      providerKind: 'models-dev',
-      catalogOrigin: 'models-dev',
+      providerKind: 'builtin',
+      catalogOrigin: 'pi-bundled',
       availability: { status: 'ready' },
+      logoURL: 'https://models.dev/logos/minimax-cn-coding-plan.svg',
     })
     expect(isExecutableDesktopProvider(ready)).toBe(true)
     expect(isExecutableDesktopProvider(unavailable)).toBe(false)
@@ -100,65 +106,111 @@ describe('desktop provider client', () => {
     expect(desktopProviderExecutionError(ready)).toBeNull()
   })
 
-  describe('models.dev logo URL', () => {
-    test('仅当 catalogOrigin 为 models-dev 时生成固定域名 SVG URL', () => {
-      const summary = catalogProviderToDesktop({
-        provider: {
-          ...provider.provider,
-          catalogOrigin: 'models-dev',
-        },
-        models: provider.models,
-      } as never)
+  describe('models.dev 在线图标 URL', () => {
+    test.each(Object.entries(PROVIDER_LOGO_BRANDS))(
+      '同品牌入口统一解析为 %s 图标',
+      (brandID, providerIDs) => {
+        for (const providerID of providerIDs) {
+          expect(providerLogoBrandID(providerID)).toBe(brandID)
+          expect(modelsDevLogoURL(providerID)).toBe(
+            `https://models.dev/logos/${brandID}.svg`,
+          )
+          expect(builtinLogoURL(providerID)).toBe(
+            `https://models.dev/logos/${brandID}.svg`,
+          )
+        }
+      },
+    )
 
-      expect(summary.logoURL).toBe(
-        'https://models.dev/logos/minimax-cn-coding-plan.svg',
+    test('同一个 Provider ID 只归属一个品牌', () => {
+      const brandByProviderID = new Map<string, string>()
+      for (const [brandID, providerIDs] of Object.entries(PROVIDER_LOGO_BRANDS)) {
+        for (const providerID of providerIDs) {
+          expect({
+            providerID,
+            resolved: providerLogoBrandID(providerID),
+          }).toEqual({ providerID, resolved: brandID })
+          brandByProviderID.set(providerID, brandID)
+        }
+      }
+      expect(brandByProviderID.size).toBe(
+        Object.values(PROVIDER_LOGO_BRANDS).flat().length,
+      )
+    })
+
+    test.each([
+      'anthropic',
+      'deepseek',
+      'github-copilot',
+      'mistral',
+      'nvidia',
+      'openrouter',
+      'xai',
+    ])('独立品牌 %s 保留自身图标', providerID => {
+      expect(modelsDevLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${providerID}.svg`,
+      )
+    })
+
+    test.each([
+      ['google-vertex', 'google'],
+      ['opencode-go', 'opencode'],
+    ])('同产品线但独立成图：%s 不折叠到 %s', (providerID, parentBrandID) => {
+      expect(modelsDevLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${providerID}.svg`,
+      )
+      expect(modelsDevLogoURL(parentBrandID)).toBe(
+        `https://models.dev/logos/${parentBrandID}.svg`,
+      )
+      expect(modelsDevLogoURL(providerID)).not.toBe(modelsDevLogoURL(parentBrandID))
+      expect(builtinLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${providerID}.svg`,
+      )
+    })
+
+    test.each([
+      'azure-openai',
+      'kimi-coding-plan',
+      'minimax-cn-coding-plan',
+      'moonshotai-token-plan',
+      'openai-compatible',
+      'zai-coding',
+    ])('不按名称或后缀推断品牌，未知 ID %s 使用自身地址', providerID => {
+      expect(modelsDevLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${providerID}.svg`,
+      )
+      expect(builtinLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${providerID}.svg`,
       )
     })
 
     test('对含特殊字符的 providerID 安全进行 encodeURIComponent', () => {
-      const summary = catalogProviderToDesktop({
-        provider: {
-          ...provider.provider,
-          id: 'prov/中文 id & ?=+#',
-          catalogOrigin: 'models-dev',
-        },
-        models: provider.models,
-      } as never)
+      const providerID = 'prov/中文 id & ?=+#'
 
-      expect(summary.logoURL).toBe(
-        `https://models.dev/logos/${encodeURIComponent('prov/中文 id & ?=+#')}.svg`,
+      expect(modelsDevLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${encodeURIComponent(providerID)}.svg`,
       )
-      expect(summary.logoURL?.startsWith('https://models.dev/logos/')).toBe(true)
-      expect(summary.logoURL?.endsWith('.svg')).toBe(true)
+      expect(builtinLogoURL(providerID)).toBe(
+        `https://models.dev/logos/${encodeURIComponent(providerID)}.svg`,
+      )
+      expect(builtinLogoURL(providerID)?.startsWith('https://models.dev/logos/')).toBe(true)
+      expect(builtinLogoURL(providerID)?.endsWith('.svg')).toBe(true)
     })
 
-    test('用户自定义或非 models-dev 来源不生成 models.dev 图标 URL', () => {
-      const userDefined = catalogProviderToDesktop({
+    test('用户自定义提供商不生成 URL 并回退到默认图标', () => {
+      const custom = catalogProviderToDesktop({
         provider: {
           ...provider.provider,
+          source: {
+            ...provider.provider.source,
+            kind: 'custom',
+          },
           catalogOrigin: 'user',
         },
         models: provider.models,
       } as never)
-      const piBundled = catalogProviderToDesktop({
-        provider: {
-          ...provider.provider,
-          catalogOrigin: 'pi-bundled',
-        },
-        models: provider.models,
-      } as never)
-      const undefinedOrigin = catalogProviderToDesktop({
-        provider: {
-          ...provider.provider,
-        },
-        models: provider.models,
-      } as never)
 
-      expect(userDefined.logoURL).toBeUndefined()
-      expect(piBundled.logoURL).toBeUndefined()
-      expect(undefinedOrigin.logoURL).toBeUndefined()
-      expect(userDefined.logoURL ?? '').not.toContain('models.dev')
-      expect(piBundled.logoURL ?? '').not.toContain('models.dev')
+      expect(custom.logoURL).toBeUndefined()
     })
   })
 
@@ -1107,6 +1159,21 @@ describe('desktop provider client', () => {
     ]))
   })
 })
+
+function builtinLogoURL(providerID: string): string | undefined {
+  return catalogProviderToDesktop({
+    provider: {
+      ...provider.provider,
+      id: providerID,
+      source: {
+        ...provider.provider.source,
+        kind: 'builtin',
+      },
+      catalogOrigin: 'pi-bundled',
+    },
+    models: provider.models,
+  } as never).logoURL
+}
 
 function rpc(id: string | number, result: unknown): Response {
   return new Response(JSON.stringify({ jsonrpc: '2.0', id, result }), {
