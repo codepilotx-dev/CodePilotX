@@ -11,6 +11,8 @@
 
 - [desktop/renderer] 接入新版 ModelSelect 选择器与推理菜单视觉交互规范：完整对齐 UI-Design 布局、尺寸、圆角、阴影与动效；支持胶囊双触发器（模型面板与推理独立唤起并具备完整键盘导航无障碍焦点）、独立供应商侧栏、快速搜索（展开/清空/ESC 复位）、双状态单选指示器、独立 Radix 浮层推理菜单（含深度思考与模型 variant 选项）及 Model Hub 目录视图；私有样式契约集中治理几何与阴影，颜色无缝接入 `--cpx-sys-color-*` 语义主题。
 
+- [docs] 在 Renderer Design Token 规范（`docs/design/renderer-token-system.md`）中记录 ModelSelect 作为首个新版视觉试点组件的接入规范，并确立「基础 Token → 基础组件 → 业务组件」三阶段演进统一路线。
+
 - [desktop/renderer] 演进工作台布局系统第三阶段：实现现代多窗口架构（Auxiliary Window），支持将终端、代码审查、内置浏览器、文件浏览、计划、副会话等视图独立弹出为原生辅助窗口；基于同一 Renderer 上下文的 `window.open` 与 React Portal 架构，零 RPC 序列化开销并无缝复用内部状态机；实现主子窗口样式表与主题 Class 实时深克隆，契约式遵循 Windows 36px 标题栏与 Window Controls Overlay（WCO）；提供一键「停靠回主窗口」与子窗口关闭时安全自动归并机制，确保多窗口交互与状态零丢失。
 
 - [desktop/renderer] 演进工作台布局系统第一阶段：引入复合视图体系（PaneComposite），抽象标准化 ViewLocation 与 CompositeViewDefinition 注册表，打通主侧边栏（Sidebar）、右侧栏（Right Dock）与底部面板（Bottom Panel）三向视图流转与灵活停靠，支持工作区文件树等面板跨区域流转与状态自适应维护。

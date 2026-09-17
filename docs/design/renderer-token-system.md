@@ -20,6 +20,23 @@ Oreo Agentic UI Library 作为 CodePilotX 的视觉参考，不形成平行 Toke
 
 CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品牌和桌面交互契约。首页、空状态与引导页使用宽松节奏；Workbench、侧栏、终端、Review 和设置使用紧凑节奏。Oreo 中的 Button、Shortcuts、Chip、Tag、Avatar、Loading、Prompt、Sidebar、Navbar 与 Pop-up 优先复用现有基础组件；只有真实调用方无法表达时才扩展公共组件。
 
+## 组件视觉升级路线（Migration Roadmap）
+
+为保证桌面 UI 平稳演进并避免大面积突变破坏正在进行的素版调整（Plain Baseline），新版视觉规范（参考 `F:\CodeProject\UI-Design` 与 Oreo 设计语言）采取“单点试点先行 → 基础规范分层推进”的递进路径：
+
+1. **先行试点组件（Pilot Component）**：
+   - **ModelSelect**（会话 Composer 模型选择器与推理菜单）作为首个接入完整新视觉的业务组件。
+   - 其胶囊双触发器（模型面板与推理独立唤起）、供应商侧栏、模型列表快速搜索、单选状态指示器与 Model Hub 采用了新版圆角、投影及微动效规范。
+   - 为避免在全局素版期破坏全局 Token 契约，ModelSelect 的几何与投影尺寸通过私有变量（如 `--composer-model-radius-*`、`--composer-model-shadow-*`）集中治理，颜色完全对齐现有 `--cpx-sys-color-*` 主题语义。
+
+2. **后续统一路线（“基础 Token → 基础组件 → 业务组件”）**：
+   - **第一阶段：基础 Token 规范落地**
+     统一恢复与校准全局 `--cpx-sys-radius-*`（平滑超椭圆圆角）、`--cpx-sys-shadow-*`（分级层叠暗部投影）及 `--cpx-sys-space-*` 基础刻度，完成全仓 token 校验规则适配。
+   - **第二阶段：基础组件库收敛**
+     优先重构并收敛跨业务通用的底层基础控件，包括 `Button`、`Input`、`Popover`、`Dropdown`、`Checkbox`、`Tag`、`Tabs` 等，将 ModelSelect 中验证可行的交互、圆角与投影模式沉淀为基础组件的统一行为。
+   - **第三阶段：业务组件全局迁移**
+     各业务领域（Composer 工具条、Session 消息气泡、Sidebar 导航、Terminal、Review 面板、Settings 等）依次完成对统一基础组件的接入与升级，最终彻底移除各业务私有几何变量，达成全站视觉与体验一致。
+
 ## 固定选择流程
 
 新增或修改样式时必须依次回答：
@@ -77,6 +94,9 @@ CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品
 页面边距、阅读宽度、Composer 安全区和侧栏缩进等跨 Feature 约束使用 `--cpx-sys-layout-*`。响应式 `vh/vw`、运行时面板宽度或拖拽边界必须声明为拥有选择器的局部变量；不得把实例尺寸提升为系统 Token。
 
 ### 圆角
+
+> [!NOTE]
+> 当前阶段为桌面 UI 素版基线（Plain Baseline）：所有 `--cpx-sys-radius-*` 统一收敛为 `0`，`--cpx-sys-shadow-*` 重置为 `none`，高斯模糊与渐隐遮罩重置为 `none/0`，去除装饰性光扫与圆角。下表保留语义刻度与角色映射契约，供下一阶段视觉重构时统一接入。
 
 圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
