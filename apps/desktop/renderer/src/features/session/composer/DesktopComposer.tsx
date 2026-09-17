@@ -5,6 +5,7 @@ import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopModelMetadata,
+  DesktopModelProviderSummary,
   DesktopPermissionMode,
   DesktopQueuePauseReason,
   DesktopQueuedFollowUp,
@@ -107,6 +108,7 @@ export type DesktopComposerProps = {
   contextUsage: DesktopContextUsage | null
   modelPresets: ModelPreset[]
   providerOptions: ProviderModelOption[]
+  allProviders?: readonly DesktopModelProviderSummary[]
   recentWorkspaces: DesktopWorkspace[]
   contextTasks?: ComposerContextTask[]
   browserContext?: ComposerBrowserContext | null
@@ -230,6 +232,7 @@ export function DesktopComposer({
   contextUsage,
   modelPresets,
   providerOptions,
+  allProviders,
   recentWorkspaces,
   contextTasks,
   browserContext,
@@ -426,6 +429,7 @@ export function DesktopComposer({
       contextUsage={contextUsage}
       modelPresets={modelPresets}
       providerOptions={providerOptions}
+      allProviders={allProviders}
       permissionOptions={permissionOptions}
       thinkingOptions={THINKING_MODE_OPTIONS}
       branchName={branchName}

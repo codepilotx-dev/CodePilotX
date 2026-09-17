@@ -197,9 +197,9 @@ describe('composer surface variant', () => {
       />,
     )
 
-    expect(html).toContain('composer-model-chip')
+    expect(html).toContain('composer-model-trigger-capsule')
     expect(html).toContain('>Claude Sonnet</span>')
-    expect(html).toContain('composer-model-chip-thinking')
+    expect(html).toContain('composer-model-trigger-effort-wrap')
     expect(html).toContain('>高</span>')
     expect(html).toContain('aria-label="模型与推理设置：Claude Sonnet，高"')
     expect(html).not.toContain('composer-thinking-chip')
@@ -213,7 +213,7 @@ describe('composer surface variant', () => {
     const deepSeekOptions = resolveThinkingOptions(true, regularOptions)
 
     expect(html).not.toContain('composer-thinking-chip')
-    expect(html).not.toContain('composer-model-chip-thinking')
+    expect(html).not.toContain('composer-model-trigger-effort-wrap')
     expect(resolveThinkingLabel(regularOptions, 'default')).toBe('默认')
     expect(deepSeekOptions.map(option => option.label)).toEqual(['关闭', '高', '超高'])
     expect(resolveThinkingLabel(deepSeekOptions, 'enabled')).toBe('超高')

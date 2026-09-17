@@ -60,6 +60,7 @@ import type {
   DesktopContextUsage,
   DesktopComposerAttachment,
   DesktopFileEntry,
+  DesktopModelProviderSummary,
   LocalRouterMode,
   ModelProviderID,
 } from "../../../../shared/types.js";
@@ -76,6 +77,7 @@ import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import { ModelPickerPopover } from "./ModelPickerPopover.js";
+import { ModelSelectTrigger } from "./ModelSelectTrigger.js";
 import {
   resolveThinkingLabel,
   resolveThinkingOptions,
@@ -191,6 +193,7 @@ type Props = {
   contextUsage: DesktopContextUsage | null;
   modelPresets: ModelPreset[];
   providerOptions: ProviderModelOption[];
+  allProviders?: readonly DesktopModelProviderSummary[];
   permissionOptions: Option<DesktopPermissionMode>[];
   thinkingOptions: Option<DesktopThinkingMode>[];
   branchName: string;
@@ -316,6 +319,7 @@ export function ComposerCard({
   contextUsage,
   modelPresets,
   providerOptions,
+  allProviders,
   permissionOptions,
   thinkingOptions,
   branchName,
@@ -1048,7 +1052,7 @@ export function ComposerCard({
     >
       {fileDragActive ? (
         <div
-          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:rounded-xl tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised u-type-control"
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised u-type-control"
           role="status"
         >
           松开以添加文件
@@ -1605,6 +1609,7 @@ export function ComposerCard({
               deepSeekThinkingControls={modelVariantOptions ? false : deepSeekThinkingControls}
               open={openDropdown === "model"}
               providerOptions={providerOptions}
+              allProviders={allProviders}
               selectedModelPreset={selectedModelPreset}
               selectedProviderID={selectedProviderID}
               showThinkingOptions={showThinkingOptions}
@@ -1614,30 +1619,29 @@ export function ComposerCard({
               thinkingPreviewMode={thinkingPreviewMode}
               thinkingOptions={modelVariantOptions ?? thinkingOptions}
               trigger={
-                <ChipButton
-                  active={openDropdown === "model"}
-                  aria-label={
-                    showThinkingOptions
-                      ? `模型与推理设置：${selectedModelLabel}，${selectedThinkingLabel}`
-                      : `模型：${selectedModelLabel}`
-                  }
-                  className="subtle composer-model-chip"
+                <ModelSelectTrigger
+                  isOpen={openDropdown === "model"}
                   loading={modelCatalogLoading}
-                  title={
+                  modelName={selectedModelLabel}
+                  onThinkingChange={value => {
+                    if (onModelVariantChange) onModelVariantChange(value);
+                    else if (value === 'default' || value === 'enabled' || value === 'adaptive' || value === 'disabled') onThinkingChange(value);
+                  }}
+                  onThinkingPreviewChange={setThinkingPreviewMode}
+                  onToggleOpen={() => {
+                    setOpenDropdown(openDropdown === "model" ? null : "model");
+                  }}
+                  showThinkingOptions={showThinkingOptions}
+                  thinkingLabel={selectedThinkingLabel}
+                  thinkingMode={modelVariant ?? thinkingMode}
+                  thinkingOptions={modelVariantOptions ?? thinkingOptions}
+                  thinkingPreviewMode={thinkingPreviewMode}
+                  tooltipTitle={
                     showThinkingOptions
                       ? `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle} · 推理强度：${selectedThinkingLabel}`
                       : `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle}`
                   }
-                >
-                  <span className="composer-model-chip-label">
-                    {selectedModelLabel}
-                  </span>
-                  {showThinkingOptions ? (
-                    <span className="composer-model-chip-thinking">
-                      {selectedThinkingLabel}
-                    </span>
-                  ) : null}
-                </ChipButton>
+                />
               }
               onOpenChange={(open) => {
                 if (!open) setThinkingPreviewMode(null);

@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import {
-  Check,
   ChevronDown,
   ChevronLeft,
   Plus,
   Search,
   X,
 } from 'lucide-react'
-import type { ModelProviderID } from '../../../../shared/types.js'
-import { modelsDevLogoURL } from '../../../services/desktop-client/provider-adapters.js'
+import type { DesktopModelProviderSummary, ModelProviderID } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
 import {
   resolveThinkingLabel,
@@ -17,6 +15,7 @@ import {
   type ThinkingOption,
 } from './ThinkingLevelPopover.js'
 import { ProviderLogo } from './providerLogos.js'
+import { ReasoningMenu } from './ReasoningMenu.js'
 
 export type ProviderModelOption = {
   providerID: ModelProviderID
@@ -32,6 +31,7 @@ export type ModelPickerPopoverProps = {
   selectedProviderID?: ModelProviderID
   selectedModelPreset?: string
   providerOptions: ProviderModelOption[]
+  allProviders?: readonly DesktopModelProviderSummary[]
   deepSeekThinkingControls: boolean
   showThinkingOptions: boolean
   thinkingMode: string
@@ -53,33 +53,10 @@ type HubProviderItem = {
   name: string
   desc: string
   category: string
+  logoURL?: string
 }
 
-// Catalogue mirror of the providers models.dev exposes, used by the Model Hub
-// view. Selections here only switch the rail; configuring credentials stays in
-// the provider settings surface.
-const HUB_PROVIDERS: HubProviderItem[] = [
-  { id: 'openrouter', name: 'OpenRouter', desc: '聚合 40+ 家服务商的统一 API', category: '聚合' },
-  { id: 'fireworks', name: 'Fireworks AI', desc: '面向开源模型的高速推理平台', category: '高速推理' },
-  { id: 'groq', name: 'Groq', desc: 'LPU 推理引擎，实时级响应速度', category: 'LPU' },
-  { id: 'cerebras', name: 'Cerebras', desc: '晶圆级 AI 加速引擎', category: '硬件' },
-  { id: 'replicate', name: 'Replicate', desc: '云端运行开源模型的 API 平台', category: '云端 API' },
-  { id: 'deepinfra', name: 'DeepInfra', desc: '低成本的按需推理服务', category: 'Serverless' },
-  { id: 'together', name: 'Together AI', desc: '开源模型托管与微调', category: '云端托管' },
-  { id: 'cohere', name: 'Cohere', desc: '面向企业的检索、重排与 Command R+', category: '企业级' },
-  { id: 'mistral', name: 'Mistral AI', desc: 'Mistral Large 与 Pixtral 系列', category: '基础模型' },
-  { id: 'anthropic', name: 'Anthropic', desc: 'Claude 系列与混合推理', category: '基础模型' },
-  { id: 'openai', name: 'OpenAI', desc: 'GPT 与 o 系列推理模型', category: '基础模型' },
-  { id: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek-R1 与 DeepSeek-V3', category: '基础模型' },
-  { id: 'google', name: 'Google Gemini', desc: 'Gemini 2.5 Pro 与 Flash 多模态模型', category: '基础模型' },
-]
-
 const PROVIDER_SEARCH_DEBOUNCE_MS = 150
-
-// Matches the rendered height of `.composer-effort-dropdown`, used only to
-// decide whether the menu has room to open downward inside the scroll list.
-const EFFORT_MENU_HEIGHT = 122
-const EFFORT_MENU_GAP = 16
 
 export function ModelPickerPopover({
   open,
@@ -88,6 +65,7 @@ export function ModelPickerPopover({
   selectedProviderID,
   selectedModelPreset,
   providerOptions,
+  allProviders,
   deepSeekThinkingControls,
   showThinkingOptions,
   thinkingMode,
@@ -110,11 +88,8 @@ export function ModelPickerPopover({
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [filterText, setFilterText] = useState('')
   const [hubFilterText, setHubFilterText] = useState('')
-  const [effortMenuOpen, setEffortMenuOpen] = useState(false)
-  const [effortDropUp, setEffortDropUp] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const effortAnchorRef = useRef<HTMLDivElement>(null)
-  const modelsListRef = useRef<HTMLDivElement>(null)
+  const hubSearchInputRef = useRef<HTMLInputElement>(null)
   const providerSearchTimersRef = useRef(
     new Map<ModelProviderID, ReturnType<typeof setTimeout>>(),
   )
@@ -146,7 +121,6 @@ export function ModelPickerPopover({
       setSearchExpanded(false)
       setFilterText('')
       setHubFilterText('')
-      setEffortMenuOpen(false)
     }
   }, [open, activeProviderID, onProviderOpen, onProviderSearch])
 
@@ -161,28 +135,6 @@ export function ModelPickerPopover({
     },
     [],
   )
-
-  // The effort menu is anchored to its pill inside the selected row, so it
-  // needs its own dismissal path; the panel's Radix dismissal only covers the
-  // popover itself.
-  useEffect(() => {
-    if (!effortMenuOpen) return
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (effortAnchorRef.current?.contains(event.target as Node)) return
-      setEffortMenuOpen(false)
-    }
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return
-      event.stopPropagation()
-      setEffortMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown, true)
-    }
-  }, [effortMenuOpen])
 
   const currentProvider = useMemo(
     () =>
@@ -205,16 +157,46 @@ export function ModelPickerPopover({
     )
   }, [currentProvider, filterText])
 
+  const hubProviders = useMemo<HubProviderItem[]>(() => {
+    if (allProviders && allProviders.length > 0) {
+      return allProviders.map(p => {
+        const isCustom = p.providerKind === 'custom'
+        const count = p.modelCount ?? p.defaultModels.length
+        return {
+          id: p.providerID,
+          name: p.displayName || p.providerID,
+          desc: isCustom
+            ? '自定义 Provider · Pi 执行'
+            : count > 0
+              ? `${count} 个可用模型`
+              : 'Pi 内置提供商',
+          category: isCustom ? '自定义' : 'Pi 内置',
+          logoURL: p.logoURL,
+        }
+      })
+    }
+    return providerOptions.map(option => ({
+      id: option.providerID,
+      name: option.displayName || option.providerID,
+      desc:
+        option.modelPresets.length > 0
+          ? `${option.modelPresets.length} 个可用模型`
+          : 'Pi 内置提供商',
+      category: 'Pi 内置',
+      logoURL: option.logoURL,
+    }))
+  }, [allProviders, providerOptions])
+
   const filteredHubProviders = useMemo(() => {
     const query = hubFilterText.trim().toLowerCase()
-    if (!query) return HUB_PROVIDERS
-    return HUB_PROVIDERS.filter(
+    if (!query) return hubProviders
+    return hubProviders.filter(
       provider =>
         provider.name.toLowerCase().includes(query) ||
         provider.desc.toLowerCase().includes(query) ||
         provider.category.toLowerCase().includes(query),
     )
-  }, [hubFilterText])
+  }, [hubFilterText, hubProviders])
 
   // Large provider catalogues are paged on the agent side, so a paused query is
   // forwarded to the provider controller in addition to the local filter.
@@ -239,7 +221,6 @@ export function ModelPickerPopover({
     (providerID: ModelProviderID) => {
       setIsHubOpen(false)
       setActiveProviderID(providerID)
-      setEffortMenuOpen(false)
       onProviderOpen?.(providerID)
     },
     [onProviderOpen],
@@ -263,27 +244,12 @@ export function ModelPickerPopover({
     queueProviderSearch(activeProviderID, '')
   }
 
-  const toggleEffortMenu = (): void => {
-    if (effortMenuOpen) {
-      setEffortMenuOpen(false)
-      return
-    }
-    const anchor = effortAnchorRef.current
-    const list = modelsListRef.current
-    if (anchor && list) {
-      setEffortDropUp(
-        anchor.getBoundingClientRect().bottom + EFFORT_MENU_HEIGHT + EFFORT_MENU_GAP >
-          list.getBoundingClientRect().bottom,
-      )
-    }
-    setEffortMenuOpen(true)
+  const providerLogoURL = (targetProviderID: string): string | undefined => {
+    const option = providerOptions.find(opt => opt.providerID === targetProviderID)
+    if (option?.logoURL) return option.logoURL
+    const hub = hubProviders.find(item => item.id === targetProviderID)
+    return hub?.logoURL
   }
-
-  // A provider without a configured catalogue entry is a models.dev provider,
-  // so its logo still comes from the same catalogue URL contract.
-  const providerLogoURL = (targetProviderID: string): string =>
-    providerOptions.find(option => option.providerID === targetProviderID)?.logoURL ??
-    modelsDevLogoURL(targetProviderID)
 
   const handleHubSelect = (hubProviderID: string): void => {
     const configured = providerOptions.find(
@@ -349,10 +315,7 @@ export function ModelPickerPopover({
               <div className="composer-hub-trigger-wrap">
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsHubOpen(previous => !previous)
-                    setEffortMenuOpen(false)
-                  }}
+                  onClick={() => setIsHubOpen(previous => !previous)}
                   className={`composer-hub-trigger-btn${isHubOpen ? ' is-active' : ''}`}
                   title="模型中心：发现并配置服务商"
                 >
@@ -361,9 +324,11 @@ export function ModelPickerPopover({
               </div>
             </div>
 
+            {/* Right panel */}
             <div className="composer-model-right">
               {isHubOpen ? (
-                <div className="composer-picker-view">
+                /* View 2: Model Hub view */
+                <div className="composer-picker-view animate-dropdown">
                   <div className="composer-models-header">
                     <div className="composer-models-header-lead">
                       <button
@@ -377,30 +342,37 @@ export function ModelPickerPopover({
                       <span className="composer-models-title">模型中心</span>
                     </div>
 
-                    <div className="composer-search-bar">
+                    <div className="composer-hub-search-bar">
                       <Search
                         size={14}
                         strokeWidth={2}
                         className="composer-search-bar-icon"
                       />
                       <input
+                        ref={hubSearchInputRef}
                         type="text"
                         placeholder="搜索服务商..."
                         value={hubFilterText}
                         onChange={event => setHubFilterText(event.target.value)}
-                        className="composer-search-input"
+                        className="composer-hub-search-input"
                       />
                     </div>
                   </div>
 
-                  <div className="composer-models-list">
+                  <div className="composer-models-list composer-hub-list">
                     {filteredHubProviders.length > 0 ? (
                       filteredHubProviders.map(provider => {
                         const isConfigured = providerOptions.some(
                           option => option.providerID === provider.id,
                         )
                         return (
-                          <div key={provider.id} className="composer-hub-row">
+                          <div
+                            key={provider.id}
+                            className="composer-hub-row"
+                            onClick={() => {
+                              if (isConfigured) handleHubSelect(provider.id)
+                            }}
+                          >
                             <div className="composer-hub-row-main">
                               <div className="composer-hub-row-logo">
                                 <ProviderLogo logoURL={providerLogoURL(provider.id)} />
@@ -419,15 +391,24 @@ export function ModelPickerPopover({
                                 </p>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleHubSelect(provider.id)}
-                              className={`composer-hub-action-btn${
-                                isConfigured ? ' is-configured' : ''
-                              }`}
-                            >
-                              {isConfigured ? '已配置' : '去配置'}
-                            </button>
+                            <div className="composer-hub-row-actions">
+                              {isConfigured ? (
+                                <span className="composer-hub-badge-connected">
+                                  已配置
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={event => {
+                                    event.stopPropagation()
+                                    handleHubSelect(provider.id)
+                                  }}
+                                  className="composer-hub-action-btn"
+                                >
+                                  去配置
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )
                       })
@@ -439,6 +420,7 @@ export function ModelPickerPopover({
                   </div>
                 </div>
               ) : (
+                /* View 1: Models Selection View */
                 <div className="composer-picker-view">
                   <div className="composer-models-header">
                     <span className="composer-models-title">
@@ -447,7 +429,7 @@ export function ModelPickerPopover({
 
                     <div className="composer-models-header-actions">
                       {searchExpanded ? (
-                        <div className="composer-search-bar">
+                        <div className="composer-search-bar animate-search-in">
                           <Search
                             size={14}
                             strokeWidth={2}
@@ -491,7 +473,7 @@ export function ModelPickerPopover({
                     </div>
                   </div>
 
-                  <div ref={modelsListRef} className="composer-models-list">
+                  <div className="composer-models-list">
                     {filteredModels.length > 0 ? (
                       filteredModels.map(preset => {
                         const isSelected = preset.id === selectedModelPreset
@@ -504,6 +486,15 @@ export function ModelPickerPopover({
                             }`}
                           >
                             <div className="composer-model-row-main">
+                              <span
+                                className={`composer-model-row-icon${
+                                  isSelected ? ' is-active' : ''
+                                }`}
+                              >
+                                <ProviderLogo
+                                  logoURL={currentProvider.logoURL}
+                                />
+                              </span>
                               <span className="composer-model-name">
                                 {preset.label || preset.id}
                               </span>
@@ -511,74 +502,40 @@ export function ModelPickerPopover({
 
                             <div className="composer-model-row-trailing">
                               {isSelected && showThinkingOptions ? (
-                                <div
-                                  ref={effortAnchorRef}
-                                  className="composer-effort-anchor"
-                                >
-                                  <button
-                                    type="button"
-                                    aria-expanded={effortMenuOpen}
-                                    onClick={event => {
-                                      event.stopPropagation()
-                                      toggleEffortMenu()
-                                    }}
-                                    className="composer-effort-pill"
-                                    title="推理思考强度"
-                                  >
-                                    <span>{currentThinkingLabel}</span>
-                                    <ChevronDown size={12} strokeWidth={2.5} />
-                                  </button>
-
-                                  {effortMenuOpen ? (
-                                    <div
+                                <ReasoningMenu
+                                  thinkingMode={thinkingMode}
+                                  thinkingPreviewMode={thinkingPreviewMode}
+                                  thinkingOptions={effectiveThinkingOptions}
+                                  onThinkingChange={onThinkingChange}
+                                  onThinkingPreviewChange={onThinkingPreviewChange}
+                                  side="top"
+                                  sideOffset={6}
+                                  align="end"
+                                  trigger={
+                                    <button
+                                      type="button"
                                       onClick={event => event.stopPropagation()}
-                                      className={`composer-effort-dropdown${
-                                        effortDropUp ? ' is-above' : ''
-                                      }`}
+                                      className="composer-effort-pill"
+                                      title="选择推理思考强度"
+                                      aria-label={`推理思考强度：${currentThinkingLabel}`}
                                     >
-                                      <div className="composer-effort-dropdown-title">
-                                        推理思考
-                                      </div>
-                                      {effectiveThinkingOptions.map(option => {
-                                        const isCurrent =
-                                          option.value === thinkingMode
-                                        return (
-                                          <div
-                                            key={option.value}
-                                            onClick={() => {
-                                              onThinkingChange(option.value)
-                                              setEffortMenuOpen(false)
-                                            }}
-                                            onPointerEnter={() =>
-                                              onThinkingPreviewChange?.(option.value)
-                                            }
-                                            onPointerLeave={() =>
-                                              onThinkingPreviewChange?.(null)
-                                            }
-                                            className="composer-effort-item"
-                                          >
-                                            <span>{option.label}</span>
-                                            {isCurrent ? (
-                                              <Check
-                                                size={14}
-                                                strokeWidth={2.4}
-                                                className="composer-effort-check"
-                                              />
-                                            ) : null}
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  ) : null}
-                                </div>
+                                      <span>{currentThinkingLabel}</span>
+                                      <ChevronDown size={12} strokeWidth={2.5} />
+                                    </button>
+                                  }
+                                />
                               ) : null}
 
-                              <span
+                              <div
                                 aria-hidden="true"
                                 className={`composer-model-dot${
                                   isSelected ? ' is-selected' : ''
                                 }`}
-                              />
+                              >
+                                {isSelected ? (
+                                  <div className="composer-model-dot-inner" />
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         )
