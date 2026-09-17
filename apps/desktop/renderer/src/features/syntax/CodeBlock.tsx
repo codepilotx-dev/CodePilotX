@@ -217,7 +217,7 @@ export function CodeBlock({
             <input
               autoFocus
               aria-label="输入代码语言"
-              className="md-code-lang-input tw:h-6 tw:w-28 tw:rounded-xs tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
+              className="md-code-lang-input tw:h-6 tw:w-28 tw:border tw:border-app-accent tw:bg-app-raised tw:px-1.5 tw:font-mono tw:text-app-text tw:outline-none"
               placeholder="语言 (如 ts, json)"
               value={editLangValue}
               onBlur={commitLanguageChange}
@@ -239,7 +239,7 @@ export function CodeBlock({
           ) : onChangeLanguage ? (
             <button
               aria-label={`修改代码语言：当前为 ${languageLabel}`}
-              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:rounded-xs tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+              className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               title="点击直接修改代码语言"
               type="button"
               onClick={e => {
@@ -277,7 +277,7 @@ export function CodeBlock({
           className={cx(
             'md-code-action md-code-copy',
             copied && 'is-copied',
-            'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-xs tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
+            'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
           )}
           color="ghostSecondary"
           size="toolbar"

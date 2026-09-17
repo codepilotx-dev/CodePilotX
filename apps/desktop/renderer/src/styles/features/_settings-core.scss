@@ -3,7 +3,9 @@
 }
 
 .settings-nav-scroll-content {
+  --settings-nav-inline-gutter: var(--cpx-sys-space-2);
   gap: var(--cpx-sys-space-4);
+  padding-inline: var(--settings-nav-inline-gutter);
 }
 
 .settings-nav-header {

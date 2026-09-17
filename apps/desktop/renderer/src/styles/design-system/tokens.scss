@@ -86,27 +86,27 @@
   --cpx-sys-color-charts-cyan: var(--cpx-sys-color-info);
 
   // System Blur & Glassmorphism
-  --cpx-sys-blur-sm: 8px;
-  --cpx-sys-blur-md: 16px;
-  --cpx-sys-blur-lg: 24px;
-  --cpx-sys-glass-filter: blur(var(--cpx-sys-blur-md));
-  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 85%, transparent);
+  --cpx-sys-blur-sm: 0;
+  --cpx-sys-blur-md: 0;
+  --cpx-sys-blur-lg: 0;
+  --cpx-sys-glass-filter: none;
+  --cpx-sys-glass-bg: var(--cpx-sys-color-surface-panel);
   --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
-  --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
+  --cpx-sys-glass-shadow: none;
 
-  // System Radius (Foundational Scale)
+  // System Radius (Foundational Scale - Plain Edition)
   --cpx-sys-radius-optical-scale: 1;
   --cpx-sys-corner-shape: round;
-  --cpx-sys-radius-2xs: calc(2px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-xs: calc(4px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-sm: calc(6px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-md: calc(8px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-lg: calc(10px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-xl: calc(12px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-2xl: calc(16px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-3xl: calc(20px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-4xl: calc(24px * var(--cpx-sys-radius-optical-scale));
-  --cpx-sys-radius-full: 9999px;
+  --cpx-sys-radius-2xs: 0;
+  --cpx-sys-radius-xs: 0;
+  --cpx-sys-radius-sm: 0;
+  --cpx-sys-radius-md: 0;
+  --cpx-sys-radius-lg: 0;
+  --cpx-sys-radius-xl: 0;
+  --cpx-sys-radius-2xl: 0;
+  --cpx-sys-radius-3xl: 0;
+  --cpx-sys-radius-4xl: 0;
+  --cpx-sys-radius-full: 0;
 
   // System Radius (Semantic Roles)
   --cpx-sys-radius-indicator: var(--cpx-sys-radius-2xs);
@@ -203,12 +203,9 @@
   // System Shadows
   --cpx-sys-shadow-resting: none;
   --cpx-sys-shadow-raised: none;
-  --cpx-sys-shadow-prominent:
-    0 0 0 0.5px var(--cpx-sys-color-border-strong),
-    0 3px 7.5px rgb(0 0 0 / 4%),
-    0 0 20px rgb(0 0 0 / 5%);
-  --cpx-sys-shadow-floating: 0 6px 20px -6px rgb(0 0 0 / 9%), 0 2px 6px -2px rgb(0 0 0 / 4%);
-  --cpx-sys-shadow-control: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --cpx-sys-shadow-prominent: none;
+  --cpx-sys-shadow-floating: none;
+  --cpx-sys-shadow-control: none;
 
   // System Motion (Semantic Roles)
   --cpx-sys-motion-instant: 0ms;
@@ -271,11 +268,4 @@
   --floating-composer-h: 142px;
   --composer-width: 48rem;
   --context-menu-item-padding: 6px;
-}
-
-@supports (corner-shape: superellipse(1.5)) {
-  :root {
-    --cpx-sys-radius-optical-scale: 1.25;
-    --cpx-sys-corner-shape: superellipse(1.5);
-  }
 }

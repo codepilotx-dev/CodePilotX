@@ -41,7 +41,7 @@ export function SessionGroupEditorDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(30rem,100%)] tw:gap-3 tw:rounded-3xl tw:p-5"
+          className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(30rem,100%)] tw:gap-3 tw:p-5"
           onCloseAutoFocus={onCloseAutoFocus}
           onOpenAutoFocus={event => {
             event.preventDefault()
@@ -75,7 +75,7 @@ export function SessionGroupEditorDialog({
             <label className="u-type-control tw:grid tw:gap-1.5 tw:text-app-text">
               名称
               <input
-                className="u-type-control tw:w-full tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="u-type-control tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={120}
                 onChange={event => onNameChange(event.currentTarget.value)}
                 placeholder="例如：登录流程修复"
@@ -86,7 +86,7 @@ export function SessionGroupEditorDialog({
             <label className="u-type-control tw:grid tw:gap-1.5 tw:text-app-text">
               说明
               <textarea
-                className="u-type-control tw:min-h-24 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                className="u-type-control tw:min-h-24 tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={4000}
                 onChange={event => onDescriptionChange(event.currentTarget.value)}
                 placeholder="说明这个工作流要共同解决的问题（可选）"

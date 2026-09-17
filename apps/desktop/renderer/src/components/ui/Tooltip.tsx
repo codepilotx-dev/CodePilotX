@@ -65,7 +65,6 @@ export function Tooltip({
                   'tooltip-presence',
                   'tooltip-content',
                   'tw:max-w-[min(20rem,calc(100vw-2rem))]',
-                  'tw:rounded-xl',
                   'tw:px-2',
                   'tw:py-1',
                   'u-type-caption',

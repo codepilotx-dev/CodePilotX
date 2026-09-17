@@ -5,7 +5,7 @@
   height: var(--cpx-comp-icon-size-sm);
   border: 2px solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 50%;
   animation: ui-spinner-spin var(--cpx-sys-motion-loading) linear infinite;
 }
 

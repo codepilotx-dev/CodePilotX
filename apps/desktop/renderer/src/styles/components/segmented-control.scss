@@ -4,7 +4,7 @@
 
 .segmented-control[data-variant='inset'] {
   padding: 2px;
-  border-radius: var(--cpx-sys-radius-lg);
+  border-radius: 0;
   background: var(--cpx-sys-color-surface-recessed);
 }
 
@@ -12,7 +12,7 @@
   min-height: 24px;
   padding: 2px 8px;
   border: 1px solid transparent;
-  border-radius: var(--cpx-sys-radius-md);
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
   color: var(--cpx-sys-color-fg-tertiary);
@@ -49,9 +49,9 @@
 
 .segmented-control[data-variant='inset']
   .segmented-control-item:is([data-state='on'], [aria-pressed='true'], [aria-selected='true']) {
-  border-color: transparent;
+  border-color: var(--cpx-sys-color-border-default);
   background: var(--cpx-comp-surface-canvas);
-  box-shadow: var(--cpx-sys-shadow-control);
+  box-shadow: none;
 }
 
 @media (forced-colors: active) {

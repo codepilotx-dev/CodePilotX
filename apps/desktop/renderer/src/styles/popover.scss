@@ -105,8 +105,8 @@
 ) {
   border: var(--cpx-comp-surface-edge);
   background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
-  backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
-  box-shadow: var(--cpx-sys-shadow-floating);
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -129,19 +129,17 @@
 .popover-surface {
   border: var(--cpx-comp-dropdown-menu-border, var(--cpx-comp-surface-edge));
   background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
-  backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
-  box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
-  border-radius: var(--cpx-comp-dropdown-menu-radius, var(--cpx-sys-radius-xl));
-  corner-shape: var(--cpx-sys-corner-shape);
+  backdrop-filter: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .tooltip-content {
   border: var(--cpx-comp-tooltip-border, var(--cpx-comp-surface-edge));
   background: var(--cpx-comp-tooltip-bg, var(--cpx-comp-surface-floating));
-  backdrop-filter: var(--cpx-comp-tooltip-backdrop-filter, blur(8px));
-  box-shadow: var(--cpx-comp-tooltip-shadow, var(--cpx-sys-shadow-floating));
-  border-radius: var(--cpx-comp-tooltip-radius, var(--cpx-sys-radius-xl));
-  corner-shape: var(--cpx-sys-corner-shape);
+  backdrop-filter: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .popover-scroll-content {
@@ -313,8 +311,8 @@
 }
 
 .tooltip-content.popover-item-tooltip {
-  border-radius: var(--cpx-sys-radius-lg);
-  box-shadow: var(--cpx-comp-dropdown-menu-shadow);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sidebar-context-menu-item[data-color="red"] {
@@ -454,7 +452,7 @@
   height: 28px;
   margin-left: auto;
   flex: 0 0 auto;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   transition: background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 
   .context-menu-switch-thumb {
@@ -463,8 +461,8 @@
     left: 4px;
     width: 20px;
     height: 20px;
-    border-radius: var(--cpx-sys-radius-full);
-    box-shadow: var(--cpx-sys-shadow-control);
+    border-radius: 0;
+    box-shadow: none;
     transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   }
 

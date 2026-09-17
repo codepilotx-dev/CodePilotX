@@ -1009,7 +1009,7 @@ export const markdownRichThemeSpec = {
   },
   '&.cm-markdown-rich .cm-md-rich-inline-code': {
     padding: '0.08em 0.3em',
-    borderRadius: '4px',
+    borderRadius: '0',
     color: 'var(--cm-editor-foreground, var(--cpx-sys-color-fg-primary))',
     backgroundColor:
       'color-mix(in srgb, var(--cm-editor-background, var(--cpx-comp-modal-preformat-bg)) 88%, var(--cpx-sys-color-fg-primary) 12%)',
@@ -1132,7 +1132,7 @@ export const markdownRichThemeSpec = {
     margin: '12px 24px',
     padding: '12px',
     border: '1px solid var(--cpx-sys-color-border-default)',
-    borderRadius: 'var(--cpx-sys-radius-lg)',
+    borderRadius: '0',
     backgroundColor:
       'var(--cm-editor-background, var(--cpx-sys-color-surface-editor, var(--cpx-sys-color-surface-canvas)))',
     overflow: 'auto',
@@ -1154,7 +1154,7 @@ export const markdownRichThemeSpec = {
     display: 'block',
     boxSizing: 'border-box',
     marginBlock: '12px',
-    borderRadius: 'var(--cpx-sys-radius-lg)',
+    borderRadius: '0',
     backgroundColor: 'var(--cpx-sys-color-surface-editor)',
     overflowX: 'auto',
   },

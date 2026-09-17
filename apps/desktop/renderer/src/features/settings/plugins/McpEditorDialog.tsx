@@ -348,13 +348,13 @@ export function McpEditorDialog({
 
             <div className="settings-management-dialog-body tw:grid tw:min-h-0 tw:flex-1 tw:gap-4 tw:overflow-auto">
               {runtimeError || needsAuth ? (
-                <div className="u-type-body-sm tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
+                <div className="u-type-body-sm tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text-soft">
                   {runtimeError ?? '该 server 需要认证。请从 MCP 列表发起 OAuth 登录，或配置宿主环境变量凭据。'}
                 </div>
               ) : null}
               {validationError ? (
                 <div
-                  className="u-type-body-sm tw:rounded-md tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
+                  className="u-type-body-sm tw:border tw:border-app-danger/40 tw:bg-app-danger/10 tw:px-3 tw:py-2 tw:text-app-danger"
                   role="alert"
                 >
                   {validationError}

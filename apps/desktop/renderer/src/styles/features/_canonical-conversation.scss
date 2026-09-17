@@ -414,37 +414,7 @@
 
   &::before,
   &::after {
-    position: absolute;
-    inset-inline: 0;
-    z-index: 1;
-    height: var(--edge-fade-distance, 1.5rem);
-    content: "";
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(
-      to bottom,
-      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
-      transparent
-    );
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(
-      to top,
-      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
-      transparent
-    );
-  }
-
-  &[data-scrollable="true"][data-at-start="false"]::before,
-  &[data-scrollable="true"][data-at-end="false"]::after {
-    opacity: 1;
+    display: none;
   }
 }
 
@@ -1567,8 +1537,7 @@
 
   &__icon-flash {
     color: var(--cpx-sys-color-fg-primary);
-    animation: canonical-lifecycle-icon-flash
-      calc(var(--cpx-sys-motion-loading) * 2) var(--cpx-sys-ease-standard) infinite;
+    opacity: 0.7;
   }
 
   > span {
@@ -1581,17 +1550,6 @@
   &[data-state="error"],
   &[data-state="interrupted"] {
     color: var(--cpx-sys-color-danger);
-  }
-}
-
-@keyframes canonical-lifecycle-icon-flash {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-
-  50% {
-    opacity: 0.8;
   }
 }
 

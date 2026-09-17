@@ -51,7 +51,7 @@ export function ConversationForkDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:rounded-3xl tw:p-6"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-6"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
@@ -187,7 +187,7 @@ function ForkProgress({
         <span>{forkProgressLabel(operation)}</span>
       </div>
       {progress?.output ? (
-        <pre className="tw:m-0 tw:max-h-52 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:p-3 tw:font-mono tw:text-code tw:whitespace-pre-wrap tw:text-app-text">
+        <pre className="tw:m-0 tw:max-h-52 tw:overflow-auto tw:border tw:border-app-border tw:bg-app-canvas tw:p-3 tw:font-mono tw:text-code tw:whitespace-pre-wrap tw:text-app-text">
           {progress.outputTruncated ? '…较早的输出已截断\n' : null}
           {progress.output}
         </pre>

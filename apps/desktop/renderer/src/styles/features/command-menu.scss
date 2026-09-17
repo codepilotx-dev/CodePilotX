@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   background: var(--cpx-sys-color-scrim);
-  backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
+  backdrop-filter: none;
 }
 
 .command-menu-dialog {
@@ -14,9 +14,9 @@
   max-height: calc(100vh - clamp(6rem, 16vh, 10rem));
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-xl);
+  border-radius: 0;
   background: var(--cpx-sys-color-surface-raised);
-  box-shadow: var(--cpx-sys-shadow-floating);
+  box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   outline: 0;
   -webkit-app-region: no-drag;

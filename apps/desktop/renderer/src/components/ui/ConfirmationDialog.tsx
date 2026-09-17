@@ -63,7 +63,7 @@ export function ConfirmationDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <AlertDialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-3xl tw:p-5"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
@@ -158,7 +158,7 @@ export function InputDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:rounded-3xl tw:p-5"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(27.5rem,100%)] tw:gap-3 tw:p-5"
               onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={event => {
                 event.preventDefault()
@@ -196,7 +196,7 @@ export function InputDialog({
                 </Dialog.Description>
                 <input
                   aria-label={title}
-                  className="confirmation-dialog-input tw:w-full tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[var(--cpx-sys-motion-enter)] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+                  className="confirmation-dialog-input tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[var(--cpx-sys-motion-enter)] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                   defaultValue={input.value}
                   maxLength={input.maxLength}
                   onInput={event => input.onChange(event.currentTarget.value)}

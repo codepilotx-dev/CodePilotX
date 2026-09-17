@@ -99,11 +99,11 @@ export function SkillDetailsDialog({
             <header className="settings-management-dialog-header tw:flex tw:items-start tw:gap-3">
               <span
                 aria-hidden="true"
-                className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
+                className="tw:flex tw:size-10 tw:shrink-0 tw:items-center tw:justify-center tw:border tw:border-app-border tw:bg-app-canvas tw:text-app-text-soft"
               >
                 {presentation ? (
                   <BuiltinSkillIcon
-                    className="tw:rounded-md"
+                    className=""
                     size={APP_ICON_SIZE}
                     skill={skill}
                   />
@@ -146,13 +146,13 @@ export function SkillDetailsDialog({
                 </p>
               ) : error ? (
                 <div
-                  className="u-type-body-sm tw:rounded-lg tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
+                  className="u-type-body-sm tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
                   role="alert"
                 >
                   {error}
                 </div>
               ) : (
-                <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text">
+                <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text">
                   {content}
                 </pre>
               )}

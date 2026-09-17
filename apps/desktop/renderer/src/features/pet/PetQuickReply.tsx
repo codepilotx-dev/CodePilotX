@@ -187,7 +187,7 @@ export function PetQuickReply({
       </RadioGroup>
       {action === 'deny' ? (
         <textarea
-          className="u-type-control tw:min-h-16 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+          className="u-type-control tw:min-h-16 tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
           disabled={blocked}
           placeholder="可选：说明拒绝原因"
           value={feedback}
@@ -297,7 +297,7 @@ function CustomAnswerInput({ question, state, disabled, onChange }: {
   return (
     <textarea
       aria-label={`${question.question}的自定义回答`}
-      className="u-type-control tw:min-h-14 tw:w-full tw:resize-y tw:rounded-xs tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
+      className="u-type-control tw:min-h-14 tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent"
       disabled={disabled}
       placeholder="其他回答…"
       value={state.custom}

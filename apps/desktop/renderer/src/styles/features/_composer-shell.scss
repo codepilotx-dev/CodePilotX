@@ -361,7 +361,7 @@
       transparent
     );
     color: var(--cpx-sys-color-surface-canvas);
-    backdrop-filter: blur(4px);
+    backdrop-filter: none;
   }
 
   &--overlay:hover {
@@ -481,17 +481,7 @@
 }
 
 .attachment-image-tile__loading {
-  background: linear-gradient(
-    100deg,
-    var(--cpx-sys-color-surface-editor) 30%,
-    var(--cpx-sys-color-hover) 50%,
-    var(--cpx-sys-color-surface-editor) 70%
-  );
-  background-size: 200% 100%;
-  animation-name: attachment-loading;
-  animation-duration: calc(var(--cpx-sys-motion-loading) * 2);
-  animation-timing-function: var(--cpx-sys-ease-standard);
-  animation-iteration-count: infinite;
+  background: var(--cpx-sys-color-surface-editor);
 }
 
 .attachment-image-tile__error {
@@ -772,17 +762,6 @@
   }
 }
 
-@keyframes attachment-loading {
-  to {
-    background-position-x: -200%;
-  }
-}
-
-:root[data-reduce-motion="on"] {
-  .attachment-image-tile__loading {
-    animation: none;
-  }
-}
 
 .composer-toolbar {
   display: grid;

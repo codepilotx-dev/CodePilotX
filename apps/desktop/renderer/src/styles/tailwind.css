@@ -65,16 +65,3 @@
   --color-app-danger: var(--cpx-sys-color-danger);
   --color-app-success: var(--cpx-sys-color-success);
 }
-
-@supports (corner-shape: superellipse(1.5)) {
-  :where(
-    .tw\:rounded-md,
-    .tw\:rounded-lg,
-    .tw\:rounded-xl,
-    .tw\:rounded-2xl,
-    .tw\:rounded-3xl,
-    .tw\:rounded-4xl
-  ) {
-    corner-shape: var(--cpx-sys-corner-shape);
-  }
-}

@@ -238,7 +238,7 @@ describe('Codex CPX design system token contract', () => {
       /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--settings-nav-inline-gutter\);/,
     )
     expect(settings).toMatch(
-      /@container \(max-width: 42rem\)[\s\S]*?\.settings-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+      /@container \(max-width: 42rem\)[\s\S]*?\.settings-management-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
     )
     expect(settings).not.toMatch(
       /@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{/,
@@ -385,7 +385,7 @@ describe('Codex CPX design system token contract', () => {
       /\.rm-thick-slider-range\s*\{[\s\S]*?transform-origin: left center;/,
     )
     expect(modelMenu).toMatch(
-      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: var\(--cpx-sys-radius-full\);/,
+      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: 0;/,
     )
     expect(modelMenu).toMatch(
       /\.rm-thick-slider-thumb-rail\s*\{[\s\S]*?left: 0;/,
@@ -449,37 +449,31 @@ describe('Codex CPX design system token contract', () => {
 
     expect(
       systemTokens.match(/--cpx-sys-radius-optical-scale:/g),
-    ).toHaveLength(2)
-    expect(systemTokens.match(/--cpx-sys-corner-shape:/g)).toHaveLength(2)
+    ).toHaveLength(1)
+    expect(systemTokens.match(/--cpx-sys-corner-shape:/g)).toHaveLength(1)
     expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1;')
-    expect(systemTokens).toContain('--cpx-sys-radius-optical-scale: 1.25;')
+    expect(systemTokens).not.toContain('--cpx-sys-radius-optical-scale: 1.25;')
     expect(systemTokens).toContain('--cpx-sys-corner-shape: round;')
-    expect(systemTokens).toContain(
+    expect(systemTokens).not.toContain(
       '--cpx-sys-corner-shape: superellipse(1.5);',
     )
-    for (const [size, value] of [
-      ['2xs', '2px'],
-      ['xs', '4px'],
-      ['sm', '6px'],
-      ['md', '8px'],
-      ['lg', '10px'],
-      ['xl', '12px'],
-      ['2xl', '16px'],
-      ['3xl', '20px'],
-      ['4xl', '24px'],
+    for (const size of [
+      '2xs',
+      'xs',
+      'sm',
+      'md',
+      'lg',
+      'xl',
+      '2xl',
+      '3xl',
+      '4xl',
+      'full',
     ]) {
       expect(
         systemTokens.match(new RegExp(`--cpx-sys-radius-${size}:`, 'g')),
       ).toHaveLength(1)
-      expect(systemTokens).toMatch(
-        new RegExp(
-          `--cpx-sys-radius-${size}:\\s*calc\\(${value} \\* var\\(--cpx-sys-radius-optical-scale\\)\\);`,
-        ),
-      )
+      expect(systemTokens).toContain(`--cpx-sys-radius-${size}: 0;`)
     }
-    expect(systemTokens.match(/--cpx-sys-radius-full:/g)).toHaveLength(1)
-    expect(systemTokens).toContain('--cpx-sys-radius-full: 9999px;')
-    expect(systemTokens).not.toMatch(/--cpx-sys-radius-full:[^;]*optical-scale/)
     for (const [role, size] of [
       ['indicator', '2xs'],
       ['compact', 'xs'],
@@ -512,11 +506,8 @@ describe('Codex CPX design system token contract', () => {
         `--radius-${size}: var(--cpx-sys-radius-${size});`,
       )
     }
-    expect(tailwind).toMatch(
-      /:where\([\s\S]*?\.tw\\:rounded-md,[\s\S]*?\.tw\\:rounded-lg,[\s\S]*?\.tw\\:rounded-xl,[\s\S]*?\.tw\\:rounded-2xl,[\s\S]*?\.tw\\:rounded-3xl,[\s\S]*?\.tw\\:rounded-4xl[\s\S]*?\)\s*\{\s*corner-shape: var\(--cpx-sys-corner-shape\);/,
-    )
-    expect(tailwind).not.toMatch(
-      /\.tw\\:rounded-(?:2xs|xs|sm|full)[\s\S]*?corner-shape:/,
+    expect(tailwind).not.toContain(
+      'corner-shape: var(--cpx-sys-corner-shape);',
     )
     expect(componentTokens).toContain(
       '--cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);',
@@ -527,23 +518,7 @@ describe('Codex CPX design system token contract', () => {
 
     expect(buttons).not.toContain('--button-radius-scale')
     expect(buttons).toContain('border-radius: var(--button-radius);')
-    const shapedButtons = buttons.slice(
-      buttons.indexOf('@supports (corner-shape: superellipse(1.5))'),
-      buttons.indexOf('.segmented-control[data-variant="inset"]'),
-    )
-    expect(shapedButtons).toContain(
-      'corner-shape: var(--cpx-sys-corner-shape);',
-    )
-    for (const pillSize of [
-      'default',
-      'large',
-      'composer',
-      'composerSm',
-      'composerUtility',
-    ]) {
-      expect(shapedButtons).not.toContain(`[data-size="${pillSize}"]`)
-    }
-
+    expect(buttons).not.toContain('@supports (corner-shape: superellipse(1.5))')
     expect(composer).toContain(
       '--composer-radius: var(--cpx-sys-radius-prominent);',
     )

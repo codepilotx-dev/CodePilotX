@@ -301,7 +301,6 @@
   height: 13px;
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
-  animation: whats-new-skeleton-pulse var(--cpx-sys-motion-loading) var(--cpx-sys-ease-standard) infinite;
 }
 
 .whats-new-skeleton-card > span:first-child {
@@ -311,14 +310,4 @@
 
 .whats-new-skeleton-card > span:last-child {
   width: 72%;
-}
-
-@keyframes whats-new-skeleton-pulse {
-  50% {
-    opacity: 0.45;
-  }
-}
-
-:root[data-reduce-motion='on'] .whats-new-skeleton-card > span {
-  animation: none;
 }

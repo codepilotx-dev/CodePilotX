@@ -449,9 +449,7 @@
   margin: 0;
   overflow: hidden;
   font: var(--cpx-sys-type-heading-md);
-  text-overflow: clip;
-  -webkit-mask-image: linear-gradient(to right, var(--cpx-sys-color-fg-primary) calc(100% - 1rem), transparent);
-  mask-image: linear-gradient(to right, var(--cpx-sys-color-fg-primary) calc(100% - 1rem), transparent);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

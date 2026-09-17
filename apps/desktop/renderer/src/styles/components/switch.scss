@@ -91,14 +91,14 @@
   box-sizing: border-box;
   border: 1px solid var(--cpx-sys-color-border-default);
   background: var(--cpx-comp-switch-thumb-fill);
-  box-shadow: var(--cpx-sys-shadow-control);
+  box-shadow: none;
 }
 
 /* --- Settings Page Toggle Switch --- */
 .toggle-switch {
   width: 32px;
   height: 20px;
-  border-radius: var(--cpx-sys-radius-xl);
+  border-radius: 0;
   position: relative;
   cursor: pointer;
   padding: 0;
@@ -115,11 +115,11 @@
   width: 16px;
   height: 16px;
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   position: absolute;
   top: 1px;
   left: 1px;
-  box-shadow: var(--cpx-sys-shadow-control);
+  box-shadow: none;
   transition:
     background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
@@ -165,7 +165,7 @@
   height: 22px;
   margin-left: auto;
   flex: 0 0 auto;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   cursor: pointer;
 }
 
@@ -174,8 +174,8 @@
   width: 16px;
   height: 16px;
   margin: 3px;
-  border-radius: var(--cpx-sys-radius-full);
-  box-shadow: var(--cpx-sys-shadow-control);
+  border-radius: 0;
+  box-shadow: none;
   transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 

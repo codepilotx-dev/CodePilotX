@@ -86,7 +86,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
         return (
           <div
             key={tab.id}
-            className="sidebar-docked-pane-card tw:rounded tw:border tw:border-app-border-subtle tw:bg-app-surface tw:overflow-hidden"
+            className="sidebar-docked-pane-card tw:border tw:border-app-border-subtle tw:bg-app-surface tw:overflow-hidden"
             data-active={active}
           >
             <AppContextMenu

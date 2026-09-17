@@ -8,8 +8,7 @@
 .placeholder-card,
 .plugins-empty {
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-lg);
-  corner-shape: var(--cpx-sys-corner-shape);
+  border-radius: 0;
   background: var(--cpx-comp-surface-panel);
   box-shadow: none;
 }
@@ -20,27 +19,23 @@
 .thread-summary-error {
   border: var(--cpx-comp-surface-edge);
   background: var(--cpx-comp-surface-raised);
-  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
-  box-shadow: var(--cpx-sys-shadow-raised);
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .composer {
-  border: 0;
+  border: 1px solid var(--cpx-sys-color-border-default);
   background: var(--cpx-comp-surface-raised);
-  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  backdrop-filter: none;
   box-shadow: var(--cpx-comp-composer-shadow);
-}
-
-.ds-surface-raised {
-  border-radius: var(--cpx-sys-radius-xl);
-  corner-shape: var(--cpx-sys-corner-shape);
 }
 
 .desktop-sidebar.is-floating {
   border: var(--cpx-comp-surface-edge);
-  background: var(--cpx-comp-glass-bg, var(--cpx-comp-surface-floating));
-  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
-  box-shadow: var(--cpx-sys-shadow-floating);
+  border-radius: 0;
+  background: var(--cpx-comp-surface-floating);
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

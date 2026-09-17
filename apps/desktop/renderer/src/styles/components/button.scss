@@ -319,21 +319,6 @@
   --button-radius: var(--cpx-comp-button-radius-lg);
 }
 
-@supports (corner-shape: superellipse(1.5)) {
-  .ui-button:is(
-      [data-size="icon"],
-      [data-size="iconLarge"],
-      [data-size="iconMd"],
-      [data-size="iconSm"],
-      [data-size="compact"],
-      [data-size="medium"],
-      [data-size="tabStripAction"],
-      [data-size="toolbar"],
-      [data-size="toolbarLabel"]
-    ) {
-    corner-shape: var(--cpx-sys-corner-shape);
-  }
-}
 
 .icon-button {
   flex: 0 0 auto;

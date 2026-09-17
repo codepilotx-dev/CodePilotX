@@ -224,24 +224,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   scroll-padding-bottom: 8px;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    black 8px,
-    black calc(100% - 8px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    black 8px,
-    black calc(100% - 8px),
-    transparent 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -648,35 +630,13 @@
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
   font: var(--cpx-sys-type-row-title);
-  text-overflow: clip;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent
-  );
 }
 
 .sidebar-session-title[data-scrolling] {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    var(--cpx-sys-color-fg-primary) 1rem,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    var(--cpx-sys-color-fg-primary) 1rem,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent 100%
-  );
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 :where(
@@ -686,18 +646,8 @@
 ) {
   min-width: 0;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    var(--cpx-sys-color-fg-primary) calc(100% - 1rem),
-    transparent
-  );
 }
 
 .sidebar-show-more-button > span {
@@ -1720,56 +1670,21 @@
   height: var(--sidebar-collapse-target-size);
   margin: var(--sidebar-collapse-target-offset) 0 0
     var(--sidebar-collapse-target-offset);
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   pointer-events: none;
-  background:
-    radial-gradient(
-      circle,
-      color-mix(in srgb, var(--cpx-sys-color-accent) 10%, transparent) 0 54%,
-      transparent 55%
-    ),
-    conic-gradient(
-      var(--cpx-sys-color-accent) var(--sidebar-collapse-progress),
-      transparent 0turn
-    );
-  box-shadow:
-    var(--cpx-sys-focus-ring-inset),
-    var(--cpx-sys-shadow-raised);
-  opacity: 0.95;
-  transform: scale(1);
-  animation:
-    sidebar-collapse-confirm-fill var(--sidebar-collapse-target-ms) var(--cpx-sys-ease-linear)
-      forwards,
-    sidebar-collapse-confirm-pulse var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
+  border: 1px solid var(--cpx-sys-color-accent);
+  background: var(--cpx-sys-color-hover);
+  box-shadow: none;
+  opacity: 1;
 
   &::after {
     content: "";
     position: absolute;
     inset: 8px;
     box-sizing: border-box;
-    border: 1px solid
-      color-mix(in srgb, var(--cpx-sys-color-border-default) 72%, transparent);
-    border-radius: inherit;
-    background: color-mix(in srgb, var(--cpx-sys-color-surface-canvas) 86%, transparent);
-  }
-}
-
-@property --sidebar-collapse-progress {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0turn;
-}
-
-@keyframes sidebar-collapse-confirm-fill {
-  to {
-    --sidebar-collapse-progress: 1turn;
-  }
-}
-
-@keyframes sidebar-collapse-confirm-pulse {
-  from {
-    opacity: 0;
-    transform: scale(0.82);
+    border: 1px solid var(--cpx-sys-color-border-default);
+    border-radius: 0;
+    background: var(--cpx-sys-color-surface-canvas);
   }
 }
 

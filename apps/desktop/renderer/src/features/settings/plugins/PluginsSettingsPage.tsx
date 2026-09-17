@@ -694,7 +694,7 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="u-type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
+            className="u-type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
@@ -1049,7 +1049,7 @@ function AuthSourceBadge({
   source: 'environment' | 'oauth'
 }): React.ReactNode {
   return (
-    <span className="u-type-caption tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="u-type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
     </span>
   )
@@ -1084,7 +1084,7 @@ function withoutRecordKey<T>(
 
 function DiagnosticContextBadge(): React.ReactNode {
   return (
-    <span className="u-type-caption tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="u-type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       会话诊断
     </span>
   )
@@ -1103,7 +1103,7 @@ function StatusBadge({
       ? 'tw:bg-app-danger/15 tw:text-app-danger'
       : 'tw:bg-app-panel tw:text-app-text-soft'
   return (
-    <span className={`u-type-caption tw:inline-flex tw:rounded-full tw:px-2 tw:py-0.5 ${tone}`}>
+    <span className={`u-type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>
       {label}
     </span>
   )

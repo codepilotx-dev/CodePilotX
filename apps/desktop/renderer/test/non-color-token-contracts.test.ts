@@ -523,14 +523,14 @@ describe('non-color design token contracts', () => {
       /\.canonical-text-item--process > \.md-body,\s*\.canonical-text-item--result > \.md-body\s*\{\s*p\s*\{\s*margin-block:\s*var\(--cpx-sys-space-3\);/,
     )
     expect(conversation).toMatch(
-      /\.canonical-turn__process\s*\{\s*gap:\s*var\(--cpx-sys-space-1\);/,
+      /\.canonical-turn__process\s*\{\s*gap:\s*var\(--cpx-sys-space-3\);/,
     )
     expect(markdown).toMatch(
       /\.md-table-block table\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-body\);/,
     )
     expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-caption\);/)
     expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-code\);/)
-    expect(conversation).toMatch(
+    expect(markdown).toMatch(
       /line-height:\s*var\(--cpx-sys-line-height-code\);/,
     )
   })

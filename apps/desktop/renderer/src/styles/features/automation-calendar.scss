@@ -574,7 +574,7 @@
 .automation-calendar__focus-backdrop {
   padding: 0;
   pointer-events: auto;
-  backdrop-filter: blur(var(--cpx-sys-space-1));
+  backdrop-filter: none;
 }
 
 .automation-calendar__focus-backdrop[data-state],

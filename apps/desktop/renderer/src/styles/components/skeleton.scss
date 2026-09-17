@@ -18,18 +18,8 @@
   );
   box-shadow: none;
 
-  /* 局部渐变扫光走 compositor 的 translateX，避免逐帧重绘背景。 */
   &::after {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 34%,
-      var(--ui-skeleton-highlight) 50%,
-      transparent 66%
-    );
-    content: "";
-    animation: ui-skeleton-sweep var(--cpx-sys-motion-loading) steps(24, end) infinite;
+    display: none;
   }
 }
 

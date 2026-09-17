@@ -176,7 +176,7 @@ function EnvironmentVariable({
   return (
     <div className="tw:grid tw:gap-1">
       <span className="u-type-caption tw:text-app-text-soft">{description}</span>
-      <code className="local-environment-code tw:rounded-xs tw:bg-app-canvas tw:px-2 tw:py-1">
+      <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1">
         {name}
       </code>
     </div>

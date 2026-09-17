@@ -39,7 +39,7 @@ body {
   left: var(--cpx-sys-space-2);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
-  border-radius: var(--cpx-sys-radius-md);
+  border-radius: 0;
   background: var(--cpx-sys-color-surface-canvas);
   color: var(--cpx-sys-color-fg-primary);
   text-decoration: none;
@@ -62,7 +62,7 @@ body {
 
 *::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   background: var(--cpx-comp-scrollbar-slider-bg);
   background-clip: padding-box;
 }
@@ -178,46 +178,16 @@ p {
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-body-sm);
 }
-
-.r-none {
-  --radius-factor: 0;
-}
-.r-small {
-  --radius-factor: 0.5;
-}
-.r-medium {
-  --radius-factor: 1;
-}
-.r-large {
-  --radius-factor: 1.5;
-}
+.r-none,
+.r-small,
+.r-medium,
+.r-large,
 .r-full {
-  --radius-factor: 9999;
+  --radius-factor: 0;
 }
 
 [data-radius] {
-  --cpx-sys-radius-full: 9999px;
-}
-
-
-.r-none {
-  --radius-factor: 0;
-}
-.r-small {
-  --radius-factor: 0.5;
-}
-.r-medium {
-  --radius-factor: 1;
-}
-.r-large {
-  --radius-factor: 1.5;
-}
-.r-full {
-  --radius-factor: 9999;
-}
-
-[data-radius] {
-  --cpx-sys-radius-full: 9999px;
+  --cpx-sys-radius-full: 0;
 }
 
 :root[data-reduce-motion="on"] {

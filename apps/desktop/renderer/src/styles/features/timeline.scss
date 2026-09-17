@@ -93,13 +93,7 @@
     z-index: -1;
     inset: calc(0px - var(--thread-scroll-footer-fade-height)) 0 0;
     pointer-events: none;
-    background: linear-gradient(
-      to bottom,
-      transparent,
-      color-mix(in srgb, var(--cpx-sys-color-surface-canvas) 88%, transparent)
-        var(--thread-scroll-footer-fade-height),
-      var(--cpx-sys-color-surface-canvas) 100%
-    );
+    background: none;
   }
 
   > * {
@@ -224,13 +218,7 @@
   overflow-y: auto;
   scrollbar-width: none;
   overscroll-behavior: contain;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    var(--cpx-sys-color-fg-primary) 40px,
-    var(--cpx-sys-color-fg-primary) calc(100% - 40px),
-    transparent 100%
-  );
+  mask-image: none;
 
   &::-webkit-scrollbar {
     display: none;

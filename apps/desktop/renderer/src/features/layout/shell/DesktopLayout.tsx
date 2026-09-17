@@ -2054,6 +2054,7 @@ export function DesktopLayout(): React.ReactNode {
           contextUsage: isConversationRoute ? null : contextUsage,
           modelPresets: selectedProviderModelPresets,
           providerOptions: providerModelOptions,
+          allProviders: modelProviders,
           recentWorkspaces,
           contextTasks: composerContextTasks,
           browserContext: composerBrowserContext,

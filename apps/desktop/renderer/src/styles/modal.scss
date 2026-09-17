@@ -7,7 +7,7 @@
   justify-content: center;
   padding: var(--cpx-sys-space-6);
   background: var(--cpx-comp-modal-scrim, var(--cpx-sys-color-scrim));
-  backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
+  backdrop-filter: none;
 }
 
 .ui-dialog-backdrop[data-state="open"] {
@@ -40,9 +40,8 @@
 .ui-dialog-surface {
   background: var(--cpx-comp-modal-bg, var(--cpx-comp-surface-floating));
   border: var(--cpx-comp-modal-border, var(--cpx-comp-surface-edge));
-  box-shadow: var(--cpx-comp-modal-shadow, var(--cpx-sys-shadow-floating));
-  border-radius: var(--cpx-comp-modal-radius, var(--cpx-sys-radius-xl));
-  corner-shape: var(--cpx-sys-corner-shape);
+  box-shadow: var(--cpx-comp-modal-shadow);
+  border-radius: 0;
 }
 
 .ui-dialog-surface--side-right {
@@ -85,7 +84,7 @@
 
 .permission-modal header span {
   padding: 5px 10px;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   background: var(--cpx-comp-modal-preformat-bg);
   color: var(--cpx-sys-color-fg-secondary);
 }
@@ -104,9 +103,9 @@
   gap: var(--cpx-sys-space-1);
   padding: 0 var(--cpx-sys-space-1) 0 var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-pill);
+  border-radius: 0;
   background: var(--cpx-sys-color-surface-raised);
-  box-shadow: var(--cpx-sys-shadow-floating);
+  box-shadow: none;
   color: var(--cpx-sys-color-fg-primary);
   font: var(--cpx-sys-type-label);
   -webkit-app-region: no-drag;
@@ -137,9 +136,9 @@
 
 .archive-session-toast {
   border: var(--cpx-comp-surface-edge);
-  border-radius: var(--cpx-sys-radius-xl);
+  border-radius: 0;
   background: var(--cpx-comp-surface-floating);
-  box-shadow: var(--cpx-sys-shadow-floating);
+  box-shadow: none;
 }
 
 .global-error-toast-scroll-content {
@@ -164,7 +163,7 @@
     justify-content: center;
     padding: 0;
     border: 0;
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: 0;
     background: transparent;
     color: var(--cpx-sys-color-fg-secondary);
     font-size: var(--cpx-comp-icon-size-md);
@@ -219,7 +218,7 @@
   justify-content: center;
   margin-left: 2px;
   padding: 0;
-  border-radius: var(--cpx-sys-radius-full);
+  border-radius: 0;
   color: var(--cpx-sys-color-fg-secondary);
   line-height: 1;
 
@@ -235,7 +234,7 @@
     display: block;
     min-width: max-content;
     padding: var(--cpx-sys-space-3);
-    border-radius: var(--cpx-sys-radius-lg);
+    border-radius: 0;
     background: var(--cpx-comp-modal-preformat-bg);
     font: var(--cpx-sys-type-code);
     white-space: pre;
@@ -457,7 +456,7 @@
     align-items: center;
     padding: 0.2em 0.58em;
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-full);
+    border-radius: 0;
     color: var(--cpx-sys-color-fg-secondary);
     font: var(--cpx-sys-type-caption);
     flex-shrink: 0;

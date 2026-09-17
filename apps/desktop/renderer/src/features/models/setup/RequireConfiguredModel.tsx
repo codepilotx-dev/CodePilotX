@@ -135,7 +135,7 @@ function ModelSetupGuideDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered tw:grid tw:w-[min(26rem,calc(100vw-2rem))] tw:gap-4 tw:rounded-3xl tw:p-6"
+          className="ui-dialog-surface ui-dialog-surface--centered tw:grid tw:w-[min(26rem,calc(100vw-2rem))] tw:gap-4 tw:p-6"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <header className="tw:flex tw:flex-col tw:gap-1.5">

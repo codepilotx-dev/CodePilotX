@@ -109,7 +109,7 @@
   --cpx-comp-surface-panel-radius: var(--cpx-sys-radius-xl);
   --cpx-comp-surface-shadow-floating: var(--cpx-sys-shadow-floating);
   --cpx-comp-surface-shadow-raised: var(--cpx-sys-shadow-raised);
-  --cpx-comp-surface-fog: color-mix(in oklab, var(--cpx-sys-color-fg-primary) 2.5%, transparent);
+  --cpx-comp-surface-fog: transparent;
 
   // Glass Container Component Slot
   --cpx-comp-glass-bg: var(--cpx-sys-glass-bg);
@@ -119,7 +119,7 @@
 
   // 7. Modal & Dialog Component
   --cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);
-  --cpx-comp-modal-backdrop-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-comp-modal-backdrop-filter: none;
   --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
   --cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);
@@ -154,7 +154,7 @@
 
   // 11. Composer Component
   --cpx-comp-composer-bg: var(--cpx-sys-color-surface-control);
-  --cpx-comp-composer-backdrop-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-comp-composer-backdrop-filter: none;
   --cpx-comp-composer-toolbar-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-composer-floating-height: 142px;
   --cpx-comp-composer-safe-pad: 78px;
