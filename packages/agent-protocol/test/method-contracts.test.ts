@@ -3666,46 +3666,33 @@ describe("RPC method schema contracts", () => {
     expect(decoded.providers[0]?.modelCount).toBe(42)
   })
 
-  test("decodes models.dev catalog status and keeps catalog definitions read-only", () => {
-    const catalogSource = {
-      source: "models-dev" as const,
-      mode: "live" as const,
-      stale: false,
-      refreshedAt: 1,
-    }
+  test("decodes builtin and custom provider definitions", () => {
     const providerResult = {
       ...structuredClone(fixtures["provider/list"].result),
-      catalogSource,
       providers: [{
         ...fixtures["provider/list"].result.providers[0],
         source: {
           type: "pi" as const,
-          kind: "models-dev" as const,
+          kind: "builtin" as const,
           apis: ["openai-completions"],
           baseUrl: "https://api.example.test/v1",
         },
-        catalogOrigin: "models-dev" as const,
+        catalogOrigin: "pi-bundled" as const,
         availability: { status: "ready" as const },
         config: {
-          kind: "models-dev" as const,
+          kind: "builtin" as const,
           id: providerId,
-          protocol: "openai-compatible" as const,
-          readOnly: true as const,
+          enabled: true,
+          allowModels: [],
+          denyModels: [],
+          models: [],
         },
       }],
     }
 
-    expect(Schema.decodeUnknownSync(RpcMethods["provider/list"].result)(providerResult)
-      .catalogSource).toEqual(catalogSource)
-    expect(Schema.decodeUnknownSync(RpcMethods["model/list"].result)({
-      ...fixtures["model/list"].result,
-      catalogSource: { ...catalogSource, mode: "cache", stale: true, issue: "offline" },
-    }).catalogSource?.mode).toBe("cache")
-
-    expect(() => Schema.decodeUnknownSync(RpcMethods["provider/update"].params)({
-      ...fixtures["provider/update"].params,
-      definition: providerResult.providers[0]!.config,
-    })).toThrow()
+    const decoded = Schema.decodeUnknownSync(RpcMethods["provider/list"].result)(providerResult)
+    expect(decoded.providers[0]?.config.kind).toBe("builtin")
+    expect(decoded.catalogVersion).toBeDefined()
   })
 
   test("uses explicit FIFO queue methods without reorder or queue-to-steer mutations", () => {

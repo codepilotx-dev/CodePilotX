@@ -32,23 +32,6 @@ import {
   discoverOpenAIModels,
   type DiscoveredOpenAIModel,
 } from "./PiCustomProvider";
-import {
-  fetchModelsDevCatalog,
-  type ModelsDevCatalog,
-  type ModelsDevCatalogFetchOptions,
-  type ModelsDevCatalogIssue,
-} from "./ModelsDevCatalogSource";
-import {
-  ModelsDevCatalogStore,
-  type ModelsDevCatalogCache,
-} from "./ModelsDevCatalogStore";
-import {
-  buildModelsDevProviders,
-  type ModelsDevModelMetadata,
-  type ModelsDevProviderDescriptor,
-} from "./ModelsDevPiProviderFactory";
-
-const MODELS_DEV_FRESH_MS = 6 * 60 * 60 * 1_000;
 
 export interface PiModelServiceOptions extends EncryptedCredentialStoreOptions {
   readonly models?: Models;
@@ -57,9 +40,6 @@ export interface PiModelServiceOptions extends EncryptedCredentialStoreOptions {
     | PiModelCatalogConfig
     | (() => PiModelCatalogConfig | PromiseLike<PiModelCatalogConfig>);
   readonly env?: Readonly<Record<string, string | undefined>>;
-  readonly modelsDevStore?: ModelsDevCatalogStore;
-  readonly modelsDevFetch?: ModelsDevCatalogFetchOptions["fetch"];
-  readonly now?: () => number;
 }
 
 export class PiModelServiceError extends Error {
@@ -142,11 +122,10 @@ const piModelToInfo = (
   model: PiModel<Api>,
   enabled: boolean,
   variant?: string,
-  metadata?: ModelsDevModelMetadata,
 ): Model.Info => ({
   id: Model.ID.make(model.id),
   providerID: Provider.ID.make(model.provider),
-  name: metadata?.name ?? model.name,
+  name: model.name,
   api: {
     id: Model.ID.make(model.id),
     type: "pi",
@@ -156,37 +135,23 @@ const piModelToInfo = (
   ...(variant ? { variant } : {}),
   capabilities: {
     tools: true,
-    input: [...(metadata?.input ?? model.input)],
+    input: [...model.input],
     output: ["text"],
   },
   variants: supportedThinkingLevels(model).map((level) => ({
     id: Model.VariantID.make(level),
   })),
   time: { released: 0 },
-  cost: metadata
-    ? [{
-        input: metadata.cost.input ?? model.cost.input,
-        output: metadata.cost.output ?? model.cost.output,
-        cache: {
-          read: metadata.cost.cacheRead ?? model.cost.cacheRead,
-          write: metadata.cost.cacheWrite ?? model.cost.cacheWrite,
-        },
-      }]
-    : cost(model),
+  cost: cost(model),
   status: "active",
   enabled,
   limit: {
-    context: metadata?.limit.context ?? model.contextWindow,
-    output: metadata?.limit.output ?? model.maxTokens,
+    context: model.contextWindow,
+    output: model.maxTokens,
   },
 });
 
-export type ProviderDefinition = PiProviderDefinitionInput | {
-  readonly kind: "models-dev";
-  readonly id: string;
-  readonly protocol: "pi-native" | "openai-compatible" | "unsupported";
-  readonly readOnly: true;
-};
+export type ProviderDefinition = PiProviderDefinitionInput;
 
 /** Pi-backed model catalog with the existing CodePilotX catalog shape. */
 export class PiModelService {
@@ -195,23 +160,9 @@ export class PiModelService {
   private readonly mutablePi: MutableModels | undefined;
   private readonly configSource: PiModelServiceOptions["config"];
   private readonly baseProviders: ReadonlyMap<string, PiProvider>;
-  private readonly modelsDevStore: ModelsDevCatalogStore | undefined;
-  private readonly modelsDevFetch: ModelsDevCatalogFetchOptions["fetch"];
-  private readonly now: () => number;
   private readonly builtinProviderIDs: ReadonlySet<string>;
   private configuredCustomProviderIDs = new Set<string>();
-  private generatedModelsDevProviderIDs = new Set<string>();
-  private modelsDevDescriptors: readonly ModelsDevProviderDescriptor[] = [];
-  private modelsDevMetadata: Readonly<Record<string, Readonly<Record<string, ModelsDevModelMetadata>>>> = {};
-  private modelsDevCache: ModelsDevCatalogCache | undefined;
-  private modelsDevStatus: Provider.CatalogSourceStatus = {
-    source: "models-dev",
-    mode: "pi-bundled",
-    stale: true,
-  };
   private catalogVersion = 0;
-  private modelsDevOperation: Promise<void> = Promise.resolve();
-  private readonly modelsDevAbort = new AbortController();
   private configFingerprint = "";
   private parsedConfig: ParsedPiProviderCatalog = {
     schemaVersion: PI_PROVIDER_CONFIG_SCHEMA_VERSION,
@@ -254,32 +205,19 @@ export class PiModelService {
       this.pi.getProviders().map((provider) => provider.id),
     );
     this.configSource = options.config;
-    this.modelsDevStore = options.modelsDevStore;
-    this.modelsDevFetch = options.modelsDevFetch;
-    this.now = options.now ?? Date.now;
   }
 
   async list(): Promise<readonly Provider.Info[]> {
     this.assertActive();
     const config = await this.syncProviders();
-    const descriptorByID = new Map(
-      this.modelsDevDescriptors.map((descriptor) => [descriptor.id, descriptor]),
-    );
-    const runtime = this.pi
+    return this.pi
       .getProviders()
       .map((provider) => {
         const configured = config.providers[provider.id];
-        const descriptor = descriptorByID.get(provider.id);
-        const kind = configured?.kind === "custom"
-          ? "custom"
-          : this.generatedModelsDevProviderIDs.has(provider.id)
-            ? "models-dev"
-            : "builtin";
+        const kind = configured?.kind === "custom" ? "custom" : "builtin";
         const origin: Provider.CatalogOrigin = configured?.kind === "custom"
           ? "user"
-          : descriptor
-            ? "models-dev"
-            : "pi-bundled";
+          : "pi-bundled";
         return piProviderToInfo(
           provider,
           kind,
@@ -288,29 +226,8 @@ export class PiModelService {
           configured,
           origin,
         );
-      });
-    const runtimeIDs = new Set(runtime.map((provider) => String(provider.id)));
-    const unavailable = this.modelsDevDescriptors
-      .filter((descriptor) =>
-        !runtimeIDs.has(descriptor.id) && config.providers[descriptor.id]?.kind !== "custom"
-      )
-      .map((descriptor): Provider.Info => ({
-        id: Provider.ID.make(descriptor.id),
-        name: descriptor.name,
-        disabled: true,
-        source: {
-          type: "pi",
-          kind: "models-dev",
-          apis: descriptor.protocol === "openai-compatible"
-            ? ["openai-completions"]
-            : [],
-          ...(descriptor.baseUrl ? { baseUrl: descriptor.baseUrl } : {}),
-        },
-        catalogOrigin: "models-dev",
-        availability: descriptor.availability,
-        auth: { apiKey: descriptor.env.length > 0, oauth: false },
-      }));
-    return [...runtime, ...unavailable].map(clone);
+      })
+      .map(clone);
   }
 
   async isAuthConfigured(providerID: string): Promise<boolean> {
@@ -327,9 +244,6 @@ export class PiModelService {
   async providerDefinitions(): Promise<readonly ProviderDefinition[]> {
     this.assertActive();
     const config = await this.syncProviders();
-    const descriptorByID = new Map(
-      this.modelsDevDescriptors.map((descriptor) => [descriptor.id, descriptor]),
-    );
     const definitions = this.pi.getProviders().map((provider): ProviderDefinition => {
       const configured = config.providers[provider.id];
       if (configured?.kind === "custom") {
@@ -365,15 +279,6 @@ export class PiModelService {
           })),
         };
       }
-      const descriptor = descriptorByID.get(provider.id);
-      if (descriptor && this.generatedModelsDevProviderIDs.has(provider.id)) {
-        return {
-          kind: "models-dev",
-          id: descriptor.id,
-          protocol: descriptor.protocol,
-          readOnly: true,
-        };
-      }
       const builtin = configured?.kind === "builtin"
         ? configured
         : undefined;
@@ -390,16 +295,6 @@ export class PiModelService {
         ...(builtin?.protocol ? { protocol: builtin.protocol } : {}),
       };
     });
-    const defined = new Set(definitions.map((definition) => definition.id));
-    for (const descriptor of this.modelsDevDescriptors) {
-      if (defined.has(descriptor.id) || config.providers[descriptor.id]?.kind === "custom") continue;
-      definitions.push({
-        kind: "models-dev",
-        id: descriptor.id,
-        protocol: descriptor.protocol,
-        readOnly: true,
-      });
-    }
     return definitions.map(clone);
   }
 
@@ -418,8 +313,6 @@ export class PiModelService {
         piModelToInfo(
           model,
           available.has(`${model.provider}/${model.id}`),
-          undefined,
-          this.modelsDevMetadata[model.provider]?.[model.id],
         ),
       )
       .map(clone);
@@ -433,7 +326,6 @@ export class PiModelService {
         model,
         auth !== undefined,
         ref.variant ? String(ref.variant) : undefined,
-        this.modelsDevMetadata[model.provider]?.[model.id],
       ),
     );
   }
@@ -479,7 +371,6 @@ export class PiModelService {
   async refresh(force = false): Promise<void> {
     this.assertActive();
     await this.syncProviders();
-    await this.refreshModelsDev(force);
     const result = await this.pi.refresh({ allowNetwork: true, force });
     if (result.errors.size > 0) {
       throw new PiModelServiceError(
@@ -490,29 +381,22 @@ export class PiModelService {
         },
       );
     }
+    this.catalogVersion += 1;
   }
 
   async reload(): Promise<void> {
     this.assertActive();
     await this.syncProviders();
     await this.pi.refresh({ allowNetwork: false });
-    await this.restoreModelsDevCache();
     this.catalogVersion += 1;
   }
 
-  getModel(ref: Model.Ref): Promise<PiModel<Api>> { return this.getPiModel(ref) }
-
-  catalogStatus(): Provider.CatalogSourceStatus {
-    return clone(this.modelsDevStatus);
+  getModel(ref: Model.Ref): Promise<PiModel<Api>> {
+    return this.getPiModel(ref);
   }
 
   catalogRevision(): number {
     return this.catalogVersion;
-  }
-
-  modelsDevModelCount(providerID: string): number | undefined {
-    const models = this.modelsDevMetadata[providerID];
-    return models ? Object.keys(models).length : undefined;
   }
 
   async discoverModels(
@@ -579,8 +463,6 @@ export class PiModelService {
 
   async dispose(): Promise<void> {
     this.disposed = true;
-    this.modelsDevAbort.abort();
-    await this.modelsDevOperation.catch(() => undefined);
   }
 
   private async rawConfig(): Promise<PiModelCatalogConfig> {
@@ -627,9 +509,7 @@ export class PiModelService {
 
   /**
    * DeepSeek selects one global wire protocol per config write, so the runtime
-   * provider is rebuilt from whatever catalog is currently installed: a
-   * models.dev overlay keeps its extra models, and a stream that is already
-   * running keeps the model object it started with.
+   * provider is rebuilt from whatever catalog is currently installed.
    */
   private applyProviderProtocolOverride(config: ParsedPiProviderCatalog): void {
     if (!this.mutablePi) return;
@@ -655,161 +535,13 @@ export class PiModelService {
     this.mutablePi.setProvider(provider);
   }
 
-  private restoreModelsDevCache(): Promise<void> {
-    if (!this.modelsDevStore) return Promise.resolve();
-    return this.enqueueModelsDev(async () => {
-      const result = await this.modelsDevStore!.read();
-      if (result.status === "valid") {
-        if (this.modelsDevCache?.fetchedAt !== result.value.fetchedAt) {
-          await this.applyModelsDevCatalog(result.value.catalog);
-        }
-        this.modelsDevCache = result.value;
-        const stale = this.now() - result.value.fetchedAt >= MODELS_DEV_FRESH_MS;
-        this.updateCatalogStatus({
-          source: "models-dev",
-          mode: "cache",
-          stale,
-          refreshedAt: result.value.fetchedAt,
-        });
-        return;
-      }
-      this.modelsDevCache = undefined;
-      this.updateCatalogStatus({
-        source: "models-dev",
-        mode: "pi-bundled",
-        stale: true,
-        ...(result.status === "future-version" || result.status === "foreign"
-          ? { issue: "cache-unsupported" as const }
-          : result.status === "invalid"
-            ? { issue: "invalid-response" as const }
-            : {}),
-      });
-    });
-  }
-
-  private refreshModelsDev(force: boolean): Promise<void> {
-    if (!this.modelsDevStore) return Promise.resolve();
-    return this.enqueueModelsDev(async () => {
-      const current = this.modelsDevCache;
-      const result = await fetchModelsDevCatalog({
-        ...(current?.etag ? { etag: current.etag } : {}),
-        ...(current?.lastModified ? { lastModified: current.lastModified } : {}),
-        signal: this.modelsDevAbort.signal,
-        now: this.now,
-        ...(this.modelsDevFetch ? { fetch: this.modelsDevFetch } : {}),
-      });
-      if (result.status === "failure") {
-        this.markModelsDevFailure(result.issue);
-        return;
-      }
-      if (result.status === "not-modified") {
-        if (!current) {
-          this.markModelsDevFailure("invalid-response");
-          return;
-        }
-        const next: ModelsDevCatalogCache = {
-          ...current,
-          fetchedAt: result.fetchedAt,
-          ...(result.etag ? { etag: result.etag } : {}),
-          ...(result.lastModified ? { lastModified: result.lastModified } : {}),
-        };
-        this.modelsDevCache = next;
-        const cacheIssue = await this.writeModelsDevCache(next);
-        this.updateCatalogStatus({
-          source: "models-dev",
-          mode: "live",
-          stale: false,
-          refreshedAt: next.fetchedAt,
-          ...(cacheIssue ? { issue: cacheIssue } : {}),
-        });
-        return;
-      }
-      await this.applyModelsDevCatalog(result.catalog);
-      const next: ModelsDevCatalogCache = {
-        catalog: result.catalog,
-        fetchedAt: result.fetchedAt,
-        ...(result.etag ? { etag: result.etag } : {}),
-        ...(result.lastModified ? { lastModified: result.lastModified } : {}),
-      };
-      this.modelsDevCache = next;
-      const cacheIssue = await this.writeModelsDevCache(next);
-      this.updateCatalogStatus({
-        source: "models-dev",
-        mode: "live",
-        stale: false,
-        refreshedAt: next.fetchedAt,
-        ...(cacheIssue ? { issue: cacheIssue } : {}),
-      });
-    });
-  }
-
-  private async writeModelsDevCache(
-    cache: ModelsDevCatalogCache,
-  ): Promise<"cache-unsupported" | undefined> {
-    try {
-      await this.modelsDevStore!.write(cache);
-      return undefined;
-    } catch {
-      return "cache-unsupported";
-    }
-  }
-
-  private async applyModelsDevCatalog(catalog: ModelsDevCatalog): Promise<void> {
-    if (!this.mutablePi) {
-      throw new PiModelServiceError(
-        "CATALOG_REFRESH_FAILED",
-        "The configured Pi Models collection is not mutable",
-      );
-    }
-    for (const providerID of this.generatedModelsDevProviderIDs) {
-      this.mutablePi.deleteProvider(providerID);
-    }
-    for (const provider of this.baseProviders.values()) {
-      this.mutablePi.setProvider(provider);
-    }
-    const built = buildModelsDevProviders(catalog, [...this.baseProviders.values()]);
-    for (const provider of built.providers) this.mutablePi.setProvider(provider);
-    this.generatedModelsDevProviderIDs = new Set(
-      built.generatedProviders.map((provider) => provider.id),
-    );
-    this.modelsDevDescriptors = built.descriptors;
-    this.modelsDevMetadata = built.modelMetadata;
-    await this.syncProviders(true);
-    this.catalogVersion += 1;
-  }
-
-  private markModelsDevFailure(issue: ModelsDevCatalogIssue) {
-    this.updateCatalogStatus({
-      source: "models-dev",
-      mode: this.modelsDevCache ? "cache" : "pi-bundled",
-      stale: true,
-      ...(this.modelsDevCache ? { refreshedAt: this.modelsDevCache.fetchedAt } : {}),
-      issue,
-    });
-  }
-
-  private updateCatalogStatus(status: Provider.CatalogSourceStatus) {
-    if (JSON.stringify(status) === JSON.stringify(this.modelsDevStatus)) return;
-    this.modelsDevStatus = status;
-    this.catalogVersion += 1;
-  }
-
-  private enqueueModelsDev(operation: () => Promise<void>): Promise<void> {
-    const next = this.modelsDevOperation.then(operation, operation);
-    this.modelsDevOperation = next.catch(() => undefined);
-    return next;
-  }
-
   private providerEnabled(
     providerID: string,
     config: ParsedPiProviderCatalog,
   ) {
     if (config.schemaVersion > PI_PROVIDER_CONFIG_SCHEMA_VERSION) return false;
     const provider = config.providers[providerID];
-    if (!provider) {
-      return this.builtinProviderIDs.has(providerID)
-        || this.generatedModelsDevProviderIDs.has(providerID);
-    }
+    if (!provider) return this.builtinProviderIDs.has(providerID);
     return provider.enabled;
   }
 

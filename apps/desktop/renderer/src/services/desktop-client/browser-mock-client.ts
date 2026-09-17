@@ -270,8 +270,8 @@ export function createBrowserMockDesktopClient(
           displayName,
           logoURL,
           modelCount: 1,
-          providerKind: 'models-dev' as const,
-          catalogOrigin: 'models-dev' as const,
+          providerKind: 'builtin' as const,
+          catalogOrigin: 'pi-bundled' as const,
         }))
       : null
   const providerState = (): DesktopModelProviderState => ({

@@ -587,20 +587,11 @@ export type DesktopProviderAvailability =
         | 'no-compatible-models'
     }
 
-export type DesktopCatalogSourceStatus = {
-  source: 'models-dev'
-  mode: 'live' | 'cache' | 'pi-bundled'
-  stale: boolean
-  refreshedAt?: number
-  issue?: 'offline' | 'invalid-response' | 'cache-unsupported'
-}
-
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
   modelCount?: number
-  providerKind?: 'builtin' | 'custom' | 'models-dev'
-  catalogOrigin?: 'models-dev' | 'user' | 'pi-bundled'
+  providerKind?: 'builtin' | 'custom'
+  catalogOrigin?: 'user' | 'pi-bundled'
   availability?: DesktopProviderAvailability
-  catalogSource?: DesktopCatalogSourceStatus
   readOnly?: boolean
   protocol?: 'pi-native' | 'openai-compatible' | 'unsupported'
   enabled?: boolean

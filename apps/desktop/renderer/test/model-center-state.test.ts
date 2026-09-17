@@ -109,12 +109,6 @@ describe('model center Provider directory', () => {
       gatewaySource: true,
     }),
     provider({ providerID: 'local', displayName: '本地模型' }),
-    provider({
-      providerID: 'models-dev-compatible',
-      displayName: 'Models.dev Compatible',
-      providerKind: 'models-dev',
-      catalogOrigin: 'models-dev',
-    }),
   ]
 
   test('searches name, id and Pi catalog source', () => {
@@ -133,7 +127,7 @@ describe('model center Provider directory', () => {
       filter: 'all',
       apiKeys: keys,
     })
-    expect(all).toHaveLength(4)
+    expect(all).toHaveLength(3)
 
     const configured = projectProviderDirectory(providers, {
       filter: 'configured',
@@ -146,7 +140,7 @@ describe('model center Provider directory', () => {
       apiKeys: keys,
     })
     expect(unconfigured.map(item => item.provider.providerID))
-      .toEqual(['vercel', 'local', 'models-dev-compatible'])
+      .toEqual(['vercel', 'local'])
   })
 
   test('projects current and stored Key status', () => {
@@ -161,14 +155,6 @@ describe('model center Provider directory', () => {
       statuses: ['current', 'stored-key'],
     })
     expect(projected[1]).toMatchObject({ current: false, connectionStatus: 'unconfigured' })
-  })
-
-  test('searches models.dev providers by catalog source', () => {
-    const projected = projectProviderDirectory(providers, { query: 'models.dev' })
-
-    expect(projected.map(item => item.provider.providerID))
-      .toEqual(['models-dev-compatible'])
-    expect(projected[0]?.sources).toEqual(['models-dev'])
   })
 
   test('keeps a provider configured when its saved Key is disabled', () => {
@@ -266,9 +252,9 @@ function apiKey(
 function provider(overrides: {
   providerID: string
   displayName: string
-  providerKind?: 'builtin' | 'custom' | 'models-dev'
+  providerKind?: 'builtin' | 'custom'
   gatewaySource?: boolean
-  catalogOrigin?: 'models-dev' | 'user' | 'pi-bundled'
+  catalogOrigin?: 'user' | 'pi-bundled'
   apiKeyConfigured?: boolean
 }) {
   return {

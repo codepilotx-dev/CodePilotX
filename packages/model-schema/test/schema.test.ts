@@ -26,17 +26,30 @@ describe("model and provider schemas", () => {
     expect(Schema.is(Model.Info)(model)).toBe(true)
   })
 
-  test("describes models.dev provider origin, availability, and catalog status", () => {
-    const provider = Schema.decodeUnknownSync(Provider.Info)({
+  test("describes builtin and custom provider origin and availability", () => {
+    const builtinProvider = Schema.decodeUnknownSync(Provider.Info)({
       id: "deepseek",
       name: "DeepSeek",
       source: {
         type: "pi",
-        kind: "models-dev",
+        kind: "builtin",
         apis: ["openai-completions"],
         baseUrl: "https://api.deepseek.com",
       },
-      catalogOrigin: "models-dev",
+      catalogOrigin: "pi-bundled",
+      availability: { status: "ready" },
+      auth: { apiKey: true, oauth: false },
+    })
+    const customProvider = Schema.decodeUnknownSync(Provider.Info)({
+      id: "my-custom",
+      name: "My Custom",
+      source: {
+        type: "pi",
+        kind: "custom",
+        apis: ["openai-completions"],
+        baseUrl: "https://api.example.com",
+      },
+      catalogOrigin: "user",
       availability: { status: "ready" },
       auth: { apiKey: true, oauth: false },
     })
@@ -44,17 +57,12 @@ describe("model and provider schemas", () => {
       status: "unavailable",
       reason: "unsupported-protocol",
     })
-    const status = Schema.decodeUnknownSync(Provider.CatalogSourceStatus)({
-      source: "models-dev",
-      mode: "cache",
-      stale: true,
-      refreshedAt: 1,
-      issue: "offline",
-    })
 
-    expect(provider.source.kind).toBe("models-dev")
+    expect(builtinProvider.source.kind).toBe("builtin")
+    expect(builtinProvider.catalogOrigin).toBe("pi-bundled")
+    expect(customProvider.source.kind).toBe("custom")
+    expect(customProvider.catalogOrigin).toBe("user")
     expect(unavailable.reason).toBe("unsupported-protocol")
-    expect(status.mode).toBe("cache")
   })
 })
 

@@ -724,10 +724,7 @@ export function createAgentSessionDesktopClient(
       ...catalogProviderToDesktop(catalogProvider),
       modelCount: provider.modelCount,
       config: provider.config,
-      readOnly: provider.config.kind === 'models-dev',
-      protocol: provider.config.kind === 'models-dev'
-        ? provider.config.protocol
-        : undefined,
+      readOnly: provider.config.kind === 'builtin',
       unresolvedMigrationIssues: directory.issues
         .filter(issue => issue.providerId === provider.id)
         .map(issue => `${issue.code}:${issue.path}`),
@@ -2894,9 +2891,6 @@ export function createAgentSessionDesktopClient(
     listModelProviders: () => withAgentOrMock(
       async () => {
         const directory = await loadProviderCatalog()
-        const catalogSource = (directory as typeof directory & {
-          catalogSource?: import('../../../shared/types.js').DesktopCatalogSourceStatus
-        }).catalogSource
         return directory.providers.map(provider => ({
           ...catalogProviderToDesktop(
             {
@@ -2905,16 +2899,12 @@ export function createAgentSessionDesktopClient(
             },
           ),
           config: provider.config,
-          readOnly: provider.config.kind === 'models-dev',
-          protocol: provider.config.kind === 'models-dev'
-            ? provider.config.protocol
-            : undefined,
+          readOnly: provider.config.kind === 'builtin',
           unresolvedMigrationIssues: directory.issues
             .filter(issue => issue.providerId === provider.id)
             .map(issue => `${issue.code}:${issue.path}`),
           apiKeyConfigured: provider.authConfigured,
           modelCount: provider.modelCount,
-          catalogSource,
         }))
       },
       () => mockClient.listModelProviders(),

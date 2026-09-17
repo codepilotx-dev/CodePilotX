@@ -43,7 +43,7 @@ export type ApiKeyDeleteConfirmation = {
   description: string
 }
 
-export type ProviderCatalogSource = 'gateway' | 'custom' | 'builtin' | 'models-dev'
+export type ProviderCatalogSource = 'gateway' | 'custom' | 'builtin'
 export type ProviderConnectionStatus =
   | 'stored-key'
   | 'oauth'
@@ -218,9 +218,6 @@ function providerSources(provider: DesktopModelProviderSummary): ProviderCatalog
   const sources: ProviderCatalogSource[] = []
   if (provider.gatewaySource) sources.push('gateway')
   if (provider.providerKind === 'custom') sources.push('custom')
-  if (provider.providerKind === 'models-dev' || provider.catalogOrigin === 'models-dev') {
-    sources.push('models-dev')
-  }
   if (sources.length === 0) sources.push('builtin')
   return sources
 }
@@ -232,7 +229,6 @@ function providerSearchText(
   const sourceTerms = sources.flatMap(source => {
     if (source === 'gateway') return ['gateway', '网关']
     if (source === 'custom') return ['custom', '自定义']
-    if (source === 'models-dev') return ['models.dev', 'models dev', '模型目录']
     return ['builtin', 'built-in', '内置']
   })
   return [

@@ -60,7 +60,6 @@ describe("Agent data directories", () => {
     expect(layout).toMatchObject({
       dataRoot,
       userConfig: join(dataRoot, "config.json"),
-      modelsDevCatalogCache: join(dataRoot, "models-dev-catalog.cache.json"),
       hooksFile: join(dataRoot, "hooks.json"),
       skillsRoot: join(dataRoot, "skills"),
       pluginsRoot: join(dataRoot, "plugins"),

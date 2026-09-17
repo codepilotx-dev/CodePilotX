@@ -4,5 +4,5 @@ import type { PiModelService } from "./pi/PiModelService";
 export type AgentModelCatalog = Pick<
   PiModelService,
   "list" | "models" | "resolve" | "getModel" | "refresh" | "reload"
-    | "catalogStatus" | "catalogRevision" | "dispose"
+    | "catalogRevision" | "dispose"
 >;

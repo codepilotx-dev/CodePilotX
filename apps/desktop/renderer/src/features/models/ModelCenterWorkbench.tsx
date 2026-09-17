@@ -261,11 +261,7 @@ export function ModelCenterWorkbench({
                 ? "Gateway"
                 : source === "custom"
                   ? "自定义"
-                  : source === "models-dev"
-                    ? provider.providerKind === "models-dev"
-                      ? "models.dev · OpenAI 兼容"
-                      : "Pi 原生执行 · models.dev 目录"
-                    : "Pi 内置",
+                  : "Pi 内置",
             )
             .join(" + "),
           modelCount: provider.modelCount ?? provider.defaultModels.length,
@@ -1068,11 +1064,7 @@ function providerDescription(
   parts.push(
     provider.providerKind === "custom"
       ? "自定义 Provider · Pi 执行"
-      : provider.providerKind === "models-dev"
-        ? "models.dev · OpenAI 兼容"
-        : provider.catalogOrigin === "models-dev"
-          ? "Pi 原生执行 · models.dev 目录"
-          : "Pi 内置",
+      : "Pi 内置",
   );
   const managed = deepSeekManagedProvider(provider);
   if (managed) {

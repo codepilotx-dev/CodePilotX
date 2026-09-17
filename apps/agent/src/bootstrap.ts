@@ -28,7 +28,6 @@ import { AgentRuntimeService } from "./orchestration/AgentRuntimeService";
 import { ContextCompactionService } from "./context/ContextCompactionService";
 import {
   EncryptedCredentialStore,
-  ModelsDevCatalogStore,
   PiModelService,
   PiModelsFileStore,
 } from "./provider/pi";
@@ -452,7 +451,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const piModels = new PiModelService(providerCredentialStore, {
       ...(options.models ? { models: options.models } : {}),
       modelsStore: new PiModelsFileStore(config.piModelCachePath),
-      modelsDevStore: new ModelsDevCatalogStore(config.modelsDevCatalogCachePath),
       config: () => {
         const snapshot = configService.snapshot();
         const modelCatalog = snapshot.model_catalog as

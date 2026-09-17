@@ -7,9 +7,7 @@ import { join } from "node:path"
 import type { EncryptedCredentialRepository } from "../src/auth/EncryptedCredentialRepository"
 import {
   EncryptedCredentialStore,
-  ModelsDevCatalogStore,
   PiModelService,
-  validateModelsDevCatalog,
   type PiModelCatalogConfig,
 } from "../src/provider/pi"
 
@@ -72,26 +70,6 @@ const repository = (initial: Stored[] = []) => {
       remove: (integrationID: string) => Effect.sync(() => values.delete(integrationID)),
     } as unknown as EncryptedCredentialRepository,
   }
-}
-
-const cachedModelsDevCatalog = {
-  "cache-provider": {
-    id: "cache-provider",
-    name: "Cache Provider",
-    npm: "@ai-sdk/openai-compatible",
-    api: "https://cache-provider.example/v1",
-    env: ["CACHE_PROVIDER_API_KEY"],
-    models: {
-      chat: {
-        id: "chat",
-        name: "Cache Chat",
-        reasoning: false,
-        tool_call: true,
-        modalities: { input: ["text"], output: ["text"] },
-        limit: { context: 32_000, output: 4_000 },
-      },
-    },
-  },
 }
 
 describe("EncryptedCredentialStore", () => {
@@ -299,61 +277,6 @@ describe("PiModelService DeepSeek protocol", () => {
       await service.dispose();
     }
   });
-
-  test("maps models.dev additions onto the selected protocol", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-deepseek-protocol-"));
-    const fake = deepSeekRepository();
-    const catalog = {
-      deepseek: {
-        id: "deepseek",
-        name: "DeepSeek",
-        npm: "@ai-sdk/openai-compatible",
-        api: "https://api.deepseek.com",
-        env: ["DEEPSEEK_API_KEY"],
-        models: {
-          "deepseek-shadow": {
-            id: "deepseek-shadow",
-            name: "DeepSeek Shadow",
-            reasoning: false,
-            tool_call: true,
-            modalities: { input: ["text"], output: ["text"] },
-            limit: { context: 64_000, output: 8_000 },
-          },
-        },
-      },
-    };
-    let config: PiModelCatalogConfig = deepSeekConfig() as PiModelCatalogConfig;
-    const service = new PiModelService(fake.adapter, {
-      modelsDevStore: new ModelsDevCatalogStore(join(root, "catalog.json")),
-      modelsDevFetch: async () => Response.json(catalog),
-      config: () => config,
-      env: {},
-    });
-
-    try {
-      await service.refresh(true);
-      const shadow = () =>
-        service.pi.getModels("deepseek").find((model) => model.id === "deepseek-shadow");
-      expect(shadow()).toMatchObject({
-        api: "openai-completions",
-        baseUrl: "https://api.deepseek.com",
-      });
-
-      config = deepSeekConfig("anthropic-messages") as PiModelCatalogConfig;
-      await service.reload();
-
-      expect(shadow()).toMatchObject({
-        api: "anthropic-messages",
-        baseUrl: "https://api.deepseek.com/anthropic",
-      });
-      expect(
-        service.pi.getModels("deepseek").length,
-      ).toBeGreaterThanOrEqual(2);
-    } finally {
-      await service.dispose();
-      await rm(root, { recursive: true, force: true });
-    }
-  });
 });
 
 describe("PiModelService", () => {
@@ -514,73 +437,15 @@ describe("PiModelService", () => {
     })).toBe(piModel!)
   })
 
-  test("loads models.dev providers through Pi while preserving custom-provider precedence", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-service-"))
+  test("loads Pi native providers and preserves custom-provider precedence", async () => {
     const fake = repository([{
-      id: "cred_catalog_gateway",
-      integrationID: "catalog-gateway",
+      id: "cred_custom_shadow",
+      integrationID: "custom-shadow",
       methodID: null,
       label: "default",
-      value: { type: "key", key: "sk-models-dev-secret" },
+      value: { type: "key", key: "sk-custom-secret" },
     }])
-    const catalog = {
-      "catalog-gateway": {
-        id: "catalog-gateway",
-        name: "Catalog Gateway",
-        npm: "@ai-sdk/openai-compatible",
-        api: "https://catalog-gateway.example/v1",
-        env: ["CATALOG_GATEWAY_API_KEY"],
-        models: {
-          chat: {
-            id: "chat",
-            name: "Catalog Chat",
-            reasoning: false,
-            tool_call: true,
-            modalities: { input: ["text"], output: ["text"] },
-            limit: { context: 64_000, output: 8_000 },
-          },
-        },
-      },
-      unsupported: {
-        id: "unsupported",
-        name: "Unsupported Native SDK",
-        npm: "@ai-sdk/example",
-        env: ["UNSUPPORTED_API_KEY"],
-        models: {
-          chat: {
-            id: "chat",
-            name: "Unsupported Chat",
-            reasoning: false,
-            tool_call: true,
-            modalities: { input: ["text"], output: ["text"] },
-            limit: { context: 32_000, output: 4_000 },
-          },
-        },
-      },
-      "custom-shadow": {
-        id: "custom-shadow",
-        name: "Remote Shadow",
-        npm: "@ai-sdk/openai-compatible",
-        api: "https://remote-shadow.example/v1",
-        env: ["REMOTE_SHADOW_API_KEY"],
-        models: {
-          remote: {
-            id: "remote",
-            name: "Remote",
-            reasoning: false,
-            tool_call: true,
-            modalities: { input: ["text"], output: ["text"] },
-            limit: { context: 32_000, output: 4_000 },
-          },
-        },
-      },
-    }
     const service = new PiModelService(fake.adapter, {
-      modelsDevStore: new ModelsDevCatalogStore(join(root, "catalog.json")),
-      modelsDevFetch: async () => new Response(JSON.stringify(catalog), {
-        status: 200,
-        headers: { "content-type": "application/json", etag: '"catalog-v1"' },
-      }),
       config: {
         schemaVersion: 2,
         providers: {
@@ -589,7 +454,7 @@ describe("PiModelService", () => {
             name: "User Shadow",
             enabled: true,
             base_url: "https://user-shadow.example/v1",
-            auth: "none",
+            auth: "api-key",
             env: [],
             models: { local: { api: "openai-completions" } },
           },
@@ -599,134 +464,28 @@ describe("PiModelService", () => {
     })
 
     try {
-      await service.refresh(true)
       const providers = await service.list()
-      expect(providers.find((provider) => provider.id === "catalog-gateway")).toMatchObject({
-        source: { kind: "models-dev" },
-        catalogOrigin: "models-dev",
-        availability: { status: "ready" },
-      })
-      expect(providers.find((provider) => provider.id === "unsupported")).toMatchObject({
-        disabled: true,
-        availability: { status: "unavailable", reason: "unsupported-protocol" },
-      })
-      expect(providers.find((provider) => provider.id === "custom-shadow")).toMatchObject({
+      // Pi native builtin providers
+      expect(providers.some((provider) => provider.source.kind === "builtin" && provider.catalogOrigin === "pi-bundled")).toBe(true)
+      // Custom provider
+      const custom = providers.find((provider) => provider.id === "custom-shadow")
+      expect(custom).toMatchObject({
         name: "User Shadow",
         source: { kind: "custom" },
         catalogOrigin: "user",
+        availability: { status: "ready" },
       })
-      expect(service.modelsDevModelCount("unsupported")).toBe(1)
-      expect(service.modelsDevModelCount("not-in-models-dev")).toBeUndefined()
-      expect((await service.models()).some((model) =>
-        model.providerID === "catalog-gateway" && model.id === "chat" && model.enabled
-      )).toBe(true)
-      expect(service.catalogStatus()).toMatchObject({
-        source: "models-dev",
-        mode: "live",
-        stale: false,
-      })
-      expect(await service.isAuthConfigured("catalog-gateway")).toBe(true)
-    } finally {
-      await service.dispose()
-      await rm(root, { recursive: true, force: true })
-    }
-  })
 
-  test("revalidates a fresh models.dev cache with conditional headers", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-revalidate-"))
-    const store = new ModelsDevCatalogStore(join(root, "catalog.json"))
-    const fetchedAt = 1_000
-    const now = 1_001
-    await store.write({
-      fetchedAt,
-      etag: '"catalog-v1"',
-      lastModified: "Sat, 23 Aug 2026 00:00:00 GMT",
-      catalog: validateModelsDevCatalog(cachedModelsDevCatalog),
-    })
-    const requestHeaders: Headers[] = []
-    const service = new PiModelService(repository().adapter, {
-      modelsDevStore: store,
-      modelsDevFetch: async (_input, init) => {
-        requestHeaders.push(new Headers(init?.headers))
-        return new Response(null, { status: 304 })
-      },
-      now: () => now,
-      env: {},
-    })
+      const models = await service.models()
+      expect(models.some((model) => model.providerID === "custom-shadow" && model.id === "local" && model.enabled)).toBe(true)
 
-    try {
-      await service.reload()
-      expect(service.catalogStatus()).toMatchObject({ mode: "cache" })
-      expect(service.modelsDevModelCount("cache-provider")).toBe(1)
-      expect((await service.models()).find((model) =>
-        model.providerID === "cache-provider" && model.id === "chat"
-      )).toMatchObject({ enabled: false })
+      const initialRevision = service.catalogRevision()
       await service.refresh(false)
+      expect(service.catalogRevision()).toBeGreaterThan(initialRevision)
 
-      expect(requestHeaders[0]?.get("if-none-match")).toBe('"catalog-v1"')
-      expect(requestHeaders[0]?.get("if-modified-since")).toBe(
-        "Sat, 23 Aug 2026 00:00:00 GMT",
-      )
-      expect(service.catalogStatus()).toMatchObject({
-        mode: "live",
-        stale: false,
-        refreshedAt: now,
-      })
-      const cached = await store.read()
-      expect(cached.status).toBe("valid")
-      if (cached.status === "valid") expect(cached.value.fetchedAt).toBe(now)
+      expect(await service.isAuthConfigured("custom-shadow")).toBe(true)
     } finally {
       await service.dispose()
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
-  test("keeps a cached catalog on failure and only falls back to bundled without cache", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-models-dev-fallback-"))
-    const cachedStore = new ModelsDevCatalogStore(join(root, "cached.json"))
-    await cachedStore.write({
-      fetchedAt: 1_000,
-      catalog: validateModelsDevCatalog(cachedModelsDevCatalog),
-    })
-    const cachedService = new PiModelService(repository().adapter, {
-      modelsDevStore: cachedStore,
-      modelsDevFetch: async () => {
-        throw new Error("offline")
-      },
-      now: () => 1_001,
-      env: {},
-    })
-    const bundledService = new PiModelService(repository().adapter, {
-      modelsDevStore: new ModelsDevCatalogStore(join(root, "missing.json")),
-      modelsDevFetch: async () => {
-        throw new Error("offline")
-      },
-      now: () => 1_001,
-      env: {},
-    })
-
-    try {
-      await cachedService.reload()
-      await cachedService.refresh(false)
-      expect((await cachedService.list()).some(provider => provider.id === "cache-provider"))
-        .toBe(true)
-      expect(cachedService.catalogStatus()).toMatchObject({
-        mode: "cache",
-        stale: true,
-        issue: "offline",
-        refreshedAt: 1_000,
-      })
-
-      await bundledService.reload()
-      await bundledService.refresh(false)
-      expect(bundledService.catalogStatus()).toMatchObject({
-        mode: "pi-bundled",
-        stale: true,
-        issue: "offline",
-      })
-    } finally {
-      await Promise.all([cachedService.dispose(), bundledService.dispose()])
-      await rm(root, { recursive: true, force: true })
     }
   })
 })

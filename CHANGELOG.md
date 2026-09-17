@@ -41,6 +41,8 @@
 
 ### Changed
 
+- [provider/catalog] 切回 Pi 原生提供商与模型目录机制：统一使用 @earendil-works/pi-ai 0.85.1 的 builtinModels、原生刷新与本地缓存，继续完整支持现有自定义 Provider、OAuth 凭据仓库与 DeepSeek 协议切换；移除 models.dev 远程拉取、缓存读写、Provider 自动生成与元数据覆盖；模型中心与选择器 Hub 列表改为从 Agent 真实目录动态派生。
+
 - [desktop/renderer] Composer 模型选择器的服务商标识统一改为渲染 Provider 目录的 `logoURL`：`providerModelOptions` 投影补上此前被丢弃的 `logoURL`，轨道与模型中心复用设置页同一个 `RemoteImage`（加载骨架与错误兜底一致），移除本地硬编码的品牌 SVG 与首字母兜底（缺失目录图标时统一回落到通用 Provider 图标）；模型中心目录条目的图标也按其 models.dev id 从同一条 URL 契约解析，`modelsDevLogoURL` 由客户端适配层导出以避免重复实现。修复模型触发胶囊缺少展开态的问题：`ChipButton` 的 `active` 只映射为 `aria-expanded`，而共享 chip 样式仅为 `meta-chip` 定义了展开样式，现为 `.composer .chip-button[aria-expanded='true']` 补上选中背景与 180° 箭头翻转（含状态态动效 token），与参考稿的 `#model-trigger` 行为一致。
 
 - [desktop/renderer] Composer 对齐集成式输入区设计：模型选择器由嵌套下拉菜单重写为单面板双视图（左侧服务商图标轨道 + 右侧模型列表 / 模型中心），面板内提供就地展开的快速搜索、选中行推理强度胶囊与下拉，模型中心按服务商目录展示分类与描述，未配置项改为跳转 Provider 设置页（新增可选 `onOpenModelSettings`，由桌面布局路由到 `/settings/providers`，避免选中未配置服务商后进入空模型列表的死路）；附件由横排小胶囊改为 72px 瓦片（图片封面、按类型着色的文件图标与截断文件名），输入面与上方工具条改为工具条自卡片顶部探出的层叠结构。补齐此前只存在于标记中、没有任何样式规则的 `composer-attachment-*` 与 `composer-provider-logo` 类名，并把模型选择器内缺少 `tw:` 前缀因而完全不生效的 Tailwind 工具类替换为语义类；修复该面板因未纳入 `[data-radix-popper-content-wrapper]` 层级名单而被 Composer 自身 z-index 覆盖、导致模型中心按钮不可点击的问题；推理强度菜单改为锚定在胶囊下方并在空间不足时上翻；恢复重写时丢弃的 provider 服务端搜索（150ms 防抖，清空与关闭时复位目录）、DeepSeek 推理选项解析与推理强度悬停预览；输入面聚焦改用边框表达，以符合「prominent 高度独占」的样式契约。

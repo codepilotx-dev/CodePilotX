@@ -1149,7 +1149,7 @@ describe("RPC v4 Router", () => {
         list: async () => {
           listCalls += 1
           return [
-            { ...Provider.Info.empty(providerID), catalogOrigin: "models-dev" as const },
+            { ...Provider.Info.empty(providerID), catalogOrigin: "pi-bundled" as const },
             { ...Provider.Info.empty(otherProviderID), disabled: true },
           ]
         },
@@ -1179,8 +1179,6 @@ describe("RPC v4 Router", () => {
           },
         ],
         configIssues: async () => [],
-        modelsDevModelCount: (candidateProviderID: string) =>
-          candidateProviderID === providerID ? 7 : undefined,
         isAuthConfigured: async (candidateProviderID: string) => {
           authConfiguredCalls.push(candidateProviderID)
           return true
@@ -1197,7 +1195,7 @@ describe("RPC v4 Router", () => {
     )).toEqual([true, false])
     expect(providers.result.providers.map((provider: { modelCount: number }) =>
       provider.modelCount
-    )).toEqual([7, 1])
+    )).toEqual([2, 1])
     expect(authConfiguredCalls).toEqual([String(providerID)])
     const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
     expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })

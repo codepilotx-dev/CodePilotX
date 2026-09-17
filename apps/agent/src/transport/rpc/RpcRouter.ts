@@ -550,21 +550,16 @@ export class RpcRouter {
 
   async providerList() {
     const source = await this.loadCatalogSource()
-    const catalogSource = this.dependencies.providers.catalogStatus?.()
     return {
       providers: source.providers.map(provider => {
         const runtimeModels = source.modelsByProvider.get(provider.id) ?? []
-        const modelsDevCount = provider.catalogOrigin === "models-dev"
-          ? this.dependencies.piModels.modelsDevModelCount(String(provider.id))
-          : undefined
         return {
           ...provider,
-          modelCount: modelsDevCount ?? runtimeModels.length,
+          modelCount: runtimeModels.length,
         }
       }),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
-      ...(catalogSource ? { catalogSource } : {}),
     }
   }
 
@@ -600,7 +595,6 @@ export class RpcRouter {
 
   private async buildModelCatalog(query: ReturnType<RpcRouter["normalizedModelQuery"]>) {
     const source = await this.loadCatalogSource()
-    const catalogSource = this.dependencies.providers.catalogStatus?.()
     const filterHash = createHash("sha256").update(JSON.stringify(query.filters)).digest("base64url").slice(0, 16)
     let offset = 0
     if (query.cursor) {
@@ -637,7 +631,6 @@ export class RpcRouter {
         .map((provider) => ({ provider, models: pageByProvider.get(provider.id) ?? [] })),
       ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
-      ...(catalogSource ? { catalogSource } : {}),
       ...(query.limit === undefined ? {} : { total: matches.length }),
       ...(query.limit !== undefined && nextOffset < matches.length
         ? { nextCursor: Buffer.from(JSON.stringify({ version: this.catalogVersion, filter: filterHash, offset: nextOffset })).toString("base64url") }

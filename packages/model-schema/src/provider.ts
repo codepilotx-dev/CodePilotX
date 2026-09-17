@@ -21,10 +21,10 @@ export const ID = Schema.String.pipe(
 )
 export type ID = typeof ID.Type
 
-export const SourceKind = Schema.Literals(["builtin", "custom", "models-dev"])
+export const SourceKind = Schema.Literals(["builtin", "custom"])
 export type SourceKind = typeof SourceKind.Type
 
-export const CatalogOrigin = Schema.Literals(["models-dev", "user", "pi-bundled"])
+export const CatalogOrigin = Schema.Literals(["user", "pi-bundled"])
 export type CatalogOrigin = typeof CatalogOrigin.Type
 
 export const UnavailableReason = Schema.Literals([
@@ -46,15 +46,6 @@ export const Availability = Schema.Union([
   .pipe(Schema.toTaggedUnion("status"))
   .annotate({ identifier: "Provider.Availability" })
 export type Availability = typeof Availability.Type
-
-export const CatalogSourceStatus = Schema.Struct({
-  source: Schema.Literal("models-dev"),
-  mode: Schema.Literals(["live", "cache", "pi-bundled"]),
-  stale: Schema.Boolean,
-  refreshedAt: optional(Schema.Finite),
-  issue: optional(Schema.Literals(["offline", "invalid-response", "cache-unsupported"])),
-}).annotate({ identifier: "Provider.CatalogSourceStatus" })
-export type CatalogSourceStatus = typeof CatalogSourceStatus.Type
 
 export interface Source extends Schema.Schema.Type<typeof Source> {}
 export const Source = Schema.Struct({

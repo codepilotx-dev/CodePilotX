@@ -67,9 +67,8 @@ describe('DeepSeek global protocol settings', () => {
     expect(deepSeekManagedProvider(deepseek)).toBeNull()
     expect(canEditProviderConfig(deepseek)).toBe(false)
 
-    // 其他内置 Provider 与 models.dev 目录仍不可编辑，自定义 Provider 保持可编辑。
+    // 其他内置 Provider 仍不可编辑，自定义 Provider 保持可编辑。
     expect(canEditProviderConfig(provider('openai', 'builtin', builtinConfig({ id: 'openai' as never })))).toBe(false)
-    expect(canEditProviderConfig(provider('deepseek', 'models-dev', undefined))).toBe(false)
     // 自定义 Provider 走原有逐模型协议编辑，不进入全局协议设置。
     expect(deepSeekManagedProvider(provider('deepseek', 'custom', undefined), true)).toBeNull()
     expect(canEditProviderConfig(provider('deepseek', 'custom', undefined))).toBe(true)
@@ -95,7 +94,7 @@ function builtinConfig(
 
 function provider(
   providerID: string,
-  providerKind: 'builtin' | 'custom' | 'models-dev',
+  providerKind: 'builtin' | 'custom',
   config: DesktopBuiltinProviderDefinition | undefined,
 ): DesktopModelProviderSummary {
   return {
