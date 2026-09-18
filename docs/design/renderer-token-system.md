@@ -20,22 +20,20 @@ Oreo Agentic UI Library 作为 CodePilotX 的视觉参考，不形成平行 Toke
 
 CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品牌和桌面交互契约。首页、空状态与引导页使用宽松节奏；Workbench、侧栏、终端、Review 和设置使用紧凑节奏。Oreo 中的 Button、Shortcuts、Chip、Tag、Avatar、Loading、Prompt、Sidebar、Navbar 与 Pop-up 优先复用现有基础组件；只有真实调用方无法表达时才扩展公共组件。
 
-## 组件视觉升级路线（Migration Roadmap）
+### UI-Design 视觉体系落地
 
-为保证桌面 UI 平稳演进并避免大面积突变破坏正在进行的素版调整（Plain Baseline），新版视觉规范（参考 `F:\CodeProject\UI-Design` 与 Oreo 设计语言）采取“单点试点先行 → 基础规范分层推进”的递进路径：
+CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）：
 
-1. **先行试点组件（Pilot Component）**：
-   - **ModelSelect**（会话 Composer 模型选择器与推理菜单）作为首个接入完整新视觉的业务组件。
-   - 其胶囊双触发器（模型面板与推理独立唤起）、供应商侧栏、模型列表快速搜索、单选状态指示器与 Model Hub 采用了新版圆角、投影及微动效规范。
-   - 为避免在全局素版期破坏全局 Token 契约，ModelSelect 的几何与投影尺寸通过私有变量（如 `--composer-model-radius-*`、`--composer-model-shadow-*`）集中治理，颜色完全对齐现有 `--cpx-sys-color-*` 主题语义。
-
-2. **后续统一路线（“基础 Token → 基础组件 → 业务组件”）**：
-   - **第一阶段：基础 Token 规范落地**
-     统一恢复与校准全局 `--cpx-sys-radius-*`（平滑超椭圆圆角）、`--cpx-sys-shadow-*`（分级层叠暗部投影）及 `--cpx-sys-space-*` 基础刻度，完成全仓 token 校验规则适配。
-   - **第二阶段：基础组件库收敛**
-     优先重构并收敛跨业务通用的底层基础控件，包括 `Button`、`Input`、`Popover`、`Dropdown`、`Checkbox`、`Tag`、`Tabs` 等，将 ModelSelect 中验证可行的交互、圆角与投影模式沉淀为基础组件的统一行为。
-   - **第三阶段：业务组件全局迁移**
-     各业务领域（Composer 工具条、Session 消息气泡、Sidebar 导航、Terminal、Review 面板、Settings 等）依次完成对统一基础组件的接入与升级，最终彻底移除各业务私有几何变量，达成全站视觉与体验一致。
+1. **基础 Token 统一**：
+   - 统一使用 `--cpx-sys-*` 与 `--cpx-comp-*` 契约，杜绝平行 Token 体系。
+   - 恢复 Apple HIG 风格的优雅基础圆角（4px ~ 28px、pill 9999px）与无光学校正（optical scale 1.0）。
+   - 恢复多阶轻盈半透明投影（Resting、Raised、Floating、Control、Prominent）及毛玻璃模糊（8px / 16px / 24px）。
+2. **基础组件与业务组件全面对齐**：
+   - 基础控件（`Button`、`Input`、`Switch`、`Card`、`SegmentedControl`、`Modal`、`Popover` 等）统一接入系统圆角、投影与微动效。
+   - 业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar、Settings 等）移除私有几何与投影变量，直接收敛至语义 Token。
+3. **外观平滑升级与备份恢复**：
+   - 首次启动自动将老版本外观平滑迁移至 UI-Design 默认主题，并在 `appearance-migration.json` 中原子化写入升级前外观备份。
+   - 设置页“外观”设置提供“应用新设计主题”与“恢复升级前外观”操作，用户可随时一键恢复旧版配色或重新生效新设计。
 
 ## 固定选择流程
 
@@ -95,29 +93,24 @@ CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品
 
 ### 圆角
 
-> [!NOTE]
-> 当前阶段为桌面 UI 素版基线（Plain Baseline）：所有 `--cpx-sys-radius-*` 统一收敛为 `0`，`--cpx-sys-shadow-*` 重置为 `none`，高斯模糊与渐隐遮罩重置为 `none/0`，去除装饰性光扫与圆角。下表保留语义刻度与角色映射契约，供下一阶段视觉重构时统一接入。
-
 圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
-| 基础 Token | 回退值 | 支持 superellipse 时 |
-| --- | ---: | ---: |
-| `--cpx-sys-radius-2xs` | 2px | 2.5px |
-| `--cpx-sys-radius-xs` | 4px | 5px |
-| `--cpx-sys-radius-sm` | 6px | 7.5px |
-| `--cpx-sys-radius-md` | 8px | 10px |
-| `--cpx-sys-radius-lg` | 10px | 12.5px |
-| `--cpx-sys-radius-xl` | 12px | 15px |
-| `--cpx-sys-radius-2xl` | 16px | 20px |
-| `--cpx-sys-radius-3xl` | 20px | 25px |
-| `--cpx-sys-radius-4xl` | 24px | 30px |
-| `--cpx-sys-radius-full` | 9999px | 9999px |
+| 基础 Token | 数值 | 映射语义角色与使用场景 |
+| --- | ---: | --- |
+| `--cpx-sys-radius-2xs` | 4px | `indicator`：状态圆点、紧凑标签、微型指示条 |
+| `--cpx-sys-radius-xs` | 6px | `compact`：快捷键徽标、轻量提示 |
+| `--cpx-sys-radius-sm` | 8px | `item`：菜单项、侧边栏导航项、Tooltip |
+| `--cpx-sys-radius-md` | 10px | `control`：普通按钮、输入框、分段选择器 |
+| `--cpx-sys-radius-lg` | 12px | `container` / `floating`：卡片、下拉浮层、Popover 面板 |
+| `--cpx-sys-radius-xl` | 14px | 较大卡片、抽屉内胆 |
+| `--cpx-sys-radius-2xl` | 16px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡 |
+| `--cpx-sys-radius-3xl` | 20px | 大型模态窗口、导引面板 |
+| `--cpx-sys-radius-4xl` | 28px | 预留特大层级 |
+| `--cpx-sys-radius-full` | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器 |
 
-跨 Feature 语义固定映射为 `indicator → 2xs`、`compact → xs`、`control → md`、`container → lg`、`floating → xl`、`prominent → 3xl`、`pill → full`。普通输入与图标按钮使用 `md`，列表行与普通卡片使用 `lg`，菜单和 Popover 使用 `xl`，用户消息使用 `2xl`，多行 Composer、inline 线程环境摘要与 Dialog 使用 `3xl`。`4xl` 是完整刻度中的预留层级，没有匹配职责时不得为了消费 Token 强行使用。Feature 不得引用 Button、Input、Row、Dropdown 等组件私有 radius，也不得创建 message、Composer、Summary 等同值 system Token。
+光学校正统一为 `1.0`（无超椭圆畸变，纯净 Apple HIG 风格），所有表面均遵循上述标准刻度。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token。
 
-`--cpx-sys-radius-optical-scale` 是统一光学校正，不是主题设置；它只能在 `2xs` 至 `4xl` 基础 Token 中计算一次，消费方不得再次乘 scale。支持 `corner-shape` 时，`md` 至 `4xl` 使用公共 `--cpx-sys-corner-shape: superellipse(1.5)`，不支持时使用表中的回退值；`2xs / xs / sm / full` 保持普通 round。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token（例如外层 `prominent / 20px` 在 inset 为 `12px` 时映射到 `control / 8px`，如 Coding 与 Working 首页工具条）。
-
-Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent / 3xl`，只有真实 `default + single-line` 使用 `pill / full`。`single-line` radius variant 用于覆盖默认胶囊并继续复用 `prominent / 3xl`，`compact` 使用 `container / lg`。禁止根据路由、placement、空输入、附件或历史截图推测 Composer 曲率。
+Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent / 2xl (16px)`，只有真实 `default + single-line` 使用 `pill / full`。
 
 ### 动效
 
@@ -125,7 +118,15 @@ Composer 必须将首页工具条结构、实际输入布局和圆角角色分�
 
 ### 阴影与层级
 
-常驻卡片、面板和列表项使用 `--cpx-sys-shadow-resting` 或 `raised`（当前均为零阴影）。持续覆盖工作区的主要交互面仅使用 `--cpx-sys-shadow-prominent`，当前限于悬浮 Composer 和绝对定位的线程环境摘要；Modal、Popover、Dropdown、Toast 等瞬时浮层继续使用 `--cpx-sys-shadow-floating`。同一视觉树只能有一个 elevation owner，Popover 内嵌的摘要内容不得重复投影。焦点使用 `--cpx-sys-focus-ring*`。动态色板、图表或第三方表面确需精确描边时登记精确例外。
+分级轻量投影提供真实桌面层次感（Dark 模式下自动加深透明度保证深底对比度）：
+- 常驻卡片与容器：`--cpx-sys-shadow-resting`（浅色 `0 2px 8px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)` / 深色 `0 2px 8px rgba(0,0,0,0.4)`）。
+- 抬升与激活项：`--cpx-sys-shadow-raised`（浅色 `0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03)` / 深色 `0 4px 14px rgba(0,0,0,0.45)`）。
+- 悬浮控件与分段激活钮：`--cpx-sys-shadow-control`（浅色 `0 1px 2px rgba(0,0,0,0.04)` / 深色 `0 1px 2px rgba(0,0,0,0.3)`）。
+- 浮层与弹窗：`--cpx-sys-shadow-floating`（浅色 `0 8px 30px rgba(0,0,0,0.12)` / 深色 `0 8px 30px rgba(0,0,0,0.5)`）。
+- 突出主交互面（悬浮 Composer、Dialog 等）：`--cpx-sys-shadow-prominent`（浅色 `0 12px 36px rgba(0,0,0,0.14)` / 深色 `0 12px 36px rgba(0,0,0,0.6)`）。
+- 毛玻璃背景模糊：`--cpx-sys-blur-sm` (8px)、`--cpx-sys-blur-md` (16px)、`--cpx-sys-blur-lg` (24px)。
+
+全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 
 全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 
