@@ -190,7 +190,13 @@ export class TerminalManager {
     if (!Number.isSafeInteger(afterSequence) || afterSequence < -1) {
       throw new TerminalError("TERMINAL_CONTEXT_STALE", "终端回放位置无效")
     }
+    // 显式 attach 代表渲染端已挂载：即使还没有输出 ack 也视为活跃消费者。
+    session.markConsumerAttached()
     return session.snapshot(afterSequence)
+  }
+
+  ack(terminalId: string, instanceId: string, sequence: number, characters: number): void {
+    this.#requireSession(terminalId, instanceId).ack(sequence, characters)
   }
 
   write(terminalId: string, instanceId: string, data: string): void {
@@ -290,16 +296,6 @@ export class TerminalManager {
     if (this.#byThread.get(session.context.threadId) === session) {
       this.#byThread.delete(session.context.threadId)
     }
-  }
-}
-
-export class UnavailableTerminalLaunchContextResolver
-implements TerminalLaunchContextResolver {
-  async resolve(_threadId: string): Promise<TerminalLaunchContext> {
-    throw new TerminalError(
-      "TERMINAL_UNAVAILABLE",
-      "Agent 尚未提供终端工作目录",
-    )
   }
 }
 

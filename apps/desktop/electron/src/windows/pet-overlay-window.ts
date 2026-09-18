@@ -28,6 +28,10 @@ import {
 export class PetOverlayWindowController {
   #window?: BrowserWindow
   #applicationOrigin?: string
+  #pendingLoad?: {
+    target: string
+    promise: Promise<void>
+  }
   #dragStart?: {
     cursor: Electron.Point
     bounds: Electron.Rectangle
@@ -58,7 +62,24 @@ export class PetOverlayWindowController {
     if (!this.#applicationOrigin) throw new Error("Agent 尚未连接")
     const overlay = this.#ensureWindow()
     const target = `${this.#applicationOrigin}/#/pet-overlay`
-    if (overlay.webContents.getURL() !== target) await overlay.loadURL(target)
+    while (overlay.webContents.getURL() !== target) {
+      const pending = this.#pendingLoad
+      if (pending) {
+        if (pending.target === target) await pending.promise
+        else await pending.promise.catch(() => undefined)
+        continue
+      }
+      const load = {
+        target,
+        promise: overlay.loadURL(target),
+      }
+      this.#pendingLoad = load
+      try {
+        await load.promise
+      } finally {
+        if (this.#pendingLoad === load) this.#pendingLoad = undefined
+      }
+    }
     overlay.showInactive()
   }
 

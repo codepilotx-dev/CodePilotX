@@ -169,7 +169,7 @@ describe("核心工具面", () => {
 
   test("只暴露规范名称，并用同一计划收紧 Skill allowlist", async () => {
     const { executor, context } = await fixture()
-    const plan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main", allowedTools: ["Read", "workspace_search"] })
+    const plan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", approvalPolicy: "on-request", profile: "main", allowedTools: ["Read", "workspace_search"] })
     expect(plan.exposed).toEqual(["Read"])
     expect(executor.definition("workspace.read").sdkName).toBe("Read")
     const properties = (name: string) => Object.keys(executor.definition(name).inputSchema.properties as Record<string, unknown>)
@@ -193,13 +193,26 @@ describe("核心工具面", () => {
     await expect(executor.execute<any>("workspace.read", { file_path: "internal.txt" }, context).then((result) => result.content)).resolves.toBe("internal")
     expect(() => executor.definition("workspace_read")).toThrow()
     expect(() => executor.definition("shell")).toThrow()
-    const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main" })
+    const defaultPlan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", approvalPolicy: "on-request", profile: "main" })
     expect(defaultPlan.eager).toContain("Edit")
+    expect(defaultPlan.exposed).toContain("spawn_agents")
     expect(defaultPlan.eager).not.toContain("apply_patch")
     expect(defaultPlan.deferred).toContain("apply_patch")
+    const sideChatPlan = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
+      profile: "main",
+      delegationEnabled: false,
+    })
+    expect(sideChatPlan.exposed).not.toContain("spawn_agents")
+    expect(sideChatPlan.exposed).not.toContain("wait_agents")
+    expect(sideChatPlan.exposed).not.toContain("send_agent")
+    expect(sideChatPlan.exposed).not.toContain("stop_agent")
     const editSkillPlan = executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
+      approvalPolicy: "on-request",
       profile: "main",
       allowedTools: ["Edit"],
     })
@@ -228,9 +241,28 @@ describe("核心工具面", () => {
       executionMode: "parallel",
       execute: async () => ({ ok: true }),
     })
+    registry.register({
+      sdkName: "new_deferred_example",
+      description: "组合冻结后新增的延迟工具",
+      schema: z.object({}).strict(),
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      capabilities: { filesystem: "none", network: "none", process: false, externalState: false, userInteraction: false },
+      allowedModes: ["chat", "plan"],
+      allowedProfiles: ["main", "default", "explorer", "worker"],
+      approvalStrategy: "never-review",
+      visibility: "deferred",
+      executionMode: "parallel",
+      execute: async () => ({ ok: true }),
+    })
     const searchable = new ToolExecutor(registry)
-    const result = await searchable.execute<any>("ToolSearch", { query: "select:deferred_example" }, context)
+    const frozenContext = { ...context, frozenDeferredToolNames: ["deferred_example"] }
+    const result = await searchable.execute<any>("ToolSearch", { query: "select:deferred_example" }, frozenContext)
     expect(result.addedToolNames).toEqual(["deferred_example"])
+    await expect(searchable.execute(
+      "ToolSearch",
+      { query: "select:new_deferred_example" },
+      frozenContext,
+    )).rejects.toMatchObject({ code: "DEFERRED_TOOL_NOT_FOUND" })
 
     const progress: unknown[] = []
     await Bun.write(join(context.workspace.rootPath, "progress.txt"), "ok")

@@ -1,10 +1,25 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import {
   createDefaultConversationUiState,
   loadConversationUiState,
+  patchConversationUiState,
   saveConversationUiState,
   transferConversationUiStateForHandoff,
 } from '../src/features/layout/tabs/conversationUiState.js'
+import { createSkillPreviewTab } from '../src/features/layout/dock/rightDockState.js'
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  'window',
+)
+
+afterEach(() => {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+  } else {
+    Reflect.deleteProperty(globalThis, 'window')
+  }
+})
 
 describe('Handoff UI transfer', () => {
   beforeEach(() => installStorage(new MemoryStorage()))
@@ -61,6 +76,75 @@ describe('Handoff UI transfer', () => {
     expect(target?.workbench.bottom.tabIds).toEqual(['terminal'])
     expect(target?.review.source).toEqual({ kind: 'unstaged' })
     expect(target?.sideChatAttachments).toEqual([])
+  })
+
+  test('field patches preserve the scroll position owned by ConversationPage', () => {
+    const initial = createDefaultConversationUiState()
+    initial.mainScrollTop = 428
+    saveConversationUiState('thread-1', initial)
+
+    patchConversationUiState('thread-1', {
+      sideChatInput: 'shell-owned draft',
+    })
+
+    expect(loadConversationUiState('thread-1')).toMatchObject({
+      mainScrollTop: 428,
+      sideChatInput: '',
+    })
+  })
+
+  test('never persists dynamic side-chat, attachment preview, Skill preview tabs or drafts', () => {
+    const state = createDefaultConversationUiState()
+    const tab = {
+      id: 'side-chat:temporary-thread',
+      kind: 'side-chat',
+      threadId: 'temporary-thread',
+      sourceThreadId: 'thread-1',
+      inheritedThroughTurnId: 'turn-1',
+      title: '侧边聊天',
+    } as const
+    state.sideChatInput = 'temporary draft'
+    state.workbench.tabsById[tab.id] = tab
+    state.workbench.tabsById['user-attachment-preview'] = {
+      id: 'user-attachment-preview',
+      kind: 'attachment-preview',
+      attachment: {
+        id: 'draft-attachment',
+        kind: 'text',
+        name: 'draft.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 5,
+      },
+      source: { storage: 'draft', encoding: 'utf8', data: 'draft' },
+    }
+    const skillPreview = createSkillPreviewTab({
+      name: 'release-check',
+      path: 'F:\\private-workspace\\skills\\release-check\\SKILL.md',
+      workspacePath: 'F:\\private-workspace',
+    })
+    state.workbench.tabsById[skillPreview.id] = skillPreview
+    state.workbench.right = {
+      open: true,
+      activeTabId: tab.id,
+      tabIds: [tab.id, 'user-attachment-preview', skillPreview.id],
+    }
+
+    saveConversationUiState('thread-1', state)
+
+    expect(loadConversationUiState('thread-1')).toMatchObject({
+      sideChatInput: '',
+      sideChatAttachments: [],
+      workbench: {
+        tabsById: {},
+        right: { activeTabId: null, tabIds: [] },
+      },
+    })
+    expect(
+      window.localStorage.getItem('conversation.ui-state.thread-1'),
+    ).not.toContain('private-workspace')
+    expect(
+      window.localStorage.getItem('conversation.ui-state.thread-1'),
+    ).not.toContain('release-check')
   })
 })
 

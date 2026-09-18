@@ -60,6 +60,23 @@ export class TerminalOutputBuffer {
     }
   }
 
+  /** 当前仍可回放的最小序号；已全部淘汰时等于下一个待分配序号。 */
+  oldestSequence(): number {
+    return this.#chunks[0]?.sequence ?? this.#nextSequence
+  }
+
+  /**
+   * 按序号取一条仍在缓冲内的记录（含其字节数）。序号连续且只从队首淘汰，
+   * 因此可以直接按下标定位，不需要遍历。
+   */
+  at(sequence: number): (DesktopTerminalChunk & { bytes: number }) | undefined {
+    const oldest = this.#chunks[0]?.sequence
+    if (oldest === undefined) return undefined
+    const index = sequence - oldest
+    if (index < 0 || index >= this.#chunks.length) return undefined
+    return this.#chunks[index]
+  }
+
   clear(): void {
     this.#chunks.length = 0
     this.#totalBytes = 0

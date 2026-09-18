@@ -267,6 +267,8 @@ describe("统一 Shell 宿主执行门", () => {
     const plan = executor.exposurePlan({
       taskMode: "plan",
       sandboxMode: "read-only",
+      approvalPolicy: "on-request",
+
       profile: "main",
     })
     expect(plan.exposed).not.toContain("Bash")

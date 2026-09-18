@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "acceptedAt": "2026-08-29",
+  "acceptedReason": "全部主窗口一级页面随启动加载",
+  "metrics": {
+    "entryCssRawBytes": 764044,
+    "newInteractiveCssRawBytes": 764044
+  }
+}

@@ -6,20 +6,12 @@ import {
   type Provider,
   type ProviderStreams,
 } from "@earendil-works/pi-ai";
-import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
-import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
 import type {
   CustomProviderApi,
   PiCustomModelConfig,
   PiCustomProviderConfig,
 } from "./PiProviderConfig";
-
-const streams: Record<CustomProviderApi, () => ProviderStreams> = {
-  "anthropic-messages": anthropicMessagesApi,
-  "openai-completions": openAICompletionsApi,
-  "openai-responses": openAIResponsesApi,
-};
+import { piProviderApiStreams as streams } from "./PiProviderApis";
 
 const toPiModel = (
   providerID: string,

@@ -7,6 +7,12 @@ import {
   parseMarkdownFileReference,
   segmentStreamingMarkdown,
 } from '../src/features/markdown/index.js'
+import { buildMarkdownBlocks } from '../src/features/markdown/parser.js'
+import {
+  STREAMING_RICH_PENDING_MAX_CHARACTERS,
+  STREAMING_TEXT_CHUNK_CHARACTERS,
+} from '../src/features/markdown/parser.js'
+import { completePendingMarkdown } from '../src/features/markdown/streaming.js'
 import type {
   MarkdownDirectiveToken,
   MarkdownMathToken,
@@ -130,6 +136,57 @@ describe('markdown parser', () => {
       'space',
       'paragraph',
     ])
+  })
+
+  test('keeps completed blocks and pending block identities stable while appending', () => {
+    const first = buildMarkdownBlocks('第一段\n\n第二', true)
+    const next = buildMarkdownBlocks(
+      '第一段\n\n第二段继续',
+      true,
+      first,
+      '第一段\n\n第二',
+    )
+
+    expect(next[0]).toBe(first[0])
+    expect(next[1]?.id).toBe(first[1]?.id)
+    expect(next[1]?.raw).not.toBe(first[1]?.raw)
+
+    const replacement = buildMarkdownBlocks('完全替换', true, next, '第一段\n\n第二段继续')
+    expect(replacement[0]).not.toBe(next[0])
+  })
+
+  test('completes unfinished prose only in the parse copy', () => {
+    expect(completePendingMarkdown('**正在生成')).toBe('**正在生成**')
+    expect(completePendingMarkdown('snake_case')).toBe('snake_case')
+    expect(completePendingMarkdown('`a_b')).toBe('`a_b`')
+    expect(completePendingMarkdown('[文件](F:/Code')).toBe('文件')
+    expect(completePendingMarkdown('![预览](https://example.com/a')).toBe('预览')
+
+    const source = '**正在生成'
+    const parsed = parseMarkdown(source, true)
+    expect(parsed.pendingText).toBe(source)
+    expect(buildMarkdownBlocks(source, true)[0]?.raw).toBe(source)
+  })
+
+  test('uses lightweight text for a long unfinished streaming block', () => {
+    const source = 'a'.repeat(STREAMING_TEXT_CHUNK_CHARACTERS * 2 + 1)
+    const parsed = parseMarkdown(source, true)
+
+    expect(parsed.tokens).toHaveLength(3)
+    expect(parsed.tokens.every(token => token.type === 'streaming_text')).toBe(true)
+    expect(parsed.tokens.map(token => token.raw).join('')).toBe(source)
+    expect(parseMarkdown(source, false).tokens[0]?.type).toBe('paragraph')
+  })
+
+  test('reuses completed lightweight chunks while streaming text grows', () => {
+    const firstText = 'a'.repeat(STREAMING_RICH_PENDING_MAX_CHARACTERS * 2)
+    const first = buildMarkdownBlocks(firstText, true)
+    const nextText = `${firstText}more`
+    const next = buildMarkdownBlocks(nextText, true, first, firstText)
+
+    expect(next[0]).toBe(first[0])
+    expect(next[1]).toBe(first[1])
+    expect(next[2]).toBeDefined()
   })
 })
 

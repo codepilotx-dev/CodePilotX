@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { LoaderCircle } from "lucide-react";
 import type { RpcResult } from "@codepilotx/agent-protocol";
@@ -14,7 +15,7 @@ const LazyFileMutationDiffContent = React.lazy(async () => {
   return { default: module.FileMutationDiffContent };
 });
 
-export function FileMutationDiffBody({
+export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
   diff,
   diffMarkerStyle,
 }: {
@@ -29,12 +30,12 @@ export function FileMutationDiffBody({
       />
     </React.Suspense>
   );
-}
+});
 
 export function FileMutationDiffLoading(): React.ReactNode {
   return (
     <div className="canonical-file-mutation__message" role="status">
-      <LoaderCircle className="canonical-spin" aria-hidden="true" />
+      <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
       正在加载差异
     </div>
   );
@@ -48,7 +49,7 @@ export function FileMutationDiffError({
   return (
     <div className="canonical-file-mutation__message" role="alert">
       <span>无法加载本次文件差异</span>
-      <Button onClick={onRetry}>重试</Button>
+      <Button color="secondary" onClick={onRetry}>重试</Button>
     </div>
   );
 }

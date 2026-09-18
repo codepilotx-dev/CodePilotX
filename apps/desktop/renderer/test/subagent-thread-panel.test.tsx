@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type {
@@ -13,6 +13,26 @@ import { SubagentThreadPanel } from "../src/features/session/subagents/SubagentT
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+beforeAll(() => {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
+    },
+  });
+});
+
+afterAll(() => {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, "window");
+  }
+});
 
 function TestProviders({
   children,
@@ -179,6 +199,8 @@ function renderPanel({
           onRestoreWorkspace: () => undefined,
           onStop: () => undefined,
           onRetry: () => undefined,
+          onRequestRespond: async () => undefined,
+          onInterrupt: async () => undefined,
         }}
         onBackToParent={onBackToParent}
         run={currentRun}
@@ -295,20 +317,32 @@ describe("subagent thread panel", () => {
       onBackToParent: () => undefined,
     });
 
-    // 结构化提问仍然可回答
-    expect(markup).toContain("子智能体提问");
-    expect(markup).toContain("是否继续检查其他目录？");
-    expect(markup).toContain('<textarea aria-label="自定义回答"');
-    expect(markup).not.toContain('aria-label="自定义回答" disabled');
-    expect(markup).toContain("跳过");
-    expect(markup).toContain("提交");
-    expect(markup).toContain('type="radio"');
-
-    // 审批卡片仍然可操作
-    expect(markup).toContain('aria-label="审批请求"');
+    // 每次只展示最早请求；解决审批后再显示整组提问。
+    expect(markup).not.toContain('aria-label="自定义回答"');
+    expect(markup).toContain('data-variant="permission"');
     expect(markup).toContain("允许一次");
     expect(markup).toContain("拒绝");
     expect(markup).toContain("需要运行测试");
+
+    const questionMarkup = renderPanel({
+      currentRun: run({ status: "waiting-question" }),
+      snapshot: snapshot({ items: [question] }),
+      capabilities: fullCapabilities,
+    });
+    expect(questionMarkup).toContain('data-variant="question"');
+    expect(questionMarkup).toContain("是否继续检查其他目录？");
+    expect(questionMarkup).toContain('aria-label="自定义回答"');
+    expect(questionMarkup).toContain('role="radio"');
+    expect(questionMarkup).toContain("跳过");
+    expect(questionMarkup).toContain("跳过当前问题");
+    expect(questionMarkup).not.toContain("提交");
+    const disabledMarkup = renderPanel({
+      currentRun: run({ status: "waiting-question" }),
+      snapshot: snapshot({ items: [question] }),
+      capabilities: { ...fullCapabilities, canRespondToQuestions: false },
+    });
+    expect(disabledMarkup).toContain("此子智能体当前不可操作");
+    expect(disabledMarkup).toContain('disabled=""');
 
     // 仍然没有自由聊天入口
     expect(markup).not.toContain("subagent-thread-panel__composer-slot");
@@ -326,3 +360,15 @@ describe("subagent thread panel", () => {
     expect(markup).not.toContain('title="返回主对话"');
   });
 });
+
+function memoryStorage(): Storage {
+  const entries = new Map<string, string>();
+  return {
+    get length() { return entries.size; },
+    clear: () => entries.clear(),
+    getItem: key => entries.get(key) ?? null,
+    key: index => [...entries.keys()][index] ?? null,
+    removeItem: key => entries.delete(key),
+    setItem: (key, value) => entries.set(key, value),
+  };
+}

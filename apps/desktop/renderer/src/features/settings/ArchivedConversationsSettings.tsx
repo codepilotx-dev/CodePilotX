@@ -87,7 +87,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                   </p>
                 </div>
                 <div className="archived-session-actions">
-                  <Button
+                  <Button color="primary"
                     onClick={() => void restoreSession(session)}
                     type="button"
                   >
@@ -95,7 +95,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                     <span>恢复</span>
                   </Button>
                   <Button
-                    tone="danger"
+                    color="danger"
                     onClick={() => void deleteSession(session)}
                     type="button"
                   >

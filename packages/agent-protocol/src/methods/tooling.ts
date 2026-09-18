@@ -1,6 +1,10 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { EmptyParamsSchema, OperationParamsSchema } from "../wire/primitives"
+import {
+  EmptyParamsSchema,
+  NonNegativeIntSchema,
+  OperationParamsSchema,
+} from "../wire/primitives"
 
 export const ToolingIDSchema = Schema.Literals(["nodejs", "python", "git-bash", "ripgrep"])
 export const ToolingPreferenceSchema = Schema.Literals(["managed", "system"])
@@ -14,8 +18,6 @@ export const ToolingPhaseSchema = Schema.Literals([
   "error",
   "cleanup-pending",
 ])
-
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 export const ToolingStatusSchema = Schema.Struct({
   id: ToolingIDSchema,

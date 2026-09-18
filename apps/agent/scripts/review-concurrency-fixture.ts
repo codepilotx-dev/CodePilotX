@@ -26,6 +26,7 @@ export function initializeReviewConcurrencyDatabase(db: {
   })
   db.setSetting("desktop.settings.v1", {
     enableFullAccessPermissionMode: true,
+    firstUseSetupCompleted: 1,
     permissionConfig: {
       sandboxMode: "danger-full-access",
       approvalPolicy: "never",
@@ -37,6 +38,12 @@ export function initializeReviewConcurrencyDatabase(db: {
 export function createReviewConcurrencyModels() {
   const faux = fauxProvider({
     provider: REVIEW_CONCURRENCY_PROVIDER_ID,
+    models: [{
+      id: REVIEW_CONCURRENCY_MODEL_ID,
+      input: ["text"],
+      contextWindow: 64_000,
+      reasoning: true,
+    }],
     tokenSize: { min: 1, max: 1 },
   })
   const response = (context: Context) => responseForContext(context)

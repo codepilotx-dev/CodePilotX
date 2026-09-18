@@ -1,13 +1,15 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process"
+import { createHash, timingSafeEqual } from "node:crypto"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 
 const READY_TIMEOUT_MS = 60_000
 const HEALTH_TIMEOUT_MS = 20_000
 
-interface ReadyMessage {
+export interface ReadyMessage {
   readonly type: "ready"
   readonly port: number
   readonly host?: string
+  readonly instanceToken?: string
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
@@ -15,6 +17,7 @@ type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 export function waitForReadyMessage(
   child: ChildProcessWithoutNullStreams,
   logger: DesktopLogger,
+  expectedInstanceToken?: string,
 ): Promise<ReadyMessage> {
   return new Promise((resolveReady, rejectReady) => {
     let buffer = ""
@@ -62,18 +65,33 @@ export function waitForReadyMessage(
             && Number.isInteger(parsed.port)
             && Number(parsed.port) > 0
           ) {
+            if (
+              expectedInstanceToken
+              && !matchesExpectedInstanceToken(
+                parsed.instanceToken,
+                expectedInstanceToken,
+              )
+            ) {
+              finishBeforeReady(new Error("Agent ready 实例标识不匹配"))
+              return
+            }
             if (!ready) {
               finishReady({
                 type: "ready",
                 port: Number(parsed.port),
                 host: parsed.host,
+                instanceToken: parsed.instanceToken,
               })
             }
             return
           }
-          logger.forwardConsoleLine(line)
+          logger.forwardConsoleLine(
+            redactSidecarInstanceToken(line, expectedInstanceToken),
+          )
         } catch {
-          logger.forwardConsoleLine(line)
+          logger.forwardConsoleLine(
+            redactSidecarInstanceToken(line, expectedInstanceToken),
+          )
         }
       }
     }
@@ -89,6 +107,7 @@ export async function waitForReady(
   token: string,
   logger: DesktopLogger,
   attempt: number,
+  expectedInstanceToken?: string,
 ): Promise<void> {
   const deadline = Date.now() + HEALTH_TIMEOUT_MS
   let lastError: unknown
@@ -96,7 +115,13 @@ export async function waitForReady(
   while (Date.now() < deadline) {
     probeCount += 1
     try {
-      await probeReady(origin, fetch, token, 1_500)
+      await probeReady(
+        origin,
+        fetch,
+        token,
+        1_500,
+        expectedInstanceToken,
+      )
       logger.info("sidecar.ready-probe-ok", { origin, attempt })
       return
     } catch (error) {
@@ -120,6 +145,7 @@ export async function probeReady(
   fetcher: FetchLike,
   token: string | undefined,
   timeoutMs: number,
+  expectedInstanceToken?: string,
 ): Promise<void> {
   const response = await fetcher(`${origin}/api/ready`, {
     method: "GET",
@@ -129,8 +155,57 @@ export async function probeReady(
     signal: AbortSignal.timeout(timeoutMs),
   })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  const body = await response.json() as { ok?: boolean }
+  const body = await response.json() as {
+    ok?: boolean
+    instanceToken?: string
+  }
   if (body.ok !== true) throw new Error("Agent ready 返回无效")
+  if (
+    expectedInstanceToken
+    && !matchesExpectedInstanceToken(
+      body.instanceToken,
+      expectedInstanceToken,
+    )
+  ) {
+    throw new Error("Agent ready 实例标识不匹配")
+  }
+}
+
+/**
+ * 对 sidecar 内部实例标识做常量时间比较。先哈希可以避免字符串长度差异
+ * 让 timingSafeEqual 提前返回；实例标识本身不得进入日志或错误消息。
+ */
+export function matchesExpectedInstanceToken(
+  actual: string | undefined,
+  expected: string,
+): boolean {
+  const actualDigest = createHash("sha256")
+    .update(actual ?? "", "utf8")
+    .digest()
+  const expectedDigest = createHash("sha256")
+    .update(expected, "utf8")
+    .digest()
+  return timingSafeEqual(actualDigest, expectedDigest)
+    && typeof actual === "string"
+    && actual.length > 0
+}
+
+function redactSidecarInstanceToken(
+  line: string,
+  expectedInstanceToken: string | undefined,
+): string {
+  const withoutExpected = expectedInstanceToken
+    ? line.split(expectedInstanceToken).join("[REDACTED]")
+    : line
+  return withoutExpected
+    .replace(
+      /(\"instanceToken\"\s*:\s*\")[^\"]*(\")/gi,
+      "$1[REDACTED]$2",
+    )
+    .replace(
+      /\bCODEPILOTX_SIDECAR_INSTANCE_TOKEN=([^\s,;]+)/gi,
+      "CODEPILOTX_SIDECAR_INSTANCE_TOKEN=[REDACTED]",
+    )
 }
 
 export function sleep(milliseconds: number): Promise<void> {

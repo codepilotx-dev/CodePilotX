@@ -40,7 +40,12 @@ export function UsageBillingSettings(): React.ReactNode {
     .map(source => source.descriptor)
     .filter(source =>
       source.availability === 'queryable' &&
-      source.capabilities.some(capability => capability === 'usage' || capability === 'cost'),
+      source.capabilities.some(capability =>
+        capability === 'usage' ||
+        capability === 'cost' ||
+        capability === 'balance' ||
+        capability === 'quota',
+      ),
     )
     .filter(source =>
       !selectedProviderId ||
@@ -61,18 +66,15 @@ export function UsageBillingSettings(): React.ReactNode {
     [providerManagement.providers],
   )
   const [localRange, setLocalRange] = useState<LocalRange>('30d')
-  const [providerRange, setProviderRange] = useState<ProviderRange>('7d')
   const [localData, setLocalData] = useState<LocalUsageResult | null>(null)
   const [localLoading, setLocalLoading] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const localRequest = useRef(0)
   const timeZone = localTimeZone()
   const providerData: ProviderUsageResult | null =
-    providerManagement.usageRange === providerRange &&
-    providerManagement.usageTimeZone === timeZone &&
     providerManagement.usageGeneratedAt !== null
       ? {
-          range: providerRange,
+          range: '7d',
           timeZone,
           generatedAt: providerManagement.usageGeneratedAt,
           sources: [...providerManagement.usageResults],
@@ -112,11 +114,11 @@ export function UsageBillingSettings(): React.ReactNode {
   }, [timeZone])
 
   const loadProviderUsage = useCallback(async ({
-    range,
+    range = '7d',
     sourceIds,
     force = false,
   }: {
-    range: ProviderRange
+    range?: ProviderRange
     sourceIds: readonly string[]
     force?: boolean
   }): Promise<void> => {
@@ -140,11 +142,10 @@ export function UsageBillingSettings(): React.ReactNode {
   useEffect(() => {
     if (tab !== 'accounts') return
     if (!providerManagement.loaded) return
-    void loadProviderUsage({ range: providerRange, sourceIds: querySourceIds })
+    void loadProviderUsage({ range: '7d', sourceIds: querySourceIds })
   }, [
     loadProviderUsage,
     providerManagement.loaded,
-    providerRange,
     querySourceIdsKey,
     tab,
   ])
@@ -207,14 +208,13 @@ export function UsageBillingSettings(): React.ReactNode {
               providerManagement.loading
             }
             onClearFilter={clearProviderFilter}
-            onRangeChange={setProviderRange}
-            onRefresh={(sourceIds, force) => void loadProviderUsage({
-              range: providerRange,
+            onRefresh={(sourceIds, force, range) => void loadProviderUsage({
+              range: range ?? '7d',
               sourceIds: sourceIds ?? analyticsSources.map(source => source.descriptor.sourceId),
               force,
             })}
             providerNames={providerNames}
-            range={providerRange}
+            refreshingSourceIds={providerManagement.refreshingSourceIds}
             selectedProviderId={selectedProviderId}
             selectedSourceId={selectedSourceId}
           />

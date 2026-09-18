@@ -59,6 +59,285 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('plan approval preserves target, operation and model and refreshes after success', async () => {
+    const calls: string[] = []
+    const approval = { id: 'plan-approval-1', threadId: 'session-plan', turnId: 'plan-turn', planItemId: 'plan-item',
+      version: 1, status: 'pending' as const, title: '计划', markdown: '修改目标文件', nextTurnId: null, createdAt: now, resolvedAt: null }
+    const params = { threadId: approval.threadId, approvalId: approval.id, expectedVersion: 1, operationId: 'plan-op-1',
+      response: { action: 'implement' as const, model: { providerID: 'deepseek', id: 'deepseek-chat' } } }
+    const client = createDesktopClient({ fetch: async (_path, init) => {
+      const body = JSON.parse(String(init?.body))
+      calls.push(body.method)
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'initialize') {
+        expect(body.params.capabilities).toContain('plan.approval.v1')
+        return rpc(body.id, { ...initializedResult(), capabilities: [...initializedResult().capabilities, 'plan.approval.v1'] })
+      }
+      if (body.method === 'planApproval/read') {
+        expect(body.params).toEqual({ threadId: approval.threadId })
+        return rpc(body.id, { approval })
+      }
+      if (body.method === 'planApproval/respond') {
+        expect(body.params).toEqual(params)
+        return rpc(body.id, { approval: { ...approval, status: 'implemented', version: 2, nextTurnId: 'coding-turn', resolvedAt: now }, disposition: 'applied' })
+      }
+      if (body.method === 'thread/read') {
+        expect(body.params.threadId).toBe(approval.threadId)
+        return rpc(body.id, snapshotResult(snapshot(approval.threadId, defaultSettings)))
+      }
+      if (body.method === 'project/list') return rpc(body.id, { projects: [], nextCursor: null })
+      throw new Error(`Unexpected method: ${body.method}`)
+    } })
+    expect((await client.readPlanApproval({ threadId: approval.threadId })).approval?.id).toBe(approval.id)
+    expect((await client.respondPlanApproval(params)).approval.status).toBe('implemented')
+    expect(calls).not.toContain('interaction/respond')
+    expect(calls.indexOf('thread/read')).toBeGreaterThan(calls.indexOf('planApproval/respond'))
+  })
+
+  test.each(['answer', 'mixed', 'all', 'unsupported'] as const)('submits complete question results by original ids with capability gating (%s)', async mode => {
+    const responses: unknown[] = []
+    const questions = ['scope', 'format', 'filter'].map(id => ({
+      id, header: id, prompt: `请选择 ${id}`,
+      choices: [{ id: 'yes', label: '是', description: '保留', recommended: true },
+        { id: 'no', label: '否', description: '排除', recommended: false }],
+      allowFreeform: true, required: true,
+    }))
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'initialize') return rpc(body.id, { ...initializedResult(), capabilities: [
+          ...initializedResult().capabilities, ...(mode === 'unsupported' ? [] : ['interaction.questionSkip.v1']),
+        ] })
+        if (body.method === 'interaction/listPending') {
+          expect(body.params.threadId).toBe('session-1')
+          return rpc(body.id, {
+          interactions: [{ interactionId: 'group-1', threadId: 'session-1',
+            turnId: 'turn-1', agentId: 'agent-1', createdAt: now, version: 1,
+            kind: 'question', questions }], nextCursor: null,
+          })
+        }
+        if (body.method === 'interaction/respond') {
+          responses.push(body.params)
+          return rpc(body.id, { interactionId: 'group-1', kind: 'question',
+            state: 'resolved', version: 2, resolvedAt: now, response: body.params.response })
+        }
+        if (body.method === 'thread/read') return rpc(body.id, snapshotResult(snapshot('session-1', defaultSettings)))
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+    const skippedQuestionIds = mode === 'answer' ? [] : mode === 'all' ? ['scope', 'format', 'filter'] : ['scope']
+    const submission = client.respondToPermission('session-1', 'question:group-1', {
+      behavior: 'allow', updatedInput: { answer: 'stale legacy answer',
+        answers: { scope: mode === 'answer' ? '是' : '', format: mode === 'all' ? '' : '中文自定义', filter: mode === 'all' ? '' : '否' }, skippedQuestionIds },
+    })
+    if (mode === 'unsupported') {
+      await expect(submission).rejects.toThrow('interaction.questionSkip.v1')
+      expect(responses).toHaveLength(0)
+      return
+    }
+    await submission
+    expect(responses).toHaveLength(1)
+    expect(responses[0]).toMatchObject({ interactionId: 'group-1', expectedVersion: 1,
+      response: { kind: 'question', status: 'answered', resolution: 'user', answers: [
+        ...(mode === 'all' ? skippedQuestionIds.map(questionId => ({ questionId, choiceIds: [], skipped: true })) : [
+          mode === 'mixed' ? { questionId: 'scope', choiceIds: [], skipped: true } : { questionId: 'scope', choiceIds: ['yes'] },
+          { questionId: 'format', choiceIds: [], text: '中文自定义' },
+          { questionId: 'filter', choiceIds: ['no'] },
+        ]),
+      ] },
+    })
+  })
+
+  test('opens home and thread windows through the typed desktop bridge', async () => {
+    const calls: unknown[] = []
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          openWindow: async input => {
+            calls.push(input)
+          },
+        },
+      },
+    })
+
+    await client.newWindow()
+    await client.openWindow({ kind: 'thread', threadId: 'thread-1' })
+
+    expect(calls).toEqual([
+      { kind: 'home' },
+      { kind: 'thread', threadId: 'thread-1' },
+    ])
+  })
+
+  test('shows composer file entry only with Electron bridge and both Agent capabilities', async () => {
+    const bridge = {
+      chooseComposerFiles: async () => [],
+      grantComposerPaths: async () => [],
+      getPathForFile: () => '',
+    }
+    const createCapabilityClient = (capabilities: string[]) => createDesktopClient({
+      window: { codePilotXDesktop: bridge } as never,
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'initialize') {
+          return rpc(body.id, { ...initializedResult(), capabilities })
+        }
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+    expect(await createCapabilityClient([
+      'attachments.v1',
+      'local-context.paths.v1',
+    ]).isComposerFileAttachmentAvailable()).toBe(true)
+    expect(await createCapabilityClient([
+      'attachments.v1',
+    ]).isComposerFileAttachmentAvailable()).toBe(false)
+    expect(await createDesktopClient({}).isComposerFileAttachmentAvailable()).toBe(false)
+  })
+
+  test('imports live local paths separately and binds their ids to turn/start', async () => {
+    const calls: Array<{ method: string; params: any }> = []
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = JSON.parse(String(init?.body))
+        calls.push({ method: body.method, params: body.params })
+        if (body.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'context/path/import') {
+          return rpc(body.id, {
+            references: [{
+              id: 'context-docs',
+              name: 'docs',
+              path: 'C:\\outside\\docs',
+              kind: 'directory',
+              status: 'available',
+              createdAt: now,
+            }],
+          })
+        }
+        if (body.method === 'model/list') return rpc(body.id, modelCatalog())
+        if (body.method === 'turn/start') {
+          return rpc(body.id, {
+            inputId: body.params.inputId,
+            turnId: 'local-context-turn',
+            disposition: 'accepted',
+            streamPosition: { streamId: body.params.threadId, sequence: 1 },
+          })
+        }
+        if (body.method === 'thread/read') throw new Error('refresh omitted')
+        throw new Error(`Unhandled method: ${body.method}`)
+      },
+    })
+
+    await client.sendUserMessage('session-local-context', {
+      text: '读取目录',
+      attachments: [{
+        id: 'draft-grant',
+        name: 'docs',
+        path: 'C:\\outside\\docs',
+        pathKind: 'directory',
+        localGrantId: 'draft-grant',
+        storage: 'local-path',
+        mediaType: 'inode/directory',
+        sizeBytes: 0,
+        kind: 'document',
+        status: 'ready',
+      }],
+    })
+
+    expect(calls.some(call => call.method === 'attachment/import')).toBe(false)
+    expect(calls.find(call => call.method === 'context/path/import')?.params)
+      .toMatchObject({
+        threadId: 'session-local-context',
+        paths: ['C:\\outside\\docs'],
+        operationId: expect.any(String),
+      })
+    expect(calls.find(call => call.method === 'turn/start')?.params)
+      .toMatchObject({ contextReferenceIds: ['context-docs'] })
+  })
+
+  test('reimports retained attachments before starting an edited turn', async () => {
+    const calls: Array<{ method: string; params: any }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      calls.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'attachment/read') {
+        return rpc(body.id, {
+          attachment: {
+            id: body.params.attachmentId,
+            kind: 'text',
+            name: 'history.md',
+            mediaType: 'text/markdown',
+            sizeBytes: 7,
+            sha256: 'history-sha',
+            createdAt: now,
+          },
+          data: 'history',
+          encoding: 'utf8',
+          range: { offset: 0, length: 7, total: 7 },
+        })
+      }
+      if (body.method === 'attachment/import') {
+        return rpc(body.id, {
+          attachments: [{
+            id: 'cloned-history-id',
+            kind: 'text',
+            name: 'history.md',
+            mediaType: 'text/markdown',
+            sizeBytes: 7,
+            sha256: 'cloned-sha',
+            createdAt: now,
+          }],
+        })
+      }
+      if (body.method === 'model/list') return rpc(body.id, modelCatalog())
+      if (body.method === 'turn/start') {
+        return rpc(body.id, {
+          inputId: body.params.inputId,
+          turnId: 'edited-turn',
+          disposition: 'accepted',
+          streamPosition: { streamId: body.params.threadId, sequence: 1 },
+        })
+      }
+      if (body.method === 'thread/read') {
+        throw new Error('视觉外的刷新失败不应改变已提交请求。')
+      }
+      throw new Error(`Unhandled method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await client.sendUserMessage('session-edited', {
+      text: '修改后的消息',
+      retainedAttachmentIds: ['history-id'],
+    })
+
+    expect(calls.find(call => call.method === 'attachment/read')?.params).toEqual({
+      attachmentId: 'history-id',
+    })
+    expect(calls.find(call => call.method === 'attachment/import')?.params).toMatchObject({
+      uploads: [{
+        kind: 'text',
+        name: 'history.md',
+        data: 'history',
+        encoding: 'utf8',
+      }],
+    })
+    expect(calls.find(call => call.method === 'turn/start')?.params).toMatchObject({
+      attachmentIds: ['cloned-history-id'],
+      content: '修改后的消息',
+      threadId: 'session-edited',
+    })
+    expect(
+      calls.find(call => call.method === 'turn/start')?.params.attachmentIds,
+    ).not.toContain('history-id')
+  })
+
   test('routes shared Profile listing and selection through RPC v4', async () => {
     const calls: Array<{ method: string; params: unknown }> = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
@@ -195,10 +474,25 @@ describe('desktop thread settings client', () => {
     }
     expect(eventSubscribeParams).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
-      liveEventTypes: ['tooling/updated'],
+      liveEventTypes: [
+        'catalog/updated',
+        'provider/credential/updated',
+        'config/updated',
+        'workspace/file/changed',
+        'workspace/git/changed',
+        'usage/source/updated',
+        'model/health/updated',
+        'skill/updated',
+        'plugins/updated',
+        'minimaxCli/updated',
+        'tooling/updated',
+        'mcp/updated',
+        'speech/statusChanged',
+      ],
     })
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'tooling-subscription',
@@ -216,6 +510,9 @@ describe('desktop thread settings client', () => {
         },
       }),
     } as MessageEvent)
+    for (let index = 0; index < 20 && updates.length === 0; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
     expect(updates).toEqual([toolingStatus])
     unsubscribe()
   })
@@ -631,7 +928,11 @@ describe('desktop thread settings client', () => {
       { text: '下一轮' },
       'follow-up',
       'input-follow-up',
+      { providerID: 'anthropic', model: 'claude-opus-4-1' },
     )
+    expect(queueRequests[0]?.params.model).toEqual({
+      providerID: 'anthropic', id: 'claude-opus-4-1',
+    })
     await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新' })
     await client.removeQueuedFollowUp('thread-queue', 'input-2')
     await client.resumeQueuedFollowUps('thread-queue')
@@ -697,6 +998,7 @@ describe('desktop thread settings client', () => {
       { text: '补充要求' },
       'steer',
       'draft-steer',
+      { providerID: 'anthropic', model: 'claude-opus-4-1' },
     )
 
     expect(steerParams).toMatchObject({
@@ -734,8 +1036,11 @@ describe('desktop thread settings client', () => {
     expect(updated.item.permissionMode).toBe('auto-review')
   })
 
-  test('refreshes only the thread named by a settings notification', async () => {
+  test('reconciles thread and pending-interaction catalog metadata before committing a global thread update', async () => {
     const readThreadIds: string[] = []
+    let threadListRequests = 0
+    let interactionListRequests = 0
+    let pendingInteractionThreadIds: readonly string[] = []
     const source = {
       onmessage: null as ((event: MessageEvent) => void) | null,
       onerror: null as (() => void) | null,
@@ -764,10 +1069,50 @@ describe('desktop thread settings client', () => {
           acknowledged: params.positions,
         })
       }
+      if (body?.method === 'interaction/listPending') {
+        interactionListRequests += 1
+        return rpc(body.id, {
+          interactions: [{
+            interactionId: 'hook-trust-1',
+            threadId: 'session-2',
+            turnId: 'turn-2',
+            agentId: 'agent-2',
+            createdAt: now,
+            version: 1,
+            kind: 'hookTrust',
+            configPath: '.codepilotx/hooks.json',
+            sha256: 'fixture-sha256',
+            hook: {
+              id: 'hook-1',
+              name: 'Fixture hook',
+              event: 'pre-tool',
+              command: 'fixture-command',
+            },
+          }, {
+            interactionId: 'hook-trust-1',
+            threadId: 'session-1',
+            turnId: 'turn-1',
+            agentId: 'agent-1',
+            createdAt: now,
+            version: 1,
+            kind: 'hookTrust',
+            configPath: '.codepilotx/hooks.json',
+            sha256: 'fixture-sha256',
+            hook: {
+              id: 'hook-1',
+              name: 'Fixture hook',
+              event: 'pre-tool',
+              command: 'fixture-command',
+            },
+          }],
+          nextCursor: null,
+        })
+      }
       if (body?.method === 'project/list') {
         return rpc(body.id, { projects: [project], nextCursor: null })
       }
       if (body?.method === 'thread/list') {
+        threadListRequests += 1
         return rpc(body.id, {
           threads: [
             listItem('session-1', defaultSettings),
@@ -790,37 +1135,57 @@ describe('desktop thread settings client', () => {
       eventSourceFactory: () => source as unknown as EventSource,
     })
     await client.listSessions()
-    const unsubscribe = client.onAgentEvent(() => {})
+    const sharedGlobalEventIds: string[] = []
+    const unsubscribeStore = client.onSessionStoreChange(change => {
+      pendingInteractionThreadIds = change.pendingInteractionThreadIds ?? []
+    })
+    const unsubscribeShared = client.subscribeAgentEventEnvelopes(
+      { liveEventTypes: [] },
+      events => {
+        sharedGlobalEventIds.push(...events.map(event => event.eventId))
+      },
+    )
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'subscription-1',
           event: {
             eventId: 'event-13',
-            streamId: 'session-2',
-            type: 'thread/settings/updated',
+            streamId: 'global',
+            type: 'thread/updated',
             version: 1,
             occurredAt: now,
-            threadId: 'session-2',
             durability: 'durable',
             sequence: 13,
             payload: {
-              threadId: 'session-2',
-              settings: defaultSettings,
+              thread: snapshot('session-2', defaultSettings).thread,
               version: 1,
             },
           },
         },
       }),
     } as MessageEvent)
-    await new Promise(resolve => setTimeout(resolve, 350))
-    unsubscribe()
+    for (
+      let index = 0;
+      index < 20 && interactionListRequests === 0;
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    unsubscribeShared()
+    unsubscribeStore()
 
-    expect(readThreadIds).toEqual(['session-2'])
+    expect(subscriptionCount).toBe(1)
+    expect(sharedGlobalEventIds).toEqual(['event-13'])
+    expect(readThreadIds).toEqual([])
+    expect(threadListRequests).toBe(2)
+    expect(interactionListRequests).toBe(1)
+    expect(pendingInteractionThreadIds).toEqual(['session-2', 'session-1'])
   })
 
   test('reconciles the active thread after event replay completes', async () => {
@@ -865,6 +1230,14 @@ describe('desktop thread settings client', () => {
             'config/updated',
             'workspace/file/changed',
             'workspace/git/changed',
+            'usage/source/updated',
+            'model/health/updated',
+            'skill/updated',
+            'plugins/updated',
+            'minimaxCli/updated',
+            'tooling/updated',
+            'mcp/updated',
+            'speech/statusChanged',
           ],
         })
         return rpc(body.id, {
@@ -878,6 +1251,9 @@ describe('desktop thread settings client', () => {
           subscriptionId: params.subscriptionId,
           acknowledged: params.positions,
         })
+      }
+      if (body?.method === 'interaction/listPending') {
+        return rpc(body.id, { interactions: [], nextCursor: null })
       }
       if (body?.method === 'project/list') {
         return rpc(body.id, { projects: [project], nextCursor: null })
@@ -907,7 +1283,6 @@ describe('desktop thread settings client', () => {
       const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
       if (status) observedStatuses.push(status)
     })
-    const unsubscribeEvents = client.onAgentEvent(() => {})
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -915,6 +1290,7 @@ describe('desktop thread settings client', () => {
     completed = true
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/replayComplete',
         params: {
           subscriptionId: 'subscription-1',
@@ -929,11 +1305,205 @@ describe('desktop thread settings client', () => {
     ) {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
-    unsubscribeEvents()
     unsubscribeStore()
 
     expect(readThreadIds).toEqual(['session-1'])
     expect(observedStatuses).toContain('done')
+  })
+
+  test('does not let a stale running snapshot overwrite a completed lifecycle event', async () => {
+    let completed = false
+    let readRequests = 0
+    let releaseStaleRead = () => {}
+    const staleReadGate = new Promise<void>(resolve => {
+      releaseStaleRead = resolve
+    })
+    const observedStatuses: string[] = []
+    let observedUnreadAt: string | null | undefined
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
+    const runningSnapshot = (): ThreadSnapshot => ({
+      ...snapshot('session-1', defaultSettings),
+      turns: [{
+        id: 'turn-1',
+        threadId: 'session-1',
+        sourceInputID: 'input-1',
+        status: 'running',
+        mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' },
+        permissionConfig: defaultSettings.permissionConfig,
+        rootAgentId: 'agent-1',
+        mergedInputIDs: [],
+        startedAt: now,
+        finishedAt: null,
+        elapsedSeconds: 0,
+        error: null,
+      }],
+    })
+    const completedTurn: ThreadSnapshot['turns'][number] = {
+      ...runningSnapshot().turns[0]!,
+      status: 'completed',
+      finishedAt: now + 1_000,
+      elapsedSeconds: 1,
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const params = body?.params ?? {}
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'event/subscribe') {
+        return rpc(body.id, {
+          subscriptionId: 'subscription-1',
+          highWatermarks: [{ streamId: 'global', sequence: 12 }],
+        })
+      }
+      if (body?.method === 'event/unsubscribe') return rpc(body.id, { ok: true })
+      if (body?.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: params.subscriptionId,
+          acknowledged: params.positions,
+        })
+      }
+      if (body?.method === 'interaction/listPending') {
+        return rpc(body.id, { interactions: [], nextCursor: null })
+      }
+      if (body?.method === 'project/list') {
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      }
+      if (body?.method === 'thread/list') {
+        return rpc(body.id, {
+          threads: [{
+            ...listItem('session-1', defaultSettings),
+            latestTurnStatus: 'running',
+            unreadAt: completed ? now + 1_000 : null,
+          }],
+          nextCursor: null,
+        })
+      }
+      if (body?.method === 'thread/read') {
+        readRequests += 1
+        const responseSnapshot = runningSnapshot()
+        if (!completed) await staleReadGate
+        return rpc(body.id, snapshotResult(responseSnapshot))
+      }
+      throw new Error(`Unhandled RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({
+      fetch: fetcher,
+      eventSourceFactory: () => source as unknown as EventSource,
+    })
+    await client.listSessions()
+    await client.setActiveSession('session-1')
+    const unsubscribeStore = client.onSessionStoreChange(change => {
+      const item = change.sessions.find(item => item.item.id === 'session-1')?.item
+      const status = item?.status
+      if (status) observedStatuses.push(status)
+      observedUnreadAt = item?.unreadAt
+    })
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    const staleRead = client.getSession('session-1')
+    for (let index = 0; index < 20 && readRequests === 0; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    completed = true
+    source.onmessage?.({
+      data: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'event/next',
+        params: {
+          subscriptionId: 'subscription-1',
+          event: {
+            eventId: 'event-13',
+            streamId: 'global',
+            type: 'turn/completed',
+            version: 2,
+            occurredAt: now + 1_000,
+            threadId: 'session-1',
+            turnId: 'turn-1',
+            durability: 'durable',
+            sequence: 13,
+            payload: { turn: completedTurn },
+          },
+        },
+      }),
+    } as MessageEvent)
+    for (
+      let index = 0;
+      index < 50 && (!observedStatuses.includes('done') || readRequests < 2);
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    releaseStaleRead()
+    const staleResult = await staleRead
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const completedIndex = observedStatuses.indexOf('done')
+    expect(completedIndex).toBeGreaterThanOrEqual(0)
+    expect(observedStatuses.slice(completedIndex)).not.toContain('running')
+    expect(staleResult?.item.status).toBe('done')
+    expect(observedUnreadAt).toBe(new Date(now + 1_000).toISOString())
+
+    const statusCountBeforeNextTurn = observedStatuses.length
+    const nextTurn = {
+      ...runningSnapshot().turns[0]!,
+      id: 'turn-2',
+      sourceInputID: 'input-2',
+      startedAt: now + 2_000,
+    }
+    source.onmessage?.({
+      data: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'event/next',
+        params: {
+          subscriptionId: 'subscription-1',
+          event: {
+            eventId: 'event-14',
+            streamId: 'global',
+            type: 'turn/started',
+            version: 2,
+            occurredAt: now + 2_000,
+            threadId: 'session-1',
+            turnId: 'turn-2',
+            durability: 'durable',
+            sequence: 14,
+            payload: {
+              turn: nextTurn,
+              input: {
+                id: 'input-2',
+                threadId: 'session-1',
+                turnId: 'turn-2',
+                content: 'next turn',
+                delivery: 'start',
+                mode: 'chat',
+                model: { providerID: 'openai', id: 'gpt-5' },
+                permissionConfig: defaultSettings.permissionConfig,
+                state: 'active',
+                createdAt: now + 2_000,
+              },
+            },
+          },
+        },
+      }),
+    } as MessageEvent)
+    for (
+      let index = 0;
+      index < 50 && !observedStatuses.slice(statusCountBeforeNextTurn).includes('running');
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    unsubscribeStore()
+
+    expect(observedStatuses.slice(statusCountBeforeNextTurn)).toContain('running')
   })
 
   test('routes GitHub auth, profile, repositories, push and PR creation through Agent RPC', async () => {
@@ -1277,6 +1847,7 @@ function initializedResult() {
       'turn.steer.v1',
       'turn.queue.management.v1',
       'attachments.v1',
+      'local-context.paths.v1',
       'memory.v2',
       'workspace.editor.v1',
       'git.review.v1',
@@ -1303,3 +1874,50 @@ function initializedResult() {
     connectionId: 'test-connection',
   }
 }
+
+
+test('聊天宽度经过桌面 bridge 保存并在新 client 中读取', async () => {
+  const { defaultDesktopStoredSettings } = await import('../shared/settingsSchema.js')
+  let stored = defaultDesktopStoredSettings()
+  const environment = {
+    window: {
+      codePilotXDesktop: {
+        getDesktopSettings: async () => stored,
+        saveDesktopSettings: async (settings: typeof stored) => {
+          stored = settings
+          return stored
+        },
+      },
+    },
+  }
+  const client = createDesktopClient(environment)
+  for (const conversationWidth of ['wide', 'narrow', 'default'] as const) {
+    await client.saveDesktopSettings({ ...stored, conversationWidth })
+    const reopened = createDesktopClient(environment)
+    expect((await reopened.getDesktopSettings()).conversationWidth).toBe(conversationWidth)
+  }
+})
+
+test('日程会话显示过滤经过桌面 bridge 保存并在新 client 中读取', async () => {
+  const { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } = await import('../shared/settingsSchema.js')
+  let stored = defaultDesktopStoredSettings()
+  const environment = {
+    window: {
+      codePilotXDesktop: {
+        getDesktopSettings: async () => stored,
+        saveDesktopSettings: async (settings: typeof stored) => {
+          stored = normalizeDesktopStoredSettings(settings)
+          return stored
+        },
+      },
+    },
+  }
+  const client = createDesktopClient(environment)
+  expect((await client.getDesktopSettings()).sidebarShowScheduledSessions).toBe(true)
+  for (const sidebarShowScheduledSessions of [false, true]) {
+    await client.saveDesktopSettings({ ...stored, sidebarShowScheduledSessions })
+    const reopened = createDesktopClient(environment)
+    expect((await reopened.getDesktopSettings()).sidebarShowScheduledSessions)
+      .toBe(sidebarShowScheduledSessions)
+  }
+})

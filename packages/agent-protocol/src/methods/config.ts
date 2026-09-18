@@ -1,8 +1,6 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { JsonValueSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+import { JsonValueSchema, NonEmptyStringSchema } from "../wire/primitives"
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
 const ConfigProfileIdSchema = Schema.String.check(
   Schema.isPattern(/^[a-z0-9][a-z0-9_-]{0,63}$/),

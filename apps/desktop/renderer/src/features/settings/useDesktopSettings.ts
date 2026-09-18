@@ -53,12 +53,10 @@ export type UseDesktopSettingsResult = {
   enableFullAccessPermissionMode: boolean
   permissionMode: DesktopPermissionMode
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
+  generationModel: string
+  organizationModel: string
+  codingModel: string
+  securityModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -85,6 +83,7 @@ export type UseDesktopSettingsResult = {
   allowNetworkAccess: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  firstUseSetupCompleted: 0 | 1 | undefined
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -93,6 +92,7 @@ export type UseDesktopSettingsResult = {
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   reviewDelivery: DesktopReviewDelivery
+  conversationWidth: StoredDesktopSettings['conversationWidth']
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
@@ -101,6 +101,11 @@ export type UseDesktopSettingsResult = {
   sidebarSort: DesktopSidebarSort
   sidebarTimelineEnabled: boolean
   sidebarTimelinePriorityEnabled: boolean
+  sidebarActivityShowWork: boolean
+  sidebarActivityShowChat: boolean
+  sidebarShowScheduledSessions: boolean
+  sidebarActivityShowPinned: boolean
+  sidebarActivityCoachmarkDismissed: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
@@ -113,12 +118,10 @@ export type UseDesktopSettingsResult = {
   setEnableAutoReviewPermissionMode: (value: boolean) => void
   setEnableFullAccessPermissionMode: (value: boolean) => void
   setModel: (value: string) => void
-  setPlanExecutionModel: (value: string) => void
-  setReviewModel: (value: string) => void
-  setSmallFastModel: (value: string) => void
-  setFastModel: (value: string) => void
-  setDefaultModel: (value: string) => void
-  setDeepModel: (value: string) => void
+  setGenerationModel: (value: string) => void
+  setOrganizationModel: (value: string) => void
+  setCodingModel: (value: string) => void
+  setSecurityModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
   setSystemPrompt: (value: string) => void
@@ -172,6 +175,21 @@ export type UseDesktopSettingsResult = {
   setSidebarTimelinePriorityEnabled: (
     value: boolean | ((current: boolean) => boolean),
   ) => void
+  setSidebarActivityShowWork: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityShowChat: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarShowScheduledSessions: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityShowPinned: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
+  setSidebarActivityCoachmarkDismissed: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void
   setSidebarManualOrder: (
     value:
       | Record<string, string[]>
@@ -197,8 +215,34 @@ export type UseDesktopSettingsResult = {
   syncExternalSettingsPatch: (
     patch: Partial<StoredDesktopSettings>,
   ) => void
+  saveFirstUseSetupCompleted: (value: 0 | 1) => Promise<void>
   draft: DesktopSettingsDraft
   flushDesktopSettings: () => Promise<void>
+}
+
+export type UseDesktopRuntimeSettingsResult = Pick<
+  UseDesktopSettingsResult,
+  | 'settingsLoaded'
+  | 'setPermissionMode'
+  | 'setModel'
+  | 'setProviderBaseURL'
+  | 'setProviderID'
+  | 'setThinkingMode'
+  | 'setRecentWorkspaces'
+  | 'setDrawerTab'
+  | 'setSelectedModelPreset'
+  | 'setReviewView'
+  | 'setSidebarSessionPins'
+  | 'setSidebarTimelineEnabled'
+  | 'syncExternalSettingsPatch'
+> & {
+  values: StoredDesktopSettings
+  permissionMode: DesktopPermissionMode
+}
+
+type DesktopSettingsState = {
+  settings: UseDesktopSettingsResult
+  runtime: UseDesktopRuntimeSettingsResult
 }
 
 type DesktopSettingsDraftSetter = <
@@ -298,6 +342,8 @@ export function createDesktopSettingsDraft(
 const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
   null,
 )
+const DesktopRuntimeSettingsContext =
+  createContext<UseDesktopRuntimeSettingsResult | null>(null)
 
 export function DesktopSettingsProvider({
   children,
@@ -306,23 +352,35 @@ export function DesktopSettingsProvider({
   children: ReactNode
   access?: DesktopSettingsAccess
 }): ReactNode {
-  const settings = useDesktopSettingsState(access)
+  const state = useDesktopSettingsState(access)
   return createElement(
-    DesktopSettingsContext.Provider,
-    { value: settings },
-    children,
+    DesktopRuntimeSettingsContext.Provider,
+    { value: state.runtime },
+    createElement(
+      DesktopSettingsContext.Provider,
+      { value: state.settings },
+      children,
+    ),
   )
 }
 
 export function useDesktopSettings(): UseDesktopSettingsResult {
   const settings = useContext(DesktopSettingsContext)
-  if (settings) {
-    return settings
+  if (!settings) {
+    throw new Error('useDesktopSettings 必须在 DesktopSettingsProvider 内使用')
   }
-  return useDesktopSettingsState()
+  return settings
 }
 
-  function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): UseDesktopSettingsResult {
+export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
+  const settings = useContext(DesktopRuntimeSettingsContext)
+  if (!settings) {
+    throw new Error('useDesktopRuntimeSettings 必须在 DesktopSettingsProvider 内使用')
+  }
+  return settings
+}
+
+  function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): DesktopSettingsState {
   const initial = readStoredDesktopSettings()
   const [enableParetoCodeRouter, setEnableParetoCodeRouter] = useState<boolean>(
     initial.enableParetoCodeRouter ?? false,
@@ -339,14 +397,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     setEnableFullAccessPermissionMode,
   ] = useState<boolean>(initial.enableFullAccessPermissionMode ?? false)
   const [model, setModel] = useState(initial.model)
-  const [planExecutionModel, setPlanExecutionModel] = useState(
-    initial.planExecutionModel,
-  )
-  const [reviewModel, setReviewModel] = useState(initial.reviewModel)
-  const [smallFastModel, setSmallFastModel] = useState(initial.smallFastModel)
-  const [fastModel, setFastModel] = useState(initial.fastModel)
-  const [defaultModel, setDefaultModel] = useState(initial.defaultModel)
-  const [deepModel, setDeepModel] = useState(initial.deepModel)
+  const [generationModel, setGenerationModel] = useState(initial.generationModel)
+  const [organizationModel, setOrganizationModel] = useState(initial.organizationModel)
+  const [codingModel, setCodingModel] = useState(initial.codingModel)
+  const [securityModel, setSecurityModel] = useState(initial.securityModel)
   const [sessionName, setSessionName] = useState(initial.sessionName)
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
@@ -423,6 +477,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [workspaceDependenciesMigrated, setWorkspaceDependenciesMigrated] = useState(
     initial.workspaceDependenciesMigrated,
   )
+  const [firstUseSetupCompleted, setFirstUseSetupCompleted] = useState<0 | 1 | undefined>(
+    initial.firstUseSetupCompleted,
+  )
   const [personality, setPersonality] = useState<DesktopPersonality>(
     initial.personality,
   )
@@ -448,6 +505,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [reviewDelivery, setReviewDelivery] = useState<DesktopReviewDelivery>(
     initial.reviewDelivery,
   )
+  const [conversationWidth, setConversationWidth] =
+    useState<StoredDesktopSettings['conversationWidth']>(initial.conversationWidth)
   const [diffMarkerStyle, setDiffMarkerStyle] =
     useState<DesktopDiffMarkerStyle>(initial.diffMarkerStyle)
   const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
@@ -467,6 +526,19 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   )
   const [sidebarTimelinePriorityEnabled, setSidebarTimelinePriorityEnabled] =
     useState<boolean>(initial.sidebarTimelinePriorityEnabled ?? false)
+  const [sidebarActivityShowWork, setSidebarActivityShowWork] = useState<boolean>(
+    initial.sidebarActivityShowWork ?? true,
+  )
+  const [sidebarActivityShowChat, setSidebarActivityShowChat] = useState<boolean>(
+    initial.sidebarActivityShowChat ?? true,
+  )
+  const [sidebarShowScheduledSessions, setSidebarShowScheduledSessions] = useState<boolean>(
+    initial.sidebarShowScheduledSessions ?? true,
+  )
+  const [sidebarActivityShowPinned, setSidebarActivityShowPinned] =
+    useState<boolean>(initial.sidebarActivityShowPinned ?? false)
+  const [sidebarActivityCoachmarkDismissed, setSidebarActivityCoachmarkDismissed] =
+    useState<boolean>(initial.sidebarActivityCoachmarkDismissed ?? false)
   const [sidebarManualOrder, setSidebarManualOrder] = useState<
     Record<string, string[]>
   >(initial.sidebarManualOrder)
@@ -493,11 +565,18 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
     cloneDesktopSettings(initial),
   )
+  const [committedDraftValues, setCommittedDraftValues] =
+    useState<StoredDesktopSettings>(initial)
   const draftValuesRef = useRef(draftValues)
   draftValuesRef.current = draftValues
-  const permissionMode = permissionModeForConfig(draftValues.permissionConfig)
+  const permissionMode = permissionModeForConfig(
+    committedDraftValues.permissionConfig,
+  )
   const setPermissionMode = useCallback((value: DesktopPermissionMode) => {
-    setDraftValues(current => ({ ...current, permissionConfig: permissionConfigForMode(value) }))
+    setCommittedDraftValues(current => ({
+      ...current,
+      permissionConfig: permissionConfigForMode(value),
+    }))
   }, [])
   const draftDirtyKeysRef = useRef<Set<keyof StoredDesktopSettings>>(new Set())
   const [draftSaving, setDraftSaving] = useState(false)
@@ -535,12 +614,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
           settings.enableFullAccessPermissionMode ?? false,
         )
         setModel(settings.model)
-        setPlanExecutionModel(settings.planExecutionModel)
-        setReviewModel(settings.reviewModel)
-        setSmallFastModel(settings.smallFastModel)
-        setFastModel(settings.fastModel)
-        setDefaultModel(settings.defaultModel)
-        setDeepModel(settings.deepModel)
+        setGenerationModel(settings.generationModel)
+        setOrganizationModel(settings.organizationModel)
+        setCodingModel(settings.codingModel)
+        setSecurityModel(settings.securityModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
         setSystemPrompt(settings.systemPrompt)
@@ -569,6 +646,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodePilotXDependencies(settings.installCodePilotXDependencies)
         setWorkspaceDependenciesMigrated(settings.workspaceDependenciesMigrated)
+        setFirstUseSetupCompleted(settings.firstUseSetupCompleted)
         setPersonality(settings.personality)
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
@@ -578,6 +656,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
         setReviewDelivery(settings.reviewDelivery)
+        setConversationWidth(settings.conversationWidth)
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setSidebarOrganization(settings.sidebarOrganization)
@@ -588,6 +667,13 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setSidebarTimelinePriorityEnabled(
           settings.sidebarTimelinePriorityEnabled,
         )
+        setSidebarActivityShowWork(settings.sidebarActivityShowWork ?? true)
+        setSidebarActivityShowChat(settings.sidebarActivityShowChat ?? true)
+        setSidebarShowScheduledSessions(settings.sidebarShowScheduledSessions ?? true)
+        setSidebarActivityShowPinned(settings.sidebarActivityShowPinned ?? false)
+        setSidebarActivityCoachmarkDismissed(
+          settings.sidebarActivityCoachmarkDismissed ?? false,
+        )
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
         setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
@@ -595,6 +681,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setBrowserAllowedSites(settings.browserAllowedSites)
         setCollapsedSidebarSections(settings.collapsedSidebarSections)
         setBrowserSitePermissions(settings.browserSitePermissions)
+        setCommittedDraftValues(settings)
         setDraftValues(cloneDesktopSettings(settings))
         draftDirtyKeysRef.current.clear()
         setSettingsLoaded(true)
@@ -615,16 +702,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      permissionConfig: draftValues.permissionConfig,
-      shellSecurityLevel: draftValues.shellSecurityLevel,
-      terminalProfileId: draftValues.terminalProfileId,
+      permissionConfig: committedDraftValues.permissionConfig,
+      shellSecurityLevel: committedDraftValues.shellSecurityLevel,
+      terminalProfileId: committedDraftValues.terminalProfileId,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
+      generationModel,
+      organizationModel,
+      codingModel,
+      securityModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -653,6 +738,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      ...(firstUseSetupCompleted === undefined
+        ? {}
+        : { firstUseSetupCompleted }),
+      'desktop.voice.preferredInputDeviceId':
+        committedDraftValues['desktop.voice.preferredInputDeviceId'],
       personality,
       customInstructions,
       enableMemory,
@@ -662,6 +752,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarProductMode,
@@ -670,6 +761,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarSort,
       sidebarTimelineEnabled,
       sidebarTimelinePriorityEnabled,
+      sidebarActivityShowWork,
+      sidebarActivityShowChat,
+      sidebarShowScheduledSessions,
+      sidebarActivityShowPinned,
+      sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -678,23 +774,22 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
-      pet: draftValues.pet,
-      notifications: draftValues.notifications,
+      pet: committedDraftValues.pet,
+      notifications: committedDraftValues.notifications,
 	    }),
 	    [
 	      enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      draftValues.shellSecurityLevel,
-      draftValues.terminalProfileId,
+      committedDraftValues.permissionConfig,
+      committedDraftValues.shellSecurityLevel,
+      committedDraftValues.terminalProfileId,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
+      generationModel,
+      organizationModel,
+      codingModel,
+      securityModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -723,6 +818,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       allowNetworkAccess,
       installCodePilotXDependencies,
       workspaceDependenciesMigrated,
+      firstUseSetupCompleted,
+      committedDraftValues['desktop.voice.preferredInputDeviceId'],
       personality,
       customInstructions,
       enableMemory,
@@ -732,6 +829,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarProductMode,
@@ -739,6 +837,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarSort,
       sidebarTimelineEnabled,
       sidebarTimelinePriorityEnabled,
+      sidebarActivityShowWork,
+      sidebarActivityShowChat,
+      sidebarShowScheduledSessions,
+      sidebarActivityShowPinned,
+      sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
       sidebarSessionPins,
       collapsedSidebarProjectPaths,
@@ -747,16 +850,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
-      draftValues.pet,
+      committedDraftValues.pet,
+      committedDraftValues.notifications,
 	    ],
   )
   const effectiveSettingsRef = useRef(effectiveSettings)
   effectiveSettingsRef.current = effectiveSettings
 
-  const draftDirty = useMemo(
-    () => !desktopSettingsEqual(draftValues, effectiveSettings),
-    [draftValues, effectiveSettings],
-  )
+  const draftDirty = draftDirtyKeysRef.current.size > 0
 
   useEffect(() => {
     if (!settingsLoaded) return
@@ -790,8 +891,12 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 
   const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
     (key, value) => {
-      draftDirtyKeysRef.current.add(key)
       const next = updateDesktopSettingsValue(draftValuesRef.current, key, value)
+      if (desktopSettingsValueEqual(next[key], effectiveSettingsRef.current[key])) {
+        draftDirtyKeysRef.current.delete(key)
+      } else {
+        draftDirtyKeysRef.current.add(key)
+      }
       draftValuesRef.current = next
       setDraftValues(next)
     },
@@ -809,12 +914,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         snapshot.enableFullAccessPermissionMode ?? false,
       )
       setModel(snapshot.model)
-      setPlanExecutionModel(snapshot.planExecutionModel)
-      setReviewModel(snapshot.reviewModel)
-      setSmallFastModel(snapshot.smallFastModel)
-      setFastModel(snapshot.fastModel)
-      setDefaultModel(snapshot.defaultModel)
-      setDeepModel(snapshot.deepModel)
+      setGenerationModel(snapshot.generationModel)
+      setOrganizationModel(snapshot.organizationModel)
+      setCodingModel(snapshot.codingModel)
+      setSecurityModel(snapshot.securityModel)
       setSessionName(snapshot.sessionName)
       setThinkingMode(snapshot.thinkingMode)
       setSystemPrompt(snapshot.systemPrompt)
@@ -843,6 +946,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setAllowNetworkAccess(snapshot.allowNetworkAccess)
       setInstallCodePilotXDependencies(snapshot.installCodePilotXDependencies)
       setWorkspaceDependenciesMigrated(snapshot.workspaceDependenciesMigrated)
+      setFirstUseSetupCompleted(snapshot.firstUseSetupCompleted)
       setPersonality(snapshot.personality)
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
@@ -852,6 +956,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
       setReviewDelivery(snapshot.reviewDelivery)
+      setConversationWidth(snapshot.conversationWidth)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
       setSidebarOrganization(snapshot.sidebarOrganization)
       setSidebarProductMode(snapshot.sidebarProductMode)
@@ -861,6 +966,13 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSidebarTimelinePriorityEnabled(
         snapshot.sidebarTimelinePriorityEnabled,
       )
+      setSidebarActivityShowWork(snapshot.sidebarActivityShowWork ?? true)
+      setSidebarActivityShowChat(snapshot.sidebarActivityShowChat ?? true)
+      setSidebarShowScheduledSessions(snapshot.sidebarShowScheduledSessions ?? true)
+      setSidebarActivityShowPinned(snapshot.sidebarActivityShowPinned ?? false)
+      setSidebarActivityCoachmarkDismissed(
+        snapshot.sidebarActivityCoachmarkDismissed ?? false,
+      )
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
       setCollapsedSidebarProjectPaths(snapshot.collapsedSidebarProjectPaths)
@@ -868,7 +980,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
 	        setBrowserAllowedSites(snapshot.browserAllowedSites)
 	        setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
-	        setBrowserSitePermissions(snapshot.browserSitePermissions)
+      setBrowserSitePermissions(snapshot.browserSitePermissions)
+      setCommittedDraftValues(snapshot)
       },
     [],
   )
@@ -893,6 +1006,20 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       }
     },
     [applySettingsSnapshot],
+  )
+
+  const saveFirstUseSetupCompleted = useCallback(
+    async (value: 0 | 1): Promise<void> => {
+      // 先读取 Agent 当前投影，避免向导完成期间用旧的 Renderer snapshot
+      // 覆盖刚由模型向导写入的 Provider 与最近模型选择。
+      const current = await desktopClient.getDesktopSettings()
+      const saved = await desktopClient.saveDesktopSettings({
+        ...current,
+        firstUseSetupCompleted: value,
+      })
+      syncExternalSettingsPatch(saved)
+    },
+    [syncExternalSettingsPatch],
   )
 
   useEffect(() => {
@@ -968,19 +1095,44 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     ],
   )
 
-  return {
+  const runtime = useMemo<UseDesktopRuntimeSettingsResult>(
+    () => ({
+      values: effectiveSettings,
+      permissionMode,
+      settingsLoaded,
+      setPermissionMode,
+      setModel,
+      setProviderBaseURL,
+      setProviderID,
+      setThinkingMode,
+      setRecentWorkspaces,
+      setDrawerTab,
+      setSelectedModelPreset,
+      setReviewView,
+      setSidebarSessionPins,
+      setSidebarTimelineEnabled,
+      syncExternalSettingsPatch,
+    }),
+    [
+      effectiveSettings,
+      permissionMode,
+      settingsLoaded,
+      setPermissionMode,
+      syncExternalSettingsPatch,
+    ],
+  )
+
+  const settings: UseDesktopSettingsResult = {
     enableParetoCodeRouter,
     enableFusionRouter,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
     permissionMode,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
+    generationModel,
+    organizationModel,
+    codingModel,
+    securityModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -1007,6 +1159,7 @@ defaultOpenTargetId,
     allowNetworkAccess,
     installCodePilotXDependencies,
     workspaceDependenciesMigrated,
+    firstUseSetupCompleted,
     personality,
     customInstructions,
     enableMemory,
@@ -1015,6 +1168,7 @@ defaultOpenTargetId,
     githubMemoryRepository,
       reviewView,
       reviewDelivery,
+      conversationWidth,
       diffMarkerStyle,
     sidebarOrganization,
     sidebarProductMode,
@@ -1022,6 +1176,11 @@ defaultOpenTargetId,
     sidebarSort,
     sidebarTimelineEnabled,
     sidebarTimelinePriorityEnabled,
+    sidebarActivityShowWork,
+    sidebarActivityShowChat,
+    sidebarShowScheduledSessions,
+    sidebarActivityShowPinned,
+    sidebarActivityCoachmarkDismissed,
     sidebarManualOrder,
     sidebarSessionPins,
     collapsedSidebarProjectPaths,
@@ -1035,12 +1194,10 @@ defaultOpenTargetId,
     setEnableAutoReviewPermissionMode,
     setEnableFullAccessPermissionMode,
     setModel,
-    setPlanExecutionModel,
-    setReviewModel,
-    setSmallFastModel,
-    setFastModel,
-    setDefaultModel,
-    setDeepModel,
+    setGenerationModel,
+    setOrganizationModel,
+    setCodingModel,
+    setSecurityModel,
     setSessionName,
     setThinkingMode,
     setSystemPrompt,
@@ -1081,6 +1238,11 @@ defaultOpenTargetId,
     setSidebarSort,
     setSidebarTimelineEnabled,
     setSidebarTimelinePriorityEnabled,
+    setSidebarActivityShowWork,
+    setSidebarActivityShowChat,
+    setSidebarShowScheduledSessions,
+    setSidebarActivityShowPinned,
+    setSidebarActivityCoachmarkDismissed,
     setSidebarManualOrder,
     setSidebarSessionPins,
     setCollapsedSidebarProjectPaths,
@@ -1088,10 +1250,12 @@ defaultOpenTargetId,
     setRustSearchAndDiffKernels,
 	    setBrowserAllowedSites,
 	    setCollapsedSidebarSections,
-	    syncExternalSettingsPatch,
+    syncExternalSettingsPatch,
+    saveFirstUseSetupCompleted,
     draft,
     flushDesktopSettings,
   }
+  return { settings, runtime }
 }
 
 function cloneDesktopSettings(
@@ -1145,10 +1309,14 @@ function updateDesktopSettingsValue<Key extends keyof StoredDesktopSettings>(
           currentValue: StoredDesktopSettings[Key],
         ) => StoredDesktopSettings[Key])(currentValue)
       : value
-  return cloneDesktopSettings({
+  return {
     ...current,
-    [key]: nextValue,
-  })
+    [key]: cloneDesktopSettingsValue(nextValue),
+  } as StoredDesktopSettings
+}
+
+function desktopSettingsValueEqual(left: unknown, right: unknown): boolean {
+  return Object.is(left, right) || JSON.stringify(left) === JSON.stringify(right)
 }
 
 export function mergeExternalDesktopSettingsPatch(

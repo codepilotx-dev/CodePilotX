@@ -13,7 +13,7 @@ const OPENAI_KEY = /\bsk-[A-Za-z0-9_-]+\b/g
 const CONSOLE_KEYS = new Set([
   "attempt", "code", "durationMs", "exitCode", "message", "method", "mode",
   "model", "packaged", "phase", "pid", "port", "provider", "reason", "signal",
-  "state", "status", "tool", "version",
+  "state", "status", "stage", "scope", "tool", "version",
 ])
 
 export type LogLevel = "debug" | "info" | "warn" | "error"

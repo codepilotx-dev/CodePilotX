@@ -1,45 +1,6 @@
-.pet-catalog-page {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--color-token-main-surface-primary);
-  color: var(--color-token-foreground);
-}
-
-.pet-catalog-scroll-region {
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
-}
-
-.pet-catalog-content {
-  width: min(1180px, 100%);
-  margin: 0 auto;
-  padding: 36px 40px 64px;
-}
-
-.pet-catalog-page-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
-}
-
-.pet-catalog-page-heading h1 {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.2;
-}
-
-.pet-catalog-page-heading p {
-  max-width: 680px;
-  margin: 8px 0 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+.pet-catalog-primary-page {
+  container-name: pet-catalog-page;
+  container-type: inline-size;
 }
 
 .pet-catalog-browser {
@@ -47,65 +8,68 @@
 }
 
 .pet-catalog-panel {
-  padding: 16px;
-  border: 1px solid var(--color-token-border);
-  border-radius: 14px;
-  background: var(--color-token-main-surface-primary);
+  padding: var(--cpx-sys-space-4);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-xl);
+  background: var(--cpx-sys-color-surface-panel);
+  box-shadow: none;
 }
 
 .pet-catalog-workspace-tabs .segmented-control-item > span {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(140px, auto) minmax(140px, auto);
   align-items: center;
-  gap: 8px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-filters .settings-dropdown {
   width: 100%;
   min-width: 0;
-  background: var(--color-token-bg-secondary);
+  background: var(--cpx-sys-color-surface-raised);
 }
 
 .pet-catalog-status {
-  margin: 12px 0 0;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  margin: var(--cpx-sys-space-3) 0 0;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .pet-catalog-wake {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-token-border);
-  border-radius: 10px;
-  color: var(--color-token-foreground);
+  gap: var(--cpx-sys-space-3);
+  margin-top: var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-raised);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--cpx-sys-space-3);
+  margin-top: var(--cpx-sys-space-4);
 }
 
 .pet-catalog-card {
   display: grid;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--color-token-border);
-  border-radius: 12px;
-  background: var(--color-token-main-surface-primary);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-raised);
+  box-shadow: none;
 }
 
 .pet-catalog-art {
@@ -114,9 +78,9 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 10px;
-  background: var(--color-token-editor-background);
-  color: var(--color-token-icon-foreground);
+  padding: var(--cpx-sys-space-3);
+  background: var(--cpx-sys-color-surface-editor);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-art img,
@@ -141,7 +105,7 @@
 .pet-catalog-preview > .ui-skeleton-block {
   width: min(100%, 148px);
   height: 100%;
-  border-radius: var(--radius-4);
+  border-radius: var(--cpx-sys-radius-lg);
 }
 
 .pet-catalog-art .pet-sprite {
@@ -153,36 +117,35 @@
 .pet-catalog-card-body {
   display: grid;
   grid-template-rows: auto auto minmax(3.5em, 1fr) auto auto;
-  gap: 7px;
+  gap: var(--cpx-sys-space-2);
   min-width: 0;
-  padding: 12px;
+  padding: var(--cpx-sys-space-3);
 }
 
 .pet-catalog-card-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  color: var(--color-token-foreground);
+  gap: var(--cpx-sys-space-2);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-card-heading > span {
   flex: 0 0 auto;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-author,
 .pet-catalog-description {
   margin: 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .pet-catalog-description {
   display: -webkit-box;
   overflow: hidden;
-  line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -190,33 +153,33 @@
 .pet-catalog-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-tags > span {
-  padding: 3px 7px;
-  border-radius: var(--radius-full);
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-caption);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-full);
+  background: var(--cpx-sys-color-hover);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
 }
 
 .pet-catalog-tags > span[data-license="restricted"],
 .pet-catalog-tags > span[data-license="unknown"] {
-  color: var(--color-token-editor-warning-foreground);
+  color: var(--cpx-sys-color-warning);
 }
 
 .pet-catalog-empty {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 48px 16px;
-  color: var(--color-token-description-foreground);
+  gap: var(--cpx-sys-space-2);
+  padding: calc(var(--cpx-sys-space-1) * 12) var(--cpx-sys-space-4);
+  color: var(--cpx-sys-color-fg-tertiary);
   text-align: center;
 }
 
 .pet-catalog-empty strong {
-  color: var(--color-token-foreground);
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .pet-catalog-skeleton-card {
@@ -231,60 +194,61 @@
 .pet-catalog-skeleton-title {
   width: 62%;
   height: 18px;
-  border-radius: var(--radius-2);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-catalog-skeleton-author {
   width: 44%;
   height: 14px;
-  border-radius: var(--radius-2);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-catalog-skeleton-description {
   width: 100%;
   height: 3.5em;
-  border-radius: var(--radius-3);
+  border-radius: var(--cpx-sys-radius-lg);
 }
 
 .pet-catalog-skeleton-tags {
   display: flex;
-  gap: 6px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-catalog-skeleton-tags > * {
   width: 58px;
   height: 22px;
-  border-radius: var(--radius-full);
+  border-radius: var(--cpx-sys-radius-full);
 }
 
 .pet-catalog-skeleton-action {
   width: 100%;
-  height: var(--control-size-md);
-  border-radius: var(--radius-button);
+  height: var(--cpx-sys-space-7);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .pet-license-confirmation {
   display: grid;
-  gap: 9px;
+  gap: var(--cpx-sys-space-2);
 }
 
 .pet-license-confirmation-text {
   max-height: 112px;
   overflow: auto;
-  padding: 9px 10px;
-  border: 1px solid var(--color-token-border);
-  border-radius: 8px;
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-foreground);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-md);
+  background: var(--cpx-sys-color-surface-raised);
+  color: var(--cpx-sys-color-fg-primary);
   white-space: pre-wrap;
 }
 
-@media (max-width: 900px) {
-  .pet-catalog-content {
-    padding-inline: 24px;
-  }
-
+@container pet-catalog-page (max-width: 720px) {
   .pet-catalog-filters {
     grid-template-columns: 1fr;
+  }
+
+  .pet-catalog-wake {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

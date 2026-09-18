@@ -9,6 +9,7 @@ import { desktopClient } from '../../../services/desktop-client/index.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
 
@@ -29,7 +30,7 @@ type Props = {
 }
 
 export function GitWorkflowModal({
-  mode,
+  mode: currentMode,
   workspace,
   gitStatus,
   gitBranchPrefix,
@@ -41,6 +42,9 @@ export function GitWorkflowModal({
   onWorkspaceChanged,
   onRefreshWorkspace,
 }: Props): React.ReactNode {
+  const retainedMode = useLastNonNull(currentMode)
+  const open = currentMode !== null
+  const mode = open ? currentMode : retainedMode
   const [branchName, setBranchName] = useState(gitBranchPrefix)
   const [commitMessage, setCommitMessage] = useState(commitMessagePrompt)
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
@@ -53,7 +57,6 @@ export function GitWorkflowModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const changedFiles = gitStatus?.files ?? EMPTY_CHANGES
-  const open = mode !== null
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const title =
     mode === 'branch'
@@ -93,6 +96,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.createWorkspaceBranch({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         branchName,
       })
@@ -108,6 +112,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.commitWorkspaceChanges({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         message: commitMessage,
         paths: selectedPaths,
@@ -124,6 +129,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.pushWorkspaceBranch({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         setUpstream,
         forceWithLease,
@@ -140,6 +146,7 @@ export function GitWorkflowModal({
     if (!workspace) return
     await runOperation(async () => {
       const result = await desktopClient.createPullRequest({
+        ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
         workspacePath: workspace.path,
         title: prTitle,
         body: prBody,
@@ -183,11 +190,10 @@ export function GitWorkflowModal({
       }}
     >
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="permission-modal-backdrop">
-            <Dialog.Content
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
+        <Dialog.Content
               aria-describedby="git-workflow-description"
-              className="permission-modal git-workflow-modal"
+              className="ui-dialog-surface ui-dialog-surface--centered permission-modal git-workflow-modal"
               onCloseAutoFocus={onCloseAutoFocus}
             >
               <header
@@ -317,18 +323,18 @@ export function GitWorkflowModal({
                 )}
               >
                 <Dialog.Close asChild>
-                  <Button>取消</Button>
+                  <Button color="secondary">取消</Button>
                 </Dialog.Close>
                 {mode === 'commitPush' ? (
                   <>
-                    <Button
+                    <Button color="secondary"
                       disabled={isSubmitting || changedFiles.length === 0}
                       type="button"
                       onClick={() => void submitCommit()}
                     >
                       提交选中文件
                     </Button>
-                    <Button
+                    <Button color="primary"
                       disabled={isSubmitting}
                       type="button"
                       onClick={() => void submitPush()}
@@ -337,7 +343,7 @@ export function GitWorkflowModal({
                     </Button>
                   </>
                 ) : (
-                  <Button
+                  <Button color="primary"
                     disabled={isSubmitting}
                     type="button"
                     onClick={() =>
@@ -350,9 +356,7 @@ export function GitWorkflowModal({
                   </Button>
                 )}
               </div>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

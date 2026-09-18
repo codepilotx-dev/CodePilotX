@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { recoverInterruptedRuns } from "../src/storage/recovery/interrupted-run-recovery"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
@@ -206,6 +207,7 @@ describe("Turn 生命周期事务", () => {
 
     db = new AgentDatabase(path)
     databases.push(db)
+    recoverInterruptedRuns(db)
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(active.turnID)).toEqual({ status: "interrupted" })
     const interruptedTool = db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get() as {
       status: string
@@ -224,6 +226,7 @@ describe("Turn 生命周期事务", () => {
     db.close()
     db = new AgentDatabase(path)
     databases.push(db)
+    recoverInterruptedRuns(db)
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'turn/interrupted' AND turn_id = ?").get(active.turnID)).toEqual({ count })
     expect(db.sqlite.query("SELECT status, finished_at, error FROM tool_calls WHERE id = 'running-tool'").get()).toEqual(interruptedTool)
   })
@@ -265,6 +268,7 @@ describe("Turn 生命周期事务", () => {
 
     db = new AgentDatabase(path)
     databases.push(db)
+    recoverInterruptedRuns(db)
     expect(db.sqlite.query("SELECT status FROM question_requests WHERE id = 'question-resuming'").get()).toEqual({ status: "resolved" })
     expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(questionTurn.turnID)).toEqual({ status: "queued" })
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = 'approval-deny'").get()).toEqual({ status: "resolved" })

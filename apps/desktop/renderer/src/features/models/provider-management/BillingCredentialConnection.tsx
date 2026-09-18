@@ -113,7 +113,7 @@ export function BillingCredentialConnection({
           </label>
         ))}
         <div className="model-center-account-actions">
-          <Button
+          <Button color="primary"
             disabled={!fieldsComplete(source, values)}
             loading={busy}
             onClick={() => void connect()}
@@ -121,7 +121,7 @@ export function BillingCredentialConnection({
             {connected ? '替换连接' : '连接'}
           </Button>
           {connected ? (
-            <Button loading={busy} onClick={() => void disconnect()} tone="danger">
+            <Button color="danger" loading={busy} onClick={() => void disconnect()}>
               断开
             </Button>
           ) : null}

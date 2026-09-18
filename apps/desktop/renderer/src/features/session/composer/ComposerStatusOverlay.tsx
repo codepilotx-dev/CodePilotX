@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
@@ -103,7 +104,6 @@ export function ComposerStatusOverlay({
     }
   }, [open, selectedProviderID])
 
-  if (!open) return null
   const quotas = criticalQuotaWindows(usageSource, 3)
 
   return (
@@ -124,7 +124,7 @@ export function ComposerStatusOverlay({
             type="button"
             aria-label="关闭"
           >
-            <X size={14} />
+            <X size={APP_ICON_SIZE} />
           </button>
         </div>
 

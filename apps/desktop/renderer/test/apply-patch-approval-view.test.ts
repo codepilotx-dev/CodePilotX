@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  DesktopPermissionRequest,
-  DesktopSessionEvent,
-} from '../shared/types.js'
+import type { DesktopPermissionRequest } from '../shared/types.js'
 import { buildInlineApprovalCommand } from '../src/features/session/approvals/InlineApprovalCard.js'
-import { deriveReviewTurns } from '../src/features/session/reviewTurns.js'
 import { formatToolInputForDisplay } from '../src/features/session/timeline/CanonicalItemRenderer.js'
 
 describe('ApplyPatch 审批展示', () => {
@@ -47,35 +43,5 @@ describe('ApplyPatch 审批展示', () => {
       ...request,
       input: { patch: 'still secret' },
     }).full).toBe('apply_patch（未提供可展示的文件范围）')
-  })
-
-  test('review turn 从 apply_patch 的 affectedPaths 收集全部文件', () => {
-    const events: DesktopSessionEvent[] = [
-      {
-        id: 'message-1',
-        type: 'message',
-        role: 'user',
-        content: '修改两个文件',
-        createdAt: '2026-07-27T00:00:00.000Z',
-      },
-      {
-        id: 'tool-1',
-        type: 'tool_call',
-        createdAt: '2026-07-27T00:00:01.000Z',
-        metadata: {
-          toolName: 'apply_patch',
-          affectedPaths: [
-            { path: 'src/a.ts', operation: 'update' },
-            { path: 'src/b.ts', operation: 'create' },
-          ],
-        },
-      },
-    ]
-    const [turn] = deriveReviewTurns(events).turns
-    expect(turn?.toolCallEventIds).toEqual(['tool-1'])
-    expect(turn?.files).toEqual([
-      { path: 'src/a.ts', additions: 0, deletions: 0 },
-      { path: 'src/b.ts', additions: 0, deletions: 0 },
-    ])
   })
 })

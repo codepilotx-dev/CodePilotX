@@ -92,6 +92,11 @@ export function PetCatalogSection({
     [activePets, category, query, version],
   );
   const hasFilters = Boolean(query.trim() || category || version !== "all");
+  const clearFilters = (): void => {
+    setQuery("");
+    setCategory("");
+    setVersion("all");
+  };
 
   const loadCatalog = async (refresh = false): Promise<void> => {
     setLoading(true);
@@ -192,10 +197,11 @@ export function PetCatalogSection({
       >
         <IconButton
           aria-busy={loading}
+          color="ghostSecondary"
           disabled={loading}
           onClick={() => void loadCatalog(true)}
+          size="toolbar"
           title="刷新社区宠物目录"
-          variant="toolbar"
         >
           <RefreshCw
             aria-hidden="true"
@@ -252,7 +258,7 @@ export function PetCatalogSection({
           {showWakeAction && !overlayEnabled ? (
             <div className="pet-catalog-wake" role="status">
               <span>新宠物已经准备好了。</span>
-              <Button
+              <Button color="primary"
                 onClick={() => {
                   void onEnableOverlay().then(() => setShowWakeAction(false));
                 }}
@@ -310,10 +316,10 @@ export function PetCatalogSection({
             !loading &&
             catalog.cacheState === "unavailable" ? (
               <div className="pet-catalog-empty">
-                <PawPrint size={28} />
+                <PawPrint size={APP_ICON_SIZE} />
                 <strong>暂时无法获取社区目录</strong>
                 <span>请检查网络连接；已安装的宠物仍可正常使用。</span>
-                <Button onClick={() => void loadCatalog(true)} type="button">
+                <Button color="secondary" onClick={() => void loadCatalog(true)} type="button">
                   重试
                 </Button>
               </div>
@@ -323,9 +329,12 @@ export function PetCatalogSection({
             hasFilters &&
             !visiblePets.length ? (
               <div className="pet-catalog-empty">
-                <SearchX size={28} />
+                <SearchX size={APP_ICON_SIZE} />
                 <strong>没有匹配的宠物</strong>
                 <span>尝试更换关键词或筛选条件。</span>
+                <Button color="secondary" onClick={clearFilters} type="button">
+                  清除筛选
+                </Button>
               </div>
             ) : null}
             {!loading &&
@@ -334,10 +343,10 @@ export function PetCatalogSection({
             !installedPetsLoading &&
             !activePets.length ? (
               <div className="pet-catalog-empty">
-                <PawPrint size={28} />
+                <PawPrint size={APP_ICON_SIZE} />
                 <strong>还没有安装宠物</strong>
                 <span>前往“未安装”挑选一个桌面伙伴。</span>
-                <Button onClick={() => setTab("available")} type="button">
+                <Button color="secondary" onClick={() => setTab("available")} type="button">
                   浏览未安装
                 </Button>
               </div>
@@ -348,10 +357,10 @@ export function PetCatalogSection({
             catalog.cacheState !== "unavailable" &&
             !activePets.length ? (
               <div className="pet-catalog-empty">
-                <PawPrint size={28} />
+                <PawPrint size={APP_ICON_SIZE} />
                 <strong>社区宠物均已安装</strong>
                 <span>可以前往“已安装”切换当前使用的宠物。</span>
-                <Button onClick={() => setTab("installed")} type="button">
+                <Button color="secondary" onClick={() => setTab("installed")} type="button">
                   查看已安装
                 </Button>
               </div>
@@ -379,14 +388,14 @@ export function PetCatalogSection({
                             className="pet-catalog-preview"
                             decoding="async"
                             fallback={
-                              <PawPrint aria-hidden="true" size={34} />
+                              <PawPrint aria-hidden="true" size={APP_ICON_SIZE} />
                             }
                             imageClassName="pet-catalog-preview__image"
                             loading="lazy"
                             src={pet.previewUrl}
                           />
                         ) : (
-                          <PawPrint aria-hidden="true" size={34} />
+                          <PawPrint aria-hidden="true" size={APP_ICON_SIZE} />
                         )}
                       </div>
                       <div className="pet-catalog-card-body">
@@ -412,7 +421,7 @@ export function PetCatalogSection({
                             </span>
                           ) : null}
                         </div>
-                        <Button
+                        <Button color="primary"
                           disabled={selected || installing}
                           loading={installing}
                           onClick={() => choosePet(pet)}

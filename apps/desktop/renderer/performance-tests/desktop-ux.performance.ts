@@ -57,6 +57,211 @@ test.describe('desktop UX performance', () => {
     }
   })
 
+  test('workbench panels reflow live and persist only after release', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const target = window as typeof window & {
+        __workbenchSizeWrites?: Record<string, number>
+      }
+      target.__workbenchSizeWrites = {}
+      const original = Storage.prototype.setItem
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (
+          key === 'codepilotx.desktop.rightDockWidthRatio.v2'
+          || key === 'codepilotx.desktop.bottomPanelHeightRatio.v3'
+        ) {
+          const writes = target.__workbenchSizeWrites ?? {}
+          writes[key] = (writes[key] ?? 0) + 1
+          target.__workbenchSizeWrites = writes
+        }
+        return original.call(this, key, value)
+      }
+    })
+    await waitForFixture(page, 500, 30)
+
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightHandle = page.getByRole('separator', {
+      name: '调整右侧面板宽度',
+    })
+    const rightShell = page.locator('.desktop-workspace-panel--right')
+    const mainRoute = page.locator('.desktop-main-route')
+    await expect(rightHandle).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await rightHandle.press('Home')
+      await settlePage(page)
+      await resetWorkbenchWriteCount(page)
+      const before = await readRightPanelGeometry(rightShell, mainRoute)
+      await startInteractionProbe(page)
+      await performPanelDrag(page, rightHandle, 96, 0, 120, false)
+      const during = await readRightPanelGeometry(rightShell, mainRoute)
+      const writesDuringDrag = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+      )
+      await page.mouse.up()
+      const interaction = await stopInteractionProbe(page)
+      const writesAfterDrop = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.rightDockWidthRatio.v2',
+      )
+      await recordRendererSample(page, 'workbench-right-live-resize', sample, {
+        ...interaction,
+        liveMainSizeChanged:
+          Math.abs(during.mainSize - before.mainSize) > 48 ? 1 : 0,
+        livePanelSizeChanged:
+          Math.abs(during.panelSize - before.panelSize) > 48 ? 1 : 0,
+        panelBoundaryGap: during.panelBoundaryGap,
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+
+    await page.getByRole('menuitem', { name: '查看' }).click()
+    await page.getByRole('menuitem', { name: '切换底部面板' }).click()
+    const bottomHandle = page.getByRole('separator', {
+      name: '调整底部面板高度',
+    })
+    const bottomShell = page.locator('.desktop-workspace-panel--bottom')
+    const bottomSpacer = page.locator('.desktop-workspace-panel-spacer--bottom')
+    const upperRegion = page.locator('.desktop-workspace__upper')
+    await expect(bottomHandle).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await bottomHandle.press('Home')
+      await settlePage(page)
+      await resetWorkbenchWriteCount(page)
+      const before = await readPanelGeometry(
+        bottomShell,
+        bottomSpacer,
+        upperRegion,
+        'height',
+      )
+      await startInteractionProbe(page)
+      await performPanelDrag(page, bottomHandle, 0, -80, 120, false)
+      const during = await readPanelGeometry(
+        bottomShell,
+        bottomSpacer,
+        upperRegion,
+        'height',
+      )
+      const writesDuringDrag = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.bottomPanelHeightRatio.v3',
+      )
+      await page.mouse.up()
+      const interaction = await stopInteractionProbe(page)
+      const writesAfterDrop = await readWorkbenchWriteCount(
+        page,
+        'codepilotx.desktop.bottomPanelHeightRatio.v3',
+      )
+      await recordRendererSample(page, 'bottom-panel-live-resize', sample, {
+        ...interaction,
+        liveMainSizeChanged:
+          Math.abs(during.mainSize - before.mainSize) > 48 ? 1 : 0,
+        livePanelSizeChanged:
+          Math.abs(during.panelSize - before.panelSize) > 48 ? 1 : 0,
+        panelSpacerDelta: Math.abs(during.panelSize - during.spacerSize),
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+  })
+
+  test('window continuous resize maintains 60fps and settles storage writes', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const target = window as typeof window & {
+        __workbenchLayoutWrites?: number
+      }
+      target.__workbenchLayoutWrites = 0
+      const original = Storage.prototype.setItem
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (key === 'codepilotx.desktop.workbenchLayout.v1') {
+          target.__workbenchLayoutWrites =
+            (target.__workbenchLayoutWrites ?? 0) + 1
+        }
+        return original.call(this, key, value)
+      }
+    })
+    await waitForFixture(page, 500, 30)
+
+    const initialViewport = { width: 1280, height: 800 }
+    await page.setViewportSize(initialViewport)
+    await page.waitForTimeout(600)
+    await settlePage(page)
+    await performWindowResize(page, 1280, 800, -20, -10, 6)
+    await page.waitForTimeout(600)
+    await page.setViewportSize(initialViewport)
+    await page.waitForTimeout(600)
+    await settlePage(page)
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await page.setViewportSize(initialViewport)
+      await page.waitForTimeout(600)
+      await settlePage(page)
+      await page.evaluate(() => {
+        ;(window as typeof window & { __workbenchLayoutWrites?: number })
+          .__workbenchLayoutWrites = 0
+      })
+
+      await startInteractionProbe(page)
+      await performWindowResize(page, 1280, 800, -200, -100, 30)
+      const writesDuringDrag = await page.evaluate(
+        () =>
+          (window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0,
+      )
+      await page.waitForFunction(
+        () =>
+          ((window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0) >= 1,
+        undefined,
+        { timeout: 5_000 },
+      )
+      await settlePage(page)
+      const writesAfterDrop = await page.evaluate(
+        () =>
+          (window as typeof window & { __workbenchLayoutWrites?: number })
+            .__workbenchLayoutWrites ?? 0,
+      )
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'window-resize', sample, {
+        ...interaction,
+        writesAfterDrop,
+        writesDuringDrag,
+      })
+    }
+
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightShell = page.locator('.desktop-workspace-panel--right')
+    await expect(rightShell).toBeVisible()
+    await page.setViewportSize({ width: 1400, height: 900 })
+    await settlePage(page)
+
+    const beforeRightBox = await rightShell.boundingBox()
+    if (!beforeRightBox) {
+      throw new Error('Right panel should be visible before resize')
+    }
+
+    await performWindowResize(page, 1400, 900, -100, -50, 30)
+    const duringRightBox = await rightShell.boundingBox()
+    if (!duringRightBox) {
+      throw new Error('Right panel should remain visible during resize')
+    }
+    expect(duringRightBox.width).toBeLessThan(beforeRightBox.width)
+
+    await performWindowResize(page, 1300, 850, -100, -50, 30)
+    await settlePage(page)
+
+    const afterRightBox = await rightShell.boundingBox()
+    if (!afterRightBox) {
+      throw new Error('Right panel should remain visible after resize')
+    }
+    expect(afterRightBox.width).toBeLessThan(duringRightBox.width)
+  })
+
   test('long conversation scrolling remains virtualized', async ({ page }) => {
     await waitForFixture(page, 250, 30)
     const scrollArea = page.locator('.workflow-main-scroll-area')
@@ -185,6 +390,129 @@ test.describe('desktop UX performance', () => {
       })
     }
   })
+
+  test('editor file tree toggle commits width once and FLIPs', async ({
+    page,
+  }) => {
+    await waitForFixture(page, 250, 30)
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightPanel = page.getByRole('complementary', {
+      name: '右侧面板',
+    })
+    await rightPanel.getByRole('button', { name: '文件 Ctrl+P' }).click()
+    await rightPanel.getByText('README.md', { exact: true }).click()
+    const showTree = rightPanel.getByRole('button', { name: '显示文件树' })
+    await expect(showTree).toBeVisible()
+    await showTree.click()
+    const hideTree = rightPanel.getByRole('button', { name: '隐藏文件树' })
+    await expect(hideTree).toBeVisible()
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await settlePage(page)
+      await startInteractionProbe(page)
+      await hideTree.click()
+      await showTree.waitFor()
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'editor-file-tree-toggle', sample, {
+        ...interaction,
+      })
+      await showTree.click()
+      await hideTree.waitFor()
+    }
+  })
+
+  test('nested process list scrolling keeps edge fades frame-cheap', async ({
+    page,
+  }) => {
+    // 这里只测嵌套 scroller；使用小型外层会话避免虚拟列表把目标 turn
+    // 卸载后将外层 timeline 成本混入样本。
+    await waitForFixture(page, 10, 30, { nestedScroll: true })
+    const activitySummary = page.locator(
+      '.canonical-turn-activity__summary',
+    ).last()
+    await expect(activitySummary).toBeVisible()
+    if (await activitySummary.getAttribute('aria-expanded') === 'false') {
+      await activitySummary.click()
+    }
+    const processSummary = page.locator(
+      '.canonical-process-group__summary',
+    )
+    await expect(processSummary.first()).toBeVisible()
+    await processSummary.first().click()
+    const processItems = page.locator('.canonical-process-group__items')
+    await expect(processItems.first()).toBeVisible()
+    await expect(
+      processItems
+        .first()
+        .locator('.canonical-process-group__items-content > *'),
+    ).toHaveCount(12)
+    const edgeFrame = page.locator('.canonical-process-edge-fade').first()
+    await expect(edgeFrame).toHaveAttribute('data-scrollable', 'true')
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await startInteractionProbe(page)
+      await scrollNestedTimeline(processItems.first())
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'nested-scroll-edge-fade', sample, {
+        ...interaction,
+      })
+    }
+  })
+
+  test('skeleton shimmer stays on the compositor path', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await waitForFixture(page, 10, 30)
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-reduce-motion',
+      'off',
+    )
+    await page.evaluate(() => {
+      const block = document.createElement('div')
+      block.className = 'ui-skeleton-block'
+      block.style.cssText = 'position: fixed; inset: 0;'
+      document.body.appendChild(block)
+    })
+    const shimmer = await page.evaluate(() => {
+      const block = document.querySelector<HTMLElement>('.ui-skeleton-block')
+      if (!block) throw new Error('Skeleton performance fixture was not mounted')
+      const style = getComputedStyle(block, '::after')
+      return {
+        animationDuration: style.animationDuration,
+        animationName: style.animationName,
+        loadingToken: getComputedStyle(block)
+          .getPropertyValue('--motion-loading')
+          .trim(),
+      }
+    })
+    expect(shimmer).toEqual({
+      animationDuration: '0.9s',
+      animationName: 'ui-skeleton-sweep',
+      loadingToken: '900ms',
+    })
+
+    for (let sample = 1; sample <= 3; sample += 1) {
+      await startInteractionProbe(page)
+      await page.evaluate(
+        () =>
+          new Promise<void>(resolve => {
+            let frames = 0
+            const tick = (): void => {
+              if (frames >= 48) {
+                resolve()
+              } else {
+                frames += 1
+                requestAnimationFrame(tick)
+              }
+            }
+            requestAnimationFrame(tick)
+          }),
+      )
+      const interaction = await stopInteractionProbe(page)
+      await recordRendererSample(page, 'skeleton-shimmer', sample, {
+        ...interaction,
+      })
+    }
+  })
 })
 
 async function measureComposerInput(
@@ -305,6 +633,109 @@ async function performSidebarDrag(
   if (release) await page.mouse.up()
 }
 
+async function performPanelDrag(
+  page: import('@playwright/test').Page,
+  handle: import('@playwright/test').Locator,
+  deltaX: number,
+  deltaY: number,
+  steps: number,
+  release: boolean,
+): Promise<void> {
+  const box = await handle.boundingBox()
+  if (!box) throw new Error('Workbench resize handle has no bounds')
+  const startX = box.x + box.width / 2
+  const startY = box.y + box.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  for (let step = 1; step <= steps; step += 1) {
+    await page.mouse.move(
+      startX + (deltaX * step) / steps,
+      startY + (deltaY * step) / steps,
+    )
+  }
+  await page.evaluate(
+    () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+  )
+  if (release) await page.mouse.up()
+}
+
+async function readRightPanelGeometry(
+  panel: import('@playwright/test').Locator,
+  main: import('@playwright/test').Locator,
+): Promise<{ mainSize: number; panelSize: number; panelBoundaryGap: number }> {
+  const [panelBox, mainBox] = await Promise.all([
+    panel.boundingBox(),
+    main.boundingBox(),
+  ])
+  if (!panelBox || !mainBox) {
+    throw new Error('Workbench right panel geometry is unavailable')
+  }
+  return {
+    mainSize: mainBox.width,
+    panelSize: panelBox.width,
+    panelBoundaryGap: Math.abs(mainBox.x + mainBox.width - panelBox.x),
+  }
+}
+
+async function performWindowResize(
+  page: import('@playwright/test').Page,
+  startWidth: number,
+  startHeight: number,
+  deltaWidth: number,
+  deltaHeight: number,
+  steps = 60,
+): Promise<void> {
+  for (let step = 1; step <= steps; step += 1) {
+    const currentWidth = Math.round(startWidth + (deltaWidth * step) / steps)
+    const currentHeight = Math.round(startHeight + (deltaHeight * step) / steps)
+    await page.setViewportSize({ width: currentWidth, height: currentHeight })
+  }
+}
+
+async function readPanelGeometry(
+  panel: import('@playwright/test').Locator,
+  spacer: import('@playwright/test').Locator,
+  main: import('@playwright/test').Locator,
+  axis: 'width' | 'height' = 'width',
+): Promise<{ mainSize: number; panelSize: number; spacerSize: number }> {
+  const [panelBox, spacerBox, mainBox] = await Promise.all([
+    panel.boundingBox(),
+    spacer.boundingBox(),
+    main.boundingBox(),
+  ])
+  if (!panelBox || !spacerBox || !mainBox) {
+    throw new Error('Workbench panel geometry is unavailable')
+  }
+  return {
+    mainSize: mainBox[axis],
+    panelSize: panelBox[axis],
+    spacerSize: spacerBox[axis],
+  }
+}
+
+async function resetWorkbenchWriteCount(
+  page: import('@playwright/test').Page,
+): Promise<void> {
+  await page.evaluate(() => {
+    ;(window as typeof window & {
+      __workbenchSizeWrites?: Record<string, number>
+    }).__workbenchSizeWrites = {}
+  })
+}
+
+async function readWorkbenchWriteCount(
+  page: import('@playwright/test').Page,
+  key: string,
+): Promise<number> {
+  return page.evaluate(
+    storageKey =>
+      (window as typeof window & {
+        __workbenchSizeWrites?: Record<string, number>
+      }).__workbenchSizeWrites?.[storageKey] ?? 0,
+    key,
+  )
+}
+
 async function scrollTimeline(
   scrollArea: import('@playwright/test').Locator,
 ): Promise<void> {
@@ -312,6 +743,23 @@ async function scrollTimeline(
     for (let step = 0; step < 100; step += 1) {
       element.scrollTop =
         (step / 99) * Math.max(0, element.scrollHeight - element.clientHeight)
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    }
+  })
+}
+
+async function scrollNestedTimeline(
+  scrollArea: import('@playwright/test').Locator,
+): Promise<void> {
+  await scrollArea.evaluate(async element => {
+    const maxScroll = Math.max(
+      0,
+      element.scrollHeight - element.clientHeight,
+    )
+    for (let step = 0; step < 100; step += 1) {
+      // 顶部 → 底部 → 顶部，完整覆盖两个边缘的渐隐状态切换。
+      const progress = step < 50 ? step / 49 : 2 - step / 49
+      element.scrollTop = progress * maxScroll
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
     }
   })

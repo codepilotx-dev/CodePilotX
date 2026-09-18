@@ -46,6 +46,7 @@ const project: Project = {
   settings: {
     defaultModel: null,
     instructions: '',
+    executionEnvironment: 'auto' as const,
     version: 1,
   },
 }
@@ -143,14 +144,44 @@ describe('desktop history client', () => {
 
     const loaded = await client.getThemeSettings()
     expect(loaded).toMatchObject({
-      version: 6,
+      version: 7,
       mode: 'system',
       codeThemeIds: { light: 'codex-light', dark: 'codex-dark' },
     })
     expect(loaded.chromeThemes.light).not.toHaveProperty('opaqueWindows')
 
     await client.saveThemeSettings({ ...loaded, mode: 'light' })
-    expect(stored).toMatchObject({ version: 6, mode: 'light' })
+    expect(stored).toMatchObject({ version: 7, mode: 'light' })
+  })
+
+  test('never batch-writes over a newer Agent appearance generation', async () => {
+    const rpcMethods: string[] = []
+    const futureAppearance = {
+      version: 8,
+      mode: 'dark',
+      futureField: 'must-survive',
+    }
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      rpcMethods.push(body?.method)
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'config/read') {
+        return rpc(body.id, {
+          config: { desktop: { appearance: futureAppearance } },
+          layers: [{ kind: 'user', version: 'future-config' }],
+        })
+      }
+      throw new Error(`Unexpected RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+    await client.getRuntimeCapabilities()
+    const fallback = await client.getThemeSettings()
+
+    await client.saveThemeSettings({ ...fallback, mode: 'light' })
+
+    expect(rpcMethods.filter(method => method === 'config/read')).toHaveLength(2)
+    expect(rpcMethods).not.toContain('config/batchWrite')
   })
 
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {
@@ -237,7 +268,7 @@ describe('desktop history client', () => {
           threadId: 'session-1',
           inputId: expect.any(String),
           content: '继续推进',
-          model: { providerID: 'openai', id: 'gpt-5' },
+          model: { providerID: 'anthropic', id: 'claude-opus-4-1' },
           permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
           taskMode: 'chat',
         })
@@ -265,6 +296,15 @@ describe('desktop history client', () => {
           operationId: expect.any(String),
         })
         currentItem = { ...currentItem, unreadAt: null }
+        return rpc(body.id, { thread: currentItem })
+      }
+      if (rpcMethod === 'thread/mark-unread') {
+        expect(params).toEqual({
+          threadId: 'session-1',
+          unreadAt: now + 600,
+          operationId: expect.any(String),
+        })
+        currentItem = { ...currentItem, unreadAt: now + 600 }
         return rpc(body.id, { thread: currentItem })
       }
       if (rpcMethod === 'thread/title/regenerate') {
@@ -304,6 +344,12 @@ describe('desktop history client', () => {
     currentItem = { ...currentItem, unreadAt: now + 500 }
     expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
 
+    const unread = await client.markSessionUnread(
+      'session-1',
+      new Date(now + 600).toISOString(),
+    )
+    expect(unread.unreadAt).toBe(new Date(now + 600).toISOString())
+
     const created = await client.createSession({
       workspacePath: projectRootPath,
       sessionName: '新会话',
@@ -315,10 +361,16 @@ describe('desktop history client', () => {
     snapshot.item.customTitle = '旧手工标题'
     snapshot.item.aiTitle = '旧 AI 标题'
 
+    // The next turn must use the new selection, not the OpenAI model in history.
     await client.sendUserMessage('session-1', { text: '继续推进' }, {
-      providerID: 'openai',
-      model: 'gpt-5',
+      providerID: 'anthropic',
+      model: 'claude-opus-4-1',
     })
+    expect(
+      requests.some(request =>
+        (request.body as { method?: string } | null)?.method === 'model/list',
+      ),
+    ).toBe(false)
 
     let renamedStoreItem:
       | Awaited<ReturnType<typeof client.getSession>>['item']
@@ -449,6 +501,134 @@ describe('desktop history client', () => {
     expect(respondRequests).toHaveLength(0)
   })
 
+  test('responds to a projected question by its interaction id', async () => {
+    const respondRequests: Array<Record<string, unknown>> = []
+    const pendingInteraction = {
+      kind: 'question' as const,
+      interactionId: 'question-request-1',
+      threadId: 'session-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      createdAt: now,
+      version: 1,
+      questions: [{
+        id: 'filter_mode',
+        header: '筛选模式',
+        prompt: '状态筛选使用单选还是多选？',
+        choices: [
+          { id: 'single', label: '单选', description: '一次选择一个状态', recommended: true },
+          { id: 'multiple', label: '多选', description: '可选择多个状态', recommended: false },
+        ],
+        allowFreeform: true,
+        required: true,
+      }],
+    }
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'interaction/listPending') {
+          return rpc(body.id, { interactions: [pendingInteraction], nextCursor: null })
+        }
+        if (body?.method === 'interaction/respond') {
+          respondRequests.push(body.params)
+          return rpc(body.id, {
+            interactionId: pendingInteraction.interactionId,
+            kind: 'question',
+            state: 'resolved',
+            version: 2,
+            resolvedAt: now + 100,
+            response: body.params.response,
+          })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.respondToPermission(
+      'session-1',
+      'question:question-request-1',
+      { behavior: 'allow', updatedInput: { answer: '单选' } },
+    )
+
+    expect(respondRequests).toEqual([expect.objectContaining({
+      interactionId: 'question-request-1',
+      expectedVersion: 1,
+      response: {
+        kind: 'question',
+        status: 'answered',
+        resolution: 'user',
+        answers: [{ questionId: 'filter_mode', choiceIds: ['single'] }],
+      },
+    })])
+  })
+
+  test('responds to hook trust through the typed hookTrust decision', async () => {
+    const responses: Array<Record<string, unknown>> = []
+    const pendingInteraction = {
+      kind: 'hookTrust',
+      interactionId: 'hook-trust-1',
+      threadId: 'session-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      createdAt: now,
+      version: 3,
+      configPath: '.codepilotx/hooks.json',
+      sha256: 'fixture-sha256',
+      hook: {
+        id: 'hook-1',
+        name: 'Pre tool hook',
+        event: 'pre-tool',
+        command: 'fixture-command',
+      },
+    }
+    const client = createDesktopClient({
+      fetch: async (path, init) => {
+        if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'interaction/listPending') {
+          return rpc(body.id, {
+            interactions: [pendingInteraction],
+            nextCursor: null,
+          })
+        }
+        if (body?.method === 'interaction/respond') {
+          responses.push(body.params)
+          return rpc(body.id, {
+            interactionId: pendingInteraction.interactionId,
+            kind: 'hookTrust',
+            state: 'resolved',
+            version: 4,
+            resolvedAt: now + 1,
+            response: body.params.response,
+          })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.respondToPermission('session-1', 'hook-trust-1', {
+      behavior: 'allow',
+    })
+    await client.respondToPermission('session-1', 'hook-trust-1', {
+      behavior: 'deny',
+    })
+
+    expect(responses.map(response => response.response)).toEqual([
+      { kind: 'hookTrust', decision: 'allow' },
+      { kind: 'hookTrust', decision: 'block' },
+    ])
+    expect(responses[0]).toMatchObject({
+      interactionId: 'hook-trust-1',
+      expectedVersion: 3,
+      operationId: expect.any(String),
+    })
+  })
+
   test('falls back to browser mock when agent is unavailable', async () => {
     const client = createDesktopClient({
       fetch: async () => new Response('nope', { status: 503 }),
@@ -458,6 +638,10 @@ describe('desktop history client', () => {
 
     expect(created.sessionId).toStartWith('browser-mock-')
     expect(created.standalone).toBe(true)
+    await expect(client.listPendingAgentInteractions({
+      threadId: created.sessionId,
+      limit: 500,
+    })).resolves.toEqual({ interactions: [], nextCursor: null })
   })
 
   test('restores authoritative unread state when mark-read fails', async () => {
@@ -492,6 +676,47 @@ describe('desktop history client', () => {
     expect((await client.listSessions())[0]?.item.unreadAt).toBe(
       new Date(now + 500).toISOString(),
     )
+  })
+
+  test('restores authoritative read state when mark-unread fails', async () => {
+    const readItem = sessionItem({ unreadAt: null })
+    let optimisticUnreadAt: string | null | undefined
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') {
+          return rpc(body.id, initializedResult())
+        }
+        if (body?.method === 'initialized') {
+          return new Response(null, { status: 204 })
+        }
+        if (body?.method === 'project/list') {
+          return rpc(body.id, { projects: [project], nextCursor: null })
+        }
+        if (body?.method === 'thread/list') {
+          return rpc(body.id, { threads: [readItem], nextCursor: null })
+        }
+        if (body?.method === 'thread/mark-unread') {
+          return new Response('mark unread failed', { status: 500 })
+        }
+        throw new Error(`Unhandled RPC method: ${body?.method}`)
+      },
+    })
+
+    await client.listSessions()
+    const unsubscribe = client.onSessionStoreChange(change => {
+      const unreadAt = change.sessions.find(
+        session => session.item.id === 'session-1',
+      )?.item.unreadAt
+      if (unreadAt) optimisticUnreadAt ??= unreadAt
+    })
+    await expect(client.markSessionUnread(
+      'session-1',
+      new Date(now + 600).toISOString(),
+    )).rejects.toThrow()
+    unsubscribe()
+    expect(optimisticUnreadAt).toBe(new Date(now + 600).toISOString())
+    expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
   })
 
   test('selects a workspace through preload, trusts imported folders and persists desktop settings', async () => {

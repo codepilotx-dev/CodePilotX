@@ -1,13 +1,19 @@
 import { describe, expect, test } from 'bun:test'
 import type {
   DesktopGitStatus,
+  DesktopGitStatusResult,
   DesktopWorkspace,
 } from '../shared/types.js'
-import type { DesktopReviewAgentSummary } from '../src/services/desktop-client/types.js'
+import type {
+  DesktopReviewAgentSummary,
+  DesktopReviewAgentSummaryResult,
+} from '../src/services/desktop-client/types.js'
 import {
   createWorkspaceRefreshCoordinator,
   mergeWorkspaceGitProjection,
   mergeWorkspaceReviewFileStats,
+  resolveWorkspaceGitProjection,
+  type WorkspaceGitProjectionLoaders,
   workspaceIdentity,
 } from '../src/features/workspace/useWorkspaceState.js'
 
@@ -134,6 +140,139 @@ describe('workspace refresh coordination', () => {
     expect(projected.isGitRepo).toBe(false)
   })
 
+  test('non-Git REPOSITORY_NOT_FOUND skips branches and both Review loaders', async () => {
+    const calls = { gitStatus: 0, branches: 0, unstaged: 0, staged: 0 }
+    const result = await resolveWorkspaceGitProjection(
+      workspace({ branchName: 'stale', branches: ['stale'], isGitRepo: true }),
+      {
+        loadGitStatus: async () => {
+          calls.gitStatus += 1
+          return { ok: false, error: 'REPOSITORY_NOT_FOUND' }
+        },
+        loadBranches: async () => {
+          calls.branches += 1
+          return [{ name: 'dev', remote: false }]
+        },
+        loadReviewSummary: async source => {
+          calls[source.kind === 'staged' ? 'staged' : 'unstaged'] += 1
+          return reviewAgentSummaryResult(source.kind, [])
+        },
+      },
+    )
+
+    expect(calls.gitStatus).toBe(1)
+    expect(calls.branches).toBe(0)
+    expect(calls.unstaged).toBe(0)
+    expect(calls.staged).toBe(0)
+    expect(result.gitStatus).toBeNull()
+    expect(result.workspace).toMatchObject({
+      branchName: null,
+      branches: [],
+      isGitRepo: false,
+    })
+  })
+
+  test('non-Git git status rejection skips branches and both Review loaders', async () => {
+    const calls = { gitStatus: 0, branches: 0, unstaged: 0, staged: 0 }
+    const result = await resolveWorkspaceGitProjection(workspace(), {
+      loadGitStatus: async () => {
+        calls.gitStatus += 1
+        throw new Error('REPOSITORY_NOT_FOUND')
+      },
+      loadBranches: async () => {
+        calls.branches += 1
+        return []
+      },
+      loadReviewSummary: async source => {
+        calls[source.kind === 'staged' ? 'staged' : 'unstaged'] += 1
+        return reviewAgentSummaryResult(source.kind, [])
+      },
+    })
+
+    expect(calls.gitStatus).toBe(1)
+    expect(calls.branches).toBe(0)
+    expect(calls.unstaged).toBe(0)
+    expect(calls.staged).toBe(0)
+    expect(result.gitStatus).toBeNull()
+    expect(result.workspace).toMatchObject({ isGitRepo: false, branches: [] })
+  })
+
+  test('Git repository loads branches and both Review summaries with merged stats', async () => {
+    const calls = { gitStatus: 0, branches: 0, unstaged: 0, staged: 0 }
+    const result = await resolveWorkspaceGitProjection(workspace(), {
+      loadGitStatus: async () => {
+        calls.gitStatus += 1
+        return { ok: true, status: gitStatus('dev', [gitFile('src/main.ts')]) }
+      },
+      loadBranches: async () => {
+        calls.branches += 1
+        return [
+          { name: 'feature/local', remote: false },
+          { name: 'origin/dev', remote: true },
+        ]
+      },
+      loadReviewSummary: async source => {
+        if (source.kind === 'staged') {
+          calls.staged += 1
+          return reviewAgentSummaryResult('staged', [
+            reviewFile('src/main.ts', 3, 1),
+          ])
+        }
+        calls.unstaged += 1
+        return reviewAgentSummaryResult('unstaged', [
+          reviewFile('src/main.ts', 4, 2),
+        ])
+      },
+    })
+
+    expect(calls.gitStatus).toBe(1)
+    expect(calls.branches).toBe(1)
+    expect(calls.unstaged).toBe(1)
+    expect(calls.staged).toBe(1)
+    expect(result.workspace).toMatchObject({
+      branchName: 'dev',
+      branches: ['dev', 'feature/local'],
+      isGitRepo: true,
+    })
+    expect(result.gitStatus?.files[0]).toMatchObject({
+      additions: 7,
+      deletions: 3,
+    })
+  })
+
+  test('Git repository keeps git status without partial stats when a Review summary fails', async () => {
+    const calls = { gitStatus: 0, branches: 0, unstaged: 0, staged: 0 }
+    const status = gitStatus('dev', [gitFile('src/main.ts')])
+    const result = await resolveWorkspaceGitProjection(workspace(), {
+      loadGitStatus: async () => {
+        calls.gitStatus += 1
+        return { ok: true, status }
+      },
+      loadBranches: async () => {
+        calls.branches += 1
+        return []
+      },
+      loadReviewSummary: async source => {
+        if (source.kind === 'staged') {
+          calls.staged += 1
+          throw new Error('REPOSITORY_NOT_FOUND')
+        }
+        calls.unstaged += 1
+        return reviewAgentSummaryResult('unstaged', [
+          reviewFile('src/main.ts', 4, 2),
+        ])
+      },
+    })
+
+    expect(calls.unstaged).toBe(1)
+    expect(calls.staged).toBe(1)
+    expect(result.gitStatus).toBe(status)
+    expect(result.gitStatus?.files[0]).toMatchObject({
+      additions: null,
+      deletions: null,
+    })
+  })
+
   test('merges staged and unstaged review stats by normalized path', () => {
     const status = gitStatus('dev', [
       gitFile('SRC\\Main.ts'),
@@ -207,6 +346,32 @@ function reviewSummary(
   files: DesktopReviewAgentSummary['files'],
 ): Pick<DesktopReviewAgentSummary, 'files'> {
   return { files }
+}
+
+function reviewAgentSummaryResult(
+  source: 'unstaged' | 'staged',
+  files: DesktopReviewAgentSummary['files'],
+): DesktopReviewAgentSummaryResult {
+  return {
+    snapshot: {
+      projectId: 'project-a',
+      generation: `generation:${source}`,
+      source: { kind: source },
+      repositoryRoot: 'C:\\Code\\Project',
+      headSha: null,
+      baseSha: null,
+      files,
+      totals: {
+        files: files.length,
+        additions: 0,
+        deletions: 0,
+        changedLines: 0,
+        changedBytes: 0,
+      },
+      largeDiffMode: false,
+    },
+    cacheState: 'fresh',
+  }
 }
 
 function reviewFile(

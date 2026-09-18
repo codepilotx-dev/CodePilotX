@@ -1,19 +1,15 @@
+import { WorktreeStatusSchema } from "@codepilotx/shared/thread"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+import {
+  NonEmptyStringSchema,
+  OpaqueIDSchema,
+  SequenceSchema,
+  TimestampSchema,
+} from "../wire/primitives"
 const RevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 
-export const WorktreeStatusSchema = Schema.Literals([
-  "creating",
-  "ready",
-  "ready-with-setup-error",
-  "deleting",
-  "cleaned",
-  "restoring",
-  "restore-conflict",
-])
+export { WorktreeStatusSchema }
 
 export const WorktreeOperationStatusSchema = Schema.Literals(["pending", "running", "completed", "failed"])
 
@@ -79,6 +75,19 @@ const WorktreeErrors = [
 const WorktreeResultSchema = Schema.Struct({ worktree: ManagedWorktreeSchema, operation: WorktreeOperationSchema })
 
 export const WorktreeRpcMethods = {
+  "worktree/eligibility": defineMethod({
+    params: Schema.Struct({ projectId: OpaqueIDSchema }),
+    result: Schema.Struct({
+      isGitRepository: Schema.Boolean,
+      availableModes: Schema.Array(Schema.Literals(["local", "worktree"])),
+      defaultMode: Schema.Literals(["local", "worktree"]),
+    }),
+    errors: WorktreeErrors,
+    capability: "thread.execution.v2",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
   "worktree/create": defineMethod({
     params: Schema.Struct({
       projectId: OpaqueIDSchema,

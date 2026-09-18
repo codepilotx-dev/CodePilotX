@@ -114,8 +114,10 @@ export const reviewAgentClient = {
     workspacePath: string,
     source: DesktopReviewSource,
     refresh = false,
+    projectId?: string,
   ): Promise<ReviewSummaryResult> {
     return desktopClient.getAgentReviewSummary({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       refresh,
@@ -128,8 +130,10 @@ export const reviewAgentClient = {
     generation: string,
     path: string,
     hideWhitespace: boolean,
+    projectId?: string,
   ): Promise<ReviewFileDiff> {
     return desktopClient.getAgentReviewFileDiff({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       generation,
@@ -149,8 +153,10 @@ export const reviewAgentClient = {
         | { kind: 'file'; path: string }
         | { kind: 'hunk'; path: string; hunkId: string }
     },
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.applyAgentReviewOperation({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source: input.source,
       generation: input.generation,
@@ -166,8 +172,10 @@ export const reviewAgentClient = {
     generation: string,
     paths: readonly string[],
     hideWhitespace: boolean,
+    projectId?: string,
   ): Promise<ReviewFileDiffsResult> {
     const result = await desktopClient.getAgentReviewFileDiffs({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       generation,
@@ -197,8 +205,10 @@ export const reviewAgentClient = {
         ...Array<{ path: string; expectedRevision: string }>,
       ]
     },
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.applyAgentReviewBatch({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source: input.source,
       generation: input.generation,
@@ -207,21 +217,23 @@ export const reviewAgentClient = {
     })
   },
 
-  async branches(workspacePath: string): Promise<ReviewBranch[]> {
-    return desktopClient.getAgentReviewBranches(workspacePath)
+  async branches(workspacePath: string, projectId?: string): Promise<ReviewBranch[]> {
+    return desktopClient.getAgentReviewBranches(workspacePath, projectId)
   },
 
-  async commits(workspacePath: string): Promise<ReviewCommit[]> {
-    return desktopClient.getAgentReviewCommits(workspacePath)
+  async commits(workspacePath: string, projectId?: string): Promise<ReviewCommit[]> {
+    return desktopClient.getAgentReviewCommits(workspacePath, projectId)
   },
 
   async listComments(
     workspacePath: string,
     threadId: string,
     source: DesktopReviewSource,
+    projectId?: string,
   ): Promise<DesktopReviewComment[]> {
     const sourceKey = reviewSourceKey(source)
     const comments = await desktopClient.listAgentReviewComments({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       threadId,
       sourceKey,
@@ -241,8 +253,10 @@ export const reviewAgentClient = {
       body: string
       hunkId?: string | null
     },
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     const comment = await desktopClient.saveAgentReviewComment({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         threadId,
         sourceKey: reviewSourceKey(source),
@@ -260,9 +274,11 @@ export const reviewAgentClient = {
     workspacePath: string,
     threadId: string,
     id: string,
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     return toDesktopComment(
       await desktopClient.resolveAgentReviewComment({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         threadId,
         id,
@@ -274,8 +290,10 @@ export const reviewAgentClient = {
     workspacePath: string,
     threadId: string,
     id: string,
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.deleteAgentReviewComment({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       threadId,
       id,
@@ -309,12 +327,14 @@ export const reviewAgentClient = {
     source: Extract<DesktopReviewSource, { kind: 'pull-request' }>,
     comment: DesktopReviewComment,
     github: { id: number },
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     if (!comment.revision) {
       throw new Error('本地评论缺少 revision，无法建立 GitHub 映射')
     }
     return toDesktopComment(
       await desktopClient.saveAgentReviewComment({
+        ...(projectId ? { projectId } : {}),
         id: comment.id,
         workspacePath,
         threadId: comment.sessionId,

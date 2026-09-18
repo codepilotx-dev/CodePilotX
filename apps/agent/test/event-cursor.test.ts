@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { deliverAnchoredLive, resolveEventCursor } from "../src/transport/server"
+import { deliverAnchoredLive, deliverDurablePage, eventDeliveryAllowed, resolveEventCursor } from "../src/transport/server"
+import type { ProtocolCapability } from "@codepilotx/agent-protocol"
+import type { EventEnvelope } from "../src/domain"
 
 describe("Agent SSE event cursor", () => {
   test("fresh subscriptions start after existing events", () => {
@@ -41,5 +43,58 @@ describe("Agent SSE event cursor", () => {
 
     expect(delivered).toBe(false)
     expect(order).toEqual([])
+  })
+
+  test("eventDeliveryAllowed blocks durable event without required capability, permits thread/updated with events.replay.v1", () => {
+    const taskboardEvent = {
+      id: 1, afterSequence: 2, threadId: null as string | null, turnId: null as string | null,
+      method: "session-group/changed",
+      params: { groupId: "g1", reason: "created" as const, revision: 1, changedAt: 1 },
+      createdAt: Date.now(),
+    } as EventEnvelope
+    const threadEvent = {
+      id: 2, afterSequence: 3, threadId: null as string | null, turnId: null as string | null,
+      method: "thread/updated",
+      params: { thread: { id: "t1", title: "t", projectId: null, createdAt: 1, updatedAt: 1, deletedAt: null, unreadAt: null, readThroughAt: null }, version: 1 },
+      createdAt: Date.now(),
+    } as EventEnvelope
+    const withTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1", "session-group.v1"]) }
+    expect(eventDeliveryAllowed(taskboardEvent, withTaskboard)).toBe(true)
+    const withoutTaskboard = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
+    expect(eventDeliveryAllowed(taskboardEvent, withoutTaskboard)).toBe(false)
+    expect(eventDeliveryAllowed(threadEvent, withoutTaskboard)).toBe(true)
+  })
+
+  test("capability gate blocks delivery but cursor still advances past filtered events", async () => {
+    const taskboardEvent = {
+      id: 1, afterSequence: 2, threadId: "t1" as string | null, turnId: null as string | null,
+      method: "session-group/changed",
+      params: { groupId: "g1", reason: "created" as const, revision: 1, changedAt: 1 },
+      createdAt: Date.now(),
+    } as EventEnvelope
+    const threadEvent = {
+      id: 2, afterSequence: 3, threadId: "t1" as string | null, turnId: null as string | null,
+      method: "thread/updated",
+      params: { thread: { id: "t1", title: "t", projectId: null, createdAt: 1, updatedAt: 1, deletedAt: null, unreadAt: null, readThroughAt: null }, version: 1 },
+      createdAt: Date.now(),
+    } as EventEnvelope
+    const events = [taskboardEvent, threadEvent]
+    const cursors: number[] = []
+    const delivered: string[] = []
+    const subscription = { capabilities: new Set<ProtocolCapability>(["rpc.typed.v1", "events.replay.v1"]) }
+    const result = await deliverDurablePage({
+      events,
+      target: 2,
+      subscription,
+      updateCursor: (cursor) => { cursors.push(cursor) },
+      deliver: (event) => {
+        delivered.push(event.method)
+        return true
+      },
+    })
+
+    expect(cursors).toEqual([1, 2])
+    expect(delivered).toEqual(["thread/updated"])
+    expect(result).toEqual({ lastCursor: 2, delivered: 1 })
   })
 })

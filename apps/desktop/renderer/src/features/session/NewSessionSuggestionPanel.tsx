@@ -1,3 +1,4 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type React from "react";
 import {
   ArrowLeft,
@@ -57,7 +58,7 @@ export function NewSessionSuggestions({
         className="new-session-suggestions is-root"
       >
         <div className="new-session-suggestion-grid">
-          {suggestions.map((suggestion, index) => {
+          {suggestions.slice(0, 4).map((suggestion, index) => {
             const category = findNewSessionSuggestionCategory(
               suggestion.categoryId,
             );
@@ -76,7 +77,7 @@ export function NewSessionSuggestions({
                 onClick={() => onSelectSuggestion(suggestion)}
               >
                 <span className="new-session-suggestion-icon">
-                  <Icon aria-hidden size={16} />
+                  <Icon aria-hidden size={APP_ICON_SIZE} />
                 </span>
                 <span className="new-session-suggestion-label">
                   {suggestion.label}
@@ -98,7 +99,7 @@ export function NewSessionSuggestions({
         <div className="new-session-suggestion-list-heading">
           <span>任务模板</span>
           <button type="button" onClick={onShowSuggestions}>
-            <ArrowLeft aria-hidden size={14} />
+            <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
             返回建议
           </button>
         </div>
@@ -119,7 +120,7 @@ export function NewSessionSuggestions({
                 onClick={() => onSelectCategory(category)}
               >
                 <span className="new-session-suggestion-icon">
-                  <Icon aria-hidden size={16} />
+                  <Icon aria-hidden size={APP_ICON_SIZE} />
                 </span>
                 <span className="new-session-suggestion-label">
                   {category.label}
@@ -142,11 +143,11 @@ export function NewSessionSuggestions({
     >
       <div className="new-session-suggestion-list-heading">
         <span>
-          <Icon aria-hidden size={16} />
+          <Icon aria-hidden size={APP_ICON_SIZE} />
           {category.label}
         </span>
         <button type="button" onClick={() => onShowAll(category)}>
-          <ArrowLeft aria-hidden size={14} />
+          <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
           显示全部
         </button>
       </div>

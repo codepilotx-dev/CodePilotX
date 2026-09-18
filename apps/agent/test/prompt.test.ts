@@ -78,6 +78,71 @@ describe("Skills catalog", () => {
     expect(service.resolveInvocation("please deploy")).toBeNull()
   })
 
+  test("内置 Skill 使用稳定身份，且优先级低于工作区和用户 Skill", async () => {
+    const workspace = await temporaryDirectory()
+    const user = await temporaryDirectory()
+    const builtin = await temporaryDirectory()
+    const builtinRoot = join(builtin, "builtin-helper")
+    await mkdir(builtinRoot, { recursive: true })
+    await writeFile(join(builtinRoot, "SKILL.md"), [
+      "---",
+      "name: builtin-helper",
+      "description: builtin planner",
+      "allowed-tools:",
+      "  - request_user_input",
+      "  - taskboard_create",
+      "---",
+      "builtin body",
+    ].join("\n"), "utf8")
+    await writeSkill(user, ".agents", "builtin-helper", "---\nname: builtin-helper\ndescription: user planner\n---\nuser body")
+
+    const userService = new SkillService()
+    const userCatalog = await userService.scan({
+      workspaceRoot: workspace,
+      dataRoot: user,
+      userHome: user,
+      builtinSkillsRoot: builtin,
+    })
+    expect(userCatalog.skills).toMatchObject([{
+      name: "builtin-helper",
+      origin: "user",
+      description: "user planner",
+    }])
+    expect(userCatalog.shadowed).toContainEqual(expect.objectContaining({
+      name: "builtin-helper",
+      ignoredPath: "builtin://builtin-helper/SKILL.md",
+    }))
+
+    await writeSkill(workspace, ".codepilotx", "builtin-helper", "---\nname: builtin-helper\ndescription: workspace planner\n---\nworkspace body")
+    const workspaceService = new SkillService()
+    const workspaceCatalog = await workspaceService.scan({
+      workspaceRoot: workspace,
+      dataRoot: user,
+      userHome: user,
+      builtinSkillsRoot: builtin,
+    })
+    expect(workspaceCatalog.skills[0]).toMatchObject({
+      name: "builtin-helper",
+      origin: "workspace",
+      description: "workspace planner",
+    })
+
+    const builtinOnly = new SkillService()
+    const builtinCatalog = await builtinOnly.scan({
+      workspaceRoot: await temporaryDirectory(),
+      dataRoot: await temporaryDirectory(),
+      userHome: await temporaryDirectory(),
+      builtinSkillsRoot: builtin,
+    })
+    expect(builtinCatalog.skills[0]).toMatchObject({
+      name: "builtin-helper",
+      path: "builtin://builtin-helper/SKILL.md",
+      origin: "builtin",
+      allowedTools: ["request_user_input", "taskboard_create"],
+    })
+    expect((await builtinOnly.read("builtin-helper")).body.trim()).toBe("builtin body")
+  })
+
   test("使用 YAML 解析复杂 frontmatter 并读取 allowedTools ceiling", async () => {
     const workspace = await temporaryDirectory()
     const user = await temporaryDirectory()

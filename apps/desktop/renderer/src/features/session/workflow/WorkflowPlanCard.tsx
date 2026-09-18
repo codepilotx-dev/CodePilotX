@@ -1,33 +1,59 @@
 import React from "react";
 import { Maximize2, PanelRight } from "lucide-react";
+import type { StructuredPlan } from "@codepilotx/shared/thread";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
-import { MarkdownMessage } from "../MarkdownMessage.js";
+import { MarkdownMessage } from "../../markdown/index.js";
 
 export type OpenPlanInDockRequest = {
   eventId: string;
   title: string;
   content: string;
+  /**
+   * 计划是否已生成完成。右栏计划 tab 的内容是打开瞬间的快照，因此流式期间
+   * 打开会冻结半成品；打开入口必须据此拒绝，而不是只隐藏按钮。
+   */
+  openable: boolean;
 };
+
+/**
+ * 构造右栏打开请求。`openable` 只在计划生成完成后为真：右栏 tab 的内容是打开
+ * 瞬间的快照，流式期间打开会冻结半成品。打开入口据此拒绝，而不是只隐藏按钮。
+ */
+export function createPlanDockRequest(input: {
+  eventId: string;
+  title: string;
+  content: string;
+  streaming: boolean;
+}): OpenPlanInDockRequest {
+  return {
+    eventId: input.eventId,
+    title: input.title,
+    content: input.content,
+    openable: !input.streaming,
+  };
+}
 
 export function WorkflowPlanCard({
   eventId,
   summary,
+  structured,
   streaming,
   isDocked,
   onOpenInRightDock,
 }: {
   eventId: string;
   summary: string;
+  structured?: StructuredPlan;
   streaming: boolean;
   isDocked: boolean;
   onOpenInRightDock: (plan: OpenPlanInDockRequest) => void;
 }): React.ReactNode {
-  const title = planTitleFromSummary(summary);
+  const title = structured?.title ?? planTitleFromSummary(summary);
   const presentation = planCardPresentation({ streaming, isDocked });
-  const plan = { eventId, title, content: summary };
+  const plan = createPlanDockRequest({ eventId, title, content: summary, streaming });
 
   if (presentation.compact) {
     return (
@@ -75,9 +101,81 @@ export function WorkflowPlanCard({
       <h2 className="workflow-plan-card__title">{title}</h2>
 
       <div className="workflow-plan-card__body">
-        <MarkdownMessage text={summary} />
+        {structured ? (
+          <StructuredPlanView plan={structured} />
+        ) : (
+          <MarkdownMessage text={summary} />
+        )}
       </div>
     </article>
+  );
+}
+
+/**
+ * 结构化计划的唯一展示实现：按固定语义顺序渲染摘要、按 area 分组的实现项、
+ * 接口变化、测试和假设；空的可选章节不渲染。Markdown 只作为历史与兼容回退。
+ */
+export function StructuredPlanView({
+  plan,
+}: {
+  plan: StructuredPlan;
+}): React.ReactNode {
+  return (
+    <div className="workflow-plan-structured">
+      <p className="workflow-plan-structured__summary">{plan.summary}</p>
+      <StructuredPlanSection title="实现变更">
+        {plan.changes.map((change, index) => (
+          <div
+            className="workflow-plan-structured__change"
+            key={`${change.area}:${index}`}
+          >
+            <h4 className="workflow-plan-structured__area">{change.area}</h4>
+            <ul className="workflow-plan-structured__list">
+              {change.items.map((item, itemIndex) => (
+                <li key={`${item}:${itemIndex}`}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </StructuredPlanSection>
+      <StructuredPlanListSection title="接口变化" items={plan.interfaceChanges} />
+      <StructuredPlanListSection title="测试" items={plan.tests} />
+      <StructuredPlanListSection title="假设" items={plan.assumptions} />
+    </div>
+  );
+}
+
+function StructuredPlanListSection({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly string[];
+}): React.ReactNode {
+  if (items.length === 0) return null;
+  return (
+    <StructuredPlanSection title={title}>
+      <ul className="workflow-plan-structured__list">
+        {items.map((item, index) => (
+          <li key={`${item}:${index}`}>{item}</li>
+        ))}
+      </ul>
+    </StructuredPlanSection>
+  );
+}
+
+function StructuredPlanSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}): React.ReactNode {
+  return (
+    <section className="workflow-plan-structured__section">
+      <h3 className="workflow-plan-structured__heading">{title}</h3>
+      {children}
+    </section>
   );
 }
 

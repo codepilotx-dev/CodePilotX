@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { existsSync, lstatSync, readFileSync } from "node:fs"
+import { existsSync, lstatSync } from "node:fs"
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import { Effect } from "effect"

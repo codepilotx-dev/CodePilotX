@@ -3,6 +3,7 @@ import { watch as watchFileSystem } from "node:fs"
 import { chmod, link, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
+import type { FileAccessProfile } from "../permission/ExecutionPolicy"
 
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", ".next", "out", "coverage"])
 const MAX_FILE_BYTES = 1_000_000
@@ -43,6 +44,11 @@ export interface WorkspaceSearchResult {
   path: string
   line?: number
   preview?: string
+}
+
+export type WorkspaceReadOnlyPath = {
+  path: string
+  kind: "file" | "directory"
 }
 
 export interface WorkspaceFileRevision {
@@ -188,23 +194,65 @@ const unifiedDiff = (path: string, before: string | null, after: string | null, 
 }
 
 /**
+ * Per-thread state shared by every file-access scope of the same workspace.
+ * Scopes must not copy it: mutation queues serialize writers across concurrent
+ * calls, and alias/read-only grants are minted after the service is opened.
+ */
+type WorkspaceSharedState = {
+  editorAliases: Map<string, string>
+  mutationQueues: Map<string, Promise<void>>
+  readOnlyPaths: Map<string, WorkspaceReadOnlyPath>
+}
+
+/**
  * The only file-system boundary available to agents. Every existing path is
  * resolved through realpath before use, which prevents symlinks from escaping
  * the directory selected by the user.
+ *
+ * The default scope stays inside the workspace roots. `full-access` drops that
+ * boundary and is only ever applied to a call-scoped view created by
+ * `withFileAccess`, so one call's privilege never widens another call's.
  */
 export class WorkspaceService {
   readonly rootPath: string
   readonly roots: readonly string[]
   readonly writableRoots: readonly string[]
   readonly workspaceRoots: readonly WorkspaceRoot[]
-  private readonly editorAliases = new Map<string, string>()
-  private readonly mutationQueues = new Map<string, Promise<void>>()
+  /** File-access scope of this instance. It never widens another instance. */
+  readonly fileAccess: FileAccessProfile
+  private readonly shared: WorkspaceSharedState
 
-  private constructor(rootPath: string, workspaceRoots: readonly WorkspaceRoot[]) {
+  private constructor(
+    rootPath: string,
+    workspaceRoots: readonly WorkspaceRoot[],
+    fileAccess: FileAccessProfile = "workspace-write",
+    shared: WorkspaceSharedState = {
+      editorAliases: new Map(),
+      mutationQueues: new Map(),
+      readOnlyPaths: new Map(),
+    },
+  ) {
     this.rootPath = rootPath
     this.workspaceRoots = Object.freeze(workspaceRoots.map((root) => Object.freeze({ ...root })))
     this.roots = Object.freeze(this.workspaceRoots.map((root) => root.path))
     this.writableRoots = Object.freeze(this.workspaceRoots.filter((root) => root.writable !== false).map((root) => root.path))
+    this.fileAccess = fileAccess
+    this.shared = shared
+  }
+
+  /**
+   * Call-scoped view of the same workspace under a different file-access scope.
+   * Roots, grants, aliases and mutation queues are shared by reference, so this
+   * never mutates the instance other calls or subagents are using.
+   */
+  withFileAccess(fileAccess: FileAccessProfile): WorkspaceService {
+    if (fileAccess === this.fileAccess) return this
+    return new WorkspaceService(this.rootPath, this.workspaceRoots, fileAccess, this.shared)
+  }
+
+  /** True only when this scope may reach paths outside the workspace roots. */
+  allowsOutsideWorkspace() {
+    return this.fileAccess === "full-access"
   }
 
   static async open(rootPath: string) {
@@ -253,23 +301,40 @@ export class WorkspaceService {
 
   grantEditorAlias(alias: "@codepilotx/config.json", targetPath: string) {
     if (!isAbsolute(targetPath)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
-    this.editorAliases.set(alias, resolve(targetPath))
+    this.shared.editorAliases.set(alias, resolve(targetPath))
+  }
+
+  grantReadOnlyPaths(paths: readonly WorkspaceReadOnlyPath[]) {
+    for (const entry of paths) {
+      if (!isAbsolute(entry.path)) continue
+      const canonical = resolve(entry.path)
+      this.shared.readOnlyPaths.set(this.mutationKey(canonical), { path: canonical, kind: entry.kind })
+    }
   }
 
   private aliasTarget(path: string) {
-    if (path.startsWith("@") && !this.editorAliases.has(path)) {
+    if (path.startsWith("@") && !this.shared.editorAliases.has(path)) {
       throw new AgentError("WORKSPACE_PATH_DENIED", "未知的 host 编辑器别名", 403)
     }
-    return this.editorAliases.get(path)
+    return this.shared.editorAliases.get(path)
   }
 
   displayPath(path: string) {
-    for (const [alias, target] of this.editorAliases) {
-      if (resolve(path) === target) return alias
+    const canonical = resolve(path)
+    for (const [alias, target] of this.shared.editorAliases) {
+      if (canonical === target) return alias
     }
-    const owner = this.rootForPath(path)
-    if (owner && owner.path !== this.rootPath) return resolve(path)
-    const result = relative(this.rootPath, path)
+    const owner = this.rootForPath(canonical)
+    if (!owner) {
+      // Paths outside every root are only reachable through full access or a
+      // granted local-context path, and both need an unambiguous absolute path.
+      if (this.allowsOutsideWorkspace()) return canonical.replaceAll("\\", "/")
+      if (this.readOnlyPathFor(canonical)) return canonical
+      const outside = relative(this.rootPath, canonical)
+      return outside === "" ? "." : outside.replaceAll("\\", "/")
+    }
+    if (owner.path !== this.rootPath) return canonical
+    const result = relative(this.rootPath, canonical)
     return result === "" ? "." : result.replaceAll("\\", "/")
   }
 
@@ -288,13 +353,32 @@ export class WorkspaceService {
   }
 
   private ensureWithinRoot(path: string) {
-    if (this.containsPath(path)) return
+    if (this.allowsOutsideWorkspace() || this.containsPath(path)) return
     throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区内", 403)
+  }
+
+  private readOnlyPathFor(path: string) {
+    const candidate = resolve(path)
+    return [...this.shared.readOnlyPaths.values()].find((entry) => {
+      if (entry.kind === "file") return this.mutationKey(entry.path) === this.mutationKey(candidate)
+      const child = relative(entry.path, candidate)
+      return child === "" || (!child.startsWith("..") && !isAbsolute(child))
+    })
+  }
+
+  private ensureReadable(path: string) {
+    if (this.allowsOutsideWorkspace() || this.containsPath(path) || this.readOnlyPathFor(path)) return
+    throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
   }
 
   private ensureWritable(path: string) {
     const owner = this.rootForPath(path)
-    if (owner?.writable !== false) return
+    // An explicitly read-only root stays read-only even under full access.
+    if (owner) {
+      if (owner.writable !== false) return
+      throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
+    }
+    if (this.allowsOutsideWorkspace()) return
     throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
   }
 
@@ -305,7 +389,7 @@ export class WorkspaceService {
       throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须位于当前工作区内", 403)
     }
     const requested = isAbsolute(path) ? resolve(path) : resolve(this.rootPath, path)
-    this.ensureWithinRoot(requested)
+    this.ensureReadable(requested)
     return requested
   }
 
@@ -325,8 +409,21 @@ export class WorkspaceService {
     const alias = this.aliasTarget(path)
     if (alias) {
       if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名不能通过符号链接重定向", 403)
-    } else {
-      this.ensureWithinRoot(canonical)
+    } else if (!this.containsPath(canonical) && !this.allowsOutsideWorkspace()) {
+      const grant = this.readOnlyPathFor(requested)
+      if (!grant) throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
+      const currentRoot = await realpath(grant.path).catch(() => {
+        throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "本地上下文路径不存在或不可访问", 404)
+      })
+      if (this.mutationKey(currentRoot) !== this.mutationKey(grant.path)) {
+        throw new AgentError("WORKSPACE_PATH_DENIED", "本地上下文根路径已被重定向", 403)
+      }
+      if (grant.kind === "file") {
+        if (this.mutationKey(canonical) !== this.mutationKey(grant.path)) throw new AgentError("WORKSPACE_PATH_DENIED", "文件引用不能访问其他路径", 403)
+      } else {
+        const child = relative(currentRoot, canonical)
+        if (child !== "" && (child.startsWith("..") || isAbsolute(child))) throw new AgentError("WORKSPACE_PATH_DENIED", "目录引用不能通过链接越界", 403)
+      }
     }
     return canonical
   }
@@ -494,21 +591,21 @@ export class WorkspaceService {
 
   private async withMutationLocks<T>(keys: readonly string[], execute: () => Promise<T>) {
     const ordered = [...new Set(keys)].sort((left, right) => left.localeCompare(right))
-    const predecessors = ordered.map((key) => this.mutationQueues.get(key) ?? Promise.resolve())
+    const predecessors = ordered.map((key) => this.shared.mutationQueues.get(key) ?? Promise.resolve())
     const ready = Promise.all(predecessors.map((predecessor) => predecessor.catch(() => undefined))).then(() => undefined)
     let release!: () => void
     const gate = new Promise<void>((resolveGate) => {
       release = resolveGate
     })
     const tail = ready.then(() => gate)
-    for (const key of ordered) this.mutationQueues.set(key, tail)
+    for (const key of ordered) this.shared.mutationQueues.set(key, tail)
     await ready
     try {
       return await execute()
     } finally {
       release()
       for (const key of ordered) {
-        if (this.mutationQueues.get(key) === tail) this.mutationQueues.delete(key)
+        if (this.shared.mutationQueues.get(key) === tail) this.shared.mutationQueues.delete(key)
       }
     }
   }

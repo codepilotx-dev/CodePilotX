@@ -67,8 +67,41 @@ export class ConfigMigrationRepository {
     }
   }
 
-  mergeDesktopRuntimeState(runtimeState: Record<string, unknown>) {
-    if (Object.keys(runtimeState).length === 0) return
+  recentNewThreadModelMigrated(): boolean {
+    const row = this.sqlite.query(
+      "SELECT value FROM app_settings WHERE key = ?",
+    ).get("config.json.migration.recent_new_thread_model.v1") as { value: string } | null
+    return parseObject(row?.value)?.migrated === true
+  }
+
+  markRecentNewThreadModelMigrated() {
+    this.sqlite.query(
+      "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+    ).run(
+      "config.json.migration.recent_new_thread_model.v1",
+      JSON.stringify({ migrated: true, migratedAt: Date.now() }),
+      Date.now(),
+    )
+  }
+
+  specializedModelReferencesMigrated(): boolean {
+    const row = this.sqlite.query(
+      "SELECT value FROM app_settings WHERE key = ?",
+    ).get("config.json.migration.specialized_model_refs.v1") as { value: string } | null
+    return parseObject(row?.value)?.migrated === true
+  }
+
+  markSpecializedModelReferencesMigrated() {
+    this.sqlite.query(
+      "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+    ).run(
+      "config.json.migration.specialized_model_refs.v1",
+      JSON.stringify({ migrated: true, migratedAt: Date.now() }),
+      Date.now(),
+    )
+  }
+
+  mergeDesktopRuntimeState(runtimeState: Record<string, unknown>) {    if (Object.keys(runtimeState).length === 0) return
     this.sqlite.transaction(() => {
       const existing = parseObject(
         (this.sqlite.query(

@@ -1,8 +1,9 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { Slot, Slottable } from '@radix-ui/react-slot'
-import { ChevronDown, Loader2 } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { Spinner } from './Spinner.js'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   children: React.ReactNode
@@ -38,8 +39,6 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
         ref={ref}
         aria-expanded={active}
         className={[
-          'interactive-row',
-          'interactive-row--composer',
           'chip-button',
           className,
         ].join(' ')}
@@ -47,11 +46,8 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
       >
         <Slottable>{children}</Slottable>
         {loading ? (
-          <Loader2
-            aria-label="加载中"
+          <Spinner
             className="chip-button-spinner composer-model-loading-spinner"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : showChevron ? (
           <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />

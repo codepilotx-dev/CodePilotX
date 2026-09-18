@@ -17,7 +17,10 @@ describe("deriveConversationChangeSummary", () => {
     ]);
 
     expect(deriveConversationChangeSummary(turns, status)).toEqual({
-      changedFileCount: 2,
+      files: [
+        { path: "src/main.ts", additions: 4, deletions: 2 },
+        { path: "src/renamed.ts", additions: 3, deletions: 1 },
+      ],
       additions: 7,
       deletions: 3,
     });
@@ -55,7 +58,7 @@ describe("deriveConversationChangeSummary", () => {
       [historicalTurn],
       gitStatus([gitFile("src/legacy.ts", 2, 1)]),
     )).toEqual({
-      changedFileCount: 1,
+      files: [{ path: "src/legacy.ts", additions: 2, deletions: 1 }],
       additions: 2,
       deletions: 1,
     });
@@ -66,7 +69,7 @@ describe("deriveConversationChangeSummary", () => {
       [turn("turn-1", ["src/main.ts"])],
       gitStatus([gitFile("src/main.ts", null, null)]),
     )).toEqual({
-      changedFileCount: 1,
+      files: [{ path: "src/main.ts", additions: null, deletions: null }],
       additions: null,
       deletions: null,
     });

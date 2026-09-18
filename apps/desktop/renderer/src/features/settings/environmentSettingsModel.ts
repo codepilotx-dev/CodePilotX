@@ -10,6 +10,24 @@ export function sortEnvironmentProjects(
   })
 }
 
+export function filterEnvironmentProjects(
+  projects: readonly DesktopWorkspace[],
+  query: string,
+): DesktopWorkspace[] {
+  const keyword = query.trim().toLocaleLowerCase()
+  if (!keyword) return [...projects]
+  return projects.filter(project =>
+    [
+      project.name,
+      project.path,
+      ...(project.folders ?? []).flatMap(folder => [folder.name, folder.path]),
+    ]
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(keyword),
+  )
+}
+
 export function isProjectSettingsConflict(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const value = error as {

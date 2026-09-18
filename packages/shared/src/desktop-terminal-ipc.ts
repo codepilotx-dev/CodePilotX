@@ -8,6 +8,7 @@ export const DESKTOP_TERMINAL_IPC_CHANNELS = {
   closeThread: "desktop-terminal:close-thread",
   runAction: "desktop-terminal:run-action",
   event: "desktop-terminal:event",
+  ack: "desktop-terminal:ack",
 } as const
 
 export type DesktopTerminalState =
@@ -113,6 +114,18 @@ export interface RunDesktopTerminalActionInput {
   rows: number
 }
 
+/**
+ * 渲染端已消费到的输出位置。`characters` 是该位置的字符数增量（与主进程的
+ * `chunk.data.length` 同单位），用于主进程按窗口暂停/恢复 PTY；它只影响流量
+ * 控制，不参与数据完整性判断。
+ */
+export interface AckDesktopTerminalOutputInput {
+  terminalId: string
+  instanceId: string
+  sequence: number
+  characters: number
+}
+
 export interface DesktopTerminalIpcBridge {
   listTerminalProfiles(): Promise<readonly DesktopTerminalProfile[]>
   ensureTerminal(
@@ -123,6 +136,8 @@ export interface DesktopTerminalIpcBridge {
   ): Promise<DesktopTerminalSnapshot>
   writeTerminal(input: WriteDesktopTerminalInput): void
   resizeTerminal(input: ResizeDesktopTerminalInput): void
+  /** 旧版 Electron 可能没有该方法，渲染端按可选能力使用。 */
+  ackTerminalOutput?(input: AckDesktopTerminalOutputInput): void
   closeTerminal(
     input: CloseDesktopTerminalInput,
   ): Promise<DesktopTerminalSnapshot>

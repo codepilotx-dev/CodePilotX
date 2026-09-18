@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
 import type { Model } from "@codepilotx/model-schema"
+import { decodeEventEnvelope } from "@codepilotx/agent-protocol"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { AgentLogger } from "../src/observability/AgentLogger"
 import type { PiModelService } from "../src/provider/pi/PiModelService"
@@ -16,6 +17,8 @@ import {
 } from "../src/session/ThreadTitleService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { EventHub } from "../src/storage/events/EventHub"
+import { buildEventNextNotification } from "../src/transport/event-envelope"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -39,12 +42,16 @@ const fixture = async () => {
 const config = {
   snapshot: () => ({
     model_provider: "provider:test",
-    task_models: { small_fast: "small", fast: "fast" },
+    model: "fast",
+    desktop: { recent_new_thread_model: { providerID: "provider:test", id: "fast" } },
+    specialized_models: { generation: "provider:test/small" },
   }),
   read: async () => ({
     config: {
       model_provider: "provider:test",
-      task_models: { small_fast: "small", fast: "fast" },
+      model: "fast",
+      desktop: { recent_new_thread_model: { providerID: "provider:test", id: "fast" } },
+      specialized_models: { generation: "provider:test/small" },
     },
   }),
 } as never
@@ -64,7 +71,7 @@ const addUserMessage = (db: AgentDatabase, threadID: string, content: string) =>
 }
 
 describe("ThreadTitleService", () => {
-  test("uses the auxiliary-model fallback chain and persists a normalized 20-character title", async () => {
+  test("uses the generation-model fallback chain and persists a normalized 20-character title", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     addUserMessage(db, thread.id, "# 修复设置页下拉框文字消失并统一选项布局")
@@ -101,7 +108,7 @@ describe("ThreadTitleService", () => {
     expect(history.getListItem(thread.id)?.updatedAt).toBe(activityAt)
   })
 
-  test("persists a deterministic fallback when no auxiliary model is configured", async () => {
+  test("persists a deterministic fallback when no generation model is configured", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread()
     const content = "> **修复普通下拉框文字消失并保持现有交互行为**"
@@ -301,10 +308,25 @@ describe("ThreadTitleService", () => {
     expect(receivedSystem).toContain("推送")
     expect(receivedSystem).toContain("不得取代主任务成为标题")
     expect(updated.updatedAt).toBe(activityAt)
-    expect(db.eventsAfter(0).at(-1)?.method).toBe("thread/updated")
+    const lastEvent = db.eventsAfter(0).at(-1)
+    expect(lastEvent?.method).toBe("thread/updated")
+    const envelope = buildEventNextNotification({
+      subscriptionId: "sub-title",
+      streamId: "thread",
+      event: lastEvent!,
+      projection: new ThreadProjection(db),
+    })
+    expect(envelope).not.toBeNull()
+    const decoded = decodeEventEnvelope(envelope!.params.event)
+    expect(decoded.type).toBe("thread/updated")
+    expect(decoded.payload).toMatchObject({
+      thread: { id: thread.id, title: "修复标题主线识别" },
+      version: updated.updatedAt,
+    })
+    expect((decoded.payload as { thread: { title: string } }).thread.title.length).toBeGreaterThan(0)
   })
 
-  test("explicit regeneration keeps the current title on fallback and concurrent rename", async () => {
+  test("explicit regeneration does not overwrite concurrent rename", async () => {
     const { db, history, logger } = await fixture()
     const thread = db.createThread("原手工标题")
     const turn = addUserMessage(db, thread.id, "# 最新用户内容用于确定性回退")
@@ -332,17 +354,94 @@ describe("ThreadTitleService", () => {
 
     expect(updated.title).toBe("并发手工标题")
     expect(history.getListItem(thread.id)?.title).toBe("并发手工标题")
+  })
 
-    const fallback = new ThreadTitleService(
+  test("explicit regeneration rejects on failure and keeps the current title unchanged", async () => {
+    const { db, history, logger } = await fixture()
+    const thread = db.createThread("原手工标题")
+    const turn = addUserMessage(db, thread.id, "完成的会话内容")
+    db.updateTurnStatus(turn.turnID, "completed")
+
+    // 1. 未配置模型 -> MODEL_UNAVAILABLE
+    const unconfigured = new ThreadTitleService(
       db,
       history,
       { pi: {}, getPiModel: async () => { throw new Error("unavailable") } } as never,
       logger,
     )
-    const eventCount = db.eventsAfter(0).length
-    const fallbackUpdated = await fallback.regenerateFromConversation(thread.id)
-    expect(fallbackUpdated.title).toBe("并发手工标题")
-    expect(db.eventsAfter(0)).toHaveLength(eventCount)
+    const eventCountBefore = db.eventsAfter(0).length
+    await expect(unconfigured.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "MODEL_UNAVAILABLE",
+      message: "未配置可用的会话标题生成模型",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 2. 超时 -> INTERNAL_ERROR
+    const timeoutService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      {
+        timeoutMs: 5,
+        generate: async ({ signal }) => new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+        }),
+      },
+    )
+    await expect(timeoutService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题超时，请重试",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 3. Provider 失败 -> INTERNAL_ERROR
+    const providerFailureService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      {
+        generate: async () => {
+          throw new Error("internal provider error: credentials or network failed")
+        },
+      },
+    )
+    await expect(providerFailureService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题失败，模型服务暂不可用",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
+
+    // 4. 无效输出 -> INTERNAL_ERROR
+    const invalidOutputService = new ThreadTitleService(
+      db,
+      history,
+      {
+        pi: {},
+        getPiModel: async () => ({ provider: "provider:test", id: "small" }) as PiModel<Api>,
+      } as never,
+      logger,
+      config,
+      { generate: async () => ({ title: "   " }) },
+    )
+    await expect(invalidOutputService.regenerateFromConversation(thread.id)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "生成会话标题失败，模型未返回有效标题",
+    })
+    expect(history.getListItem(thread.id)?.title).toBe("原手工标题")
+    expect(db.eventsAfter(0)).toHaveLength(eventCountBefore)
   })
 
   test("rejects regeneration unless the latest turn completed successfully", async () => {

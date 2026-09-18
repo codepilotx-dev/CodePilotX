@@ -1,5 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync, renameSync } from "node:fs"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
+import type { DataLocationLaunch } from "../settings/data-location-store.js"
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MAX_FILES = 5
@@ -34,6 +35,16 @@ export interface DesktopLoggerOptions {
   detailMode?: LogDetailMode
   consoleSink?: (line: string, level: LogLevel) => void
   now?: () => Date
+}
+
+export function resolveDesktopLogDirectory(
+  launch: DataLocationLaunch,
+  configuredDirectory: string | undefined,
+): string {
+  const configured = configuredDirectory?.trim()
+  if (configured) return resolve(configured)
+  const dataDirectory = launch.relocation?.sourceDataDir ?? launch.dataDir
+  return resolve(join(dataDirectory, "logs"))
 }
 
 const parseConsoleLevel = (value: string | undefined): ConsoleLogLevel =>

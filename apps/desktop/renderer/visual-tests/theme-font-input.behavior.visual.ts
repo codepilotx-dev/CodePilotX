@@ -39,7 +39,9 @@ test('theme font inputs preserve rapid edits and keyboard semantics', async ({
     }, THEME_STORAGE_KEY),
   ).toEqual({
     ui: 'Inter, sans-serif',
+    uiFace: null,
     code: '"JetBrains Mono", monospace',
+    codeFace: null,
   })
 
   const restoredPage = await page.context().newPage()

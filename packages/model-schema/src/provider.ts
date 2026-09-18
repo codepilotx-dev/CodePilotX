@@ -21,10 +21,36 @@ export const ID = Schema.String.pipe(
 )
 export type ID = typeof ID.Type
 
+export const SourceKind = Schema.Literals(["builtin", "custom"])
+export type SourceKind = typeof SourceKind.Type
+
+export const CatalogOrigin = Schema.Literals(["user", "pi-bundled"])
+export type CatalogOrigin = typeof CatalogOrigin.Type
+
+export const UnavailableReason = Schema.Literals([
+  "unsupported-protocol",
+  "missing-api",
+  "unsafe-endpoint",
+  "unresolved-endpoint",
+  "no-compatible-models",
+])
+export type UnavailableReason = typeof UnavailableReason.Type
+
+export const Availability = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("ready") }),
+  Schema.Struct({
+    status: Schema.Literal("unavailable"),
+    reason: UnavailableReason,
+  }),
+])
+  .pipe(Schema.toTaggedUnion("status"))
+  .annotate({ identifier: "Provider.Availability" })
+export type Availability = typeof Availability.Type
+
 export interface Source extends Schema.Schema.Type<typeof Source> {}
 export const Source = Schema.Struct({
   type: Schema.Literal("pi"),
-  kind: Schema.Literals(["builtin", "custom"]),
+  kind: SourceKind,
   apis: Schema.Array(Schema.String),
   baseUrl: optional(Schema.String),
 }).annotate({ identifier: "Provider.Source" })
@@ -41,6 +67,8 @@ export const Info = Schema.Struct({
   name: Schema.String,
   disabled: optional(Schema.Boolean),
   source: Source,
+  catalogOrigin: optional(CatalogOrigin),
+  availability: optional(Availability),
   auth: Auth,
 })
   .annotate({ identifier: "Provider.Info" })

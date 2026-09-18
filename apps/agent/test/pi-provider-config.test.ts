@@ -10,6 +10,8 @@ import {
   parsePiProviderCatalog,
   PiModelService,
   PiModelsFileStore,
+  PiProviderConfigValidationError,
+  resolveDeepSeekProtocol,
   serializePiProviderDefinition,
   validateCustomProviderBaseUrl,
 } from "../src/provider/pi";
@@ -163,6 +165,102 @@ describe("Pi provider v2 config", () => {
           }),
       }),
     ).rejects.toThrow("exceeds 1 MiB");
+  });
+});
+
+describe("DeepSeek protocol config", () => {
+  test("keeps legacy builtin configs on Chat Completions and round-trips every protocol", () => {
+    const legacy = parsePiProviderCatalog({
+      schemaVersion: 2,
+      providers: {
+        deepseek: {
+          kind: "builtin",
+          enabled: true,
+          allow_models: [],
+          deny_models: [],
+        },
+      },
+    });
+
+    expect(legacy.issues).toEqual([]);
+    expect(resolveDeepSeekProtocol(legacy)).toBe("openai-completions");
+
+    for (const protocol of [
+      "openai-completions",
+      "openai-responses",
+      "anthropic-messages",
+    ] as const) {
+      const serialized = serializePiProviderDefinition({
+        kind: "builtin",
+        id: "deepseek",
+        enabled: true,
+        allowModels: [],
+        denyModels: [],
+        models: [{ id: "deepseek-v4-pro", enabled: false }],
+        protocol,
+      });
+
+      // key-path 写入只覆盖 DeepSeek 自己的 provider 对象。
+      expect(Object.keys(serialized.value).sort()).toEqual([
+        "allow_models",
+        "deny_models",
+        "enabled",
+        "kind",
+        "models",
+        "protocol",
+      ]);
+      const parsed = parsePiProviderCatalog({
+        schemaVersion: 2,
+        providers: { deepseek: serialized.value },
+      });
+      expect(parsed.issues).toEqual([]);
+      expect(parsed.providers.deepseek).toMatchObject({
+        protocol,
+        models: { "deepseek-v4-pro": { enabled: false } },
+      });
+      expect(resolveDeepSeekProtocol(parsed)).toBe(protocol);
+    }
+  });
+
+  test("rejects unknown protocols and protocol overrides on other builtin providers", () => {
+    const parsed = parsePiProviderCatalog({
+      schemaVersion: 2,
+      providers: {
+        deepseek: { kind: "builtin", enabled: true, protocol: "openai-beta-fim" },
+        anthropic: {
+          kind: "builtin",
+          enabled: true,
+          protocol: "anthropic-messages",
+        },
+      },
+    });
+
+    expect(parsed.providers).toEqual({});
+    expect(parsed.issues).toEqual([
+      {
+        providerID: "deepseek",
+        path: "model_providers.deepseek",
+        code: "INVALID_PROVIDER",
+      },
+      {
+        providerID: "anthropic",
+        path: "model_providers.anthropic",
+        code: "BUILTIN_OVERRIDE",
+      },
+    ]);
+    // 被拒绝的 DeepSeek 配置不改变正在运行的协议。
+    expect(resolveDeepSeekProtocol(parsed)).toBeUndefined();
+    expect(() =>
+      serializePiProviderDefinition({
+        kind: "builtin",
+        id: "anthropic",
+        enabled: true,
+        allowModels: [],
+        denyModels: [],
+        models: [],
+        protocol: "openai-responses",
+      }),
+    ).toThrow(PiProviderConfigValidationError);
   });
 });
 

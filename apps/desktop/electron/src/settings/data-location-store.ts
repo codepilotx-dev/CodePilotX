@@ -3,10 +3,8 @@ import {
   mkdir,
   readFile,
   readdir,
-  rename,
   rm,
   stat,
-  writeFile,
 } from "node:fs/promises"
 import {
   basename,
@@ -17,6 +15,7 @@ import {
   resolve,
   sep,
 } from "node:path"
+import { writeJsonAtomically } from "../windows/debounced-atomic-json-writer.js"
 import type {
   DesktopDataLocationChange,
   DesktopDataLocationState,
@@ -178,19 +177,7 @@ export class DataLocationStore {
   }
 
   async #save(): Promise<void> {
-    await mkdir(dirname(this.#filePath), { recursive: true })
-    const temporary = `${this.#filePath}.${randomUUID()}.tmp`
-    await writeFile(
-      temporary,
-      `${JSON.stringify(this.#value, null, 2)}\n`,
-      "utf8",
-    )
-    try {
-      await rename(temporary, this.#filePath)
-    } catch (cause) {
-      await rm(temporary, { force: true }).catch(() => undefined)
-      throw cause
-    }
+    await writeJsonAtomically(this.#filePath, this.#value)
   }
 }
 

@@ -1,8 +1,6 @@
 .desktop-main {
-  background: var(--color-token-main-surface-primary);
-  border-width: 1px 0 0 1px;
-  border-style: solid;
-  border-color: var(--color-token-border-light);
+  background: var(--cpx-sys-color-workbench-main-bg);
+  border-left: 1px solid var(--cpx-sys-color-border-default);
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -12,7 +10,6 @@
   justify-content: flex-start;
   width: 100%;
   position: relative;
-  box-shadow: none;
 }
 
 .desktop-main-stage {
@@ -46,7 +43,8 @@
 }
 
 .desktop-workspace {
-  --workspace-header-height: 46px;
+  --workspace-header-height: var(--workspace-toolbar-height);
+  --workspace-pane-header-height: var(--pane-toolbar-height);
   --workspace-right-panel-live-width: 0px;
   container-name: desktop-workspace;
   container-type: inline-size;
@@ -58,7 +56,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--color-token-main-surface-primary);
+  background: var(--cpx-sys-color-workbench-main-bg);
 }
 
 .desktop-workspace__upper {
@@ -67,45 +65,88 @@
 }
 
 .desktop-workspace-panel {
-  position: relative;
   min-width: 0;
   min-height: 0;
   flex: 0 0 auto;
   contain: size layout paint;
   overflow: hidden;
-  will-change: width, height, opacity;
+}
+
+.desktop-workspace-panel-spacer {
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+  contain: size layout;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.right-dock-is-resizing {
+  .desktop-workspace-panel--right {
+    will-change: width;
+  }
+
+  .desktop-main-route,
+  .desktop-workspace-panel--right .workbench-panel-content {
+    pointer-events: none;
+  }
+}
+
+.app-shell[data-resize-active='true'] {
+  .desktop-workspace-panel--right {
+    will-change: width;
+  }
+
+  .desktop-main-route,
+  .desktop-workspace-panel--right .workbench-panel-content {
+    pointer-events: none;
+  }
+}
+
+.app-shell[data-auxiliary-maximized='true'] .desktop-main {
+  border-left: 0;
+}
+
+.bottom-panel-is-resizing {
+  .desktop-workspace-panel--bottom,
+  .desktop-workspace-panel-spacer--bottom {
+    will-change: height;
+  }
+
+  .desktop-workspace__upper,
+  .desktop-workspace-panel--bottom .workbench-panel-content {
+    pointer-events: none;
+  }
 }
 
 .desktop-workspace-panel--right {
+  position: relative;
   height: 100%;
   max-width: 100%;
 }
 
-.desktop-workspace-panel--right.full-width {
-  flex: 0 0 auto;
-}
-
 .desktop-workspace-panel--bottom {
+  position: absolute;
+  inset: auto 0 0;
   width: 100%;
   max-height: 50%;
-  border-top: 1px solid var(--color-token-border-light);
+}
+
+.desktop-workspace-panel-spacer--bottom {
+  width: 100%;
+  max-height: 50%;
 }
 
 .desktop-workspace-panel__surface {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   contain: size layout paint;
-}
-
-.desktop-workspace-panel--right .desktop-workspace-panel__surface {
-  width: 100%;
-}
-
-.desktop-workspace-panel--bottom .desktop-workspace-panel__surface {
-  height: 100%;
+  overflow: hidden;
 }
 
 .desktop-workspace-panel[data-workbench-panel-presence="exiting"] {
@@ -113,6 +154,16 @@
 }
 
 .desktop-main-route {
+  --page-content-max-width: var(--cpx-sys-layout-content-max-width);
+
+  &[data-page-width='narrow'] {
+    --page-content-max-width: var(--cpx-sys-layout-reading-max-width);
+  }
+
+  &[data-page-width='wide'] {
+    --page-content-max-width: var(--cpx-sys-layout-wide-max-width);
+  }
+
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -123,9 +174,9 @@
 
 .desktop-main-route__header-spacer {
   width: 100%;
-  height: var(--workspace-header-height, 46px);
-  min-height: var(--workspace-header-height, 46px);
-  flex: 0 0 var(--workspace-header-height, 46px);
+  height: var(--workspace-header-height);
+  min-height: var(--workspace-header-height);
+  flex: 0 0 var(--workspace-header-height);
   pointer-events: none;
 }
 
@@ -139,8 +190,17 @@
   overflow: hidden;
 }
 
+@media (forced-colors: active) {
+  .desktop-main {
+    border-radius: 0;
+    box-shadow: none;
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+
 :root[data-reduce-motion="on"] {
-  .chat-session-actions .message-action {
+  .chat-session-actions .icon-button {
     transition: none;
   }
 }

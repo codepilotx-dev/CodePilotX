@@ -78,10 +78,48 @@ describe('Markdown file references', () => {
     )
 
     expect(html).toContain('data-file-reference=""')
-    expect(html).toContain('role="button"')
+    expect(html).toContain('type="button"')
+    expect(html).not.toContain('role="button"')
     expect(html).toContain('md-file-reference__icon')
     expect(html).toContain('md-file-reference__label')
     expect(html).toContain('src/main.ts')
     expect(html).not.toContain('<code>')
+  })
+
+  test('keeps Windows workspace routes as code without hiding real file references', () => {
+    const html = renderToStaticMarkup(
+      <MarkdownMessage
+        cwd="C:\\repo"
+        text={'`/new` `/settings/models` `../../components/ui/Tooltip.js` `src/main.ts:12`'}
+      />,
+    )
+
+    expect(html).toContain('<code>/new</code>')
+    expect(html).toContain('<code>/settings/models</code>')
+    expect(html.match(/data-file-reference=""/gu)).toHaveLength(2)
+    expect(html).toContain('../../components/ui/Tooltip.js')
+    expect(html).toContain('src/main.ts:12')
+  })
+
+  test('preserves extensionless absolute file references in Unix workspaces', () => {
+    const html = renderToStaticMarkup(
+      <MarkdownMessage cwd="/home/codepilotx" text={'`/etc/hosts`'} />,
+    )
+
+    expect(html).toContain('data-file-reference=""')
+    expect(html).toContain('/etc/hosts')
+    expect(html).not.toContain('<code>')
+  })
+})
+
+describe('Markdown tables and accessibility', () => {
+  test('renders tables with keyboard focusable scroll container and scope="col" header cells', () => {
+    const markdown = '| Col A | Col B |\n| :--- | :--- |\n| Val 1 | Val 2 |\n'
+    const html = renderToStaticMarkup(<MarkdownMessage text={markdown} />)
+
+    expect(html).toContain('class="md-table-block md-wide-block"')
+    expect(html).toContain('class="md-table-scroll" tabindex="0"')
+    expect(html).toContain('<th scope="col"')
+    expect(html).toContain('Val 1')
   })
 })

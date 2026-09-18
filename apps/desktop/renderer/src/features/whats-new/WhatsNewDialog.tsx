@@ -6,6 +6,8 @@ import { ExternalLink, RefreshCw, Sparkles, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import { SmoothScroll } from '../../components/ui/SmoothScroll.js'
+import { ScrollProgress } from '../../components/ui/ScrollProgress.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -81,9 +83,9 @@ export function WhatsNewDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop whats-new-dialog-backdrop">
-          <Dialog.Content
-            className="whats-new-dialog"
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop" />
+        <Dialog.Content
+            className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog"
             onCloseAutoFocus={event => {
               if (!restoreFocusElement?.isConnected) return
               event.preventDefault()
@@ -96,7 +98,7 @@ export function WhatsNewDialog({
           >
             <header className="whats-new-dialog-header">
               <span aria-hidden="true" className="whats-new-heading-icon">
-                <Sparkles />
+                <Sparkles size={APP_ICON_SIZE} />
               </span>
               <div className="whats-new-dialog-heading">
                 <Dialog.Title className="whats-new-dialog-title">
@@ -108,9 +110,10 @@ export function WhatsNewDialog({
               </div>
               <Dialog.Close asChild>
                 <IconButton
+                  color="ghostSecondary"
                   ref={closeButtonRef}
+                  size="toolbar"
                   title="关闭新特性"
-                  variant="plain"
                 >
                   <X
                     aria-hidden="true"
@@ -137,8 +140,7 @@ export function WhatsNewDialog({
                 />
               ) : null}
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -197,7 +199,7 @@ function ReleaseNotesContent({
             <p>
               当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
             </p>
-            <Button loading={refreshing} onClick={onRefresh}>
+            <Button className="whats-new-fallback-action" color="primary" loading={refreshing} onClick={onRefresh}>
               {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
@@ -215,13 +217,13 @@ function ReleaseNotesContent({
             return (
               <li key={release.tagName}>
                 <button
-                  aria-pressed={selected}
+                  aria-current={current ? 'true' : undefined}
                   className="whats-new-version-item"
                   data-selected={selected || undefined}
                   type="button"
                   onClick={() => {
                     setSelectedTagName(release.tagName)
-                    detailScrollRef.current?.scrollTo({ top: 0 })
+                    detailScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
                   }}
                 >
                   <span className="whats-new-release-heading">
@@ -239,19 +241,25 @@ function ReleaseNotesContent({
         </ul>
       </ScrollArea>
 
-      <ScrollArea
+      <SmoothScroll
         aria-label="版本更新内容"
         className="whats-new-detail-scroll"
-        contentClassName="whats-new-detail-scroll-content"
+        duration={0.25}
+        lerp={0.2}
+        root={false}
         viewportRef={detailScrollRef}
+        wheelMultiplier={1.2}
       >
-        <ReleaseDetails
-          current={selectedRelease.tagName === currentTagName}
-          fetchedAt={result.fetchedAt}
-          release={selectedRelease}
-          source={result.source}
-        />
-      </ScrollArea>
+        <ScrollProgress height={2} position="sticky" />
+        <div className="whats-new-detail-scroll-content">
+          <ReleaseDetails
+            current={selectedRelease.tagName === currentTagName}
+            fetchedAt={result.fetchedAt}
+            release={selectedRelease}
+            source={result.source}
+          />
+        </div>
+      </SmoothScroll>
     </section>
   )
 }
@@ -298,7 +306,7 @@ function ReleaseDetails({
         )}
         {canOpenRelease ? (
           <div className="whats-new-release-actions">
-            <Button
+            <Button color="secondary"
               onClick={() => {
                 void desktopClient.openExternalURL(release.htmlUrl)
               }}
@@ -364,7 +372,7 @@ function ReleaseNotesError({
     <section aria-live="polite" className="whats-new-state">
       <strong>{message.title}</strong>
       <p>{message.description}</p>
-      <Button onClick={onRetry}>
+      <Button color="secondary" onClick={onRetry}>
         <RefreshCw size={APP_ICON_SIZE} />
         重试
       </Button>

@@ -1,10 +1,8 @@
 import { AgentThread } from "@codepilotx/shared"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema } from "../wire/primitives"
+import { NonEmptyStringSchema, OpaqueIDSchema } from "../wire/primitives"
 import { ReviewGitStatusSchema } from "./review"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 
 const GitWorkspaceErrors = [
   "PROJECT_NOT_FOUND",

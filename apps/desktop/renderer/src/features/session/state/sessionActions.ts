@@ -1,6 +1,10 @@
+import { sessionModelSelections } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { toUserErrorMessage, type ErrorContext } from '../../../utils/errors.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
+  DesktopModelSelection,
   DesktopPermissionDecision,
   LocalRouterMode,
   ModelProviderID,
@@ -26,6 +30,7 @@ import {
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { canonicalThreadCache } from './canonicalThreadCache.js'
+import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -35,13 +40,8 @@ export type SessionSettingsSnapshot = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
+  variant?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
   appendSystemPrompt: string
@@ -49,6 +49,7 @@ export type SessionSettingsSnapshot = {
   installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
+  creationSurface?: ThreadCreationSurface
 }
 
 export type SessionActionContext = {
@@ -136,9 +137,18 @@ export async function createSessionForWorkspaceAction(
   options?: { propagateError?: boolean },
 ): Promise<string | null> {
   try {
+    const preferredSessionGroupId = readPreferredSessionGroupId()
+    let workflowId: string | undefined
+    if (preferredSessionGroupId) {
+      const groups = await desktopClient.listSessionGroups().catch(() => [])
+      if (groups.some(group => group.id === preferredSessionGroupId)) workflowId = preferredSessionGroupId
+    }
+    if (preferredSessionGroupId && !workflowId) writePreferredSessionGroupId(null)
     const session = await desktopClient.createSession({
       projectId: target?.projectId,
       workspacePath: target?.path,
+      workflowId,
+      creationSurface: settings.creationSurface,
       projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,
       permissionConfig: settings.permissionConfig,
@@ -146,12 +156,6 @@ export async function createSessionForWorkspaceAction(
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
       model: normalizeOptionalText(settings.model),
-      planExecutionModel: normalizeOptionalText(settings.planExecutionModel),
-      reviewModel: normalizeOptionalText(settings.reviewModel),
-      smallFastModel: normalizeOptionalText(settings.smallFastModel),
-      fastModel: normalizeOptionalText(settings.fastModel),
-      defaultModel: normalizeOptionalText(settings.defaultModel),
-      deepModel: normalizeOptionalText(settings.deepModel),
       sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName),
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
@@ -191,7 +195,6 @@ export async function createSessionForWorkspaceAction(
         planModeActive: settings.planModeActive,
         localRouterMode: settings.localRouterMode,
         model: normalizeOptionalText(settings.model) ?? null,
-        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
         thinkingMode: settings.thinkingMode,
         hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
         hasAppendSystemPrompt: Boolean(
@@ -209,7 +212,7 @@ export async function createSessionForWorkspaceAction(
     )
     return session.sessionId
   } catch (error) {
-    context.onErrorRef.current(errorMessageOf(error))
+    context.onErrorRef.current(errorMessageOf(error, 'thread-create'))
     if (options?.propagateError) throw error
     return null
   }
@@ -233,6 +236,13 @@ export async function submitSessionMessageAction(
     options?.sessionStatus,
     options?.delivery,
   )
+  const modelSelection: DesktopModelSelection = {
+    variant: settings.variant,
+    providerID: settings.providerID,
+    providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+    model: normalizeOptionalText(settings.model),
+    localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
+  }
   try {
     if (delivery === 'follow-up') {
       return await desktopClient.submitSessionFollowUp(
@@ -240,6 +250,7 @@ export async function submitSessionMessageAction(
         input,
         'follow-up',
         options?.inputId,
+        modelSelection,
       )
     }
     if (delivery === 'steer') {
@@ -248,22 +259,18 @@ export async function submitSessionMessageAction(
         input,
         'steer',
         options?.inputId,
+        modelSelection,
       )
     }
     await desktopClient.sendUserMessage(
       sessionId,
       input,
-      {
-        providerID: settings.providerID,
-        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-        model: normalizeOptionalText(settings.model),
-        localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
-      },
+      modelSelection,
       options?.inputId,
     )
     return 'sent'
   } catch (error) {
-    onErrorRef.current(errorMessageOf(error))
+    onErrorRef.current(errorMessageOf(error, 'thread-send'))
     if (options?.propagateError) throw error
     return null
   }
@@ -288,6 +295,7 @@ export async function interruptSessionAction(
     await desktopClient.interruptSession(sessionId)
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
+    throw error
   }
 }
 
@@ -300,7 +308,7 @@ export async function decidePermissionAction(
   updatedInput?: Record<string, unknown>,
   decisionExtras?: Pick<
     DesktopPermissionDecision,
-    'rememberOptionId' | 'grantScope'
+    'grantScope'
   >,
 ): Promise<void> {
   if (!sessionId) return
@@ -316,6 +324,7 @@ export async function decidePermissionAction(
     // 不在 RPC 成功前乐观移除请求卡片：成功后由 interaction/resolved 事件与
     // 刷新后的 snapshot 清理；失败或已被其他客户端处理时保留卡片供重试。
     onErrorRef.current(errorMessageOf(error))
+    throw error
   }
 }
 
@@ -330,6 +339,7 @@ export async function closeSessionAction(
     context.onErrorRef.current(errorMessageOf(error))
     return null
   }
+  sessionModelSelections.delete(targetSessionId)
   canonicalThreadCache.invalidate(targetSessionId)
 
   const remaining = sessions.filter(session => session.id !== targetSessionId)
@@ -612,6 +622,6 @@ export async function setSessionPlanModeActiveAction(
   }
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function errorMessageOf(error: unknown, context?: ErrorContext): string {
+  return toUserErrorMessage(error, context)
 }

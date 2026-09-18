@@ -1,7 +1,9 @@
+import { sessionModelSelections, type SessionModelSelection } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toUserErrorMessage } from '../../../utils/errors.js'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
-  DesktopAgentEvent,
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopSessionCatalogStatus,
@@ -36,7 +38,6 @@ import {
   decidePermissionAction,
   interruptSessionAction,
   renameSessionAction,
-  markSessionReadThrough,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
   setSessionPlanModeActiveAction,
@@ -47,7 +48,6 @@ import {
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
-import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
   appendUniqueWorkflowEvent,
   dedupeWorkflowEvents,
@@ -56,11 +56,9 @@ import { mergeSessionStoreSnapshotView } from './sessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from '../workflow/workflowViewPatch.js'
 import {
   applySessionView,
-  addToolLogEntry as addToolLogEntryToView,
   createEmptySessionView,
   setSessionView,
   toggleToolLogEntry as toggleToolLogEntryInView,
-  type AddToolLogEntry,
   type SessionViewRefs,
   type SessionViewStateSetters,
   type UpdateSessionView,
@@ -70,6 +68,10 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../composer/composerTypes.js'
+import {
+  composerDraftStore,
+  resolveActivatedSessionComposerInput,
+} from '../composer/composerDraftStore.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -79,12 +81,6 @@ export type UseSessionStateOptions = {
   providerID: ModelProviderID
   providerBaseURL: string
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -100,6 +96,11 @@ export type UseSessionStateOptions = {
 }
 
 export type UseSessionStateResult = {
+  modelSelection: SessionModelSelection | null
+  modelSelectionLoading: boolean
+  modelSelectionError: string | null
+  setModelSelection: (selection: SessionModelSelection) => void
+  reloadModelSelection: () => void
   sessionId: string | null
   sessionsHydrated: boolean
   catalogStatus: DesktopSessionCatalogStatus
@@ -145,6 +146,7 @@ export type UseSessionStateResult = {
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
     projectlessPrompt?: string,
+    creationSurface?: ThreadCreationSurface,
   ) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
@@ -163,7 +165,6 @@ export type UseSessionStateResult = {
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
     decisionExtras?: {
-      rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
     },
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
@@ -204,12 +205,6 @@ export function useSessionState(
     providerID,
     providerBaseURL,
     model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
     sessionName,
     thinkingMode,
     systemPrompt,
@@ -219,16 +214,29 @@ export function useSessionState(
     enableMemory,
     rustSearchAndDiffKernels,
     onError,
-    onDiffForActive,
-    onRefreshActiveWorkspace,
     onOpenDrawerPermissions,
   } = options
 
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const modelSelectionState = useSyncExternalStore(
+    sessionModelSelections.subscribe,
+    () => sessionModelSelections.getSnapshot(sessionId),
+  )
+  const reloadModelSelection = useCallback(() => {
+    void sessionModelSelections.load(sessionId).catch(error => onErrorRef.current(toUserErrorMessage(error)))
+  }, [sessionId])
+  useEffect(() => { reloadModelSelection() }, [reloadModelSelection])
+  const setModelSelection = useCallback((selection: SessionModelSelection) => {
+    sessionModelSelections.set(sessionId, selection)
+    // 一级页切换模型立即记住；已有任务保持任务级隔离。
+    // 只有最后一次选择保存失败时才提示，中间失败不覆盖更新的选择。
+    void sessionModelSelections
+      .persistRecent(sessionId, selection)
+      .catch(error => onErrorRef.current(toUserErrorMessage(error)))
+  }, [sessionId])
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [catalogStatus, setCatalogStatus] = useState<DesktopSessionCatalogStatus>({
     state: 'loading',
-    error: null,
   })
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [sessionFallbackTitles, setSessionFallbackTitles] = useState<
@@ -280,10 +288,6 @@ export function useSessionState(
   }>>({})
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
-  const onDiffForActiveRef = useRef(onDiffForActive)
-  onDiffForActiveRef.current = onDiffForActive
-  const onRefreshActiveWorkspaceRef = useRef(onRefreshActiveWorkspace)
-  onRefreshActiveWorkspaceRef.current = onRefreshActiveWorkspace
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
@@ -451,48 +455,11 @@ export function useSessionState(
     [syncPendingPermissionSessionIds, viewRefs, viewSetters],
   )
 
-  const addToolLogEntry = useCallback<AddToolLogEntry>(
-    (targetSessionId, entry) => {
-      addToolLogEntryToView(updateSessionView, targetSessionId, entry)
-    },
-    [updateSessionView],
-  )
-
   const toggleToolLogEntry = useCallback(
     (entryId: string): void => {
       toggleToolLogEntryInView(viewRefs, updateSessionView, entryId)
     },
     [updateSessionView, viewRefs],
-  )
-
-  const applyAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      handleSessionAgentEvent(event, {
-        activeSessionIdRef,
-        setSessions,
-        setSessionStatus,
-        updateSessionView,
-        addToolLogEntry,
-        onErrorRef,
-        onDiffForActiveRef,
-        onRefreshActiveWorkspaceRef,
-        onOpenDrawerPermissionsRef,
-        markSessionReadThrough: (targetSessionId, readThroughAt) => {
-          markSessionReadThrough(
-            actionContext,
-            targetSessionId,
-            readThroughAt,
-          )
-        },
-      })
-    },
-    [actionContext, addToolLogEntry, updateSessionView],
-  )
-  const handleAgentEvent = useCallback(
-    (event: DesktopAgentEvent): void => {
-      applyAgentEvent(event)
-    },
-    [applyAgentEvent],
   )
 
   const handleWorkflowEvent = useCallback(
@@ -519,13 +486,6 @@ export function useSessionState(
     },
     [updateSessionView],
   )
-
-  useEffect(() => {
-    const unsubscribeAgent = desktopClient.onAgentEvent(handleAgentEvent)
-    return () => {
-      unsubscribeAgent()
-    }
-  }, [handleAgentEvent])
 
   useEffect(() => {
     const unsubscribeWorkflow =
@@ -582,7 +542,11 @@ export function useSessionState(
       sessionWorkspacesRef.current = nextWorkspaces
       queueStateBySessionRef.current = nextQueueStates
       sessionsRef.current = nextSessions
-      setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
+      setPendingPermissionSessionIds(
+        change.pendingInteractionThreadIds
+          ? new Set(change.pendingInteractionThreadIds)
+          : buildPendingPermissionSessionIds(nextViews),
+      )
       setSessions(nextSessions)
       setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
@@ -615,6 +579,15 @@ export function useSessionState(
       unsubscribe()
     }
   }, [viewSetters])
+
+  useEffect(() => {
+    const unsubscribe = desktopClient.onReconciliationError?.(error => {
+      onErrorRef.current(toUserErrorMessage(error, 'thread-read'))
+    })
+    return () => {
+      unsubscribe?.()
+    }
+  }, [])
 
   useEffect(() => {
     let disposed = false
@@ -680,9 +653,8 @@ export function useSessionState(
       } catch (error) {
         setCatalogStatus({
           state: 'unavailable',
-          error: 'The app-server is unavailable. Please try again.',
         })
-        onErrorRef.current(errorMessageOf(error))
+        onErrorRef.current(toUserErrorMessage(error, 'thread-read'))
         setSessionsHydrated(true)
       }
     }
@@ -701,12 +673,6 @@ export function useSessionState(
       providerID,
       providerBaseURL,
       model,
-      planExecutionModel,
-      reviewModel,
-      smallFastModel,
-      fastModel,
-      defaultModel,
-      deepModel,
       sessionName,
       thinkingMode,
       systemPrompt,
@@ -722,11 +688,7 @@ export function useSessionState(
       installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
-      fastModel,
-      planExecutionModel,
       model,
-      reviewModel,
-      deepModel,
       effectiveLocalRouterMode,
       effectivePermissionMode,
       permissionConfig,
@@ -734,8 +696,6 @@ export function useSessionState(
       providerBaseURL,
       providerID,
       sessionName,
-      smallFastModel,
-      defaultModel,
       systemPrompt,
       thinkingMode,
     ],
@@ -746,16 +706,24 @@ export function useSessionState(
       target: DesktopWorkspace | null,
       initialSessionName?: string,
       projectlessPrompt?: string,
+      creationSurface?: ThreadCreationSurface,
     ): Promise<string | null> => {
+      const selection = await sessionModelSelections.load(null)
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
-        settingsSnapshot,
+        {
+          ...settingsSnapshot,
+          ...selection,
+          providerBaseURL: '',
+          ...(creationSurface ? { creationSurface } : {}),
+        },
         target,
         initialSessionName,
         projectlessPrompt,
         { propagateError: true },
       )
       if (!nextSessionId) return null
+      sessionModelSelections.set(nextSessionId, selection)
 
       const homeInput = inputBySessionRef.current[HOME_INPUT_KEY] ?? ''
       const homeAttachments =
@@ -810,7 +778,18 @@ export function useSessionState(
         sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
         viewSetters,
       )
-      setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      const currentInput = inputBySessionRef.current[targetSessionId]
+      const nextInput = resolveActivatedSessionComposerInput(
+        currentInput,
+        composerDraftStore.peek(`session:${targetSessionId}`)?.document.text,
+      )
+      if (nextInput !== currentInput) {
+        inputBySessionRef.current = {
+          ...inputBySessionRef.current,
+          [targetSessionId]: nextInput,
+        }
+      }
+      setInput(nextInput)
       setComposerAttachments(
         attachmentsBySessionRef.current[targetSessionId] ?? [],
       )
@@ -828,10 +807,10 @@ export function useSessionState(
   const canSubmit = useMemo(
     () =>
       Boolean(
-        sessionId &&
+        sessionId && modelSelectionState.selection?.model &&
           input.trim(),
       ),
-    [input, sessionId],
+    [input, sessionId, modelSelectionState.selection],
   )
 
   const submitToSession = useCallback(async (
@@ -849,6 +828,15 @@ export function useSessionState(
       (activeSessionIdRef.current === targetSessionId
         ? sessionStatusRef.current
         : 'idle')
+    let selection: SessionModelSelection
+    try {
+      selection = await sessionModelSelections.load(targetSessionId)
+      if (!selection.providerID || !selection.model) throw new Error('请先选择会话模型')
+    } catch (error) {
+      onErrorRef.current(toUserErrorMessage(error))
+      if (options?.propagateError) throw error
+      return null
+    }
     return submitSessionMessageAction(
       onErrorRef,
       targetSessionId,
@@ -859,7 +847,7 @@ export function useSessionState(
             (value.attachments?.length ?? 0) > 0 ||
             value.skillInvocation),
       ),
-      settingsSnapshot,
+      { ...settingsSnapshot, ...selection, providerBaseURL: '' },
       {
         sessionStatus: targetStatus,
         delivery: options?.delivery,
@@ -872,14 +860,10 @@ export function useSessionState(
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =
       sessionId ??
-      (await createSessionForWorkspaceAction(
-        actionContext,
-        settingsSnapshot,
-        target ?? null,
-      ))
+      (await createSessionForWorkspace(target ?? null))
     if (!targetSessionId) return
     await submitToSession(targetSessionId, { text: input })
-  }, [actionContext, input, sessionId, settingsSnapshot, submitToSession])
+  }, [createSessionForWorkspace, input, sessionId, submitToSession])
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)
@@ -892,7 +876,6 @@ export function useSessionState(
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
       decisionExtras?: {
-        rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
         grantScope?: DesktopPermissionDecision['grantScope']
       },
     ): Promise<void> => {
@@ -987,6 +970,11 @@ export function useSessionState(
   )
 
   return {
+    modelSelection: modelSelectionState.selection,
+    modelSelectionLoading: modelSelectionState.loading,
+    modelSelectionError: modelSelectionState.error,
+    setModelSelection,
+    reloadModelSelection,
     sessionId,
     sessionsHydrated,
     catalogStatus,

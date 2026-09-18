@@ -19,11 +19,14 @@ export interface SkillMetadata {
   description: string;
   path: string;
   root: string;
-  origin: "workspace" | "user";
+  origin: "workspace" | "user" | "builtin";
   format: "codepilotx" | "agents" | "codex" | "claude";
+  /** Public identity. Built-in Skills deliberately use a stable builtin:// URI. */
   hash: string;
   metadata: Record<string, unknown>;
   allowedTools?: string[];
+  /** Canonical on-disk SKILL.md path used only inside the Agent process. */
+  documentPath: string;
 }
 
 export interface LoadedSkill extends SkillMetadata {
@@ -41,10 +44,32 @@ export interface SkillScanOptions {
   dataRoot: string;
   userHome: string;
   includeWorkspace?: boolean;
+  /** Read-only root containing application-provided Skills. */
+  builtinSkillsRoot?: string;
+  /** Read-only Skill roots contributed by enabled plugins. */
+  pluginSkillRoots?: readonly PluginSkillRoot[];
 }
 
 export type SkillServiceOptions = {
-  enabled?: (skill: SkillMetadata) => boolean
+  enabled?: (skill: SkillMetadata) => boolean;
+  builtinSkillsRoot?: string;
+  pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>;
+}
+
+export type PluginSkillRoot = {
+  pluginId: string;
+  pluginRoot: string;
+  skillsRoot: string;
+}
+
+export type SkillSearchResult =
+  | { ok: true; name: string; path: string; root: string; origin: SkillMetadata["origin"]; format: string }
+  | { ok: false; name?: string; path: string; root: string; error: "SKILL_PARSE_FAILED" | "SKILL_METADATA_INVALID" | "SKILL_READ_FAILED" | "SKILL_SIZE_EXCEEDED" }
+
+export type SkillSearchDiagnostics = {
+  results: SkillSearchResult[];
+  failedCount: number;
+  successfulCount: number;
 }
 
 const contained = (root: string, candidate: string) => {
@@ -55,6 +80,9 @@ const sha256 = (value: Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
 const missing = (cause: unknown) =>
   cause instanceof Error && "code" in cause && cause.code === "ENOENT";
+const builtinSkillPath = (directory: string) => `builtin://${directory}/SKILL.md`;
+const pluginSkillPath = (pluginId: string, directory: string) =>
+  `plugin://${pluginId}/skills/${directory}/SKILL.md`;
 
 export const parseSkillDocument = (content: string) => {
   if (content.charCodeAt(0) === 0xfeff) content = content.slice(1);
@@ -72,6 +100,7 @@ export const parseSkillDocument = (content: string) => {
   const bodyStart = closing.index + closing[0].length;
   return { metadata, body: rest.slice(bodyStart).replace(/^\n/, "") };
 };
+
 
 const parseAllowedTools = (metadata: Record<string, unknown>) => {
   const value = metadata.allowedTools ?? metadata["allowed-tools"];
@@ -92,16 +121,193 @@ const parseAllowedTools = (metadata: Record<string, unknown>) => {
 
 export class SkillService {
   private catalog = new Map<string, SkillMetadata>();
+  private catalogCache: { hash: string; skills: SkillMetadata[]; shadowed: SkillCatalog["shadowed"] } | null = null;
+  /** Successfully read skills, tracked so a composition can freeze referenced-only evidence. */
+  private referenced = new Map<string, { name: string; hash: string }>();
 
   constructor(private readonly options: SkillServiceOptions = {}) {}
+
+  private builtinSkillsRoot(options?: SkillScanOptions): string | undefined {
+    return options?.builtinSkillsRoot ?? this.options.builtinSkillsRoot;
+  }
+
+  private computeRootsHash(
+    workspace: string,
+    dataRoot: string,
+    userHome: string,
+    builtinSkillsRoot: string | undefined,
+    pluginSkillRoots: readonly PluginSkillRoot[],
+  ): string {
+    const pluginRoots = pluginSkillRoots
+      .map((root) => `${root.pluginId}:${root.pluginRoot}:${root.skillsRoot}`)
+      .join("|")
+    return sha256(new TextEncoder().encode(
+      `${workspace}:${dataRoot}:${userHome}:${builtinSkillsRoot ?? ""}:${pluginRoots}`,
+    ))
+  }
+
+  private async pluginSkillRoots(options: SkillScanOptions): Promise<readonly PluginSkillRoot[]> {
+    return options.pluginSkillRoots ?? await this.options.pluginSkillRoots?.() ?? []
+  }
+
+  async skill_search(query: string, limit?: number): Promise<SkillSearchDiagnostics> {
+    const roots = await this.locateSkillRoots(this.promptStorageOptions())
+    const results: SkillSearchResult[] = []
+    let failedCount = 0
+    let successfulCount = 0
+
+    for (const base of roots) {
+      const entries = await readdir(base.canonicalSkillsRoot, { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+        const name = entry.name
+        if (name.length > 63 || !skillNamePattern.test(name)) continue
+        if (query && !name.toLowerCase().includes(query.toLowerCase())) continue
+
+        const directory = await realpath(join(base.canonicalSkillsRoot, entry.name)).catch(() => null)
+        if (!directory || !contained(base.canonicalSkillsRoot, directory)) continue
+
+        const documentPath = join(directory, "SKILL.md")
+        let canonicalDocument: string
+        try {
+          canonicalDocument = await realpath(documentPath)
+        } catch {
+          results.push({ ok: false, name, path: documentPath, root: directory, error: "SKILL_READ_FAILED" })
+          failedCount++
+          continue
+        }
+        if (!contained(directory, canonicalDocument)) continue
+
+        try {
+          const bytes = await readFile(canonicalDocument)
+          if (bytes.byteLength > MAX_SKILL_BYTES) {
+            results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_SIZE_EXCEEDED" })
+            failedCount++
+            continue
+          }
+          const content = decoder.decode(bytes)
+          const parsed = parseSkillDocument(content)
+          const declaredName = parsed.metadata.name
+          const skillName = typeof declaredName === "string" && declaredName ? declaredName : entry.name
+          if (!skillNamePattern.test(skillName)) {
+            results.push({ ok: false, name: skillName, path: canonicalDocument, root: directory, error: "SKILL_METADATA_INVALID" })
+            failedCount++
+            continue
+          }
+          results.push({
+            ok: true,
+            name: skillName,
+            path: base.publicPath?.(entry.name) ?? canonicalDocument,
+            root: directory,
+            origin: base.origin,
+            format: base.format,
+          })
+          successfulCount++
+        } catch {
+          results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_PARSE_FAILED" })
+          failedCount++
+        }
+
+        if (limit && results.length >= limit) break
+      }
+      if (limit && results.length >= limit) break
+    }
+
+    return { results: results.slice(0, limit), failedCount, successfulCount }
+  }
+
+  async search(query: string, options?: SkillScanOptions): Promise<SkillSearchDiagnostics> {
+    const opts = options ?? this.promptStorageOptions()
+    const roots = await this.locateSkillRoots(opts)
+    const results: SkillSearchResult[] = []
+    let failedCount = 0
+    let successfulCount = 0
+
+    for (const base of roots) {
+      const entries = await readdir(base.canonicalSkillsRoot, { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+        const name = entry.name
+        if (name.length > 63 || !skillNamePattern.test(name)) continue
+        if (query && !name.toLowerCase().includes(query.toLowerCase())) continue
+
+        const directory = await realpath(join(base.canonicalSkillsRoot, entry.name)).catch(() => null)
+        if (!directory || !contained(base.canonicalSkillsRoot, directory)) continue
+
+        const documentPath = join(directory, "SKILL.md")
+        let canonicalDocument: string
+        try {
+          canonicalDocument = await realpath(documentPath)
+        } catch {
+          results.push({ ok: false, name, path: documentPath, root: directory, error: "SKILL_READ_FAILED" })
+          failedCount++
+          continue
+        }
+        if (!contained(directory, canonicalDocument)) continue
+
+        try {
+          const bytes = await readFile(canonicalDocument)
+          if (bytes.byteLength > MAX_SKILL_BYTES) {
+            results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_SIZE_EXCEEDED" })
+            failedCount++
+            continue
+          }
+          const content = decoder.decode(bytes)
+          const parsed = parseSkillDocument(content)
+          const declaredName = parsed.metadata.name
+          const skillName = typeof declaredName === "string" && declaredName ? declaredName : entry.name
+          if (!skillNamePattern.test(skillName)) {
+            results.push({ ok: false, name: skillName, path: canonicalDocument, root: directory, error: "SKILL_METADATA_INVALID" })
+            failedCount++
+            continue
+          }
+          results.push({
+            ok: true,
+            name: skillName,
+            path: base.publicPath?.(entry.name) ?? canonicalDocument,
+            root: directory,
+            origin: base.origin,
+            format: base.format,
+          })
+          successfulCount++
+        } catch {
+          results.push({ ok: false, name, path: canonicalDocument, root: directory, error: "SKILL_PARSE_FAILED" })
+          failedCount++
+        }
+      }
+    }
+
+    return { results, failedCount, successfulCount }
+  }
 
   async scan(options: SkillScanOptions): Promise<SkillCatalog> {
     const workspace = await realpath(resolve(options.workspaceRoot));
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
+    const builtinSkillsRoot = this.builtinSkillsRoot(options);
+    const pluginSkillRoots = await this.pluginSkillRoots(options);
+    const rootsHash = this.computeRootsHash(
+      workspace,
+      dataRoot,
+      userHome,
+      builtinSkillsRoot,
+      pluginSkillRoots,
+    )
+
+    if (this.catalogCache?.hash === rootsHash) {
+      const filtered = this.catalogCache.skills.filter(s => this.options.enabled?.(s) !== false)
+      return { skills: filtered, shadowed: this.catalogCache.shadowed }
+    }
+
     const found = new Map<string, SkillMetadata>();
     const shadowed: SkillCatalog["shadowed"] = [];
-    const configuredBases = [
+    const configuredBases: Array<{
+      containmentRoot: string;
+      skillsRoot: string;
+      origin: SkillMetadata["origin"];
+      format: SkillMetadata["format"];
+      publicPath?: (directory: string) => string;
+    }> = [
       ...(options.includeWorkspace === false
         ? []
         : COMPATIBILITY_DIRS.map(compatibilityDir => ({
@@ -121,6 +327,22 @@ export class SkillService {
         skillsRoot: join(userHome, compatibilityDir, "skills"),
         origin: "user" as const,
         format: compatibilityDir.slice(1) as SkillMetadata["format"],
+      })),
+      ...(builtinSkillsRoot
+        ? [{
+            containmentRoot: builtinSkillsRoot,
+            skillsRoot: builtinSkillsRoot,
+            origin: "builtin" as const,
+            format: "codepilotx" as const,
+            publicPath: builtinSkillPath,
+          }]
+        : []),
+      ...pluginSkillRoots.map((plugin) => ({
+        containmentRoot: plugin.pluginRoot,
+        skillsRoot: plugin.skillsRoot,
+        origin: "builtin" as const,
+        format: "codex" as const,
+        publicPath: (directory: string) => pluginSkillPath(plugin.pluginId, directory),
       })),
     ];
 
@@ -143,18 +365,28 @@ export class SkillService {
     const trustedSkillsRoots = bases.map(base => base.canonicalSkillsRoot);
     for (const base of bases) {
       const canonicalSkillsRoot = base.canonicalSkillsRoot;
-      const entries = (
-        await readdir(canonicalSkillsRoot, { withFileTypes: true })
-      ).sort((a, b) => a.name.localeCompare(b.name));
+      let entries;
+      try {
+        entries = (
+          await readdir(canonicalSkillsRoot, { withFileTypes: true })
+        ).sort((a, b) => a.name.localeCompare(b.name));
+      } catch {
+        continue;
+      }
       for (const entry of entries) {
         if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-        const directory = await realpath(
-          join(canonicalSkillsRoot, entry.name),
-        );
+        let directory: string;
+        try {
+          directory = await realpath(
+            join(canonicalSkillsRoot, entry.name),
+          );
+        } catch {
+          continue;
+        }
         if (!contained(canonicalSkillsRoot, directory)) {
           if (trustedSkillsRoots.some(root => contained(root, directory)))
             continue;
-          throw new Error(`Skill 目录逃出 Skills 根: ${entry.name}`);
+          throw new Error("Skill 目录逃出 Skills 根");
         }
         const documentPath = join(directory, "SKILL.md");
         let canonicalDocument: string;
@@ -162,22 +394,37 @@ export class SkillService {
           canonicalDocument = await realpath(documentPath);
         } catch (cause) {
           if (missing(cause)) continue;
-          throw cause;
+          continue;
         }
         if (!contained(directory, canonicalDocument))
-          throw new Error(`SKILL.md 逃出 Skill 根: ${documentPath}`);
-        const bytes = await readFile(canonicalDocument);
+          continue;
+        let bytes: Uint8Array;
+        try {
+          bytes = await readFile(canonicalDocument);
+        } catch {
+          continue;
+        }
         if (bytes.byteLength > MAX_SKILL_BYTES)
-          throw new Error(`SKILL.md 超过 1 MiB: ${canonicalDocument}`);
-        const content = decoder.decode(bytes);
-        const parsed = parseSkillDocument(content);
+          continue;
+        let content: string;
+        try {
+          content = decoder.decode(bytes);
+        } catch {
+          continue;
+        }
+        let parsed: ReturnType<typeof parseSkillDocument>;
+        try {
+          parsed = parseSkillDocument(content);
+        } catch {
+          continue;
+        }
         const declaredName = parsed.metadata.name;
         const name =
           typeof declaredName === "string" && declaredName
             ? declaredName
             : entry.name;
         if (!skillNamePattern.test(name))
-          throw new Error(`无效 Skill 名称: ${name}`);
+          continue;
         const declaredDescription = parsed.metadata.description;
         const description =
           typeof declaredDescription === "string" ? declaredDescription : "";
@@ -185,12 +432,13 @@ export class SkillService {
         const metadata: SkillMetadata = {
           name,
           description,
-          path: canonicalDocument,
+          path: base.publicPath?.(entry.name) ?? canonicalDocument,
           root: directory,
           origin: base.origin,
           format: base.format,
           hash: sha256(bytes),
           metadata: parsed.metadata,
+          documentPath: canonicalDocument,
           ...(allowedTools ? { allowedTools } : {}),
         };
         const current = found.get(name);
@@ -206,7 +454,86 @@ export class SkillService {
     this.catalog = new Map(
       [...found].filter(([, skill]) => this.options.enabled?.(skill) !== false),
     );
-    return { skills: [...this.catalog.values()], shadowed };
+    this.referenced.clear();
+    const skills = [...this.catalog.values()]
+    this.catalogCache = { hash: rootsHash, skills, shadowed }
+    return { skills, shadowed };
+  }
+
+  private promptStorageOptions(): SkillScanOptions {
+    return {
+      workspaceRoot: process.cwd(),
+      dataRoot: "",
+      userHome: "",
+      ...(this.options.builtinSkillsRoot
+        ? { builtinSkillsRoot: this.options.builtinSkillsRoot }
+        : {}),
+    }
+  }
+
+  private async locateSkillRoots(options: SkillScanOptions) {
+    const workspace = await realpath(resolve(options.workspaceRoot));
+    const dataRoot = await realpath(resolve(options.dataRoot));
+    const userHome = await realpath(resolve(options.userHome));
+    const builtinSkillsRoot = this.builtinSkillsRoot(options);
+    const pluginSkillRoots = await this.pluginSkillRoots(options);
+    const configuredBases: Array<{
+      containmentRoot: string;
+      skillsRoot: string;
+      origin: SkillMetadata["origin"];
+      format: SkillMetadata["format"];
+      publicPath?: (directory: string) => string;
+    }> = [
+      ...(options.includeWorkspace === false
+        ? []
+        : COMPATIBILITY_DIRS.map(compatibilityDir => ({
+            containmentRoot: workspace,
+            skillsRoot: join(workspace, compatibilityDir, "skills"),
+            origin: "workspace" as const,
+            format: compatibilityDir.slice(1) as SkillMetadata["format"],
+          }))),
+      {
+        containmentRoot: dataRoot,
+        skillsRoot: join(dataRoot, "skills"),
+        origin: "user" as const,
+        format: "codepilotx" as const,
+      },
+      ...USER_COMPATIBILITY_DIRS.map(compatibilityDir => ({
+        containmentRoot: userHome,
+        skillsRoot: join(userHome, compatibilityDir, "skills"),
+        origin: "user" as const,
+        format: compatibilityDir.slice(1) as SkillMetadata["format"],
+      })),
+      ...(builtinSkillsRoot
+        ? [{
+            containmentRoot: builtinSkillsRoot,
+            skillsRoot: builtinSkillsRoot,
+            origin: "builtin" as const,
+            format: "codepilotx" as const,
+            publicPath: builtinSkillPath,
+          }]
+        : []),
+      ...pluginSkillRoots.map((plugin) => ({
+        containmentRoot: plugin.pluginRoot,
+        skillsRoot: plugin.skillsRoot,
+        origin: "builtin" as const,
+        format: "codex" as const,
+        publicPath: (directory: string) => pluginSkillPath(plugin.pluginId, directory),
+      })),
+    ];
+
+    const bases: Array<(typeof configuredBases)[number] & { canonicalSkillsRoot: string }> = []
+    for (const base of configuredBases) {
+      try {
+        const canonicalSkillsRoot = await realpath(base.skillsRoot)
+        if (contained(base.containmentRoot, canonicalSkillsRoot)) {
+          bases.push({ ...base, canonicalSkillsRoot })
+        }
+      } catch {
+        continue
+      }
+    }
+    return bases
   }
 
   list(): SkillMetadata[] {
@@ -224,12 +551,23 @@ export class SkillService {
   async read(name: string): Promise<LoadedSkill> {
     const metadata = this.catalog.get(name);
     if (!metadata) throw new Error(`未知 Skill: ${name}`);
-    const bytes = await readFile(metadata.path);
+    const bytes = await readFile(metadata.documentPath);
     if (bytes.byteLength > MAX_SKILL_BYTES)
       throw new Error(`SKILL.md 超过 1 MiB: ${metadata.path}`);
     const content = decoder.decode(bytes);
     const parsed = parseSkillDocument(content);
+    this.referenced.set(name, { name, hash: metadata.hash });
     return { ...metadata, content, body: parsed.body };
+  }
+
+  /** Skills whose content was successfully read this run (invocation or skill_read). */
+  referencedSkills(): Array<{ name: string; hash: string }> {
+    return [...this.referenced.values()];
+  }
+
+  async skill_read(name: string, options: SkillScanOptions): Promise<LoadedSkill> {
+    await this.scan(options)
+    return this.read(name)
   }
 
   allowedTools(name: string): readonly string[] | undefined {

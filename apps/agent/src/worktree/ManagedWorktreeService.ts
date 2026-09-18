@@ -269,6 +269,18 @@ export class ManagedWorktreeService {
     return canonical
   }
 
+  async eligibility(projectId: string) {
+    const requested = await this.resolveProjectRoot(projectId)
+    if (!requested) throw new AgentError("PROJECT_NOT_FOUND", "项目不存在或没有主目录", 404)
+    try {
+      await this.projectRepository(projectId)
+      return { isGitRepository: true, availableModes: ["local", "worktree"] as const, defaultMode: "worktree" as const }
+    } catch (cause) {
+      if (cause instanceof AgentError && cause.code === "PROJECT_NOT_FOUND") throw cause
+      return { isGitRepository: false, availableModes: ["local"] as const, defaultMode: "local" as const }
+    }
+  }
+
   private async sourceRepository(repositoryRoot: string, requested?: string) {
     if (!requested) return repositoryRoot
     const source = await realpath(requested).catch(() => {
