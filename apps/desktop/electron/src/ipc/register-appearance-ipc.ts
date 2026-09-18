@@ -54,5 +54,29 @@ export function registerAppearanceIpc(
     DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme,
     () => appearance.systemThemeVariant(),
   )
+  ipcMain.handle(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.canRestorePreviousAppearance,
+    () => store.canRestorePreviousAppearance(),
+  )
+  ipcMain.handle(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.restorePreviousAppearance,
+    async () => {
+      const restored = await store.restorePreviousAppearance()
+      settings = restored
+      appearance.updateSettings(restored)
+      appearance.broadcastAppearanceSettings(restored)
+      return restored
+    },
+  )
+  ipcMain.handle(
+    DESKTOP_APPEARANCE_IPC_CHANNELS.applyNewDesignTheme,
+    async () => {
+      const next = await store.applyNewDesignTheme()
+      settings = next
+      appearance.updateSettings(next)
+      appearance.broadcastAppearanceSettings(next)
+      return next
+    },
+  )
   appearance.registerThemeBroadcast()
 }

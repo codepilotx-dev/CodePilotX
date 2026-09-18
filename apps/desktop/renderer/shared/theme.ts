@@ -6,6 +6,10 @@ import type {
   DesktopThemeVariant,
 } from './types.js'
 import {
+  DEFAULT_APPEARANCE_SETTINGS,
+  DEFAULT_CHROME_THEMES,
+  DEFAULT_DARK_CHROME_THEME,
+  DEFAULT_LIGHT_CHROME_THEME,
   desktopThemeFontFaceMatchesFamily,
   isNewerDesktopThemeSettingsVersion,
 } from '@codepilotx/shared/desktop-theme'
@@ -22,30 +26,9 @@ export const DEFAULT_UI_FONT =
 export const DEFAULT_CODE_FONT =
   '"JetBrains Mono", "SFMono-Regular", Consolas, monospace'
 
-export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
-  accent: '#339cff',
-  contrast: 45,
-  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#111111',
-  semanticColors: {
-    diffAdded: '#00a240',
-    diffRemoved: '#ba2623',
-    skill: '#924ff7',
-  },
-  surface: '#f9f9f9',
-}
-
-export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
-  accent: '#339cff',
-  contrast: 60,
-  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#f7f7f7',
-  semanticColors: {
-    diffAdded: '#40c977',
-    diffRemoved: '#fa423e',
-    skill: '#ad7bf9',
-  },
-  surface: '#111111',
+export {
+  DEFAULT_LIGHT_CHROME_THEME,
+  DEFAULT_DARK_CHROME_THEME,
 }
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
@@ -60,25 +43,8 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   variant: 'dark',
 }
 
-export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  version: 7,
-  mode: 'system',
-  chromeThemes: {
-    light: DEFAULT_LIGHT_CHROME_THEME,
-    dark: DEFAULT_DARK_CHROME_THEME,
-  },
-  codeThemeIds: {
-    light: 'codex-light',
-    dark: 'codex-dark',
-  },
-  pointerCursorEnabled: false,
-  reduceMotion: 'system',
-  fontSmoothingEnabled: true,
-  fontSizes: {
-    code: 13,
-    ui: 14,
-  },
-}
+export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings =
+  DEFAULT_APPEARANCE_SETTINGS as DesktopThemeSettings
 
 export function getDesktopThemeForSelection(
   settings: DesktopThemeSettings,

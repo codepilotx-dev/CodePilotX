@@ -8,9 +8,9 @@
 .placeholder-card,
 .plugins-empty {
   border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: 0;
+  border-radius: var(--cpx-comp-surface-card-radius);
   background: var(--cpx-comp-surface-panel);
-  box-shadow: none;
+  box-shadow: var(--cpx-sys-shadow-raised);
 }
 
 /* --- Elevated Surface (popover / raised card level) --- */
@@ -18,24 +18,26 @@
 .thread-summary-panel,
 .thread-summary-error {
   border: var(--cpx-comp-surface-edge);
+  border-radius: var(--cpx-sys-radius-container);
   background: var(--cpx-comp-surface-raised);
-  backdrop-filter: none;
-  box-shadow: none;
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-sys-shadow-raised);
 }
 
 .composer {
   border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-comp-composer-radius);
   background: var(--cpx-comp-surface-raised);
-  backdrop-filter: none;
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
   box-shadow: var(--cpx-comp-composer-shadow);
 }
 
 .desktop-sidebar.is-floating {
   border: var(--cpx-comp-surface-edge);
-  border-radius: 0;
-  background: var(--cpx-comp-surface-floating);
-  backdrop-filter: none;
-  box-shadow: none;
+  border-radius: var(--cpx-sys-radius-container);
+  background: var(--cpx-comp-glass-bg, var(--cpx-comp-surface-floating));
+  backdrop-filter: var(--cpx-comp-glass-filter, blur(16px));
+  box-shadow: var(--cpx-sys-shadow-floating);
 }
 
 @media (prefers-reduced-motion: reduce) {

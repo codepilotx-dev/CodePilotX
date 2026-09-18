@@ -9,6 +9,8 @@
 
 ### Added
 
+- [desktop] 全面采用 UI-Design 视觉体系并实现平滑外观迁移：恢复 Apple HIG 风格优雅圆角体系（基础刻度 4px ~ 28px、pill 9999px）与分级轻盈暗部投影（Resting、Raised、Floating、Control、Prominent），毛玻璃模糊重置为 8px/16px/24px；基础组件（Button、Input、Switch、Card、SegmentedControl、Modal、Popover 等）与业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar 等）全面对齐 UI-Design 规范并统一收敛至 `--cpx-sys-*` 与 `--cpx-comp-*` 设计 Token。Electron 外观存储实现原子化平滑迁移（`appearance-migration.json` 记录升级前外观备份），并在设置页“外观”面板提供“恢复升级前外观”与“应用新设计主题”操作。
+
 - [desktop/renderer] 接入新版 ModelSelect 选择器与推理菜单视觉交互规范：完整对齐 UI-Design 布局、尺寸、圆角、阴影与动效；支持胶囊双触发器（模型面板与推理独立唤起并具备完整键盘导航无障碍焦点）、独立供应商侧栏、快速搜索（展开/清空/ESC 复位）、双状态单选指示器、独立 Radix 浮层推理菜单（含深度思考与模型 variant 选项）及 Model Hub 目录视图；私有样式契约集中治理几何与阴影，颜色无缝接入 `--cpx-sys-color-*` 语义主题。
 
 - [docs] 在 Renderer Design Token 规范（`docs/design/renderer-token-system.md`）中记录 ModelSelect 作为首个新版视觉试点组件的接入规范，并确立「基础 Token → 基础组件 → 业务组件」三阶段演进统一路线。
@@ -102,6 +104,8 @@
 - [desktop] 原生窗口缩放状态收敛为按窗口维度的统一降载信号：新增 `window:resize-activity`（`{ windowId, phase, revision }`，保留旧 `resize-state-changed` 通道）与 `onWindowResizeActivity` 桥接，主进程在 `will-resize`/`resized` 之外增加最后一次 resize 后 300ms 的结算定时器，取消拖拽也能补齐 end，保证 start/end 始终配对；Renderer 用 `resizeActivityCoordinator`（按 windowId + 单调 revision + 5s 看门狗）取代原先的易失布尔 ref，重复或陈旧事件被丢弃，主进程事件丢失时兜底恢复渲染，工作台布局与终端消费同一份状态。终端在拖拽期间把 PTY resize 节流到 150ms，缩放结束后只执行一次 fit 与一次最终尺寸下发，不再逐帧触发 ConPTY 重排；标题栏 36px 契约与既有布局写入语义不变。
 
 ### Fixed
+
+- [desktop] 修复外观迁移记录读取异常被当作“无记录”导致重复迁移的问题：`appearance-migration.json` 只有确实不存在（ENOENT）时才重跑迁移，读取失败（如 EACCES/EISDIR）、JSON 损坏或内容无法识别时改为原样保留记录、跳过迁移并记录不含路径与内容的诊断事件（`appearance-settings.migration-record-preserved`），不再以用户当前（可能已迁移或已自定义）的外观覆盖唯一备份，也不会把已调整的外观再次重置为默认主题。同时校验记录版本、迁移 ID 与备份结构：版本高于 1、`migrationId` 不属于本次迁移、`pending` 缺备份或备份字段缺失的记录一律按不可识别处理，既不改写自己无法识别的记录，也不再让“恢复升级前外观”按钮对不可用的备份返回可恢复。
 
 - [agent] 文件工具依据真实目标路径统一识别配置、环境文件及 Git 保护路径，修复完全访问模式下绝对路径绕过配置校验与审批规则的问题，覆盖新文件父目录链接及批量补丁。
 

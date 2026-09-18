@@ -128,3 +128,62 @@ export type DesktopThemeSettingsV6<CodeThemeId extends string = string> = {
  */
 export type DesktopThemeSettingsV7<CodeThemeId extends string = string> =
   Omit<DesktopThemeSettingsV6<CodeThemeId>, "version"> & { version: 7 }
+
+export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
+  accent: "#0066cc",
+  contrast: 45,
+  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
+  ink: "#1d1d1f",
+  semanticColors: {
+    diffAdded: "#16a34a",
+    diffRemoved: "#dc2626",
+    skill: "#9333ea",
+  },
+  surface: "#ffffff",
+}
+
+export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
+  accent: "#2997ff",
+  contrast: 60,
+  fonts: { code: null, ui: null, uiFace: null, codeFace: null },
+  ink: "#f7f8f8",
+  semanticColors: {
+    diffAdded: "#40c977",
+    diffRemoved: "#fa423e",
+    skill: "#ad7bf9",
+  },
+  surface: "#0f1011",
+}
+
+export const DEFAULT_CHROME_THEMES: Record<DesktopThemeVariant, DesktopChromeTheme> = {
+  light: DEFAULT_LIGHT_CHROME_THEME,
+  dark: DEFAULT_DARK_CHROME_THEME,
+}
+
+export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV7 = {
+  version: 7,
+  mode: "system",
+  chromeThemes: DEFAULT_CHROME_THEMES,
+  codeThemeIds: { light: "codex-light", dark: "codex-dark" },
+  pointerCursorEnabled: false,
+  reduceMotion: "system",
+  fontSmoothingEnabled: true,
+  fontSizes: { ui: 14, code: 13 },
+}
+
+export type AppearanceMigrationBackup = {
+  chromeThemes: {
+    light: DesktopChromeTheme
+    dark: DesktopChromeTheme
+  }
+  fontSizes: {
+    ui: number
+  }
+}
+
+export type AppearanceMigrationRecord = {
+  version: 1
+  migrationId: "ui-design-visual-theme"
+  state: "pending" | "completed"
+  backup?: AppearanceMigrationBackup | null
+}

@@ -22,12 +22,20 @@ function temporaryRoot(): string {
 }
 
 describe("Electron 外观设置存储", () => {
-  test("首次读取创建当前代际的设置文件", async () => {
+  test("首次读取创建当前代际的设置文件与 completed 迁移记录（无备份）", async () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
 
     expect(await store.load()).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
+    expect(JSON.parse(await readFile(store.migrationFilePath, "utf8"))).toEqual({
+      version: 1,
+      migrationId: "ui-design-visual-theme",
+      state: "completed",
+      backup: null,
+    })
+    expect(await store.canRestorePreviousAppearance()).toBe(false)
+    await expect(store.restorePreviousAppearance()).rejects.toThrow("无可用升级前外观备份")
   })
 
   test("损坏 JSON 删除旧文件、记录无敏感信息的事件并恢复默认值", async () => {
@@ -41,7 +49,7 @@ describe("Electron 外观设置存储", () => {
 
     expect(await store.load()).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
-    expect(await readdir(root)).toEqual(["appearance-settings.json"])
+    expect((await readdir(root)).sort()).toEqual(["appearance-migration.json", "appearance-settings.json"])
     expect(records).toEqual([{
       event: "appearance-settings.corrupt-reset",
       fields: { reason: "invalid-json" },
@@ -187,29 +195,225 @@ describe("Electron 外观设置存储", () => {
       pointerCursorEnabled: true,
       reduceMotion: "off",
       fontSmoothingEnabled: false,
-      fontSizes: { ui: 15, code: 13 },
+      fontSizes: { ui: 14, code: 13 },
     })
-    expect(loaded.chromeThemes.light).toMatchObject({
+    expect(loaded.chromeThemes.light.accent).toBe("#0066cc")
+    expect(loaded.chromeThemes.light.surface).toBe("#ffffff")
+    expect(loaded.chromeThemes.light.fonts.code).toBe("JetBrains Mono")
+    expect(loaded.chromeThemes.dark.fonts.code).toBe("Cascadia Code")
+    expect(records).toEqual([{
+      event: "appearance-settings.migrated-ui-design",
+      fields: { preservedMode: "light" },
+    }])
+
+    expect(await store.canRestorePreviousAppearance()).toBe(true)
+
+    const restored = await store.restorePreviousAppearance()
+    expect(restored.chromeThemes.light).toMatchObject({
       accent: "#abcdef",
       surface: "#fefefe",
       ink: "#111111",
       contrast: 42,
     })
-    expect(loaded.chromeThemes.light.fonts).toEqual({
-      ui: "Inter",
-      uiFace: null,
-      code: "JetBrains Mono",
-      codeFace: null,
+    expect(restored.chromeThemes.light.fonts.ui).toBe("Inter")
+    expect(restored.fontSizes.ui).toBe(15)
+    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(restored)
+
+    const reapplied = await store.applyNewDesignTheme()
+    expect(reapplied.chromeThemes.light.accent).toBe("#0066cc")
+    expect(reapplied.chromeThemes.light.surface).toBe("#ffffff")
+    expect(reapplied.fontSizes.ui).toBe(14)
+    expect(reapplied.chromeThemes.light.fonts.code).toBe("JetBrains Mono")
+    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(reapplied)
+    expect(await store.canRestorePreviousAppearance()).toBe(true)
+  })
+
+  test("重复启动幂等性：已有 completed 迁移记录时不重新覆盖用户外观设置", async () => {
+    const root = temporaryRoot()
+    const store1 = new AppearanceSettingsStore(root)
+    const initial = await store1.load()
+    expect(initial.chromeThemes.light.accent).toBe("#0066cc")
+
+    const custom = {
+      ...initial,
+      chromeThemes: {
+        ...initial.chromeThemes,
+        light: {
+          ...initial.chromeThemes.light,
+          accent: "#ff0077",
+        },
+      },
+    }
+    await store1.save(custom)
+
+    const store2 = new AppearanceSettingsStore(root)
+    const reloaded = await store2.load()
+    expect(reloaded.chromeThemes.light.accent).toBe("#ff0077")
+  })
+
+  test("迁移中断恢复：pending 状态重入时沿用原 backup 完成迁移并标记 completed", async () => {
+    const root = temporaryRoot()
+    const store = new AppearanceSettingsStore(root)
+    await mkdir(root, { recursive: true })
+
+    const customBackup = {
+      chromeThemes: {
+        light: {
+          accent: "#112233",
+          surface: "#fafafa",
+          ink: "#222222",
+          contrast: 50,
+          semanticColors: { diffAdded: "#11aa22", diffRemoved: "#bb2211", skill: "#8833cc" },
+          fonts: { ui: "Consolas", uiFace: null, code: "Courier", codeFace: null },
+        },
+        dark: {
+          accent: "#445566",
+          surface: "#111111",
+          ink: "#eeeeee",
+          contrast: 50,
+          semanticColors: { diffAdded: "#11aa22", diffRemoved: "#bb2211", skill: "#8833cc" },
+          fonts: { ui: null, uiFace: null, code: "Courier", codeFace: null },
+        },
+      },
+      fontSizes: { ui: 16 },
+    }
+
+    await writeFile(store.migrationFilePath, JSON.stringify({
+      version: 1,
+      migrationId: "ui-design-visual-theme",
+      state: "pending",
+      backup: customBackup,
+    }), "utf8")
+    await writeFile(store.filePath, JSON.stringify(DEFAULT_APPEARANCE_SETTINGS), "utf8")
+
+    const loaded = await store.load()
+    expect(loaded.fontSizes.ui).toBe(14)
+
+    const migrationRecord = JSON.parse(await readFile(store.migrationFilePath, "utf8"))
+    expect(migrationRecord.state).toBe("completed")
+    expect(migrationRecord.backup).toEqual(customBackup)
+
+    expect(await store.canRestorePreviousAppearance()).toBe(true)
+    const restored = await store.restorePreviousAppearance()
+    expect(restored.chromeThemes.light.accent).toBe("#112233")
+    expect(restored.fontSizes.ui).toBe(16)
+  })
+
+  test("迁移记录读取失败时保留原设置与记录，不重跑迁移", async () => {
+    const root = temporaryRoot()
+    const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const store = new AppearanceSettingsStore(root, {
+      info: (event, fields) => records.push({ event, fields }),
     })
-    expect(loaded.chromeThemes.dark.fonts).toEqual({
-      ui: null,
-      uiFace: null,
-      code: "Cascadia Code",
-      codeFace: null,
+    await mkdir(root, { recursive: true })
+    const customized = {
+      ...DEFAULT_APPEARANCE_SETTINGS,
+      chromeThemes: {
+        ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes,
+        light: {
+          ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes.light,
+          accent: "#ff0077" as const,
+        },
+      },
+    }
+    await writeFile(store.filePath, JSON.stringify(customized), "utf8")
+    // 目录占位使 readFile 抛出非 ENOENT 错误，模拟瞬时读取失败。
+    await mkdir(store.migrationFilePath, { recursive: true })
+
+    const loaded = await store.load()
+
+    expect(loaded.chromeThemes.light.accent).toBe("#ff0077")
+    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(customized)
+    expect(records).toEqual([{
+      event: "appearance-settings.migration-record-preserved",
+      fields: { reason: "read-error" },
+    }])
+    expect(JSON.stringify(records)).not.toContain(root)
+    expect(await store.canRestorePreviousAppearance()).toBe(false)
+  })
+
+  test("记录版本、迁移 ID 或备份不可识别时保留记录并跳过迁移", async () => {
+    const foreignBackup = {
+      chromeThemes: { light: { accent: "#112233" }, dark: null },
+      fontSizes: {},
+    }
+    const candidates: Array<Record<string, unknown>> = [
+      {
+        version: 2,
+        migrationId: "ui-design-visual-theme",
+        state: "pending",
+        backup: foreignBackup,
+        futureField: true,
+      },
+      {
+        version: 1,
+        migrationId: "some-other-migration",
+        state: "pending",
+        backup: foreignBackup,
+      },
+      { version: 1, migrationId: "ui-design-visual-theme", state: "pending" },
+      {
+        version: 1,
+        migrationId: "ui-design-visual-theme",
+        state: "completed",
+        backup: foreignBackup,
+      },
+    ]
+
+    for (const candidate of candidates) {
+      const root = temporaryRoot()
+      const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
+      const store = new AppearanceSettingsStore(root, {
+        info: (event, fields) => records.push({ event, fields }),
+      })
+      await mkdir(root, { recursive: true })
+      const customized = {
+        ...DEFAULT_APPEARANCE_SETTINGS,
+        chromeThemes: {
+          ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes,
+          light: {
+            ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes.light,
+            accent: "#ff0077" as const,
+          },
+        },
+      }
+      await writeFile(store.filePath, JSON.stringify(customized), "utf8")
+      const source = JSON.stringify(candidate, null, 2)
+      await writeFile(store.migrationFilePath, source, "utf8")
+
+      const loaded = await store.load()
+
+      expect(loaded.chromeThemes.light.accent).toBe("#ff0077")
+      expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(customized)
+      expect(await readFile(store.migrationFilePath, "utf8")).toBe(source)
+      expect(records).toEqual([{
+        event: "appearance-settings.migration-record-preserved",
+        fields: { reason: "unknown-record" },
+      }])
+      expect(JSON.stringify(records)).not.toContain(root)
+      expect(await store.canRestorePreviousAppearance()).toBe(false)
+      await expect(store.restorePreviousAppearance()).rejects.toThrow("无可用升级前外观备份")
+    }
+  })
+
+  test("迁移记录为损坏 JSON 时不重跑迁移并保留记录文件", async () => {
+    const root = temporaryRoot()
+    const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const store = new AppearanceSettingsStore(root, {
+      info: (event, fields) => records.push({ event, fields }),
     })
-    const persisted = JSON.parse(await readFile(store.filePath, "utf8"))
-    expect(persisted).toEqual(loaded)
-    expect(records).toEqual([])
+    await mkdir(root, { recursive: true })
+    await writeFile(store.filePath, JSON.stringify(DEFAULT_APPEARANCE_SETTINGS), "utf8")
+    await writeFile(store.migrationFilePath, "{not-json", "utf8")
+
+    await store.load()
+
+    expect(await readFile(store.migrationFilePath, "utf8")).toBe("{not-json")
+    expect(records).toEqual([{
+      event: "appearance-settings.migration-record-preserved",
+      fields: { reason: "invalid-json" },
+    }])
+    expect(JSON.stringify(records)).not.toContain("{not-json")
   })
 
   test("读取旧设置时直接覆盖为 V7 默认值", async () => {
@@ -237,7 +441,10 @@ describe("Electron 外观设置存储", () => {
 
     expect(loaded).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(loaded)
-    expect(records).toEqual([])
+    expect(records).toEqual([{
+      event: "appearance-settings.migrated-ui-design",
+      fields: { preservedMode: "system" },
+    }])
   })
 
   test("所有已知旧版本都重置为 V7 默认值", () => {

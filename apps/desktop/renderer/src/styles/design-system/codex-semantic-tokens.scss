@@ -15,7 +15,7 @@
   --cpx-comp-dropdown-item-pressed-bg: var(--cpx-sys-color-active);
   --cpx-comp-dropdown-item-disabled-fg: var(--cpx-sys-color-fg-disabled);
   --cpx-comp-dropdown-focus-border: var(--cpx-sys-color-border-focus);
-  --cpx-comp-dropdown-menu-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-dropdown-menu-radius: var(--cpx-sys-radius-floating);
   --cpx-comp-dropdown-menu-shadow: var(--cpx-sys-shadow-floating);
 
   // 2. Button / IconButton Component
@@ -71,7 +71,7 @@
   --cpx-comp-tooltip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating);
-  --cpx-comp-tooltip-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-tooltip-radius: var(--cpx-sys-radius-sm);
   --cpx-comp-scrollbar-slider-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 22%, transparent);
   --cpx-comp-scrollbar-slider-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 32%, transparent);
   --cpx-comp-scrollbar-slider-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 42%, transparent);
@@ -105,8 +105,8 @@
   --cpx-comp-surface-floating: var(--cpx-sys-color-surface-raised);
   --cpx-comp-surface-edge: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-surface-edge-strong: 1px solid var(--cpx-sys-color-border-default);
-  --cpx-comp-surface-card-radius: var(--cpx-sys-radius-lg);
-  --cpx-comp-surface-panel-radius: var(--cpx-sys-radius-xl);
+  --cpx-comp-surface-card-radius: var(--cpx-sys-radius-container);
+  --cpx-comp-surface-panel-radius: var(--cpx-sys-radius-container);
   --cpx-comp-surface-shadow-floating: var(--cpx-sys-shadow-floating);
   --cpx-comp-surface-shadow-raised: var(--cpx-sys-shadow-raised);
   --cpx-comp-surface-fog: transparent;
@@ -122,7 +122,7 @@
   --cpx-comp-modal-backdrop-filter: none;
   --cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-modal-shadow: var(--cpx-sys-shadow-floating);
-  --cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);
+  --cpx-comp-modal-radius: var(--cpx-sys-radius-prominent);
   --cpx-comp-modal-preformat-bg: var(--cpx-sys-color-surface-editor);
   --cpx-comp-modal-scrim: var(--cpx-sys-color-scrim);
 
@@ -131,12 +131,12 @@
   --cpx-comp-sidebar-border: 0;
   --cpx-comp-sidebar-item-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-sidebar-item-active-bg: var(--cpx-sys-color-selected);
-  --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-item);
   --cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);
   --cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);
   --cpx-comp-dock-tab-hover-bg: var(--cpx-sys-color-hover);
   --cpx-comp-dock-tab-active-bg: var(--cpx-sys-color-selected);
-  --cpx-comp-dock-tab-radius: var(--cpx-sys-radius-lg);
+  --cpx-comp-dock-tab-radius: var(--cpx-sys-radius-item);
   --cpx-comp-dock-tab-height: 46px;
 
   // 9. Workbench Component
@@ -160,7 +160,7 @@
   --cpx-comp-composer-safe-pad: 78px;
   --cpx-comp-composer-border: var(--cpx-sys-color-border-default);
   --cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);
-  --cpx-comp-composer-radius: var(--cpx-sys-radius-3xl);
+  --cpx-comp-composer-radius: var(--cpx-sys-radius-prominent);
 
   // 12. Terminal Component
   --cpx-comp-terminal-bg: var(--cpx-sys-color-surface-editor);

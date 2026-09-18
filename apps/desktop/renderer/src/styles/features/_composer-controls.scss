@@ -602,27 +602,23 @@
   --composer-model-space-10: 10px;
   --composer-model-panel-width: 396px;
   --composer-model-panel-height: 390px;
-  --composer-model-panel-radius: 30px;
-  --composer-model-panel-shadow:
-    0 16px 40px -8px color-mix(in srgb, var(--cpx-sys-color-scrim) 35%, transparent),
-    0 2px 8px color-mix(in srgb, var(--cpx-sys-color-scrim) 15%, transparent);
-  --composer-model-right-panel-radius: 26px;
+  --composer-model-panel-radius: var(--cpx-sys-radius-prominent);
+  --composer-model-panel-shadow: var(--cpx-sys-shadow-floating);
+  --composer-model-right-panel-radius: var(--cpx-sys-radius-container);
   --composer-model-rail-width: 56px;
-  --composer-model-rail-item-radius: 14px;
-  --composer-model-item-radius: 14px;
-  --composer-model-item-pill-radius: 7px;
-  --composer-model-search-radius: 10px;
-  --composer-model-hub-row-radius: 14px;
-  --composer-model-hub-logo-radius: 10px;
-  --composer-model-hub-action-radius: 6px;
+  --composer-model-rail-item-radius: var(--cpx-sys-radius-control);
+  --composer-model-item-radius: var(--cpx-sys-radius-control);
+  --composer-model-item-pill-radius: var(--cpx-sys-radius-compact);
+  --composer-model-search-radius: var(--cpx-sys-radius-control);
+  --composer-model-hub-row-radius: var(--cpx-sys-radius-control);
+  --composer-model-hub-logo-radius: var(--cpx-sys-radius-item);
+  --composer-model-hub-action-radius: var(--cpx-sys-radius-compact);
   --composer-model-trigger-height: 36px;
-  --composer-model-trigger-radius: var(--cpx-sys-radius-full);
-  --composer-model-trigger-badge-radius: 5px;
-  --composer-reasoning-menu-radius: 16px;
-  --composer-reasoning-menu-item-radius: 10px;
-  --composer-reasoning-menu-shadow:
-    0 10px 30px color-mix(in srgb, var(--cpx-sys-color-scrim) 45%, transparent),
-    0 1px 3px color-mix(in srgb, var(--cpx-sys-color-scrim) 25%, transparent);
+  --composer-model-trigger-radius: var(--cpx-sys-radius-pill);
+  --composer-model-trigger-badge-radius: var(--cpx-sys-radius-indicator);
+  --composer-reasoning-menu-radius: var(--cpx-sys-radius-prominent);
+  --composer-reasoning-menu-item-radius: var(--cpx-sys-radius-control);
+  --composer-reasoning-menu-shadow: var(--cpx-sys-shadow-floating);
 }
 
 /* --- ModelSelect Capsule Trigger --- */

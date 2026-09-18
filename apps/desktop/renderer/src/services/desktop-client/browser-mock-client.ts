@@ -1066,6 +1066,44 @@ export function createBrowserMockDesktopClient(
         // Browser preview persistence is best-effort.
       }
     },
+    canRestorePreviousAppearance: async () => false,
+    restorePreviousAppearance: async () => themeSettings,
+    applyNewDesignTheme: async () => {
+      themeSettings = normalizeDesktopThemeSettings({
+        ...themeSettings,
+        chromeThemes: {
+          light: {
+            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light,
+            fonts: {
+              ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light.fonts,
+              code: themeSettings.chromeThemes.light.fonts.code,
+              codeFace: themeSettings.chromeThemes.light.fonts.codeFace,
+            },
+          },
+          dark: {
+            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark,
+            fonts: {
+              ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark.fonts,
+              code: themeSettings.chromeThemes.dark.fonts.code,
+              codeFace: themeSettings.chromeThemes.dark.fonts.codeFace,
+            },
+          },
+        },
+        fontSizes: {
+          ...themeSettings.fontSizes,
+          ui: 14,
+        },
+      })
+      try {
+        storage?.setItem(
+          BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY,
+          JSON.stringify(themeSettings),
+        )
+      } catch {
+        // Browser preview persistence is best-effort.
+      }
+      return themeSettings
+    },
     createSession: async options => {
       const workspace = options.workspacePath
         ? mockWorkspace(options.workspacePath)

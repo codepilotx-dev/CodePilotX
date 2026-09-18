@@ -128,12 +128,18 @@ export function deriveThemeVariables(
     ink: theme.ink,
   })
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
-  const shadowResting = 'none'
-  const shadowRaised = 'none'
+  const shadowResting = dark
+    ? '0 1px 2px rgb(0 0 0 / 20%)'
+    : '0 1px 2px rgb(0 0 0 / 2%)'
+  const shadowRaised = dark
+    ? '0 2px 8px rgb(0 0 0 / 40%)'
+    : '0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)'
   const shadowFloating = dark
-    ? '0 8px 24px -6px rgb(0 0 0 / 38%), 0 2px 8px -2px rgb(0 0 0 / 26%)'
-    : '0 6px 20px -6px rgb(0 0 0 / 9%), 0 2px 6px -2px rgb(0 0 0 / 4%)'
-  const shadowControl = '0 1px 2px -1px rgb(0 0 0 / 8%)'
+    ? '0 8px 30px rgb(0 0 0 / 50%)'
+    : '0 8px 30px rgb(0 0 0 / 12%)'
+  const shadowControl = dark
+    ? '0 1px 2px rgb(0 0 0 / 20%)'
+    : '0 1px 2px rgb(0 0 0 / 2%)'
 
   return {
     // System Layer: Foundation & Contrast
@@ -223,6 +229,7 @@ export function deriveThemeVariables(
     // System Layer: Shadows
     '--cpx-sys-shadow-resting': shadowResting,
     '--cpx-sys-shadow-raised': shadowRaised,
+    '--cpx-sys-shadow-prominent': shadowFloating,
     '--cpx-sys-shadow-floating': shadowFloating,
     '--cpx-sys-shadow-control': shadowControl,
 

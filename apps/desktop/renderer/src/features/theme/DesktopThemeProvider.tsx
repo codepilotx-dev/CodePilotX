@@ -309,6 +309,28 @@ export function DesktopThemeProvider({
     ],
   )
 
+  const canRestorePreviousAppearance = useCallback(async (): Promise<boolean> => {
+    return desktopClient.canRestorePreviousAppearance()
+  }, [])
+
+  const restorePreviousAppearance = useCallback(async (): Promise<void> => {
+    const restored = await desktopClient.restorePreviousAppearance()
+    const normalized = normalizeDesktopThemeSettings(restored)
+    committedSettingsRef.current = normalized
+    draftSettingsRef.current = normalized
+    setSettings(normalized)
+    setDraftSettings(normalized)
+  }, [])
+
+  const applyNewDesignTheme = useCallback(async (): Promise<void> => {
+    const applied = await desktopClient.applyNewDesignTheme()
+    const normalized = normalizeDesktopThemeSettings(applied)
+    committedSettingsRef.current = normalized
+    draftSettingsRef.current = normalized
+    setSettings(normalized)
+    setDraftSettings(normalized)
+  }, [])
+
   const value = useMemo<DesktopThemeContextValue>(
     () => ({
       settings,
@@ -322,13 +344,19 @@ export function DesktopThemeProvider({
       draft,
       setMode,
       saveSettings,
+      canRestorePreviousAppearance,
+      restorePreviousAppearance,
+      applyNewDesignTheme,
     }),
     [
       activeTheme,
+      applyNewDesignTheme,
+      canRestorePreviousAppearance,
       draft,
       draftResolvedVariant,
       draftSettings,
       reducedMotion,
+      restorePreviousAppearance,
       saveSettings,
       setMode,
       settings,

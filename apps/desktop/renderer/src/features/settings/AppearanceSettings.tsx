@@ -6,6 +6,7 @@ import React, {
 import * as Slider from '@radix-ui/react-slider'
 
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
+import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
@@ -943,6 +944,23 @@ export function AppearanceSettings({
 
   const reportError = onError ?? (() => undefined)
 
+  const [canRestore, setCanRestore] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const [applyingNew, setApplyingNew] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void theme
+      .canRestorePreviousAppearance()
+      .then(result => {
+        if (active) setCanRestore(result)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [theme])
+
   const saveThemeSettings = (updater: ThemeSettingsUpdater): void => {
     void theme.draft.updateAndAutoSave(updater).catch(error => {
       reportError(
@@ -1044,6 +1062,57 @@ export function AppearanceSettings({
                 onUpdate={saveThemeSettings}
               />
             ))}
+          </div>
+
+          <div className="appearance-theme-migration-actions tw:mt-4 tw:flex tw:items-center tw:gap-2">
+            <Button
+              color="secondary"
+              loading={applyingNew}
+              onClick={async () => {
+                setApplyingNew(true)
+                try {
+                  await theme.applyNewDesignTheme()
+                  const restoreAvailable =
+                    await theme.canRestorePreviousAppearance()
+                  setCanRestore(restoreAvailable)
+                } catch (error) {
+                  reportError(
+                    error instanceof Error
+                      ? error.message
+                      : '应用新设计主题失败',
+                  )
+                } finally {
+                  setApplyingNew(false)
+                }
+              }}
+            >
+              应用新设计主题
+            </Button>
+            {canRestore ? (
+              <Button
+                color="secondary"
+                loading={restoring}
+                onClick={async () => {
+                  setRestoring(true)
+                  try {
+                    await theme.restorePreviousAppearance()
+                    const restoreAvailable =
+                      await theme.canRestorePreviousAppearance()
+                    setCanRestore(restoreAvailable)
+                  } catch (error) {
+                    reportError(
+                      error instanceof Error
+                        ? error.message
+                        : '恢复外观设置失败',
+                    )
+                  } finally {
+                    setRestoring(false)
+                  }
+                }}
+              >
+                恢复升级前外观
+              </Button>
+            ) : null}
           </div>
         </SettingsSection>
 

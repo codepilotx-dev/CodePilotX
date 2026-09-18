@@ -1953,6 +1953,9 @@ export type DesktopApi = {
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
+  canRestorePreviousAppearance(): Promise<boolean>
+  restorePreviousAppearance(): Promise<DesktopThemeSettings>
+  applyNewDesignTheme(): Promise<DesktopThemeSettings>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
   createSideChat(input: {
     sourceThreadId: string

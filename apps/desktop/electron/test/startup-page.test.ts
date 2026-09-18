@@ -134,10 +134,10 @@ describe("startup page", () => {
     ).toEqual({
       variant: "light",
       theme: {
-        surface: "#f9f9f9",
-        ink: "#111111",
-        accent: "#339cff",
-        surfaceUnder: "#f0f0f0",
+        surface: "#ffffff",
+        ink: "#1d1d1f",
+        accent: "#0066cc",
+        surfaceUnder: "#f6f6f6",
       },
     })
     expect(
@@ -145,10 +145,10 @@ describe("startup page", () => {
     ).toEqual({
       variant: "dark",
       theme: {
-        surface: "#111111",
-        ink: "#f7f7f7",
-        accent: "#339cff",
-        surfaceUnder: "#0e0e0e",
+        surface: "#0f1011",
+        ink: "#f7f8f8",
+        accent: "#2997ff",
+        surfaceUnder: "#0d0d0e",
       },
     })
   })

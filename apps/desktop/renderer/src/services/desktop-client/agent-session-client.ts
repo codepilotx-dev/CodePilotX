@@ -2790,6 +2790,36 @@ export function createAgentSessionDesktopClient(
       }
       await mockClient.saveThemeSettings(normalized)
     },
+    canRestorePreviousAppearance: async () => {
+      const checker =
+        environment.window?.codePilotXDesktop?.canRestorePreviousAppearance
+      if (checker) {
+        return checker()
+      }
+      return mockClient.canRestorePreviousAppearance()
+    },
+    restorePreviousAppearance: async () => {
+      const restorer =
+        environment.window?.codePilotXDesktop?.restorePreviousAppearance
+      if (restorer) {
+        const restored = await restorer()
+        const normalized = normalizeDesktopThemeSettings(restored)
+        await mockClient.saveThemeSettings(normalized)
+        return normalized
+      }
+      return mockClient.restorePreviousAppearance()
+    },
+    applyNewDesignTheme: async () => {
+      const applier =
+        environment.window?.codePilotXDesktop?.applyNewDesignTheme
+      if (applier) {
+        const applied = await applier()
+        const normalized = normalizeDesktopThemeSettings(applied)
+        await mockClient.saveThemeSettings(normalized)
+        return normalized
+      }
+      return mockClient.applyNewDesignTheme()
+    },
     saveDesktopSettings: queueDesktopSettingsSave,
     listProjectMemories: workspacePath =>
       withAgentOrMock(

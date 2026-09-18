@@ -324,7 +324,9 @@ describe('Codex CPX design system token contract', () => {
       ])
 
     expect(systemTokens.match(/--cpx-sys-shadow-prominent:/g)).toHaveLength(1)
-    expect(systemTokens).toContain('--cpx-sys-shadow-raised: none;')
+    expect(systemTokens).toContain(
+      '--cpx-sys-shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);',
+    )
     expect(componentTokens).toContain(
       '--cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);',
     )
@@ -385,7 +387,7 @@ describe('Codex CPX design system token contract', () => {
       /\.rm-thick-slider-range\s*\{[\s\S]*?transform-origin: left center;/,
     )
     expect(modelMenu).toMatch(
-      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: 0;/,
+      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: var\(--cpx-sys-radius-full\);/,
     )
     expect(modelMenu).toMatch(
       /\.rm-thick-slider-thumb-rail\s*\{[\s\S]*?left: 0;/,
@@ -457,30 +459,31 @@ describe('Codex CPX design system token contract', () => {
     expect(systemTokens).not.toContain(
       '--cpx-sys-corner-shape: superellipse(1.5);',
     )
-    for (const size of [
-      '2xs',
-      'xs',
-      'sm',
-      'md',
-      'lg',
-      'xl',
-      '2xl',
-      '3xl',
-      '4xl',
-      'full',
-    ]) {
+    const expectedSizes: Record<string, string> = {
+      '2xs': '4px',
+      xs: '6px',
+      sm: '8px',
+      md: '10px',
+      lg: '12px',
+      xl: '14px',
+      '2xl': '16px',
+      '3xl': '20px',
+      '4xl': '28px',
+      full: '9999px',
+    }
+    for (const [size, value] of Object.entries(expectedSizes)) {
       expect(
         systemTokens.match(new RegExp(`--cpx-sys-radius-${size}:`, 'g')),
       ).toHaveLength(1)
-      expect(systemTokens).toContain(`--cpx-sys-radius-${size}: 0;`)
+      expect(systemTokens).toContain(`--cpx-sys-radius-${size}: ${value};`)
     }
     for (const [role, size] of [
       ['indicator', '2xs'],
       ['compact', 'xs'],
       ['control', 'md'],
       ['container', 'lg'],
-      ['floating', 'xl'],
-      ['prominent', '3xl'],
+      ['floating', 'lg'],
+      ['prominent', '2xl'],
       ['pill', 'full'],
     ]) {
       expect(
@@ -510,10 +513,10 @@ describe('Codex CPX design system token contract', () => {
       'corner-shape: var(--cpx-sys-corner-shape);',
     )
     expect(componentTokens).toContain(
-      '--cpx-comp-modal-radius: var(--cpx-sys-radius-3xl);',
+      '--cpx-comp-modal-radius: var(--cpx-sys-radius-prominent);',
     )
     expect(componentTokens).toContain(
-      '--cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-lg);',
+      '--cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-item);',
     )
 
     expect(buttons).not.toContain('--button-radius-scale')

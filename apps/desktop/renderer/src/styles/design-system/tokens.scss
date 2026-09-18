@@ -86,35 +86,38 @@
   --cpx-sys-color-charts-cyan: var(--cpx-sys-color-info);
 
   // System Blur & Glassmorphism
-  --cpx-sys-blur-sm: 0;
-  --cpx-sys-blur-md: 0;
-  --cpx-sys-blur-lg: 0;
-  --cpx-sys-glass-filter: none;
-  --cpx-sys-glass-bg: var(--cpx-sys-color-surface-panel);
+  --cpx-sys-blur-sm: 8px;
+  --cpx-sys-blur-md: 16px;
+  --cpx-sys-blur-lg: 24px;
+  --cpx-sys-glass-filter: blur(var(--cpx-sys-blur-md));
+  --cpx-sys-glass-bg: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 85%, transparent);
   --cpx-sys-glass-border: var(--cpx-sys-color-border-subtle);
-  --cpx-sys-glass-shadow: none;
+  --cpx-sys-glass-shadow: var(--cpx-sys-shadow-floating);
 
-  // System Radius (Foundational Scale - Plain Edition)
+  // System Radius (Foundational Scale - UI-Design Standards)
   --cpx-sys-radius-optical-scale: 1;
   --cpx-sys-corner-shape: round;
-  --cpx-sys-radius-2xs: 0;
-  --cpx-sys-radius-xs: 0;
-  --cpx-sys-radius-sm: 0;
-  --cpx-sys-radius-md: 0;
-  --cpx-sys-radius-lg: 0;
-  --cpx-sys-radius-xl: 0;
-  --cpx-sys-radius-2xl: 0;
-  --cpx-sys-radius-3xl: 0;
-  --cpx-sys-radius-4xl: 0;
-  --cpx-sys-radius-full: 0;
+  --cpx-sys-radius-none: 0px;
+  --cpx-sys-radius-2xs: 4px;
+  --cpx-sys-radius-xs: 6px;
+  --cpx-sys-radius-sm: 8px;
+  --cpx-sys-radius-md: 10px;
+  --cpx-sys-radius-lg: 12px;
+  --cpx-sys-radius-xl: 14px;
+  --cpx-sys-radius-2xl: 16px;
+  --cpx-sys-radius-3xl: 20px;
+  --cpx-sys-radius-4xl: 28px;
+  --cpx-sys-radius-full: 9999px;
 
   // System Radius (Semantic Roles)
   --cpx-sys-radius-indicator: var(--cpx-sys-radius-2xs);
   --cpx-sys-radius-compact: var(--cpx-sys-radius-xs);
+  --cpx-sys-radius-item: var(--cpx-sys-radius-sm);
   --cpx-sys-radius-control: var(--cpx-sys-radius-md);
+  --cpx-sys-radius-item-lg: var(--cpx-sys-radius-md);
   --cpx-sys-radius-container: var(--cpx-sys-radius-lg);
-  --cpx-sys-radius-floating: var(--cpx-sys-radius-xl);
-  --cpx-sys-radius-prominent: var(--cpx-sys-radius-3xl);
+  --cpx-sys-radius-floating: var(--cpx-sys-radius-lg);
+  --cpx-sys-radius-prominent: var(--cpx-sys-radius-2xl);
   --cpx-sys-radius-pill: var(--cpx-sys-radius-full);
 
   // System Typography
@@ -200,12 +203,12 @@
   --cpx-sys-layout-content-max-width: 1009px;
   --cpx-sys-layout-wide-max-width: 1250px;
 
-  // System Shadows
-  --cpx-sys-shadow-resting: none;
-  --cpx-sys-shadow-raised: none;
-  --cpx-sys-shadow-prominent: none;
-  --cpx-sys-shadow-floating: none;
-  --cpx-sys-shadow-control: none;
+  // System Shadows (Light Default)
+  --cpx-sys-shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --cpx-sys-shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --cpx-sys-shadow-prominent: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --cpx-sys-shadow-floating: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --cpx-sys-shadow-control: 0 1px 2px rgba(0, 0, 0, 0.02);
 
   // System Motion (Semantic Roles)
   --cpx-sys-motion-instant: 0ms;

@@ -225,6 +225,9 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   getSystemTheme: "appearance:system-theme:get",
   getStartupThemeSeed: "appearance:startup-theme-seed:get",
   systemThemeChanged: "appearance:system-theme:changed",
+  canRestorePreviousAppearance: "appearance:previous-appearance:can-restore",
+  restorePreviousAppearance: "appearance:previous-appearance:restore",
+  applyNewDesignTheme: "appearance:new-design-theme:apply",
 } as const satisfies typeof import("@codepilotx/shared/desktop-appearance-ipc").DESKTOP_APPEARANCE_IPC_CHANNELS
 
 applyStartupThemeSeed(
@@ -548,6 +551,12 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSettings),
   saveAppearanceSettings: (settings: DesktopThemeSettingsV7): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.saveSettings, settings),
+  canRestorePreviousAppearance: (): Promise<boolean> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.canRestorePreviousAppearance),
+  restorePreviousAppearance: (): Promise<DesktopThemeSettingsV7> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.restorePreviousAppearance),
+  applyNewDesignTheme: (): Promise<DesktopThemeSettingsV7> =>
+    ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.applyNewDesignTheme),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
     ipcRenderer.invoke(DESKTOP_APPEARANCE_IPC_CHANNELS.getSystemTheme),
   onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
