@@ -6,6 +6,8 @@ import { ExternalLink, RefreshCw, Sparkles, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import { SmoothScroll } from '../../components/ui/SmoothScroll.js'
+import { ScrollProgress } from '../../components/ui/ScrollProgress.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -221,7 +223,7 @@ function ReleaseNotesContent({
                   type="button"
                   onClick={() => {
                     setSelectedTagName(release.tagName)
-                    detailScrollRef.current?.scrollTo({ top: 0 })
+                    detailScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
                   }}
                 >
                   <span className="whats-new-release-heading">
@@ -239,19 +241,25 @@ function ReleaseNotesContent({
         </ul>
       </ScrollArea>
 
-      <ScrollArea
+      <SmoothScroll
         aria-label="版本更新内容"
         className="whats-new-detail-scroll"
-        contentClassName="whats-new-detail-scroll-content"
+        duration={0.25}
+        lerp={0.2}
+        root={false}
         viewportRef={detailScrollRef}
+        wheelMultiplier={1.2}
       >
-        <ReleaseDetails
-          current={selectedRelease.tagName === currentTagName}
-          fetchedAt={result.fetchedAt}
-          release={selectedRelease}
-          source={result.source}
-        />
-      </ScrollArea>
+        <ScrollProgress height={2} position="sticky" />
+        <div className="whats-new-detail-scroll-content">
+          <ReleaseDetails
+            current={selectedRelease.tagName === currentTagName}
+            fetchedAt={result.fetchedAt}
+            release={selectedRelease}
+            source={result.source}
+          />
+        </div>
+      </SmoothScroll>
     </section>
   )
 }

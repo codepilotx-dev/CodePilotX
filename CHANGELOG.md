@@ -9,6 +9,8 @@
 
 ### Added
 
+- [renderer] 引入 BeUI Scroll Animation 动画与进度指示体系：新增基础组件 SmoothScroll、useSmoothScroll 与 ScrollProgress（支持顶部/底部细线进度条与圆形环两种形态），结合 Lenis 物理平滑滚动引擎与 Motion 弹簧动画，自动联动系统的 reducedMotion 减弱动画配置与 --cpx-* 语义设计系统；调优滚轮响应速度与缓动时长（duration 提速至 0.25s、lerp 0.2、wheelMultiplier 1.2），消除弹簧超调并屏蔽横向滚动条；在 WhatsNewDialog（更新日志阅读器）中完成接入与验证，提供轻快平滑的纵向滚动与顶部进度指示。
+
 - [desktop] 全面采用 UI-Design 视觉体系并实现平滑外观迁移：恢复 Apple HIG 风格优雅圆角体系（基础刻度 4px ~ 28px、pill 9999px）与分级轻盈暗部投影（Resting、Raised、Floating、Control、Prominent），毛玻璃模糊重置为 8px/16px/24px；基础组件（Button、Input、Switch、Card、SegmentedControl、Modal、Popover 等）与业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar 等）全面对齐 UI-Design 规范并统一收敛至 `--cpx-sys-*` 与 `--cpx-comp-*` 设计 Token。Electron 外观存储实现原子化平滑迁移（`appearance-migration.json` 记录升级前外观备份），并在设置页“外观”面板提供“恢复升级前外观”与“应用新设计主题”操作。
 
 - [desktop/renderer] 接入新版 ModelSelect 选择器与推理菜单视觉交互规范：完整对齐 UI-Design 布局、尺寸、圆角、阴影与动效；支持胶囊双触发器（模型面板与推理独立唤起并具备完整键盘导航无障碍焦点）、独立供应商侧栏、快速搜索（展开/清空/ESC 复位）、双状态单选指示器、独立 Radix 浮层推理菜单（含深度思考与模型 variant 选项）及 Model Hub 目录视图；私有样式契约集中治理几何与阴影，颜色无缝接入 `--cpx-sys-color-*` 语义主题。
