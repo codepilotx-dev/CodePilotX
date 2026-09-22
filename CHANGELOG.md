@@ -105,6 +105,10 @@
 
 - [desktop] 原生窗口缩放状态收敛为按窗口维度的统一降载信号：新增 `window:resize-activity`（`{ windowId, phase, revision }`，保留旧 `resize-state-changed` 通道）与 `onWindowResizeActivity` 桥接，主进程在 `will-resize`/`resized` 之外增加最后一次 resize 后 300ms 的结算定时器，取消拖拽也能补齐 end，保证 start/end 始终配对；Renderer 用 `resizeActivityCoordinator`（按 windowId + 单调 revision + 5s 看门狗）取代原先的易失布尔 ref，重复或陈旧事件被丢弃，主进程事件丢失时兜底恢复渲染，工作台布局与终端消费同一份状态。终端在拖拽期间把 PTY resize 节流到 150ms，缩放结束后只执行一次 fit 与一次最终尺寸下发，不再逐帧触发 ConPTY 重排；标题栏 36px 契约与既有布局写入语义不变。
 
+### Removed
+
+- [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
+
 ### Fixed
 
 - [desktop] 修复外观迁移记录读取异常被当作“无记录”导致重复迁移的问题：`appearance-migration.json` 只有确实不存在（ENOENT）时才重跑迁移，读取失败（如 EACCES/EISDIR）、JSON 损坏或内容无法识别时改为原样保留记录、跳过迁移并记录不含路径与内容的诊断事件（`appearance-settings.migration-record-preserved`），不再以用户当前（可能已迁移或已自定义）的外观覆盖唯一备份，也不会把已调整的外观再次重置为默认主题。同时校验记录版本、迁移 ID 与备份结构：版本高于 1、`migrationId` 不属于本次迁移、`pending` 缺备份或备份字段缺失的记录一律按不可识别处理，既不改写自己无法识别的记录，也不再让“恢复升级前外观”按钮对不可用的备份返回可恢复。
