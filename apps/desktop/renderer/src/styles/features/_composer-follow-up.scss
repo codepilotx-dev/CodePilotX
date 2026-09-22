@@ -1,4 +1,4 @@
-// ── Session Follow-Up Dock ─────────────────────────────────────
+/* ── Session Follow-Up Dock ───────────────────────────────────── */
 
 .session-follow-up-dock {
   position: absolute;
@@ -8,7 +8,7 @@
   left: 36px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   max-height: 30vh;
   padding: 0;
   border: 0;
@@ -20,27 +20,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: var(--type-secondary);
-  color: var(--color-token-description-foreground);
-  padding: 2px 4px 4px;
+  gap: var(--cpx-sys-space-2);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-1) var(--cpx-sys-space-1);
 }
 
 .session-follow-up-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cpx-sys-space-1);
   min-width: 0;
   max-height: inherit;
   overflow-y: auto;
 }
 
 .session-follow-up-paused {
-  padding: 4px 6px;
-  color: var(--color-token-text-secondary);
-  font-size: var(--type-secondary);
-  background: var(--color-token-main-surface-primary);
-  border-radius: var(--radius-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
+  background: var(--cpx-sys-color-surface-canvas);
+  border-radius: var(--cpx-sys-radius-md);
 }
 
 .session-follow-up-item {
@@ -48,20 +48,21 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--cpx-sys-space-3);
   min-height: 54px;
-  padding: 8px 12px;
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
   overflow: hidden;
-  border: 1px solid var(--color-token-border);
-  border-radius: 18px;
-  background: var(--color-token-editor-widget-background);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-lg);
+  background: var(--cpx-sys-color-surface-raised);
+  box-shadow: none;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:hover {
-    border-color: var(--color-token-border);
-    background: color-mix(in srgb, var(--color-token-editor-widget-background) 94%, var(--color-token-foreground));
+    border-color: var(--cpx-sys-color-border-default);
+    background: var(--cpx-sys-color-hover);
   }
 
   &:focus-within .session-follow-up-action {
@@ -75,9 +76,9 @@
   max-width: min(40rem, 100%);
   min-width: 0;
   overflow: hidden;
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-label);
-  color: var(--color-token-foreground);
+  font: var(--cpx-sys-type-body);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  color: var(--cpx-sys-color-fg-primary);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -85,7 +86,7 @@
 .session-follow-up-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cpx-sys-space-1);
   min-width: max-content;
   flex-shrink: 0;
 }
@@ -93,15 +94,15 @@
 .session-follow-up-edit-input {
   flex: 1;
   min-width: 0;
-  padding: 3px 6px;
-  border: 1px solid var(--color-token-border);
-  border-radius: var(--radius-2);
-  color: var(--color-token-foreground);
-  background: var(--color-token-editor-widget-background);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-control);
+  color: var(--cpx-sys-color-fg-primary);
+  background: var(--cpx-sys-color-surface-raised);
   font: inherit;
 
   &:focus-visible {
-    outline: 2px solid var(--color-token-text-link-foreground);
+    outline: 2px solid var(--cpx-sys-color-accent);
     outline-offset: 1px;
   }
 }
@@ -109,18 +110,16 @@
 .session-follow-up-action {
   border: 0;
   background: transparent;
-  color: var(--color-token-description-foreground);
-  opacity: 0.72;
+  color: var(--cpx-sys-color-fg-tertiary);
   transition:
-    color 0.15s ease,
-    opacity 0.15s ease;
+    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-standard);
 
   .session-follow-up-item:hover & {
-    opacity: 1;
+    color: var(--cpx-sys-color-fg-secondary);
   }
 
   &:hover {
-    color: var(--color-token-foreground);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 

@@ -3,8 +3,14 @@ import type { RenderTurnEntry } from "@codepilotx/session-view";
 import type { DesktopGitStatus } from "../../../../shared/types.js";
 import { syntheticPatchDisplay } from "../timeline/CanonicalItemRenderer.js";
 
+export type ConversationChangedFile = {
+  path: string;
+  additions: number | null;
+  deletions: number | null;
+};
+
 type ConversationChangeSummary = {
-  changedFileCount: number;
+  files: ConversationChangedFile[];
   additions: number | null;
   deletions: number | null;
 };
@@ -14,7 +20,7 @@ export function deriveConversationChangeSummary(
   gitStatus: DesktopGitStatus | null,
 ): ConversationChangeSummary {
   if (!gitStatus) {
-    return { changedFileCount: 0, additions: 0, deletions: 0 };
+    return { files: [], additions: 0, deletions: 0 };
   }
 
   const touchedPaths = new Set<string>();
@@ -32,18 +38,23 @@ export function deriveConversationChangeSummary(
     || (file.originalPath
       ? touchedPaths.has(normalizePathForCompare(file.originalPath))
       : false));
-  let additions = 0;
-  let deletions = 0;
-  for (const file of files) {
-    if (file.additions === null || file.deletions === null) {
-      return { changedFileCount: files.length, additions: null, deletions: null };
-    }
-    additions += file.additions;
-    deletions += file.deletions;
-  }
+  const projectedFiles = files.map(file => ({
+    path: file.path,
+    additions: file.additions,
+    deletions: file.deletions,
+  }));
+  const statsAvailable = projectedFiles.every(
+    file => file.additions !== null && file.deletions !== null,
+  );
+  const additions = statsAvailable
+    ? projectedFiles.reduce((total, file) => total + (file.additions ?? 0), 0)
+    : null;
+  const deletions = statsAvailable
+    ? projectedFiles.reduce((total, file) => total + (file.deletions ?? 0), 0)
+    : null;
 
   return {
-    changedFileCount: files.length,
+    files: projectedFiles,
     additions,
     deletions,
   };

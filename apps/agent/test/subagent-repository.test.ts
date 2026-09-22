@@ -85,6 +85,61 @@ describe("子 Agent 持久化与调度", () => {
     db.close()
   })
 
+  test("subagent wait checkpoint 与满足后的 continuation/outbox 原子且幂等", () => {
+    const path = join(tmpdir(), `codepilotx-subagent-wait-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    const thread = db.createThread()
+    const root = db.createTurn(thread.id, { content: "root", model, permissionConfig: permission, strategy: "queue", taskMode: "chat" })
+    db.claimTurnExecution(root.turnID)
+    const repository = new SubagentRepository(db)
+    const child = repository.create({
+      parentThreadID: thread.id,
+      parentTurnID: root.turnID,
+      parentAgentID: root.agentID,
+      displayName: "Waiter",
+      profile: "explorer",
+      task: "检查",
+      model,
+      permissionCeiling: permission,
+      workspaceMode: "shared",
+      workspaceRoot: "C:\\workspace",
+    })
+    repository.finish(child.run.id, "completed", {
+      outcome: "succeeded",
+      summary: "done",
+      findings: [],
+      changedFiles: [],
+      validation: [],
+      risks: [],
+      references: [],
+    }, null)
+
+    const checkpoint = db.repositories.subagents.checkpointSubagentWait({
+      agentID: root.agentID,
+      turnID: root.turnID,
+      threadID: thread.id,
+      state: "pi-state",
+      interruption: { reason: "wait" },
+      runIDs: [child.run.id],
+      mode: "all",
+    })
+    expect(checkpoint.events).toHaveLength(2)
+    expect(db.getAgentTurnCheckpoint(root.turnID)).toMatchObject({ state: "waiting_subagents" })
+
+    const resumed = db.repositories.subagents.resumeSatisfiedSubagentWaits()
+    expect(resumed).toHaveLength(1)
+    expect(resumed[0]?.events).toHaveLength(2)
+    expect(db.getAgentTurnCheckpoint(root.turnID)).toMatchObject({
+      state: "ready",
+      payload: { kind: "subagent-wait" },
+    })
+    const eventCount = (db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE turn_id = ?").get(root.turnID) as { count: number }).count
+    expect(db.repositories.subagents.resumeSatisfiedSubagentWaits()).toEqual([])
+    expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE turn_id = ?").get(root.turnID)).toEqual({ count: eventCount })
+    db.close()
+  })
+
   test("完成文件清单只接受 canonical patch 路径并复用匹配的模型说明", () => {
     expect(canonicalSubagentChangedFiles(
       [

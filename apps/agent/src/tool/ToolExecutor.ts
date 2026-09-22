@@ -17,6 +17,8 @@ import { realpath } from "node:fs/promises"
 import { dirname, isAbsolute, normalize, relative, resolve } from "node:path"
 import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
+import { executionPolicyFromV4 } from "../permission/ExecutionPolicy"
+import { filePathProtection, resolveProtectionPath } from "../permission/FilePathProtection"
 import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { pathContains } from "../permission/PathPermissions"
 import { analyzeShellRisk, type ShellSecurityLevel } from "../security/ShellRiskClassifier"
@@ -49,6 +51,12 @@ export function shellRuntimeDependencies(command: string): ManagedToolID[] {
   return [...dependencies]
 }
 
+/** 仅在命令片段的首项识别官方 MiniMax CLI，避免匹配引号或普通参数文本。 */
+export function shellUsesMiniMaxCli(command: string): boolean {
+  return shellCommandSegments(command).some((segment) =>
+    segment.executable === "mmx" && !segment.executableIsPath)
+}
+
 export interface ToolExecutionContext {
   threadID: string
   turnID: string
@@ -77,6 +85,21 @@ export interface ToolExecutionContext {
   onProgress?: (progress: ToolProgress) => void
   /** Immutable tool catalog captured for this turn. */
   toolCatalog?: ToolCatalog
+  /** Deferred tool names frozen in the durable turn composition. */
+  frozenDeferredToolNames?: readonly string[]
+}
+
+export const frozenDeferredEnvelope = <T extends { sdkName: string }>(
+  definitions: readonly T[],
+  frozenNames: readonly string[] | undefined,
+): T[] => {
+  if (!frozenNames) return [...definitions]
+  const definitionsByName = new Map(definitions.map((definition) => [definition.sdkName, definition]))
+  const missing = frozenNames.filter((name) => !definitionsByName.has(name))
+  if (missing.length > 0) {
+    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", `冻结的 deferred 工具缺失: ${missing.join(", ")}`, 409)
+  }
+  return frozenNames.map((name) => definitionsByName.get(name)!)
 }
 
 export interface ToolExecutorOptions {
@@ -92,6 +115,7 @@ export interface ToolExecutorOptions {
   runHost?: typeof runHostCommand
   resolveTooling?: ToolingResolver
   resolveToolingEnvironment?: ToolingEnvironmentResolver
+  resolveMiniMaxCliPathEntries?: () => Promise<readonly string[]>
   resolveShellSecurityLevel?: () => ShellSecurityLevel
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
@@ -110,6 +134,9 @@ export class ToolExecutor {
     this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
   }
 
+  /** Process-wide catalog used only to bind names already frozen in a turn snapshot. */
+  catalog(): ToolCatalog { return this.registry }
+
   definition(name: string, catalog: ToolCatalog = this.registry) {
     return catalog.get(name)
   }
@@ -118,8 +145,12 @@ export class ToolExecutor {
     return createToolExposurePlan(catalog, input)
   }
 
-  deferredDefinitions(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
-    return this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+  deferredDefinitions(
+    input: ToolExposureInput & { frozenDeferredToolNames?: readonly string[] },
+    catalog: ToolCatalog = this.registry,
+  ) {
+    const definitions = this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
+    return frozenDeferredEnvelope(definitions, input.frozenDeferredToolNames)
   }
 
   async previewApproval(name: string, input: Record<string, unknown>, context: ToolExecutionContext, toolCallID: string) {
@@ -221,18 +252,21 @@ export class ToolExecutor {
   ) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
+    // Call-scoped file access: only this invocation sees the effective policy, so
+    // concurrent calls, subagents and later policy switches stay isolated from it.
+    const workspace = context.workspace.withFileAccess(executionPolicyFromV4(permissionConfig).fileAccess)
     const skipProjectHooks = context.skipHooks || context.taskMode === "plan"
     if (this.options?.userConfigPath) {
-      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
+      workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
     }
     const definition = catalog.get(name)
-    const fileSnapshots = this.fileSnapshots(context)
+    const fileSnapshots = this.fileSnapshots(context, workspace)
     const inspection = definition.inspectInput
       ? this.validateToolInputInspection(await definition.inspectInput(input, {
           signal: context.signal,
           taskMode: context.taskMode,
           profile: context.profile ?? "main",
-          workspace: context.workspace,
+          workspace,
           permissionConfig,
           model,
           fileSnapshots,
@@ -244,28 +278,28 @@ export class ToolExecutor {
     }
     const authorizationScope = inspection?.authorizationScope
     const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
-    const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
-    if (
-      typeof pathValue === "string"
-      && pathValue === "@codepilotx/config.json"
-      && this.options?.userConfigPath
-    ) {
-      context.workspace.grantEditorAlias("@codepilotx/config.json", this.options.userConfigPath)
-    }
-    const sensitiveEnvironment = /^\.env(?:\..+)?$/.test(relativeToolPath) && !/^\.env\.(?:example|template)$/.test(relativeToolPath)
-    const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
-    const protectedConfigWrite = (name === "Write" || name === "Edit")
-      && (relativeToolPath === ".codepilotx/config.json" || relativeToolPath === "@codepilotx/config.json")
+    const fileTool = name === "Read" || name === "Write" || name === "Edit"
+    const targetPath = pathValue === "@codepilotx/config.json" ? this.options?.userConfigPath : pathValue
+    const canonicalTarget = fileTool && typeof targetPath === "string" && !targetPath.startsWith("@")
+      ? await resolveProtectionPath(resolve(workspace.rootPath, targetPath))
+      : undefined
+    const protection = canonicalTarget
+      ? filePathProtection(canonicalTarget, workspace.displayPath(canonicalTarget))
+      : undefined
+    const sensitiveEnvironment = protection?.sensitiveEnvironment ?? false
+    const protectedGitWrite = (name === "Write" || name === "Edit") && protection?.protectedGit
+    const configScope = protection?.configScope
+    const protectedConfigWrite = (name === "Write" || name === "Edit") && configScope
     if (protectedConfigWrite && this.options?.validateConfigDocument) {
       let nextContent = typeof input.content === "string" ? input.content : undefined
       if (name === "Edit") {
-        const current = await context.workspace.readEditorFile(String(pathValue))
+        const current = await workspace.readEditorFile(String(pathValue))
         nextContent = applyEditsText(current.content, input.edits as EditOperation[])
       }
       if (nextContent !== undefined) {
         this.options.validateConfigDocument(
           nextContent,
-          relativeToolPath.startsWith("@") ? "user" : "project",
+          configScope,
         )
       }
     }
@@ -352,12 +386,16 @@ export class ToolExecutor {
         : name === "Edit" && typeof input.path === "string"
           ? input.path
           : null
-      const snapshotKey = await this.snapshotKey(context, filePath)
+      const snapshotKey = await this.snapshotKey(context, workspace, filePath)
       const deferredTools = this.deferredDefinitions({
         taskMode: context.taskMode,
         sandboxMode: permissionConfig.sandboxMode,
+        approvalPolicy: permissionConfig.approvalPolicy,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
+        ...(context.frozenDeferredToolNames
+          ? { frozenDeferredToolNames: context.frozenDeferredToolNames }
+          : {}),
       }, catalog)
       for (const configWrite of inspection?.configWrites ?? []) {
         this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
@@ -366,7 +404,7 @@ export class ToolExecutor {
         signal: context.signal,
         taskMode: context.taskMode,
         profile: context.profile ?? "main",
-        workspace: context.workspace,
+        workspace,
         permissionConfig,
         model,
         deferredTools,
@@ -440,9 +478,9 @@ export class ToolExecutor {
         }
       }
       if (filePath && ["Read", "Write", "Edit"].includes(name)) {
-        const savedSnapshotKey = await this.snapshotKey(context, filePath)
+        const savedSnapshotKey = await this.snapshotKey(context, workspace, filePath)
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
-          ?? (await context.workspace.readEditorFile(filePath)).revision
+          ?? (await workspace.readEditorFile(filePath)).revision
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
       const safeOutput = secretScrubber.scrub(output)
@@ -568,6 +606,7 @@ export class ToolExecutor {
       throw new AgentError("PLAN_SHELL_DISABLED", "Plan 模式禁止执行 Bash 或 PowerShell", 403)
     }
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
+    const executionPolicy = executionPolicyFromV4(permissionConfig)
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
     const workspaceRoot = await realpath(context.workspace.rootPath)
@@ -581,7 +620,7 @@ export class ToolExecutor {
       ? (isAbsolute(shell.cwd) ? resolve(shell.cwd) : resolve(context.defaultCwd ?? workspaceRoot, shell.cwd))
       : resolve(context.defaultCwd ?? workspaceRoot)
     const cwd = await realpath(requestedCwd).catch(() => { throw new AgentError("SHELL_CWD_NOT_FOUND", "Shell cwd 不存在或无法解析", 400) })
-    if (permissionConfig.sandboxMode !== "danger-full-access") {
+    if (executionPolicy.fileAccess !== "full-access") {
       const outsideWorkspace = !context.workspace.containsPath(cwd)
       if (outsideWorkspace && !(shell.additionalPermissions?.readPaths ?? []).some((path) => pathContains(path, cwd))) {
         throw new AgentError("SHELL_CWD_PERMISSION_REQUIRED", "工作区外 cwd 必须在 additionalPermissions.readPaths 中声明", 403)
@@ -658,7 +697,7 @@ export class ToolExecutor {
         details: {
           shellTool,
           taskMode: context.taskMode,
-          permissionProfile: permissionConfig.sandboxMode,
+          fileAccess: executionPolicy.fileAccess,
           risk: staticRisk.risk,
           hookDecision,
           permissionDecision: decision.decision,
@@ -758,11 +797,11 @@ export class ToolExecutor {
     this.permissionGrants.clearThread(threadID)
   }
 
-  private async snapshotKey(context: ToolExecutionContext, path: string | null) {
+  private async snapshotKey(context: ToolExecutionContext, workspace: WorkspaceService, path: string | null) {
     if (!path) return null
     let normalized: string
     try {
-      normalized = await context.workspace.resolveEditorFilePath(path)
+      normalized = await workspace.resolveEditorFilePath(path)
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === "WORKSPACE_PATH_NOT_FOUND") return null
       throw cause
@@ -771,19 +810,19 @@ export class ToolExecutor {
     return `${context.threadID}:${context.agentID ?? context.turnID}:${process.platform === "win32" ? normalized.toLowerCase() : normalized}`
   }
 
-  private fileSnapshots(context: ToolExecutionContext): ToolFileSnapshots {
+  private fileSnapshots(context: ToolExecutionContext, workspace: WorkspaceService): ToolFileSnapshots {
     return {
       get: async (path) => {
-        const key = await this.snapshotKey(context, path)
+        const key = await this.snapshotKey(context, workspace, path)
         return key ? this.readSnapshots.get(key) : undefined
       },
       set: async (path, revision) => {
-        const key = await this.snapshotKey(context, path)
+        const key = await this.snapshotKey(context, workspace, path)
         if (key) this.readSnapshots.set(key, revision)
       },
       invalidate: async (paths) => {
         for (const path of paths) {
-          const key = await this.snapshotKey(context, path)
+          const key = await this.snapshotKey(context, workspace, path)
           if (key) this.readSnapshots.delete(key)
         }
       },
@@ -972,7 +1011,10 @@ export class ToolExecutor {
         })
       }
     }
-    const env = toolingPathOverride(environment.pathEntries)
+    const miniMaxCliPathEntries = shellUsesMiniMaxCli(command)
+      ? await this.options?.resolveMiniMaxCliPathEntries?.() ?? []
+      : []
+    const env = toolingPathOverride([...environment.pathEntries, ...miniMaxCliPathEntries])
     if (process.platform === "win32" && shellTool === "Bash") {
       const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)("git-bash", { signal })
       if (!resolution.available) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", resolution.reason, 503, { toolingID: "git-bash", reason: resolution.code })

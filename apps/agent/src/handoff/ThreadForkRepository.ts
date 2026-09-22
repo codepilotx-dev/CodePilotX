@@ -4,7 +4,7 @@ import {
   ConversationHistoryForkRepository,
   type ThreadForkResult,
 } from "../session/fork/ConversationHistoryForkRepository"
-import { SqlitePiSessionRepo } from "../storage/SqlitePiSession"
+import { SqlitePiSessionRepo } from "../storage/pi-session/SqlitePiSession"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 
 export type { ThreadForkResult } from "../session/fork/ConversationHistoryForkRepository"

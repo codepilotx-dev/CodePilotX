@@ -190,9 +190,10 @@ export class PiAuthSessionService {
     try {
       await target.models.login(target.providerID, "oauth", interaction)
       if (!this.isActive(record)) return
+      await this.options.onCompleted?.(record.target)
+      if (!this.isActive(record)) return
       this.finish(record, "complete")
       await this.emit(record)
-      await this.options.onCompleted?.(record.target)
     } catch (cause) {
       if (!this.isActive(record)) return
       const cancelled = record.controller.signal.aborted

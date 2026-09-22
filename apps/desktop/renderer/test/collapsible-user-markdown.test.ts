@@ -82,4 +82,21 @@ describe("collapsible user Markdown", () => {
     setFocusableElementVisibility(element, true, null);
     expect(attributes.has("aria-hidden")).toBe(false);
   });
+
+  test("does not set margin-block space-3 token on user message markdown p", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const scssPath = path.resolve(
+      import.meta.dir,
+      "../src/styles/features/_canonical-conversation.scss",
+    );
+    const content = await fs.readFile(scssPath, "utf-8");
+
+    // The shared bubble reading rhythm block must not include p
+    const bubbleBlock = content.match(
+      /\.canonical-user-message__bubble\s+\.md-body[\s\S]*?\{([\s\S]*?)\n\}/,
+    )?.[1];
+    expect(bubbleBlock).toBeDefined();
+    expect(bubbleBlock).not.toMatch(/\bp\b/);
+  });
 });

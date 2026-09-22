@@ -8,7 +8,10 @@ import {
   reviewLoadStateForError,
 } from '../src/features/review/source/reviewAgentClient.js'
 import { formatReviewCount } from '../src/features/review/diff/reviewFormat.js'
-import { reviewFileLoadMessage } from '../src/features/review/diff/WorkspaceReviewDiff.js'
+import {
+  reviewFileDiffLoadMode,
+  reviewFileLoadMessage,
+} from '../src/features/review/diff/WorkspaceReviewDiff.js'
 import {
   reviewDiagnosticMessage,
   startReviewDiagnosticTimer,
@@ -81,6 +84,55 @@ describe('review load state', () => {
       ),
     ).toBe('unsupported')
     expect(reviewLoadStateForError(new Error('网络中断'))).toBe('error')
+  })
+
+  test('fresh 快照即使 generation 不变也会触发正确的文件加载模式', () => {
+    const common = {
+      hasSummary: true,
+      largeWorkspaceMode: false,
+      selectedPath: 'src/app.ts',
+    }
+
+    expect(
+      reviewFileDiffLoadMode({
+        ...common,
+        cacheState: 'stale',
+        summaryLoadState: 'stale',
+      }),
+    ).toBe('none')
+    expect(
+      reviewFileDiffLoadMode({
+        ...common,
+        cacheState: 'fresh',
+        summaryLoadState: 'success',
+      }),
+    ).toBe('batch')
+    expect(
+      reviewFileDiffLoadMode({
+        ...common,
+        cacheState: 'fresh',
+        summaryLoadState: 'large-diff',
+        largeWorkspaceMode: true,
+      }),
+    ).toBe('selected')
+    for (const summaryLoadState of ['loading', 'empty', 'error'] as const) {
+      expect(
+        reviewFileDiffLoadMode({
+          ...common,
+          cacheState: 'fresh',
+          summaryLoadState,
+        }),
+      ).toBe('none')
+    }
+    expect(
+      reviewFileDiffLoadMode({
+        ...common,
+        cacheState: 'fresh',
+        summaryLoadState: 'large-diff',
+        largeWorkspaceMode: true,
+        selectedPath: null,
+      }),
+    ).toBe('none')
   })
 
   test('分支来源优先选择远端主分支并在单分支仓库回退当前分支', () => {
@@ -267,6 +319,43 @@ describe('review diagnostics', () => {
 })
 
 describe('review batch capability', () => {
+  test('uses the explicit project identity instead of resolving by path', async () => {
+    const calls: Array<[string, unknown]> = []
+    const api = createAgentReviewApi({
+      rpc: {
+        ensureInitialized: async () => ({ capabilities: ['git.review.v1'] }),
+        call: async (method: string, input: unknown) => {
+          calls.push([method, input])
+          return { snapshot: reviewSummary([]), cacheState: 'fresh' }
+        },
+      } as never,
+      loadProjectById: async projectId => ({ id: projectId }) as never,
+      loadProjectForPath: async () => {
+        throw new Error('不应按路径解析项目')
+      },
+      preparePullRequestReview: async () => {},
+      requireGithubPullRequestCapability: () => {},
+      requireReviewCapability: () => {},
+      unsupportedReviewOperation: () => {
+        throw new Error('unsupported')
+      },
+      withAgentOrMock: agentOperation => agentOperation(),
+    })
+
+    await api.getAgentReviewSummary({
+      projectId: 'project-explicit',
+      workspacePath: 'C:\\shared',
+      source: { kind: 'unstaged' },
+    })
+
+    expect(calls).toEqual([
+      ['review/summary', {
+        projectId: 'project-explicit',
+        source: { kind: 'unstaged' },
+      }],
+    ])
+  })
+
   test('旧 Agent 缺少批量能力时不会发送批量 RPC', async () => {
     const calls: string[] = []
     const api = createReviewApiForBatchTest(false, calls)
@@ -377,6 +466,7 @@ function createReviewApiForBatchTest(
       },
     } as never,
     loadProjectForPath: async () => ({ id: 'project-1' }) as never,
+    loadProjectById: async projectId => ({ id: projectId }) as never,
     preparePullRequestReview: async () => {},
     requireGithubPullRequestCapability: () => {},
     requireReviewCapability: () => {},

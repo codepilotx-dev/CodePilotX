@@ -1,5 +1,6 @@
 import { existsSync, statSync } from "node:fs"
 import { basename, isAbsolute, relative, resolve } from "node:path"
+import type { ProjectExecutionEnvironment } from "@codepilotx/shared/thread"
 import type { ModelRef } from "../../domain"
 import { AgentError } from "../../domain"
 import { CredentialRepositoryDatabase } from "./credential-repository"
@@ -7,6 +8,7 @@ import { CredentialRepositoryDatabase } from "./credential-repository"
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
   instructions: string
+  executionEnvironment: ProjectExecutionEnvironment
   version: number
 }
 
@@ -197,19 +199,30 @@ export abstract class ProjectRepositoryDatabase extends CredentialRepositoryData
 
   getProjectSettings(projectID: string): ProjectModelSettings {
     const row = this.profileSqlite.query(`
-      SELECT default_model, instructions, version
+      SELECT default_model, instructions, execution_environment, version
       FROM project_settings WHERE project_id = ?
-    `).get(projectID) as { default_model: string | null; instructions: string; version: number } | null
+    `).get(projectID) as {
+      default_model: string | null
+      instructions: string
+      execution_environment: string | null
+      version: number
+    } | null
     return {
       defaultModel: row?.default_model ? parse<ModelRef>(row.default_model) : null,
       instructions: row?.instructions ?? "",
+      // A store that predates the column reads as the automatic default.
+      executionEnvironment: row?.execution_environment === "local" ? "local" : "auto",
       version: row?.version ?? 1,
     }
   }
 
   saveProjectSettings(
     projectID: string,
-    settings: { defaultModel: ModelRef | null; instructions?: string },
+    settings: {
+      defaultModel: ModelRef | null
+      instructions?: string
+      executionEnvironment?: ProjectExecutionEnvironment
+    },
     expectedVersion?: number,
   ) {
     this.requireProject(projectID)
@@ -221,17 +234,19 @@ export abstract class ProjectRepositoryDatabase extends CredentialRepositoryData
     const nextVersion = current.version + 1
     this.profileSqlite.query(`
       INSERT INTO project_settings (
-        project_id, default_model, instructions, version, updated_at
-      ) VALUES (?, ?, ?, ?, ?)
+        project_id, default_model, instructions, execution_environment, version, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(project_id) DO UPDATE SET
         default_model = excluded.default_model,
         instructions = excluded.instructions,
+        execution_environment = excluded.execution_environment,
         version = excluded.version,
         updated_at = excluded.updated_at
     `).run(
       projectID,
       settings.defaultModel ? stringify(settings.defaultModel) : null,
       settings.instructions ?? current.instructions,
+      settings.executionEnvironment ?? current.executionEnvironment,
       nextVersion,
       timestamp,
     )

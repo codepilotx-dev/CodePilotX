@@ -16,7 +16,7 @@ test('conversation switch removes the previous timeline while canonical history 
   })
   await expect(previousReply).toBeHidden()
   await expect(
-    page.getByText('正在加载会话', { exact: true }),
+    page.getByText('正在加载会话内容…', { exact: true }),
   ).toBeVisible()
   await expect(page.getByText('会话 B 已加载。', { exact: true })).toBeVisible()
 
@@ -29,7 +29,7 @@ test('conversation switch removes the previous timeline while canonical history 
   })
   await expect(page.getByText('会话 C 已加载。', { exact: true })).toBeHidden()
   await expect(
-    page.getByText('正在加载会话', { exact: true }),
+    page.getByText('正在加载会话内容…', { exact: true }),
   ).toBeVisible()
   await expect(previousReply).toBeVisible()
   await expect(page.getByText('会话 B 已加载。', { exact: true })).toBeHidden()

@@ -16,12 +16,17 @@ import {
 import {
   parsePiProviderCatalog,
   PI_PROVIDER_CONFIG_SCHEMA_VERSION,
+  DEEPSEEK_PROVIDER_ID,
+  DEFAULT_DEEPSEEK_PROTOCOL,
+  resolveDeepSeekProtocol,
+  type DeepSeekProtocol,
   type ParsedPiProviderCatalog,
   type PiModelCatalogConfig,
   type PiProviderConfig,
   type PiProviderConfigIssue,
   type PiProviderDefinitionInput,
 } from "./PiProviderConfig";
+import { createPiDeepSeekProvider } from "./PiDeepSeekProvider";
 import {
   createPiCustomProvider,
   discoverOpenAIModels,
@@ -58,10 +63,11 @@ const clone = <T>(value: T): T => structuredClone(value);
 
 const piProviderToInfo = (
   provider: PiProvider,
-  kind: "builtin" | "custom",
+  kind: Provider.SourceKind,
   apis: readonly string[],
   disabled: boolean,
   configured?: PiProviderConfig,
+  catalogOrigin: Provider.CatalogOrigin = "pi-bundled",
 ): Provider.Info => ({
   id: Provider.ID.make(provider.id),
   name: provider.name,
@@ -72,6 +78,8 @@ const piProviderToInfo = (
     apis: [...new Set(apis)],
     ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
   },
+  catalogOrigin,
+  availability: { status: "ready" },
   auth: {
     apiKey:
       configured?.kind === "custom"
@@ -137,8 +145,13 @@ const piModelToInfo = (
   cost: cost(model),
   status: "active",
   enabled,
-  limit: { context: model.contextWindow, output: model.maxTokens },
+  limit: {
+    context: model.contextWindow,
+    output: model.maxTokens,
+  },
 });
+
+export type ProviderDefinition = PiProviderDefinitionInput;
 
 /** Pi-backed model catalog with the existing CodePilotX catalog shape. */
 export class PiModelService {
@@ -146,8 +159,10 @@ export class PiModelService {
   readonly credentials: EncryptedCredentialStore;
   private readonly mutablePi: MutableModels | undefined;
   private readonly configSource: PiModelServiceOptions["config"];
+  private readonly baseProviders: ReadonlyMap<string, PiProvider>;
   private readonly builtinProviderIDs: ReadonlySet<string>;
   private configuredCustomProviderIDs = new Set<string>();
+  private catalogVersion = 0;
   private configFingerprint = "";
   private parsedConfig: ParsedPiProviderCatalog = {
     schemaVersion: PI_PROVIDER_CONFIG_SCHEMA_VERSION,
@@ -157,6 +172,13 @@ export class PiModelService {
   private syncOperation: Promise<ParsedPiProviderCatalog> = Promise.resolve(
     this.parsedConfig,
   );
+  private deepSeekProtocol:
+    | {
+        readonly protocol: DeepSeekProtocol;
+        readonly provider: PiProvider;
+        readonly source: PiProvider;
+      }
+    | undefined;
   private disposed = false;
 
   constructor(
@@ -176,6 +198,9 @@ export class PiModelService {
         },
       });
     this.mutablePi = isMutableModels(this.pi) ? this.pi : undefined;
+    this.baseProviders = new Map(
+      this.pi.getProviders().map((provider) => [provider.id, provider]),
+    );
     this.builtinProviderIDs = new Set(
       this.pi.getProviders().map((provider) => provider.id),
     );
@@ -187,13 +212,21 @@ export class PiModelService {
     const config = await this.syncProviders();
     return this.pi
       .getProviders()
-      .map((provider) => piProviderToInfo(
-        provider,
-        config.providers[provider.id]?.kind ?? "builtin",
-        this.pi.getModels(provider.id).map((model) => model.api),
-        !this.providerEnabled(provider.id, config),
-        config.providers[provider.id],
-      ))
+      .map((provider) => {
+        const configured = config.providers[provider.id];
+        const kind = configured?.kind === "custom" ? "custom" : "builtin";
+        const origin: Provider.CatalogOrigin = configured?.kind === "custom"
+          ? "user"
+          : "pi-bundled";
+        return piProviderToInfo(
+          provider,
+          kind,
+          this.pi.getModels(provider.id).map((model) => model.api),
+          !this.providerEnabled(provider.id, config),
+          configured,
+          origin,
+        );
+      })
       .map(clone);
   }
 
@@ -208,10 +241,10 @@ export class PiModelService {
     return (await this.pi.checkAuth(providerID)) !== undefined;
   }
 
-  async providerDefinitions(): Promise<readonly PiProviderDefinitionInput[]> {
+  async providerDefinitions(): Promise<readonly ProviderDefinition[]> {
     this.assertActive();
     const config = await this.syncProviders();
-    return this.pi.getProviders().map((provider): PiProviderDefinitionInput => {
+    const definitions = this.pi.getProviders().map((provider): ProviderDefinition => {
       const configured = config.providers[provider.id];
       if (configured?.kind === "custom") {
         return {
@@ -259,8 +292,10 @@ export class PiModelService {
           id,
           enabled: model.enabled,
         })),
+        ...(builtin?.protocol ? { protocol: builtin.protocol } : {}),
       };
-    }).map(clone);
+    });
+    return definitions.map(clone);
   }
 
   async models(providerID?: Provider.ID): Promise<readonly Model.Info[]> {
@@ -275,7 +310,10 @@ export class PiModelService {
       .getModels(providerID ? String(providerID) : undefined)
       .filter((model) => this.modelEnabled(model, config))
       .map((model) =>
-        piModelToInfo(model, available.has(`${model.provider}/${model.id}`)),
+        piModelToInfo(
+          model,
+          available.has(`${model.provider}/${model.id}`),
+        ),
       )
       .map(clone);
   }
@@ -343,12 +381,22 @@ export class PiModelService {
         },
       );
     }
+    this.catalogVersion += 1;
   }
 
   async reload(): Promise<void> {
     this.assertActive();
     await this.syncProviders();
     await this.pi.refresh({ allowNetwork: false });
+    this.catalogVersion += 1;
+  }
+
+  getModel(ref: Model.Ref): Promise<PiModel<Api>> {
+    return this.getPiModel(ref);
+  }
+
+  catalogRevision(): number {
+    return this.catalogVersion;
   }
 
   async discoverModels(
@@ -423,11 +471,11 @@ export class PiModelService {
       : (this.configSource ?? {});
   }
 
-  private syncProviders(): Promise<ParsedPiProviderCatalog> {
+  private syncProviders(force = false): Promise<ParsedPiProviderCatalog> {
     const operation = async () => {
       const raw = await this.rawConfig();
       const fingerprint = JSON.stringify(raw);
-      if (fingerprint === this.configFingerprint) return this.parsedConfig;
+      if (!force && fingerprint === this.configFingerprint) return this.parsedConfig;
       const parsed = parsePiProviderCatalog(raw);
       const custom = Object.entries(parsed.providers).filter(
         (entry): entry is [
@@ -450,12 +498,41 @@ export class PiModelService {
         nextCustomProviderIDs.add(providerID);
       }
       this.configuredCustomProviderIDs = nextCustomProviderIDs;
+      this.applyProviderProtocolOverride(parsed);
       this.parsedConfig = parsed;
       this.configFingerprint = fingerprint;
       return parsed;
     };
     this.syncOperation = this.syncOperation.then(operation, operation);
     return this.syncOperation;
+  }
+
+  /**
+   * DeepSeek selects one global wire protocol per config write, so the runtime
+   * provider is rebuilt from whatever catalog is currently installed.
+   */
+  private applyProviderProtocolOverride(config: ParsedPiProviderCatalog): void {
+    if (!this.mutablePi) return;
+    const base = this.baseProviders.get(DEEPSEEK_PROVIDER_ID);
+    if (!base) return;
+    const active = this.deepSeekProtocol;
+    const current = this.pi.getProvider(DEEPSEEK_PROVIDER_ID) ?? base;
+    const protocol = resolveDeepSeekProtocol(config);
+    // A rejected DeepSeek block keeps the provider that is already running.
+    if (!protocol) return;
+    if (protocol === DEFAULT_DEEPSEEK_PROTOCOL) {
+      if (!active) return;
+      this.deepSeekProtocol = undefined;
+      this.mutablePi.setProvider(active.source);
+      return;
+    }
+    if (active?.protocol === protocol && current === active.provider) return;
+    // A provider other than our own override means the catalog was rebuilt
+    // underneath it, so that provider becomes the new mapping source.
+    const source = current === active?.provider ? active.source : current;
+    const provider = createPiDeepSeekProvider(source, protocol);
+    this.deepSeekProtocol = { protocol, provider, source };
+    this.mutablePi.setProvider(provider);
   }
 
   private providerEnabled(

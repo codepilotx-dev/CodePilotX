@@ -35,6 +35,8 @@ export type SessionTimelineViewProps<T> = {
   onCanReturnToBottomChange?: (canReturnToBottom: boolean) => void;
   /** Persisted scroll offset to restore when mounting this session. */
   initialScrollOffset?: number;
+  /** True only for the start/end-bounded workbench resize session. */
+  layoutResizeActive?: boolean;
   /**
    * If true, scroll to the end whenever the child count changes.
    * Used during streaming to keep the latest content visible.
@@ -65,6 +67,7 @@ export function SessionTimelineView<T>({
   onScroll,
   onCanReturnToBottomChange,
   initialScrollOffset,
+  layoutResizeActive,
   scrollToBottom,
   count,
   sessionKey,
@@ -77,8 +80,10 @@ export function SessionTimelineView<T>({
   );
   const scrollController = useThreadScrollController({
     active: Boolean(scrollToBottom),
+    contentRevision: items.at(-1),
     initialScrollOffset,
     itemCount: count,
+    layoutResizeActive,
     listRef: listHandle,
     onScroll,
     scrollRef,
@@ -126,7 +131,7 @@ export function SessionTimelineView<T>({
 
   return (
     <div
-      className="session-timeline-container tw:mx-auto tw:min-w-0"
+      className="session-timeline-container tw:min-w-0"
       data-component="session-timeline"
       data-scroll-mode={scrollController.mode}
     >
@@ -141,11 +146,15 @@ export function SessionTimelineView<T>({
           {(item, index) =>
             item === TIMELINE_BOTTOM_SENTINEL ? (
               <div
-                ref={scrollController.bottomSentinelRef}
                 aria-hidden="true"
                 className="session-timeline-bottom-sentinel"
                 key="timeline-bottom-sentinel"
-              />
+              >
+                <div
+                  ref={scrollController.bottomSentinelRef}
+                  className="session-timeline-bottom-observer"
+                />
+              </div>
             ) : (
               renderItem(item as T, index)
             )

@@ -103,6 +103,10 @@ describe("ConfigMigrationService", () => {
       model: "file-wins",
       model_provider: "openai",
       task_models: { reviewer: "legacy-reviewer" },
+      specialized_models: {
+        coding: "openai/legacy-reviewer",
+        security: "openai/legacy-reviewer",
+      },
       features: { memory: true },
       desktop: {
         showContextUsage: false,
@@ -210,6 +214,119 @@ describe("ConfigMigrationService", () => {
     expect(persisted).toContain('"showContextUsage": true')
     expect(persisted).not.toContain("recentWorkspaces")
     expect(persisted).not.toContain("lastActiveWorkspacePath")
+    await config.dispose()
+    db.close()
+  })
+
+  test("把旧全局默认模型一次性导入最近新建任务模型且不覆盖后续选择", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-recent-model-migration-"))
+    roots.push(root)
+    const data = join(root, "data")
+    const workspace = join(root, "workspace")
+    const db = new AgentDatabase({
+      historyPath: join(data, "history.sqlite"),
+      profilePath: join(data, "profile.sqlite"),
+    })
+    db.setSetting("config.json.migration.v1", { completed: true })
+    const project = db.createProject({ rootPath: workspace })
+    db.saveProjectSettings(project.id, {
+      defaultModel: Model.Ref.make({
+        providerID: Provider.ID.make("openai"),
+        id: Model.ID.make("project-model"),
+      }),
+    })
+    const config = new ConfigService(join(data, "config.json"))
+    await config.initialize()
+    await config.batchWrite({
+      edits: [
+        { keyPath: ["model"], value: "legacy-model" },
+        { keyPath: ["model_provider"], value: "openai" },
+        { keyPath: ["model_reasoning_effort"], value: "high" },
+      ],
+    })
+    const migrate = () => new ConfigMigrationService(
+      config,
+      new ConfigMigrationRepository(db),
+    ).run()
+
+    await migrate()
+    const first = await config.read()
+    expect((first.config.desktop as Record<string, unknown>).recent_new_thread_model)
+      .toEqual({ providerID: "openai", id: "legacy-model", variant: "high" })
+    expect(db.getSetting<{ migrated: boolean }>(
+      "config.json.migration.recent_new_thread_model.v1",
+    )?.migrated).toBe(true)
+
+    // 用户随后在新建任务页换了模型；即使旧全局默认模型变化也不得再次导入。
+    await config.batchWrite({
+      edits: [{
+        keyPath: ["desktop", "recent_new_thread_model"],
+        value: { providerID: "deepseek", id: "chosen" },
+      }],
+    })
+    await config.batchWrite({
+      edits: [
+        { keyPath: ["model"], value: "changed-model" },
+        { keyPath: ["model_provider"], value: "other" },
+      ],
+    })
+    await migrate()
+    const second = await config.read()
+    expect((second.config.desktop as Record<string, unknown>).recent_new_thread_model)
+      .toEqual({ providerID: "deepseek", id: "chosen" })
+
+    // 项目默认模型原样保留但不再被消费。
+    expect(db.getProjectSettings(project.id).defaultModel).toMatchObject({
+      providerID: "openai",
+      id: "project-model",
+    })
+    await config.dispose()
+    db.close()
+  })
+
+  test("把仍使用裸模型 ID 的专用模型一次迁移为完整引用", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-specialized-ref-migration-"))
+    roots.push(root)
+    const data = join(root, "data")
+    const db = new AgentDatabase({
+      historyPath: join(data, "history.sqlite"),
+      profilePath: join(data, "profile.sqlite"),
+    })
+    db.setSetting("config.json.migration.v1", { completed: true })
+    const config = new ConfigService(join(data, "config.json"))
+    await config.initialize()
+    await config.batchWrite({
+      edits: [
+        { keyPath: ["model_provider"], value: "openai" },
+        {
+          keyPath: ["specialized_models"],
+          value: { coding: "bare-model", security: "other/gpt-5" },
+        },
+      ],
+    })
+    const migrate = () => new ConfigMigrationService(
+      config,
+      new ConfigMigrationRepository(db),
+    ).run()
+
+    await migrate()
+    const first = await config.read()
+    expect(first.config.specialized_models).toMatchObject({
+      coding: "openai/bare-model",
+      security: "other/gpt-5",
+    })
+    expect(db.getSetting<{ migrated: boolean }>(
+      "config.json.migration.specialized_model_refs.v1",
+    )?.migrated).toBe(true)
+
+    // 迁移只运行一次：用户之后的改动不会被再次改写。
+    await config.batchWrite({
+      edits: [{ keyPath: ["specialized_models", "coding"], value: "changed" }],
+    })
+    await migrate()
+    const second = await config.read()
+    expect((second.config.specialized_models as Record<string, unknown>).coding)
+      .toBe("changed")
     await config.dispose()
     db.close()
   })

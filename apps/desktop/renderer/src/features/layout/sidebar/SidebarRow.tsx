@@ -38,8 +38,6 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
   ref,
 ): ReactNode {
   const rowClassName = cx(
-    "interactive-row",
-    "interactive-row--nav",
     "sidebar-row",
     `sidebar-row--${layout}`,
     active ? "active" : undefined,
@@ -117,7 +115,6 @@ function renderRowContent({
           aria-hidden={leadingMode === "spacer" ? true : undefined}
           className={cx(
             "sidebar-row-leading",
-            "tw:flex tw:min-w-0 tw:items-center",
             leadingMode === "icon"
               ? "icon-button sidebar-item-icon"
               : "sidebar-row-leading-spacer",
@@ -129,19 +126,13 @@ function renderRowContent({
       <span
         className={cx(
           "sidebar-row-main",
-          "tw:flex tw:w-full tw:min-w-0 tw:items-center",
           labelClassName,
         )}
       >
         {children}
       </span>
       {hasTrailing ? (
-        <span
-          className={cx(
-            "sidebar-row-trailing",
-            "tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end",
-          )}
-        >
+        <span className="sidebar-row-trailing">
           {trailing}
         </span>
       ) : null}
@@ -161,7 +152,7 @@ export function SidebarEmptyRow({
         "sidebar-row",
         "sidebar-row--flex",
         "sidebar-empty-row",
-        "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
+        "u-type-body-sm tw:text-app-text-soft",
         className,
       )}
     >

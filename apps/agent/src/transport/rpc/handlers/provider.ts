@@ -1,9 +1,11 @@
 import type { RpcMethod } from "@codepilotx/agent-protocol"
+import { Provider } from "@codepilotx/model-schema"
 import {
   PiProviderConfigValidationError,
   serializePiProviderDefinition,
 } from "../../../provider/pi"
 import type { PiProviderDefinitionInput } from "../../../provider/pi"
+import type { ModelHealthFailureCategory } from "../../../provider/ModelHealthService"
 import type { RpcRouter } from "../RpcRouter"
 import type { RpcRouterContext } from "../request-context"
 import { optionalRpcRecord as optionalRecord } from "../decoders"
@@ -11,7 +13,6 @@ import {
   AgentError,
   booleanParam,
   modelRefOrNull,
-  providerFailureCategory,
   stringParam,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
@@ -23,6 +24,10 @@ const providerMethods = [
   "model/setDefault",
   "model/setReviewer",
   "provider/test",
+  "model/health/preview",
+  "model/health/start",
+  "model/health/read",
+  "model/health/cancel",
   "provider/create",
   "provider/update",
   "provider/delete",
@@ -57,9 +62,50 @@ const stringArray = (value: unknown, name: string): string[] => {
   return value as string[]
 }
 
+const recentNewThreadModel = (
+  snapshot: Record<string, unknown>,
+): { providerID: string; id: string; variant?: string } | null => {
+  const desktop = snapshot.desktop
+  if (!desktop || typeof desktop !== "object" || Array.isArray(desktop)) return null
+  const recent = (desktop as Record<string, unknown>).recent_new_thread_model
+  if (!recent || typeof recent !== "object" || Array.isArray(recent)) return null
+  const record = recent as Record<string, unknown>
+  const providerID = typeof record.providerID === "string" ? record.providerID : ""
+  const id = typeof record.id === "string" ? record.id : ""
+  if (!providerID || !id) return null
+  return {
+    providerID,
+    id,
+    ...(typeof record.variant === "string" && record.variant ? { variant: record.variant } : {}),
+  }
+}
+
 const emitCredentialUpdated = async (runtime: RpcRouter, providerID: string) => {
   await runtime.emit("provider/credential/updated", { providerId: providerID })
+  await runtime.dependencies.minimaxCli.credentialChanged(providerID)
 }
+
+const assertCredentialProviderAvailable = async (
+  providers: RpcRouter["dependencies"]["providers"],
+  providerID: string,
+) => {
+  const provider = (await providers.list()).find(
+    (candidate) => String(candidate.id) === providerID,
+  )
+  if (!provider) {
+    throw new AgentError("PROVIDER_NOT_FOUND", `Provider ${providerID} 不存在`, 404)
+  }
+  if (provider.availability?.status === "unavailable") {
+    throw new AgentError("PROVIDER_UNAVAILABLE", `Provider ${providerID} 协议暂未适配`, 400)
+  }
+}
+
+// The legacy provider/test wire contract only exposes the old category set;
+// timeout/provider are mapped to unknown while keeping a safe, specific message.
+const legacyTestCategory = (
+  category: ModelHealthFailureCategory,
+): "authentication" | "configuration" | "network" | "rate-limit" | "unknown" =>
+  category === "timeout" || category === "provider" ? "unknown" : category
 
 export const providerHandlers = {
   name: "provider",
@@ -73,6 +119,7 @@ export const providerHandlers = {
       providerCredentials,
       providerCredentialStore,
       authSessions,
+      modelHealth,
     } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
@@ -126,18 +173,18 @@ export const providerHandlers = {
       case "model/setDefault": {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
+        // 兼容外壳：旧客户端的“默认模型”语义现在映射为新建任务最近选择。
         await config.batchWrite({
-          edits: model
-            ? [
-                { keyPath: ["model"], value: String(model.id) },
-                { keyPath: ["model_provider"], value: String(model.providerID) },
-                { keyPath: ["model_reasoning_effort"], value: model.variant ? String(model.variant) : null },
-              ]
-            : [
-                { keyPath: ["model"], value: null },
-                { keyPath: ["model_provider"], value: null },
-                { keyPath: ["model_reasoning_effort"], value: null },
-              ],
+          edits: [{
+            keyPath: ["desktop", "recent_new_thread_model"],
+            value: model
+              ? {
+                  providerID: String(model.providerID),
+                  id: String(model.id),
+                  ...(model.variant ? { variant: String(model.variant) } : {}),
+                }
+              : null,
+          }],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
         return { defaultModel: model, settingsVersion: catalog.catalogVersion }
@@ -146,17 +193,44 @@ export const providerHandlers = {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
         await config.batchWrite({
-          edits: [{ keyPath: ["task_models", "reviewer"], value: model ? String(model.id) : null }],
+          edits: [{
+            keyPath: ["specialized_models", "security"],
+            value: model ? `${String(model.providerID)}/${String(model.id)}` : null,
+          }],
         })
         const catalog = await runtime.publishCatalogUpdated(false)
         return { reviewerModel: model, settingsVersion: catalog.catalogVersion }
       }
       case "provider/test": {
         const providerID = stringParam(params, "providerId")
+        const explicitModel = params.model
+          ? modelRefOrNull(params.model)
+          : null
+        if (explicitModel && String(explicitModel.providerID) !== providerID) {
+          throw new AgentError("INVALID_REQUEST", "显式传入的模型与 Provider 不匹配", 400)
+        }
         const testedAt = Date.now()
-        const startedAt = performance.now()
-        const model = (await providers.models()).find((item) => String(item.providerID) === providerID)
-        if (!model) {
+        let ref = explicitModel
+        if (!ref) {
+          const recent = recentNewThreadModel(config.snapshot())
+          const recentForProvider = recent && recent.providerID === providerID
+            ? modelRefOrNull({
+                providerID: recent.providerID,
+                id: recent.id,
+                ...(recent.variant ? { variant: recent.variant } : {}),
+              })
+            : null
+          const models = await providers.models(Provider.ID.make(providerID))
+          const firstEnabled = models.find((model) => model.enabled)
+          const recentAvailable =
+            recentForProvider && models.some((model) => String(model.id) === String(recentForProvider.id))
+              ? recentForProvider
+              : null
+          ref = recentAvailable ?? (firstEnabled
+            ? modelRefOrNull({ providerID, id: firstEnabled.id })
+            : null)
+        }
+        if (!ref) {
           return {
             providerId: providerID,
             status: "unavailable",
@@ -165,23 +239,47 @@ export const providerHandlers = {
             message: `Provider ${providerID} 没有可用模型`,
           }
         }
-        try {
-          await providers.getModel({ providerID: model.providerID, id: model.id })
+        const probe = await modelHealth.probe(ref)
+        // The legacy method only carries `model` when the caller asked for it;
+        // old clients without the field keep receiving the old shape.
+        const modelField = explicitModel ? { model: ref } : {}
+        if (!probe.ok) {
           return {
             providerId: providerID,
-            status: "reachable",
-            testedAt,
-            latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
-          }
-        } catch (cause) {
-          return {
-            providerId: providerID,
+            ...modelField,
             status: "unavailable",
             testedAt,
-            category: providerFailureCategory(cause),
-            message: cause instanceof Error ? cause.message : "Provider 当前不可用",
+            category: legacyTestCategory(probe.category),
+            message: probe.message,
           }
         }
+        return {
+          providerId: providerID,
+          ...modelField,
+          status: "reachable",
+          testedAt,
+          latencyMs: probe.latencyMs,
+        }
+      }
+      case "model/health/preview": {
+        const preview = await modelHealth.preview()
+        return preview
+      }
+      case "model/health/start": {
+        const operationId = stringParam(params, "operationId")
+        const run = await modelHealth.start(operationId)
+        return { run }
+      }
+      case "model/health/read": {
+        const runId = stringParam(params, "runId")
+        const run = await modelHealth.read(runId)
+        return { run }
+      }
+      case "model/health/cancel": {
+        const runId = stringParam(params, "runId")
+        const operationId = stringParam(params, "operationId")
+        const run = await modelHealth.cancel(runId, operationId)
+        return { run }
       }
       case "provider/create":
       case "provider/update": {
@@ -206,9 +304,20 @@ export const providerHandlers = {
           )
         } catch (cause) {
           if (cause instanceof PiProviderConfigValidationError) {
+            const firstIssue = cause.issues[0]
+            const detail =
+              firstIssue?.code === "BUILTIN_OVERRIDE"
+                ? `Provider ID "${providerID}" 与系统内置 Provider 重名，请使用其他 ID（如 custom-${providerID}）`
+                : firstIssue?.code === "UNSAFE_URL"
+                  ? "Base URL 格式无效，或明文 HTTP 需要开启允许非 loopback 明文 HTTP"
+                  : firstIssue?.code === "SENSITIVE_HEADER"
+                    ? "自定义 Provider 请求头中不能包含敏感认证凭据"
+                    : firstIssue?.code === "INVALID_MODEL"
+                      ? "模型配置不合法，请检查模型 ID 与参数设置"
+                      : "Provider 配置不合法"
             throw new AgentError(
               "INVALID_REQUEST",
-              "Provider 配置不合法",
+              `Provider 配置不合法：${detail}`,
               400,
               {
                 issues: cause.issues.map((issue) => ({
@@ -242,21 +351,16 @@ export const providerHandlers = {
         if (definition.kind !== "custom") {
           throw new AgentError("CONFLICT", "只能删除自定义 Provider", 409)
         }
-        const taskModels = snapshot.task_models && typeof snapshot.task_models === "object"
-          ? snapshot.task_models as Record<string, unknown>
+        const specializedModels = snapshot.specialized_models && typeof snapshot.specialized_models === "object"
+          ? snapshot.specialized_models as Record<string, unknown>
           : {}
-        const reviewerModelID = typeof taskModels.reviewer === "string"
-          ? taskModels.reviewer
-          : undefined
-        const reviewerReferencesProvider = reviewerModelID
-          ? (await providers.models()).some(
-              (model) =>
-                String(model.providerID) === providerID &&
-                String(model.id) === reviewerModelID,
-            )
-          : false
-        if (snapshot.model_provider === providerID || reviewerReferencesProvider) {
-          throw new AgentError("CONFLICT", "Provider 仍被默认模型或 Reviewer 模型引用", 409)
+        // 裸模型 ID 已由迁移改写为完整引用，这里只认真实的 providerID/modelID 引用。
+        const specializedReferencesProvider = Object.values(specializedModels).some((value) =>
+          typeof value === "string" && value.startsWith(`${providerID}/`),
+        )
+        const recent = recentNewThreadModel(snapshot)
+        if (recent?.providerID === providerID || specializedReferencesProvider) {
+          throw new AgentError("CONFLICT", "Provider 仍被最近模型或专用模型引用", 409)
         }
         await config.batchWrite({
           edits: [{ keyPath: ["model_providers", providerID], value: null }],
@@ -345,6 +449,7 @@ export const providerHandlers = {
       }
       case "provider/apiKey/create": {
         const providerID = stringParam(params, "providerId")
+        await assertCredentialProviderAvailable(providers, providerID)
         const credential = await apiKeys.create({
           providerID,
           label: stringParam(params, "label"),
@@ -356,8 +461,15 @@ export const providerHandlers = {
         return { credential }
       }
       case "provider/apiKey/update": {
+        const credentialID = stringParam(params, "credentialId")
+        const existing = (await providerCredentials.list()).find(
+          (credential) => String(credential.id) === credentialID,
+        )
+        if (existing) {
+          await assertCredentialProviderAvailable(providers, String(existing.providerId))
+        }
         const credential = await apiKeys.update({
-          credentialID: stringParam(params, "credentialId"),
+          credentialID,
           ...(typeof params.label === "string" ? { label: params.label } : {}),
           ...(typeof params.key === "string" ? { key: params.key } : {}),
         })
@@ -368,6 +480,7 @@ export const providerHandlers = {
       }
       case "provider/apiKey/reorder": {
         const providerID = stringParam(params, "providerId")
+        await assertCredentialProviderAvailable(providers, providerID)
         await apiKeys.reorder(
           providerID,
           stringArray(params.orderedCredentialIds, "orderedCredentialIds"),
@@ -376,7 +489,14 @@ export const providerHandlers = {
         return { credentials: await providerCredentials.list(providerID) }
       }
       case "provider/apiKey/test": {
-        const result = await apiKeys.test(stringParam(params, "credentialId"))
+        const credentialID = stringParam(params, "credentialId")
+        const existing = (await providerCredentials.list()).find(
+          (credential) => String(credential.id) === credentialID,
+        )
+        if (existing) {
+          await assertCredentialProviderAvailable(providers, String(existing.providerId))
+        }
+        const result = await apiKeys.test(credentialID)
         await emitCredentialUpdated(runtime, String(result.credential.providerId))
         return result
       }

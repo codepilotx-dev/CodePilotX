@@ -107,6 +107,24 @@ describe("event manifest invariants", () => {
     })).toThrow()
   })
 
+  test("publishes plugin updates as minimal live invalidations", () => {
+    expect(EventManifest["plugins/updated"]).toMatchObject({
+      durability: "live",
+      stream: "global",
+      capability: "plugins.manage.v1",
+      reconcilesWith: "plugin/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["plugins/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    expect(decode({ generation: 2 })).toEqual({ generation: 2 })
+    expect(() => decode({
+      generation: 2,
+      pluginPath: "C:\\sensitive\\plugin",
+    })).toThrow()
+  })
+
   test("publishes a minimal live usage source invalidation", () => {
     expect(EventManifest["usage/source/updated"]).toMatchObject({
       durability: "live",
@@ -148,5 +166,28 @@ describe("event manifest invariants", () => {
     ]) {
       expect(() => decode({ ...payload, ...forbidden })).toThrow()
     }
+  })
+
+  test("publishes session group changes as minimal durable global invalidations", () => {
+    expect(EventManifest["session-group/changed"]).toMatchObject({
+      durability: "durable",
+      stream: "global",
+      capability: "session-group.v1",
+      reconcilesWith: "session-group/list",
+    })
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["session-group/changed"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      groupId: "session-group:1",
+      reason: "step_changed" as const,
+      stepId: "session-group-step:1",
+      revision: 2,
+      changedAt: 1,
+    }
+    expect(decode(payload)).toEqual(payload)
+    expect(() => decode({ ...payload, summary: "不得进入事件日志" })).toThrow()
+    expect(() => decode({ ...payload, cwd: "C:\\sensitive" })).toThrow()
   })
 })

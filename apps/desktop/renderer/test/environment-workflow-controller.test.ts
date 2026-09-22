@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilotx/agent-protocol'
 import type { EnvironmentDomainClient } from '../src/services/desktop-client/environment-domain-client.js'
 import type { DesktopTerminalClient } from '../src/services/desktop-client/terminal-client.js'
 import { listTerminalActions, runTerminalAction } from '../src/features/session/workflow/actions/terminalActionController.js'
@@ -6,6 +7,10 @@ import {
   resumePendingHandoff,
   runHandoff,
 } from '../src/features/session/workflow/handoff/handoffController.js'
+import {
+  loadGitEnvironmentProjection,
+  shouldResumePendingHandoff,
+} from '../src/features/session/workflow/ConversationEnvironmentControls.js'
 import {
   buildEnvironmentConfigEdits,
   environmentActionsValue,
@@ -172,3 +177,126 @@ describe('environment workflow controllers', () => {
     expect(edits.some(edit => edit.keyPath.includes('future'))).toBeFalse()
   })
 })
+
+describe('Git environment gating', () => {
+  test('非 Git 时 actions/worktrees/pending handoff loader 均不被调用', async () => {
+    const calls = { listActions: 0, projectForThread: 0, listWorktrees: 0 }
+    const result = await loadGitEnvironmentProjection(false, 'thread-1', {
+      listActions: async () => {
+        calls.listActions += 1
+        return [action('dev')]
+      },
+      projectForThread: async () => {
+        calls.projectForThread += 1
+        return 'project-1'
+      },
+      listWorktrees: async () => {
+        calls.listWorktrees += 1
+        return [worktree('w-1')]
+      },
+    }, () => true)
+
+    expect(result).toEqual({ status: 'not-git' })
+    expect(calls).toEqual({ listActions: 0, projectForThread: 0, listWorktrees: 0 })
+    expect(shouldResumePendingHandoff(false, 'thread-1', 'F:\\project', null)).toBe(false)
+  })
+
+  test('Git 时正常加载 actions、worktrees 与 projectId', async () => {
+    const calls = { listActions: 0, projectForThread: 0, listWorktrees: 0 }
+    const result = await loadGitEnvironmentProjection(true, 'thread-1', {
+      listActions: async () => {
+        calls.listActions += 1
+        return [action('dev')]
+      },
+      projectForThread: async () => {
+        calls.projectForThread += 1
+        return 'project-1'
+      },
+      listWorktrees: async () => {
+        calls.listWorktrees += 1
+        return [worktree('w-1'), worktree('w-2')]
+      },
+    }, () => true)
+
+    expect(result).toEqual({
+      status: 'loaded',
+      snapshot: {
+        actions: [action('dev')],
+        projectId: 'project-1',
+        worktrees: [worktree('w-1'), worktree('w-2')],
+      },
+    })
+    expect(calls).toEqual({ listActions: 1, projectForThread: 1, listWorktrees: 1 })
+  })
+
+  test('请求期间由 Git 变非 Git 时忽略迟到结果，不恢复入口', async () => {
+    let current = true
+    const result = await loadGitEnvironmentProjection(true, 'thread-1', {
+      listActions: async () => [action('dev')],
+      projectForThread: async () => {
+        current = false
+        return 'project-1'
+      },
+      listWorktrees: async () => [worktree('w-1')],
+    }, () => current)
+
+    expect(result).toEqual({ status: 'stale' })
+  })
+
+  test('迟到错误被吞掉，不向上抛出不显示 Toast', async () => {
+    let current = false
+    const result = await loadGitEnvironmentProjection(true, 'thread-1', {
+      listActions: async () => {
+        throw new Error('REPOSITORY_NOT_FOUND')
+      },
+      projectForThread: async () => 'project-1',
+      listWorktrees: async () => [],
+    }, () => current)
+
+    expect(result).toEqual({ status: 'stale' })
+  })
+
+  test('当前 Git 请求失败时返回 failed 供调用方渲染', async () => {
+    const result = await loadGitEnvironmentProjection(true, 'thread-1', {
+      listActions: async () => {
+        throw new Error('WORKTREE_GIT_FAILED')
+      },
+      projectForThread: async () => null,
+      listWorktrees: async () => [],
+    }, () => true)
+
+    expect(result).toEqual({ status: 'failed', error: 'WORKTREE_GIT_FAILED' })
+  })
+
+  test('pending handoff 仅 Git 且同线程未恢复过时允许', () => {
+    expect(shouldResumePendingHandoff(false, 'thread-1', 'F:\\project', null)).toBe(false)
+    expect(shouldResumePendingHandoff(false, 'thread-1', 'F:\\project', 'thread-1')).toBe(false)
+    expect(shouldResumePendingHandoff(true, 'thread-1', 'F:\\project', null)).toBe(true)
+    expect(shouldResumePendingHandoff(true, 'thread-1', 'F:\\project', 'thread-1')).toBe(false)
+    expect(shouldResumePendingHandoff(true, '', 'F:\\project', null)).toBe(false)
+    expect(shouldResumePendingHandoff(true, 'thread-1', '', null)).toBe(false)
+  })
+})
+
+function action(name: string): LocalEnvironmentActionMetadata {
+  return { name, icon: 'play', availability: 'available' }
+}
+
+function worktree(id: string): ManagedWorktree {
+  return {
+    id,
+    projectId: 'project-1',
+    status: 'ready',
+    branchName: 'feature/dev',
+    baseCommit: 'a'.repeat(40),
+    headCommit: 'b'.repeat(40),
+    permanent: false,
+    pinned: false,
+    setupStatus: 'succeeded',
+    continuedWithoutSetup: false,
+    createdAt: 1,
+    updatedAt: 1,
+    lastUsedAt: 1,
+    deletedAt: null,
+  }
+}

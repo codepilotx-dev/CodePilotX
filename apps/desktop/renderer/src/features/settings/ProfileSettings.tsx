@@ -1,4 +1,6 @@
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useMemo, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
 import {
   Edit3,
   GitFork,
@@ -19,6 +21,7 @@ import type {
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   SkeletonBlock,
@@ -139,24 +142,25 @@ export function ProfileSettings(): React.ReactNode {
   }
 
   return (
-    <SettingsContentArea className="profile-dashboard-area">
+    <Popover.Root open={statusEditorOpen} onOpenChange={setStatusEditorOpen}>
+      <SettingsContentArea className="profile-dashboard-area">
       <div className="profile-dashboard">
         <header className="profile-dashboard-header">
           <h2>个人资料</h2>
           <div className="profile-dashboard-actions">
-            <Button
+            <Button color="secondary"
               disabled={!user?.htmlUrl}
               onClick={() => user?.htmlUrl && void desktopClient.openExternalURL(user.htmlUrl)}
             >
-              <Edit3 />
+              <Edit3 size={APP_ICON_SIZE} />
               编辑
             </Button>
-            <Button
+            <Button color="primary"
               disabled={loading}
               onClick={() => void loadGithubAuth()}
               title={loading ? '正在刷新中...' : '刷新'}
             >
-              <RefreshCw />
+              <RefreshCw size={APP_ICON_SIZE} />
               {loading ? '刷新中...' : '刷新'}
             </Button>
 
@@ -173,22 +177,26 @@ export function ProfileSettings(): React.ReactNode {
                   {user?.avatarUrl ? (
                     <RemoteImage
                       alt=""
-                      fallback={<User />}
+                      fallback={<User size={APP_ICON_SIZE} />}
                       src={user.avatarUrl}
                     />
                   ) : (
-                    <User />
+                    <User size={APP_ICON_SIZE} />
                   )}
                 </div>
                 {user ? (
-                  <button
-                    className="profile-avatar-badge"
-                    title={currentStatus?.message ?? '设置状态'}
-                    onClick={openStatusEditor}
-                    type="button"
-                  >
-                    {statusEmojiGlyph(currentStatus?.emoji)}
-                  </button>
+                  <Popover.Trigger asChild>
+                    <IconButton
+                      className="profile-avatar-badge"
+                      color="ghostSecondary"
+                      onClick={openStatusEditor}
+                      size="toolbar"
+                      title={currentStatus?.message ?? '设置状态'}
+                      type="button"
+                    >
+                      {statusEmojiGlyph(currentStatus?.emoji)}
+                    </IconButton>
+                  </Popover.Trigger>
                 ) : null}
               </div>
               <h1>{user?.name || user?.login || 'GitHub Profile'}</h1>
@@ -215,11 +223,11 @@ export function ProfileSettings(): React.ReactNode {
               ) : null}
               {githubOverview ? (
                 <div className="profile-meta-line">
-                  <ProfileMeta icon={<User />} value={`${githubOverview.user.followers} followers`} />
-                  <ProfileMeta icon={<GitFork />} value={`${githubOverview.user.following} following`} />
-                  <ProfileMeta icon={<MapPin />} value={githubOverview.user.location} />
-                  <ProfileMeta icon={<Globe />} value={githubOverview.user.websiteUrl} />
-                  <ProfileMeta icon={<Mail />} value={githubOverview.user.email} />
+                  <ProfileMeta icon={<User size={APP_ICON_SIZE} />} value={`${githubOverview.user.followers} followers`} />
+                  <ProfileMeta icon={<GitFork size={APP_ICON_SIZE} />} value={`${githubOverview.user.following} following`} />
+                  <ProfileMeta icon={<MapPin size={APP_ICON_SIZE} />} value={githubOverview.user.location} />
+                  <ProfileMeta icon={<Globe size={APP_ICON_SIZE} />} value={githubOverview.user.websiteUrl} />
+                  <ProfileMeta icon={<Mail size={APP_ICON_SIZE} />} value={githubOverview.user.email} />
                 </div>
               ) : null}
             </section>
@@ -311,14 +319,14 @@ export function ProfileSettings(): React.ReactNode {
                   }
                 </p>
                 <div className="profile-empty-actions">
-                  <Button
+                  <Button color="secondary"
                     onClick={() => void loadGithubAuth()}
                     type="button"
                   >
-                    <RefreshCw />
+                    <RefreshCw size={APP_ICON_SIZE} />
                     刷新
                   </Button>
-                  <Button
+                  <Button color="secondary"
                     onClick={() => navigate('/settings/git')}
                     type="button"
                   >
@@ -329,16 +337,29 @@ export function ProfileSettings(): React.ReactNode {
             )}
           </>
         )}
-        {statusEditorOpen ? (
-          <div className="popover-surface profile-status-popover" role="dialog" aria-label="设置 GitHub 状态">
+      </div>
+      </SettingsContentArea>
+      <Popover.Portal>
+        <Popover.Content
+          align="center"
+          aria-label="设置 GitHub 状态"
+          className="popover-surface profile-status-popover"
+          collisionPadding={8}
+          side="bottom"
+          sideOffset={8}
+        >
             <div className="profile-status-popover-header">
               <strong>设置 GitHub 状态</strong>
-              <button
-                onClick={() => setStatusEditorOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
+              <Popover.Close asChild>
+                <IconButton
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="关闭状态设置"
+                  type="button"
+                >
+                  ×
+                </IconButton>
+              </Popover.Close>
             </div>
             <div className="profile-status-field">
               <span>What's happening</span>
@@ -370,14 +391,14 @@ export function ProfileSettings(): React.ReactNode {
               Busy
             </label>
             <div className="profile-status-actions">
-              <Button
+              <Button color="danger"
                 disabled={statusBusy}
                 onClick={() => void clearStatus()}
                 type="button"
               >
                 Clear status
               </Button>
-              <Button
+              <Button color="primary"
                 disabled={statusBusy || !statusMessage.trim()}
                 onClick={() => void saveStatus()}
                 type="button"
@@ -385,10 +406,9 @@ export function ProfileSettings(): React.ReactNode {
                 Set status
               </Button>
             </div>
-          </div>
-        ) : null}
-      </div>
-    </SettingsContentArea>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 
@@ -488,12 +508,12 @@ function ProfileRepositoryRow({
         className="profile-repository-dot"
         style={{
           backgroundColor:
-            repository.primaryLanguage?.color ?? 'var(--color-token-text-secondary)',
+            repository.primaryLanguage?.color ?? 'var(--cpx-sys-color-fg-secondary)',
         }}
       />
       <span className="profile-repository-name">{repository.fullName}</span>
       <span className="profile-repository-count">
-        <Star />
+        <Star size={APP_ICON_SIZE} />
         {repository.stargazerCount.toLocaleString()}
       </span>
     </button>

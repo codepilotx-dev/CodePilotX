@@ -98,4 +98,22 @@ describe('terminal output projection', () => {
     expect(exited.state.state).toBe('exited')
     expect(exited.state.exitCode).toBe(7)
   })
+
+  test('adopts a truncated snapshot from its oldest sequence and surfaces truncation', () => {
+    const initial = consumeTerminalSnapshot(
+      createTerminalOutputState(),
+      snapshot([chunk(0)]),
+    )
+    // 有界缓冲淘汰了最旧的输出：从仍可用的最早序号继续，并明确告知已截断。
+    const truncated = consumeTerminalSnapshot(initial.state, snapshot(
+      [chunk(8), chunk(9)],
+      { gap: true, truncated: true, oldestSequence: 8, nextSequence: 10 },
+    ))
+
+    expect(truncated.reset).toBe(true)
+    expect(truncated.replayRequired).toBe(false)
+    expect(truncated.chunks.map(item => item.sequence)).toEqual([8, 9])
+    expect(truncated.state.truncated).toBe(true)
+    expect(truncated.state.nextSequence).toBe(10)
+  })
 })

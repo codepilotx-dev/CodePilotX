@@ -25,6 +25,45 @@ describe("model and provider schemas", () => {
     expect(Schema.is(Provider.Info)(provider)).toBe(true)
     expect(Schema.is(Model.Info)(model)).toBe(true)
   })
+
+  test("describes builtin and custom provider origin and availability", () => {
+    const builtinProvider = Schema.decodeUnknownSync(Provider.Info)({
+      id: "deepseek",
+      name: "DeepSeek",
+      source: {
+        type: "pi",
+        kind: "builtin",
+        apis: ["openai-completions"],
+        baseUrl: "https://api.deepseek.com",
+      },
+      catalogOrigin: "pi-bundled",
+      availability: { status: "ready" },
+      auth: { apiKey: true, oauth: false },
+    })
+    const customProvider = Schema.decodeUnknownSync(Provider.Info)({
+      id: "my-custom",
+      name: "My Custom",
+      source: {
+        type: "pi",
+        kind: "custom",
+        apis: ["openai-completions"],
+        baseUrl: "https://api.example.com",
+      },
+      catalogOrigin: "user",
+      availability: { status: "ready" },
+      auth: { apiKey: true, oauth: false },
+    })
+    const unavailable = Schema.decodeUnknownSync(Provider.Availability)({
+      status: "unavailable",
+      reason: "unsupported-protocol",
+    })
+
+    expect(builtinProvider.source.kind).toBe("builtin")
+    expect(builtinProvider.catalogOrigin).toBe("pi-bundled")
+    expect(customProvider.source.kind).toBe("custom")
+    expect(customProvider.catalogOrigin).toBe("user")
+    expect(unavailable.reason).toBe("unsupported-protocol")
+  })
 })
 
 describe("credential schemas", () => {

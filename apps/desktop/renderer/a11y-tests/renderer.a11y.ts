@@ -23,7 +23,7 @@ const ROUTES = [
   ['thread-permission', '/?visualCase=permission#/threads/visual-permission'],
   ['thread-review', '/?visualCase=review#/threads/visual-review'],
   ['projects', '/?visualCase=empty#/projects'],
-  ['models', '/?visualCase=empty#/models'],
+  ['providers', '/?visualCase=empty#/settings/providers'],
   ['plugins', '/?visualCase=empty#/plugins'],
   ['automations', '/?visualCase=empty#/automations'],
   ['pets', '/?visualCase=empty#/pets'],
@@ -34,7 +34,6 @@ const ROUTES = [
   ['settings-general', '/?visualCase=empty#/settings/general'],
   ['settings-plugins', '/?visualCase=empty#/settings/plugins'],
   ['settings-environment', '/?visualCase=empty#/settings/environment/visual-workspace'],
-  ['labs', '/?visualCase=empty#/labs'],
   ['not-found', '/?visualCase=empty#/route-that-does-not-exist'],
   ['pet-overlay', '/?visualCase=empty#/pet-overlay'],
 ] as const

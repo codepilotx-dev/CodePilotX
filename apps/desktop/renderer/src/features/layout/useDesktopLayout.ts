@@ -50,7 +50,6 @@ export function resetStoredSidebarLayout(): void {
 export type UseDesktopLayoutResult = {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
-  viewportWidth: number;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarWidth: (width: number) => void;
   toggleSidebarCollapsed: () => void;
@@ -60,19 +59,9 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
     readStoredSidebarCollapsed(),
   );
-  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [sidebarWidth, setSidebarWidthState] = useState(() =>
     readStoredSidebarWidth(),
   );
-
-  useEffect(() => {
-    function handleResize(): void {
-      setViewportWidth(window.innerWidth);
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   useEffect(() => {
     function handleSidebarLayoutReset(): void {
@@ -128,7 +117,6 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
   return {
     sidebarCollapsed,
     sidebarWidth,
-    viewportWidth,
     setSidebarCollapsed,
     setSidebarWidth,
     toggleSidebarCollapsed,

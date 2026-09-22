@@ -1,16 +1,12 @@
 import { useEffect, useState, type ComponentType } from "react"
 import type { MaterialSvgIconProps } from "./icons"
 import {
+  createMaterialIcon,
   iconShard,
   loadIconShard,
   type IconComponent,
   type IconName,
 } from "./icons"
-import FileIconComponent from "./icons/file"
-import FolderIconComponent from "./icons/folder"
-import FolderOpenIconComponent from "./icons/folder-open"
-import FolderRootIconComponent from "./icons/folder-root"
-import FolderRootOpenIconComponent from "./icons/folder-root-open"
 import { loadCachedIconShard } from "./icon-shard-cache"
 import {
   resolveFileIconName,
@@ -18,6 +14,32 @@ import {
   type ResolveFileIconOptions,
   type ResolveFolderIconOptions,
 } from "./resolve"
+
+const FileIconComponent = createMaterialIcon(
+  "FileIcon",
+  "0 0 16 16",
+  '<path d="m8.668 6h3.6641l-3.6641-3.668v3.668m-4.668-4.668h5.332l4 4v8c0 0.73828-0.59375 1.3359-1.332 1.3359h-8c-0.73828 0-1.332-0.59766-1.332-1.3359v-10.664c0-0.74219 0.59375-1.3359 1.332-1.3359m3.332 1.3359h-3.332v10.664h8v-6h-4.668z" fill="currentColor" />',
+)
+const FolderIconComponent = createMaterialIcon(
+  "FolderIcon",
+  "0 0 16 16",
+  '<path d="m6.922 3.768-.644-.536A1 1 0 0 0 5.638 3H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H7.562a1 1 0 0 1-.64-.232" fill="currentColor" />',
+)
+const FolderOpenIconComponent = createMaterialIcon(
+  "FolderOpenIcon",
+  "0 0 16 16",
+  '<path d="M14.483 6H4.721a1 1 0 0 0-.949.684L2 12V5h12a1 1 0 0 0-1-1H7.562a1 1 0 0 1-.64-.232l-.644-.536A1 1 0 0 0 5.638 3H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h11l2.403-5.606A1 1 0 0 0 14.483 6" fill="currentColor" />',
+)
+const FolderRootIconComponent = createMaterialIcon(
+  "FolderRootIcon",
+  "0 0 16 16",
+  '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="3" fill="currentColor"/>',
+)
+const FolderRootOpenIconComponent = createMaterialIcon(
+  "FolderRootOpenIcon",
+  "0 0 16 16",
+  '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/>',
+)
 
 export interface MaterialIconProps extends MaterialSvgIconProps {
   name: IconName

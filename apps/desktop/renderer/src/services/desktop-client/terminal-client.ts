@@ -1,4 +1,5 @@
 import type {
+  AckDesktopTerminalOutputInput,
   AttachDesktopTerminalInput,
   CloseDesktopTerminalInput,
   DesktopTerminalEvent,
@@ -82,6 +83,10 @@ export function createDesktopTerminalClient(
     resizeTerminal: (input: ResizeDesktopTerminalInput): void => {
       if (!bridge?.resizeTerminal) unavailable()
       bridge.resizeTerminal(input)
+    },
+    // 可选能力：旧版 Electron 没有 ack 通道时退化为无流量控制（输出仍按有界缓冲截断）。
+    ackTerminalOutput: (input: AckDesktopTerminalOutputInput): void => {
+      bridge?.ackTerminalOutput?.(input)
     },
     closeTerminal,
     runTerminalAction,

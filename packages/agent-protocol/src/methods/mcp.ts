@@ -1,8 +1,12 @@
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../wire/definition"
-import { OperationParamsSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
+import {
+  NonEmptyStringSchema,
+  OperationParamsSchema,
+  SequenceSchema,
+  TimestampSchema,
+} from "../wire/primitives"
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const StringMapSchema = Schema.Record(NonEmptyStringSchema, Schema.String)
 const EnvironmentReferenceMapSchema = Schema.Record(NonEmptyStringSchema, NonEmptyStringSchema)
 const TimeoutSchema = Schema.Int.check(Schema.isBetween({ minimum: 100, maximum: 600_000 }))

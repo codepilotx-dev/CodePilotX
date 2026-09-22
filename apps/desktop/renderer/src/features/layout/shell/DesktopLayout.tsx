@@ -1,5 +1,7 @@
+import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
 import {
   desktopClient,
+  desktopClipboard,
   loadDesktopTerminalClient,
 } from '../../../services/desktop-client/index.js'
 import {
@@ -8,12 +10,12 @@ import {
 } from '../../../services/externalOpenTargetsStore.js'
 import type React from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import {
-  DesktopComposer,
-  getDesktopComposerBranchName,
-  type DesktopComposerProps,
-} from '../../session/composer/DesktopComposer.js'
+import { normalizePathForComparison } from '../../../utils/pathUtils.js'
+import type { DesktopComposerProps } from '../../session/composer/DesktopComposer.js'
+import { getDesktopComposerBranchName } from '../../session/composer/composerWorkspacePresentation.js'
 import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
+import { isBuiltinSkill } from '../../plugins/builtinSkillPresentation.js'
+import { listRuntimeSkills } from '../../settings/plugins/skillClientAdapter.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
 import type { WorkbenchFileLoadErrorEvent } from '../dock/RightDock.js'
@@ -25,13 +27,17 @@ import {
 import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
+  createSkillPreviewTab,
   type WorkbenchPanelTarget,
+  type WorkbenchTabDescriptor,
   type WorkbenchTabId,
+  type UserAttachmentPreviewTab,
 } from '../dock/rightDockState.js'
 import {
   createDefaultConversationUiState,
   createDefaultReviewTabUiState,
   openPatchReviewTabState,
+  patchConversationUiState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
@@ -39,17 +45,10 @@ import {
   type ReviewTabUiState,
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
-import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
-import type {
-  EditMenuAction,
-  FileMenuAction,
-  HelpMenuAction,
-  ViewMenuAction,
-  WindowMenuAction,
-} from '../MenuBar.js'
+import { useAppMenuActions } from './useAppMenuActions.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
@@ -57,20 +56,17 @@ import {
   sessionViewFallbackTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { resolveModelPresetId } from '../../../modelPresets.js'
+import { useDesktopRuntimeSettings } from '../../settings/useDesktopSettings.js'
 import { useSystemNotifications } from '../../notifications/useSystemNotifications.js'
 import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../../session/state/useSessionState.js'
 import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
 import { useDesktopCommands } from '../../session/useDesktopCommands.js'
-import { withModelCatalogLoading } from '../../../hooks/useModelCatalogLoading.js'
-import {
-  buildModelPresets,
-  resolveModelPresetId,
-} from '../../../modelPresets.js'
+import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import type {
-  DesktopModelMetadata,
+  DesktopComposerAttachment,
   DesktopBrowserState,
   DesktopFileEntry,
   DesktopInstalledSkill,
@@ -78,9 +74,8 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
-  ModelProviderID,
-  SidebarSectionId,
 } from '../../../../shared/types.js'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   QUICK_CHAT_PATH,
@@ -94,31 +89,42 @@ import {
   useIntegratedTerminalController,
 } from './useIntegratedTerminalController.js'
 import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
-import { useModelProviderController } from '../useModelProviderController.js'
+import { isDeepSeekThinkingModel, useModelProviderController } from '../useModelProviderController.js'
+import { buildVariantOptions } from '../../models/reasoningVariantLabels.js'
 import { useSubagentDockController } from '../dock/useSubagentDockController.js'
 import { useSideChatController } from '../dock/useSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
+import type { ResizePhase } from '../useSidebarResizeCollapseConfirm.js'
 import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
 import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
 } from '../../markdown/index.js'
+import { MARKDOWN_THREAD_NAVIGATION_EVENT } from '../../markdown/MarkdownMessage.js'
 import {
   hasDirtyFileDocuments,
+  fileDocumentLoadErrorMessage,
   prefetchFileDocument,
   saveAllFileDocuments,
   saveFileDocument,
 } from '../../workspace/fileDocumentStore.js'
+import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
+import { SubagentDockContent } from '../../session/subagents/SubagentDockContent.js'
+import { WorkbenchPanel } from '../dock/RightDock.js'
+import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
+import type { WorkbenchTabRenderContext } from '../tabs/workbenchTabRegistry.js'
+import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
+import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
+import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
+import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 
 const GitWorkflowModal = lazy(() => import('../panels/GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
-const GlobalErrorModal = lazy(() => import('../../../components/GlobalErrorModal.js').then(module => ({ default: module.GlobalErrorModal })))
 const GithubRepositoryModal = lazy(() => import('../panels/GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
-const SettingsSidebarContent = lazy(() => import('../../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
-const SubagentThreadPanel = lazy(() => import('../../session/subagents/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
 const WhatsNewDialog = lazy(() => import('../../whats-new/WhatsNewDialog.js').then(module => ({ default: module.WhatsNewDialog })))
-const WorkbenchPanel = lazy(() => import('../dock/RightDock.js').then(module => ({ default: module.WorkbenchPanel })))
-const CommandMenuDialog = lazy(() => import('../../search/CommandMenuDialog.js').then(module => ({ default: module.CommandMenuDialog })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -226,18 +232,16 @@ function routeAccessibilityLabel(pathname: string): string {
   if (pathname === '/new') return '新对话'
   if (pathname.startsWith('/threads/')) return '会话'
   if (pathname.startsWith('/projects')) return '项目'
-  if (pathname === '/models') return '模型'
   if (pathname === '/plugins') return '插件与技能'
   if (pathname === '/pull-requests') return '拉取请求'
-  if (pathname === '/automations') return '自动化'
+  if (pathname === '/automations') return '已安排'
   if (pathname === '/pets') return '宠物'
   if (pathname.startsWith('/settings/')) return '设置'
-  if (pathname === '/labs') return '实验室'
   return 'CodePilotX'
 }
 
 function normalizePathForCompare(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+  return normalizePathForComparison(path)
 }
 
 /** Incrementing counter to sequence directory probe requests */
@@ -246,62 +250,46 @@ let directoryProbeRequestId = 0
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
   const routeLabel = routeAccessibilityLabel(location.pathname)
-  const settings = useDesktopSettings()
+  const settings = useDesktopRuntimeSettings()
   const {
-    activeCapabilities: editMenuCapabilities,
-    perform: performEditCommand,
-  } = useEditCommands()
-  const {
+    values: {
+      model: settingsModel,
+      codingModel,
+      sessionName,
+      thinkingMode: defaultThinkingMode,
+      systemPrompt,
+      appendSystemPrompt,
+      additionalDirectories,
+      installCodePilotXDependencies,
+      enableMemory,
+      rustSearchAndDiffKernels,
+      enableParetoCodeRouter,
+      enableFusionRouter,
+      enableAutoReviewPermissionMode,
+      enableFullAccessPermissionMode,
+      recentWorkspaces,
+      providerID: defaultProviderID,
+      providerBaseURL,
+      showContextUsage,
+      diffMarkerStyle,
+      reviewView,
+      gitBranchPrefix,
+      allowForcePush,
+      commitMessagePrompt,
+      pullRequestPrompt,
+      sidebarSessionPins,
+    },
     permissionMode,
-    model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
-    sessionName,
-    thinkingMode,
-    systemPrompt,
-    appendSystemPrompt,
-    additionalDirectories,
-    installCodePilotXDependencies,
-    enableMemory,
-    rustSearchAndDiffKernels,
-    enableParetoCodeRouter,
-    enableFusionRouter,
-    enableAutoReviewPermissionMode,
-    enableFullAccessPermissionMode,
-    recentWorkspaces,
-    selectedModelPreset,
-    providerID,
-    providerBaseURL,
-    showContextUsage,
-    diffMarkerStyle,
-    reviewView,
-    gitBranchPrefix,
-    allowForcePush,
-    commitMessagePrompt,
-    pullRequestPrompt,
     settingsLoaded,
     setPermissionMode,
-    setModel,
-    setProviderBaseURL,
-    setProviderID,
-    setThinkingMode,
-	    setRecentWorkspaces,
-	    setDrawerTab,
-	    setSelectedModelPreset,
-	    setReviewView,
-	    collapsedSidebarSections,
-	    setCollapsedSidebarSections,
-	    sidebarSessionPins,
-	    setSidebarSessionPins,
-	    setSidebarTimelineEnabled,
-	    syncExternalSettingsPatch,
+    setRecentWorkspaces,
+    setDrawerTab,
+    setReviewView,
+    setSidebarSessionPins,
+    setSidebarTimelineEnabled,
   } = settings
   useSystemNotifications(
-    settingsLoaded ? settings.draft.values.notifications : undefined,
+    settingsLoaded ? settings.values.notifications : undefined,
   )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
@@ -318,13 +306,17 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
-  const {
-    providerState,
-    setProviderState,
-    modelProviders,
-    setModelProviders,
-    modelCatalogLoading,
-  } = useModelProviderController()
+  const browserAvailable =
+    typeof window !== 'undefined' &&
+    typeof window.codePilotXDesktop?.createOrRestoreDesktopBrowser === 'function'
+  const browserAvailability = browserAvailable ? 'available' : 'unavailable'
+  const gitWorkflowModalMounted = useEverOpened(gitWorkflowMode !== null)
+  const githubRepositoryModalMounted = useEverOpened(githubRepositoryModalOpen)
+  const whatsNewDialogMounted = useEverOpened(whatsNewDialogOpen)
+  const commandMenuDialogMounted = useEverOpened(commandMenuOpen)
+  const globalMessageModalMounted = useEverOpened(
+    errorMessage !== null || noticeMessage !== null,
+  )
   const {
     sidebarCollapsed,
     sidebarWidth,
@@ -334,6 +326,7 @@ export function DesktopLayout(): React.ReactNode {
     sidebarShell,
     sidebarMinWidth,
     sidebarMaxWidth,
+    workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
     rightDockState,
@@ -345,9 +338,12 @@ export function DesktopLayout(): React.ReactNode {
     rightDockMinWidth,
     rightDockMaxWidth,
     rightDockWidth,
+    rightPanelCommittedSize,
+    rightPanelLiveResize,
     bottomPanelMinHeight,
     bottomPanelMaxHeight,
     bottomPanelHeight,
+    bottomPanelLiveResize,
     openRightDockTab,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
@@ -361,6 +357,8 @@ export function DesktopLayout(): React.ReactNode {
     togglePanel,
     closePanel,
     movePanelTab,
+    popOutPanelTab,
+    dockBackPanelTab,
     reorderPanelTab,
     closeOtherTabs,
     closeTabsToRight,
@@ -370,6 +368,7 @@ export function DesktopLayout(): React.ReactNode {
   } = useWorkbenchShellController()
   const rightDockFullWidth =
     rightDockVisible && workbenchPanelState.rightFullWidth
+  const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
   const commandMenuInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -382,8 +381,23 @@ export function DesktopLayout(): React.ReactNode {
     }),
     [rightDockState, rightDockVisible],
   )
-  const handleErrorMessage = useCallback((message: string): void => {
-    setErrorMessage(message || null)
+  const lastErrorRef = useRef<{ message: string; timestamp: number } | null>(null)
+  const handleErrorMessage = useCallback((raw: unknown): void => {
+    if (!raw) {
+      setErrorMessage(null)
+      return
+    }
+    const message = toUserErrorMessage(raw)
+    const now = Date.now()
+    if (
+      lastErrorRef.current &&
+      lastErrorRef.current.message === message &&
+      now - lastErrorRef.current.timestamp < 1000
+    ) {
+      return
+    }
+    lastErrorRef.current = { message, timestamp: now }
+    setErrorMessage(message)
   }, [])
   const [titleLoadingIds, regenerateSessionTitle] =
     useSessionTitleRegeneration()
@@ -399,8 +413,8 @@ export function DesktopLayout(): React.ReactNode {
     clearWorkspaceUnavailable,
   } = useWorkbenchWorkspaceController({
     initialLastActiveWorkspacePath:
-      settings.draft.values.lastActiveWorkspacePath ?? '',
-    initialRemovedWorkspaces: settings.draft.values.removedWorkspaces ?? [],
+      settings.values.lastActiveWorkspacePath ?? '',
+    initialRemovedWorkspaces: settings.values.removedWorkspaces ?? [],
     settings,
     onError: handleErrorMessage,
   })
@@ -430,27 +444,21 @@ export function DesktopLayout(): React.ReactNode {
 
   const session = useSessionState({
     permissionMode,
-    permissionConfig: settings.draft.values.permissionConfig,
+    permissionConfig: settings.values.permissionConfig,
     planModeActive: homePlanModeActive,
     localRouterMode: homeLocalRouterMode,
-    providerID,
+    providerID: defaultProviderID,
     providerBaseURL,
-    model,
-    planExecutionModel,
-    reviewModel,
-    smallFastModel,
-    fastModel,
-    defaultModel,
-    deepModel,
+    model: settingsModel,
     sessionName,
-    thinkingMode,
+    thinkingMode: defaultThinkingMode,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
     installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
-    onError: (message: string) => setErrorMessage(message),
+    onError: handleErrorMessage,
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
       const target = session.sessionId === sessionId ? currentWorkspace : null
@@ -532,7 +540,7 @@ export function DesktopLayout(): React.ReactNode {
     if (!bridge) return
     if (
       settingsLoaded &&
-      settings.draft.values.pet.enabled &&
+      settings.values.pet.enabled &&
       typeof bridge.openPetOverlay === 'function'
     ) {
       void bridge.openPetOverlay()
@@ -543,7 +551,7 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [
     navigate,
-    settings.draft.values.pet.enabled,
+    settings.values.pet.enabled,
     settingsLoaded,
   ])
   useEffect(() => {
@@ -554,6 +562,50 @@ export function DesktopLayout(): React.ReactNode {
       // pending interaction，避免对失效请求提交响应。
       navigate(sessionPath(activation.threadId))
     })
+  }, [navigate])
+  useEffect(() => {
+    const bridge = window.codePilotXDesktop
+    if (typeof bridge?.onThreadDeepLinkActivated !== 'function') return
+    if (typeof bridge?.consumePendingThreadDeepLink !== 'function') return
+    let mounted = true
+    const openThread = (payload: { threadId: string }): void => {
+      navigate(sessionPath(payload.threadId))
+    }
+    const unsubscribe = bridge.onThreadDeepLinkActivated(openThread)
+    // 先订阅再消费，避免挂载期间到达的深链在订阅/消费间隙丢失。
+    void bridge
+      .consumePendingThreadDeepLink()
+      .then(payload => {
+        if (!mounted || payload === null) return
+        openThread(payload)
+      })
+      .catch(() => {
+        window.dispatchEvent(new CustomEvent('desktop:error', {
+          detail: '无法打开会话深链，请重试。',
+        }))
+      })
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
+  }, [navigate])
+  useEffect(() => {
+    const handleMarkdownThreadNavigation = (event: Event): void => {
+      const detail = (event as CustomEvent<{ threadId?: unknown }>).detail
+      if (!detail || typeof detail !== 'object') return
+      const threadId = (detail as { threadId?: unknown }).threadId
+      if (typeof threadId !== 'string' || threadId.trim() === '') return
+      navigate(sessionPath(threadId))
+    }
+    window.addEventListener(
+      MARKDOWN_THREAD_NAVIGATION_EVENT,
+      handleMarkdownThreadNavigation,
+    )
+    return () =>
+      window.removeEventListener(
+        MARKDOWN_THREAD_NAVIGATION_EVENT,
+        handleMarkdownThreadNavigation,
+      )
   }, [navigate])
   const mainComposerDraftKey: ComposerDraftKey = routedSessionId
     ? `session:${routedSessionId}`
@@ -567,11 +619,11 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     if (!settingsLoaded) return
-    setRemovedWorkspaces(settings.draft.values.removedWorkspaces)
-    setLastActiveWorkspacePath(settings.draft.values.lastActiveWorkspacePath)
+    setRemovedWorkspaces(settings.values.removedWorkspaces)
+    setLastActiveWorkspacePath(settings.values.lastActiveWorkspacePath)
   }, [
-    settings.draft.values.lastActiveWorkspacePath,
-    settings.draft.values.removedWorkspaces,
+    settings.values.lastActiveWorkspacePath,
+    settings.values.removedWorkspaces,
     settingsLoaded,
   ])
 
@@ -785,6 +837,7 @@ export function DesktopLayout(): React.ReactNode {
         const nextWorkspace = await desktopClient.checkoutWorkspaceBranch(
           currentWorkspace.path,
           branch,
+          currentWorkspace.projectId,
         )
         setWorkspaceState(nextWorkspace)
         await refreshWorkspace(nextWorkspace, {
@@ -842,19 +895,13 @@ export function DesktopLayout(): React.ReactNode {
     setGitWorkflowMode('pullRequest')
   }, [])
 
-  const refreshBrowserState = useCallback((): void => {
-    void desktopClient
-      .getBrowserState()
-      .then(setBrowserState)
-      .catch(error =>
-        setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [])
-
   const handleOpenBrowser = useCallback((): void => {
+    if (browserAvailability !== 'available') {
+      setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
+      return
+    }
     openRightDockTab({ id: 'browser', kind: 'browser' })
-    void desktopClient
-      .openBrowser()
+    void desktopBrowserClient.openBrowser()
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -865,9 +912,33 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
   }, [openRightDockTab])
 
-  const handleOpenSideChat = useCallback((): void => {
-    openRightDockTab({ id: 'side-chat', kind: 'side-chat' })
+  const handleOpenThreadAttachment = useCallback((attachment: Attachment): void => {
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createThreadAttachmentPreviewTab }) => {
+        const tab = createThreadAttachmentPreviewTab(attachment)
+        if (tab) openRightDockTab(tab)
+      })
   }, [openRightDockTab])
+
+  const handleOpenDraftAttachment = useCallback((
+    attachment: DesktopComposerAttachment,
+  ): void => {
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createDraftAttachmentPreviewTab }) => {
+        const tab = createDraftAttachmentPreviewTab(attachment)
+        if (tab) openRightDockTab(tab)
+      })
+  }, [openRightDockTab])
+
+  const handleOpenThreadLocalContext = useCallback((
+    reference: LocalContextReference,
+  ): void => {
+    if (!sessionId) return
+    void import('../../session/attachments/attachmentPreviewDescriptor.js')
+      .then(({ createThreadLocalContextPreviewTab }) => {
+        openRightDockTab(createThreadLocalContextPreviewTab(sessionId, reference))
+      })
+  }, [openRightDockTab, sessionId])
 
   const handleOpenReview = useCallback((): void => {
     if (bottomPanelState.tabIds.includes('review')) {
@@ -932,8 +1003,7 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleReloadBrowser = useCallback((): void => {
-    void desktopClient
-      .reloadBrowser()
+    void desktopBrowserClient.reloadBrowser()
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -972,24 +1042,104 @@ export function DesktopLayout(): React.ReactNode {
     return null
   }, [workbenchPanelState])
 
+  const activeSideChatTab = useMemo(() => {
+    const preferredTarget =
+      workbenchPanelState.focusArea === 'bottom-panel' ? 'bottom' : 'right'
+    const fallbackTarget = preferredTarget === 'right' ? 'bottom' : 'right'
+    for (const target of [preferredTarget, fallbackTarget] as const) {
+      const panel = workbenchPanelState[target]
+      if (!panel.open || !panel.activeTabId) continue
+      const tab = workbenchPanelState.tabsById[panel.activeTabId]
+      if (tab?.kind === 'side-chat') return tab
+    }
+    return null
+  }, [workbenchPanelState])
+
+  const replaceSideChatWorkbenchTab = useCallback((
+    previousTabId: WorkbenchTabId,
+    tab: WorkbenchTabDescriptor,
+  ): void => {
+    setWorkbenchPanelState(current => applyWorkbenchPanelAction(current, {
+      type: 'replaceTab',
+      previousTabId,
+      tab,
+    }))
+  }, [setWorkbenchPanelState])
+
+  const removeSideChatWorkbenchTab = useCallback((
+    tabId: WorkbenchTabId,
+  ): void => {
+    setWorkbenchPanelState(current => {
+      const target = current.right.tabIds.includes(tabId)
+        ? 'right'
+        : current.bottom.tabIds.includes(tabId)
+          ? 'bottom'
+          : null
+      return target
+        ? applyWorkbenchPanelAction(current, { type: 'closeTab', target, tabId })
+        : current
+    })
+  }, [setWorkbenchPanelState])
+
+  const initialSideChatSettings = useMemo(() => ({
+    permissionMode: effectivePermissionMode,
+    planModeActive,
+    providerID: session.modelSelection?.providerID ?? '',
+    model: session.modelSelection?.model ?? '',
+    selectedModelPreset: 'custom',
+    thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
+    variant: session.modelSelection?.variant,
+  }), [
+    effectivePermissionMode,
+    planModeActive,
+    session.modelSelection,
+  ])
+
   const {
     sideChatInput,
     setSideChatInput,
     sideChatFocusVersion,
+    sideChatSupported,
     sideChatAttachments,
     setSideChatAttachments,
     handleAppendSideChatText,
     sideChatSubmitToSession,
+    createSideChat,
+    sideChatTabsForSource,
+    requestCloseSideChatTabs,
+    reportSideChatState,
+    getSideChatSettings,
+    isSideChatModelLoading,
+    getSideChatModelError,
+    reloadSideChatModel,
+    updateSideChatSettings,
+    isCreatingSideChat,
+    closeConfirmationOpen,
+    skipCloseConfirmation,
+    setSkipCloseConfirmation,
+    confirmSideChatClose,
+    cancelSideChatClose,
     appendSideComposerAttachmentsForDraft,
     removeSideComposerAttachmentForDraft,
     clearSideComposerDraftIfUnchanged,
   } = useSideChatController({
+    activeTab: activeSideChatTab,
+    initialSettings: initialSideChatSettings,
+    sourceThreadId: activeSessionItem?.id ?? null,
     openRightDockTab,
-    submitToSession,
+    removeWorkbenchTab: removeSideChatWorkbenchTab,
+    replaceWorkbenchTab: replaceSideChatWorkbenchTab,
+    onError: handleErrorMessage,
   })
+  const closeConfirmationDialogMounted = useEverOpened(closeConfirmationOpen)
+  const handleOpenSideChat = useCallback((): void => {
+    void createSideChat()
+  }, [createSideChat])
   const {
     selectedSubagentTaskId,
     selectedSubagent,
+    selectedSubagentError,
+    subagentAvailability,
     refreshSelectedSubagent,
     handleOpenSubagent,
   } = useSubagentDockController({
@@ -997,7 +1147,6 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab,
     onError: handleErrorMessage,
   })
-  const sideComposerDraftKey: ComposerDraftKey = 'side-chat'
 
   const handleCloseSubagentTab = useCallback(
     (taskId: string): void => {
@@ -1016,12 +1165,9 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleSubmitEditedUserMessage = useCallback(
-    async (text: string): Promise<void> => {
+    async (input: DesktopUserMessageInput): Promise<void> => {
       if (!activeSessionItem) return
-      await submitToSession(activeSessionItem.id, {
-        text,
-        attachments: [],
-      })
+      await submitToSession(activeSessionItem.id, input)
     },
     [activeSessionItem, submitToSession],
   )
@@ -1030,8 +1176,7 @@ export function DesktopLayout(): React.ReactNode {
     if (filePaths.length === 0) return
     const targetDraftKey = mainComposerDraftKey
     void desktopClient
-      .authorizeComposerFilePaths(filePaths)
-      .then(() => desktopClient.readComposerFiles(filePaths))
+      .grantComposerFilePaths(filePaths)
       .then(nextAttachments => {
         if (nextAttachments.length === 0) return
         appendComposerAttachmentsForDraft(targetDraftKey, nextAttachments)
@@ -1072,12 +1217,60 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
+  const handleOpenSkillPreview = useCallback(
+    (skill: DesktopInstalledSkill): void => {
+      if (skill.path.startsWith('builtin://')) return
+      openRightDockTab(createSkillPreviewTab({
+        name: skill.name,
+        path: skill.path,
+        workspacePath: currentWorkspace?.path ?? null,
+      }))
+    },
+    [currentWorkspace?.path, openRightDockTab],
+  )
+
+  const handleActivateComposerSkill = useCallback(
+    async (invocation: { name: string; path: string }): Promise<void> => {
+      try {
+        const result = await listRuntimeSkills(currentWorkspace?.path ?? null, true)
+        if (result.state === 'unavailable') {
+          setErrorMessage('无法读取技能信息，请稍后重试。')
+          return
+        }
+        const skill = result.data.find(candidate => candidate.path === invocation.path)
+        if (!skill || !skill.enabled) {
+          setErrorMessage('该技能已不可用，请重新选择。')
+          return
+        }
+        if (isBuiltinSkill(skill)) {
+          const source = `${location.pathname}${location.search}${location.hash}`
+          navigate(
+            `/settings/plugins?tab=skills&skill=${encodeURIComponent(skill.path)}&from=${encodeURIComponent(source)}`,
+          )
+          return
+        }
+        handleOpenSkillPreview(skill)
+      } catch {
+        setErrorMessage('无法读取技能信息，请稍后重试。')
+      }
+    },
+    [
+      currentWorkspace?.path,
+      handleOpenSkillPreview,
+      location.hash,
+      location.pathname,
+      location.search,
+      navigate,
+    ],
+  )
+
   const outletContext = useMemo<DesktopLayoutOutletContextValue>(
     () => ({
       workspacePath: currentWorkspace?.path ?? null,
       useSkill: handleUseSkill,
+      openSkillPreview: handleOpenSkillPreview,
     }),
-    [currentWorkspace?.path, handleUseSkill],
+    [currentWorkspace?.path, handleOpenSkillPreview, handleUseSkill],
   )
 
   useDesktopCommands({
@@ -1098,91 +1291,154 @@ export function DesktopLayout(): React.ReactNode {
     },
   })
 
-  useEffect(() => {
-    refreshBrowserState()
-  }, [refreshBrowserState])
-
-  useEffect(() => {
-    if (!browserState?.open) return
-    const id = window.setInterval(refreshBrowserState, 1000)
-    return () => window.clearInterval(id)
-  }, [browserState?.open, refreshBrowserState])
-
-  const browserTabVisible = useMemo(
-    () =>
-      (['right', 'bottom'] as const).some(target => {
-        const panel = workbenchPanelState[target]
-        if (!panel.open || !panel.activeTabId) return false
-        return (
-          workbenchPanelState.tabsById[panel.activeTabId]?.kind === 'browser'
-        )
-      }),
-    [workbenchPanelState],
-  )
-
-  useEffect(() => {
-    if (browserTabVisible) return
-    void desktopClient
-      .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
-      .then(setBrowserState)
-      .catch(() => undefined)
-  }, [browserTabVisible])
-
   const prevSessionIdRef = useRef<string | null>(null)
+  const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
     createDefaultReviewTabUiState,
   )
   const uiSnapshotRef = useRef<ConversationUiState>(
     createDefaultConversationUiState(),
   )
+  const restoredConversationUiIdentityRef = useRef<string | null>(null)
+  const currentWorkspaceUiIdentity = currentWorkspace
+    ? [
+        currentWorkspace.projectId ?? '',
+        ...(currentWorkspace.folders && currentWorkspace.folders.length > 0
+          ? currentWorkspace.folders.map(folder =>
+              `${folder.id}:${folder.path.replace(/\\/g, '/').toLowerCase()}`,
+            )
+          : [currentWorkspace.path.replace(/\\/g, '/').toLowerCase()]),
+      ].join('\u0000')
+    : ''
+  const sideChatPanelTargetsRef = useRef(
+    new Map<WorkbenchTabId, WorkbenchPanelTarget>(),
+  )
   uiSnapshotRef.current = {
     schemaVersion: 4,
     workbench: workbenchPanelState,
-    mainScrollTop: 0,
-    sideChatInput,
-    sideChatAttachments,
+    mainScrollTop: uiSnapshotRef.current.mainScrollTop,
+    sideChatInput: '',
+    sideChatAttachments: [],
     review: reviewTabState,
+  }
+  const currentAttachmentPreview = workbenchPanelState
+    .tabsById['user-attachment-preview']
+  if (currentAttachmentPreview?.kind === 'attachment-preview') {
+    attachmentPreviewTabRef.current = currentAttachmentPreview
+  } else if (prevSessionIdRef.current === sessionId) {
+    attachmentPreviewTabRef.current = null
   }
 
   useEffect(() => {
     const prevId = prevSessionIdRef.current
     const currentId = sessionId
-
-    if (prevId && prevId !== currentId) {
-      saveConversationUiState(prevId, uiSnapshotRef.current)
+    for (const target of ['right', 'bottom'] as const) {
+      for (const tabId of uiSnapshotRef.current.workbench[target].tabIds) {
+        if (uiSnapshotRef.current.workbench.tabsById[tabId]?.kind === 'side-chat') {
+          sideChatPanelTargetsRef.current.set(tabId, target)
+        }
+      }
     }
 
+    if (prevId && prevId !== currentId) {
+      patchConversationUiState(prevId, {
+        workbench: uiSnapshotRef.current.workbench,
+        sideChatInput: '',
+        sideChatAttachments: [],
+        review: uiSnapshotRef.current.review,
+      })
+    }
+
+    if (
+      currentId &&
+      activeSessionItem &&
+      (!currentWorkspace ||
+        (activeSessionItem.projectId &&
+          currentWorkspace.projectId !== activeSessionItem.projectId))
+    ) {
+      return
+    }
+    const restoreIdentity = `${currentId ?? ''}\u0000${currentWorkspaceUiIdentity}`
+    if (restoredConversationUiIdentityRef.current === restoreIdentity) return
+    restoredConversationUiIdentityRef.current = restoreIdentity
+
     prevSessionIdRef.current = currentId
+
+    const restoreAttachmentPreview = (
+      state: ReturnType<typeof createDefaultWorkbenchTabsState>,
+    ) => attachmentPreviewTabRef.current
+      ? applyWorkbenchPanelAction(state, {
+          type: 'openTab',
+          target: 'right',
+          tab: attachmentPreviewTabRef.current,
+        })
+      : state
 
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const validated = validateConversationUiState(saved)
-        setWorkbenchPanelState(validated.workbench)
-        setSideChatInput(validated.sideChatInput)
-        setSideChatAttachments(validated.sideChatAttachments)
+        const fileScopes = currentWorkspace
+          ? currentWorkspace.folders && currentWorkspace.folders.length > 0
+            ? currentWorkspace.folders.map(folder => ({
+                projectId: currentWorkspace.projectId,
+                folderId: folder.id,
+                workspacePath: folder.path,
+              }))
+            : [{
+                projectId: currentWorkspace.projectId,
+                folderId: currentWorkspace.primaryFolderId,
+                workspacePath: currentWorkspace.path,
+              }]
+          : undefined
+        const validated = validateConversationUiState(saved, { fileScopes })
+        setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
         setReviewTabState(validated.review)
       } else {
         /* No saved state — force defaults */
-        setWorkbenchPanelState(createDefaultWorkbenchTabsState())
-        setSideChatInput('')
-        setSideChatAttachments([])
+        setWorkbenchPanelState(restoreAttachmentPreview(
+          createDefaultWorkbenchTabsState(),
+        ))
         setReviewTabState(createDefaultReviewTabUiState())
       }
     } else {
       /* Quick-chat — force defaults */
-      setWorkbenchPanelState(createDefaultWorkbenchTabsState())
-      setSideChatInput('')
-      setSideChatAttachments([])
+      setWorkbenchPanelState(restoreAttachmentPreview(
+        createDefaultWorkbenchTabsState(),
+      ))
       setReviewTabState(createDefaultReviewTabUiState())
     }
-  }, [sessionId])
+  }, [
+    activeSessionItem,
+    currentWorkspace,
+    currentWorkspaceUiIdentity,
+    sessionId,
+  ])
+
+  useEffect(() => {
+    if (!sessionId || sideChatTabsForSource.length === 0) return
+    setWorkbenchPanelState(current => {
+      let next = current
+      for (const tab of sideChatTabsForSource) {
+        next = applyWorkbenchPanelAction(next, {
+          type: 'openTab',
+          target: sideChatPanelTargetsRef.current.get(tab.id) ?? 'right',
+          tab,
+        })
+      }
+      return next
+    })
+  }, [sessionId, sideChatTabsForSource])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
       const currentSessionId = sessionId
       if (currentSessionId) {
-        saveConversationUiState(currentSessionId, uiSnapshotRef.current)
+        patchConversationUiState(currentSessionId, {
+          workbench: uiSnapshotRef.current.workbench,
+          sideChatInput: '',
+          sideChatAttachments: [],
+          review: uiSnapshotRef.current.review,
+        })
       }
       if (hasDirtyFileDocuments()) {
         void saveAllFileDocuments()
@@ -1238,39 +1494,11 @@ export function DesktopLayout(): React.ReactNode {
       } else if (
         commandShortcutAllowed
         && !event.shiftKey
-        && key === 'n'
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        void handleCreateSession()
-      } else if (
-        commandShortcutAllowed
-        && !event.shiftKey
-        && key === 'o'
-      ) {
-        event.preventDefault()
-        setCommandMenuOpen(false)
-        void handleChooseWorkspace()
-      } else if (
-        commandShortcutAllowed
-        && !event.shiftKey
         && key === 'p'
         && currentWorkspace !== null
       ) {
         event.preventDefault()
         setCommandMenuOpen(false)
-        handleOpenFilesDock()
-      } else if (!event.shiftKey && !event.altKey && key === 'b') {
-        event.preventDefault()
-        toggleSidebarCollapsed()
-      } else if (!event.shiftKey && !event.altKey && key === 'j') {
-        event.preventDefault()
-        togglePanel('right')
-      } else if (!event.shiftKey && !event.altKey && key === 't') {
-        event.preventDefault()
-        handleOpenBrowser()
-      } else if (event.shiftKey && !event.altKey && key === 'e') {
-        event.preventDefault()
         handleOpenFilesDock()
       } else if (event.shiftKey && !event.altKey && key === 'g') {
         event.preventDefault()
@@ -1289,20 +1517,6 @@ export function DesktopLayout(): React.ReactNode {
       ) {
         event.preventDefault()
         setSidebarTimelineEnabled(current => !current)
-      } else if (
-        !event.shiftKey &&
-        !event.altKey &&
-        event.code === 'BracketLeft'
-      ) {
-        event.preventDefault()
-        navigateBack()
-      } else if (
-        !event.shiftKey &&
-        !event.altKey &&
-        event.code === 'BracketRight'
-      ) {
-        event.preventDefault()
-        navigateForward()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1310,17 +1524,10 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     commandMenuOpen,
     currentWorkspace,
-    handleChooseWorkspace,
-    handleCreateSession,
-    handleOpenBrowser,
     handleOpenFilesDock,
     handleOpenReview,
     handleOpenSideChat,
-    navigateBack,
-    navigateForward,
-    togglePanel,
     toggleIntegratedTerminal,
-    toggleSidebarCollapsed,
   ])
 
   useEffect(() => {
@@ -1370,110 +1577,6 @@ export function DesktopLayout(): React.ReactNode {
     sidebarShell.mode,
   ])
 
-  const handleFileMenuAction = useCallback(
-    (action: FileMenuAction): void => {
-      switch (action) {
-        case 'close':
-          void desktopClient.closeWindow()
-          break
-        case 'newWindow':
-          void desktopClient.newWindow()
-          break
-        case 'newChat':
-          void handleNewConversation()
-          break
-        case 'quickChat':
-          navigate(QUICK_CHAT_PATH)
-          break
-        case 'openFolder':
-          void handleChooseWorkspace()
-          break
-        case 'openSettings':
-          void desktopClient.openSettings()
-          break
-        case 'logOut':
-          void desktopClient.logOut()
-          break
-        case 'exit':
-          void desktopClient.exitApp()
-          break
-      }
-    },
-    [handleChooseWorkspace, handleNewConversation, navigate],
-  )
-
-  const handleEditMenuAction = useCallback(
-    (action: EditMenuAction): void => {
-      void performEditCommand(action)
-    },
-    [performEditCommand],
-  )
-
-  const handleViewMenuAction = useCallback(
-    (action: ViewMenuAction): void => {
-      if (action === 'toggleSidebar') {
-        toggleSidebarCollapsed()
-        return
-      }
-      if (action === 'toggleBottomPanel') {
-        togglePanel('bottom')
-        return
-      }
-      if (action === 'openBrowserTab') {
-        handleOpenBrowser()
-        return
-      }
-      if (action === 'toggleFileTree') {
-        handleOpenFilesDock()
-        return
-      }
-      if (action === 'toggleSidePanel') {
-        togglePanel('right')
-        return
-      }
-      if (action === 'reloadBrowserPage') {
-        handleReloadBrowser()
-        return
-      }
-      if (action === 'back') {
-        navigateBack()
-        return
-      }
-      if (action === 'forward') {
-        navigateForward()
-        return
-      }
-    },
-    [
-      handleOpenBrowser,
-      handleOpenFilesDock,
-      handleReloadBrowser,
-      navigateBack,
-      navigateForward,
-      togglePanel,
-      toggleSidebarCollapsed,
-    ],
-  )
-
-  const handleWindowMenuAction = useCallback(
-    (action: WindowMenuAction): void => {
-      switch (action) {
-        case 'minimize':
-          void desktopClient.minimizeWindow()
-          break
-        case 'zoom':
-          void desktopClient
-            .toggleWindowMaximized()
-            .then(next => setIsWindowMaximized(next))
-          break
-        case 'close':
-          void desktopClient.closeWindow()
-          break
-      }
-    },
-    [setIsWindowMaximized],
-  )
-
   const openWhatsNewDialog = useCallback(
     (restoreFocusElement: HTMLElement | null): void => {
       setWhatsNewRestoreFocusElement(restoreFocusElement)
@@ -1482,297 +1585,43 @@ export function DesktopLayout(): React.ReactNode {
     [],
   )
 
-  const handleHelpMenuAction = useCallback(
-    (
-      action: HelpMenuAction,
-      restoreFocusElement?: HTMLElement | null,
-    ): void => {
-      if (action === 'whatsNew') {
-        openWhatsNewDialog(restoreFocusElement ?? null)
-      }
-    },
-    [openWhatsNewDialog],
-  )
-
-  const modelPresets = useMemo(
-    () =>
-      buildModelPresets(
-        providerState?.models ?? providerState?.provider.defaultModels ?? [],
-      ),
-    [providerState],
-  )
-  const syncedSessionModelRef = useRef<string | null>(null)
-  const modelRef = useRef(model)
-  const activeSessionModelRef = useRef<string | null>(null)
-  const providerStateRequestIdRef = useRef(0)
-  const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
-  const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
-  const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
-  useEffect(() => {
-    modelRef.current = model
-  }, [model])
-  useEffect(() => {
-    activeSessionModelRef.current = activeSessionItem?.model?.trim() || null
-  }, [activeSessionItem?.model])
-  const providerModelOptions = useMemo(
-    () => {
-      const providers = [...modelProviders]
-      if (
-        providerState &&
-        !providers.some(
-          provider => provider.providerID === providerState.provider.providerID,
-        )
-      ) {
-        providers.unshift(providerState.provider)
-      }
-      return providers.filter(provider => provider.apiKeyConfigured).map(provider => {
-        const isSelected =
-          provider.providerID === providerState?.selectedProviderID
-        const models = isSelected
-          ? providerState?.models ?? provider.defaultModels
-          : provider.defaultModels
-        return {
-          providerID: provider.providerID,
-          displayName: provider.displayName,
-          modelPresets: buildModelPresets(models),
-          baseURL: provider.baseURL,
-        }
-      })
-    },
-    [modelProviders, providerState],
-  )
-  const activeSessionProviderID = activeSessionItem?.providerID
-  const selectedProviderID =
-    activeSessionProviderID ?? providerState?.selectedProviderID ?? providerID
-  const selectedProviderModelPresets =
-    providerModelOptions.find(
-      provider => provider.providerID === selectedProviderID,
-    )?.modelPresets ?? modelPresets
-  const resolvedSelectedModelPreset = resolveModelPresetId(
-    model,
-    selectedModelPreset,
-    selectedProviderModelPresets,
-  )
-  const selectedProviderSummary =
-    modelProviders.find(provider => provider.providerID === selectedProviderID) ??
-    (providerState?.provider.providerID === selectedProviderID
-      ? providerState.provider
-      : undefined)
-  const selectedModelMetadata =
-    model && selectedProviderSummary?.modelMetadata
-      ? selectedProviderSummary.modelMetadata[model]
-      : model && providerState?.modelMetadata
-        ? providerState.modelMetadata[model]
-        : undefined
-  const deepSeekThinkingControls = isDeepSeekThinkingModel({
-    providerID: selectedProviderID,
-    model,
-    metadata: selectedModelMetadata,
+  const menuActions = useAppMenuActions({
+    client: desktopClient,
+    bridge: window.codePilotXDesktop,
+    browserAvailable,
+    browserOpen: Boolean(browserState?.open),
+    canNavigateBack,
+    canNavigateForward,
+    navigate,
+    newChat: handleCreateSession,
+    openFolder: handleChooseWorkspace,
+    toggleSidebar: toggleSidebarCollapsed,
+    togglePanel,
+    openFiles: handleOpenFilesDock,
+    openBrowser: handleOpenBrowser,
+    reloadBrowser: handleReloadBrowser,
+    navigateBack,
+    navigateForward,
+    setMaximized: setIsWindowMaximized,
+    openWhatsNew: openWhatsNewDialog,
+    onError: setErrorMessage,
   })
-  const showThinkingOptions =
-    deepSeekThinkingControls ||
-    selectedProviderSummary?.kind === 'anthropic' ||
-    selectedModelMetadata?.reasoning === true
-  const modelConfigured = providerState?.modelConfigured === true
-  const modelConfigurationMessage =
-    providerState?.configurationMessage ?? '未配置模型，请先在设置中配置模型。'
 
-  useEffect(() => {
-    const activeModel = activeSessionItem?.model?.trim()
-    const activeProviderID = activeSessionItem?.providerID
-    const syncKey =
-      activeSessionItem?.id && activeModel
-        ? [activeSessionItem.id, activeProviderID ?? '', activeModel].join('\0')
-        : null
-    if (!activeModel || !syncKey || syncedSessionModelRef.current === syncKey) {
-      return
-    }
-    syncedSessionModelRef.current = syncKey
-    syncExternalSettingsPatch({
-      ...(activeProviderID ? { providerID: activeProviderID } : {}),
-      ...(model !== activeModel ? { model: activeModel } : {}),
-    })
-    const nextPreset = resolveModelPresetId(
-      activeModel,
-      undefined,
-      selectedProviderModelPresets,
-    )
-    if (selectedModelPreset !== nextPreset) {
-      setSelectedModelPreset(nextPreset)
-    }
-  }, [
-    activeSessionItem?.id,
-    activeSessionItem?.model,
-    activeSessionItem?.providerID,
-    model,
-    selectedProviderModelPresets,
-    selectedModelPreset,
-    setSelectedModelPreset,
-    syncExternalSettingsPatch,
-  ])
-
-  const refreshProviderState = useCallback(async (): Promise<void> => {
-    const requestId = ++providerStateRequestIdRef.current
-    try {
-      const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(activeSessionProviderID),
-        desktopClient.listModelProviders(),
-      ])
-      if (requestId !== providerStateRequestIdRef.current) return
-      setProviderState(next)
-      setModelProviders(providers)
-      const activeModel = activeSessionModelRef.current
-      const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      syncExternalSettingsPatch({
-        providerID: next.selectedProviderID,
-        providerBaseURL: next.baseURL ?? '',
-        ...(activeModel
-          ? { model: activeModel }
-          : shouldSyncModel
-            ? { model: next.model }
-            : {}),
-      })
-      if (
-        next.selectedProviderID &&
-        next.apiKeyConfigured &&
-        (!next.provider.requiresBaseURL || next.baseURL?.trim())
-      ) {
-        const catalogKey = [
-          next.selectedProviderID,
-          next.baseURL ?? '',
-          next.apiKeyConfigured ? 'key' : 'no-key',
-        ].join('\0')
-        if (
-          fetchedModelCatalogKeysRef.current.has(catalogKey) ||
-          pendingModelCatalogKeysRef.current.has(catalogKey)
-        ) {
-          return
-        }
-        pendingModelCatalogKeysRef.current.add(catalogKey)
-        void withModelCatalogLoading(() =>
-          desktopClient.fetchProviderModels({
-            providerID: next.selectedProviderID,
-            baseURL: next.baseURL,
-          }),
-        )
-          .then(result => {
-            setProviderState(current => {
-              if (current?.selectedProviderID !== next.selectedProviderID) {
-                return current
-              }
-              return {
-                ...current,
-                models: result.models,
-                modelMetadata: {
-                  ...current.modelMetadata,
-                  ...result.modelMetadata,
-                },
-                error: result.error,
-              }
-            })
-            fetchedModelCatalogKeysRef.current.add(catalogKey)
-          })
-          .catch(error =>
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            ),
-          )
-          .finally(() => {
-            pendingModelCatalogKeysRef.current.delete(catalogKey)
-          })
-      }
-    } catch (error) {
-      if (requestId !== providerStateRequestIdRef.current) return
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-    }
-  }, [activeSessionProviderID, syncExternalSettingsPatch])
-
-  useEffect(() => {
-    void refreshProviderState()
-    const listener = () => {
-      openedProviderCatalogsRef.current.clear()
-      fetchedModelCatalogKeysRef.current.clear()
-      void refreshProviderState()
-    }
-    window.addEventListener('desktop:model-provider-changed', listener)
-    return () => {
-      window.removeEventListener('desktop:model-provider-changed', listener)
-    }
-  }, [refreshProviderState])
-
-  useEffect(() => {
-    if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
-      setThinkingMode('default')
-      return
-    }
-    if (showThinkingOptions || thinkingMode === 'default') return
-    setThinkingMode('default')
-  }, [
-    deepSeekThinkingControls,
-    showThinkingOptions,
-    thinkingMode,
-    setThinkingMode,
-  ])
-
-  const handleProviderModelChange = useCallback(
-    (providerID: ModelProviderID, nextPresetId: string): void => {
-      const providerOption = providerModelOptions.find(
-        provider => provider.providerID === providerID,
-      )
-      if (!providerOption) return
-
-      const providerSummary =
-        modelProviders.find(provider => provider.providerID === providerID) ??
-        (providerState?.provider.providerID === providerID
-          ? providerState.provider
-          : undefined)
-      const baseURL =
-        providerState?.selectedProviderID === providerID
-          ? providerState.baseURL
-          : providerSummary?.baseURL
-
-      const preset = providerOption.modelPresets.find(
-        item => item.id === nextPresetId,
-      )
-      if (!preset) return
-      setProviderID(providerID)
-      setProviderBaseURL(baseURL ?? '')
-      setSelectedModelPreset(nextPresetId)
-      setModel(preset.value)
-      if (sessionId && messages.length > 0) {
-        setNoticeMessage('在对话过程中切换模型会降低性能表现')
-      }
-      void desktopClient
-        .saveModelProvider({
-          providerID,
-          id: preset.value,
-          baseURL,
-        })
-        .then(next => {
-          setProviderState(next)
-          setProviderID(next.selectedProviderID)
-          setProviderBaseURL(next.baseURL ?? '')
-          setModel(next.model)
-        })
-        .catch(error =>
-          setErrorMessage(
-            error instanceof Error ? error.message : String(error),
-          ),
-        )
-    },
-    [
-      model,
-      modelProviders,
-      messages.length,
-      providerModelOptions,
-      providerState,
-      sessionId,
-      setModel,
-      setProviderBaseURL,
-      setProviderID,
-      setSelectedModelPreset,
-    ],
-  )
+  const {
+    providerState, modelProviders, modelCatalogLoading, modelPresets,
+    selectedProviderID, selectedProviderModelPresets, resolvedSelectedModelPreset,
+    selectedModelMetadata, deepSeekThinkingControls, showThinkingOptions,
+    modelConfigured, providerModelOptions,
+    handleProviderModelChange, handleProviderOpen, handleProviderSearch, handleThinkingChange,
+    selectedVariant, variantOptions, handleVariantChange,
+    selectedModelUnavailableMessage, refreshProviderState,
+  } = useModelProviderController({
+    selection: session.modelSelection,
+    onSelectionChange: session.setModelSelection,
+    selectionLoading: session.modelSelectionLoading,
+    sessionId, hasMessages: messages.length > 0,
+    setErrorMessage, setNoticeMessage,
+  })
 
   const handlePermissionChange = useCallback(
     (value: DesktopPermissionMode): void => {
@@ -1815,61 +1664,6 @@ export function DesktopLayout(): React.ReactNode {
       navigate,
     ],
   )
-  const handleProviderOpen = useCallback(
-    (providerID: ModelProviderID): void => {
-      if (openedProviderCatalogsRef.current.has(providerID)) return
-      openedProviderCatalogsRef.current.add(providerID)
-      void desktopClient.fetchProviderModels({ providerID, limit: 100 })
-        .then(result => {
-          setModelProviders(current => current.map(provider =>
-            provider.providerID === providerID
-              ? {
-                  ...provider,
-                  defaultModels: result.models,
-                  modelMetadata: {
-                    ...provider.modelMetadata,
-                    ...result.modelMetadata,
-                  },
-                }
-              : provider,
-          ))
-        })
-        .catch(error => {
-          openedProviderCatalogsRef.current.delete(providerID)
-          setErrorMessage(error instanceof Error ? error.message : String(error))
-        })
-    },
-    [setModelProviders],
-  )
-
-  const handleProviderSearch = useCallback(
-    (() => {
-      const generations = new Map<string, number>();
-      return (providerID: ModelProviderID, query: string): void => {
-        const generation = (generations.get(providerID) ?? 0) + 1;
-        generations.set(providerID, generation);
-        void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
-          .then(result => {
-            if (generations.get(providerID) !== generation) return;
-            setModelProviders(current => current.map(provider =>
-              provider.providerID === providerID
-                ? {
-                    ...provider,
-                    defaultModels: result.models,
-                    modelMetadata: result.modelMetadata,
-                  }
-                : provider,
-            ));
-          })
-          .catch(error => {
-            if (generations.get(providerID) !== generation) return;
-            setErrorMessage(error instanceof Error ? error.message : String(error));
-          });
-      };
-    })(),
-    [setModelProviders],
-  )
-
   const handleArchiveSessions = useCallback(
     async (targetSessionIds: readonly string[]) => {
       const result = await archiveSessions(targetSessionIds)
@@ -1951,6 +1745,21 @@ export function DesktopLayout(): React.ReactNode {
         ),
       }))
   }, [currentWorkspace?.path, sessions])
+  const composerContextTasks = useMemo(
+    () => buildCommandMenuTasks(
+      sessions.filter(item => item.id !== routedSessionId),
+      '',
+    ).map(item => ({
+      id: item.id,
+      title: item.title,
+      workspaceName: item.workspaceName,
+    })),
+    [routedSessionId, sessions],
+  )
+  const composerBrowserContext = useMemo(() => {
+    if (!browserState?.open || !/^https?:\/\//u.test(browserState.url)) return null
+    return { title: browserState.title, url: browserState.url }
+  }, [browserState?.open, browserState?.title, browserState?.url])
 
   const activeSessionFallbackTitle = useMemo(
     () => {
@@ -2062,20 +1871,6 @@ export function DesktopLayout(): React.ReactNode {
     [setProjectPinnedAt],
   )
 
-  const handleToggleSidebarSection = useCallback(
-    (section: SidebarSectionId): void => {
-      setCollapsedSidebarSections(current => {
-        const next = current.includes(section)
-          ? current.filter(s => s !== section)
-          : [...current, section]
-        syncExternalSettingsPatch({ collapsedSidebarSections: next })
-        return next
-      })
-    },
-    [setCollapsedSidebarSections, syncExternalSettingsPatch],
-  )
-
-
   useEffect(() => {
     let mounted = true
     void desktopClient
@@ -2115,12 +1910,7 @@ export function DesktopLayout(): React.ReactNode {
           .toggleWindowMaximized()
           .then(next => setIsWindowMaximized(next))
       }}
-      onFileMenuAction={handleFileMenuAction}
-      editMenuCapabilities={editMenuCapabilities}
-      onEditMenuAction={handleEditMenuAction}
-      onViewMenuAction={handleViewMenuAction}
-      onWindowMenuAction={handleWindowMenuAction}
-      onHelpMenuAction={handleHelpMenuAction}
+      {...menuActions}
     />
   )
 
@@ -2144,25 +1934,31 @@ export function DesktopLayout(): React.ReactNode {
       onPinWorkspace={handlePinWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
-      collapsedSidebarSections={collapsedSidebarSections}
-      onToggleSidebarSection={handleToggleSidebarSection}
       onSelectSession={handleSelectSession}
       onArchiveSessions={handleArchiveSessions}
       onRenameSession={async (targetSessionId, title) =>
         Boolean(await renameSession(targetSessionId, title))
       }
+      onError={handleErrorMessage}
       onReport={setNoticeMessage}
+      dockedPanesState={workbenchPanelState.sidebar}
+      dockedTabsById={workbenchPanelState.tabsById}
+      workspaceFiles={workspaceFiles}
+      onSelectDockedTab={tabId => handleSelectPanelTab('sidebar', tabId)}
+      onCloseDockedTab={tabId => closePanelTab('sidebar', tabId)}
+      onMoveDockedTab={movePanelTab}
+      onPopOutDockedTab={popOutPanelTab}
+      onOpenFile={file => handleOpenFilePreview('sidebar', file)}
+      onAddComposerFiles={handleAddComposerFiles}
     />
   )
 
   const settingsSidebarContent = (
-    <Suspense fallback={null}>
-      <SettingsSidebarContent
-        activeTab={settingsActiveTab}
-        onBack={handleSettingsBack}
-        onTabChange={handleSettingsTabChange}
-      />
-    </Suspense>
+    <SettingsSidebarContent
+      activeTab={settingsActiveTab}
+      onBack={handleSettingsBack}
+      onTabChange={handleSettingsTabChange}
+    />
   )
 
   const handleFollowUpEdit = useCallback(
@@ -2219,6 +2015,9 @@ export function DesktopLayout(): React.ReactNode {
           input,
           messages: isConversationRoute ? [] : messages,
           placement: isQuickChatPage ? 'new-session' : 'thread',
+          layout: 'multiline',
+          radiusVariant: 'default',
+          utilityBarVariant: isQuickChatPage ? 'home' : 'default',
           draftKey: mainComposerDraftKey,
           routedSessionId,
           sessionStatus,
@@ -2233,13 +2032,21 @@ export function DesktopLayout(): React.ReactNode {
             enableAutoReviewPermissionMode ?? false,
           enableFullAccessPermissionMode:
             enableFullAccessPermissionMode ?? false,
-          planExecutionModel,
-          thinkingMode,
+          codingModel,
+          thinkingMode: session.modelSelection?.thinkingMode ?? 'default',
+          modelVariant: selectedVariant,
+          modelVariantOptions: variantOptions,
+          onModelVariantChange: handleVariantChange,
+          modelSelectionError: session.modelSelectionError ?? selectedModelUnavailableMessage,
+          threadGoal: activeSessionItem?.threadGoal ?? null,
+          onRetryModelSelection: () => {
+            session.reloadModelSelection()
+            void refreshProviderState()
+          },
           selectedProviderID,
           selectedModelPreset: resolvedSelectedModelPreset,
-          modelConfigured,
-          modelCatalogLoading,
-          modelConfigurationMessage,
+          modelConfigured: modelConfigured && (!routedSessionId || routedSessionId === sessionId),
+          modelCatalogLoading: modelCatalogLoading || session.modelSelectionLoading,
           selectedModelMetadata,
           showThinkingOptions,
           deepSeekThinkingControls,
@@ -2247,12 +2054,16 @@ export function DesktopLayout(): React.ReactNode {
           contextUsage: isConversationRoute ? null : contextUsage,
           modelPresets: selectedProviderModelPresets,
           providerOptions: providerModelOptions,
+          allProviders: modelProviders,
           recentWorkspaces,
+          contextTasks: composerContextTasks,
+          browserContext: composerBrowserContext,
           workspace: currentWorkspace,
           attachments: composerAttachments,
           onAttachmentsChange: setComposerAttachments,
           onAppendAttachmentsForDraft: appendComposerAttachmentsForDraft,
           onRemoveAttachmentForDraft: removeComposerAttachmentForDraft,
+          onOpenAttachment: handleOpenDraftAttachment,
           onDraftAccepted: clearComposerDraftIfUnchanged,
           onChooseWorkspace: handleChooseWorkspace,
           onInputChange: setInput,
@@ -2263,17 +2074,22 @@ export function DesktopLayout(): React.ReactNode {
           onOpenWorkspace: handleOpenRecentWorkspace,
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
-          onOpenBrowser: handleOpenBrowser,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+          onOpenModelSettings: () => navigate('/settings/providers'),
+          onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
+          onSkillTokenActivate: invocation => {
+            void handleActivateComposerSkill(invocation)
+          },
           onBranchSelect: handleBranchSelect,
           onCreateBranch: handleCreateBranch,
           onStartReview: handleStartAiReview,
           onPermissionChange: handlePermissionChange,
           onPlanModeChange: handlePlanModeChange,
           onLocalRouterModeChange: handleLocalRouterModeChange,
-          onThinkingChange: setThinkingMode,
+          onThinkingChange: handleThinkingChange,
           createSessionForWorkspace,
           submitToSession,
+          onError: handleErrorMessage,
           queuedFollowUps,
           queuePauseReason,
           onFollowUpEdit: (followUpId, value) =>
@@ -2283,94 +2099,176 @@ export function DesktopLayout(): React.ReactNode {
           onFollowUpResume: () => void handleFollowUpResume(),
         }
       : null
-  const sideChatComposer =
-    isQuickChatPage || isConversationRoute ? (
+  const renderSideChatComposer = (
+    tab: Extract<
+      import('../dock/rightDockState.js').WorkbenchTabDescriptor,
+      { kind: 'side-chat' }
+    >,
+    sideChatContext: import('../../session/conversation/SideChatThreadPanel.js').SideChatComposerRenderContext,
+  ): React.ReactNode => {
+    if (!isQuickChatPage && !isConversationRoute) return null
+    const sideSettings = getSideChatSettings(tab.id)
+    const sideProviderOption = providerModelOptions.find(
+      option => option.providerID === sideSettings.providerID,
+    )
+    const sideModelPresets = sideProviderOption?.modelPresets ?? modelPresets
+    const sideSelectedModelPreset = resolveModelPresetId(
+      sideSettings.model,
+      sideSettings.selectedModelPreset,
+      sideModelPresets,
+    )
+    const sideProviderSummary =
+      modelProviders.find(
+        provider => provider.providerID === sideSettings.providerID,
+      ) ??
+      (providerState?.provider.providerID === sideSettings.providerID
+        ? providerState.provider
+        : undefined)
+    const sideModelMetadata = sideProviderSummary?.modelMetadata?.[
+      sideSettings.model
+    ] ?? (providerState?.selectedProviderID === sideSettings.providerID ? providerState.modelMetadata?.[sideSettings.model] : undefined)
+    const sideDeepSeekThinkingControls = isDeepSeekThinkingModel({
+      providerID: sideSettings.providerID,
+      model: sideSettings.model,
+      metadata: sideModelMetadata,
+    })
+    const sideModelConfigured = Boolean(sideSettings.model && sideProviderSummary?.apiKeyConfigured
+      && sideModelPresets.some(preset => preset.value === sideSettings.model))
+    const sideModelError = getSideChatModelError(tab.id)
+      ?? (!isSideChatModelLoading(tab.id) && !modelCatalogLoading && sideSettings.model && !sideModelConfigured
+        ? `当前会话模型不可用：${sideSettings.providerID}/${sideSettings.model}，请检查提供商配置` : null)
+    const sideShowThinkingOptions =
+      sideDeepSeekThinkingControls ||
+      sideProviderSummary?.kind === 'anthropic' ||
+      sideModelMetadata?.reasoning === true || Boolean(sideModelMetadata?.variants?.length)
+    return (
       <DesktopComposer
         input={sideChatInput}
-        messages={messages}
-        placement="side-task"
-        draftKey={sideComposerDraftKey}
-        routedSessionId={activeSessionItem?.id ?? null}
-        sessionStatus={sessionStatus}
-        permissionMode={effectivePermissionMode}
-        planModeActive={planModeActive}
+        messages={[]}
+        hasConversationMessages={sideChatContext.hasVisibleMessages}
+        placement="thread"
+        draftKey={tab.id}
+        routedSessionId={tab.threadId}
+        sessionStatus={sideChatContext.status}
+        permissionMode={sideSettings.permissionMode}
+        planModeActive={sideChatContext.planModeActive ?? sideSettings.planModeActive}
         localRouterMode={effectiveLocalRouterMode}
         enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
         enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
-        planExecutionModel={planExecutionModel}
-        thinkingMode={thinkingMode}
-        selectedProviderID={selectedProviderID}
-        selectedModelPreset={resolvedSelectedModelPreset}
-        modelConfigured={modelConfigured}
-        modelCatalogLoading={modelCatalogLoading}
-        modelConfigurationMessage={modelConfigurationMessage}
-        selectedModelMetadata={selectedModelMetadata}
-        showThinkingOptions={showThinkingOptions}
-        deepSeekThinkingControls={deepSeekThinkingControls}
-        showContextUsage={showContextUsage}
-        contextUsage={contextUsage}
-        modelPresets={selectedProviderModelPresets}
+        codingModel={codingModel}
+        modelSelectionError={sideModelError}
+        onRetryModelSelection={() => { reloadSideChatModel(tab.id); void refreshProviderState() }}
+        modelVariant={sideSettings.variant ?? 'default'}
+        modelVariantOptions={buildVariantOptions(sideModelMetadata?.variants)}
+        onModelVariantChange={variant => updateSideChatSettings(tab.id, {
+          variant: variant === 'default' ? undefined : variant,
+          thinkingMode: variant === 'enabled' || variant === 'adaptive' || variant === 'disabled' ? variant : 'default',
+        })}
+        thinkingMode={sideSettings.thinkingMode}
+        selectedProviderID={sideSettings.providerID}
+        selectedModelPreset={sideSelectedModelPreset}
+        modelConfigured={sideModelConfigured}
+        modelCatalogLoading={modelCatalogLoading || isSideChatModelLoading(tab.id)}
+        selectedModelMetadata={sideModelMetadata}
+        showThinkingOptions={sideShowThinkingOptions}
+        deepSeekThinkingControls={sideDeepSeekThinkingControls}
+        showContextUsage={false}
+        contextUsage={null}
+        modelPresets={sideModelPresets}
         providerOptions={providerModelOptions}
         recentWorkspaces={recentWorkspaces}
+        contextTasks={composerContextTasks}
+        browserContext={composerBrowserContext}
         workspace={currentWorkspace}
         attachments={sideChatAttachments}
         onAttachmentsChange={setSideChatAttachments}
         onAppendAttachmentsForDraft={appendSideComposerAttachmentsForDraft}
         onRemoveAttachmentForDraft={removeSideComposerAttachmentForDraft}
+        onOpenAttachment={handleOpenDraftAttachment}
         onDraftAccepted={clearSideComposerDraftIfUnchanged}
         onChooseWorkspace={handleChooseWorkspace}
         onInputChange={setSideChatInput}
-        onInterrupt={interrupt}
-        onProviderModelChange={handleProviderModelChange}
+        onInterrupt={() => desktopClient.interruptSession(tab.threadId)}
+        onProviderModelChange={(nextProviderID, nextPresetId) => {
+          const providerOption = providerModelOptions.find(
+            option => option.providerID === nextProviderID,
+          )
+          const preset = providerOption?.modelPresets.find(
+            candidate => candidate.id === nextPresetId,
+          )
+          if (!providerOption || !preset) return
+          if (nextProviderID === sideSettings.providerID && preset.value === sideSettings.model) return
+          const metadata = (providerState?.selectedProviderID === nextProviderID ? providerState.modelMetadata?.[preset.value] : undefined)
+            ?? modelProviders.find(provider => provider.providerID === nextProviderID)?.modelMetadata?.[preset.value]
+          const variant = sideSettings.variant ?? (sideSettings.thinkingMode !== 'default' ? sideSettings.thinkingMode : undefined)
+          const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
+          updateSideChatSettings(tab.id, {
+            providerID: nextProviderID,
+            providerBaseURL: providerOption.baseURL ?? '',
+            model: preset.value,
+            selectedModelPreset: nextPresetId,
+            variant: preserveThinking ? variant : undefined,
+            thinkingMode: preserveThinking ? sideSettings.thinkingMode : 'default',
+          })
+        }}
         onProviderOpen={handleProviderOpen}
         onProviderSearch={handleProviderSearch}
         onOpenWorkspace={handleOpenRecentWorkspace}
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
-        onOpenBrowser={handleOpenBrowser}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
+        onOpenModelSettings={() => navigate('/settings/providers')}
+        onSkillTokenActivate={invocation => {
+          void handleActivateComposerSkill(invocation)
+        }}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
-        onStartReview={handleStartAiReview}
-        onPermissionChange={handlePermissionChange}
-        onPlanModeChange={handlePlanModeChange}
-        onLocalRouterModeChange={handleLocalRouterModeChange}
-        onThinkingChange={setThinkingMode}
+        capabilities={{ goals: false, review: false, status: false }}
+        onPermissionChange={value => {
+          const previous = sideSettings.permissionMode
+          updateSideChatSettings(tab.id, { permissionMode: value })
+          void desktopClient.setSessionPermissionMode(tab.threadId, value)
+            .catch(error => {
+              updateSideChatSettings(tab.id, { permissionMode: previous })
+              setErrorMessage(error instanceof Error ? error.message : String(error))
+            })
+        }}
+        onPlanModeChange={active => {
+          const previous = sideSettings.planModeActive
+          updateSideChatSettings(tab.id, { planModeActive: active })
+          void desktopClient.setSessionPlanModeActive(tab.threadId, active)
+            .catch(error => {
+              updateSideChatSettings(tab.id, { planModeActive: previous })
+              setErrorMessage(error instanceof Error ? error.message : String(error))
+            })
+        }}
+        onLocalRouterModeChange={() => undefined}
+        onThinkingChange={value => {
+          updateSideChatSettings(tab.id, { thinkingMode: value, variant: sideModelMetadata?.variants?.includes(value) ? value : undefined })
+        }}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}
       />
-    ) : null
-  const subagentThreadContent = selectedSubagent?.currentRun ? (
-    <Suspense fallback={null}>
-      <SubagentThreadPanel
-        task={selectedSubagent.task}
-        run={selectedSubagent.currentRun}
-        snapshot={selectedSubagent.snapshot}
-        capabilities={selectedSubagent.capabilities}
-        onBackToParent={() => {
-          if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
-        }}
-        callbacks={{
-        onPatchApplied: async () => {
-          await refreshSelectedSubagent()
-          handleRefreshDiff()
-        },
-        onStop: task => { void desktopClient.stopSubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onRetry: task => { void desktopClient.retrySubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onApplyWorktree: task => { void desktopClient.applySubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onDiscardWorktree: task => { void desktopClient.discardSubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onRestoreWorkspace: task => { void desktopClient.restoreSubagentWorkspace?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
-        onOpenPatchReview: handleOpenPatchReview,
-        onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onPermissionRespond: (approval, behavior, grantScope) => { void desktopClient.respondSubagentPermission?.(approval, behavior, grantScope).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-        }}
-      />
-    </Suspense>
-  ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子智能体…</div> : undefined
+    )
+  }
+  const subagentThreadContent = selectedSubagentTaskId ? (
+    <SubagentDockContent
+      availability={subagentAvailability}
+      error={selectedSubagentError}
+      read={selectedSubagent}
+      taskId={selectedSubagentTaskId}
+      onBack={() => {
+        if (selectedSubagentTaskId) handleCloseSubagentTab(selectedSubagentTaskId)
+      }}
+      onError={setErrorMessage}
+      onOpenPatchReview={handleOpenPatchReview}
+      onOpenSubagent={item => handleOpenSubagent(item.subagentTaskId)}
+      onPatchApplied={handleRefreshDiff}
+      onRefresh={refreshSelectedSubagent}
+    />
+  ) : undefined
   const planContentByEventId = useMemo(() => {
     const result: Record<string, string> = {}
     for (const event of events) {
@@ -2416,7 +2314,11 @@ export function DesktopLayout(): React.ReactNode {
         )
         return
       }
-      setErrorMessage('无法打开文件')
+      const errorCode =
+        'errorCode' in error && typeof error.errorCode === 'string'
+          ? error.errorCode
+          : null
+      setErrorMessage(fileDocumentLoadErrorMessage(errorCode, error.message).message)
     },
     [closePanelTab, setErrorMessage],
   )
@@ -2663,7 +2565,7 @@ export function DesktopLayout(): React.ReactNode {
             folderId: currentWorkspace.primaryFolderId,
           },
         )
-        await navigator.clipboard.writeText(document.draftContent)
+        await desktopClipboard.writeText(document.draftContent)
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : String(error))
       }
@@ -2680,7 +2582,17 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const saveTabsBeforeClose = useCallback(
-    async (tabIds: readonly WorkbenchTabId[]): Promise<boolean> => {
+    async (
+      tabIds: readonly WorkbenchTabId[],
+      options: { discardSideChats?: boolean } = {},
+    ): Promise<boolean> => {
+      if (options.discardSideChats !== false) {
+        const sideChatTabs = tabIds.flatMap(tabId => {
+          const tab = workbenchPanelState.tabsById[tabId]
+          return tab?.kind === 'side-chat' ? [tab] : []
+        })
+        if (!(await requestCloseSideChatTabs(sideChatTabs))) return false
+      }
       for (const tabId of tabIds) {
         const tab = workbenchPanelState.tabsById[tabId]
         if (tab?.kind === 'terminal' && sessionId) {
@@ -2696,14 +2608,32 @@ export function DesktopLayout(): React.ReactNode {
           continue
         }
         if (tab?.kind !== 'file-preview') continue
-        if (!(await saveFileDocument(tab.workspacePath, tab.relativePath))) {
+        if (!(await saveFileDocument(tab.workspacePath, tab.relativePath, {
+          projectId: tab.projectId,
+          folderId: tab.folderId,
+        }))) {
           setErrorMessage(`无法关闭 ${tab.relativePath}：文件尚未保存。`)
           return false
         }
       }
       return true
     },
-    [sessionId, workbenchPanelState.tabsById],
+    [requestCloseSideChatTabs, sessionId, workbenchPanelState.tabsById],
+  )
+
+  const closeBrowserIfIncluded = useCallback(
+    async (tabIds: readonly WorkbenchTabId[]): Promise<void> => {
+      if (!tabIds.some(tabId => workbenchPanelState.tabsById[tabId]?.kind === 'browser')) {
+        return
+      }
+      try {
+        if (!desktopBrowserClient.available) return
+        setBrowserState(await desktopBrowserClient.closeBrowser())
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [workbenchPanelState.tabsById],
   )
 
   const renderWorkbenchPanel = (
@@ -2718,111 +2648,333 @@ export function DesktopLayout(): React.ReactNode {
       return null
     }
     return (
-    <Suspense fallback={null}>
       <WorkbenchPanel
-      target={target}
-      state={state}
-      tabsById={workbenchPanelState.tabsById}
-      browserState={browserState}
-      defaultBranch={derivedDefaultBranch}
-      files={workspaceFiles}
-      gitStatus={gitStatus}
-      isRefreshingReview={false}
-      diffMarkerStyle={diffMarkerStyle}
-      maxWidth={rightDockMaxWidth}
-      minWidth={rightDockMinWidth}
-      maxHeight={bottomPanelMaxHeight}
-      minHeight={bottomPanelMinHeight}
-      reviewView={reviewView}
-      reviewTabState={reviewTabState}
-      planContentByEventId={planContentByEventId}
-      selectedFile={selectedFile}
-      sessionId={sessionId}
-      sessionStatus={sessionStatus}
-      width={rightDockWidth}
-      height={bottomPanelHeight}
-      rightFullWidth={rightDockFullWidth}
-      workspace={currentWorkspace}
-      onAppendBrowserAnnotation={handleBrowserAnnotation}
-      onAppendComposerText={handleAppendComposerText}
-      onAddComposerFiles={handleAddComposerFiles}
-      onBrowserStateChange={setBrowserState}
-      onClose={() => {
-        void saveTabsBeforeClose(state.tabIds).then(saved => {
-          if (saved) closePanel(target)
-        })
-      }}
-      onCloseTab={tabId => {
-        void saveTabsBeforeClose([tabId]).then(saved => {
-          if (!saved) return
-          const tab = workbenchPanelState.tabsById[tabId]
-          if (tab?.kind === 'side-task') {
-            handleCloseSubagentTab(tab.taskId)
-            return
+        target={target}
+        state={state}
+        tabsById={workbenchPanelState.tabsById}
+        browserAvailability={{
+          status: browserAvailability,
+          ...(browserAvailability === 'unavailable'
+            ? {
+                reason:
+                  '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+              }
+            : {}),
+        }}
+        browserState={browserState}
+        defaultBranch={derivedDefaultBranch}
+        files={workspaceFiles}
+        gitStatus={gitStatus}
+        isRefreshingReview={false}
+        diffMarkerStyle={diffMarkerStyle}
+        maxWidth={rightDockMaxWidth}
+        minWidth={rightDockMinWidth}
+        maxHeight={bottomPanelMaxHeight}
+        minHeight={bottomPanelMinHeight}
+        reviewView={reviewView}
+        reviewTabState={reviewTabState}
+        planContentByEventId={planContentByEventId}
+        selectedFile={selectedFile}
+        sessionId={sessionId}
+        sessionStatus={sessionStatus}
+        terminalAvailable={terminalAvailable}
+        width={rightDockWidth}
+        height={bottomPanelHeight}
+        rightFullWidth={rightDockFullWidth}
+        workspace={currentWorkspace}
+        onAppendBrowserAnnotation={handleBrowserAnnotation}
+        onAppendComposerText={handleAppendComposerText}
+        onAddComposerFiles={handleAddComposerFiles}
+        onBrowserStateChange={setBrowserState}
+        onClose={() => {
+          void saveTabsBeforeClose(state.tabIds, {
+            discardSideChats: false,
+          }).then(saved => {
+            if (saved) closePanel(target)
+          })
+        }}
+        onCloseTab={tabId => {
+          void saveTabsBeforeClose([tabId]).then(async saved => {
+            if (!saved) return
+            const tab = workbenchPanelState.tabsById[tabId]
+            if (tab?.kind === 'side-task') {
+              handleCloseSubagentTab(tab.taskId)
+              return
+            }
+            await closeBrowserIfIncluded([tabId])
+            closePanelTab(target, tabId)
+          })
+        }}
+        onCloseOtherTabs={tabId => {
+          const closing = state.tabIds.filter(id => id !== tabId)
+          void saveTabsBeforeClose(closing).then(async saved => {
+            if (!saved) return
+            await closeBrowserIfIncluded(closing)
+            closeOtherTabs(target, tabId)
+          })
+        }}
+        onCloseTabsToRight={tabId => {
+          const index = state.tabIds.indexOf(tabId)
+          const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
+          void saveTabsBeforeClose(closing).then(async saved => {
+            if (!saved) return
+            await closeBrowserIfIncluded(closing)
+            closeTabsToRight(target, tabId)
+          })
+        }}
+        onCreateBranch={handleCreateBranch}
+        onFileLoadError={handleFileLoadError}
+        onOpenTab={tab => {
+          if (tab.kind === 'browser') {
+            if (browserAvailability !== 'available') {
+              setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
+              return
+            }
+            void desktopBrowserClient.openBrowser()
+              .then(setBrowserState)
+              .catch(error =>
+                setErrorMessage(error instanceof Error ? error.message : String(error)),
+              )
           }
-          closePanelTab(target, tabId)
-        })
-      }}
-      onCloseOtherTabs={tabId => {
-        const closing = state.tabIds.filter(id => id !== tabId)
-        void saveTabsBeforeClose(closing).then(saved => {
-          if (saved) closeOtherTabs(target, tabId)
-        })
-      }}
-      onCloseTabsToRight={tabId => {
-        const index = state.tabIds.indexOf(tabId)
-        const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
-        void saveTabsBeforeClose(closing).then(saved => {
-          if (saved) closeTabsToRight(target, tabId)
-        })
-      }}
-      onCreateBranch={handleCreateBranch}
-      onFileLoadError={handleFileLoadError}
-      onOpenTab={tab => {
-        if (tab.kind === 'browser') {
-          void desktopClient
-            .openBrowser()
-            .then(setBrowserState)
-            .catch(error =>
-              setErrorMessage(error instanceof Error ? error.message : String(error)),
-            )
+          openPanelTab(target, tab)
+        }}
+        onOpenWorkspacePath={handleOpenWorkspacePath}
+        onOpenFileFromBrowser={file =>
+          handleOpenFileFromBrowser(target, file)
         }
-        openPanelTab(target, tab)
-      }}
-      onOpenWorkspacePath={handleOpenWorkspacePath}
-      onOpenFileFromBrowser={file =>
-        handleOpenFileFromBrowser(target, file)
-      }
-      onPreviewFile={file => handleOpenFilePreview(target, file)}
-      onRefreshReview={handleRefreshDiff}
-      onReviewTabStateChange={setReviewTabState}
-      onResetHeight={handleResetBottomPanelHeight}
-      onResetWidth={handleResetRightDockWidth}
-      onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
-      onMoveTab={movePanelTab}
-      onReorderTab={reorderPanelTab}
-      onPinTab={pinTab}
-      onSetFileMarkdownViewMode={setFileMarkdownViewMode}
-      onSetHeight={handleSetBottomPanelHeight}
-      onSetWidth={handleSetRightDockWidth}
-      onToggleRightFullWidth={toggleRightFullWidth}
-      onToggleReviewView={() =>
-        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
-      }
-      sideChatComposer={sideChatComposer}
-      sideChatFocusVersion={sideChatFocusVersion}
-      activeSideTaskId={activeSideTaskId}
-      sideTaskContent={subagentThreadContent}
+        onPreviewFile={file => handleOpenFilePreview(target, file)}
+        onRefreshReview={handleRefreshDiff}
+        onReviewTabStateChange={setReviewTabState}
+        onResetHeight={handleResetBottomPanelHeight}
+        onResetWidth={handleResetRightDockWidth}
+        onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
+        onMoveTab={movePanelTab}
+        onPopOutTab={popOutPanelTab}
+        onReorderTab={reorderPanelTab}
+        onPinTab={pinTab}
+        onSetFileMarkdownViewMode={setFileMarkdownViewMode}
+        onSetHeight={handleSetBottomPanelHeight}
+        onSetWidth={handleSetRightDockWidth}
+        onToggleRightFullWidth={toggleRightFullWidth}
+        onToggleReviewView={() =>
+          setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+        }
+        onCreateSideChat={() => void createSideChat()}
+        sideChat={{
+          available: sideChatSupported,
+          focusVersion: sideChatFocusVersion,
+          isCreating: isCreatingSideChat,
+          getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+          getModelSelection: tab => getSideChatSettings(tab.id),
+          onInteractionError: message => setErrorMessage(message),
+          itemContext: (tab, status) => ({
+            modelProviderNames: Object.fromEntries(modelProviders.map(
+              provider => [provider.providerID, provider.displayName],
+            )),
+            canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+            onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+            onOpenFileReference: handleOpenMarkdownFileReference,
+            onOpenAttachment: handleOpenThreadAttachment,
+            onOpenLocalContext: handleOpenThreadLocalContext,
+            onSubmitEditedUserMessage: async input => {
+              await sideChatSubmitToSession(tab.threadId, input)
+            },
+            sessionStatus: status,
+            workspacePath: currentWorkspace?.path ?? null,
+          }),
+          onOpenPatchReview: handleOpenPatchReview,
+          onOpenPlan: handleOpenPlanDock,
+          onRecreate: tab => {
+            void createSideChat().then(created => {
+              if (!created) return
+              const target = workbenchPanelState.right.tabIds.includes(tab.id)
+                ? 'right'
+                : 'bottom'
+              void requestCloseSideChatTabs([tab]).then(closed => {
+                if (closed) closePanelTab(target, tab.id)
+              })
+            })
+          },
+          onStateChange: reportSideChatState,
+          renderComposer: renderSideChatComposer,
+        }}
+        activeSideTaskId={activeSideTaskId}
+        subagentAvailability={{
+          status: subagentAvailability,
+          ...(subagentAvailability === 'unavailable'
+            ? { reason: '当前 Agent 不支持子智能体工作台。' }
+            : {}),
+        }}
+        sideTaskContent={subagentThreadContent}
       />
-    </Suspense>
     )
   }
+
+  const auxiliaryPanelContext = useMemo<WorkbenchTabRenderContext>(
+    () => ({
+      review: {
+        activeSessionId: sessionId,
+        defaultBranch: derivedDefaultBranch,
+        gitStatus,
+        isRefreshing: false,
+        projectId: currentWorkspace?.projectId ?? null,
+        diffMarkerStyle,
+        reviewView,
+        reviewTabState,
+        sessionStatus,
+        workspacePath: currentWorkspace?.path ?? null,
+        onAppendComposerText: handleAppendComposerText,
+        onClose: () => undefined,
+        onCreateBranch: handleCreateBranch,
+        onOpenWorkspacePath: handleOpenWorkspacePath,
+        onRefreshDiff: handleRefreshDiff,
+        onReviewTabStateChange: setReviewTabState,
+        onToggleReviewView: () =>
+          setReviewView(reviewView === 'inline' ? 'split' : 'inline'),
+      },
+      browser: {
+        availability: {
+          status: browserAvailability,
+          ...(browserAvailability === 'unavailable'
+            ? {
+                reason:
+                  '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+              }
+            : {}),
+        },
+        state: browserState,
+        onAppendAnnotation: handleBrowserAnnotation,
+        onAppendComposerText: handleAppendComposerText,
+        onStateChange: setBrowserState,
+      },
+      files: {
+        files: workspaceFiles,
+        selectedFile,
+        workspace: currentWorkspace,
+        onOpenFileFromBrowser: file => handleOpenFileFromBrowser('right', file),
+        onPreviewFile: file => handleOpenFilePreview('right', file),
+        onAppendComposerText: handleAppendComposerText,
+        onAddComposerFiles: handleAddComposerFiles,
+        onPinFileTab: pinTab,
+        onSetFileMarkdownViewMode: setFileMarkdownViewMode,
+        onLoadError: (tab, error, phase) =>
+          handleFileLoadError({ error, phase, tab, target: 'right' }),
+      },
+      planContentByEventId,
+      sideChat: {
+        activeTabId: null,
+        available: sideChatSupported,
+        focusVersion: sideChatFocusVersion,
+        isCreating: isCreatingSideChat,
+        getPermissionMode: tab => getSideChatSettings(tab.id).permissionMode,
+        getModelSelection: tab => getSideChatSettings(tab.id),
+        onInteractionError: message => setErrorMessage(message),
+        itemContext: (tab, status) => ({
+          modelProviderNames: Object.fromEntries(
+            modelProviders.map(provider => [
+              provider.providerID,
+              provider.displayName,
+            ]),
+          ),
+          canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
+          onCopyFileReferenceContents: handleCopyMarkdownFileReferenceContents,
+          onOpenFileReference: handleOpenMarkdownFileReference,
+          onOpenAttachment: handleOpenThreadAttachment,
+          onOpenLocalContext: handleOpenThreadLocalContext,
+          onSubmitEditedUserMessage: async input => {
+            await sideChatSubmitToSession(tab.threadId, input)
+          },
+          sessionStatus: status,
+          workspacePath: currentWorkspace?.path ?? null,
+        }),
+        onOpenPatchReview: handleOpenPatchReview,
+        onOpenPlan: handleOpenPlanDock,
+        onStateChange: reportSideChatState,
+        renderComposer: renderSideChatComposer,
+        onRecreate: () => void createSideChat(),
+      },
+      sideTask: {
+        activeTaskId: activeSideTaskId,
+        availability: {
+          status: subagentAvailability,
+          ...(subagentAvailability === 'unavailable'
+            ? { reason: '当前 Agent 不支持子智能体工作台。' }
+            : {}),
+        },
+        content: subagentThreadContent,
+      },
+      terminal: {
+        availability: terminalAvailable
+          ? { status: 'available' }
+          : sessionId
+            ? {
+                status: 'unavailable',
+                reason: '当前桌面运行环境没有提供集成终端桥接。',
+              }
+            : { status: 'available' },
+        threadId: sessionId,
+        onDisplayPathChange: () => undefined,
+      },
+    }),
+    [
+      activeSideTaskId,
+      browserAvailability,
+      browserState,
+      canCopyMarkdownFileReferenceContents,
+      createSideChat,
+      currentWorkspace,
+      derivedDefaultBranch,
+      diffMarkerStyle,
+      gitStatus,
+      handleAddComposerFiles,
+      handleAppendComposerText,
+      handleBrowserAnnotation,
+      handleCopyMarkdownFileReferenceContents,
+      handleCreateBranch,
+      handleFileLoadError,
+      handleOpenFileFromBrowser,
+      handleOpenFilePreview,
+      handleOpenMarkdownFileReference,
+      handleOpenPatchReview,
+      handleOpenPlanDock,
+      handleOpenThreadAttachment,
+      handleOpenThreadLocalContext,
+      handleOpenWorkspacePath,
+      handleRefreshDiff,
+      isCreatingSideChat,
+      modelProviders,
+      pinTab,
+      planContentByEventId,
+      renderSideChatComposer,
+      reportSideChatState,
+      reviewTabState,
+      reviewView,
+      selectedFile,
+      sessionId,
+      sessionStatus,
+      setBrowserState,
+      setErrorMessage,
+      setFileMarkdownViewMode,
+      setReviewTabState,
+      setReviewView,
+      sideChatFocusVersion,
+      sideChatSubmitToSession,
+      sideChatSupported,
+      subagentAvailability,
+      subagentThreadContent,
+      terminalAvailable,
+      workspaceFiles,
+    ],
+  )
 
   const rightDockNode = renderWorkbenchPanel('right')
   const bottomPanelNode = renderWorkbenchPanel('bottom')
 
   return (
-    <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
+    <div
+      className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
+      data-startup-surface-ready={location.pathname !== '/new' ? 'true' : undefined}
+    >
       <a
         className="skip-to-main"
         href="#desktop-main-content"
@@ -2837,24 +2989,20 @@ export function DesktopLayout(): React.ReactNode {
       <span aria-atomic="true" aria-live="polite" className="u-sr-only">
         已进入{routeLabel}
       </span>
-      {errorMessage || noticeMessage ? (
+      {globalMessageModalMounted ? (
         <Suspense fallback={null}>
-          {errorMessage ? (
-            <GlobalErrorModal
-              message={errorMessage}
-              onDismiss={() => setErrorMessage(null)}
-            />
-          ) : null}
-          {noticeMessage ? (
-            <GlobalErrorModal
-              message={noticeMessage}
-              tone="status"
-              onDismiss={() => setNoticeMessage(null)}
-            />
-          ) : null}
+          <GlobalErrorModal
+            message={errorMessage}
+            onDismiss={() => setErrorMessage(null)}
+          />
+          <GlobalErrorModal
+            message={noticeMessage}
+            tone="status"
+            onDismiss={() => setNoticeMessage(null)}
+          />
         </Suspense>
       ) : null}
-      {gitWorkflowMode ? <Suspense fallback={null}><GitWorkflowModal
+      {gitWorkflowModalMounted ? <Suspense fallback={null}><GitWorkflowModal
         allowForcePush={allowForcePush}
         commitMessagePrompt={commitMessagePrompt}
         gitBranchPrefix={gitBranchPrefix}
@@ -2874,50 +3022,48 @@ export function DesktopLayout(): React.ReactNode {
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
       /></Suspense> : null}
-      {githubRepositoryModalOpen ? <Suspense fallback={null}><GithubRepositoryModal
+      {githubRepositoryModalMounted ? <Suspense fallback={null}><GithubRepositoryModal
         open={githubRepositoryModalOpen}
         onClose={() => setGithubRepositoryModalOpen(false)}
         onError={message => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
       /></Suspense> : null}
-      {whatsNewDialogOpen ? (
+      {whatsNewDialogMounted ? (
         <Suspense fallback={null}>
           <WhatsNewDialog
-            open
+            open={whatsNewDialogOpen}
             restoreFocusElement={whatsNewRestoreFocusElement}
             onOpenChange={setWhatsNewDialogOpen}
           />
         </Suspense>
       ) : null}
-      {commandMenuOpen ? (
-        <Suspense fallback={null}>
-          <CommandMenuDialog
-            catalogStatus={catalogStatus}
-            hasWorkspace={currentWorkspace !== null}
-            inputRef={commandMenuInputRef}
-            open
-            pendingPermissionSessionIds={pendingPermissionSessionIds}
-            sessions={sessions}
-            onCreateTask={() => {
-              setCommandMenuOpen(false)
-              void handleCreateSession()
-            }}
-            onOpenChange={setCommandMenuOpen}
-            onOpenFolder={() => {
-              setCommandMenuOpen(false)
-              void handleChooseWorkspace()
-            }}
-            onSearchFiles={() => {
-              if (currentWorkspace === null) return
-              setCommandMenuOpen(false)
-              handleOpenFilesDock()
-            }}
-            onSelectTask={task => {
-              setCommandMenuOpen(false)
-              handleSelectSession(task.session)
-            }}
-          />
-        </Suspense>
+      {commandMenuDialogMounted ? (
+        <CommandMenuDialog
+          catalogStatus={catalogStatus}
+          hasWorkspace={currentWorkspace !== null}
+          inputRef={commandMenuInputRef}
+          open={commandMenuOpen}
+          pendingPermissionSessionIds={pendingPermissionSessionIds}
+          sessions={sessions}
+          onCreateTask={() => {
+            setCommandMenuOpen(false)
+            void handleCreateSession()
+          }}
+          onOpenChange={setCommandMenuOpen}
+          onOpenFolder={() => {
+            setCommandMenuOpen(false)
+            void handleChooseWorkspace()
+          }}
+          onSearchFiles={() => {
+            if (currentWorkspace === null) return
+            setCommandMenuOpen(false)
+            handleOpenFilesDock()
+          }}
+          onSelectTask={task => {
+            setCommandMenuOpen(false)
+            handleSelectSession(task.session)
+          }}
+        />
       ) : null}
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
@@ -2928,14 +3074,27 @@ export function DesktopLayout(): React.ReactNode {
           }}
         />
       ) : null}
+      {closeConfirmationDialogMounted ? (
+        <Suspense fallback={null}>
+          <ConfirmationDialog
+            actionLabel="关闭侧边聊天"
+            description="这个侧边聊天将被删除，且无法恢复。你确定吗？"
+            open={closeConfirmationOpen}
+            suppression={{
+              checked: skipCloseConfirmation,
+              label: '不再询问',
+              onCheckedChange: setSkipCloseConfirmation,
+            }}
+            title="关闭侧边聊天？"
+            tone="danger"
+            onAction={confirmSideChatClose}
+            onCancel={cancelSideChatClose}
+          />
+        </Suspense>
+      ) : null}
 
-      <WorkbenchShellView
-        menuBar={menuBar}
-        sidebar={sidebar}
-        appBodyRef={sidebarShell.appBodyRef}
-      >
-        <QuickChatContext.Provider
-            value={{
+      <QuickChatContext.Provider
+        value={{
             isConversationRoute,
             isConversationLoading,
             sidebarCollapsed: sidebarShell.mode === 'collapsed',
@@ -2946,6 +3105,20 @@ export function DesktopLayout(): React.ReactNode {
             sessionTitle: quickChatSessionTitle,
             editableSessionTitle: quickChatEditableSessionTitle,
             titleRegenerating: regeneratingActiveSessionTitle,
+            projectDetailsTrigger: isConversationRoute && !isConversationLoading && activeSessionItem?.id === sessionId ? (
+              <ConversationProjectDetails
+                session={activeSessionItem}
+                currentWorkspace={currentWorkspace}
+                projects={recentWorkspaces}
+                sessions={sessions}
+                unavailableWorkspacePaths={unavailableWorkspacePaths}
+                onPinWorkspace={handlePinWorkspace}
+                onUnpinWorkspace={handleUnpinWorkspace}
+                onRemoveWorkspace={handleRemoveWorkspace}
+                onArchiveSessions={handleArchiveSessions}
+                onReport={setNoticeMessage}
+              />
+            ) : null,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
@@ -2969,9 +3142,13 @@ export function DesktopLayout(): React.ReactNode {
             onCopyFileReferenceContents:
               handleCopyMarkdownFileReferenceContents,
             onOpenFileReference: handleOpenMarkdownFileReference,
+            onOpenAttachment: handleOpenThreadAttachment,
+            onOpenLocalContext: handleOpenThreadLocalContext,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
+            onOpenSideChat: handleOpenSideChat,
+            sideChatAvailable: sideChatSupported,
             onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
@@ -3012,7 +3189,7 @@ export function DesktopLayout(): React.ReactNode {
               updatedInput,
               decisionExtras,
             ) => {
-              void decidePermission(
+              return decidePermission(
                 request,
                 behavior,
                 alwaysAllow,
@@ -3030,26 +3207,25 @@ export function DesktopLayout(): React.ReactNode {
               replace: setInput,
             },
             bottomPanelVisible,
+            layoutResizeActive: rightResizePhase !== 'idle',
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,
-            }}
-          >
-            <WorkspaceHeaderProvider routeScope={location.pathname}>
-                <div
-                  ref={workspaceRef}
-                  className="desktop-workspace"
-                  style={
-                    {
-                      '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                      '--workspace-right-panel-live-width': rightDockVisible
-                        ? rightDockFullWidth
-                          ? '100%'
-                          : `${rightDockWidth}px`
-                        : '0px',
-                    } as React.CSSProperties
-                  }
-                >
+        }}
+      >
+        <WorkspaceHeaderProvider routeScope={location.pathname}>
+          <WorkbenchShellView
+                menuBar={menuBar}
+                primarySidebar={sidebar}
+                appBodyRef={sidebarShell.appBodyRef}
+                workspaceRef={workspaceRef}
+                workspaceStyle={
+                  {
+                    '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+                  } as React.CSSProperties
+                }
+                workspaceHeader={
                   <DesktopWorkspaceHeader
+                    divider={isConversationRoute}
                     fullWidth={rightDockFullWidth}
                     rightDockOpen={rightDockVisible}
                     shellControls={
@@ -3067,46 +3243,70 @@ export function DesktopLayout(): React.ReactNode {
                       />
                     }
                   />
-                  <div className="desktop-workspace__upper">
-                    <div
-                      aria-label="主要内容"
-                      ref={mainRouteRef}
-                      className="desktop-main-route"
-                      id="desktop-main-content"
-                      tabIndex={-1}
-                      role="region"
-                    >
-                      <div aria-hidden="true" className="desktop-main-route__header-spacer" />
-                      <div className="desktop-main-route__body">
-                        <Outlet context={outletContext} />
-                      </div>
+                }
+                mainContent={
+                  <div
+                    aria-label="主要内容"
+                    ref={mainRouteRef}
+                    className="desktop-main-route"
+                    data-page-width={settings.values.conversationWidth}
+                    id="desktop-main-content"
+                    tabIndex={-1}
+                    role="region"
+                  >
+                    <div aria-hidden="true" className="desktop-main-route__header-spacer" />
+                    <div className="desktop-main-route__body">
+                      <Outlet context={outletContext} />
                     </div>
-                    <WorkbenchPanelPresence
-                      fullWidth={rightDockFullWidth}
-                      mainRouteRef={mainRouteRef}
-                      size={
-                        rightDockFullWidth
-                          ? Math.max(workspaceWidth, rightDockWidth)
-                          : rightDockWidth
-                      }
-                      target="right"
-                      visible={rightDockVisible}
-                    >
-                      {rightDockNode}
-                    </WorkbenchPanelPresence>
                   </div>
+                }
+                auxiliaryPanel={
                   <WorkbenchPanelPresence
+                    fullWidth={rightDockFullWidth}
+                    liveResize={rightPanelLiveResize}
                     mainRouteRef={mainRouteRef}
+                    workspaceRef={workspaceRef}
+                    minSize={rightDockMinWidth}
+                    size={rightPanelCommittedSize}
+                    target="right"
+                    visible={rightDockVisible}
+                    onResizePhaseChange={setRightResizePhase}
+                  >
+                    {rightDockNode}
+                  </WorkbenchPanelPresence>
+                }
+                bottomPanel={
+                  <WorkbenchPanelPresence
+                    liveResize={bottomPanelLiveResize}
+                    mainRouteRef={mainRouteRef}
+                    workspaceRef={workspaceRef}
+                    minSize={bottomPanelMinHeight}
                     size={bottomPanelHeight}
                     target="bottom"
                     visible={bottomPanelVisible}
                   >
                     {bottomPanelNode}
                   </WorkbenchPanelPresence>
-                </div>
-            </WorkspaceHeaderProvider>
-          </QuickChatContext.Provider>
-      </WorkbenchShellView>
+                }
+                primarySidebarVisible={
+                  workbenchLayoutState?.visibility.primarySidebar ??
+                  !sidebarCollapsed
+                }
+                auxiliaryPanelVisible={rightDockVisible}
+                bottomPanelVisible={bottomPanelVisible}
+                auxiliaryMaximized={
+                  workbenchLayoutState?.auxiliaryMaximized ?? false
+                }
+                resizeActive={rightResizePhase !== 'idle'}
+          />
+        </WorkspaceHeaderProvider>
+      </QuickChatContext.Provider>
+      <AuxiliaryWindowsHost
+        floatingTabIds={workbenchPanelState.floatingTabIds}
+        tabsById={workbenchPanelState.tabsById}
+        panelContext={auxiliaryPanelContext}
+        onDockBack={dockBackPanelTab}
+      />
     </div>
   )
 }
@@ -3138,22 +3338,4 @@ function ArchiveConversationNotice({
       </button>
     </div>
   )
-}
-
-function isDeepSeekThinkingModel({
-  providerID,
-  model,
-  metadata,
-}: {
-  providerID?: ModelProviderID
-  model: string
-  metadata?: DesktopModelMetadata
-}): boolean {
-  if (providerID === 'deepseek') {
-    return true
-  }
-  if (providerID !== 'openrouter') {
-    return false
-  }
-  return model.toLowerCase().includes('deepseek') && metadata?.reasoning === true
 }

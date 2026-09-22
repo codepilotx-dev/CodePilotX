@@ -5,10 +5,10 @@ import type { ConfigService } from "../config/ConfigService"
 import { AgentError } from "../domain"
 import type { AgentLogger } from "../observability/AgentLogger"
 import {
-  resolveAuxiliaryPiModel,
-  type AuxiliaryPiModelService,
-} from "../provider/pi/PiAuxiliaryModelResolver"
-import { generatePiObject } from "../provider/pi/PiStructuredOutput"
+  resolveSpecializedPiModel,
+  type SpecializedPiModelService,
+} from "../provider/pi/PiSpecializedModelResolver"
+import { generatePiObject, PiStructuredOutputError } from "../provider/pi/PiStructuredOutput"
 import type { PiModelService } from "../provider/pi/PiModelService"
 import { secretScrubber } from "../security/SecretScrubber"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -17,7 +17,7 @@ import type { ThreadHistoryService } from "./ThreadHistoryService"
 export const DEFAULT_THREAD_TITLE = "新对话"
 export const THREAD_TITLE_MAX_LENGTH = 20
 
-const DEFAULT_TIMEOUT_MS = 5_000
+const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_PROMPT_LENGTH = 4_000
 const MAX_FIRST_USER_CONTENT_LENGTH = 1_000
 const MAX_RECENT_TURN_COUNT = 6
@@ -28,7 +28,7 @@ const generatedTitleSchema = z.object({
 })
 
 type GeneratedTitle = z.output<typeof generatedTitleSchema>
-type ThreadTitleModelService = AuxiliaryPiModelService & Pick<PiModelService, "pi">
+type ThreadTitleModelService = SpecializedPiModelService & Pick<PiModelService, "pi">
 type ThreadTitleFailureReason = "configuration" | "timeout" | "provider" | "invalid-output"
 type ThreadTitleGenerationScope = "initial" | "conversation"
 type ThreadTitleGenerationResult = {
@@ -152,6 +152,7 @@ export class ThreadTitleService {
         schemaName: "thread_title",
         system: input.system,
         prompt: input.prompt,
+        onFailure: diagnostic => this.logger.warn("thread_title.model.failed", { details: diagnostic }),
       }))
   }
 
@@ -260,10 +261,25 @@ export class ThreadTitleService {
       fallbackTitle: candidate.title,
       scope: "conversation",
     })
-    if (generated.title === candidate.title) {
-      this.logger.info(`thread_title.regenerate.${generated.source}`, {
+    if (generated.source === "fallback") {
+      this.logger.warn("thread_title.regenerate.failed", {
         ...(generated.failureReason ? { details: { reason: generated.failureReason } } : {}),
       })
+      switch (generated.failureReason) {
+        case "configuration":
+          throw new AgentError("MODEL_UNAVAILABLE", "未配置可用的会话标题生成模型", 503)
+        case "timeout":
+          throw new AgentError("INTERNAL_ERROR", "生成会话标题超时，请重试", 504)
+        case "provider":
+          throw new AgentError("INTERNAL_ERROR", "生成会话标题失败，模型服务暂不可用", 502)
+        case "invalid-output":
+          throw new AgentError("INTERNAL_ERROR", "生成会话标题失败，模型未返回有效标题", 502)
+        default:
+          throw new AgentError("INTERNAL_ERROR", "生成会话标题失败，请重试", 500)
+      }
+    }
+    if (generated.title === candidate.title) {
+      this.logger.info("thread_title.regenerate.generated")
       const current = this.history.getListItem(threadID)
       if (!current) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
       return current
@@ -281,9 +297,7 @@ export class ThreadTitleService {
       if (!current) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
       return current
     }
-    this.logger.info(`thread_title.regenerate.${generated.source}`, {
-      ...(generated.failureReason ? { details: { reason: generated.failureReason } } : {}),
-    })
+    this.logger.info("thread_title.regenerate.generated")
     return updated
   }
 
@@ -301,8 +315,11 @@ export class ThreadTitleService {
     let title = input.fallbackTitle
     let source: "generated" | "fallback" = "generated"
     let failureReason: ThreadTitleFailureReason | undefined
+    const startedAt = Date.now()
+    let stage = "model-resolution"
     try {
-      const selected = await resolveAuxiliaryPiModel({
+      const selected = await resolveSpecializedPiModel({
+        purpose: "generation",
         db: this.db,
         models: this.models,
         ...(this.configService ? { configService: this.configService } : {}),
@@ -312,6 +329,7 @@ export class ThreadTitleService {
         source = "fallback"
         failureReason = "configuration"
       } else {
+        stage = "generation"
         const safePrompt = unicodeSlice(
           secretScrubber.scrubText(input.modelContent).trim(),
           MAX_PROMPT_LENGTH,
@@ -348,9 +366,14 @@ export class ThreadTitleService {
           failureReason = "invalid-output"
         }
       }
-    } catch {
+    } catch (error) {
       source = "fallback"
-      failureReason = controller.signal.aborted ? "timeout" : "provider"
+      failureReason = controller.signal.aborted ? "timeout"
+        : error instanceof z.ZodError || error instanceof SyntaxError || error instanceof PiStructuredOutputError
+          ? "invalid-output" : "provider"
+      this.logger.warn("thread_title.generation.failed", {
+        details: { stage, reason: failureReason, durationMs: Date.now() - startedAt, scope: input.scope },
+      })
     } finally {
       clearTimeout(timer)
     }

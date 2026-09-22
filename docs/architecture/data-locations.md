@@ -6,6 +6,8 @@ CodePilotX 将持久化内容分为用户数据、工作区配置、Electron 状
 
 默认位置是 `%USERPROFILE%\.codepilotx`。用户可在“设置 → 配置 → 数据位置”选择新的父目录，桌面端会使用该父目录下的 `.codepilotx`。选择后应用立即重启，在 SQLite 打开前把当前用户数据复制到同盘 staging，再原子发布目标目录；旧目录不会删除。
 
+默认历史数据库的完整位置是 `%USERPROFILE%\.codepilotx\history.sqlite`，其 WAL/SHM 位于同一目录；自定义数据根下位于所选父目录的 `.codepilotx\history.sqlite`。
+
 用户数据根包括：
 
 - `history.sqlite`、`profile.sqlite` 及其 WAL/SHM；
@@ -46,7 +48,7 @@ Provider API Key 与 OAuth 值可以保存在 `auth.json`，或以密文保存�
 
 Electron `userData` 保存窗口位置、外观、宠物浮窗位置、Chromium Cache、Local Storage、Session Storage 和 Network 状态。桌面主进程日志使用 Electron logs 目录。
 
-`data-location.json` 也保存在 AppData，因为它必须在自定义用户数据根尚未挂载或迁移失败时仍可定位当前目录。该文件只保存当前目录、待迁移目录和操作 ID，不保存会话、凭据或工作区内容。
+自定义数据位置通过 Electron AppData 中的 `data-location.json` 定位，因为它必须在自定义用户数据根尚未挂载或迁移失败时仍可定位当前目录。该文件只保存当前目录、待迁移目录和操作 ID，不保存会话、凭据或工作区内容。
 
 ## 安装资源与系统目录
 
@@ -57,3 +59,16 @@ Electron `userData` 保存窗口位置、外观、宠物浮窗位置、Chromium 
 ## 显式覆盖
 
 直接启动 Agent 或测试时可使用 CodePilotX 专用环境变量覆盖数据根或子目录。桌面端检测到 `CODEPILOTX_DATA_DIR` 时只读展示实际位置，并禁用目录选择，避免桌面引导文件与外部启动参数产生两套来源。
+
+## 外部 Agent 只读访问会话语义历史
+
+外部 Agent 可在应用未写入时以只读方式打开 `history.sqlite`（默认位于 `%USERPROFILE%\.codepilotx\history.sqlite`，自定义数据根经 AppData 中 `data-location.json` 定位），按会话 ID 查询语义历史，例如：
+
+```sql
+SELECT role, kind, content, metadata_json, created_at
+FROM thread_semantic_history_v1
+WHERE thread_id = ?
+ORDER BY created_at, sort_order, entry_id;
+```
+
+该视图只暴露会话语义历史，CodePilotX 不对外部 Agent 提供 CLI、API 或外部工具访问能力。外部 Agent 禁止写入数据库、执行迁移，或删除、移动、重命名 `history.sqlite` 及其 WAL/SHM 文件；应用运行时应保持 SQLite 只读语义，避免破坏事务、outbox 与中断恢复。

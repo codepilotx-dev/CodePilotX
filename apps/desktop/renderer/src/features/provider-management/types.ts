@@ -16,7 +16,10 @@ export type ProviderManagementSnapshot = {
   loaded: boolean
   loading: boolean
   refreshingSources: boolean
+  refreshingSourceIds: readonly string[]
   error: string | null
+  /** 影响门禁可信度的配置读取错误；设置后工作台必须进入恢复态，不能凭 stale 状态放行。 */
+  configurationError: string | null
   providers: readonly DesktopModelProviderSummary[]
   currentProviderState: DesktopModelProviderState | null
   credentials: readonly DesktopProviderCredential[]

@@ -1,11 +1,21 @@
 import { Model } from "@codepilotx/model-schema"
 import { Schema } from "effect"
+import { ThreadExecutionEnvironmentSchema } from "./execution"
 import { PermissionConfigSchema } from "./permission"
 import { TaskModeSchema, ThreadSettingsSchema } from "./settings"
+
+/**
+ * Where new tasks for a project run. `auto` follows the project type (Git uses a
+ * managed worktree, non-Git uses the local directory); `local` always stays local.
+ */
+export const ProjectExecutionEnvironmentSchema = Schema.Literals(["auto", "local"])
+export type ProjectExecutionEnvironment = typeof ProjectExecutionEnvironmentSchema.Type
 
 export const ProjectSettingsSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
   instructions: Schema.String,
+  /** Omitted by older writers, which means the automatic default. */
+  executionEnvironment: Schema.optional(ProjectExecutionEnvironmentSchema),
   version: Schema.Number,
 })
 export type ProjectSettings = typeof ProjectSettingsSchema.Type
@@ -104,13 +114,26 @@ export const ThreadWorkspaceSchema = Schema.Union([
 ])
 export type ThreadWorkspace = typeof ThreadWorkspaceSchema.Type
 
+export const ThreadCreationSurfaceSchema = Schema.Literals(["coding", "working", "chat"])
+export type ThreadCreationSurface = typeof ThreadCreationSurfaceSchema.Type
+
 export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  /** Legacy read-only alias of `workflowId`; new clients use `workflowId` only. */
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
+  workflowId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
+  /** Projected from the execution binding; clients never infer it from the workspace. */
+  executionEnvironment: Schema.optional(ThreadExecutionEnvironmentSchema),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
+  hasScheduledRun: Schema.optional(Schema.Boolean),
+  isScheduledSession: Schema.optional(Schema.Boolean),
+  isFork: Schema.optional(Schema.Boolean),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
+  archivedAt: Schema.optional(Schema.NullOr(Schema.Number)),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
@@ -119,7 +142,16 @@ export type Thread = typeof ThreadSchema.Type
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  /** Legacy read-only alias of `workflowId`; new clients use `workflowId` only. */
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
+  workflowId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
+  /** Projected from the execution binding; clients never infer it from the workspace. */
+  executionEnvironment: Schema.optional(ThreadExecutionEnvironmentSchema),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
+  hasScheduledRun: Schema.optional(Schema.Boolean),
+  isScheduledSession: Schema.optional(Schema.Boolean),
+  isFork: Schema.optional(Schema.Boolean),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),

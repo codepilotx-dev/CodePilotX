@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { removeFixturePaths } from "./fixture-cleanup"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
-import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/pi-session/SqlitePiSession"
 import { EventHub } from "../src/storage/events/EventHub"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { ApprovalService } from "../src/permission/ApprovalService"
@@ -70,6 +70,13 @@ describe("Thread 历史", () => {
     expect(stale.unreadAt).toBe(100)
     const read = history.markRead(thread.id, 100)
     expect(read.unreadAt).toBeNull()
+
+    const unread = history.markUnread(thread.id, 120)
+    expect(unread.unreadAt).toBe(120)
+    expect(history.markUnread(thread.id, 110).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 119).unreadAt).toBe(120)
+    expect(history.markRead(thread.id, 120).unreadAt).toBeNull()
+    expect(() => history.markUnread("missing-thread", 130)).toThrow("Thread 不存在")
   })
 
   test("支持重命名、归档、取消归档和删除", async () => {
@@ -82,9 +89,11 @@ describe("Thread 历史", () => {
     expect(typeof renamed.archivedAt).toBe("number")
     expect(projection.list({ projectID: project.id, archived: false })).toEqual([])
     expect(projection.list({ projectID: project.id, archived: true }).map((item) => item.id)).toEqual([thread.id])
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBe(renamed.archivedAt)
 
     const active = await history.patch(thread.id, { archived: false })
     expect(active.archivedAt).toBeNull()
+    expect(projection.snapshot(thread.id)?.thread.archivedAt).toBeNull()
     db.createTurn(thread.id, input("# 这是一个用于验证重置行为的非常长的首条用户消息"))
     const reset = await history.patch(thread.id, { title: null })
     expect(reset.title).toBe("这是一个用于验证重置行为的非常长的首条…")
@@ -224,13 +233,16 @@ describe("Thread 历史", () => {
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
     } as const
 
-    await history.patchSettings(thread.id, settings)
+    const changed = await history.patchSettings(thread.id, settings)
+    expect(changed.version).toBe(updatedAt)
     expect(db.getThreadSettings(thread.id)).toEqual(settings)
     expect(db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(thread.id)).toEqual({ updated_at: updatedAt })
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
-    await history.patchSettings(thread.id, {})
-    await history.patchSettings(thread.id, settings)
+    const unchanged = await history.patchSettings(thread.id, {})
+    const repeated = await history.patchSettings(thread.id, settings)
+    expect(unchanged.version).toBe(updatedAt)
+    expect(repeated.version).toBe(updatedAt)
     expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
 
     db.close()
@@ -352,8 +364,8 @@ describe("Thread 历史", () => {
   test("列表投影：最新已完成轮次含已完成 plan item 时返回计划待审批", async () => {
     const { db, projection } = await makeHistory()
     const thread = db.createThread("计划待审批会话")
-    const turn = db.createTurn(thread.id, input("制定计划"))
-    db.updateTurnStatus(turn.turnID, "completed")
+    // 计划审批只从最新的 Plan 模式已完成轮次派生，并随轮次完成写入 plan_approvals。
+    const turn = db.createTurn(thread.id, { ...input("制定计划"), taskMode: "plan" })
     db.upsertItem(thread.id, {
       id: "plan-item-1",
       turnID: turn.turnID,
@@ -364,6 +376,13 @@ describe("Thread 历史", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
+    db.claimTurnExecution(turn.turnID)
+    db.finalizeTurn({
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      status: "completed",
+    })
 
     const item = projection.list().find(entry => entry.id === thread.id)
     expect(item?.latestTurnStatus).toBe("completed")
@@ -373,11 +392,11 @@ describe("Thread 历史", () => {
   test("列表投影：无 plan、未完成 plan、存在更新轮次或活动轮次时计划待审批为 false", async () => {
     const { db, projection } = await makeHistory()
     const planless = db.createThread("无计划会话")
-    const planlessTurn = db.createTurn(planless.id, input("没有计划"))
+    const planlessTurn = db.createTurn(planless.id, { ...input("没有计划"), taskMode: "plan" })
     db.updateTurnStatus(planlessTurn.turnID, "completed")
 
     const streaming = db.createThread("流式计划会话")
-    const streamingTurn = db.createTurn(streaming.id, input("正在生成计划"))
+    const streamingTurn = db.createTurn(streaming.id, { ...input("正在生成计划"), taskMode: "plan" })
     db.updateTurnStatus(streamingTurn.turnID, "completed")
     db.upsertItem(streaming.id, {
       id: "plan-streaming",
@@ -391,7 +410,7 @@ describe("Thread 历史", () => {
     })
 
     const superseded = db.createThread("已有更新轮次会话")
-    const oldTurn = db.createTurn(superseded.id, input("第一轮计划"))
+    const oldTurn = db.createTurn(superseded.id, { ...input("第一轮计划"), taskMode: "plan" })
     db.updateTurnStatus(oldTurn.turnID, "completed")
     db.upsertItem(superseded.id, {
       id: "plan-old",
@@ -409,7 +428,7 @@ describe("Thread 历史", () => {
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now(), newerTurn.turnID)
 
     const active = db.createThread("活动轮次会话")
-    const activePlanTurn = db.createTurn(active.id, input("计划已完成"))
+    const activePlanTurn = db.createTurn(active.id, { ...input("计划已完成"), taskMode: "plan" })
     db.updateTurnStatus(activePlanTurn.turnID, "completed")
     db.upsertItem(active.id, {
       id: "plan-active",
@@ -425,6 +444,9 @@ describe("Thread 历史", () => {
     db.updateTurnStatus(runningTurn.turnID, "running")
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now() - 1000, activePlanTurn.turnID)
     db.sqlite.query("UPDATE turns SET created_at = ? WHERE id = ?").run(Date.now(), runningTurn.turnID)
+
+    // 与轮次完成和启动恢复一致，从 turn/item 真源派生待审批状态。
+    db.repositories.planApprovals.recover()
 
     const byId = new Map(projection.list().map(item => [item.id, item]))
     expect(byId.get(planless.id)?.pendingPlanApproval).toBe(false)

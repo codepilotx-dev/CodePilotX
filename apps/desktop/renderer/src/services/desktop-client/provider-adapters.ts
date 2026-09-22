@@ -5,11 +5,16 @@ import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
+import { modelsDevLogoURL } from './providerLogoBrands.js'
 
 export function catalogProviderToDesktop(
   catalogProvider: CatalogProvider,
 ): DesktopModelProviderSummary {
   const { provider } = catalogProvider
+  const extendedProvider = provider as typeof provider & {
+    availability?: DesktopModelProviderSummary['availability']
+    catalogOrigin?: DesktopModelProviderSummary['catalogOrigin']
+  }
   const models = catalogProvider.models.filter(model => model.enabled)
   const modelMetadata = Object.fromEntries(
     models.map(model => {
@@ -43,6 +48,11 @@ export function catalogProviderToDesktop(
   return {
     providerID: provider.id,
     providerKind: provider.source.kind,
+    catalogOrigin: extendedProvider.catalogOrigin,
+    availability: extendedProvider.availability,
+    logoURL: provider.source.kind === 'builtin'
+      ? modelsDevLogoURL(provider.id)
+      : undefined,
     providerApis: provider.source.apis.filter(isProviderApi),
     enabled: provider.disabled !== true,
     authMethods: [
@@ -65,6 +75,30 @@ export function catalogProviderToDesktop(
     envVars: [],
     requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }
+}
+
+export function isExecutableDesktopProvider(
+  provider: DesktopModelProviderSummary,
+): boolean {
+  return provider.enabled !== false
+    && provider.availability?.status !== 'unavailable'
+    && (provider.modelCount ?? provider.defaultModels.length) > 0
+}
+
+export function desktopProviderExecutionError(
+  provider: DesktopModelProviderSummary | undefined,
+): string | null {
+  if (!provider) return '此 Provider 的状态尚未加载，暂时无法测试连接。'
+  if (provider.availability?.status === 'unavailable') {
+    return '此 Provider 的协议或 Endpoint 尚未适配，无法测试连接。'
+  }
+  if (provider.enabled === false) {
+    return '此 Provider 已禁用，请先启用后再测试连接。'
+  }
+  if ((provider.modelCount ?? provider.defaultModels.length) <= 0) {
+    return '此 Provider 暂无可用模型，请等待凭据和模型目录同步后重试。'
+  }
+  return null
 }
 
 function isProviderApi(

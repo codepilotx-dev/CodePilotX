@@ -5,8 +5,10 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktop,
   agentThreadSnapshotToDesktop,
+  agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
   permissionModeFromPermissionConfig,
+  questionToRequest,
 } from '../src/services/agentThreadAdapter.js'
 
 const project: Project = {
@@ -28,6 +30,47 @@ const projectWorkspace = {
 }
 
 describe('agent thread adapter', () => {
+  test('restores the latest actual model and exact variant without adopting queued selections', () => {
+    const permissionConfig = desktopPermissionModeToPermissionConfig('default')
+    const snapshot: ThreadSnapshot = {
+      thread: { id: 'thread-model', title: '模型恢复', projectID: project.id, gitBranch: null, workspace: projectWorkspace, settings: { taskMode: 'chat', permissionConfig }, archivedAt: null, createdAt: 1, updatedAt: 3 },
+      turns: [], inputs: [], agents: [], messages: [], items: [], approvals: [],
+    }
+    const actual: ThreadSnapshot['turns'][number] = {
+      id: 'actual', threadId: 'thread-model', sourceInputID: 'actual-input', status: 'failed', mode: 'chat',
+      model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig, rootAgentId: 'agent-1',
+      mergedInputIDs: [], startedAt: 1, finishedAt: 2, elapsedSeconds: 1, error: null,
+    }
+    const queued: ThreadSnapshot['turns'][number] = {
+      ...actual, id: 'queued', sourceInputID: 'queued-input', status: 'queued', startedAt: null, finishedAt: null,
+      model: { providerID: 'openai', id: 'gpt-5', variant: 'high' },
+    }
+    snapshot.inputs = [{
+      id: 'queued-input', threadId: 'thread-model', turnId: 'queued', content: '稍后执行', delivery: 'follow-up',
+      mode: 'chat', model: queued.model, permissionConfig, state: 'queued', createdAt: 3,
+    }]
+    for (const variant of [undefined, 'default', 'enabled', 'adaptive', 'disabled', 'high']) {
+      snapshot.turns = [{ ...actual, model: { ...actual.model, variant } }, queued]
+      const restored = agentThreadSnapshotToDesktop(snapshot)
+      const expectedThinkingMode = variant === 'enabled' || variant === 'adaptive' || variant === 'disabled'
+        ? variant : 'default'
+      expect(restored.settings).toMatchObject({ providerID: 'deepseek', model: 'deepseek-chat', variant, thinkingMode: expectedThinkingMode })
+      expect(restored.item).toMatchObject({ providerID: 'deepseek', model: 'deepseek-chat', thinkingMode: expectedThinkingMode })
+    }
+    snapshot.turns = [queued]
+    const queuedOnly = agentThreadSnapshotToDesktop(snapshot)
+    expect(queuedOnly.settings.model).toBeUndefined()
+    expect(queuedOnly.settings.variant).toBeUndefined()
+    expect(queuedOnly.settings.thinkingMode).toBe('default')
+    expect(queuedOnly.item.model).toBeNull()
+  })
+
+  test('maps terminal lifecycle states out of the sidebar running state', () => {
+    expect(agentTurnStatusToDesktopStatus('completed')).toBe('done')
+    expect(agentTurnStatusToDesktopStatus('failed')).toBe('error')
+    expect(agentTurnStatusToDesktopStatus('interrupted')).toBe('interrupted')
+  })
+
   test('maps built-in permission modes without widening the default sandbox', () => {
     expect(desktopPermissionModeToPermissionConfig('default')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' })
     expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })
@@ -48,11 +91,54 @@ describe('agent thread adapter', () => {
     const item = agentThreadListItemToDesktop(thread, project)
     expect(item.status).toBe('waiting')
     expect(item.workspacePath).toBe(project.rootPath)
+    expect(item.preview).toBe('预览')
     expect(item.firstPrompt).toBe('第一条消息')
     expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
     expect(item.gitBranch).toBe('codex/hover-card')
     expect(item.unreadAt).toBe('2023-11-14T22:13:20.500Z')
+    expect(item.creationSurface).toBeUndefined()
+  })
+
+  test('maps creationSurface for coding, working, chat, and legacy undefined', () => {
+    const baseThread: ThreadListItem = {
+      id: 'thread-surface-test', projectID: project.id, gitBranch: 'main', workspace: projectWorkspace, title: 'Surface test', preview: 'preview',
+      firstUserMessage: 'hello', messageCount: 1, latestTurnStatus: 'completed',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const itemCoding = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'coding' }, project)
+    expect(itemCoding.creationSurface).toBe('coding')
+
+    const itemWorking = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'working' }, project)
+    expect(itemWorking.creationSurface).toBe('working')
+
+    const itemChat = agentThreadListItemToDesktop({ ...baseThread, creationSurface: 'chat' }, project)
+    expect(itemChat.creationSurface).toBe('chat')
+
+    const itemLegacy = agentThreadListItemToDesktop(baseThread, project)
+    expect(itemLegacy.creationSurface).toBeUndefined()
+  })
+
+  test('preserves independent schedule and fork markers in list and snapshot adapters', () => {
+    const base: ThreadListItem = {
+      id: 'thread-origin', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+      title: '来源', preview: null, firstUserMessage: null, messageCount: 0, latestTurnStatus: null,
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, createdAt: 1, updatedAt: 2,
+    }
+    for (const markers of [{}, { isScheduledSession: true }, { hasScheduledRun: true, isScheduledSession: false }, { isFork: true }, { hasScheduledRun: true, isScheduledSession: true, isFork: true }, { hasScheduledRun: false, isScheduledSession: false, isFork: false }]) {
+      const thread = { ...base, ...markers }
+      const list = agentThreadListItemToDesktop(thread, project)
+      const snapshot = agentThreadSnapshotToDesktop({
+        thread, turns: [], agents: [], inputs: [], messages: [], items: [], approvals: [],
+      }, project).item
+      for (const item of [list, snapshot]) {
+        expect(item.hasScheduledRun).toBe(thread.hasScheduledRun)
+        expect(item.isScheduledSession).toBe(thread.isScheduledSession)
+        expect(item.isFork).toBe(thread.isFork)
+      }
+    }
   })
 
   test('maps a projectless thread to a standalone session with its real cwd', () => {
@@ -94,7 +180,7 @@ describe('agent thread adapter', () => {
 
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, archivedAt: 1_700_000_007_000, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'deepseek', id: 'deepseek-chat' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
@@ -133,6 +219,7 @@ describe('agent thread adapter', () => {
     expect(desktop.item.model).toBe('deepseek-chat')
     expect(desktop.item.planModeActive).toBe(true)
     expect(desktop.item.permissionMode).toBe('auto-review')
+    expect(desktop.item.archivedAt).toBe('2023-11-14T22:13:27.000Z')
     expect(desktop.view.messages.map(message => message.text)).toContain('实现历史对话')
     expect(desktop.view.messages.map(message => message.text)).toContain('可以开始。')
     expect(desktop.view.toolLog).toHaveLength(2)
@@ -362,7 +449,41 @@ describe('agent thread adapter', () => {
     })[0]!
 
     expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', input: { command: 'bun test', cwd: 'F:\\CodeProject\\CodePilotX-Ts' }, requestKind: 'shell-command' } })
-    expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:question-1', toolUseId: 'question-1', description: '如何继续？' } })
+    expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:interaction-1', toolUseId: 'interaction-1', description: '如何继续？' } })
+  })
+
+  test('keeps the same complete question group for snapshots and live events', () => {
+    const questions = ['scope', 'format', 'filter'].map(id => ({
+      id, header: id, prompt: `请选择 ${id}`,
+      choices: [
+        { id: `${id}-yes`, label: '是', description: '保留', recommended: true },
+        { id: `${id}-no`, label: '否', description: '排除', recommended: false },
+      ], allowFreeform: true as const, required: true as const, maxAnswers: id === 'scope' ? 2 : 1,
+    }))
+    const request = questionToRequest({
+      id: 'interaction-group', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1',
+      type: 'question', prompt: questions[0]!.prompt, choices: questions[0]!.choices,
+      questions, status: 'pending', answer: null, createdAt: 1,
+    })
+    const events = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'question/requested',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1',
+        interactionId: 'interaction-group', createdAt: 1, version: 1, kind: 'question', questions },
+    })
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'permission_request', request })
+    expect(request.requestId).toBe('question:interaction-group')
+    expect(request.input.questions).toEqual(questions.map(question => ({
+      id: question.id, question: question.prompt, header: question.header,
+      multiSelect: question.maxAnswers > 1,
+      options: [{ label: '是 (Recommended)', description: '保留' }, { label: '否', description: '排除' }],
+    })))
+    const withoutDescription = questionToRequest({
+      id: 'plain', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1',
+      type: 'question', prompt: '请选择', choices: [{ id: 'a', label: 'A', recommended: true }, { id: 'b', label: 'B', recommended: false }],
+      status: 'pending', answer: null, createdAt: 1,
+    })
+    expect(withoutDescription.input.options).toEqual([{ label: 'A (Recommended)', description: '' }, { label: 'B', description: '' }])
   })
 
   test('maps dynamic permission requests to permission-grant desktop requests', () => {
@@ -504,7 +625,7 @@ describe('agent thread adapter', () => {
     }
   })
 
-  test('derives pendingPlanApproval from the latest completed turn with a completed plan item', () => {
+  test('uses durable pendingPlanApproval instead of inferring approval from plan text', () => {
     const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
@@ -527,7 +648,11 @@ describe('agent thread adapter', () => {
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
     expect(desktop.item.latestTurnStatus).toBe('completed')
-    expect(desktop.item.pendingPlanApproval).toBe(true)
+    expect(desktop.item.pendingPlanApproval).toBe(false)
+    const approval = { id: 'approval-plan', threadId: snapshot.thread.id, turnId: 'turn-plan', planItemId: 'plan-1',
+      version: 1, status: 'pending' as const, title: '实施计划', markdown: '- 步骤', nextTurnId: null, createdAt: 1, resolvedAt: null }
+    expect(agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: approval }, project).item.pendingPlanApproval).toBe(true)
+    expect(agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: { ...approval, status: 'closed' } }, project).item.pendingPlanApproval).toBe(false)
   })
 
   test('does not mark pendingPlanApproval for streaming plan, newer running turn, or planless completed turn', () => {
@@ -569,7 +694,7 @@ describe('agent thread adapter', () => {
     expect(agentThreadSnapshotToDesktop(planless, project).item.pendingPlanApproval).toBe(false)
   })
 
-  test('list item and full snapshot derive the same priority state', () => {
+  test('list item and full snapshot expose the same durable priority state', () => {
     const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
     const model = { providerID: 'openai', id: 'gpt-5' }
     const thread: ThreadListItem = {
@@ -598,10 +723,42 @@ describe('agent thread adapter', () => {
     }
 
     expect(agentThreadListItemToDesktop(thread, project).pendingPlanApproval).toBe(
-      agentThreadSnapshotToDesktop(snapshot, project).item.pendingPlanApproval,
+      agentThreadSnapshotToDesktop({ ...snapshot, pendingPlanApproval: { id: 'approval-consistent', threadId: thread.id,
+        turnId: 'turn-consistent', planItemId: 'plan-consistent', version: 1, status: 'pending', title: '计划', markdown: '- 步骤',
+        nextTurnId: null, createdAt: 1, resolvedAt: null } }, project).item.pendingPlanApproval,
     )
     expect(agentThreadListItemToDesktop(thread, project).latestTurnStatus).toBe(
       agentThreadSnapshotToDesktop(snapshot, project).item.latestTurnStatus,
     )
+  })
+
+  test('maps cancelled turn status to a cancelled session instead of idle', () => {
+    const thread: ThreadListItem = {
+      id: 'thread-cancelled', projectID: project.id, gitBranch: null, workspace: projectWorkspace, title: '已取消会话',
+      preview: null, firstUserMessage: null, messageCount: 1, latestTurnStatus: 'cancelled',
+      settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+      archivedAt: null, unreadAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+    }
+    const item = agentThreadListItemToDesktop(thread, project)
+    expect(item.status).toBe('cancelled')
+    expect(item.latestTurnStatus).toBe('cancelled')
+
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-cancelled-snap', title: '已取消快照', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+      },
+      turns: [{
+        id: 'turn-cancelled', threadId: 'thread-cancelled-snap', sourceInputID: 'input-cancelled', status: 'cancelled', mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+        rootAgentId: 'agent-cancelled', mergedInputIDs: [], startedAt: 1_700_000_000_000,
+        finishedAt: 1_700_000_001_000, elapsedSeconds: 1, error: null,
+      }],
+      agents: [], inputs: [], messages: [], items: [], approvals: [],
+    }
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.status).toBe('cancelled')
+    expect(desktop.item.latestTurnStatus).toBe('cancelled')
   })
 })

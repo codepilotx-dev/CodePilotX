@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { basename, dirname, join, relative, resolve, sep } from "node:path"
+import { join, relative, resolve, sep } from "node:path"
 import type { PetCatalogResult } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
 import { PetCatalogService } from "./PetCatalogService"

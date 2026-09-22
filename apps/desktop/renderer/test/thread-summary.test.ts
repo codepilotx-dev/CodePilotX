@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  THREAD_SUMMARY_PANEL_WIDTH,
   deriveThreadSummaryState,
-  resolveThreadSummaryContentShift,
   resolveThreadSummaryDisplayMode,
-  THREAD_SUMMARY_SHIFT_PX,
+  resolveThreadSummaryDisplayModeUpdate,
   toggleThreadSummaryPreference,
   transitionThreadSummaryMode,
 } from "../src/features/session/summary/threadSummaryState.js";
@@ -16,6 +16,7 @@ import {
 
 describe("thread summary state", () => {
   test("resolves the exact responsive boundaries", () => {
+    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(260);
     expect(resolveThreadSummaryDisplayMode(959)).toBe("overlay");
     expect(resolveThreadSummaryDisplayMode(960)).toBe("shift");
     expect(resolveThreadSummaryDisplayMode(1535)).toBe("shift");
@@ -23,20 +24,16 @@ describe("thread summary state", () => {
     expect(resolveThreadSummaryDisplayMode(Number.NaN)).toBe("overlay");
   });
 
-  test("derives inline visibility and a gap-aware content shift", () => {
-    expect(
-      deriveThreadSummaryState(960, {
-        isPinned: true,
-        isPopoverOpen: false,
-      }),
-    ).toMatchObject({
+  test("reserves inline space only for a pinned summary outside overlay mode", () => {
+    const inlineState = deriveThreadSummaryState(960, {
+      isPinned: true,
+      isPopoverOpen: false,
+    });
+    expect(inlineState).toMatchObject({
       displayMode: "shift",
       shouldShowInline: true,
-      contentShift: THREAD_SUMMARY_SHIFT_PX,
     });
-    expect(THREAD_SUMMARY_SHIFT_PX).toBe(-144);
-    expect(resolveThreadSummaryContentShift(1043)).toBe(-102.5);
-    expect(resolveThreadSummaryContentShift(1248)).toBe(0);
+    expect(inlineState).not.toHaveProperty("contentShift");
 
     expect(
       deriveThreadSummaryState(1536, {
@@ -46,7 +43,6 @@ describe("thread summary state", () => {
     ).toMatchObject({
       displayMode: "gutter",
       shouldShowInline: true,
-      contentShift: 0,
     });
     expect(
       deriveThreadSummaryState(960, {
@@ -55,8 +51,29 @@ describe("thread summary state", () => {
       }),
     ).toMatchObject({
       shouldShowInline: false,
-      contentShift: 0,
     });
+    expect(
+      deriveThreadSummaryState(959, {
+        isPinned: true,
+        isPopoverOpen: false,
+      }),
+    ).toMatchObject({
+      displayMode: "overlay",
+      shouldShowInline: false,
+    });
+  });
+
+  test("updates React state only when a resize crosses a display mode boundary", () => {
+    let mode = resolveThreadSummaryDisplayMode(700);
+    let updates = 0;
+    for (let width = 701; width <= 1700; width += 1) {
+      const nextMode = resolveThreadSummaryDisplayModeUpdate(mode, width);
+      if (nextMode === null) continue;
+      mode = nextMode;
+      updates += 1;
+    }
+    expect(updates).toBe(2);
+    expect(mode).toBe("gutter");
   });
 
   test("toggles popover on narrow content and pinning on wide content", () => {
@@ -134,6 +151,7 @@ describe("thread summary view model", () => {
       eventId: "plan-2",
       title: "新计划",
       content: "# 新计划\n\n内容",
+      openable: true,
     });
     expect(model.sources).toHaveLength(1);
     expect(model.subagents).toEqual([
@@ -141,8 +159,7 @@ describe("thread summary view model", () => {
     ]);
   });
 
-  test("hides empty sections and ignores malformed plans", () => {
-    const model = deriveThreadSummaryViewModel({
+  test("hides empty sections and ignores malformed plans", () => {    const model = deriveThreadSummaryViewModel({
       additions: 0,
       branchName: null,
       changedFileCount: 0,
@@ -161,6 +178,34 @@ describe("thread summary view model", () => {
       subagents: [],
     });
     expect(findLatestThreadSummaryPlan([])).toBeNull();
+  });
+
+  test("skips a plan that is still streaming and falls back to the latest completed one", () => {
+    const events = [
+      { id: "plan-done", type: "proposed_plan", content: "# 已完成计划" },
+      {
+        id: "plan-streaming",
+        type: "proposed_plan",
+        content: "# 正在生成",
+        metadata: { streaming: true },
+      },
+    ];
+
+    // 流式中的计划还没有生成完成，右栏只能拿完成态快照。
+    expect(findLatestThreadSummaryPlan(events)).toEqual({
+      eventId: "plan-done",
+      title: "已完成计划",
+      content: "# 已完成计划",
+      openable: true,
+    });
+    expect(findLatestThreadSummaryPlan([
+      {
+        id: "only-streaming",
+        type: "proposed_plan",
+        content: "# 正在生成",
+        metadata: { streaming: true },
+      },
+    ])).toBeNull();
   });
 
   test("keeps the changes entry for a workspace with no changes and explains disabled Git actions", () => {

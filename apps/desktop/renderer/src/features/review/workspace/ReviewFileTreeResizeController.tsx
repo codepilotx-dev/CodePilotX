@@ -1,5 +1,6 @@
 import React from "react";
 import type { MotionValue } from "motion/react";
+import { normalizeLiveResizeSize } from "../../layout/useLiveResizeValue.js";
 import {
   REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH,
   REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP,
@@ -18,6 +19,7 @@ type ReviewFileTreeResizeControllerProps = {
 
 type ResizeSession = {
   containerWidth: number | undefined;
+  lastEmittedWidth: number;
   lastWidth: number;
   pointerId: number;
   startWidth: number;
@@ -164,15 +166,19 @@ export function ReviewFileTreeResizeController({
       const session = sessionRef.current;
       if (!session || session.pointerId !== pointerId) return;
 
-      session.lastWidth = clampReviewFileTreePanelWidth(
-        session.startWidth + session.startX - clientX,
-        session.containerWidth,
+      session.lastWidth = normalizeLiveResizeSize(
+        clampReviewFileTreePanelWidth(
+          session.startWidth + session.startX - clientX,
+          session.containerWidth,
+        ),
       );
       if (resizeFrameRef.current !== null) return;
       resizeFrameRef.current = window.requestAnimationFrame(() => {
         resizeFrameRef.current = null;
         const activeSession = sessionRef.current;
         if (!activeSession) return;
+        if (activeSession.lastWidth === activeSession.lastEmittedWidth) return;
+        activeSession.lastEmittedWidth = activeSession.lastWidth;
         onResizePreviewRef.current(activeSession.lastWidth);
         handleRef.current?.setAttribute(
           "aria-valuenow",
@@ -194,11 +200,13 @@ export function ReviewFileTreeResizeController({
       const containerRect = containerRef.current?.getBoundingClientRect();
       const handle = event.currentTarget;
       const pointerId = event.pointerId;
+      const normalizedWidth = normalizeLiveResizeSize(width);
       sessionRef.current = {
         containerWidth: containerRect?.width,
-        lastWidth: width,
+        lastEmittedWidth: normalizedWidth,
+        lastWidth: normalizedWidth,
         pointerId,
-        startWidth: width,
+        startWidth: normalizedWidth,
         startX: event.clientX,
       };
       handle.setPointerCapture(pointerId);
@@ -207,7 +215,7 @@ export function ReviewFileTreeResizeController({
         "data-review-file-tree-resizing",
         "true",
       );
-      onResizePreviewRef.current(width);
+      onResizePreviewRef.current(normalizedWidth);
 
       const handleDocumentPointerMove = (pointerEvent: PointerEvent): void => {
         if (pointerEvent.pointerId !== pointerId) return;

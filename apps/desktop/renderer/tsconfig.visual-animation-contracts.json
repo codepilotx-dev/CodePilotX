@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "strict": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.visual.tsbuildinfo",
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "visual-tests/animation-contracts.visual.ts",
+    "visual-tests/visual-test-helpers.ts"
+  ]
+}

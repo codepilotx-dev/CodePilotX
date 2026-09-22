@@ -108,7 +108,7 @@ export function ProjectAppearanceGlyph({
   return (
     <span
       aria-hidden="true"
-      className={className}
+      className={['project-appearance-glyph', className].filter(Boolean).join(' ')}
       data-project-color={appearance.color}
     >
       <Icon size={size} strokeWidth={APP_ICON_STROKE_WIDTH} />

@@ -50,40 +50,63 @@ describe("provider usage adapters", () => {
       base_resp: { status_code: 0 },
       model_remains: [
         {
-          model_name: "normal",
-          current_interval_total_count: 100,
-          current_interval_usage_count: 60,
-          current_interval_remaining_percent: 60,
+          model_name: "general",
+          current_interval_total_count: 0,
+          current_interval_usage_count: 0,
+          current_interval_remaining_percent: 55,
           current_interval_status: 1,
           end_time: 1_800_000_000,
-          current_weekly_total_count: 500,
-          current_weekly_usage_count: 300,
-          current_weekly_remaining_percent: 60,
+          current_weekly_total_count: 0,
+          current_weekly_usage_count: 0,
+          current_weekly_remaining_percent: 79,
           current_weekly_status: 1,
           weekly_end_time: 1_800_100_000,
           weekly_boost_permille: 100,
         },
         {
+          model_name: "video",
+          current_interval_total_count: 3,
+          current_interval_usage_count: 1,
+          current_interval_remaining_percent: 66,
+          current_interval_status: 1,
+        },
+        {
           model_name: "exhausted",
-          current_interval_total_count: 100,
+          current_interval_total_count: 0,
           current_interval_usage_count: 0,
           current_interval_remaining_percent: 0,
           current_interval_status: 1,
         },
         {
-          model_name: "unlimited",
+          model_name: "status-2-exhausted",
+          current_interval_total_count: 0,
+          current_interval_usage_count: 0,
+          current_interval_remaining_percent: 0,
+          current_interval_status: 2,
+          end_time: 1_800_000_000,
+        },
+        {
+          model_name: "not-in-plan",
           current_interval_total_count: 0,
           current_interval_usage_count: 0,
           current_interval_remaining_percent: 100,
-          current_interval_status: 2,
+          current_interval_status: 3,
         },
       ],
     }, (url) => { requested = url }))
     expect(requested).toBe("https://www.minimax.io/v1/token_plan/remains")
     expect(result.groups[0]?.quotaWindows.map((item) => item.state)).toEqual(["normal", "normal"])
+    expect(result.groups[0]?.quotaWindows[0]?.remainingPercent).toBe(55)
+    expect(result.groups[0]?.quotaWindows[0]?.limit).toBeUndefined()
     expect(result.groups[0]?.quotaWindows[1]?.label).toContain("+10%")
-    expect(result.groups[1]?.quotaWindows[0]?.state).toBe("exhausted")
-    expect(result.groups[2]?.quotaWindows[0]?.state).toBe("unlimited")
+    expect(result.groups[0]?.quotaWindows[1]?.remainingPercent).toBe(79)
+    expect(result.groups[1]?.quotaWindows[0]?.limit).toBe(3)
+    expect(result.groups[1]?.quotaWindows[0]?.used).toBe(1)
+    expect(result.groups[1]?.quotaWindows[0]?.remaining).toBe(2)
+    expect(result.groups[2]?.quotaWindows[0]?.state).toBe("exhausted")
+    expect(result.groups[3]?.quotaWindows[0]?.state).toBe("exhausted")
+    expect(result.groups[3]?.quotaWindows[0]?.resetsAt).toBe(1_800_000_000_000)
+    expect(result.groups[4]).toBeUndefined() // not-in-plan (status 3) is omitted
   })
 
   test("Kimi Code 识别官方 TIME_UNIT 窗口", async () => {

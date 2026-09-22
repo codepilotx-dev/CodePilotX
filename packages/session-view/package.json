@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./thread": "./src/thread/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codepilotx/agent-protocol": "workspace:*",
     "@codepilotx/shared": "workspace:*"
   },
   "devDependencies": {

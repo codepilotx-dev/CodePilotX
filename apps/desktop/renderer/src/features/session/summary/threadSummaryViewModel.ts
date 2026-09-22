@@ -102,6 +102,8 @@ export function findLatestThreadSummaryPlan(
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
     if (event?.type !== "proposed_plan") continue;
+    // 正在流式的计划还没有生成完成，右栏只能展示完成态快照。
+    if (event.metadata?.streaming === true) continue;
     const content =
       typeof event.content === "string" ? event.content.trim() : "";
     if (!content) continue;
@@ -109,6 +111,7 @@ export function findLatestThreadSummaryPlan(
       eventId: event.id,
       title: planTitleFromSummary(content),
       content,
+      openable: true,
     };
   }
   return null;

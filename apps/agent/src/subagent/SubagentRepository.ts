@@ -76,7 +76,9 @@ export class SubagentRepository {
           `工作区：${input.workspaceRoot}`,
           `工作区模式：${input.workspaceMode}`,
           `权限上限：${stringify(input.permissionCeiling)}`,
-          "只返回与你的任务直接相关的结构化结论；不要假设主对话中未显式提供的上下文。",
+          "只返回与任务直接相关的结构化结论，不要假设主对话中未显式提供的上下文。",
+          "任务收尾时必须单独调用 finalize_result 提交结构化结果：summary 非空并说明做了什么与结果如何，没有内容的列表提交空数组。outcome 如实陈述（succeeded/partial/blocked），受阻或部分完成也是合法交付，不得编造验证成功。",
+          "结构化结果包含结论、变更或证据引用、必要验证与未解决事项；长日志留在本任务记录中，不要复制进摘要。",
         ].join("\n\n"),
         model: input.model, permission, taskMode: input.taskMode ?? "chat", sequence: 0, timestamp,
       })
@@ -112,6 +114,7 @@ export class SubagentRepository {
     sequence: number
     timestamp: number
   }) {
+    this.db.repositories.planApprovals.invalidate(input.childThreadID)
     this.db.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, 'queue', NULL, NULL, ?, ?)`).run(
       input.turnID, input.childThreadID, input.agentID, input.taskMode, input.permission.sandboxMode, encodeApprovalPolicy(input.permission.approvalPolicy),
       input.permission.approvalsReviewer, stringify(input.model), input.timestamp, input.timestamp,
@@ -157,9 +160,18 @@ export class SubagentRepository {
     }
   }
 
+  latestExecution(runID: string): { id: string; turn_id: string; run_sequence: number } | null {
+    return this.db.sqlite.query("SELECT id, turn_id, run_sequence FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string; run_sequence: number } | null
+  }
+
   projectionForThread(threadID: string): SubagentProjection[] {
     const rows = this.db.sqlite.query("SELECT id FROM subagent_tasks WHERE parent_thread_id = ? ORDER BY created_at").all(threadID) as Array<{ id: string }>
     return rows.flatMap(({ id }) => { const task = this.task(id); return task ? [{ task, currentRun: task.currentRun }] : [] })
+  }
+
+  projectionForTask(taskID: string): SubagentProjection | null {
+    const task = this.task(taskID)
+    return task ? { task, currentRun: task.currentRun } : null
   }
 
   queuedRunIDs() {
@@ -176,7 +188,7 @@ export class SubagentRepository {
       if (global.count >= 6) return this.keepQueued(task.id, runID, "global_limit")
       const parent = this.db.sqlite.query(`SELECT COUNT(*) AS count FROM subagent_tasks WHERE parent_agent_id = ? AND status IN (${activeStatuses.map(() => "?").join(",")})`).get(task.parentAgentId, ...activeStatuses) as { count: number }
       if (parent.count >= 4) return this.keepQueued(task.id, runID, "parent_limit")
-      const agentRow = this.db.sqlite.query("SELECT id, turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string } | null
+      const agentRow = this.latestExecution(runID)
       if (!agentRow) throw new Error(`Subagent run ${runID} 没有 AgentExecution`)
       const timestamp = now()
       this.db.sqlite.query("UPDATE subagent_runs SET status = 'running', queue_reason = NULL, started_at = COALESCE(started_at, ?), updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, timestamp, runID)
@@ -185,6 +197,7 @@ export class SubagentRepository {
       this.db.sqlite.query("UPDATE agent_executions SET status = 'running', updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, agentRow.id)
       this.db.sqlite.query("UPDATE turns SET status = 'running', started_at = COALESCE(started_at, ?), updated_at = ? WHERE id = ? AND status = 'queued'").run(timestamp, timestamp, agentRow.turn_id)
       this.db.sqlite.query("UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'").run(agentRow.turn_id)
+      this.db.repositories.threadGoalLedger.openInterval({ threadId: task.parentThreadId, agentId: agentRow.id })
       return { task: this.task(task.id)!, run: this.run(runID)!, agent: this.db.getAgentExecution(agentRow.id)! }
     })
   }
@@ -202,6 +215,8 @@ export class SubagentRepository {
   setWaiting(runID: string, status: "waiting_question" | "waiting_permission") {
     const run = this.run(runID)
     if (!run || terminalStatuses.has(run.status)) return null
+    const waitingAgent = this.latestExecution(runID)
+    if (waitingAgent) this.db.repositories.threadGoalLedger.closeAgentIntervals(waitingAgent.id)
     const timestamp = now()
     this.db.sqlite.query("UPDATE subagent_runs SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, runID)
     this.db.sqlite.query("UPDATE subagent_tasks SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, run.taskId)
@@ -212,6 +227,11 @@ export class SubagentRepository {
   setRunning(runID: string) {
     const run = this.run(runID)
     if (!run || terminalStatuses.has(run.status)) return null
+    const resumedAgent = this.latestExecution(runID)
+    const resumedTask = this.task(run.taskId)
+    if (resumedAgent && resumedTask) {
+      this.db.repositories.threadGoalLedger.openInterval({ threadId: resumedTask.parentThreadId, agentId: resumedAgent.id })
+    }
     const timestamp = now()
     this.db.sqlite.query("UPDATE subagent_runs SET status = 'running', updated_at = ? WHERE id = ?").run(timestamp, runID)
     this.db.sqlite.query("UPDATE subagent_tasks SET status = 'running', updated_at = ? WHERE id = ?").run(timestamp, run.taskId)
@@ -223,7 +243,7 @@ export class SubagentRepository {
     const task = this.task(input.taskID)
     if (!task?.currentRun) throw new Error(`Subagent task ${input.taskID} 不存在`)
     const previousRun = task.currentRun
-    const previousAgent = this.db.sqlite.query("SELECT id, turn_id, run_sequence FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(previousRun.id) as { id: string; turn_id: string; run_sequence: number } | null
+    const previousAgent = this.latestExecution(previousRun.id)
     if (!previousAgent) throw new Error(`Subagent run ${previousRun.id} 没有 AgentExecution`)
     const runID = input.sameRun ? previousRun.id : crypto.randomUUID()
     const generation = input.sameRun ? previousRun.generation : previousRun.generation + 1
@@ -276,10 +296,11 @@ export class SubagentRepository {
       this.db.sqlite.query("UPDATE subagent_runs SET status = ?, result = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?").run(status, result ? stringify(result) : null, error, timestamp, timestamp, runID)
       this.db.sqlite.query("UPDATE subagent_tasks SET status = ?, updated_at = ? WHERE id = ?").run(status, timestamp, task.id)
       this.db.sqlite.query("DELETE FROM workspace_writer_leases WHERE run_id = ?").run(runID)
-      const latestAgent = this.db.sqlite.query("SELECT id, turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runID) as { id: string; turn_id: string } | null
+      const latestAgent = this.latestExecution(runID)
       if (latestAgent) {
         this.db.updateAgentStatus(latestAgent.id, status === "stopped" ? "interrupted" : status)
         this.db.updateTurnStatus(latestAgent.turn_id, status === "stopped" ? "interrupted" : status)
+        if (status === "completed") this.db.repositories.planApprovals.recover(task.childThreadId)
       }
       const itemStatus = status === "completed" ? "completed" : status === "interrupted" || status === "stopped" ? "interrupted" : "error"
       this.db.sqlite.query("UPDATE items SET status = ?, data = json_set(data, '$.status', ?, '$.queueReason', NULL, '$.result', json(?)), updated_at = ? WHERE thread_id = ? AND type = 'subagent' AND json_extract(data, '$.subagentTaskId') = ?").run(itemStatus, status, stringify(result), timestamp, task.parentThreadId, task.id)

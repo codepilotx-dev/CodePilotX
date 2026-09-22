@@ -13,6 +13,7 @@ describe("集成终端 IPC 契约", () => {
       closeThread: "desktop-terminal:close-thread",
       runAction: "desktop-terminal:run-action",
       event: "desktop-terminal:event",
+      ack: "desktop-terminal:ack",
     })
   })
 })

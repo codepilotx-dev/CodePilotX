@@ -118,6 +118,10 @@ export class ReviewRefreshCoordinator<
     }
   }
 
+  activate(): void {
+    this.#disposed = false
+  }
+
   dispose(): void {
     this.#disposed = true
     this.#current = null
