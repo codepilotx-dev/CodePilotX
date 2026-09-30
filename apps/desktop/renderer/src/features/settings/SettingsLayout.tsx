@@ -11,6 +11,7 @@ import {
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
 import '../../styles/lazy/settings.scss'
 
 type Props = {
@@ -34,6 +35,7 @@ export function SettingsLayout({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()
+  const { t } = useLocale()
   const theme = useDesktopTheme()
   const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
 
@@ -51,7 +53,7 @@ export function SettingsLayout({
           ? theme.draft.save()
           : Promise.resolve(theme.draft.settings),
       ])
-      setNoticeMessage('设置已保存')
+      setNoticeMessage(t('设置已保存'))
     }
     const onKeyDown = (event: KeyboardEvent): void => {
       void createSettingsSaveShortcutHandler(saveSettings)(event).catch(error => {
@@ -61,7 +63,7 @@ export function SettingsLayout({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [settings.draft, theme.draft])
+  }, [settings.draft, theme.draft, t])
 
   if (!SETTINGS_ITEMS.some(item => item.routeId === activeTab)) {
     return <NotFoundPage />

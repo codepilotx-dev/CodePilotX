@@ -38,6 +38,7 @@ import { ChatNewSessionView } from "./ChatNewSessionView.js";
 import { CodingHeadingTransition } from "./CodingHeadingTransition.js";
 import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
 import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 export function QuickChatView(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,6 +79,7 @@ export function QuickChatView(): React.ReactNode {
 }
 
 function CodingQuickChatView(): React.ReactNode {
+  const { t } = useLocale()
   const reducedMotion = usePrefersReducedMotion();
   const {
     branchName,
@@ -283,7 +285,7 @@ function CodingQuickChatView(): React.ReactNode {
     : "no-project";
   const headingContent = headingUsesProject ? (
     <>
-      {hasGitWorkspace ? "要在 " : "我们应该在 "}
+      {t(hasGitWorkspace ? "要在 " : "我们应该在 ")}
       <ProjectSwitcherPopover
         align="center"
         className="popover-project quick-chat-project-popover"
@@ -294,7 +296,7 @@ function CodingQuickChatView(): React.ReactNode {
         sideOffset={4}
         trigger={
           <button
-            aria-label={`选择项目：${workspaceName}`}
+            aria-label={`${t('选择项目：')}${workspaceName}`}
             className="project-name"
             title={workspaceName}
             type="button"
@@ -322,10 +324,10 @@ function CodingQuickChatView(): React.ReactNode {
           setProjectMenuOpen(false);
         }}
       />
-      {hasGitWorkspace ? " 内开发什么？" : " 中做些什么？"}
+      {t(hasGitWorkspace ? " 内开发什么？" : " 中做些什么？")}
     </>
   ) : (
-    "我们该构建什么？"
+    t("我们该构建什么？")
   );
 
   return (
@@ -338,7 +340,7 @@ function CodingQuickChatView(): React.ReactNode {
           <div className="quick-chat-hero">
             <button
               ref={whaleMarkRef}
-              aria-label="旋转鲸鱼图标"
+              aria-label={t('旋转鲸鱼图标')}
               className="quick-chat-mark"
               type="button"
               onClick={handleWhaleMarkClick}

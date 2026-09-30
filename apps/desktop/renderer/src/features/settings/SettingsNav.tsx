@@ -15,6 +15,7 @@ import {
   SETTINGS_SEARCH_DOCUMENTS,
   type SettingsSearchDocument,
 } from "./settingsRegistry.js";
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
   activeTab: string;
@@ -23,13 +24,14 @@ type Props = {
 };
 
 export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
+  const { t, locale } = useLocale()
   const [searchQuery, setSearchQuery] = useState("");
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const normalizedQuery = normalizeSearchText(searchQuery);
   const searchResults = useMemo(
-    () => searchSettings(normalizedQuery),
-    [normalizedQuery],
+    () => searchSettings(normalizedQuery, t, locale),
+    [normalizedQuery, t, locale],
   );
 
   useEffect(() => {
@@ -103,7 +105,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
 
   return (
     <ScrollArea
-      aria-label="设置分类"
+      aria-label={t('设置分类')}
       className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col"
     >
@@ -115,12 +117,12 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           leading={<ArrowLeft size={APP_ICON_SIZE} />}
         >
           <button onClick={onBack} type="button">
-            <span>返回应用</span>
+            <span>{t('返回应用')}</span>
           </button>
         </SidebarRow>
         <SearchInput
           ref={searchInputRef}
-          aria-label="搜索设置"
+          aria-label={t('搜索设置')}
           className="settings-nav-search"
           mode="combobox"
           controls="settings-search-results"
@@ -133,14 +135,15 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           onChange={setSearchQuery}
           onEscapeEmpty={() => searchInputRef.current?.blur()}
           onKeyDown={handleSearchKeyDown}
-          placeholder="搜索设置..."
+          placeholder={t('搜索设置...')}
           value={searchQuery}
           variant="standard"
         />
       </div>
       <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col">
         {normalizedQuery ? (
-          <SearchResults
+            <SearchResults
+              t={t}
             activeIndex={activeResultIndex}
             onActivate={activateResult}
             onActiveIndexChange={setActiveResultIndex}
@@ -154,7 +157,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
             >
               <div className="settings-nav-group-title-row">
                 <h2 className="settings-nav-group-title">
-                  {group.title}
+                  {t(group.title)}
                 </h2>
               </div>
               <div className="settings-nav-group-items tw:grid">
@@ -171,7 +174,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
                       onClick={() => onTabChange(item.routeId)}
                       type="button"
                     >
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </button>
                   </SidebarRow>
                 ))}
@@ -185,6 +188,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
 }
 
 type SearchResultsProps = {
+  t: (source: string) => string
   activeIndex: number;
   onActivate: (result: SettingsSearchDocument) => void;
   onActiveIndexChange: (index: number) => void;
@@ -192,6 +196,7 @@ type SearchResultsProps = {
 };
 
 function SearchResults({
+  t,
   activeIndex,
   onActivate,
   onActiveIndexChange,
@@ -205,14 +210,14 @@ function SearchResults({
         role="listbox"
       >
         <p className="settings-search-empty">
-          未找到匹配的设置
+          {t('未找到匹配的设置')}
         </p>
       </div>
     );
   }
   return (
     <div
-      aria-label="设置搜索结果"
+      aria-label={t('设置搜索结果')}
       className="settings-search-results tw:grid"
       id="settings-search-results"
       role="listbox"
@@ -233,16 +238,16 @@ function SearchResults({
           >
             <span className="settings-search-result-heading">
               <span className="settings-search-result-title">
-                {result.rowTitle ?? result.pageLabel}
+                {t(result.rowTitle ?? result.pageLabel)}
               </span>
               {result.rowTitle ? (
                 <span className="settings-search-result-page">
-                  {result.pageLabel}
+                  {t(result.pageLabel)}
                 </span>
               ) : null}
             </span>
             <span className="settings-search-result-description">
-              {result.description}
+              {t(result.description)}
             </span>
           </button>
         );
@@ -255,12 +260,25 @@ function normalizeSearchText(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
-function searchSettings(query: string): readonly SettingsSearchDocument[] {
+function searchSettings(
+  query: string,
+  t: (source: string) => string = source => source,
+  locale = 'zh-CN',
+): readonly SettingsSearchDocument[] {
   if (!query) return [];
   const terms = query.split(" ");
   return SETTINGS_SEARCH_DOCUMENTS.map((document) => ({
     document,
-    score: scoreSearchDocument(document, terms),
+    score: Math.max(
+      scoreSearchDocument(document, terms),
+      scoreSearchDocument({
+        ...document,
+        groupTitle: t(document.groupTitle),
+        pageLabel: t(document.pageLabel),
+        rowTitle: document.rowTitle ? t(document.rowTitle) : undefined,
+        description: t(document.description),
+      }, terms),
+    ),
   }))
     .filter((result) => result.score > 0)
     .sort(
@@ -268,7 +286,7 @@ function searchSettings(query: string): readonly SettingsSearchDocument[] {
         right.score - left.score ||
         left.document.pageLabel.localeCompare(
           right.document.pageLabel,
-          "zh-CN",
+          locale,
         ),
     )
     .slice(0, 40)

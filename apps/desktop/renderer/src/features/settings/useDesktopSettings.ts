@@ -2,6 +2,7 @@ import {
   CONFIG_UPDATED_EVENT,
   desktopClient,
 } from '../../services/desktop-client/index.js'
+import { LocaleProvider } from '../i18n/LocaleProvider.js'
 import {
   createContext,
   createElement,
@@ -359,7 +360,11 @@ export function DesktopSettingsProvider({
     createElement(
       DesktopSettingsContext.Provider,
       { value: state.settings },
-      children,
+      createElement(
+        LocaleProvider,
+        { preference: state.runtime.values.language },
+        children,
+      ),
     ),
   )
 }
@@ -698,6 +703,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
 
   const effectiveSettings = useMemo<StoredDesktopSettings>(
     () => ({
+      language: committedDraftValues.language,
       enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
@@ -778,6 +784,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
       notifications: committedDraftValues.notifications,
 	    }),
 	    [
+	      committedDraftValues.language,
 	      enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,

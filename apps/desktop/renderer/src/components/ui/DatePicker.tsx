@@ -3,6 +3,8 @@ import React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cx } from '../../utils/cx.js'
+import { useLocale } from '../../features/i18n/LocaleProvider.js'
+import type { AppLocale } from '../../features/i18n/locale.js'
 
 export type DatePickerProps = {
   value: string
@@ -57,27 +59,27 @@ function mondayIndex(date: Date): number {
   return (date.getDay() + 6) % 7
 }
 
-function displayDate(value: string): string {
+function displayDate(value: string, locale: AppLocale): string {
   const date = parseDateValue(value)
   return date
-    ? new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+    ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
     : value
 }
 
-function monthLabel(date: Date): string {
-  return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(date)
+function monthLabel(date: Date, locale: AppLocale): string {
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(date)
 }
 
-function dayLabel(date: Date, today: string, selected: string): string {
+function dayLabel(date: Date, today: string, selected: string, locale: AppLocale): string {
   const value = formatDateValue(date)
-  const states = [value === today ? '今天' : '', value === selected ? '已选择' : ''].filter(Boolean)
-  const label = new Intl.DateTimeFormat('zh-CN', {
+  const states = [value === today ? (locale === 'en-US' ? 'Today' : '今天') : '', value === selected ? (locale === 'en-US' ? 'Selected' : '已选择') : ''].filter(Boolean)
+  const label = new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
   }).format(date)
-  return states.length ? `${label}，${states.join('，')}` : label
+  return states.length ? `${label}${locale === 'en-US' ? ', ' : '，'}${states.join(locale === 'en-US' ? ', ' : '，')}` : label
 }
 
 export function DatePicker({
@@ -90,6 +92,7 @@ export function DatePicker({
   className,
   onValueChange,
 }: DatePickerProps): React.ReactNode {
+  const { locale, t } = useLocale()
   const today = React.useMemo(() => new Date(), [])
   const todayValue = formatDateValue(today)
   const selectedDate = parseDateValue(value)
@@ -197,7 +200,7 @@ export function DatePicker({
         >
           <CalendarDays size={APP_ICON_SIZE} aria-hidden="true" className="ui-date-picker-trigger-icon" />
           <span className={cx('ui-date-picker-value', !value && 'ui-date-picker-value--placeholder')}>
-            {value ? displayDate(value) : placeholder}
+            {value ? displayDate(value, locale) : t(placeholder)}
           </span>
           <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" className="ui-date-picker-chevron" />
         </button>
@@ -205,25 +208,25 @@ export function DatePicker({
       <Popover.Portal>
         <Popover.Content
           align="start"
-          aria-label={`${ariaLabel}日历`}
+          aria-label={`${t(ariaLabel)} ${t('日历')}`}
           className="popover-surface ui-date-picker-content"
           collisionPadding={8}
           sideOffset={4}
           onEscapeKeyDown={() => requestAnimationFrame(() => triggerRef.current?.focus())}
         >
           <div className="ui-date-picker-header">
-            <button aria-label="上个月" className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(-1)}>
+            <button aria-label={t('上个月')} className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(-1)}>
               <ChevronLeft size={APP_ICON_SIZE} aria-hidden="true" />
             </button>
-            <div aria-live="polite" className="ui-date-picker-month">{monthLabel(visibleMonth)}</div>
-            <button aria-label="下个月" className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(1)}>
+            <div aria-live="polite" className="ui-date-picker-month">{monthLabel(visibleMonth, locale)}</div>
+            <button aria-label={t('下个月')} className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(1)}>
               <ChevronRight size={APP_ICON_SIZE} aria-hidden="true" />
             </button>
           </div>
-          <div ref={calendarRef} aria-label={monthLabel(visibleMonth)} className="ui-date-picker-grid" role="grid">
+          <div ref={calendarRef} aria-label={monthLabel(visibleMonth, locale)} className="ui-date-picker-grid" role="grid">
             <div className="ui-date-picker-weekdays" role="row">
               {WEEKDAYS.map((weekday) => (
-                <span aria-label={`星期${weekday}`} className="ui-date-picker-weekday" key={weekday} role="columnheader">{weekday}</span>
+                <span aria-label={locale === 'en-US' ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][WEEKDAYS.indexOf(weekday)] : `星期${weekday}`} className="ui-date-picker-weekday" key={weekday} role="columnheader">{locale === 'en-US' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'][WEEKDAYS.indexOf(weekday)] : weekday}</span>
               ))}
             </div>
             <div className="ui-date-picker-days" role="rowgroup">
@@ -238,7 +241,7 @@ export function DatePicker({
                     return (
                       <button
                         aria-current={dateValue === todayValue ? 'date' : undefined}
-                        aria-label={dayLabel(date, todayValue, value)}
+                        aria-label={dayLabel(date, todayValue, value, locale)}
                         aria-selected={selected}
                         className="ui-date-picker-day"
                         data-date={dateValue}
@@ -253,7 +256,7 @@ export function DatePicker({
                         onKeyDown={(event) => handleDayKeyDown(event, date)}
                       >
                         <span>{date.getDate()}</span>
-                        {dateValue === todayValue ? <span className="ui-date-picker-state">今</span> : null}
+                        {dateValue === todayValue ? <span className="ui-date-picker-state">{locale === 'en-US' ? 'Today' : '今'}</span> : null}
                       </button>
                     )
                   })}
@@ -268,7 +271,7 @@ export function DatePicker({
               type="button"
               onClick={() => chooseDate(today)}
             >
-              今天
+              {t('今天')}
             </button>
             <button
               className="ui-date-picker-footer-action"
@@ -280,7 +283,7 @@ export function DatePicker({
                 requestAnimationFrame(() => triggerRef.current?.focus())
               }}
             >
-              清除日期
+              {t('清除日期')}
             </button>
           </div>
         </Popover.Content>

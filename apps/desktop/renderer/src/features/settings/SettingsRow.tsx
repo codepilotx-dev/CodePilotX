@@ -1,4 +1,5 @@
 import React from 'react'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
   title: string
@@ -16,6 +17,7 @@ export function SettingsRow({
   id,
   size = 'default',
 }: Props) {
+  const { t } = useLocale()
   return (
     <div
       className="settings-row"
@@ -23,9 +25,9 @@ export function SettingsRow({
       id={id}
     >
       <div className="settings-row-info">
-        <h4 className="settings-row-title">{title}</h4>
+        <h4 className="settings-row-title">{t(title)}</h4>
         {description ? (
-          <p className="settings-row-desc">{description}</p>
+          <p className="settings-row-desc">{typeof description === 'string' ? t(description) : description}</p>
         ) : null}
       </div>
       {control && (

@@ -28,6 +28,7 @@ import * as Popover from '@radix-ui/react-popover'
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { cx } from "../../../utils/cx.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
+import { useLocale } from '../../i18n/LocaleProvider.js'
 import { SidebarRow } from "./SidebarRow.js";
 
 type SidebarNavAvailability =
@@ -151,6 +152,7 @@ function SidebarNavItems({
   items: readonly SidebarNavItem[];
   isActiveView: (view: AppView) => boolean;
 }): React.ReactNode {
+  const { t } = useLocale()
   return (
     <>
       {items.map((item) => {
@@ -166,7 +168,7 @@ function SidebarNavItems({
             leading={item.icon}
           >
             <Link aria-current={active ? 'page' : undefined} to={item.path}>
-              {item.label}
+              {t(item.label)}
             </Link>
           </SidebarRow>
         );
@@ -213,6 +215,7 @@ export function SidebarHeader({
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  const { t } = useLocale()
   const navigate = useNavigate()
   const {
     sidebarProductMode,
@@ -223,9 +226,9 @@ export function SidebarHeader({
     setSidebarActivityCoachmarkDismissed,
   } = useDesktopSettings()
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
-  const timelineToggleLabel = sidebarTimelineEnabled
+  const timelineToggleLabel = t(sidebarTimelineEnabled
     ? "关闭活动视图"
-    : "查看活动"
+    : "查看活动")
   const timelineToggleTitle = `${timelineToggleLabel} (Ctrl+Alt+U)`
 
   const handleModeChange = (value: SidebarProductMode): void => {
@@ -245,7 +248,7 @@ export function SidebarHeader({
         width={232}
         trigger={
           <button
-            aria-label={`切换工作模式，当前为 ${activeMode.label}`}
+            aria-label={`${t('切换工作模式，当前为')} ${activeMode.label}`}
             className="sidebar-product-mode-trigger"
             type="button"
           >
@@ -265,7 +268,7 @@ export function SidebarHeader({
             const option = SIDEBAR_PRODUCT_MODE_META[value]
             return (
               <PopoverRadioItem
-                description={option.description}
+                description={t(option.description)}
                 key={value}
                 value={value}
               >
@@ -282,7 +285,7 @@ export function SidebarHeader({
           color="ghost"
           size="icon"
           onClick={onOpenCommandMenu}
-          title="搜索任务"
+          title={t('搜索任务')}
         >
           <Search size={APP_ICON_SIZE} />
         </IconButton>
@@ -335,14 +338,14 @@ export function SidebarHeader({
             >
               <div className="tw:flex tw:flex-col tw:gap-2.5">
                 <p className="u-type-caption tw:text-foreground">
-                  新的活动视图——集中查看进行中、待处理和未读会话。
+                  {t('新的活动视图——集中查看进行中、待处理和未读会话。')}
                 </p>
                 <div className="tw:flex tw:justify-end">
                   <Button
                     size="compact"
                     onClick={() => setSidebarActivityCoachmarkDismissed(true)}
                   >
-                    知道了
+                    {t('知道了')}
                   </Button>
                 </div>
               </div>
@@ -360,6 +363,7 @@ export function SidebarTopNav({
   isActiveView,
   showProjects,
 }: Props): React.ReactNode {
+  const { t } = useLocale()
   const { sidebarProductMode } = useDesktopSettings()
   const { scrollableItems } = splitSidebarTopNavItems(
     getSidebarTopNavItems({
@@ -369,7 +373,7 @@ export function SidebarTopNav({
     }),
   )
   return (
-    <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label="主要导航">
+    <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label={t('主要导航')}>
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
   );
@@ -388,6 +392,7 @@ export function SidebarNewTaskNav({
   isActiveView: (view: AppView) => boolean;
   scrollOverlapping: boolean;
 }): React.ReactNode {
+  const { t } = useLocale()
   const { sidebarProductMode } = useDesktopSettings()
   const { fixedItems } = splitSidebarTopNavItems(
     getSidebarTopNavItems({
@@ -398,7 +403,7 @@ export function SidebarNewTaskNav({
   )
   return (
     <nav
-      aria-label="新建对话"
+      aria-label={t('新建对话')}
       className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >

@@ -28,6 +28,7 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem, PopoverSeparator } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
+import { useLocale } from '../../i18n/LocaleProvider.js'
 import {
   buildDesktopUpdateIndicatorModel,
   runDesktopUpdateIndicatorAction,
@@ -77,6 +78,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 ): React.ReactNode {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLocale()
   const {
     draft,
     model,
@@ -206,8 +208,8 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   );
   const githubAuthenticated = githubAuth?.authenticated === true;
   const githubUser = githubAuthenticated ? githubAuth.user : null;
-  const accountName = githubUser?.name || githubUser?.login || "个人资料";
-  const accountTriggerName = githubAuthenticated ? accountName : "设置";
+  const accountName = githubUser?.name || githubUser?.login || t("个人资料");
+  const accountTriggerName = githubAuthenticated ? accountName : t("设置");
   return (
     <footer
       className="sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center"
@@ -288,7 +290,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     <Gauge size={APP_ICON_SIZE} />
                   </span>
                 </span>
-                <span className="popover-item-label">剩余用量</span>
+                <span className="popover-item-label">{t('剩余用量')}</span>
                 <span className="popover-item-trailing">
                   <ChevronRight
                     className="popover-item-arrow"
@@ -300,7 +302,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 <DropdownMenu.SubContent
                   data-theme-component="dropdown-surface"
                   alignOffset={-4}
-                  aria-label="剩余用量详情"
+                  aria-label={t('剩余用量详情')}
                   className="popover-surface popover popover-sub-content popover-usage-submenu"
                   collisionPadding={6}
                   sideOffset={4}
@@ -312,7 +314,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   <div className="popover-usage-content">
                     {usage.loading ? (
                       <div className="popover-usage-empty" role="status">
-                        正在查询用量…
+                        {t('正在查询用量…')}
                       </div>
                     ) : usage.error ? (
                       <div
@@ -323,7 +325,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       </div>
                     ) : usageRows.length > 0 ? (
                       <div
-                        aria-label="额度明细"
+                        aria-label={t('额度明细')}
                         className="popover-usage-rows"
                         role="group"
                       >
@@ -340,7 +342,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       </div>
                     ) : (
                       <div className="popover-usage-empty" role="status">
-                        当前提供商未返回用量数据
+                        {t('当前提供商未返回用量数据')}
                       </div>
                     )}
                     <div className="popover-usage-divider" />
@@ -359,7 +361,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                           'u-min-w-0',
                         )}
                       >
-                        了解更多
+                        {t('了解更多')}
                       </span>
                       <ArrowUpRight
                         className="popover-usage-action-icon"
@@ -378,7 +380,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               void togglePet();
             }}
           >
-            {petEnabled ? "隐藏宠物" : "显示宠物"}
+            {t(petEnabled ? "隐藏宠物" : "显示宠物")}
           </PopoverItem>
           <PopoverItem
             active={settingsActive}
@@ -389,7 +391,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               navigate("/settings/general");
             }}
           >
-            设置
+            {t('设置')}
           </PopoverItem>
           {githubAuthenticated ? (
             <PopoverItem
@@ -399,7 +401,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 void logoutGithub();
               }}
             >
-              退出登录
+              {t('退出登录')}
             </PopoverItem>
           ) : null}
         </div>
@@ -407,7 +409,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       <div className="sidebar-footer-status-slot">
         {updateIndicator.visible ? (
           <Button color="primary"
-            aria-label={updateIndicator.ariaLabel}
+            aria-label={t(updateIndicator.ariaLabel)}
             className="sidebar-update-indicator"
             data-phase={updateIndicator.phase}
             disabled={updateIndicator.disabled}
@@ -426,7 +428,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               })
             }}
           >
-            {updateIndicator.label}
+            {t(updateIndicator.label)}
           </Button>
         ) : (
           <PopoverMenu
@@ -441,7 +443,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 color="ghost"
                 ref={helpMenuTriggerRef}
                 size="icon"
-                title="帮助"
+                title={t('帮助')}
               >
                 <HelpCircle size={APP_ICON_SIZE} />
               </IconButton>
@@ -455,7 +457,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 onOpenWhatsNew(helpMenuTriggerRef.current)
               }}
             >
-              新特性
+              {t('新特性')}
             </PopoverItem>
             <PopoverItem
               icon={<Keyboard size={APP_ICON_SIZE} />}
@@ -464,7 +466,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 navigate('/settings/shortcuts')
               }}
             >
-              键盘快捷键
+              {t('键盘快捷键')}
             </PopoverItem>
             <PopoverItem
               icon={<Settings size={APP_ICON_SIZE} />}
@@ -473,13 +475,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 navigate('/settings/general')
               }}
             >
-              帮助与设置
+              {t('帮助与设置')}
             </PopoverItem>
           </PopoverMenu>
         )}
       </div>
       <span aria-atomic="true" aria-live="polite" className="u-sr-only">
-        {updateIndicator.announcement}
+        {t(updateIndicator.announcement)}
       </span>
     </footer>
   );

@@ -23,6 +23,7 @@ import type {
 import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
 import { useSpeechStatus } from '../speech/useSpeechStatus.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -33,10 +34,9 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 ];
 
 const LANGUAGE_OPTIONS = [
+  { value: 'system', label: '跟随系统' },
   { value: 'zh-CN', label: '中文（中国）' },
   { value: 'en-US', label: 'English (US)' },
-  { value: 'ja-JP', label: '日本語' },
-  { value: 'ko-KR', label: '한국어' },
 ];
 
 const SPEED_OPTIONS = [
@@ -105,6 +105,7 @@ type GeneralSettingsProps = {
 export function GeneralSettings({
   onNotice,
 }: GeneralSettingsProps = {}) {
+  const { t } = useLocale()
   const {
     draft,
   } = useDesktopSettings();
@@ -135,7 +136,12 @@ export function GeneralSettings({
     readonly DesktopTerminalProfile[]
   >([])
   const [terminalProfilesLoaded, setTerminalProfilesLoaded] = useState(false)
-  const [language, setLanguage] = useState('zh-CN');
+  const language = draft.values.language
+  const setLanguage = useCallback((value: string) => {
+    if (value !== 'system' && value !== 'zh-CN' && value !== 'en-US') return
+    draft.setValue('language', value)
+    draft.autoSave()
+  }, [draft])
   const [longPromptShortcut, setLongPromptShortcut] = useState(false);
   const [speed, setSpeed] = useState('standard');
   const [suggestPrompts, setSuggestPrompts] = useState(true);
@@ -439,17 +445,17 @@ export function GeneralSettings({
             }
           />
           <SettingsRow
-            title='语言'
-            description='应用 UI 语言'
+            title={t('语言')}
+            description={t('应用 UI 语言')}
             control={
               <SettingsDropdown
                 width={240}
                 value={language}
-                options={LANGUAGE_OPTIONS}
+                options={LANGUAGE_OPTIONS.map(option => ({ ...option, label: t(option.label) }))}
                 onChange={setLanguage}
-                ariaLabel='语言'
+                ariaLabel={t('语言')}
                 searchable
-                searchPlaceholder='搜索语言'
+                searchPlaceholder={t('搜索语言')}
               />
             }
           />

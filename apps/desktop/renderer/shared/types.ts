@@ -962,6 +962,7 @@ export type ProjectAppearance = {
 }
 
 export type DesktopStoredSettings = {
+  language: 'system' | 'zh-CN' | 'en-US'
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
   enableAutoReviewPermissionMode?: boolean

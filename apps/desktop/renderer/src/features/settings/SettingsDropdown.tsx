@@ -1,6 +1,7 @@
 import type React from 'react'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
 import type { PopoverSizingProps } from '../../components/ui/popoverSizing.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Option = SelectOption<string> & {
   label: string
@@ -28,5 +29,10 @@ export function SettingsDropdown({
   ariaLabel = '选择选项',
   ...props
 }: Props): React.ReactNode {
-  return <Select {...props} ariaLabel={ariaLabel} onValueChange={onChange} />
+  const { t } = useLocale()
+  return <Select {...props} options={props.options.map(option => ({
+    ...option,
+    label: t(option.label),
+    detail: option.detail ? t(option.detail) : undefined,
+  }))} ariaLabel={t(ariaLabel)} onValueChange={onChange} />
 }

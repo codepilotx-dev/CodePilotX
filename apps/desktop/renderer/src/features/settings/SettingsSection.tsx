@@ -1,4 +1,5 @@
 import React from 'react'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
   title?: string
@@ -29,13 +30,14 @@ export function SettingsSectionHeader({
   actions,
   children,
 }: HeaderProps): React.ReactNode {
+  const { t } = useLocale()
   if (!title && !description && !actions && !children) return null
   return (
     <header className="settings-section-header">
       <div className="settings-section-header-copy">
-        {title ? <h3 className="settings-section-title">{title}</h3> : null}
+        {title ? <h3 className="settings-section-title">{typeof title === 'string' ? t(title) : title}</h3> : null}
         {description ? (
-          <p className="settings-section-desc">{description}</p>
+          <p className="settings-section-desc">{typeof description === 'string' ? t(description) : description}</p>
         ) : null}
         {children}
       </div>

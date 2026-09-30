@@ -156,6 +156,7 @@ export const VALID_SIDEBAR_SECTION_IDS: readonly SidebarSectionId[] = [
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
+    language: 'system',
     enableParetoCodeRouter: false,
     enableFusionRouter: false,
     enableAutoReviewPermissionMode: false,
@@ -278,6 +279,9 @@ export function normalizeDesktopStoredSettings(
     approvalsReviewer: normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
   }
   return {
+    language: parsed.language === 'zh-CN' || parsed.language === 'en-US'
+      ? parsed.language
+      : 'system',
     enableParetoCodeRouter:
       typeof parsed.enableParetoCodeRouter === 'boolean'
         ? parsed.enableParetoCodeRouter
