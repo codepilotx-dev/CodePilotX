@@ -9,6 +9,14 @@ import {
   SIDEBAR_STATE_VERSION,
 } from "../shared/settingsSchema"
 
+describe('界面语言设置', () => {
+  test('旧设置默认跟随系统，且只接受已支持的语言', () => {
+    expect(normalizeDesktopStoredSettings({}).language).toBe('system')
+    expect(normalizeDesktopStoredSettings({ language: 'en-US' }).language).toBe('en-US')
+    expect(normalizeDesktopStoredSettings({ language: 'ja-JP' as never }).language).toBe('system')
+  })
+})
+
 describe("工作空间依赖项迁移", () => {
   test("默认等待一次性迁移并持久化完成标记", () => {
     expect(defaultDesktopStoredSettings()).toMatchObject({
