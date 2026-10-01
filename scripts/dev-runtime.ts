@@ -139,6 +139,21 @@ export function isProcessAlive(pid: number) {
   }
 }
 
+async function isRuntimeOwnerAlive(pid: number, path: string) {
+  if (!isProcessAlive(pid)) return false
+  if (process.platform !== "win32") return true
+  const { mtimeMs } = await lstat(path)
+  const result = Bun.spawnSync([
+    join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"),
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+    `[Console]::Write((Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().ToString("o"))`,
+  ], { stdout: "pipe", stderr: "ignore" })
+  if (result.exitCode !== 0) return isProcessAlive(pid)
+  const startedAt = Date.parse(new TextDecoder().decode(result.stdout).trim())
+  // Windows 会复用 PID；文件写入之后才启动的进程不拥有这个锁。
+  return !Number.isFinite(startedAt) || startedAt <= mtimeMs
+}
+
 export async function verifyDevAgent(runtime: VerifiableRuntime, timeout = 1_000) {
   try {
     const response = await fetch(`${runtime.origin}/api/ready`, {
@@ -184,7 +199,7 @@ async function inspectExistingRuntime() {
   try {
     const legacy = await readLegacyDevAgentRuntime()
     if (await verifyDevAgent(legacy)) throw new Error("LEGACY_AGENT_RUNNING")
-    if (isProcessAlive(legacy.ownerPid)) throw new Error("AGENT_LOCKED")
+    if (await isRuntimeOwnerAlive(legacy.ownerPid, legacyRuntimeFile)) throw new Error("AGENT_LOCKED")
     const lock = await readLock()
     await rm(legacyRuntimeFile, { force: true })
     if (lock?.ownerPid === legacy.ownerPid && lock.instanceToken === legacy.instanceToken) await rm(lockFile, { force: true })
@@ -211,7 +226,7 @@ export async function acquireDevAgentLock(
         await Bun.sleep(100)
       }
       const existing = await readLock()
-      if (!existing || isProcessAlive(existing.ownerPid)) throw new Error("AGENT_LOCKED")
+      if (!existing || await isRuntimeOwnerAlive(existing.ownerPid, lockFile)) throw new Error("AGENT_LOCKED")
       await rm(lockFile, { force: true })
     }
   }
