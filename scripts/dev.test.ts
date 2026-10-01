@@ -151,6 +151,43 @@ describe("开发 Agent runtime 描述", () => {
     }
   })
 
+  test.skipIf(process.platform !== "win32")("Windows PID 复用释放旧锁，仍保护真实存活的启动器", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "codepilotx-runtime-reused-pid-"))
+    const script = `
+      const runtime = await import("./scripts/dev-runtime.ts")
+      const { mkdir, utimes } = await import("node:fs/promises")
+      await mkdir(runtime.runtimeDir, { recursive: true })
+      const heldToken = "held-instance-token-123456789"
+      const nextToken = "next-instance-token-123456789"
+      const lock = { schemaVersion: 1, ownerPid: process.pid, instanceToken: heldToken }
+      await Bun.write(runtime.lockFile, JSON.stringify(lock))
+      await utimes(runtime.lockFile, new Date(0), new Date(0))
+      await runtime.acquireDevAgentLock(nextToken)
+      await runtime.cleanupDevAgentRuntime(nextToken)
+      await Bun.write(runtime.lockFile, JSON.stringify(lock))
+      try {
+        await runtime.acquireDevAgentLock(nextToken)
+        throw new Error("live owner was not protected")
+      } catch (error) {
+        if (error.message !== "AGENT_LOCKED") throw error
+      } finally { await runtime.cleanupDevAgentRuntime(heldToken) }
+      console.log("recovered stale lock; protected live owner")
+    `
+    try {
+      const child = Bun.spawn([process.execPath, "-e", script], {
+        cwd: new URL("..", import.meta.url).pathname.slice(1),
+        env: { ...process.env, CODEPILOTX_DATA_DIR: dataDir },
+        stdout: "pipe", stderr: "pipe",
+      })
+      const [code, stdout, stderr] = await Promise.all([
+        child.exited, new Response(child.stdout).text(), new Response(child.stderr).text(),
+      ])
+      expect(code).toBe(0)
+      expect(stderr).toBe("")
+      expect(stdout.trim()).toBe("recovered stale lock; protected live owner")
+    } finally { await rm(dataDir, { recursive: true, force: true }) }
+  }, 15_000)
+
   test("历史端口被占用时安全失败并保留原连接描述", async () => {
     const dataDir = await mkdtemp(join(tmpdir(), "codepilotx-runtime-port-busy-"))
     const server = Bun.serve({
