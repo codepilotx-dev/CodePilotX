@@ -206,6 +206,15 @@ export type CreatedThreadRecord = {
 import { ProjectRepositoryDatabase } from "./project-repository"
 
 export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatabase {
+  getProviderAuthDeviceId(): string {
+    const key = "provider-auth.device-id"
+    const existing = this.getSetting<string>(key)
+    if (existing) return existing
+    const deviceId = crypto.randomUUID()
+    this.setSetting(key, deviceId)
+    return deviceId
+  }
+
   setSetting(key: string, value: unknown) {
       this.profileSqlite.query(`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(key, stringify(value), now())
     }

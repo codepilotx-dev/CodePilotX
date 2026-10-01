@@ -83,6 +83,7 @@ type SessionRecord = {
 export interface PiAuthSessionServiceOptions {
   now?: () => number
   ttlMs?: number
+  getDeviceId?: () => string
   resolveTarget(target: PiAuthTarget): Promise<PiAuthLoginTarget> | PiAuthLoginTarget
   onUpdated?(session: PiAuthSessionView): void | Promise<void>
   onCompleted?(target: PiAuthTarget): void | Promise<void>
@@ -188,7 +189,8 @@ export class PiAuthSessionService {
       },
     }
     try {
-      await target.models.login(target.providerID, "oauth", interaction)
+      await target.models.login(target.providerID, "oauth", interaction,
+        this.options.getDeviceId ? { getDeviceId: this.options.getDeviceId } : undefined)
       if (!this.isActive(record)) return
       await this.options.onCompleted?.(record.target)
       if (!this.isActive(record)) return
@@ -305,7 +307,11 @@ export class PiAuthSessionService {
   }
 
   private emit(record: SessionRecord) {
-    return Promise.resolve(this.options.onUpdated?.(this.view(record)))
+    const session = this.view(record)
+    // ChatGPT 授权链接包含安装 ID；完整链接只通过认证 RPC 返回，不写入事件。
+    session.notices = session.notices.filter((notice) =>
+      notice.type !== "auth_url" || !notice.url.includes("ext_agent_host_id="))
+    return Promise.resolve(this.options.onUpdated?.(session))
   }
 
   private safeError(cause: unknown) {

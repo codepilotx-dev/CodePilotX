@@ -506,6 +506,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
     });
     const authSessions = new PiAuthSessionService({
+      getDeviceId: () => db.getProviderAuthDeviceId(),
       resolveTarget: (target) => {
         if (target.kind === "usage") {
           if (
