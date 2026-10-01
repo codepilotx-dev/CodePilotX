@@ -11,6 +11,19 @@ import {
 } from '../src/features/models/provider-management/ProviderConnectionDialog.js'
 
 describe('model center account management', () => {
+  test('OpenAI 同时提供 ChatGPT 登录和 API Key，选项 ID 独立', () => {
+    const provider: DesktopModelProviderSummary = {
+      ...modelProvider('openai', 'OpenAI'), authMethods: ['api-key', 'oauth'],
+    }
+    const choices = getProviderConnectionChoices(provider, [])
+    expect(choices.map(choice => choice.kind)).toEqual(['inference-oauth', 'inference-key'])
+    expect(new Set(choices.map(choice => choice.id)).size).toBe(2)
+    expect(getProviderConnectionChoices({ ...provider, authMethods: ['api-key'] }, [])
+      .map(choice => choice.kind)).toEqual(['inference-key'])
+    expect(getProviderConnectionChoices({ ...provider, authMethods: ['oauth'] }, [])
+      .map(choice => choice.kind)).toEqual(['inference-oauth'])
+  })
+
   test('offers billing and OAuth choices while configured catalog cards link to accounts', () => {
     const choices = getProviderConnectionChoices(
       { ...modelProvider('anthropic', 'Anthropic'), authMethods: ['oauth'] },
