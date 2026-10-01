@@ -158,6 +158,7 @@ export class EncryptedCredentialRepository implements ProviderCredentialReposito
       try: async () => {
         const existing = this.db.listEncryptedCredentials().find((row) =>
           row.integrationID === input.providerID && row.kind === "oauth")
+        const previousActiveID = this.db.encryptedCredential(input.providerID)?.id ?? null
         const id = existing?.id ?? `cred_${crypto.randomUUID()}`
         const encrypted = await this.encrypt(id, input.providerID, input.value)
         const row = this.db.upsertEncryptedCredential({
@@ -176,7 +177,7 @@ export class EncryptedCredentialRepository implements ProviderCredentialReposito
           ...encrypted,
           keyVersion: KEY_VERSION,
         })
-        this.db.setActiveEncryptedCredential(input.providerID, row.id)
+        this.db.setActiveEncryptedCredential(input.providerID, previousActiveID ?? row.id)
         return this.listProviderCredentials(input.providerID)
           .find((item) => item.id === row.id)!
       },

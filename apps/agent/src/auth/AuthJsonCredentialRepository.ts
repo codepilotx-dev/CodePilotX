@@ -259,7 +259,7 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
       }
       if (current) provider.credentials[provider.credentials.indexOf(current)] = next
       else provider.credentials.push(next)
-      provider.activeId = next.id
+      provider.activeId ??= next.id
       await this.persist()
       return this.providerSummary(next, input.providerID)
     })
