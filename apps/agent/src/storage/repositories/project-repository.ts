@@ -4,6 +4,7 @@ import type { ProjectExecutionEnvironment } from "@codepilotx/shared/thread"
 import type { ModelRef } from "../../domain"
 import { AgentError } from "../../domain"
 import { CredentialRepositoryDatabase } from "./credential-repository"
+import { now, parse, stringify } from "./repository-core"
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
@@ -56,9 +57,6 @@ type FolderRow = {
   updated_at: number
 }
 
-const now = () => Date.now()
-const stringify = (value: unknown) => JSON.stringify(value ?? null)
-const parse = <T>(value: string): T => JSON.parse(value) as T
 const canonicalPath = (value: string) => resolve(value)
 export const projectPathKey = (value: string) => {
   const normalized = canonicalPath(value).replaceAll("\\", "/").replace(/\/+$/, "")

@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [agent] 删除无消费者的 repository 类型副本，项目、线程与工作区仓库复用现有存储工具，保留原有存储语义。
+
 - [agent/mcp] MCP 运行时客户端迁移至固定版本 pi-mcp 0.99.2，保留 stdio、Streamable HTTP、OAuth 加密凭据与 resource 覆盖、工具审批及连接租约；SDK 仅作为调试服务器的开发依赖。
 
 - [renderer] 整理 ChatGPT 与 OAuth 登录界面为单栏状态流程，去除弹窗重复标题，补齐中英文提示并默认折叠 ChatGPT 手动回调输入；保留其他供应商的授权提示、设备码和输入方式。
