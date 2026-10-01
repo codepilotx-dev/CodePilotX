@@ -1,9 +1,9 @@
 import type { McpScope } from "@codepilotx/agent-protocol"
-import type { OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js"
 import type {
+  OAuthDiscoveryState,
   OAuthClientInformationMixed,
   OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js"
+} from "@earendil-works/pi-mcp/oauth"
 import { createHash } from "node:crypto"
 import { Effect } from "effect"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"

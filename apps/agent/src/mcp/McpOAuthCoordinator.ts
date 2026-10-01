@@ -4,19 +4,29 @@ import type {
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
 import {
+  adaptOAuthProvider,
+  authorizeMcp,
+  discoverAuthorizationServerMetadata,
+  discoverOAuthServerInfo,
+  exchangeAuthorizationCode,
+  McpOAuthAuthorizationRequiredError,
+  OAuthError,
+  OAuthInsecureEndpointError,
+  parseWwwAuthenticate,
+  refreshAuthorization,
+  registerClient,
+  startAuthorization,
   type OAuthClientProvider,
+  type OAuthFlowOptions,
+  type OAuthFlowResult,
   type OAuthDiscoveryState,
-  UnauthorizedError,
-} from "@modelcontextprotocol/sdk/client/auth.js"
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
-import type {
-  OAuthClientInformationMixed,
-  OAuthClientMetadata,
-  OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js"
+  type OAuthClientInformationMixed,
+  type OAuthClientMetadata,
+  type OAuthTokens,
+} from "@earendil-works/pi-mcp/oauth"
+import { McpClient, type AuthProvider } from "@earendil-works/pi-mcp"
 import { randomUUID, timingSafeEqual } from "node:crypto"
+import { connectMcpClient, createMcpHttpTransport } from "./McpClientFactory"
 import {
   McpOAuthCredentialRepository,
   type McpOAuthCredentialIdentity,
@@ -40,8 +50,9 @@ type OAuthAttempt = {
   error?: McpSanitizedError
   authorizationUrl?: string
   provider: StoredOAuthProvider
-  client: Client
-  transport: StreamableHTTPClientTransport
+  client: McpClient
+  serverUrl: string
+  timeoutMs: number
 }
 
 const safeError = (
@@ -173,16 +184,106 @@ class StoredOAuthProvider implements OAuthClientProvider {
     return this.value.discoveryState
   }
 
-  async validateResourceURL(_serverURL: string | URL, discovered?: string) {
-    const candidate = this.resource ?? discovered
-    if (!candidate) return undefined
-    const target = new URL(candidate)
-    if (this.resource) return target
-    const server = new URL(_serverURL)
-    if (target.origin !== server.origin) {
-      throw new Error("OAuth resource 与 MCP server 来源不匹配")
+  authProvider(): AuthProvider {
+    if (!this.resource) return adaptOAuthProvider(this)
+    let inFlight: Promise<void> | undefined
+    return {
+      token: async () => this.tokens()?.access_token,
+      onUnauthorized: async (context) => {
+        const challenge = parseWwwAuthenticate(context.response.headers.get("www-authenticate"))
+        const insufficientScope = challenge.error === "insufficient_scope"
+        const current = this.tokens()?.access_token
+        if (!insufficientScope && !inFlight && current && context.token && current !== context.token) return
+        inFlight ??= this.authorize({
+          serverUrl: context.serverUrl,
+          ...(challenge.resourceMetadataUrl ? { resourceMetadataUrl: challenge.resourceMetadataUrl } : {}),
+          ...(challenge.scope ? { scope: challenge.scope } : {}),
+          fetch: context.fetch,
+          skipRefresh: insufficientScope,
+        }).then((result) => {
+          if (result === "REDIRECT") throw new McpOAuthAuthorizationRequiredError()
+        }).finally(() => { inFlight = undefined })
+        await inFlight
+      },
     }
-    return target
+  }
+
+  async authorize(options: OAuthFlowOptions): Promise<OAuthFlowResult> {
+    if (!this.resource) return authorizeMcp(this, options)
+    try {
+      return await this.authorizeResource(options, this.resource)
+    } catch (cause) {
+      if (cause instanceof OAuthError && ["invalid_client", "unauthorized_client"].includes(cause.code)) {
+        await this.invalidateCredentials("all")
+        return this.authorizeResource(options, this.resource)
+      }
+      if (cause instanceof OAuthError && cause.code === "invalid_grant") {
+        await this.invalidateCredentials("tokens")
+        return this.authorizeResource(options, this.resource)
+      }
+      throw cause
+    }
+  }
+
+  // Same pi flow, with the configured resource passed to authorization and both token grants.
+  private async authorizeResource(options: OAuthFlowOptions, resource: string): Promise<OAuthFlowResult> {
+    const fetchOptions = options.fetch ? { fetch: options.fetch } : {}
+    const cached = this.discoveryState()
+    let discovered: OAuthDiscoveryState
+    if (cached?.authorizationServerUrl) {
+      const metadata = cached.authorizationServerMetadata
+        ?? await discoverAuthorizationServerMetadata(cached.authorizationServerUrl, fetchOptions)
+      discovered = { ...cached, ...(metadata ? { authorizationServerMetadata: metadata } : {}) }
+    } else {
+      discovered = await discoverOAuthServerInfo(options.serverUrl, {
+        ...(options.resourceMetadataUrl ? { resourceMetadataUrl: options.resourceMetadataUrl } : {}),
+        ...fetchOptions,
+      })
+    }
+    await this.saveDiscoveryState({
+      ...discovered,
+      ...(options.resourceMetadataUrl ? { resourceMetadataUrl: options.resourceMetadataUrl.href } : {}),
+    })
+    const metadata = discovered.authorizationServerMetadata
+    const metadataOptions = metadata ? { metadata } : {}
+    const scope = options.scope ?? this.clientMetadata.scope
+      ?? discovered.resourceMetadata?.scopes_supported?.join(" ")
+    let clientInformation = this.clientInformation()
+    if (!clientInformation) {
+      if (options.authorizationCode) throw new Error("OAuth client information unavailable")
+      clientInformation = await registerClient(discovered.authorizationServerUrl, {
+        ...metadataOptions, clientMetadata: this.clientMetadata,
+        ...(scope ? { scope } : {}), ...fetchOptions,
+      })
+      await this.saveClientInformation(clientInformation)
+    }
+    const tokenOptions = { ...metadataOptions, clientInformation, resource, ...fetchOptions }
+    if (options.authorizationCode) {
+      await this.saveTokens(await exchangeAuthorizationCode(discovered.authorizationServerUrl, {
+        ...tokenOptions, code: options.authorizationCode,
+        codeVerifier: this.codeVerifier(), redirectUrl: this.redirectUrl,
+      }))
+      return "AUTHORIZED"
+    }
+    const existing = options.skipRefresh ? undefined : this.tokens()
+    if (existing?.refresh_token) {
+      try {
+        await this.saveTokens(await refreshAuthorization(discovered.authorizationServerUrl, {
+          ...tokenOptions, refreshToken: existing.refresh_token,
+        }))
+        return "AUTHORIZED"
+      } catch (cause) {
+        if (cause instanceof OAuthInsecureEndpointError
+          || cause instanceof OAuthError && cause.code !== "server_error") throw cause
+      }
+    }
+    const authorization = await startAuthorization(discovered.authorizationServerUrl, {
+      ...metadataOptions, clientInformation, redirectUrl: this.redirectUrl,
+      ...(scope ? { scope } : {}), state: this.state(), resource,
+    })
+    this.saveCodeVerifier(authorization.codeVerifier)
+    this.redirectToAuthorization(authorization.authorizationUrl)
+    return "REDIRECT"
   }
 
   clearVerifier() {
@@ -219,7 +320,7 @@ export class McpOAuthCoordinator {
       server.transport.oauthResource,
       stored,
       () => undefined,
-    )
+    ).authProvider()
   }
 
   async hasCredential(server: McpServerDeclaration, workspaceHash?: string) {
@@ -261,10 +362,11 @@ export class McpOAuthCoordinator {
     const attemptId = randomUUID()
     const stateValue = randomUUID()
     const createdAt = this.now()
-    const client = new Client(
-      { name: "codepilotx-agent", version: "0.2.0" },
-      { capabilities: {} },
-    )
+    const timeoutMs = server.startupTimeoutMs ?? 10_000
+    const client = new McpClient({
+      name: "codepilotx-agent", version: "0.2.0", capabilities: {},
+      requestTimeoutMs: timeoutMs,
+    })
     let authorizationUrl: string | undefined
     const provider = new StoredOAuthProvider(
       this.repository,
@@ -282,13 +384,11 @@ export class McpOAuthCoordinator {
     }
     delete headers.Authorization
     delete headers.authorization
-    const transport = new StreamableHTTPClientTransport(
-      new URL(server.transport.url),
-      {
-        authProvider: provider,
-        requestInit: { headers },
-      },
-    )
+    const transport = createMcpHttpTransport({
+      url: server.transport.url,
+      authProvider: provider.authProvider(),
+      headers,
+    })
     const attempt: OAuthAttempt = {
       id: attemptId,
       serverKey: identity.integrationID,
@@ -298,15 +398,14 @@ export class McpOAuthCoordinator {
       state: "pending",
       provider,
       client,
-      transport,
+      serverUrl: server.transport.url,
+      timeoutMs,
     }
     this.attempts.set(attemptId, attempt)
     this.attemptByServer.set(identity.integrationID, attemptId)
 
     try {
-      await client.connect(transport as Transport, {
-        timeout: server.startupTimeoutMs ?? 10_000,
-      })
+      await connectMcpClient(client, transport, timeoutMs)
       attempt.state = "completed"
       await client.close().catch(() => undefined)
       return {
@@ -315,7 +414,7 @@ export class McpOAuthCoordinator {
         expiresAt: attempt.expiresAt,
       }
     } catch (cause) {
-      if (!(cause instanceof UnauthorizedError) || !authorizationUrl) {
+      if (!(cause instanceof McpOAuthAuthorizationRequiredError) || !authorizationUrl) {
         attempt.state = "failed"
         attempt.error = safeError(
           "MCP_OAUTH_START_FAILED",
@@ -373,7 +472,12 @@ export class McpOAuthCoordinator {
     }
     attempt.stateValue = ""
     try {
-      await attempt.transport.finishAuth(input.code)
+      const signal = AbortSignal.timeout(attempt.timeoutMs)
+      await attempt.provider.authorize({
+        serverUrl: attempt.serverUrl,
+        authorizationCode: input.code,
+        fetch: (url, init) => fetch(url, { ...init, signal }),
+      })
       attempt.state = "completed"
       return { completed: true, attemptId: attempt.id }
     } catch {

@@ -2,19 +2,14 @@ import type {
   McpSanitizedError,
   McpServerDeclaration,
 } from "@codepilotx/agent-protocol"
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"
-import { SSEClientTransport, SseError } from "@modelcontextprotocol/sdk/client/sse.js"
-import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import {
-  StreamableHTTPClientTransport,
-  StreamableHTTPError,
-} from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import {
-  ResourceListChangedNotificationSchema,
-  ToolListChangedNotificationSchema,
-} from "@modelcontextprotocol/sdk/types.js"
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
+  McpClient, McpHttpError, McpTimeoutError, StdioTransport, StreamableHttpTransport,
+  type CallToolResult, type ListResourcesResult, type McpTransport,
+  type ReadResourceResult, type Resource, type ResourceTemplate,
+  type StreamableHttpTransportOptions, type Tool,
+} from "@earendil-works/pi-mcp"
+import { McpOAuthAuthorizationRequiredError } from "@earendil-works/pi-mcp/oauth"
+import { z } from "zod"
 import { secretScrubber } from "../security/SecretScrubber"
 import type { McpOAuthCoordinator } from "./McpOAuthCoordinator"
 
@@ -43,30 +38,98 @@ export const sanitizeMcpServerInstructions = (value: string | undefined) => {
   return truncateMcpInstructionsUtf8(scrubbed, MAX_MCP_SERVER_INSTRUCTIONS_BYTES)
 }
 
-export type McpRawTool = Awaited<ReturnType<Client["listTools"]>>["tools"][number]
-export type McpToolResult = Awaited<ReturnType<Client["callTool"]>>
-export type McpResource = Awaited<ReturnType<Client["listResources"]>>["resources"][number]
-export type McpResourceTemplate = Awaited<ReturnType<Client["listResourceTemplates"]>>["resourceTemplates"][number]
-export type McpPrompt = Awaited<ReturnType<Client["listPrompts"]>>["prompts"][number]
-export type McpReadResourceResult = Awaited<ReturnType<Client["readResource"]>>
+export type McpRawTool = Tool
+export type McpToolResult = CallToolResult
+export type McpResource = Resource
+export type McpResourceTemplate = ResourceTemplate
+export type McpReadResourceResult = ReadResourceResult
+
+const promptSchema = z.object({
+  name: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  arguments: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    required: z.boolean().optional(),
+  }).passthrough()).optional(),
+}).passthrough()
+const promptPageSchema = z.object({
+  prompts: z.array(promptSchema),
+  nextCursor: z.string().optional(),
+})
+export type McpPrompt = z.infer<typeof promptSchema>
+
+// Generic requests need the result checks performed by pi's native tools/call method.
+const toolResultSchema = z.object({
+  content: z.array(z.union([
+    z.object({ type: z.literal("text"), text: z.string() }).passthrough(),
+    z.object({ type: z.literal("image"), data: z.string(), mimeType: z.string() }).passthrough(),
+    z.object({ type: z.literal("audio"), data: z.string(), mimeType: z.string() }).passthrough(),
+    z.object({ type: z.literal("resource_link"), uri: z.string(), name: z.string() }).passthrough(),
+    z.object({
+      type: z.literal("resource"),
+      resource: z.union([
+        z.object({ uri: z.string(), text: z.string() }).passthrough(),
+        z.object({ uri: z.string(), blob: z.string() }).passthrough(),
+      ]),
+    }).passthrough(),
+  ])).default([]),
+  structuredContent: z.record(z.string(), z.unknown()).optional(),
+  isError: z.boolean().optional(),
+  _meta: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()
 
 export type McpConnectedClient = {
-  client: Client
   tools: McpRawTool[]
   resources: McpResource[]
   resourceTemplates: McpResourceTemplate[]
   prompts: McpPrompt[]
   instructions?: string
-  transport: "stdio" | "http" | "sse"
+  transport: "stdio" | "http"
   callTool(
     name: string,
     args: Record<string, unknown>,
     signal?: AbortSignal,
     requestMeta?: Record<string, unknown>,
   ): Promise<McpToolResult>
-  listResources(cursor?: string): ReturnType<Client["listResources"]>
+  listResources(cursor?: string): Promise<ListResourcesResult>
   readResource(uri: string): Promise<McpReadResourceResult>
   close(): Promise<void>
+}
+
+// Cover transport startup and the initialized notification as well as initialize.
+export const connectMcpClient = async (client: McpClient, transport: McpTransport, timeoutMs: number) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      client.connect(transport),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new McpTimeoutError(timeoutMs)), timeoutMs)
+      }),
+    ])
+  } catch (cause) {
+    await client.close().catch(() => undefined)
+    throw cause
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// Cancel OAuth discovery/refresh fetches when the transport closes too.
+export const createMcpHttpTransport = (options: StreamableHttpTransportOptions) => {
+  const controller = new AbortController()
+  const transport = new StreamableHttpTransport({
+    ...options,
+    fetch: (input, init) => fetch(input, {
+      ...init,
+      signal: init?.signal
+        ? AbortSignal.any([init.signal, controller.signal])
+        : controller.signal,
+    }),
+  })
+  transport.onClose(() => controller.abort())
+  return transport
 }
 
 export class McpConnectionError extends Error {
@@ -78,19 +141,19 @@ export class McpConnectionError extends Error {
   }
 }
 
+const isAuthenticationFailure = (cause: unknown) =>
+  cause instanceof McpOAuthAuthorizationRequiredError
+  || cause instanceof McpHttpError && (cause.status === 401 || cause.status === 403)
+
 const safeConnectionError = (cause: unknown): McpConnectionError => {
-  if (
-    cause instanceof UnauthorizedError
-    || cause instanceof StreamableHTTPError && (cause.code === 401 || cause.code === 403)
-    || cause instanceof SseError && (cause.code === 401 || cause.code === 403)
-  ) {
+  if (isAuthenticationFailure(cause)) {
     return new McpConnectionError({
       code: "MCP_AUTH_REQUIRED",
       message: "MCP server 需要认证，请使用 OAuth 或配置环境变量凭据",
       retryable: true,
     }, true)
   }
-  const timeout = cause instanceof Error
+  const timeout = cause instanceof McpTimeoutError || cause instanceof Error
     && (cause.name === "TimeoutError" || /timed?\s*out|timeout/i.test(cause.message))
   return new McpConnectionError({
     code: timeout ? "MCP_TIMEOUT" : "MCP_CONNECTION_FAILED",
@@ -99,20 +162,17 @@ const safeConnectionError = (cause: unknown): McpConnectionError => {
   })
 }
 
-const shouldFallbackToSse = (cause: unknown) => {
-  if (cause instanceof StreamableHTTPError) {
-    return cause.code === 404
-      || cause.code === 405
-      || cause.code === 406
-      || cause.code === 415
-      || cause.code === 501
-  }
-  return false
+// Preserve the SDK's restricted environment instead of inheriting host credentials.
+const defaultEnvironment = () => {
+  const names = process.platform === "win32"
+    ? ["APPDATA", "HOMEDRIVE", "HOMEPATH", "LOCALAPPDATA", "PATH", "PROCESSOR_ARCHITECTURE",
+      "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "USERNAME", "USERPROFILE", "PROGRAMFILES"]
+    : ["HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER"]
+  return Object.fromEntries(names.flatMap((name) => {
+    const value = process.env[name]
+    return value !== undefined && !value.startsWith("()") ? [[name, value]] : []
+  }))
 }
-
-const isAuthenticationFailure = (cause: unknown) =>
-  cause instanceof UnauthorizedError
-  || cause instanceof StreamableHTTPError && (cause.code === 401 || cause.code === 403)
 
 const inherited = (references: Record<string, string> | undefined) =>
   Object.fromEntries(
@@ -141,24 +201,22 @@ const withoutAuthorization = (headers: Record<string, string>) =>
 const hasAuthorization = (headers: Record<string, string>) =>
   Object.keys(headers).some((name) => name.toLowerCase() === "authorization")
 
-const listAll = async <T>(
-  first: (cursor?: string) => Promise<{ items: T[]; nextCursor?: string }>,
-) => {
-  const items: T[] = []
+const listPrompts = async (client: McpClient, timeoutMs: number) => {
+  const prompts: McpPrompt[] = []
+  const cursors = new Set<string>()
   let cursor: string | undefined
   for (let page = 0; page < 100; page += 1) {
-    const result = await first(cursor)
-    items.push(...result.items)
-    if (!result.nextCursor) return items
+    const result = promptPageSchema.parse(await client.request(
+      "prompts/list", cursor ? { cursor } : undefined, { timeoutMs },
+    ))
+    prompts.push(...result.prompts)
+    if (!result.nextCursor) return prompts
+    if (cursors.has(result.nextCursor)) throw new Error("Repeated MCP prompts cursor")
+    cursors.add(result.nextCursor)
     cursor = result.nextCursor
   }
-  return items
+  throw new Error("Too many MCP prompts pages")
 }
-
-const page = <T>(items: T[], nextCursor: string | undefined) => ({
-  items,
-  ...(nextCursor ? { nextCursor } : {}),
-})
 
 export class McpClientFactory {
   constructor(private readonly oauth?: McpOAuthCoordinator) {}
@@ -173,158 +231,91 @@ export class McpClientFactory {
     } = {},
   ): Promise<McpConnectedClient> {
     const startupTimeout = server.startupTimeoutMs ?? 10_000
+    const connect = async (transport: McpTransport, kind: McpConnectedClient["transport"]) => {
+      const client = new McpClient({
+        name: "codepilotx-agent", version: "0.2.0", capabilities: {},
+        requestTimeoutMs: startupTimeout,
+      })
+      try {
+        await connectMcpClient(client, transport, startupTimeout)
+        return await this.ready(client, kind, server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
+      } catch (cause) {
+        await client.close().catch(() => undefined)
+        throw cause
+      }
+    }
     try {
       if (server.transport.type === "stdio") {
-        const client = this.client()
-        try {
-          const env = {
-            ...getDefaultEnvironment(),
+        return await connect(new StdioTransport({
+          command: server.transport.command,
+          ...(server.transport.args ? { args: [...server.transport.args] } : {}),
+          ...(server.transport.cwd ? { cwd: server.transport.cwd } : {}),
+          env: {
+            ...defaultEnvironment(),
             ...(server.transport.env ?? {}),
             ...inherited(server.transport.envFromHost),
-          }
-          await client.connect(new StdioClientTransport({
-            command: server.transport.command,
-            ...(server.transport.args ? { args: [...server.transport.args] } : {}),
-            ...(server.transport.cwd ? { cwd: server.transport.cwd } : {}),
-            env,
-            stderr: "pipe",
-          }), { timeout: startupTimeout })
-          return await this.ready(client, "stdio", server, onCatalogChanged, onClosed)
-        } catch (cause) {
-          await client.close().catch(() => undefined)
-          throw cause
-        }
+          },
+          inheritEnv: false,
+          stderr: "pipe",
+        }), "stdio")
       }
 
-      const url = new URL(server.transport.url)
       const headers = requestHeaders(server)
-      const oauthProvider = server.transport.auth === "none"
+      const authProvider = server.transport.auth === "none"
         ? undefined
         : await this.oauth?.provider(server, context.workspaceHash)
-      const modern = this.client()
-      try {
-        await modern.connect(new StreamableHTTPClientTransport(url, {
-          requestInit: { headers },
-          ...(!hasAuthorization(headers) && oauthProvider
-            ? { authProvider: oauthProvider }
-            : {}),
-          reconnectionOptions: {
-            initialReconnectionDelay: 500,
-            maxReconnectionDelay: 5_000,
-            reconnectionDelayGrowFactor: 1.5,
-            maxRetries: 2,
-          },
-        }) as Transport, { timeout: startupTimeout })
-        return await this.ready(modern, "http", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
-      } catch (cause) {
-        await modern.close().catch(() => undefined)
-        if (isAuthenticationFailure(cause) && hasAuthorization(headers) && oauthProvider) {
-          const authenticated = this.client()
-          try {
-            await authenticated.connect(new StreamableHTTPClientTransport(url, {
-              authProvider: oauthProvider,
-              requestInit: { headers: withoutAuthorization(headers) },
-              reconnectionOptions: {
-                initialReconnectionDelay: 500,
-                maxReconnectionDelay: 5_000,
-                reconnectionDelayGrowFactor: 1.5,
-                maxRetries: 2,
-              },
-            }) as Transport, { timeout: startupTimeout })
-            return await this.ready(authenticated, "http", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
-          } catch (oauthCause) {
-            await authenticated.close().catch(() => undefined)
-            throw oauthCause
-          }
-        }
-        if (!shouldFallbackToSse(cause)) throw cause
+      const options = {
+        url: server.transport.url,
+        reconnect: { initialDelayMs: 500, maxDelayMs: 5_000, maxRetries: 2 },
       }
-
-      const legacy = this.client()
       try {
-        await legacy.connect(new SSEClientTransport(url, {
-          requestInit: { headers },
-          eventSourceInit: {
-            fetch: (input, init) => {
-              const merged = new Headers(init?.headers)
-              for (const [name, value] of Object.entries(headers)) merged.set(name, value)
-              return fetch(input, { ...init, headers: merged })
-            },
-          },
-        }), { timeout: startupTimeout })
-        return await this.ready(legacy, "sse", server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
+        return await connect(createMcpHttpTransport({
+          ...options, headers,
+          ...(!hasAuthorization(headers) && authProvider ? { authProvider } : {}),
+        }), "http")
       } catch (cause) {
-        await legacy.close().catch(() => undefined)
-        throw cause
+        if (!isAuthenticationFailure(cause) || !hasAuthorization(headers) || !authProvider) throw cause
+        return await connect(createMcpHttpTransport({
+          ...options, headers: withoutAuthorization(headers), authProvider,
+        }), "http")
       }
     } catch (cause) {
       throw safeConnectionError(cause)
     }
   }
 
-  private client() {
-    return new Client(
-      { name: "codepilotx-agent", version: "0.2.0" },
-      { capabilities: {} },
-    )
-  }
-
   private async ready(
-    client: Client,
+    client: McpClient,
     transport: McpConnectedClient["transport"],
     server: McpServerDeclaration,
     onCatalogChanged: () => void,
     onClosed: () => void,
     onAuthenticationRequired?: () => void,
   ): Promise<McpConnectedClient> {
-    client.onclose = onClosed
-    client.setNotificationHandler(ToolListChangedNotificationSchema, onCatalogChanged)
-    client.setNotificationHandler(ResourceListChangedNotificationSchema, onCatalogChanged)
-    const timeout = server.toolTimeoutMs ?? 60_000
-    const capabilities = client.getServerCapabilities()
-    const tools = capabilities?.tools
-      ? await listAll<McpRawTool>(async (cursor) => {
-          const result = await client.listTools(cursor ? { cursor } : undefined, { timeout })
-          return page(result.tools, result.nextCursor)
-        })
-      : []
+    client.onClose(onClosed)
+    client.onNotification("notifications/tools/list_changed", onCatalogChanged)
+    client.onNotification("notifications/resources/list_changed", onCatalogChanged)
+    const timeoutMs = server.toolTimeoutMs ?? 60_000
+    const capabilities = client.serverCapabilities
+    const tools = capabilities?.tools ? await client.listTools({ timeoutMs }) : []
     const resources = capabilities?.resources
-      ? await listAll<McpResource>(async (cursor) => {
-          const result = await client.listResources(cursor ? { cursor } : undefined, { timeout })
-          return page(result.resources, result.nextCursor)
-        }).catch(() => [])
-      : []
+      ? await client.listResources({ timeoutMs }).catch(() => []) : []
     const resourceTemplates = capabilities?.resources
-      ? await listAll<McpResourceTemplate>(async (cursor) => {
-          const result = await client.listResourceTemplates(cursor ? { cursor } : undefined, { timeout })
-          return page(result.resourceTemplates, result.nextCursor)
-        }).catch(() => [])
-      : []
+      ? await client.listResourceTemplates({ timeoutMs }).catch(() => []) : []
     const prompts = capabilities?.prompts
-      ? await listAll<McpPrompt>(async (cursor) => {
-          const result = await client.listPrompts(cursor ? { cursor } : undefined, { timeout })
-          return page(result.prompts, result.nextCursor)
-        }).catch(() => [])
-      : []
-    const instructions = sanitizeMcpServerInstructions(client.getInstructions())
+      ? await listPrompts(client, timeoutMs).catch(() => []) : []
+    const instructions = sanitizeMcpServerInstructions(client.instructions)
     return {
-      client,
-      tools,
-      resources,
-      resourceTemplates,
-      prompts,
+      tools, resources, resourceTemplates, prompts,
       ...(instructions ? { instructions } : {}),
       transport,
       callTool: async (name, args, signal, requestMeta) => {
         try {
-          return await client.callTool({
-            name,
-            arguments: args,
-            ...(requestMeta ? { _meta: requestMeta } : {}),
-          }, undefined, {
-            timeout,
-            ...(signal ? { signal } : {}),
-          })
+          const options = { timeoutMs, ...(signal ? { signal } : {}) }
+          if (!requestMeta) return await client.callTool(name, args, options)
+          return toolResultSchema.parse(await client.request("tools/call", {
+            name, arguments: args, _meta: requestMeta,
+          }, options)) as McpToolResult
         } catch (cause) {
           if (isAuthenticationFailure(cause)) {
             onAuthenticationRequired?.()
@@ -334,8 +325,8 @@ export class McpClientFactory {
         }
       },
       listResources: (cursor) =>
-        client.listResources(cursor ? { cursor } : undefined, { timeout }),
-      readResource: (uri) => client.readResource({ uri }, { timeout }),
+        client.listResourcesPage(cursor, { timeoutMs }),
+      readResource: (uri) => client.readResource(uri, { timeoutMs }),
       close: () => client.close(),
     }
   }

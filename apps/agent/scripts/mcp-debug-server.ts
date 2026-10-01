@@ -4,7 +4,6 @@ import { writeFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
@@ -24,7 +23,6 @@ type DebugOptions = {
   transport: DebugTransport
   port: number
   portFile?: string
-  legacySse: boolean
   authToken?: string
   oauth: boolean
   startupDelayMs: number
@@ -667,7 +665,6 @@ const parseOptions = (
     transport: argument(argv, "transport") === "http" ? "http" : "stdio",
     port: Number(argument(argv, "port") ?? defaultPort),
     ...(argument(argv, "port-file") ? { portFile: argument(argv, "port-file")! } : {}),
-    legacySse: argv.includes("--legacy-sse"),
     ...(authToken ? { authToken } : {}),
     oauth: argv.includes("--oauth"),
     startupDelayMs: Number(argument(argv, "startup-delay") ?? 0),
@@ -708,9 +705,10 @@ type DebugOAuthState = {
     redirectUri: string
     codeChallenge: string
     scope?: string
+    resource?: string
   }>
   accessTokens: Set<string>
-  refreshTokens: Map<string, { clientId: string; accessToken: string }>
+  refreshTokens: Map<string, { clientId: string; accessToken: string; resource?: string }>
 }
 
 const createDebugOAuthState = (): DebugOAuthState => ({
@@ -822,6 +820,7 @@ const handleDebugOAuth = async (
       clientId,
       redirectUri,
       codeChallenge,
+      ...(url.searchParams.get("resource") ? { resource: url.searchParams.get("resource")! } : {}),
       ...(url.searchParams.get("scope")
         ? { scope: url.searchParams.get("scope")! }
         : {}),
@@ -850,6 +849,7 @@ const handleDebugOAuth = async (
       if (
         !record
         || record.redirectUri !== form.get("redirect_uri")
+        || (record.resource ?? null) !== form.get("resource")
         || await base64urlSha256(verifier) !== record.codeChallenge
       ) {
         json(response, 400, { error: "invalid_grant" })
@@ -865,7 +865,8 @@ const handleDebugOAuth = async (
     } else if (grantType === "refresh_token") {
       const refresh = form.get("refresh_token") ?? ""
       const owner = state.refreshTokens.get(refresh)
-      if (!owner || (clientId && clientId !== owner.clientId)) {
+      if (!owner || (clientId && clientId !== owner.clientId)
+        || (owner.resource ?? null) !== form.get("resource")) {
         json(response, 400, { error: "invalid_grant" })
         return true
       }
@@ -880,7 +881,10 @@ const handleDebugOAuth = async (
     const accessToken = `debug-access-${randomUUID()}`
     const refreshToken = `debug-refresh-${randomUUID()}`
     state.accessTokens.add(accessToken)
-    state.refreshTokens.set(refreshToken, { clientId, accessToken })
+    state.refreshTokens.set(refreshToken, {
+      clientId, accessToken,
+      ...(form.get("resource") ? { resource: form.get("resource")! } : {}),
+    })
     json(response, 200, {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -915,10 +919,6 @@ const startHttp = async (options: DebugOptions, state: DebugState) => {
     transport: StreamableHTTPServerTransport
     server: McpServer
   }>()
-  const legacySessions = new Map<string, {
-    transport: SSEServerTransport
-    server: McpServer
-  }>()
   const logger = createLogger(options.verbose)
   const oauth = createDebugOAuthState()
   const authorized = (request: IncomingMessage) => {
@@ -945,38 +945,6 @@ const startHttp = async (options: DebugOptions, state: DebugState) => {
             : undefined,
         )
       }
-      if (options.legacySse) {
-        if (request.method === "POST" && url.pathname === "/mcp") {
-          response.writeHead(405).end()
-          return
-        }
-        if (request.method === "GET" && url.pathname === "/mcp") {
-          let connection: ServerConnection | undefined
-          const transport = new SSEServerTransport("/messages", response)
-          const server = createDebugServer(state, logger, () => void connection?.close())
-          connection = {
-            close: async () => {
-              legacySessions.delete(transport.sessionId)
-              await transport.close()
-              await server.close()
-            },
-          }
-          legacySessions.set(transport.sessionId, { transport, server })
-          transport.onclose = () => legacySessions.delete(transport.sessionId)
-          await server.connect(transport)
-          return
-        }
-        if (request.method === "POST" && url.pathname === "/messages") {
-          const sessionId = url.searchParams.get("sessionId")
-          const session = sessionId ? legacySessions.get(sessionId) : undefined
-          if (!session) return rejectJsonRpc(response, 404, "Unknown SSE session")
-          await session.transport.handlePostMessage(request, response, await readBody(request))
-          return
-        }
-        response.writeHead(404).end()
-        return
-      }
-
       if (url.pathname !== "/mcp") {
         response.writeHead(404).end()
         return
