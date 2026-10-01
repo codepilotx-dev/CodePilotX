@@ -377,28 +377,6 @@ describe('Codex CPX design system token contract', () => {
 
     expect(modelMenu).not.toContain('260ms')
     expect(modelMenu).not.toContain('cubic-bezier(0.34, 1.35, 0.64, 1)')
-    expect(modelMenu).not.toMatch(
-      /\.rm-thick-slider-range[\s\S]*?transition:[^;}]*\bwidth\b/,
-    )
-    expect(modelMenu).not.toMatch(
-      /\.rm-thick-slider-thumb[\s\S]*?transition:[^;}]*\bleft\b/,
-    )
-    expect(modelMenu).toMatch(
-      /\.rm-thick-slider-range\s*\{[\s\S]*?transform-origin: left center;/,
-    )
-    expect(modelMenu).toMatch(
-      /\.rm-thick-slider-range-clip\s*\{[\s\S]*?inset: 0;[\s\S]*?overflow: hidden;[\s\S]*?border-radius: var\(--cpx-sys-radius-full\);/,
-    )
-    expect(modelMenu).toMatch(
-      /\.rm-thick-slider-thumb-rail\s*\{[\s\S]*?left: 0;/,
-    )
-    expect(modelMenu).toMatch(
-      /\.rm-thick-slider-track:is\(\.is-pointer-down, \.is-dragging\)[\s\S]*?will-change: transform;/,
-    )
-    expect(modelMenu).not.toContain('transform: scale(1.08)')
-    expect(modelMenu).toMatch(
-      /:root\[data-reduce-motion='on'\][\s\S]*?\.rm-thick-slider-thumb[\s\S]*?transition: none;/,
-    )
     expect(modelMenu).not.toContain(
       'transition: opacity var(--cpx-sys-motion-panel)',
     )

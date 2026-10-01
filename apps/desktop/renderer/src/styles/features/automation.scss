@@ -678,9 +678,7 @@ details.automation-more-settings > summary {
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
 }
 
-.automation-focus-dialog,
-.automation-focus-pages,
-.automation-focus-page {
+.automation-focus-dialog {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
@@ -688,53 +686,6 @@ details.automation-more-settings > summary {
   max-height: var(--automation-dialog-height);
 }
 
-.automation-focus-pages {
-  overflow: hidden;
-}
-
-.automation-focus-page {
-  grid-area: 1 / 1;
-}
-
-.automation-focus-page[hidden] {
-  display: none;
-}
-
-.automation-focus-pages[data-direction] > .automation-focus-page {
-  animation-duration: var(--cpx-sys-motion-panel);
-  animation-timing-function: var(--cpx-sys-ease-standard);
-  animation-fill-mode: both;
-}
-
-.automation-focus-pages[data-direction='forward'] > [data-entering],
-.automation-focus-pages[data-direction='back'] > [data-leaving] {
-  animation-name: automation-page-right;
-}
-
-.automation-focus-pages[data-direction='back'] > [data-entering],
-.automation-focus-pages[data-direction='forward'] > [data-leaving] {
-  animation-name: automation-page-left;
-}
-
-.automation-focus-page[data-leaving] {
-  animation-direction: reverse;
-}
-
-@keyframes automation-page-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes automation-page-left {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .automation-focus-pages[data-direction] > .automation-focus-page {
-    animation: none;
-  }
-}
 
 .automation-execution-inputs {
   display: grid;

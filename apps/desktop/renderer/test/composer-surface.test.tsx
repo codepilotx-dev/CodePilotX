@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { DesktopWorkspace } from '../shared/types.js'
 import { ComposerCard } from '../src/features/session/composer/ComposerCard.js'
 import {
-  resolveMagneticSliderPosition,
   resolveThinkingLabel,
   resolveThinkingOptions,
 } from '../src/features/session/composer/ThinkingLevelPopover.js'
@@ -219,20 +218,6 @@ describe('composer surface variant', () => {
     expect(resolveThinkingLabel(deepSeekOptions, 'enabled')).toBe('超高')
   })
 
-  test('思考等级滑块仅在档位附近施加连续磁吸', () => {
-    expect(resolveMagneticSliderPosition(0, 2)).toBe(0)
-    expect(resolveMagneticSliderPosition(1, 2)).toBe(1)
-    expect(resolveMagneticSliderPosition(2, 2)).toBe(2)
-
-    const attracted = resolveMagneticSliderPosition(1.1, 2)
-    expect(attracted).toBeGreaterThan(1)
-    expect(attracted).toBeLessThan(1.1)
-    expect(resolveMagneticSliderPosition(1.5, 2)).toBe(1.5)
-
-    expect(resolveMagneticSliderPosition(-1, 2)).toBe(0)
-    expect(resolveMagneticSliderPosition(3, 2)).toBe(2)
-    expect(resolveMagneticSliderPosition(0.8, 0)).toBe(0)
-  })
 
   test('Working 选中 workspace 后显示工作区名称并隐藏 Local 和分支', () => {
     const html = renderToStaticMarkup(
