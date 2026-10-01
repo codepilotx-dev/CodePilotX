@@ -444,7 +444,7 @@ function SidebarSessionGroupComponent({
               <span className="sidebar-session-approval" title={waitingLabel}>
                 {waitingLabel}
               </span>
-            ) : session.hasScheduledRun || session.isFork || visualState !== 'idle' ? (
+            ) : visualState === 'unread' || visualState === 'running' ? (
               <span className="sidebar-indicator">
                 {visualState === 'unread' ? (
                   <span aria-label="未读" className="sidebar-unread-dot" />
