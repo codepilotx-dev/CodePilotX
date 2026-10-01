@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import type { AuthInteraction, Models } from "@earendil-works/pi-ai"
+import type { AuthInteraction, LoginOptions, Models } from "@earendil-works/pi-ai"
+import { mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { PiAuthSessionService } from "../src/auth/PiAuthSessionService"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const waitFor = async (
   service: PiAuthSessionService,
@@ -16,7 +20,7 @@ const waitFor = async (
 }
 
 const models = (
-  login: (interaction: AuthInteraction) => Promise<void>,
+  login: (interaction: AuthInteraction, options?: LoginOptions) => Promise<void>,
 ): Models => ({
   getProviders: () => [{
     id: "fixture",
@@ -26,13 +30,48 @@ const models = (
     _providerID: string,
     _type: "api_key" | "oauth",
     interaction: AuthInteraction,
+    options?: LoginOptions,
   ) => {
-    await login(interaction)
+    await login(interaction, options)
     return { type: "oauth", refresh: "refresh", access: "access", expires: 1 }
   },
 } as never)
 
 describe("PiAuthSessionService", () => {
+  test("按需传入持久化设备 ID，重启复用且授权链接不进入更新事件", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-auth-device-"))
+    const path = join(root, "history.sqlite")
+    let db = new AgentDatabase(path)
+    try {
+      expect(db.getSetting("provider-auth.device-id")).toBeNull()
+      let deviceId = ""
+      const updates: unknown[] = []
+      const service = new PiAuthSessionService({
+        getDeviceId: () => db.getProviderAuthDeviceId(),
+        resolveTarget: () => ({ models: models(async (interaction, options) => {
+          deviceId = options!.getDeviceId!()
+          interaction.notify({
+            type: "auth_url",
+            url: `https://example.test/auth?ext_agent_host_id=urn%3Auuid%3A${deviceId}`,
+          })
+        }), providerID: "fixture" }),
+        onUpdated: (session) => { updates.push(session) },
+      })
+      const session = await service.start({ kind: "provider", providerId: "fixture" })
+      await waitFor(service, session.id, "complete")
+      expect(deviceId).toMatch(/^[0-9a-f-]{36}$/)
+      expect(db.getSetting<string>("provider-auth.device-id")).toBe(deviceId)
+      expect(JSON.stringify(service.status(session.id))).toContain(deviceId)
+      expect(JSON.stringify(updates)).not.toContain(deviceId)
+      db.close()
+      db = new AgentDatabase(path)
+      expect(db.getProviderAuthDeviceId()).toBe(deviceId)
+    } finally {
+      db.close()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   test("承载四类 prompt 和四类安全通知", async () => {
     const answers: string[] = []
     const updates: unknown[] = []

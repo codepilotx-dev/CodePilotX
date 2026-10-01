@@ -77,7 +77,7 @@ describe("加密凭据仓库", () => {
     db.close()
   })
 
-  test("OAuth 登录保留已有 Key、成为活动项，并允许手动切回", async () => {
+  test("OAuth 登录保留已有活动 Key，并允许手动切换和切回", async () => {
     const { db, keys } = await setup()
     const repository = new EncryptedCredentialRepository(db, keys)
     const key = await Effect.runPromise(repository.createApiKey({
@@ -97,7 +97,12 @@ describe("加密凭据仓库", () => {
       },
     }))
     expect(repository.listProviderCredentials("anthropic")).toHaveLength(2)
-    expect(oauth.active).toBeTrue()
+    expect(oauth.active).toBeFalse()
+    expect(repository.listProviderCredentials("anthropic").find((item) => item.active)?.id)
+      .toBe(key.id)
+    await Effect.runPromise(repository.setProviderCredentialActive("anthropic", oauth.id))
+    expect(repository.listProviderCredentials("anthropic").find((item) => item.active)?.id)
+      .toBe(oauth.id)
     await Effect.runPromise(repository.setProviderCredentialActive("anthropic", key.id))
     expect(repository.listProviderCredentials("anthropic").find((item) => item.active)?.id)
       .toBe(key.id)

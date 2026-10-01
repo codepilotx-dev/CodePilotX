@@ -12,6 +12,7 @@ import {
 import { ProviderCredentialStoreManager } from "../src/auth/ProviderCredentialStoreManager"
 import type { ProviderCredentialStoreKind } from "../src/auth/ProviderCredentialRepository"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { EncryptedCredentialStore } from "../src/provider/pi/EncryptedCredentialStore"
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -38,6 +39,58 @@ const setup = async () => {
 }
 
 describe("Provider 凭据双仓库", () => {
+  test("ChatGPT 登录和重新授权保留已有活动 API Key，允许手动切换 OAuth", async () => {
+    const { encrypted, authJson } = await setup()
+    await Effect.runPromise(authJson.initialize())
+    for (const repository of [encrypted, authJson]) {
+      const key = await Effect.runPromise(repository.createApiKey({
+        integrationID: "openai", label: "已有 API Key", key: "fixture-key",
+      }))
+      const store = new EncryptedCredentialStore(repository)
+      const credential = {
+        type: "oauth" as const, access: "fixture-access", refresh: "fixture-refresh",
+        expires: Date.now() + 60_000, clientId: "fixture-client", scopes: ["offline_access"],
+      }
+      await store.modify("openai", async () => credential)
+      await store.modify("openai", async () => ({ ...credential, access: "fixture-reauthorized" }))
+      expect((await Effect.runPromise(repository.activeCredential("openai")))?.id).toBe(key.id)
+      const oauth = repository.listProviderCredentials("openai").find((item) => item.kind === "oauth")!
+      expect(oauth.active).toBe(false)
+      await Effect.runPromise(repository.setProviderCredentialActive("openai", oauth.id))
+      expect(await store.read("openai")).toMatchObject({ ...credential, access: "fixture-reauthorized" })
+    }
+  })
+
+  test("ChatGPT OAuth metadata 在双仓库写入和刷新后完整往返", async () => {
+    const { encrypted, authJson } = await setup()
+    await Effect.runPromise(authJson.initialize())
+    for (const repository of [encrypted, authJson]) {
+      const store = new EncryptedCredentialStore(repository)
+      const credential = {
+        type: "oauth" as const,
+        access: "fixture-access",
+        refresh: "fixture-refresh",
+        expires: Date.now() + 60_000,
+        clientId: "fixture-issued-client",
+        scopes: ["chatgpt.tokens.use.direct", "offline_access"],
+      }
+      await store.modify("openai", async () => credential)
+      expect(await store.read("openai")).toMatchObject(credential)
+      await store.modify("openai", async (current) => ({
+        ...current!, type: "oauth", access: "fixture-refreshed-access",
+        refresh: "fixture-refreshed-refresh", expires: credential.expires + 60_000,
+      }))
+      expect(await new EncryptedCredentialStore(repository).read("openai")).toMatchObject({
+        clientId: credential.clientId,
+        scopes: credential.scopes,
+        access: "fixture-refreshed-access",
+        refresh: "fixture-refreshed-refresh",
+      })
+      expect(JSON.stringify(await store.list())).not.toContain(credential.clientId)
+      expect(JSON.stringify(await store.list())).not.toContain("fixture-refreshed-access")
+    }
+  })
+
   test("auth.json 拒绝覆盖非 CodePilotX 文件", async () => {
     const { root } = await setup()
     const path = join(root, "auth.json")

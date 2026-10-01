@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   fauxAssistantMessage,
   fauxToolCall,
+  normalizeContext,
   type Api,
   type Context,
   type Model as PiModel,
@@ -22,11 +23,11 @@ const schema = z.object({
 describe("PiStructuredOutput", () => {
   test("DeepSeek 真实请求构造能复制 JSON schema 并到达发送前回调", async () => {
     const provider = deepseekProvider();
-    const model = provider.getModels().find(candidate => candidate.id === "deepseek-v4-flash")!;
+    const model = provider.getModels()[0]!;
     let reachedPayload = false;
     const models = {
       completeSimple: async (selected: PiModel<Api>, context: Context) => provider.streamSimple(
-        selected as Parameters<typeof provider.streamSimple>[0], context, {
+        selected as Parameters<typeof provider.streamSimple>[0], normalizeContext(context), {
           apiKey: "fixture-only",
           onPayload: () => { reachedPayload = true; throw new Error("fixture-stop-before-network") },
         },

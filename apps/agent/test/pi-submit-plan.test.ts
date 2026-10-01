@@ -8,6 +8,7 @@ import {
   fauxProvider,
   fauxToolCall,
   type Api,
+  type JsonObject,
   type Model as PiModel,
   type Models,
 } from "@earendil-works/pi-ai"
@@ -26,7 +27,7 @@ import type {
   PiToolCompletionMetadata,
 } from "../src/orchestration/pi/types"
 
-const validPlan = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+const validPlan = (overrides: JsonObject = {}): JsonObject => ({
   title: "结构化计划交付",
   summary: "把最终方案从标签解析升级为 submit_plan 结构化提交。",
   changes: [{ area: "共享契约", items: ["新增 StructuredPlanSchema"] }],

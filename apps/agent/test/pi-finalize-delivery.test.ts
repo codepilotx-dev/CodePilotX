@@ -7,6 +7,7 @@ import {
   fauxProvider,
   fauxToolCall,
   type Api,
+  type JsonObject,
   type Model as PiModel,
   type Models,
 } from "@earendil-works/pi-ai"
@@ -27,7 +28,7 @@ import type {
   PiToolCompletionMetadata,
 } from "../src/orchestration/pi/types"
 
-const validResult = (summary = "完成查询工具回归并修复参数校验"): Record<string, unknown> => ({
+const validResult = (summary = "完成查询工具回归并修复参数校验"): JsonObject => ({
   outcome: "succeeded",
   summary,
   findings: [{ title: "修复了校验边界", detail: "空参数不再通过", severity: "info" }],

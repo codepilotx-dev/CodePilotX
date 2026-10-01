@@ -10,7 +10,8 @@ import {
 	fauxAssistantMessage,
 	fauxProvider,
 	fauxToolCall,
-	type Context,
+	getCurrentTools,
+	type TranscriptContext,
 } from "@earendil-works/pi-ai";
 
 function setupProvider(responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]) {
@@ -113,8 +114,8 @@ describe("AgentHarness deferred activation", () => {
 
 		let restoredProviderTools: string[] = [];
 		const secondSetup = setupProvider([
-			(context: Context) => {
-				restoredProviderTools = context.tools?.map((tool) => tool.name) ?? [];
+			(context: TranscriptContext) => {
+				restoredProviderTools = getCurrentTools(context.messages).map((tool) => tool.name);
 				return fauxAssistantMessage(fauxToolCall("deferred", {}), { stopReason: "toolUse" });
 			},
 			fauxAssistantMessage("restored"),
