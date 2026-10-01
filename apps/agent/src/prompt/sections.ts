@@ -217,11 +217,15 @@ export const createPromptSections = (
         "skills.catalog",
         "project",
         { type: "runtime", name: "skills-catalog" },
-        input.skills
+        [
+          "Skills provide task guidance. When a task matches, use Read to load the full SKILL.md before following it; continue reading if truncated. Resolve relative references from the skill directory. Load supporting files only as needed and execute scripts through the normal Shell permission policy.",
+          "Explicitly selected Skills apply to the current task. Continue using them for follow-ups on that task; reassess when the task changes. allowed-tools is guidance only and never changes authorization.",
+          ...input.skills.filter(skill => skill.metadata["disable-model-invocation"] !== true)
           .map(
             (skill) =>
-              `$${skill.name}: ${skill.description || "(无描述)"} [${skill.origin}/${skill.format}]`,
-          )
+              `$${skill.name}: ${skill.description || "(无描述)"} [${skill.origin}/${skill.format}] location=${JSON.stringify(skill.documentPath)}`,
+          ),
+        ]
           .join("\n"),
         "session-stable",
       ),

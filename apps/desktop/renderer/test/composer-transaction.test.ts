@@ -25,6 +25,19 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
+  test('连续选择与发送后再次选择从当前草稿追加，提交保留全部 Skill', () => {
+    const store = new ComposerDraftStore(() => 'draft-1')
+    const review = { name: 'review', path: 'skills/review' }
+    const plan = { name: 'plan', path: 'skills/plan' }
+    store.addSkill('session:test', review)
+    store.addSkill('session:test', plan)
+    store.addSkill('session:test', review)
+    expect(prepareComposerSubmission(store.get('session:test'))).toMatchObject({ input: { skills: [review, plan] } })
+    store.completeSubmission('session:test', 'draft-1', { clearContent: true })
+    store.addSkill('session:test', review)
+    store.addSkill('session:test', plan)
+    expect(prepareComposerSubmission(store.get('session:test'))).toMatchObject({ input: { skills: [review, plan] } })
+  })
   test('hands off a HOME draft and atomically rotates the source id', () => {
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
@@ -195,10 +208,7 @@ describe('composer submit transaction', () => {
     expect('input' in prepared && prepared.input).toEqual({
       text: '检查当前改动',
       attachments: [],
-      skillInvocation: {
-        name: 'review',
-        skillPath: 'skills/review',
-      },
+      skills: [{ name: 'review', path: 'skills/review' }],
     })
   })
 
@@ -231,7 +241,7 @@ describe('composer submit transaction', () => {
       }),
     )
 
-    expect('input' in prepared && prepared.input.skillInvocation?.name).toBe(
+    expect('input' in prepared && prepared.input.skills?.[0]?.name).toBe(
       'review',
     )
   })

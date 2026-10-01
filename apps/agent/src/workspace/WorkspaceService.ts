@@ -312,6 +312,16 @@ export class WorkspaceService {
     }
   }
 
+  /** Isolate turn-local context grants while retaining the shared mutation queues. */
+  withReadOnlyPaths(paths: readonly WorkspaceReadOnlyPath[]) {
+    const workspace = new WorkspaceService(this.rootPath, this.workspaceRoots, this.fileAccess, {
+      ...this.shared,
+      readOnlyPaths: new Map(this.shared.readOnlyPaths),
+    })
+    workspace.grantReadOnlyPaths(paths)
+    return workspace
+  }
+
   private aliasTarget(path: string) {
     if (path.startsWith("@") && !this.shared.editorAliases.has(path)) {
       throw new AgentError("WORKSPACE_PATH_DENIED", "未知的 host 编辑器别名", 403)

@@ -20,6 +20,7 @@ export type ModelRef = Model.Ref
 
 export interface SubmitMessage {
   content: string
+  skills?: readonly import("@codepilotx/agent-protocol").SkillSelection[]
   model: ModelRef
   permissionConfig: PermissionConfig
   strategy: StoredInputDelivery

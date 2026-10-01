@@ -31,6 +31,22 @@ const workspace = async () => {
 }
 
 describe("WorkspaceService.applyPatch", () => {
+  test("Skill 只读目录授权局限于本轮，支持引用并拒绝写入与链接越界", async () => {
+    const { service } = await workspace()
+    const external = await workspace()
+    const skillRoot = join(external.root, "skill")
+    await mkdir(join(skillRoot, "references"), { recursive: true })
+    const reference = join(skillRoot, "references", "guide.md")
+    await writeFile(reference, "guidance", "utf8")
+    await writeFile(join(external.root, "outside.md"), "outside", "utf8")
+    const turn = service.withReadOnlyPaths([{ path: skillRoot, kind: "directory" }])
+    await expect(turn.readEditorFile(reference)).resolves.toMatchObject({ content: "guidance" })
+    await expect(service.readEditorFile(reference)).rejects.toThrow()
+    await expect(service.withReadOnlyPaths([]).readEditorFile(reference)).rejects.toThrow()
+    await expect(turn.applyPatch({ operation: "update", path: reference, before: "guidance", after: "changed" })).rejects.toThrow()
+    await symlink(external.root, join(skillRoot, "escape"), "junction")
+    await expect(turn.readEditorFile(join(skillRoot, "escape", "outside.md"))).rejects.toThrow()
+  })
   test("更新唯一上下文并返回 diff、行数和哈希", async () => {
     const { root, service } = await workspace()
     await writeFile(join(root, "source.txt"), "first\nbefore\nlast", "utf8")

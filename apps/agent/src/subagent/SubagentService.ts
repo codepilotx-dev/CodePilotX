@@ -465,7 +465,7 @@ export class SubagentService {
       const projectFolders = project?.folders?.filter((folder) => folder.availability !== "missing") ?? []
       const primaryFolder = projectFolders.find((folder) => folder.id === project?.primaryFolderId)
         ?? projectFolders.find((folder) => folder.role === "primary")
-      const workspace = primaryFolder
+      let workspace = primaryFolder
         ? await WorkspaceService.openRoots({
             primaryRoot: prepared.rootPath,
             roots: projectFolders.map((folder) => folder.id === primaryFolder.id
@@ -503,8 +503,8 @@ export class SubagentService {
             userHome: this.promptStorage.userHome,
           })
         : { skills: [], shadowed: [] }
-      const invokedSkill = skillService.resolveInvocation(input.content)
-      const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
+      const invokedSkillData = await skillService.invocationData(input.content)
+      workspace = workspace.withReadOnlyPaths(skillCatalog.skills.map(skill => ({ path: skill.root, kind: "directory" as const })))
       const projectSourceCatalog = parentWorkspace?.kind === "project"
         ? await this.projectSources?.catalog(parentWorkspace.projectID) ?? null
         : null
@@ -577,7 +577,6 @@ export class SubagentService {
             ) => this.projectSources!.read(parentWorkspace.projectID, sourceID, range),
           },
         } : {}),
-        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         attachments,
         ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),

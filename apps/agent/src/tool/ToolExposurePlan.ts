@@ -4,6 +4,7 @@ import { isGranularApprovalPolicy, type PermissionConfig } from "@codepilotx/sha
 import type { ToolCatalog } from "./ToolRegistry"
 
 export const PI_LIFECYCLE_TOOLS = [
+  // These Skill names remain bindable only for already persisted turn snapshots.
   "skill_list", "skill_read", "project_source_list", "project_source_read",
   "request_user_input", "request_permissions", "update_plan", "submit_plan",
   "spawn_agents", "wait_agents", "send_agent", "stop_agent",
@@ -53,7 +54,6 @@ export function createToolExposurePlan(catalog: ToolCatalog, input: ToolExposure
   const eager = definitions.filter((tool) => tool.visibility === "eager").map((tool) => tool.sdkName)
   const deferredCandidates = definitions.filter((tool) => tool.visibility === "deferred").map((tool) => tool.sdkName)
   const lifecycle: string[] = []
-  if (input.hasSkillService) lifecycle.push("skill_list", "skill_read")
   if (input.hasProjectSources) lifecycle.push("project_source_list", "project_source_read")
   if (profile !== "main") lifecycle.push("finalize_result")
   else {

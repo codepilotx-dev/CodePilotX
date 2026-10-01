@@ -12,11 +12,11 @@ import { BUILTIN_SKILL_PRESENTATIONS } from '../../plugins/builtinSkillPresentat
  */
 export function createComposerDocumentWithSkill(
   text: string,
-  skillInvocation?: ComposerSkillInvocation,
+  skillInvocation?: ComposerSkillInvocation | readonly ComposerSkillInvocation[],
 ): ComposerDocument {
   return {
     text,
-    tokens: skillInvocation ? [createComposerSkillToken(skillInvocation)] : [],
+    tokens: skillInvocation ? (Array.isArray(skillInvocation) ? skillInvocation : [skillInvocation as ComposerSkillInvocation]).map(createComposerSkillToken) : [],
   }
 }
 
@@ -24,7 +24,7 @@ export function createComposerSkillToken(
   skill: ComposerSkillInvocation,
 ): ComposerDocumentToken {
   return {
-    id: `skill:${skill.name}`,
+    id: `skill:${skill.name}:${skill.path}`,
     kind: 'skill',
     name: skill.name,
     label: BUILTIN_SKILL_PRESENTATIONS[skill.name]?.label ?? skill.name,
@@ -47,6 +47,13 @@ export function skillInvocationFromComposerDocument(
 ): ComposerSkillInvocation | null {
   const token = document.tokens.find(candidate => candidate.kind === 'skill')
   return token ? skillInvocationFromComposerToken(token) : null
+}
+
+export function skillInvocationsFromComposerDocument(document: ComposerDocument): ComposerSkillInvocation[] {
+  return document.tokens.flatMap(token => {
+    const skill = skillInvocationFromComposerToken(token)
+    return skill ? [skill] : []
+  })
 }
 
 export function composerDocumentsEqual(

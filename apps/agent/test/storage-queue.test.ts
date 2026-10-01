@@ -15,6 +15,29 @@ const modelRef = (providerID: string, id: string) => Model.Ref.make({ providerID
 afterEach(async () => removeFixturePaths(paths.splice(0)))
 
 describe("持久化队列", () => {
+  test("多 Skill 选择跨编辑、steer 与重启保存，49→50 迁移保留已有输入", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-skill-inputs-"))
+    paths.push(root)
+    const path = join(root, "agent.sqlite")
+    let db = new AgentDatabase(path)
+    const thread = db.createThread()
+    const input = { content: "original", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "chat" } as const
+    const original = db.createTurn(thread.id, input)
+    db.sqlite.exec("ALTER TABLE inputs DROP COLUMN skills; PRAGMA user_version = 49")
+    db.close()
+    db = new AgentDatabase(path)
+    expect(db.getTurnInput(original.turnID)?.content).toBe("original")
+    const skills = [{ name: "review", path: "builtin://review/SKILL.md" }, { name: "plan", path: "plugin://tools/skills/plan/SKILL.md" }]
+    const turn = db.createTurn(thread.id, { ...input, skills })
+    db.updateQueuedInput(thread.id, turn.inputID, "edited", { operationID: "edit-skills" }, skills.slice(1))
+    const guide = db.appendGuide(thread.id, turn.turnID, { ...input, skills, strategy: "guide" })
+    expect(db.guideMailbox(turn.turnID).find(row => row.id === guide.inputID)?.skills).toEqual(skills)
+    db.close()
+    db = new AgentDatabase(path)
+    expect(db.getTurnInput(turn.turnID)).toMatchObject({ content: "edited", skills: skills.slice(1) })
+    expect(new ThreadProjection(db).snapshot(thread.id)!.inputs.find(row => row.id === turn.inputID)?.skills).toEqual(skills.slice(1))
+    db.close()
+  })
   test("将旧 Turn lifecycle 事件投影为包含完整 turn 和 input 的 canonical payload", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-turn-events-"))
     paths.push(root)

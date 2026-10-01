@@ -11,6 +11,7 @@ import {
 } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
+const selectedSkills = [{ name: 'review', path: 'builtin://review/SKILL.md' }, { name: 'plan', path: 'plugin://tools/skills/plan/SKILL.md' }]
 const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
 const primaryFolder = {
   id: 'folder-primary',
@@ -234,6 +235,7 @@ describe('desktop thread settings client', () => {
 
     await client.sendUserMessage('session-local-context', {
       text: '读取目录',
+      skills: selectedSkills,
       attachments: [{
         id: 'draft-grant',
         name: 'docs',
@@ -256,7 +258,7 @@ describe('desktop thread settings client', () => {
         operationId: expect.any(String),
       })
     expect(calls.find(call => call.method === 'turn/start')?.params)
-      .toMatchObject({ contextReferenceIds: ['context-docs'] })
+      .toMatchObject({ content: '读取目录 [docs]', skills: selectedSkills, contextReferenceIds: ['context-docs'] })
   })
 
   test('reimports retained attachments before starting an edited turn', async () => {
@@ -925,7 +927,7 @@ describe('desktop thread settings client', () => {
 
     await client.submitSessionFollowUp(
       'thread-queue',
-      { text: '下一轮' },
+      { text: '下一轮', skills: selectedSkills },
       'follow-up',
       'input-follow-up',
       { providerID: 'anthropic', model: 'claude-opus-4-1' },
@@ -933,7 +935,7 @@ describe('desktop thread settings client', () => {
     expect(queueRequests[0]?.params.model).toEqual({
       providerID: 'anthropic', id: 'claude-opus-4-1',
     })
-    await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新' })
+    await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新', skills: selectedSkills.slice(1) })
     await client.removeQueuedFollowUp('thread-queue', 'input-2')
     await client.resumeQueuedFollowUps('thread-queue')
 
@@ -953,7 +955,9 @@ describe('desktop thread settings client', () => {
     expect(queueRequests[0]?.params).toMatchObject({
       inputId: 'input-follow-up',
       content: '下一轮',
+      skills: selectedSkills,
     })
+    expect(queueRequests[1]?.params).toMatchObject({ content: '更新', skills: selectedSkills.slice(1) })
     expect(queueRequests[1]?.params).not.toHaveProperty('attachmentIds')
   })
 
@@ -995,7 +999,7 @@ describe('desktop thread settings client', () => {
     await client.getSession('thread-active')
     await client.submitSessionFollowUp(
       'thread-active',
-      { text: '补充要求' },
+      { text: '补充要求', skills: selectedSkills },
       'steer',
       'draft-steer',
       { providerID: 'anthropic', model: 'claude-opus-4-1' },
@@ -1006,6 +1010,7 @@ describe('desktop thread settings client', () => {
       turnId: 'turn-active',
       inputId: 'draft-steer',
       content: '补充要求',
+      skills: selectedSkills,
     })
     expect(steerParams).not.toHaveProperty('strategy')
     expect(steerParams).not.toHaveProperty('model')
@@ -1844,6 +1849,7 @@ function initializedResult() {
       'interactions.serverRequests.v1',
       'interaction.recovery.v1',
       'turn.admission.v1',
+      'skills.invocation.v1',
       'turn.steer.v1',
       'turn.queue.management.v1',
       'attachments.v1',

@@ -43,6 +43,7 @@ export interface HarnessRuntimeRequest {
   /** Frozen deferred tool names from the persisted turn snapshot; the runtime may only bind these. */
   frozenDeferredToolNames?: readonly string[]
   onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
+  onSkillDocumentRead?: (path: string, hash: string) => Promise<{ name: string } | undefined>
   preapprovedToolCalls?: ReadonlyMap<string, string | undefined>
   canAutoCompact?: () => boolean | Promise<boolean>
 }

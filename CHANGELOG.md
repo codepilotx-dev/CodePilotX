@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [agent/desktop] Skills 调用改为结构化多选与正文 `$name` 引用；显式选择在推理前加载，自动选择通过普通 Read 按需读取真实路径，复用现有活动展示。history schema 50 以 nullable 字段保存队列、steer 和重启后的选择，并保留冻结引用校验及回合内只读目录权限。
+
 - [desktop/renderer] 侧栏与会话共用工作流归属选择函数，补充加入、移出、取消和无效序号的回归检查。
 
 - [agent/desktop] 移除未使用的 Harness 资源加载器、旧事件与模型目录转换、思考滑块及自动化切页/周视图遗留代码、专属样式和旧测试；删除 ignore 与 react-slot 直接依赖，保留现有技能发现、推理菜单与月历详情交互。
@@ -132,6 +134,8 @@
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ### Fixed
+
+- [desktop/renderer] 修复 Skill 连续选择与发送后再次选择使用旧输入框状态的问题；从当前草稿追加、去重并提交选择，避免后续消息丢失 Skill。
 
 - [agent/desktop] 补齐历史操作返回的日程与分叉标记，修复标记已读／未读、重命名或归档后侧边栏时钟与分叉图标丢失的问题；复用现有来源查询，不改变图标判定条件。
 

@@ -210,6 +210,19 @@ const createBindings = (
     toolCatalog: input.toolCatalog,
     skills: Object.freeze({
       list: () => snapshot.version === 2 ? snapshot.skills.catalog : snapshot.skills.skills,
+      documentRead: async (path: string, hash: string) => {
+        const skill = await input.skillService.documentSkill(resolve(input.workspace.rootPath, path))
+        if (!skill) return undefined
+        if (catalog.get(skill.name)?.hash !== hash) {
+          throw new AgentError("SKILL_SNAPSHOT_STALE", "Skill snapshot is stale", 409)
+        }
+        input.skillService.recordRead(skill.name, hash)
+        if (snapshot.version === 2 && !referenced.has(skill.name)) {
+          await recordReferenced?.(skill.name, hash)
+          referenced.add(skill.name)
+        }
+        return { name: skill.name }
+      },
       read: async (name: string) => {
         const frozen = catalog.get(name)
         if (!frozen) {
@@ -221,8 +234,8 @@ const createBindings = (
         }
         const loaded = await input.skillService.read(name)
         if (snapshot.version === 2 && !referenced.has(name)) {
-          referenced.add(name)
           await recordReferenced?.(name, current.hash)
+          referenced.add(name)
         }
         return loaded
       },

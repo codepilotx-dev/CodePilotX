@@ -214,6 +214,7 @@ export type DesktopComposerAttachment = {
 
 export type DesktopUserMessageInput = {
   text: string
+  skills?: readonly import('@codepilotx/agent-protocol').SkillSelection[]
   attachments?: DesktopComposerAttachment[]
   retainedAttachmentIds?: string[]
   retainedContextReferenceIds?: string[]

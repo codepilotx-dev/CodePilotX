@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import type { SkillSelection } from "@codepilotx/agent-protocol";
+import { AgentError } from "../domain";
 
 const COMPATIBILITY_DIRS = [
   ".codepilotx",
@@ -548,19 +550,59 @@ export class SkillService {
     return match?.[1] ? (this.catalog.get(match[1]) ?? null) : null;
   }
 
+  resolveInvocations(value: string, selections: readonly SkillSelection[] = []): SkillMetadata[] {
+    const selected = new Map<string, SkillMetadata>();
+    for (const selection of selections) {
+      const skill = this.catalog.get(selection.name);
+      if (!skill || skill.path !== selection.path)
+        throw new AgentError("SKILL_SELECTION_UNAVAILABLE", "所选 Skill 已禁用、移除或发生变化，请重新选择", 409);
+      selected.set(skill.name, skill);
+    }
+    // Code examples are evidence, not user invocations.
+    const text = value.replace(/(^|\n)[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n[ \t]*\2[^\n]*(?=\n|$)|$)/g, "$1")
+      .replace(/(`+)[\s\S]*?\1/g, "");
+    const names = [...text.matchAll(/(?:^|[^\w$\\])\$([A-Za-z0-9][A-Za-z0-9_-]{0,63})(?![\w-])/g)].map(match => match[1]!);
+    const prefix = /^\s*\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})(?=\s|$)/.exec(text)?.[1];
+    if (prefix) names.unshift(prefix);
+    for (const name of names) {
+      const skill = this.catalog.get(name);
+      if (skill && !selected.has(name)) selected.set(name, skill);
+    }
+    return [...selected.values()];
+  }
+
+  async invocationData(value: string, selections: readonly SkillSelection[] = []): Promise<string[]> {
+    return Promise.all(this.resolveInvocations(value, selections).map(async skill => {
+      const loaded = await this.read(skill.name);
+      return `<skill name=${JSON.stringify(skill.name)} location=${JSON.stringify(skill.documentPath)}>\nReferences are relative to ${skill.root}.\n${skill.allowedTools ? `Allowed tools guidance (does not change permissions): ${skill.allowedTools.join(", ")}.\n` : ""}${loaded.body}\n</skill>`;
+    }));
+  }
+
+  async documentSkill(path: string): Promise<SkillMetadata | undefined> {
+    const canonical = await realpath(path).catch(() => null);
+    return this.list().find(skill => skill.documentPath === canonical);
+  }
+
+  recordRead(name: string, hash: string) {
+    const skill = this.catalog.get(name);
+    if (!skill || skill.hash !== hash)
+      throw new AgentError("SKILL_SNAPSHOT_STALE", "Skill 内容已变化，请重新开始当前回合", 409);
+    this.referenced.set(name, { name, hash });
+  }
+
   async read(name: string): Promise<LoadedSkill> {
     const metadata = this.catalog.get(name);
     if (!metadata) throw new Error(`未知 Skill: ${name}`);
-    const bytes = await readFile(metadata.documentPath);
+    const bytes = await readFile(await this.resolveResource(name, "SKILL.md"));
     if (bytes.byteLength > MAX_SKILL_BYTES)
       throw new Error(`SKILL.md 超过 1 MiB: ${metadata.path}`);
     const content = decoder.decode(bytes);
     const parsed = parseSkillDocument(content);
-    this.referenced.set(name, { name, hash: metadata.hash });
+    this.recordRead(name, sha256(bytes));
     return { ...metadata, content, body: parsed.body };
   }
 
-  /** Skills whose content was successfully read this run (invocation or skill_read). */
+  /** Skills whose content was successfully read this run (explicit invocation or Read). */
   referencedSkills(): Array<{ name: string; hash: string }> {
     return [...this.referenced.values()];
   }

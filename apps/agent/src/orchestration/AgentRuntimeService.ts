@@ -976,7 +976,7 @@ export class AgentRuntimeService implements AgentRuntime {
       outputDirectory: null,
       instructionSources: [],
     };
-    // Successful skill_read must leave durable evidence once composition storage
+    // Successful Skill document reads must leave durable evidence once composition storage
     // exists; a persistence failure is fail-closed so the read is NOT reported
     // as success. Missing-table ephemeral turns no-op inside the repository.
     const recordReferenced = (name: string, hash: string) => {
@@ -1139,7 +1139,7 @@ export class AgentRuntimeService implements AgentRuntime {
         !lifecycleNames.has(toolCall.name)
       ) {
         const completed = this.options.db.completedToolCall(request.resume.toolCallID);
-        if (completed) {
+        if (completed && toolCall.name !== "Read" && toolCall.name !== "workspace.read") {
           resolutionDetails = secretScrubber.scrub(completed.output);
           resolutionText = resumedToolResultText(completed.output, completed.name);
         } else try {
@@ -1160,6 +1160,7 @@ export class AgentRuntimeService implements AgentRuntime {
               taskSummary: request.content,
               toolCallID: request.resume.toolCallID,
               approvedToolCallID: request.resume.toolCallID,
+              onSkillDocumentRead: (path, hash) => composition.bindings.skills.documentRead(path, hash),
               ...(request.resume.authorizationFingerprint
                 ? { approvedAuthorizationFingerprint: request.resume.authorizationFingerprint }
                 : {}),
@@ -1484,6 +1485,7 @@ export class AgentRuntimeService implements AgentRuntime {
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
         frozenDeferredToolNames: composition.plan.snapshot.tools.deferred,
+        onSkillDocumentRead: (path, hash) => composition.bindings.skills.documentRead(path, hash),
         onPromptComposed: async (bundle) =>
           request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
         canAutoCompact: () => !paused && !request.signal.aborted,

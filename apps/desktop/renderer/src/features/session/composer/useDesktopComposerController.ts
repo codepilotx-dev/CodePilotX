@@ -21,6 +21,7 @@ import type {
   ComposerDraftKey,
   ComposerDeliveryIntent,
   ComposerDocumentToken,
+  ComposerSkillInvocation,
   ComposerPlacement,
   ComposerSubmitOutcome,
   ComposerSurface,
@@ -31,7 +32,7 @@ import { createTaskSession, executeComposerSubmitTransaction } from './composerS
 import { composerDraftStore } from './composerDraftStore.js'
 import {
   createComposerDocumentWithSkill,
-  skillInvocationFromComposerDocument,
+  skillInvocationsFromComposerDocument,
 } from './composerSkillToken.js'
 import {
   skillToComposerCommand,
@@ -182,33 +183,23 @@ export function useDesktopComposerController({
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
   const [runtimeSkillsLoaded, setRuntimeSkillsLoaded] = useState(false)
-  const [selectedSkillToken, setSelectedSkillToken] =
-    useState<ComposerSkillCommand | null>(null)
+  const [selectedSkillTokens, setSelectedSkillTokens] = useState<ComposerSkillCommand[]>(
+    () => restoreSkillTokens(draftSkills(initialDraftRef.current), []),
+  )
   const [contextTokens, setContextTokens] = useState<ComposerDocumentToken[]>(
     () => contextTokensFromDocument(initialDraftRef.current.document.tokens),
   )
 
-  const activeSkillToken = resolveActiveComposerSkillToken(
-    workingPlugin,
-    selectedSkillToken,
-    skillCommands,
-  )
-  const activeSkillInvocation = useMemo(
-    () =>
-      activeSkillToken
-        ? {
-            name: activeSkillToken.skill.name,
-            path: activeSkillToken.skill.path,
-          }
-        : undefined,
-    [activeSkillToken?.skill.name, activeSkillToken?.skill.path],
+  const activeSkillToken = selectedSkillTokens[0] ?? null
+  const selectedSkillToken = activeSkillToken
+  const activeSkills = useMemo(
+    () => selectedSkillTokens.map(command => ({ name: command.skill.name, path: command.skill.path })),
+    [selectedSkillTokens],
   )
   const composerDocument = useMemo(() => {
-    const base = activeSkillInvocation
-      ? createComposerDocumentWithSkill(input, activeSkillInvocation)
-      : createComposerDocument(input)
+    const base = createComposerDocumentWithSkill(input, activeSkills)
     return { ...base, tokens: [...base.tokens, ...contextTokens] }
-  }, [activeSkillInvocation?.name, activeSkillInvocation?.path, contextTokens, input])
+  }, [activeSkills, contextTokens, input])
   const workingPluginSkillUnavailable = false
 
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
@@ -278,9 +269,9 @@ export function useDesktopComposerController({
         setDraftStoreVersion(value => value + 1)
         const currentDraft = composerDraftStore.get(draftKey)
         draftClientIdRef.current = currentDraft.clientId
-        setSelectedSkillToken(
-          restoreSkillToken(
-            currentDraft.skillInvocation,
+        setSelectedSkillTokens(
+          restoreSkillTokens(
+            draftSkills(currentDraft),
             skillCommands,
           ),
         )
@@ -297,8 +288,8 @@ export function useDesktopComposerController({
     activeDraftKeyRef.current = draftKey
     const nextDraft = composerDraftStore.get(draftKey)
     setGoalModeEnabled(false)
-    setSelectedSkillToken(
-      restoreSkillToken(nextDraft.skillInvocation, skillCommands),
+    setSelectedSkillTokens(
+      restoreSkillTokens(draftSkills(nextDraft), skillCommands),
     )
     setContextTokens(contextTokensFromDocument(nextDraft.document.tokens))
     setLastSubmitOutcome(null)
@@ -311,11 +302,10 @@ export function useDesktopComposerController({
       clientId: draftClientIdRef.current,
       document: composerDocument,
       attachments,
-      skillInvocation: activeSkillInvocation,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }))
   }, [
-    activeSkillInvocation,
+    activeSkills,
     attachments,
     composerDocument,
     draftKey,
@@ -325,7 +315,7 @@ export function useDesktopComposerController({
   useEffect(() => {
     if (subagentMode) {
       setSkillCommands([])
-      setSelectedSkillToken(null)
+      setSelectedSkillTokens([])
       setRuntimeSkillsLoaded(true)
       return
     }
@@ -338,9 +328,9 @@ export function useDesktopComposerController({
           if (!cancelled) {
             setSkillCommands(commands)
             setRuntimeSkillsLoaded(true)
-            setSelectedSkillToken(
-              restoreSkillToken(
-                composerDraftStore.get(draftKey).skillInvocation,
+            setSelectedSkillTokens(
+              restoreSkillTokens(
+                draftSkills(composerDraftStore.get(draftKey)),
                 commands,
               ),
             )
@@ -423,7 +413,7 @@ export function useDesktopComposerController({
         )
         if (activeDraftKeyRef.current === sourceDraftKey) {
           if (clearContent) {
-            setSelectedSkillToken(null)
+            setSelectedSkillTokens([])
             setGoalModeEnabled(false)
           }
           draftClientIdRef.current = nextDraft.clientId
@@ -456,7 +446,8 @@ export function useDesktopComposerController({
       clientId: draftClientIdRef.current,
       document: composerDocument ?? createComposerDocument(input),
       attachments,
-      skillInvocation: activeSkillInvocation,
+      skills: draftSkills(composerDraftStore.get(sourceDraftKey)),
+      skillInvocation: undefined,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }
     const isNewSession = placement === 'new-session'
@@ -526,7 +517,7 @@ export function useDesktopComposerController({
     composerDraftStore.clearSubmitOutcome(acceptedDraftKey)
     if (activeDraftKeyRef.current === acceptedDraftKey) {
       if (clearContent) {
-        setSelectedSkillToken(null)
+        setSelectedSkillTokens([])
         setGoalModeEnabled(false)
       }
       draftClientIdRef.current = nextDraft.clientId
@@ -643,24 +634,20 @@ export function useDesktopComposerController({
     handleRemoveAttachment,
     handleComposerDocumentChange: (document: ComposerDraft['document']) => {
       setContextTokens(contextTokensFromDocument(document.tokens))
-      const skillInvocation = skillInvocationFromComposerDocument(document)
-      if (sameSkillInvocation(skillInvocation, activeSkillInvocation)) return
-      composerDraftStore.setSkillInvocation(draftKey, skillInvocation ?? undefined)
-      setSelectedSkillToken(
-        restoreSkillToken(skillInvocation ?? undefined, skillCommands),
-      )
-      if (!skillInvocation && workingPlugin) onWorkingPluginChange?.(null)
+      const skills = skillInvocationsFromComposerDocument(document)
+      const currentSkills = draftSkills(composerDraftStore.get(draftKey))
+      if (skills.length === currentSkills.length && skills.every((skill, index) => sameSkillInvocation(skill, currentSkills[index]))) return
+      composerDraftStore.setSkills(draftKey, skills)
+      setSelectedSkillTokens(restoreSkillTokens(skills, skillCommands))
+      if (!skills.length && workingPlugin) onWorkingPluginChange?.(null)
     },
     handleSkillDeselect: () => {
-      composerDraftStore.setSkillInvocation(draftKey, undefined)
-      setSelectedSkillToken(null)
+      composerDraftStore.setSkills(draftKey, [])
+      setSelectedSkillTokens([])
     },
     handleSkillSelect: (skill: ComposerSkillCommand) => {
-      composerDraftStore.setSkillInvocation(draftKey, {
-        name: skill.skill.name,
-        path: skill.skill.path,
-      })
-      setSelectedSkillToken(skill)
+      const nextDraft = composerDraftStore.addSkill(draftKey, { name: skill.skill.name, path: skill.skill.path })
+      setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
     },
     handleSubmit,
     handleCompositionEnd: () => {
@@ -791,12 +778,20 @@ function errorMessageOf(error: unknown): string {
   return toUserErrorMessage(error, 'thread-send')
 }
 
+function draftSkills(draft: ComposerDraft): ComposerSkillInvocation[] {
+  return draft.skills ?? (draft.skillInvocation ? [draft.skillInvocation] : skillInvocationsFromComposerDocument(draft.document))
+}
+
+function restoreSkillTokens(skills: ComposerSkillInvocation[], commands: ComposerSkillCommand[]): ComposerSkillCommand[] {
+  return skills.map(skill => restoreSkillToken(skill, commands)!)
+}
+
 function restoreSkillToken(
   invocation: ComposerDraft['skillInvocation'],
   commands: ComposerSkillCommand[],
 ): ComposerSkillCommand | null {
   if (!invocation) return null
-  const command = commands.find(item => item.skill.name === invocation.name)
+  const command = commands.find(item => item.skill.name === invocation.name && item.skill.path === invocation.path)
   return {
     id: `skill:${invocation.name}`,
     trigger: invocation.name,

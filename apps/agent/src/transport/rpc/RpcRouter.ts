@@ -285,6 +285,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
   const body = decodeParams(decodeTurnStart, raw, "turn/start")
   return {
     content: body.content,
+    ...(body.skills ? { skills: body.skills } : {}),
     model: body.model,
     permissionConfig: supportedPermissionConfig(body.permissionConfig),
     strategy: "start",

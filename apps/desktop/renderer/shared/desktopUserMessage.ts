@@ -20,6 +20,7 @@ export function desktopUserMessageInputToPreviewText(
   const text = input.text.trim()
   const attachments = input.attachments ?? []
   const parts = [
+    ...(input.skills?.map(skill => `$${skill.name}`) ?? []),
     formatCanonicalSkillInvocation(input.skillInvocation, text),
   ]
   if (attachments.length > 0) {

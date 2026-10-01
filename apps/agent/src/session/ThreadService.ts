@@ -456,10 +456,10 @@ export class ThreadService {
     return this.orchestrator.compact(threadID, undefined, preview?.instructions ?? "")
   }
 
-  private duplicateAdmission(threadID: string, inputID: string, content: string) {
+  private duplicateAdmission(threadID: string, inputID: string, content: string, skills?: SubmitMessage["skills"]) {
     const existing = this.db.inputAdmission(inputID)
     if (!existing) return null
-    if (existing.thread_id !== threadID || existing.content !== content) {
+    if (existing.thread_id !== threadID || existing.content !== content || JSON.stringify(skills ?? []) !== JSON.stringify(existing.skills ? JSON.parse(existing.skills) : [])) {
       throw new AgentError("CONFLICT", "inputId 已被其他请求使用", 409)
     }
     return {
@@ -495,12 +495,28 @@ export class ThreadService {
 
   private async validateAdmission(threadID: string, input: SubmitMessage) {
     this.get(threadID)
-    if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
+    if (!input.content.trim() && !input.skills?.length) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
     await this.workspaceResolver.resolve(threadID)
+    if (input.skills?.length) {
+      const skills = await this.inputSkillService(threadID)
+      skills.resolveInvocations(input.content, input.skills)
+    }
     const model = await this.resolveAvailableModel([input.model])
     if (!model.capabilities.tools) {
       await this.emit(threadID, null, "turn/statusChanged", { state: "model-tools-unavailable", model: input.model, message: "该模型不支持工具调用，主 Agent只能给出文字回复" })
     }
+  }
+
+  private async inputSkillService(threadID: string) {
+    const runtime = await this.workspaceResolver.resolve(threadID)
+    const service = this.skillManagement?.runtimeService() ?? new SkillService()
+    await service.scan({
+      workspaceRoot: runtime.workspaceRoot,
+      dataRoot: this.promptStorage.dataRoot,
+      userHome: this.promptStorage.userHome,
+      includeWorkspace: runtime.kind === "project",
+    })
+    return service
   }
 
   private async publishCreatedTurn(created: ReturnType<AgentDatabase["createTurn"]>) {
@@ -560,7 +576,7 @@ export class ThreadService {
   }
 
   private async startTurnLocked(threadID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[], contextReferenceIDs: readonly string[], transition?: { beforeCreate: () => void; afterCreate: (turnID: string) => void }, goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }) {
-      const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
+      const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
       this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
@@ -603,12 +619,12 @@ export class ThreadService {
       if (queueMeta) {
         const operation = this.db.lookupQueueOperation(threadID, "queue/add", queueMeta.operationID)
         if (operation) {
-          const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
+          const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
           if (!duplicate) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他排队消息", 409)
           return duplicate
         }
       }
-      const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
+      const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
       if (duplicate) return duplicate
       await this.validateAdmission(threadID, input)
       this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
@@ -638,13 +654,14 @@ export class ThreadService {
 
   async steerTurn(threadID: string, turnID: string, input: SubmitMessage, inputID: string, attachmentIDs: readonly string[] = [], contextReferenceIDs: readonly string[] = []) {
     return this.coordinator.exclusive(threadID, async () => {
-      const duplicate = this.duplicateAdmission(threadID, inputID, input.content)
+      const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
       if (duplicate) {
         if (duplicate.turnID !== turnID) throw new AgentError("CONFLICT", "inputId 已被其他 Turn 使用", 409)
         return duplicate
       }
       this.get(threadID)
-      if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
+      if (!input.content.trim() && !input.skills?.length) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
+      if (input.skills?.length) (await this.inputSkillService(threadID)).resolveInvocations(input.content, input.skills)
       const live = this.coordinator.active(threadID)
       const active = this.db.activeTurn(threadID)
       const actualTurnID = live?.turnID ?? active?.id
@@ -684,7 +701,18 @@ export class ThreadService {
       const textAttachments = attachments.flatMap((attachment) => attachment.kind === "text"
         ? [`<attachment name=${JSON.stringify(attachment.name)}>${attachment.text}</attachment>`]
         : [])
-      const content = [...textAttachments, input.content].filter(Boolean).join("\n\n")
+      const skills = await this.inputSkillService(threadID)
+      const selected = skills.resolveInvocations(input.content, input.skills)
+      const snapshot = this.db.repositories.runtimeCompositions.get(turnID)?.snapshot
+      if (snapshot) {
+        const catalog = snapshot.version === 2 ? snapshot.skills.catalog : snapshot.skills.skills
+        if (selected.some(skill => !catalog.some(frozen => frozen.name === skill.name && frozen.hash === skill.hash))) {
+          throw new AgentError("SKILL_SNAPSHOT_STALE", "所选 Skill 与当前回合快照不同，请作为下一轮消息发送", 409)
+        }
+      }
+      const skillData = await skills.invocationData(input.content, input.skills)
+      this.db.repositories.runtimeCompositions.recordReferencedSkills(turnID, skills.referencedSkills())
+      const content = [...textAttachments, ...skillData, input.content].filter(Boolean).join("\n\n")
       const images = attachments.flatMap((attachment) => attachment.kind === "image"
         ? [{ type: "image" as const, data: attachment.base64, mimeType: attachment.mediaType }]
         : [])
@@ -704,12 +732,14 @@ export class ThreadService {
     return result
   }
 
-  async updateQueue(threadID: string, inputID: string, content: string, attachmentIDs: readonly string[] | undefined, contextReferenceIDs: readonly string[] | undefined, meta: QueueMutationMeta) {
+  async updateQueue(threadID: string, inputID: string, content: string, attachmentIDs: readonly string[] | undefined, contextReferenceIDs: readonly string[] | undefined, meta: QueueMutationMeta, skills?: SubmitMessage["skills"]) {
     const duplicate = this.db.lookupQueueOperation(threadID, "queue/update", meta.operationID)
     if (duplicate) return duplicate
-    if (!content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
     const queued = this.db.queuedInput(inputID)
     if (!queued || queued.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+    const nextSkills = skills ?? this.db.getTurnInput(queued.turn_id)?.skills
+    if (!content.trim() && !nextSkills?.length) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
+    if (nextSkills?.length) (await this.inputSkillService(threadID)).resolveInvocations(content, nextSkills)
     const desired = attachmentIDs ? [...attachmentIDs] : null
     if (desired && (desired.length > 8 || new Set(desired).size !== desired.length)) throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每条排队消息最多包含 8 个不重复附件", 413)
     const binding = { type: "input", id: inputID } as const
@@ -731,7 +761,7 @@ export class ThreadService {
       if (removed.length) await this.attachments.unbind(removed, binding)
       if (added.length) await this.attachments.bind(added, binding)
       const mutation = this.db.transaction(() => {
-        const value = this.db.updateQueuedInput(threadID, inputID, content.trim(), meta)
+        const value = this.db.updateQueuedInput(threadID, inputID, content.trim(), meta, skills)
         this.localContextPaths?.repository.bindInput(threadID, inputID, nextContextIDs)
         return value
       })
@@ -819,7 +849,7 @@ export class ThreadService {
       const content = input.content
       const runtime = await this.workspaceResolver.resolve(threadID)
       const projectID = runtime.projectID
-      const workspace = runtime.workspace
+      let workspace = runtime.workspace.withReadOnlyPaths([])
       const localContextReferences = this.localContextPaths?.repository.listAuthorized(threadID) ?? []
       workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       const existingReviewSnapshot = this.db.getTurnGitSnapshot(threadID, turnID)
@@ -882,8 +912,8 @@ export class ThreadService {
         includeWorkspace: runtime.kind === "project",
       })
       mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
-      const invokedSkill = skillService.resolveInvocation(content)
-      const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
+      const invokedSkillData = await skillService.invocationData(content, input.skills)
+      workspace = workspace.withReadOnlyPaths(skillCatalog.skills.map(skill => ({ path: skill.root, kind: "directory" as const })))
       const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.projectID) } : {}) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
       const effectivePermissionConfig = resolveEffectivePermissionConfig(input.taskMode, input.permissionConfig)
@@ -897,7 +927,6 @@ export class ThreadService {
         ...(sideChat ? { delegationEnabled: false } : {}),
         ...(runtime.kind === "project" && this.projectSources ? { hasProjectSources: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
-        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         ...(currentGoal?.status === "active" ? { hasActiveGoal: true } : {}),
       }).exposed
@@ -1021,7 +1050,6 @@ export class ThreadService {
             ) => this.projectSources!.read(runtime.projectID, sourceID, range),
           },
         } : {}),
-        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle) => {
           composedBundle = bundle

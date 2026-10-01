@@ -33,11 +33,15 @@ export type InputDelivery = typeof InputDeliverySchema.Type
 export const InputOriginSchema = Schema.Literals(["user", "goal-continuation"])
 export type InputOrigin = typeof InputOriginSchema.Type
 
+export const SkillSelectionSchema = Schema.Struct({ name: Schema.String.check(Schema.isMinLength(1)), path: Schema.String.check(Schema.isMinLength(1)) })
+export type SkillSelection = typeof SkillSelectionSchema.Type
+
 export const InputSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
   turnId: Schema.NullOr(Schema.String),
   content: Schema.String,
+  skills: Schema.optional(Schema.Array(SkillSelectionSchema)),
   delivery: InputDeliverySchema,
   origin: Schema.optional(InputOriginSchema),
   mode: TaskModeSchema,

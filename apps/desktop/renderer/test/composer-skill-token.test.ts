@@ -7,9 +7,18 @@ import {
 import {
   createComposerDocumentWithSkill,
   skillInvocationFromComposerDocument,
+  skillInvocationsFromComposerDocument,
 } from '../src/features/session/composer/composerSkillToken.js'
 
 describe('composer skill inline token', () => {
+  test('多个 Skill 标签往返保留身份与顺序，正文不携带命令', () => {
+    const skills = [{ name: 'review', path: 'skills/review' }, { name: 'plan', path: 'builtin://plan/SKILL.md' }]
+    const document = createComposerDocumentWithSkill('检查当前改动', skills)
+    const restored = composerDocumentFromProseMirrorDocument(composerDocumentToProseMirrorDocument(document))
+    expect(restored).toEqual(document)
+    expect(skillInvocationsFromComposerDocument(restored)).toEqual(skills)
+    expect(restored.text).toBe('检查当前改动')
+  })
   test('将单个 Skill 序列化为不进入消息文本的 ProseMirror 原子节点', () => {
     const document = createComposerDocumentWithSkill('检查当前改动', {
       name: 'builtin-helper',

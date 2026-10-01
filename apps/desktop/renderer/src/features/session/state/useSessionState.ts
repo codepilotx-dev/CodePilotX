@@ -845,7 +845,7 @@ export function useSessionState(
           targetSessionId &&
           (value.text.trim() ||
             (value.attachments?.length ?? 0) > 0 ||
-            value.skillInvocation),
+            value.skillInvocation || value.skills?.length),
       ),
       { ...settingsSnapshot, ...selection, providerBaseURL: '' },
       {

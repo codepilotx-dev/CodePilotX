@@ -83,6 +83,7 @@ export interface ToolExecutionContext {
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
   allowedTools?: readonly string[]
   onProgress?: (progress: ToolProgress) => void
+  onSkillDocumentRead?: (path: string, hash: string) => Promise<{ name: string } | undefined>
   /** Immutable tool catalog captured for this turn. */
   toolCatalog?: ToolCatalog
   /** Deferred tool names frozen in the durable turn composition. */
@@ -157,6 +158,19 @@ export class ToolExecutor {
     return this.execute<PermissionDecision>(name, input, { ...context, toolCallID, authorizationOnly: true })
   }
 
+  private async recordSkillRead<T>(name: string, input: Record<string, unknown>, output: T, context: ToolExecutionContext): Promise<T> {
+    if ((name === "Read" || name === "workspace.read") && !context.authorizationOnly && context.onSkillDocumentRead) {
+      const file = output as { path: string; snapshot: { sha256: string; rawSha256?: string }; truncated: boolean }
+      const skill = await context.onSkillDocumentRead(file.path, file.snapshot.rawSha256 ?? file.snapshot.sha256)
+      if (skill) {
+        const status = file.truncated || input.offset ? "partial" : "loaded"
+        context.onProgress?.({ message: `${status === "loaded" ? "已加载" : "正在读取"} Skill ${skill.name}` })
+        return { ...file, skill: { ...skill, status } } as T
+      }
+    }
+    return output
+  }
+
   async execute<T = unknown>(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<T> {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
     const requestStartedAt = Date.now()
@@ -204,7 +218,7 @@ export class ToolExecutor {
         if (completed.name !== canonicalName || JSON.stringify(storedInput) !== JSON.stringify(normalized)) {
           throw new AgentError("TOOL_CALL_ID_CONFLICT", "toolCallId 已被不同的工具调用使用", 409)
         }
-        return completed.output as T
+        return this.recordSkillRead(canonicalName, normalized, completed.output as T, context)
       }
     }
     const profile = context.profile ?? "main"
@@ -483,6 +497,7 @@ export class ToolExecutor {
           ?? (await workspace.readEditorFile(filePath)).revision
         if (savedSnapshotKey) this.readSnapshots.set(savedSnapshotKey, revision)
       }
+      output = await this.recordSkillRead(name, input, output, context)
       const safeOutput = secretScrubber.scrub(output)
       this.options?.recordToolCall?.(auditInvocation, "completed", safeOutput, null, startedAt)
       if (!skipProjectHooks) {

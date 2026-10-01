@@ -52,8 +52,8 @@ describe("thread goal schema migration", () => {
     seeded.close()
 
     const migrated = new AgentDatabase(path)
-    expect(SCHEMA_VERSION).toBe(49)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 49 })
+    expect(SCHEMA_VERSION).toBe(50)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
 
     const visible = migrated.repositories.threadGoals.get(visibleThread.id)
     expect(visible).toMatchObject({
@@ -118,7 +118,7 @@ describe("thread goal schema migration", () => {
     seeded.close()
 
     const migrated = new AgentDatabase(path)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 49 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(tableNames(migrated)).toEqual([
       "thread_goal_active_intervals", "thread_goal_continuations", "thread_goal_history", "thread_goal_operations",
       "thread_goal_usage_ledger", "thread_goals",

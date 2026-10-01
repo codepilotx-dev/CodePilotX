@@ -843,8 +843,12 @@ export const ThreadCompactParamsSchema = Schema.Struct({
 })
 export const ThreadCompactResultSchema = Schema.Struct({ compaction: CompactionSchema })
 
+export const SkillSelectionSchema = AgentThread.SkillSelectionSchema
+export type SkillSelection = typeof SkillSelectionSchema.Type
+
 const TurnContentFields = {
-  content: NonEmptyStringSchema,
+  content: Schema.String,
+  skills: Schema.optional(Schema.Array(SkillSelectionSchema)),
   attachmentIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
   contextReferenceIds: Schema.optional(Schema.Array(OpaqueIDSchema)),
 }

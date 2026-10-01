@@ -49,7 +49,7 @@ export interface SkillSnapshot {
 
 /**
  * Referenced-only Skills snapshot used by V2 compositions. `catalog` holds only
- * skill_list-safe metadata (no filesystem paths); `referenced` records name/hash
+ * frozen metadata (no filesystem paths); `referenced` records name/hash
  * pairs for skills whose content was expanded into the prompt or successfully
  * read. Only referenced skills are validated fail-closed on resume.
  */
@@ -158,6 +158,7 @@ export interface RuntimeCompositionBindings {
   readonly skills: {
     list(): SkillSnapshotV2["catalog"] | SkillSnapshot["skills"]
     read(name: string): Promise<unknown>
+    documentRead(path: string, hash: string): Promise<{ name: string } | undefined>
   }
   release(): Promise<void>
 }

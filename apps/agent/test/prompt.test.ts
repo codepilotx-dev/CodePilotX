@@ -60,6 +60,29 @@ describe("Skills catalog", () => {
     return root
   }
 
+  test("多选优先、文本提及去重、代码示例不触发，身份失效不退回同名项", async () => {
+    const root = await temporaryDirectory()
+    await writeSkill(root, ".agents", "review", "---\nname: review\ndescription: review changes\n---\nreview body")
+    await writeSkill(root, ".agents", "plan", "---\nname: plan\ndescription: plan changes\ndisable-model-invocation: true\n---\nplan body")
+    const service = new SkillService()
+    const { skills } = await service.scan({ workspaceRoot: root, dataRoot: root, userHome: root })
+    const plan = skills.find(skill => skill.name === "plan")!
+    expect(service.resolveInvocations("先 $review，再 $plan 和 $review", [{ name: plan.name, path: plan.path }]).map(skill => skill.name)).toEqual(["plan", "review"])
+    expect(service.resolveInvocations("`$review`\n```ts\n$plan\n```\n$unknown")).toEqual([])
+    expect(service.resolveInvocations("$plan").map(skill => skill.name)).toEqual(["plan"])
+    expect(() => service.resolveInvocations("$plan", [{ name: "plan", path: "other/SKILL.md" }])).toThrow("所选 Skill")
+    const catalog = createPromptSections({ mode: "chat", profile: "main", permissionInstructions: "read-only", skills, userMessage: "hello" }).find(section => section.id === "skills.catalog")!.content
+    expect(catalog).toContain("use Read")
+    expect(catalog).toContain(skills.find(skill => skill.name === "review")!.documentPath.replaceAll("\\", "\\\\"))
+    expect(catalog).not.toContain("$plan:")
+    const loaded = await service.invocationData("$review")
+    expect(loaded[0]).toContain("review body")
+    const explicit = await service.invocationData("你好", [{ name: plan.name, path: plan.path }])
+    expect(explicit[0]).toContain("plan body")
+    await writeFile(skills.find(skill => skill.name === "review")!.documentPath, "changed", "utf8")
+    await expect(service.read("review")).rejects.toThrow("Skill 内容已变化")
+  })
+
   test("workspace 和原生目录优先，并可按需读取正文", async () => {
     const workspace = await temporaryDirectory()
     const user = await temporaryDirectory()

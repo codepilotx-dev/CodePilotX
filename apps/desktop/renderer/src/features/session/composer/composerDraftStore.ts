@@ -6,6 +6,7 @@ import type {
   ComposerSubmitOutcome,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
+import { skillInvocationsFromComposerDocument } from './composerSkillToken.js'
 
 type CreateClientId = () => string
 
@@ -71,6 +72,7 @@ export class ComposerDraftStore {
     const next = this.update(key, current => ({
       ...current,
       skillInvocation,
+      skills: skillInvocation ? [{ ...skillInvocation }] : [],
     }))
     this.#emit()
     return next
@@ -96,6 +98,18 @@ export class ComposerDraftStore {
     const next = createEmptyComposerDraft(this.#createClientId())
     this.#drafts.set(key, next)
     return cloneDraft(next)
+  }
+
+  setSkills(key: ComposerDraftKey, skills: ComposerSkillInvocation[]): ComposerDraft {
+    const next = this.update(key, current => ({ ...current, skills, skillInvocation: undefined }))
+    this.#emit()
+    return next
+  }
+
+  addSkill(key: ComposerDraftKey, skill: ComposerSkillInvocation): ComposerDraft {
+    const current = this.get(key)
+    const skills = current.skills ?? (current.skillInvocation ? [current.skillInvocation] : skillInvocationsFromComposerDocument(current.document))
+    return this.setSkills(key, skills.some(selected => selected.path === skill.path) ? skills : [...skills, skill])
   }
 
   completeSubmission(
@@ -176,6 +190,7 @@ export function cloneDraft(draft: ComposerDraft): ComposerDraft {
     ...draft,
     document: cloneDocument(draft.document),
     attachments: draft.attachments.map(attachment => ({ ...attachment })),
+    skills: draft.skills?.map(skill => ({ ...skill })),
     skillInvocation: draft.skillInvocation
       ? { ...draft.skillInvocation }
       : undefined,

@@ -166,7 +166,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           timestamp,
           timestamp,
         )
-        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
           inputID,
           threadID,
           turnID,
@@ -180,6 +180,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           status === "queued" ? "queued" : "active",
           timestamp,
           input.origin ?? null,
+          input.skills ? stringify(input.skills) : null,
         )
         this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
         const method = status === "queued" ? "turn/queued" : "turn/started"
@@ -221,7 +222,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           taskMode: input.taskMode,
           permissionConfig: input.permissionConfig,
         })
-        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
+        this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?, ?)`).run(
           id,
           threadID,
           turnID,
@@ -232,6 +233,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           input.permissionConfig.approvalsReviewer,
           input.taskMode,
           timestamp,
+          input.skills ? stringify(input.skills) : null,
         )
         this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
         const event = this.insertEvent(threadID, turnID, "queue/updated", {
@@ -246,7 +248,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
 
   inputAdmission(inputID: string) {
       return this.sqlite.query(`
-        SELECT id, thread_id, turn_id, content, strategy
+        SELECT id, thread_id, turn_id, content, strategy, skills
         FROM inputs WHERE id = ?
       `).get(inputID) as {
         id: string
@@ -254,6 +256,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         turn_id: string
         content: string
         strategy: string
+        skills: string | null
       } | null
     }
 
@@ -269,13 +272,14 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     }
 
   guideMailbox(turnID: string) {
-      const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at, id").all(turnID) as Array<{
+      const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode, skills FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at, id").all(turnID) as Array<{
         id: string
         content: string
         model_ref: string
         task_mode: TaskMode
+        skills: string | null
       } & PermissionColumns>
-      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
+      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode, ...(row.skills ? { skills: parse<NonNullable<SubmitMessage["skills"]>>(row.skills) } : {}) }))
     }
 
   consumeGuideMailbox(turnID: string, inputIDs: readonly string[]) {
@@ -676,12 +680,13 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       })
     }
 
-  updateQueuedInput(threadID: string, inputID: string, content: string, meta: QueueMutationMeta) {
+  updateQueuedInput(threadID: string, inputID: string, content: string, meta: QueueMutationMeta, skills?: SubmitMessage["skills"]) {
       return this.mutateQueue(threadID, "queue/update", "edited", meta, () => {
         const input = this.queuedInput(inputID)
         if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
         const timestamp = now()
         this.sqlite.query("UPDATE inputs SET content = ? WHERE id = ?").run(content, inputID)
+        if (skills !== undefined) this.sqlite.query("UPDATE inputs SET skills = ? WHERE id = ?").run(stringify(skills), inputID)
         this.sqlite.query("UPDATE messages SET content = ? WHERE id = ?").run(content, inputID)
         this.sqlite.query("UPDATE threads SET preview = (SELECT substr(content, 1, 180) FROM messages WHERE thread_id = ? ORDER BY ordinal DESC, created_at DESC, id DESC LIMIT 1) WHERE id = ?").run(threadID, threadID)
         this.sqlite.query("UPDATE agent_executions SET task = ?, updated_at = ? WHERE turn_id = ?").run(content, timestamp, input.turn_id)
@@ -730,11 +735,11 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     }
 
   getTurnInput(turnID: string) {
-      const row = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
-        | ({ id: string; content: string; model_ref: string; strategy: StoredInputDelivery; task_mode: TaskMode } & PermissionColumns)
+      const row = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, skills FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
+        | ({ id: string; content: string; model_ref: string; strategy: StoredInputDelivery; task_mode: TaskMode; skills: string | null } & PermissionColumns)
         | null
       if (!row) return null
-      return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage & { id: string }
+      return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode, ...(row.skills ? { skills: parse(row.skills) } : {}) } as SubmitMessage & { id: string }
     }
 
   getTurnStatus(turnID: string): TurnStatus | null {

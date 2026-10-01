@@ -269,8 +269,8 @@ export function agentQueuedFollowUpsToDesktop(
     if (!input) return []
     return [{
       id: input.id,
-      input: { text: input.content },
-      previewText: input.content,
+      input: { text: input.content, ...(input.skills ? { skills: input.skills } : {}) },
+      previewText: [...(input.skills?.map(skill => `$${skill.name}`) ?? []), input.content].join(' '),
       createdAt: iso(input.createdAt),
     }]
   })
@@ -381,7 +381,7 @@ function inputToSessionEvent(input: Input): DesktopSessionEvent {
     sessionId: input.threadId,
     type: 'message',
     role: 'user',
-    content: input.content,
+    content: [...(input.skills?.map(skill => `$${skill.name}`) ?? []), input.content].filter(Boolean).join('\n\n'),
     createdAt: iso(input.createdAt),
     metadata: {
       inputID: input.id,

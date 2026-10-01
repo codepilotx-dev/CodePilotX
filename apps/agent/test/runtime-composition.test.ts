@@ -10,6 +10,9 @@ import { RuntimeCompositionService } from "../src/runtime-composition/service"
 import { composeRuntimeComposition, createMcpGenerationBinding, rebindRuntimeComposition } from "../src/runtime-composition/composer"
 import type { RuntimeCompositionSnapshotV1, RuntimeCompositionSnapshotV2 } from "../src/runtime-composition/types"
 import { SkillService } from "../src/prompt/SkillService"
+import { WorkspaceService } from "../src/workspace/WorkspaceService"
+import { ToolRegistry } from "../src/tool/ToolRegistry"
+import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { removeFixturePaths } from "./fixture-cleanup"
 
 const paths: string[] = []
@@ -404,6 +407,30 @@ describe("RuntimeCompositionSnapshotV2 引用证据持久化与组合身份", ()
 
     const ok = composeRuntimeComposition({ ...input, recordReferenced: () => undefined })
     await expect(ok.bindings.skills.read("beta")).resolves.toMatchObject({ name: "beta" })
+  })
+
+  test("普通 Read 记录冻结 Skill 引用，正文变化与引用持久化失败不能报告加载成功", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-skill-read-"))
+    paths.push(root)
+    await writeSkill(root, "alpha", "alpha body")
+    const service = await scan(root)
+    const workspace = await WorkspaceService.open(root)
+    const skill = service.list()[0]!
+    const input = await baseComposeInput(root, service, { workspace })
+    const recorded: string[] = []
+    const composition = composeRuntimeComposition({ ...input, recordReferenced: name => { recorded.push(name) } })
+    const toolRecords: Array<{ status: string; output: unknown }> = []
+    const executor = new ToolExecutor(new ToolRegistry(), { dataDir: root, authorizeShell: async () => { throw new Error("unexpected shell") }, recordToolCall: (_invocation, status, output) => { toolRecords.push({ status, output }) } })
+    const context = { threadID: input.threadID, turnID: input.turnID, agentID: "agent-test", taskMode: "chat" as const, signal: new AbortController().signal, permissionConfig: DEFAULT_PERMISSION_CONFIG, workspace, onSkillDocumentRead: composition.bindings.skills.documentRead }
+    const result = await executor.execute<{ skill: { name: string; status: string } }>("Read", { file_path: skill.documentPath }, context)
+    expect(result.skill).toEqual({ name: "alpha", status: "loaded" })
+    expect(toolRecords.at(-1)).toMatchObject({ status: "completed", output: { skill: { name: "alpha" } } })
+    expect(recorded).toEqual(["alpha"])
+    const failing = composeRuntimeComposition({ ...input, skillService: await scan(root), recordReferenced: () => { throw new Error("durable write failed") } })
+    await expect(executor.execute("Read", { file_path: skill.documentPath }, { ...context, onSkillDocumentRead: failing.bindings.skills.documentRead })).rejects.toThrow("durable write failed")
+    expect(toolRecords.at(-1)?.status).toBe("error")
+    await writeFile(skill.documentPath, "changed", "utf8")
+    await expect(executor.execute("Read", { file_path: skill.documentPath }, context)).rejects.toThrow("Skill snapshot is stale")
   })
 
   test("repository 持久化 V2 引用证据；缺表时 no-op 且 fresh ephemeral 仍可工作", async () => {

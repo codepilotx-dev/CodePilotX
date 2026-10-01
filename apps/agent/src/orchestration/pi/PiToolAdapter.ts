@@ -85,6 +85,7 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
           ? { frozenDeferredToolNames: request.frozenDeferredToolNames }
           : {}),
         onProgress: (progress) => onUpdate?.(textResult(progress)),
+        ...(request.onSkillDocumentRead ? { onSkillDocumentRead: request.onSkillDocumentRead } : {}),
       })
       if (definition.formatResult) {
         const formatted = definition.formatResult(output, toolContext)

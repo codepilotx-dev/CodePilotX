@@ -418,6 +418,7 @@ export class ThreadProjection {
       threadId: String(row.thread_id),
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
+      ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
       delivery: inputDelivery(row.strategy),
       ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],
@@ -538,11 +539,12 @@ export class ThreadProjection {
     `).all(threadId) as Array<{ input_id: string; id: string; name: string; path: string; kind: LocalContextReference["kind"]; created_at: number }>
     const contextIDsByInput = new Map<string, string[]>()
     for (const row of contextRows) contextIDsByInput.set(row.input_id, [...(contextIDsByInput.get(row.input_id) ?? []), row.id])
-    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
+    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin, skills FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
       turnId: row.turn_id ? String(row.turn_id) : null,
       content: String(row.content),
+      ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
       delivery: inputDelivery(row.strategy),
       ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],
@@ -654,7 +656,7 @@ export class ThreadProjection {
     const placeholders = allTurnIDs.map(() => "?").join(",")
 
     const inputRows = allTurnIDs.length
-      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin FROM inputs WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`).all(...allTurnIDs) as Array<Record<string, string | number | null>>
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at, origin, skills FROM inputs WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`).all(...allTurnIDs) as Array<Record<string, string | number | null>>
       : []
     const inputIDs = inputRows.map((row) => String(row.id))
     const inputPlaceholders = inputIDs.map(() => "?").join(",")
@@ -700,6 +702,7 @@ export class ThreadProjection {
       threadId: String(row.thread_id),
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
+      ...(row.skills ? { skills: parse(String(row.skills)) } : {}),
       delivery: inputDelivery(row.strategy),
       ...(row.origin ? { origin: String(row.origin) as Input["origin"] } : {}),
       mode: String(row.task_mode) as Input["mode"],

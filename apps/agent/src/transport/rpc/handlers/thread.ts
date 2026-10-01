@@ -275,6 +275,7 @@ export const threadHandlers = {
         if (!activeInput) throw new AgentError("TURN_ID_MISMATCH", "活动 Turn 已变化，请刷新后重试", 409)
         const submitted = await threads.steerTurn(request.threadId, request.turnId, {
           content: request.content,
+          ...(request.skills ? { skills: request.skills } : {}),
           model: activeInput.model,
           permissionConfig: activeInput.permissionConfig,
           strategy: "guide",
@@ -301,7 +302,7 @@ export const threadHandlers = {
       }
       case "queue/update": {
         const request = decodeParams(decodeQueueUpdate, rawParams, "queue/update")
-        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, request.contextReferenceIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, request.contextReferenceIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) }, request.skills)
         return runtime.queueStateResult(request.threadId, mutation.event?.id)
       }
       case "queue/add": {
@@ -311,6 +312,7 @@ export const threadHandlers = {
           model: request.model,
           permissionConfig: request.permissionConfig,
           strategy: "queue",
+          ...(request.skills ? { skills: request.skills } : {}),
           taskMode: request.taskMode,
         }, request.inputId, request.attachmentIds ?? [], request.contextReferenceIds ?? [], {
           operationID: request.operationId,

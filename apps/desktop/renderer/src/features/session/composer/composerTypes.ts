@@ -143,6 +143,7 @@ export type ComposerDraft = {
   document: ComposerDocument
   attachments: DesktopComposerAttachment[]
   skillInvocation?: ComposerSkillInvocation
+  skills?: ComposerSkillInvocation[]
   collaborationMode: ComposerCollaborationMode
   suggestionOrigin?: string
 }

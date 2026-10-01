@@ -3399,6 +3399,15 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
+  test("显式多 Skill 与空正文在 start、steer、queue 中使用同一契约", () => {
+    const skills = [{ name: "review", path: "builtin://review/SKILL.md" }, { name: "plan", path: "plugin://tools/skills/plan/SKILL.md" }]
+    for (const method of ["turn/start", "turn/steer", "queue/add", "queue/update"] as const) {
+      const decode = Schema.decodeUnknownSync(RpcMethods[method].params)
+      expect(decode({ ...fixtures[method].params, content: "", skills })).toMatchObject({ content: "", skills })
+      expect(() => decode({ ...fixtures[method].params, skills: [{ name: "review", path: "" }] })).toThrow()
+    }
+    expect(Capabilities).toContain("skills.invocation.v1")
+  })
   test("会话组使用唯一能力并停止公开任务看板协议", () => {
     const methods = Object.entries(RpcMethods).filter(([method]) => method.startsWith("session-group/"))
     expect(methods).toHaveLength(10)

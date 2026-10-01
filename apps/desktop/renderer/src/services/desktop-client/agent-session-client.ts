@@ -128,6 +128,7 @@ export const RENDERER_CAPABILITIES = [
   'interaction.recovery.v1',
   'interaction.questionSkip.v1',
   'turn.admission.v1',
+  'skills.invocation.v1',
   'plan.approval.v1',
   'plan.structured.v1',
   'turn.steer.v1',
@@ -1499,6 +1500,7 @@ export function createAgentSessionDesktopClient(
 
   const turnQueueClient = createAgentTurnQueueClient({
     rpc,
+    requireSkillInvocationCapability: () => requireAgentCapability('skills.invocation.v1'),
     awaitPendingSettingsUpdate,
     importMessageContext: importAgentMessageContext,
     resolveModelRef: resolveAgentModelRef,
@@ -3578,9 +3580,11 @@ export function createAgentSessionDesktopClient(
           const imported = shouldReplaceAttachments || shouldReplaceContextReferences
             ? await importAgentMessageContext(sessionId, input)
             : undefined
+          if (input.skills?.length) requireAgentCapability('skills.invocation.v1')
           await turnQueueClient.callQueueMutation(sessionId, 'queue/update', {
             inputId: followUpId,
-            content: desktopUserMessageInputToPreviewText(input),
+            content: desktopUserMessageInputToPreviewText({ ...input, skills: undefined }),
+            ...(input.skills ? { skills: [...input.skills] } : {}),
             ...(shouldReplaceAttachments
               ? { attachmentIds: imported?.attachmentIds ?? [] }
               : {}),

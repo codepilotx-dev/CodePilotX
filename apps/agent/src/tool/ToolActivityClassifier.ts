@@ -327,6 +327,8 @@ export const classifyToolActivity = ({
     return { type: "web_search" }
   }
   if (leaf === "read") {
+    const skillName = textOf(recordOf(recordOf(details).skill), "name")
+    if (skillName) return { type: "read", subject: "skill", target: { displayLabel: skillName } }
     return {
       type: "read",
       subject: "file",

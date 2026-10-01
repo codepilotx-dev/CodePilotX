@@ -43,6 +43,7 @@ export const Capabilities = [
   "pets.management.v1",
   "release-notes.read.v1",
   "skills.manage.v1",
+  "skills.invocation.v1",
   "plugins.manage.v1",
   "plugins.details.v1",
   "integrations.minimax-cli.v1",
