@@ -4,6 +4,7 @@ import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
 import { normalizeThreadTitle } from "./ThreadTitleService"
+import { THREAD_ORIGIN_PROJECTION_SQL } from "../storage/repositories/thread-repository"
 
 export type ThreadMetadataPatch = {
   title?: string | null
@@ -21,6 +22,9 @@ type ThreadRow = {
   latest_turn_status: string | null
   archived_at: number | null
   unread_at: number | null
+  has_scheduled_run: number
+  is_scheduled_session: number
+  is_fork: number
   task_mode: ThreadListItem["settings"]["taskMode"]
   sandbox_mode: ThreadListItem["settings"]["permissionConfig"]["sandboxMode"]
   approval_policy: string
@@ -50,7 +54,7 @@ export class ThreadHistoryService {
     const row = this.db.sqlite.query(`
       SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at,
         t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
-        read_state.unread_at,
+        read_state.unread_at, ${THREAD_ORIGIN_PROJECTION_SQL},
         (SELECT u.status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
       LEFT JOIN thread_read_state AS read_state ON read_state.thread_id = t.id
@@ -62,6 +66,9 @@ export class ThreadHistoryService {
       id: row.id,
       projectID: row.project_id,
       gitBranch: row.git_branch,
+      hasScheduledRun: Boolean(row.has_scheduled_run),
+      isScheduledSession: Boolean(row.is_scheduled_session),
+      isFork: Boolean(row.is_fork),
       ...(workspace ? { workspace } : {}),
       title: row.title,
       preview: row.preview,
