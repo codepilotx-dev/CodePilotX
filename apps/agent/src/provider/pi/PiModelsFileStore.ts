@@ -1,6 +1,5 @@
 import type {
-  Api,
-  Model,
+  AnyModel,
   ModelsStore,
   ModelsStoreEntry,
 } from "@earendil-works/pi-ai";
@@ -20,7 +19,7 @@ interface StoreDocument {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const validModel = (value: unknown): value is Model<Api> =>
+const validModel = (value: unknown): value is AnyModel =>
   isObject(value) &&
   typeof value.id === "string" &&
   typeof value.provider === "string" &&
