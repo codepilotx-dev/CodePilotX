@@ -476,9 +476,9 @@ export function ModelSetupPage(): React.ReactNode {
                   {!providerConnected && selectedProvider.authMethods?.includes('oauth') ? (
                     <OAuthConnection
                       connected={false}
-                      description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
+                      description="在浏览器完成授权，连接此供应商。"
                       target={{ kind: 'provider', providerId: selectedProvider.providerID } as never}
-                      title={`${selectedProvider.displayName} OAuth 授权`}
+                      title={selectedProvider.providerID === 'openai' ? '使用 ChatGPT 登录' : `${selectedProvider.displayName} OAuth 授权`}
                       onChanged={async () => {
                         await providerManagementStore.refresh()
                         setStep('model')

@@ -25,10 +25,11 @@ import { BillingCredentialConnection } from './BillingCredentialConnection.js'
 import { OAuthConnection } from './OAuthConnection.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import { useLocale } from '../../i18n/LocaleProvider.js'
 
 export type ConnectionChoice =
-  | { id: 'inference'; kind: 'inference-key' }
-  | { id: 'inference'; kind: 'inference-oauth' }
+  | { id: 'inference-key'; kind: 'inference-key' }
+  | { id: 'inference-oauth'; kind: 'inference-oauth' }
   | { id: string; kind: 'billing' | 'usage-oauth'; source: UsageSourceDescriptor }
 
 export type ProviderConnectionDialogProps = {
@@ -50,6 +51,7 @@ export function ProviderConnectionDialog({
   onOpenChange,
   onConnected,
 }: ProviderConnectionDialogProps): React.ReactNode {
+  const { t } = useLocale()
   const retainedProvider = useLastNonNull(currentProvider)
   const provider = open ? currentProvider : retainedProvider
   const titleId = useId()
@@ -125,12 +127,20 @@ export function ProviderConnectionDialog({
               )}
               <div>
                 <Dialog.Title id={titleId}>
-                  {selected ? choiceLabel(selected) : `连接 ${provider.displayName}`}
+                  {selected ? t(choiceLabel(selected, provider)) : `连接 ${provider.displayName}`}
                 </Dialog.Title>
                 <Dialog.Description id={descriptionId}>
-                  {selected
-                    ? '完成连接后，此供应商即可直接用于模型推理。'
-                    : '选择模型推理、管理账务或订阅额度的连接方式。'}
+                  {selected?.kind === 'inference-oauth'
+                    ? t(provider.providerID === 'openai'
+                      ? '在浏览器完成登录，连接你的 ChatGPT 账号。'
+                      : '在浏览器完成授权，连接此供应商。')
+                    : selected?.kind === 'usage-oauth'
+                      ? t(selectedSource?.scope === 'subscription'
+                        ? '授权读取订阅额度，不会改变模型推理账号。'
+                        : '授权读取账户用量。')
+                      : selected
+                        ? '完成连接后，此供应商即可直接用于模型推理。'
+                        : '选择模型推理、管理账务或订阅额度的连接方式。'}
                 </Dialog.Description>
               </div>
             </div>
@@ -156,7 +166,7 @@ export function ProviderConnectionDialog({
                       : <ShieldCheck aria-hidden size={APP_ICON_SIZE} />}
                   </span>
                   <span className="model-center-connection-choice-text">
-                    <strong>{choiceLabel(choice)}</strong>
+                    <strong>{t(choiceLabel(choice, provider))}</strong>
                     <small>{choiceDescription(choice)}</small>
                   </span>
                 </button>
@@ -172,12 +182,13 @@ export function ProviderConnectionDialog({
           {selected?.kind === 'inference-oauth' ? (
             <OAuthConnection
               connected={false}
-              description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
+              description="在浏览器完成授权，连接此供应商。"
+              hideHeader
               target={{
                 kind: 'provider',
                 providerId: provider.providerID,
               } as never}
-              title={choiceLabel(selected)}
+              title={choiceLabel(selected, provider)}
               onChanged={connected}
             />
           ) : null}
@@ -185,6 +196,7 @@ export function ProviderConnectionDialog({
           {selected?.kind === 'usage-oauth' && selectedSource ? (
             <OAuthConnection
               connected={false}
+              hideHeader
               description={
                 selectedSource.scope === 'subscription'
                   ? '独立订阅授权仅用于读取套餐额度，不会成为模型推理凭据。'
@@ -222,13 +234,14 @@ export function getProviderConnectionChoices(
   provider: DesktopModelProviderSummary,
   sources: readonly UsageSourceDescriptor[],
 ): ConnectionChoice[] {
-  const inferenceKind = provider.authMethods?.includes('oauth')
-    ? 'inference-oauth' as const
-    : 'inference-key' as const
-  const result: ConnectionChoice[] = [{
-    id: 'inference',
-    kind: inferenceKind,
-  }]
+  const methods = provider.authMethods ?? ['api-key']
+  const result: ConnectionChoice[] = []
+  if (methods.includes('oauth')) {
+    result.push({ id: 'inference-oauth', kind: 'inference-oauth' })
+  }
+  if (methods.includes('api-key')) {
+    result.push({ id: 'inference-key', kind: 'inference-key' })
+  }
   for (const source of sources) {
     if (source.connection.kind !== 'none') continue
     if (source.connectionMethod.kind === 'billing-key') {
@@ -240,9 +253,11 @@ export function getProviderConnectionChoices(
   return result
 }
 
-function choiceLabel(choice: ConnectionChoice): string {
+function choiceLabel(choice: ConnectionChoice, provider: DesktopModelProviderSummary): string {
   if (choice.kind === 'inference-key') return '模型推理 API Key'
-  if (choice.kind === 'inference-oauth') return '模型推理 OAuth'
+  if (choice.kind === 'inference-oauth') {
+    return provider.providerID === 'openai' ? '使用 ChatGPT 登录' : '模型推理 OAuth'
+  }
   return choice.source.displayName
 }
 

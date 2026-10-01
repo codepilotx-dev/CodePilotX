@@ -216,18 +216,18 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header">
             <div>
               <h3>OAuth 授权连接</h3>
-              <p>通过官方账号授权快速连接，令牌将加密保存在本地凭据库。</p>
+              <p>通过官方账号登录，连接此供应商。</p>
             </div>
           </header>
           <div className="model-center-detail-card-body">
             <OAuthConnection
               connected={oauthCredentials.length > 0}
-              description="此授权用于模型推理；令牌保存在当前 Provider 凭据仓库。"
+              description="在浏览器完成授权，连接此供应商。"
               target={{
                 kind: 'provider',
                 providerId: provider.providerID,
               } as never}
-              title={`${provider.displayName} OAuth`}
+              title={provider.providerID === 'openai' ? '使用 ChatGPT 登录' : `${provider.displayName} OAuth`}
               onChanged={onRefresh}
             />
 

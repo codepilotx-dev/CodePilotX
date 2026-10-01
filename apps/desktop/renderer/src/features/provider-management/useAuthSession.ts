@@ -63,6 +63,8 @@ export function useAuthSession({
 
   const start = useCallback(async () => {
     if (!target) return
+    sessionRef.current = null
+    setSession(null)
     setBusy(true)
     setValue('')
     try {
