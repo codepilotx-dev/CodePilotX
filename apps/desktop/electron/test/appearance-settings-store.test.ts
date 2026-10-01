@@ -38,6 +38,15 @@ describe("Electron 外观设置存储", () => {
     await expect(store.restorePreviousAppearance()).rejects.toThrow("无可用升级前外观备份")
   })
 
+  test("Codex(new) 主题选择保存后可重新读取", async () => {
+    const root = temporaryRoot()
+    const store = new AppearanceSettingsStore(root)
+    const current = await store.load()
+    const codeThemeIds = { light: "codex-new-light", dark: "codex-new-dark" }
+    await store.save({ ...current, codeThemeIds })
+    expect((await new AppearanceSettingsStore(root).load()).codeThemeIds).toEqual(codeThemeIds)
+  })
+
   test("损坏 JSON 删除旧文件、记录无敏感信息的事件并恢复默认值", async () => {
     const root = temporaryRoot()
     const records: Array<{ event: string; fields?: Record<string, unknown> }> = []

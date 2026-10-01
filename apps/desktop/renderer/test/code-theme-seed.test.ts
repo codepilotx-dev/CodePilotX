@@ -6,7 +6,7 @@ import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
 } from '../src/features/theme/codeThemeSeed.js'
-import { DEFAULT_DARK_CHROME_THEME } from '../shared/theme.js'
+import { DEFAULT_DARK_CHROME_THEME, DEFAULT_LIGHT_CHROME_THEME } from '../shared/theme.js'
 import { CODEX_HIGHLIGHT_THEMES } from '../shared/codexThemes/manifest.js'
 
 describe('code theme Chrome seed', () => {
@@ -21,6 +21,16 @@ describe('code theme Chrome seed', () => {
         skill: '#751ed9',
       },
     })
+  })
+
+  test('Codex(new) uses current default colors and preserves custom fonts', async () => {
+    for (const variant of ['light', 'dark'] as const) {
+      const defaults = variant === 'light' ? DEFAULT_LIGHT_CHROME_THEME : DEFAULT_DARK_CHROME_THEME
+      const seed = await loadChromeThemeSeed(`codex-new-${variant}`, variant)
+      expect(seed).toMatchObject({ accent: defaults.accent, surface: defaults.surface, ink: defaults.ink, contrast: defaults.contrast, semanticColors: defaults.semanticColors })
+      const fonts = { ui: 'Inter', code: 'Cascadia Code' }
+      expect(mergeChromeThemeSeed({ ...defaults, fonts }, seed).fonts).toEqual(fonts)
+    }
   })
 
   test('uses token hue fallbacks and a module chromeTheme override', () => {

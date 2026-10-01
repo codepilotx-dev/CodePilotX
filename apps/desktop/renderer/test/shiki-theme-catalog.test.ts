@@ -8,11 +8,11 @@ import {
 } from '../shared/codexThemes/manifest.js'
 
 describe('Codex Shiki theme catalog', () => {
-  test('matches the 28 Codex selector families and 43 registered variants', () => {
-    expect(CODEX_HIGHLIGHT_THEME_FAMILIES).toHaveLength(28)
-    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(43)
+  test('matches the 29 selector families and 45 registered variants', () => {
+    expect(CODEX_HIGHLIGHT_THEME_FAMILIES).toHaveLength(29)
+    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(45)
     expect(new Set(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).size).toBe(
-      43,
+      45,
     )
     expect(
       new Set(
@@ -20,7 +20,7 @@ describe('Codex Shiki theme catalog', () => {
           [family.themes.light, family.themes.dark].filter(Boolean),
         ),
       ).size,
-    ).toBe(43)
+    ).toBe(45)
     expect(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).toContain(
       'codex-light',
     )

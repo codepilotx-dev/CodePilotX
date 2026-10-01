@@ -11,7 +11,7 @@ try {
  </style><aside class="desktop-sidebar"><header class="sidebar-header"><span>Coding</span><div class="sidebar-header-actions"><button class="ui-button icon-button" data-size="icon" data-uniform><svg id="search"></svg></button><button class="ui-button icon-button" data-size="icon" data-uniform><svg id="bell"></svg></button></div></header><div class="sidebar-standard-mode">
  <div class="row"><div class="sidebar-session-meta"><span class="sidebar-indicator"><svg id="clock"></svg></span><span class="sidebar-indicator"><span id="dot" class="sidebar-unread-dot"></span></span></div></div>
  <div class="row"><div class="sidebar-session-meta"><div class="sidebar-session-actions"><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="pin"></svg></button><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="archive"></svg></button></div></div></div>
- <div class="row"><div class="sidebar-session-meta"><span class="sidebar-indicator"><svg id="idle-clock"></svg></span><span class="sidebar-indicator"></span></div></div>
+ <div class="row"><div class="sidebar-session-meta"><span class="sidebar-indicator"><svg id="idle-clock"></svg></span></div></div>
  <div class="row sidebar-project-header"><span class="sidebar-row-trailing"><div class="sidebar-project-actions"><button id="project-more" class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button><button id="project-action" class="ui-button icon-button" data-size="iconMd" data-uniform><svg></svg></button></div><span class="sidebar-project-unread sidebar-indicator"><span id="project-dot" class="sidebar-unread-dot"></span></span></span></div>
  <div class="row sidebar-section-header"><button id="section-title">项目</button><div class="sidebar-section-actions"><button id="section-menu" class="ui-button icon-button" data-size="iconMd" data-uniform data-state="closed"><svg id="section-more"></svg></button><button class="ui-button icon-button" data-size="iconMd" data-uniform><svg id="section-add"></svg></button></div></div>
  </div></aside>`)
@@ -24,7 +24,7 @@ try {
   assert.equal(centers.bell,centers.dot)
   assert.equal(centers.clock,centers.pin)
   assert.equal(centers.dot,centers.archive)
-  assert.equal(centers['idle-clock'],centers.pin)
+  assert.equal(centers['idle-clock'],centers.archive)
   const projectDot = page.locator('#project-dot')
   const projectAction = page.locator('#project-action')
   const dotBox = await projectDot.boundingBox()

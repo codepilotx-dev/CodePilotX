@@ -75,3 +75,29 @@ test('canonical completion clears a stale running indicator', () => {
   expect(markup).not.toContain('sidebar-session-spinner')
   expect(markup).not.toContain('class="sidebar-indicator"')
 })
+
+test('sidebar renders only occupied status icon slots in their existing order', () => {
+  const project = mockWorkspace('C:\\sidebar-icons')
+  const base = mockSessionSnapshot('icons', project, { workspacePath: project.path }).item
+  for (const hasScheduledRun of [false, true]) {
+    for (const isFork of [false, true]) {
+      for (const state of ['idle', 'unread', 'running'] as const) {
+        const markup = renderSessionRows([{
+          ...base, hasScheduledRun, isFork,
+          status: state === 'running' ? 'running' : 'done',
+          unreadAt: state === 'unread' ? 1 : null,
+        }])
+        const labels = [
+          ...(hasScheduledRun ? ['日程运行过的会话'] : []),
+          ...(isFork ? ['分叉会话'] : []),
+          ...(state === 'unread' ? ['未读'] : state === 'running' ? ['加载中'] : []),
+        ]
+        expect(markup.match(/class="sidebar-indicator"/g)?.length ?? 0).toBe(labels.length)
+        expect(markup).not.toContain('<span class="sidebar-indicator"></span>')
+        const positions = labels.map(label => markup.indexOf(`aria-label="${label}"`))
+        expect(positions.every(position => position >= 0)).toBe(true)
+        expect(positions).toEqual([...positions].sort((a, b) => a - b))
+      }
+    }
+  }
+})
