@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [desktop/renderer] 文件预览复用现有标签 ID 生成函数，移除未使用的 ChipButton 组件及失效引用，并同步样式注释与交互文档。
+
 - [agent] 删除无消费者的 repository 类型副本，项目、线程与工作区仓库复用现有存储工具，保留原有存储语义。
 
 - [agent/mcp] MCP 运行时客户端迁移至固定版本 pi-mcp 0.99.2，保留 stdio、Streamable HTTP、OAuth 加密凭据与 resource 覆盖、工具审批及连接租约；SDK 仅作为调试服务器的开发依赖。

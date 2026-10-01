@@ -114,6 +114,7 @@ import { SubagentDockContent } from '../../session/subagents/SubagentDockContent
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
 import type { WorkbenchTabRenderContext } from '../tabs/workbenchTabRegistry.js'
+import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
@@ -158,20 +159,6 @@ function hasOpenDialog(): boolean {
   return document.querySelector(
     '[role="dialog"], [role="alertdialog"], dialog[open]',
   ) !== null
-}
-
-function createFilePreviewTabId(
-  workspacePath: string,
-  relativePath: string,
-  projectId = '',
-  folderId = '',
-): `file:${string}` {
-  const normalizedWorkspace = workspacePath.replace(/\\/g, '/').toLowerCase()
-  const normalizedFile = relativePath.replace(/\\/g, '/').toLowerCase()
-  const scope = projectId || folderId
-    ? `${projectId}\u0000${folderId}\u0000`
-    : ''
-  return `file:${encodeURIComponent(`${scope}${normalizedWorkspace}\u0000${normalizedFile}`)}`
 }
 
 function resolveWorkspaceFileReference(
@@ -2355,7 +2342,7 @@ export function DesktopLayout(): React.ReactNode {
     (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
       if (file.type !== 'file' || !currentWorkspace) return
       const workspacePath = file.rootPath ?? currentWorkspace.path
-      const tabId = createFilePreviewTabId(
+      const tabId = createWorkspaceFileTabId(
         workspacePath,
         file.path,
         currentWorkspace.projectId,
@@ -2381,7 +2368,7 @@ export function DesktopLayout(): React.ReactNode {
     (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
       if (file.type !== 'file' || !currentWorkspace) return
       const workspacePath = file.rootPath ?? currentWorkspace.path
-      const tabId = createFilePreviewTabId(
+      const tabId = createWorkspaceFileTabId(
         workspacePath,
         file.path,
         currentWorkspace.projectId,
@@ -2500,7 +2487,7 @@ export function DesktopLayout(): React.ReactNode {
           }
 
           // Open as file-preview tab
-          const tabId = createFilePreviewTabId(
+          const tabId = createWorkspaceFileTabId(
             currentWorkspace.path,
             resolved.relativePath,
             currentWorkspace.projectId,

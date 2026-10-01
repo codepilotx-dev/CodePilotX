@@ -21,7 +21,7 @@
 | Spinner | 旋转加载指示器 | `components/ui/Spinner` |
 | Skeleton | 骨架屏 | `SkeletonRegion` 与 `SkeletonBlock` |
 | Shimmer | 骨架屏流光 | `SkeletonBlock` 的默认伪元素动画 |
-| Button Loading | 按钮加载状态 | `Button loading` 或 `ChipButton loading` |
+| Button Loading | 按钮加载状态 | `Button loading` |
 | Page Loader | 页面加载器 | `FullScreenWhaleLoading` |
 | Action Button | 文字动作按钮 | `components/ui/Button` |
 | Icon Action | 纯图标工具动作 | `components/ui/IconButton` |

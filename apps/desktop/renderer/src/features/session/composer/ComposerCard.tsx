@@ -65,7 +65,6 @@ import type {
   ModelProviderID,
 } from "../../../../shared/types.js";
 import type { ModelPreset } from "../../../modelPresets.js";
-import { ChipButton } from "../../../components/ui/ChipButton.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { MetaChip } from "../../../components/ui/MetaChip.js";
 import { SessionFollowUpDock } from "../SessionFollowUpDock.js";
