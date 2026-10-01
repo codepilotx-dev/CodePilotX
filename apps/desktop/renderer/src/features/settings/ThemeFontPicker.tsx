@@ -243,7 +243,7 @@ export function ThemeFontPicker({
             faces: selectedFamilyFaces,
             currentFace: face,
           })}
-          width={80}
+          width={100}
           onOpenChange={handleOpenChange}
           onChange={faceValue => {
             if (fontsState !== 'ready') return

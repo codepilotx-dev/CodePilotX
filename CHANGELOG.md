@@ -61,6 +61,8 @@
 
 - [agent/desktop] Skills 调用改为结构化多选与正文 `$name` 引用；显式选择在推理前加载，自动选择通过普通 Read 按需读取真实路径，复用现有活动展示。history schema 50 以 nullable 字段保存队列、steer 和重启后的选择，并保留冻结引用校验及回合内只读目录权限。
 
+- [desktop/renderer] 外观设置中字体样式（字重）下拉菜单改为直接展示规范英文样式名（如 ExtraLight、Light、Regular、Medium、Demibold、Heavy 等），隐藏冗余的完整字体名称副标题，并按标准排版字重升序排列；字重下拉框宽度由 80px 微调为 100px 以完整舒展长样式名。
+
 - [desktop/renderer] 侧栏与会话共用工作流归属选择函数，补充加入、移出、取消和无效序号的回归检查。
 
 - [agent/desktop] 移除未使用的 Harness 资源加载器、旧事件与模型目录转换、思考滑块及自动化切页/周视图遗留代码、专属样式和旧测试；删除 ignore 与 react-slot 直接依赖，保留现有技能发现、推理菜单与月历详情交互。

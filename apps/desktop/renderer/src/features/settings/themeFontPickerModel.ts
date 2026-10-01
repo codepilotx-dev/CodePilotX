@@ -23,22 +23,33 @@ export type FontPickerOption = {
 export type FontPickerKind = 'ui' | 'code'
 
 export function styleLabel(style: string): string {
-  const normalized = style.trim().toLowerCase()
-  if (/^(regular|normal)$/.test(normalized)) return '常规'
-  if (/^(bold\s*italic|bolditalic)$/.test(normalized)) return '粗斜体'
-  if (/^(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic)$/.test(normalized)) return '半粗斜体'
-  if (/^(medium\s*italic|mediumitalic)$/.test(normalized)) return '中等斜体'
-  if (/^(light\s*italic|lightitalic)$/.test(normalized)) return '细斜体'
-  if (/^(extra\s*bold|ultra\s*bold|extrabold|ultrabold)$/.test(normalized)) return '特粗体'
-  if (normalized === 'bold') return '粗体'
-  if (/^(italic|oblique)$/.test(normalized)) return '斜体'
-  if (normalized === 'medium') return '中等'
-  if (/^(semi\s*bold|demi\s*bold|semibold|demibold)$/.test(normalized)) return '半粗体'
-  if (normalized === 'light') return '细体'
-  if (/^(extra\s*light|ultra\s*light|extralight|ultralight)$/.test(normalized)) return '超细体'
-  if (normalized === 'thin') return '特细体'
-  if (/^(black|heavy)$/.test(normalized)) return '特粗体'
-  return style
+  const trimmed = style.trim()
+  if (!trimmed) return 'Regular'
+  const normalized = trimmed.toLowerCase()
+  if (/^(regular|normal|常规|正常)$/.test(normalized)) return 'Regular'
+  if (/^(bold\s*italic|bolditalic|粗斜体)$/.test(normalized)) return 'Bold Italic'
+  if (/^(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic|半粗斜体)$/.test(normalized)) {
+    return /demi/i.test(trimmed) ? 'DemiBold Italic' : 'SemiBold Italic'
+  }
+  if (/^(medium\s*italic|mediumitalic|中等斜体)$/.test(normalized)) return 'Medium Italic'
+  if (/^(light\s*italic|lightitalic|细斜体)$/.test(normalized)) return 'Light Italic'
+  if (/^(extra\s*bold|ultra\s*bold|extrabold|ultrabold)$/.test(normalized)) {
+    return /ultra/i.test(trimmed) ? 'UltraBold' : 'ExtraBold'
+  }
+  if (normalized === 'bold' || normalized === '粗体') return 'Bold'
+  if (/^(italic|oblique|斜体)$/.test(normalized)) return /oblique/i.test(trimmed) ? 'Oblique' : 'Italic'
+  if (normalized === 'medium' || normalized === '中等') return 'Medium'
+  if (/^(semi\s*bold|demi\s*bold|semibold|demibold|半粗体)$/.test(normalized)) {
+    return /demi/i.test(trimmed) || normalized === '半粗体' ? 'Demibold' : 'SemiBold'
+  }
+  if (normalized === 'light' || normalized === '细体') return 'Light'
+  if (/^(extra\s*light|ultra\s*light|extralight|ultralight|超细体)$/.test(normalized)) {
+    return /ultra/i.test(trimmed) ? 'UltraLight' : 'ExtraLight'
+  }
+  if (normalized === 'thin' || normalized === '特细体') return 'Thin'
+  if (normalized === 'heavy' || normalized === '特粗体') return 'Heavy'
+  if (normalized === 'black') return 'Black'
+  return trimmed
 }
 
 export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
@@ -141,7 +152,7 @@ export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
     return 'Regular'
   }
 
-  return fullName || postscript || '常规'
+  return fullName || postscript || 'Regular'
 }
 
 export function faceStyleLabel(face: DesktopThemeFontFace): string {
@@ -150,7 +161,29 @@ export function faceStyleLabel(face: DesktopThemeFontFace): string {
 }
 
 export function isDefaultFaceStyle(style: string): boolean {
-  return /^(regular|normal)$/i.test(style.trim())
+  return /^(regular|normal|常规|正常)$/i.test(style.trim())
+}
+
+export function styleWeightRank(style: string): number {
+  const normalized = style.trim().toLowerCase()
+  let base = 1000
+  if (/\b(thin|hairline)\b/.test(normalized) || normalized === '特细体') base = 100
+  else if (/\b(extra\s*light|ultra\s*light|extralight|ultralight)\b/.test(normalized) || normalized === '超细体') base = 200
+  else if (/\blight\b/.test(normalized) || normalized === '细体') base = 300
+  else if (/\bmedium\b/.test(normalized) || normalized === '中等') base = 500
+  else if (/\b(semi\s*bold|demi\s*bold|semibold|demibold)\b/.test(normalized) || normalized === '半粗体') base = 600
+  else if (/\b(extra\s*bold|ultra\s*bold|extrabold|ultrabold)\b/.test(normalized)) base = 800
+  else if (/\bbold\b/.test(normalized) || normalized === '粗体') base = 700
+  else if (/\b(black|heavy)\b/.test(normalized) || normalized === '特粗体') base = 900
+  else if (
+    /\b(regular|normal|book)\b/.test(normalized)
+    || /^(italic|oblique|斜体)$/.test(normalized)
+    || normalized === '常规'
+    || normalized === '正常'
+  ) base = 400
+
+  const isItalic = /\b(italic|oblique)\b/.test(normalized) || /斜体/.test(normalized) ? 1 : 0
+  return base * 10 + isItalic
 }
 
 export function facesOfFamily(
@@ -214,18 +247,12 @@ export function buildStyleOptions({
   currentFace: DesktopThemeFontFace | null
 }): FontPickerOption[] {
   const regular = regularFaceOf(faces)
-  const regularDisplay = regular
-    ? (regular.fullName.trim().toLowerCase() !== regular.family.trim().toLowerCase()
-        ? regular.fullName
-        : `${regular.family} ${regular.style}`)
-    : ''
   const options: FontPickerOption[] = regular
     ? [{
         value: regular.postscriptName,
-        label: '常规',
-        detail: regularDisplay,
+        label: styleLabel(regular.style),
       }]
-    : [{ value: DEFAULT_FACE_VALUE, label: '常规' }]
+    : [{ value: DEFAULT_FACE_VALUE, label: 'Regular' }]
   const seen = new Set<string>()
   if (regular) {
     seen.add(regular.postscriptName)
@@ -233,14 +260,9 @@ export function buildStyleOptions({
   for (const face of faces) {
     if (seen.has(face.postscriptName)) continue
     seen.add(face.postscriptName)
-    const detail =
-      face.fullName.trim().toLowerCase() !== face.family.trim().toLowerCase()
-        ? face.fullName
-        : `${face.family} ${face.style}`
     options.push({
       value: face.postscriptName,
       label: styleLabel(face.style),
-      detail,
     })
   }
   // A stored face that is no longer in the enumeration stays selectable.
@@ -252,9 +274,13 @@ export function buildStyleOptions({
     options.push({
       value: currentFace.postscriptName,
       label: faceStyleLabel(currentFace),
-      detail: currentFace.fullName,
     })
   }
+  options.sort(
+    (left, right) =>
+      styleWeightRank(left.label) - styleWeightRank(right.label)
+      || left.label.localeCompare(right.label),
+  )
   return options
 }
 

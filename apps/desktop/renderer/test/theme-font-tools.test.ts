@@ -233,13 +233,16 @@ describe('system font enumeration helpers', () => {
 
 describe('theme font picker model', () => {
   test('style labels map the common face styles', () => {
-    expect(styleLabel('Regular')).toBe('常规')
-    expect(styleLabel('normal')).toBe('常规')
-    expect(styleLabel('Bold')).toBe('粗体')
-    expect(styleLabel('Italic')).toBe('斜体')
-    expect(styleLabel('Bold Italic')).toBe('粗斜体')
-    expect(styleLabel('Medium')).toBe('中等')
-    expect(styleLabel('Semi Bold')).toBe('半粗体')
+    expect(styleLabel('Regular')).toBe('Regular')
+    expect(styleLabel('normal')).toBe('Regular')
+    expect(styleLabel('Bold')).toBe('Bold')
+    expect(styleLabel('Italic')).toBe('Italic')
+    expect(styleLabel('Bold Italic')).toBe('Bold Italic')
+    expect(styleLabel('Medium')).toBe('Medium')
+    expect(styleLabel('Semi Bold')).toBe('SemiBold')
+    expect(styleLabel('Demibold')).toBe('Demibold')
+    expect(styleLabel('ExtraLight')).toBe('ExtraLight')
+    expect(styleLabel('Heavy')).toBe('Heavy')
     expect(styleLabel('Condensed')).toBe('Condensed')
   })
 
@@ -298,11 +301,10 @@ describe('theme font picker model', () => {
     expect(options).toEqual([
       {
         value: 'Inter-Regular',
-        label: '常规',
-        detail: 'Inter Regular',
+        label: 'Regular',
       },
-      { value: 'Inter-Bold', label: '粗体', detail: 'Inter Bold' },
-      { value: 'Inter-Italic', label: '斜体', detail: 'Inter Italic' },
+      { value: 'Inter-Italic', label: 'Italic' },
+      { value: 'Inter-Bold', label: 'Bold' },
     ])
   })
 
@@ -318,7 +320,7 @@ describe('theme font picker model', () => {
       ],
       currentFace: null,
     })
-    expect(options[0]).toEqual({ value: DEFAULT_FACE_VALUE, label: '常规' })
+    expect(options[0]).toEqual({ value: DEFAULT_FACE_VALUE, label: 'Regular' })
   })
 
   test('extracts style name and localized label from face metadata', () => {
@@ -335,7 +337,7 @@ describe('theme font picker model', () => {
         fullName: 'JetBrains Mono Medium',
         postscriptName: 'JetBrainsMono-Medium',
       }),
-    ).toBe('中等')
+    ).toBe('Medium')
 
     expect(
       extractStyleNameFromFace({
@@ -350,7 +352,7 @@ describe('theme font picker model', () => {
         fullName: 'JetBrains Mono SemiBold',
         postscriptName: 'JetBrainsMono-SemiBold',
       }),
-    ).toBe('半粗体')
+    ).toBe('SemiBold')
 
     expect(
       extractStyleNameFromFace({
@@ -365,7 +367,7 @@ describe('theme font picker model', () => {
         fullName: 'MiSans VF',
         postscriptName: 'MiSans-VF-Heavy',
       }),
-    ).toBe('特粗体')
+    ).toBe('Heavy')
 
     expect(
       faceStyleLabel({
@@ -373,7 +375,7 @@ describe('theme font picker model', () => {
         fullName: 'Inter Bold Italic',
         postscriptName: 'Inter-BoldItalic',
       }),
-    ).toBe('粗斜体')
+    ).toBe('Bold Italic')
   })
 
   test('style options preserve a stored face missing from the enumeration and use localized style label', () => {
@@ -393,7 +395,6 @@ describe('theme font picker model', () => {
     expect(options.find(opt => opt.value === 'CodeMono-Missing')).toEqual({
       value: 'CodeMono-Missing',
       label: 'Missing',
-      detail: 'CodeMono Missing',
     })
   })
 
@@ -407,11 +408,10 @@ describe('theme font picker model', () => {
       },
     })
     expect(mediumOptions).toEqual([
-      { value: DEFAULT_FACE_VALUE, label: '常规' },
+      { value: DEFAULT_FACE_VALUE, label: 'Regular' },
       {
         value: 'JetBrainsMono-Medium',
-        label: '中等',
-        detail: 'JetBrains Mono Medium',
+        label: 'Medium',
       },
     ])
 
@@ -424,11 +424,10 @@ describe('theme font picker model', () => {
       },
     })
     expect(semiBoldOptions).toEqual([
-      { value: DEFAULT_FACE_VALUE, label: '常规' },
+      { value: DEFAULT_FACE_VALUE, label: 'Regular' },
       {
         value: 'JetBrainsMono-SemiBold',
-        label: '半粗体',
-        detail: 'JetBrains Mono SemiBold',
+        label: 'SemiBold',
       },
     ])
   })
@@ -461,7 +460,7 @@ describe('theme font picker model', () => {
       'MiSans-VF-Bold',
       'MiSans-VF-Heavy',
     ])
-    expect(options.map(option => option.label)).toEqual(['常规', '粗体', '特粗体'])
+    expect(options.map(option => option.label)).toEqual(['Regular', 'Bold', 'Heavy'])
 
     const heavyCommit = fontPatchForSelection({
       familyValue: 'MiSans VF',
@@ -480,6 +479,57 @@ describe('theme font picker model', () => {
     expect(fontFamilyWithFace(heavyCommit.face, 'MiSans VF')).toBe(
       '"CodePilotX-Selected-Sans", "MiSans VF Heavy", "MiSans VF", MiSans VF',
     )
+  })
+
+  test('variable font styles are sorted by weight and displayed in canonical English names', () => {
+    const miSansFaces: readonly DesktopSystemFontFace[] = [
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Demibold',
+        postscriptName: 'MiSans-VF-Demibold',
+        style: 'Demibold',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF ExtraLight',
+        postscriptName: 'MiSans-VF-ExtraLight',
+        style: 'ExtraLight',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Heavy',
+        postscriptName: 'MiSans-VF-Heavy',
+        style: 'Heavy',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Light',
+        postscriptName: 'MiSans-VF-Light',
+        style: 'Light',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Medium',
+        postscriptName: 'MiSans-VF-Medium',
+        style: 'Medium',
+      },
+      {
+        family: 'MiSans VF',
+        fullName: 'MiSans VF Regular',
+        postscriptName: 'MiSans-VF-Regular',
+        style: 'Regular',
+      },
+    ]
+
+    const options = buildStyleOptions({ faces: miSansFaces, currentFace: null })
+    expect(options).toEqual([
+      { value: 'MiSans-VF-ExtraLight', label: 'ExtraLight' },
+      { value: 'MiSans-VF-Light', label: 'Light' },
+      { value: 'MiSans-VF-Regular', label: 'Regular' },
+      { value: 'MiSans-VF-Medium', label: 'Medium' },
+      { value: 'MiSans-VF-Demibold', label: 'Demibold' },
+      { value: 'MiSans-VF-Heavy', label: 'Heavy' },
+    ])
   })
 
   test('system default commits family null and face null', () => {
