@@ -9,6 +9,10 @@
 
 ### Added
 
+- [desktop] 外观主题下拉新增 `Codex(new)` 浅色与深色选项，复用新版默认配色和 Codex 代码高亮，保留原版 Codex 与自定义字体；移除独立的应用新设计主题和恢复升级前外观按钮。
+
+- [dev] 新增 ZCode 忽略规则，排除依赖、构建产物、凭据文件、用户数据和自动化测试输出，减少开发工具索引噪声。
+
 - [agent/desktop] 升级 pi-ai 至 0.99.2 并接入 OpenAI 的 ChatGPT 登录，复用安装级设备 ID 和现有 Provider 凭据仓库；供应商连接入口同时展示支持的 OAuth 与 API Key，保留原有活动凭据、Codex 账号和会话模型引用。
 
 - [desktop/renderer] 新增简体中文与英语界面语言偏好，支持跟随系统、即时切换与现有桌面设置持久化；首批接入设置导航、常规设置、主导航、新任务标题和日期选择器文案。
@@ -52,6 +56,8 @@
 - [agent/protocol] Thread 与 ThreadListItem 新增 `executionEnvironment` 投影：Local 提供 `cwd`/`revision`，Worktree 另提供 `worktreeId`/`branchName`/`status`，由 `thread_execution_bindings` 与 `managed_worktrees` 组合派生；客户端不再根据 workspace、分支或 standalone 自行猜测执行环境。同时新增 `workflowId` 字段，与保留的历史读取字段 `sessionGroupId` 取同一成员关系值，新客户端只使用 `workflowId`。Desktop Goal 已改为真实 `thread/goal/*` RPC 与共享 `ThreadGoal`，从 Thread snapshot 对账并保留稳定 id、version、completedAt 及连字符状态值。
 
 ### Changed
+
+- [agent/mcp] MCP 运行时客户端迁移至固定版本 pi-mcp 0.99.2，保留 stdio、Streamable HTTP、OAuth 加密凭据与 resource 覆盖、工具审批及连接租约；SDK 仅作为调试服务器的开发依赖。
 
 - [renderer] 整理 ChatGPT 与 OAuth 登录界面为单栏状态流程，去除弹窗重复标题，补齐中英文提示并默认折叠 ChatGPT 手动回调输入；保留其他供应商的授权提示、设备码和输入方式。
 
@@ -113,9 +119,15 @@
 
 ### Removed
 
+- [agent/mcp] 移除旧 HTTP+SSE 客户端回退和调试服务器分支；已有配置原样保留，不受支持的端点连接时返回安全错误。
+
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ### Fixed
+
+- [agent/desktop] 补齐历史操作返回的日程与分叉标记，修复标记已读／未读、重命名或归档后侧边栏时钟与分叉图标丢失的问题；复用现有来源查询，不改变图标判定条件。
+
+- [desktop/renderer] 侧边栏任务行的时钟、分叉、未读和运行中状态图标按实际数量右对齐，移除空状态占位；单个图标占最右位置，多个图标向左扩展。
 
 - [dev] 修复 Windows 复用旧开发 Agent 的 PID 时，残留启动锁误判为有效而阻止重启的问题；按进程启动时间识别锁所有者，保留历史连接描述和用户数据。
 

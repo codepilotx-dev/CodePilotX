@@ -33,7 +33,7 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
    - 业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar、Settings 等）移除私有几何与投影变量，直接收敛至语义 Token。
 3. **外观平滑升级与备份恢复**：
    - 首次启动自动将老版本外观平滑迁移至 UI-Design 默认主题，并在 `appearance-migration.json` 中原子化写入升级前外观备份。
-   - 设置页“外观”设置提供“应用新设计主题”与“恢复升级前外观”操作，用户可随时一键恢复旧版配色或重新生效新设计。
+   - 设置页通过浅色、深色主题下拉中的 `Codex` 与 `Codex(new)` 选择原版或新版默认配色，不再显示独立的应用与恢复按钮；已有升级备份保留。
 
 ## 固定选择流程
 
