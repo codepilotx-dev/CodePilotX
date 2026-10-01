@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [desktop/renderer] 侧栏与会话共用工作流归属选择函数，补充加入、移出、取消和无效序号的回归检查。
+
 - [agent/desktop] 移除未使用的 Harness 资源加载器、旧事件与模型目录转换、思考滑块及自动化切页/周视图遗留代码、专属样式和旧测试；删除 ignore 与 react-slot 直接依赖，保留现有技能发现、推理菜单与月历详情交互。
 
 - [desktop/renderer] 文件预览复用现有标签 ID 生成函数，移除未使用的 ChipButton 组件及失效引用，并同步样式注释与交互文档。
