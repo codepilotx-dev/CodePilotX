@@ -133,7 +133,7 @@ describe("v4 会话事件投影契约", () => {
     expect(projected()[0]).toMatchObject({ status: "cancelled" })
   })
   test("列表和详情从创建来源、运行绑定与分叉关系投影独立标记", async () => {
-    const { db, projection } = await fixture()
+    const { db, projection, history } = await fixture()
     const source = db.createThread()
     const scheduled = db.createThread({ operationID: "automation-run:one-time:thread" })
     const recurring = db.createThread({ operationID: "automation-run:recurring:thread" })
@@ -144,6 +144,9 @@ describe("v4 会话事件投影契约", () => {
     const assertMarkers = (id: string, hasScheduledRun: boolean, isFork: boolean, isScheduledSession = false) => {
       const expected = { hasScheduledRun, isFork, isScheduledSession }
       expect(projection.snapshot(id)?.thread).toMatchObject(expected)
+      expect(history.getListItem(id)).toMatchObject(expected)
+      expect(history.markUnread(id, 100)).toMatchObject({ ...expected, unreadAt: 100 })
+      expect(history.markRead(id, 100)).toMatchObject({ ...expected, unreadAt: null })
       if (id !== child.id) expect(projection.list().find(thread => thread.id === id)).toMatchObject(expected)
     }
     assertMarkers(source.id, false, false)

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { McpServerDeclaration } from "@codepilotx/agent-protocol"
+import { McpAbortError, McpTimeoutError } from "@earendil-works/pi-mcp"
 import { mkdtemp, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
@@ -600,7 +601,7 @@ describe("MCP transports", () => {
     }
   }, 30_000)
 
-  test("connects over Streamable HTTP, classifies auth, and falls back to legacy SSE", async () => {
+  test("connects over Streamable HTTP and classifies auth", async () => {
     const modern = await startHttpFixture(["--auth-token=fixture-token"])
     const factory = new McpClientFactory()
     await expect(factory.connect({
@@ -630,20 +631,107 @@ describe("MCP transports", () => {
       delete process.env.CODEPILOTX_MCP_FIXTURE_TOKEN
       await authenticated.close()
     }
+  }, 30_000)
 
-    const legacy = await startHttpFixture(["--legacy-sse"])
-    const fallback = await factory.connect({
-      name: "legacy-fixture",
-      scope: "user",
-      enabled: true,
-      transport: { type: "http", url: legacy.url },
-    }, () => undefined)
-    try {
-      expect(fallback.transport).toBe("sse")
-      expect(fallback.tools.map((tool) => tool.name)).toContain("echo")
-    } finally {
-      await fallback.close()
+  test("rejects legacy SSE endpoints without a GET fallback", async () => {
+    for (const status of [404, 405, 406, 415, 501]) {
+      const methods: string[] = []
+      const endpoint = Bun.serve({
+        hostname: "127.0.0.1", port: 0,
+        fetch(request) {
+          methods.push(request.method)
+          return request.method === "POST"
+            ? new Response("legacy endpoint", { status })
+            : new Response("event: endpoint\ndata: /messages\n\n", {
+                headers: { "content-type": "text/event-stream" },
+              })
+        },
+      })
+      try {
+        await expect(new McpClientFactory().connect({
+          name: "legacy-fixture", scope: "user", enabled: true,
+          transport: { type: "http", url: `${endpoint.url}mcp` },
+        }, () => undefined)).rejects.toMatchObject({
+          safe: { code: "MCP_CONNECTION_FAILED", message: "MCP server 连接失败" },
+        })
+        expect(methods).toEqual(["POST"])
+      } finally {
+        await endpoint.stop(true)
+      }
     }
+  })
+
+  test("times out a stalled HTTP initialized notification and deletes the session", async () => {
+    const initialized = Promise.withResolvers<void>()
+    let deleted = false
+    const endpoint = Bun.serve({
+      hostname: "127.0.0.1", port: 0,
+      async fetch(request) {
+        if (request.method === "DELETE") {
+          deleted = true
+          return new Response(null, { status: 202 })
+        }
+        const message = await request.json() as { id?: number; method: string }
+        if (message.method === "initialize") {
+          return Response.json({
+            jsonrpc: "2.0", id: message.id,
+            result: { protocolVersion: "2025-11-25", capabilities: {}, serverInfo: { name: "stalled", version: "1" } },
+          }, { headers: { "mcp-session-id": "stalled-session" } })
+        }
+        await initialized.promise
+        return new Response(null, { status: 202 })
+      },
+    })
+    try {
+      await expect(new McpClientFactory().connect({
+        name: "stalled-http", scope: "user", enabled: true,
+        transport: { type: "http", url: `${endpoint.url}mcp` },
+        startupTimeoutMs: 200,
+      }, () => undefined)).rejects.toMatchObject({ safe: { code: "MCP_TIMEOUT" } })
+      expect(deleted).toBe(true)
+    } finally {
+      initialized.resolve()
+      await endpoint.stop(true)
+    }
+  })
+
+  test("cleans up a stalled stdio process after the startup timeout", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-mcp-timeout-"))
+    temporaryDirectories.push(root)
+    const pidFile = join(root, "pid.txt")
+    await expect(new McpClientFactory().connect({
+      name: "stalled-fixture", scope: "user", enabled: true,
+      transport: {
+        type: "stdio", command: process.execPath,
+        args: ["-e", 'require("node:fs").writeFileSync(process.env.MCP_PID_FILE, String(process.pid)); process.stdin.resume()'],
+        env: { MCP_PID_FILE: pidFile },
+      },
+      startupTimeoutMs: 500,
+    }, () => undefined)).rejects.toMatchObject({ safe: { code: "MCP_TIMEOUT" } })
+    const pid = Number(await readFile(pidFile, "utf8"))
+    expect(() => process.kill(pid, 0)).toThrow()
+  }, 10_000)
+
+  test("cancels and times out calls while keeping the connection usable and closable", async () => {
+    let closes = 0
+    const connection = await new McpClientFactory().connect({
+      name: "cancel-fixture", scope: "user", enabled: true,
+      transport: { type: "stdio", command: process.execPath, args: [fixturePath(), "--transport=stdio"] },
+      startupTimeoutMs: 20_000, toolTimeoutMs: 100,
+    }, () => undefined, () => { closes += 1 })
+    try {
+      const controller = new AbortController()
+      const cancelled = connection.callTool("delay", { milliseconds: 1_000 }, controller.signal)
+      controller.abort()
+      await expect(cancelled).rejects.toBeInstanceOf(McpAbortError)
+      await expect(connection.callTool("delay", { milliseconds: 1_000 }))
+        .rejects.toBeInstanceOf(McpTimeoutError)
+      expect((await connection.callTool("echo", { text: "still-ready" })).structuredContent)
+        .toEqual({ echoed: "still-ready" })
+    } finally {
+      await connection.close()
+    }
+    expect(closes).toBe(1)
   }, 30_000)
 })
 
@@ -689,7 +777,6 @@ describe("MCP turn catalog", () => {
       state: "connected",
       owners: 1,
       connected: {
-        client: {},
         transport: "stdio",
         tools: [
           {
@@ -787,7 +874,6 @@ describe("MCP turn catalog", () => {
     const factory = {
       connect: async (declaration: McpServerDeclaration) => {
         return {
-          client: {},
           transport: "stdio",
           tools: [],
           resources: [{ uri: `debug://${declaration.name}`, name: declaration.name }],
@@ -867,7 +953,6 @@ describe("MCP turn catalog", () => {
       connect: async () => {
         const id = `connection-${++connectionNumber}`
         return {
-          client: {},
           transport: "stdio",
           tools: [{
             name: "echo",
@@ -1028,7 +1113,6 @@ describe("MCP turn catalog", () => {
       state: "connected",
       owners: 1,
       connected: {
-        client: {},
         transport: "stdio",
         tools: [{
           name: "echo",
@@ -1099,7 +1183,6 @@ describe("MCP turn catalog", () => {
       state: "connected",
       owners: 1,
       connected: {
-        client: {},
         transport: "stdio",
         tools: [{ name: "echo", inputSchema: { type: "object" } }],
         resources: [],
@@ -1157,7 +1240,6 @@ describe("MCP turn catalog", () => {
       state: "connected",
       owners: 1,
       connected: {
-        client: {},
         transport: "stdio",
         tools: [
           {

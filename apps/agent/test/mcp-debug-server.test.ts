@@ -9,6 +9,7 @@ import { McpClientFactory } from "../src/mcp/McpClientFactory"
 import { McpOAuthCoordinator } from "../src/mcp/McpOAuthCoordinator"
 import { McpOAuthCredentialRepository } from "../src/mcp/McpOAuthCredentialRepository"
 import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { MCP_DIAGNOSTIC_CONTEXT_KEY } from "../src/mcp/McpDiagnosticContextProvider"
 
 const connections: Array<{ close: () => Promise<void> }> = []
 const processes: Bun.Subprocess[] = []
@@ -39,6 +40,7 @@ const waitForPort = async (path: string) => {
 
 describe("MCP debug server", () => {
   test("captures calls and runs a deterministic scripted conversation over stdio", async () => {
+    let catalogChanges = 0
     const connection = await new McpClientFactory().connect({
       name: "codepilotx-debug",
       scope: "user",
@@ -49,7 +51,7 @@ describe("MCP debug server", () => {
         args: [resolve(import.meta.dir, "../scripts/mcp-debug-server.ts"), "--transport=stdio"],
       },
       startupTimeoutMs: 20_000,
-    }, () => undefined)
+    }, () => { catalogChanges += 1 })
     connections.push(connection)
 
     expect(connection.tools.map((tool) => tool.name)).toEqual(
@@ -91,11 +93,13 @@ describe("MCP debug server", () => {
     const capture = await connection.callTool("capture", {
       label: "checkpoint",
       message: "conversation reached the first reply",
-    })
+    }, undefined, { [MCP_DIAGNOSTIC_CONTEXT_KEY]: { version: 1, marker: "host-context" } })
     expect(capture.structuredContent).toMatchObject({
       captured: true,
       callId: expect.stringMatching(/^call-\d+$/),
     })
+    expect((await connection.readResource("debug://context/latest")).contents)
+      .toMatchObject([{ text: expect.stringContaining("host-context") }])
 
     const calls = await connection.readResource("debug://calls")
     expect(calls.contents).toMatchObject([
@@ -110,9 +114,10 @@ describe("MCP debug server", () => {
     expect(dynamic.content).toMatchObject([
       { type: "text", text: "dynamic-ok" },
     ])
+    expect(catalogChanges).toBeGreaterThan(0)
   }, 30_000)
 
-  test("completes PKCE OAuth and reconnects with encrypted tokens", async () => {
+  test.each([false, true])("completes PKCE OAuth and refreshes existing encrypted tokens (resource override: %s)", async (override) => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-mcp-oauth-"))
     temporaryPaths.push(root)
     const portFile = join(root, "port.txt")
@@ -135,39 +140,53 @@ describe("MCP debug server", () => {
         url: `http://127.0.0.1:${port}/mcp`,
         auth: "oauth" as const,
         scopes: ["mcp:tools", "mcp:resources"],
-        oauthResource: `http://127.0.0.1:${port}/mcp`,
+        ...(override ? { oauthResource: "https://api.example.com/explicit-resource" } : {}),
       },
       startupTimeoutMs: 20_000,
     }
     const db = new AgentDatabase(join(root, "agent.sqlite"))
     const encrypted = new EncryptedCredentialRepository(db, memoryKeyStore())
+    const repository = new McpOAuthCredentialRepository(encrypted)
     const coordinator = new McpOAuthCoordinator(
-      new McpOAuthCredentialRepository(encrypted),
+      repository,
       "http://127.0.0.1:43210/auth/mcp/callback",
     )
     const start = await coordinator.start(server)
+    expect(new URL(start.authorizationUrl).searchParams.get("resource"))
+      .toBe(override ? server.transport.oauthResource! : server.transport.url)
+    expect(new URL(start.authorizationUrl).searchParams.get("code_challenge_method")).toBe("S256")
     const authorization = await fetch(start.authorizationUrl, { redirect: "manual" })
     const callback = new URL(authorization.headers.get("location")!)
     const callbackInput = {
       code: callback.searchParams.get("code")!,
       state: callback.searchParams.get("state")!,
     }
+    expect((await coordinator.handleCallback({ ...callbackInput, state: "wrong-state" })).completed).toBe(false)
     expect((await coordinator.handleCallback(callbackInput)).completed).toBe(true)
     expect((await coordinator.handleCallback(callbackInput)).completed).toBe(false)
     expect(coordinator.status(start.attemptId).state).toBe("completed")
 
-    const connection = await new McpClientFactory(coordinator).connect(
+    const identity = repository.identity({
+      scope: "user",
+      serverName: server.name,
+      serverUrl: server.transport.url,
+    })
+    const existing = (await repository.get(identity))!
+    expect(existing.version).toBe(1)
+    await repository.set(identity, {
+      ...existing,
+      tokens: { ...existing.tokens!, access_token: "expired-access-token" },
+    })
+    const reopened = new McpOAuthCoordinator(repository, "http://127.0.0.1:43210/auth/mcp/callback")
+    const connection = await new McpClientFactory(reopened).connect(
       server,
       () => undefined,
     )
     connections.push(connection)
     expect((await connection.callTool("echo", { text: "oauth-ok" })).content)
       .toMatchObject([{ type: "text", text: "oauth-ok" }])
-    const identity = new McpOAuthCredentialRepository(encrypted).identity({
-      scope: "user",
-      serverName: server.name,
-      serverUrl: server.transport.url,
-    })
+    expect((await repository.get(identity))?.tokens?.access_token).not.toBe(existing.tokens!.access_token)
+    expect((await repository.get(identity))?.tokens?.refresh_token).not.toBe(existing.tokens!.refresh_token)
     expect(db.encryptedCredential(identity.integrationID)?.ciphertext)
       .not.toContain("debug-access")
     const movedIdentity = new McpOAuthCredentialRepository(encrypted).identity({
