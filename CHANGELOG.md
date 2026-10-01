@@ -9,6 +9,8 @@
 
 ### Added
 
+- [agent/desktop] 升级 pi-ai 至 0.99.2 并接入 OpenAI 的 ChatGPT 登录，复用安装级设备 ID 和现有 Provider 凭据仓库；供应商连接入口同时展示支持的 OAuth 与 API Key，保留原有活动凭据、Codex 账号和会话模型引用。
+
 - [desktop/renderer] 新增简体中文与英语界面语言偏好，支持跟随系统、即时切换与现有桌面设置持久化；首批接入设置导航、常规设置、主导航、新任务标题和日期选择器文案。
 
 - [renderer] 引入 BeUI Scroll Animation 动画与进度指示体系：新增基础组件 SmoothScroll、useSmoothScroll 与 ScrollProgress（支持顶部/底部细线进度条与圆形环两种形态），结合 Lenis 物理平滑滚动引擎与 Motion 弹簧动画，自动联动系统的 reducedMotion 减弱动画配置与 --cpx-* 语义设计系统；调优滚轮响应速度与缓动时长（duration 提速至 0.25s、lerp 0.2、wheelMultiplier 1.2），消除弹簧超调并屏蔽横向滚动条；在 WhatsNewDialog（更新日志阅读器）中完成接入与验证，提供轻快平滑的纵向滚动与顶部进度指示。
@@ -50,6 +52,8 @@
 - [agent/protocol] Thread 与 ThreadListItem 新增 `executionEnvironment` 投影：Local 提供 `cwd`/`revision`，Worktree 另提供 `worktreeId`/`branchName`/`status`，由 `thread_execution_bindings` 与 `managed_worktrees` 组合派生；客户端不再根据 workspace、分支或 standalone 自行猜测执行环境。同时新增 `workflowId` 字段，与保留的历史读取字段 `sessionGroupId` 取同一成员关系值，新客户端只使用 `workflowId`。Desktop Goal 已改为真实 `thread/goal/*` RPC 与共享 `ThreadGoal`，从 Thread snapshot 对账并保留稳定 id、version、completedAt 及连字符状态值。
 
 ### Changed
+
+- [renderer] 整理 ChatGPT 与 OAuth 登录界面为单栏状态流程，去除弹窗重复标题，补齐中英文提示并默认折叠 ChatGPT 手动回调输入；保留其他供应商的授权提示、设备码和输入方式。
 
 - [desktop/renderer] Provider 图标改为按品牌解析 models.dev 在线图标：新增 Renderer 统一图标解析模块维护品牌分组并生成查询映射，每组显式列出完整 Provider ID（OpenAI、OpenAI Codex → `openai`；Z.AI、Z.AI Coding CN → `zai`；MiniMax、MiniMax CN → `minimax`；Moonshot AI、Moonshot AI CN、Kimi Coding → `moonshotai`；Xiaomi 与 AMS/CN/SGP Token Plan → `xiaomi`；Cloudflare AI Gateway、Workers AI → `cloudflare-workers-ai`；Qwen Token Plan 三个入口 → `alibaba`；Azure OpenAI → `azure`），其余内置提供商继续使用自身 ID，自定义 Provider 保持默认图标。`google-vertex` 与 `opencode-go` 在 models.dev 上各有独立图标，因此不并入 `google`／`opencode` 品牌组。此前 `openai-codex`、`zai-coding-cn`、`kimi-coding`、`qwen-token-plan`、`qwen-token-plan-cn`、`qwen-token-plan-individual`、`azure-openai-responses` 在 models.dev 上没有对应图标，而服务端对缺失图标仍返回 HTTP 200 通用占位图，因此不按名称模糊匹配、不做后缀截断、也不通过请求结果推断品牌，未知内置 ID 使用自身地址。仅调整展示映射，各入口的模型、凭据、配置与 Pi 原生目录保持独立，模型中心、提供商详情、首次配置页与模型选择器共用同一条 `logoURL` 数据链路。
 
@@ -112,6 +116,8 @@
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ### Fixed
+
+- [dev] 修复 Windows 复用旧开发 Agent 的 PID 时，残留启动锁误判为有效而阻止重启的问题；按进程启动时间识别锁所有者，保留历史连接描述和用户数据。
 
 - [desktop] 修复外观迁移记录读取异常被当作“无记录”导致重复迁移的问题：`appearance-migration.json` 只有确实不存在（ENOENT）时才重跑迁移，读取失败（如 EACCES/EISDIR）、JSON 损坏或内容无法识别时改为原样保留记录、跳过迁移并记录不含路径与内容的诊断事件（`appearance-settings.migration-record-preserved`），不再以用户当前（可能已迁移或已自定义）的外观覆盖唯一备份，也不会把已调整的外观再次重置为默认主题。同时校验记录版本、迁移 ID 与备份结构：版本高于 1、`migrationId` 不属于本次迁移、`pending` 缺备份或备份字段缺失的记录一律按不可识别处理，既不改写自己无法识别的记录，也不再让“恢复升级前外观”按钮对不可用的备份返回可恢复。
 
