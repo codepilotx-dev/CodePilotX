@@ -711,6 +711,14 @@
 
 /* ── Markdown overrides for canonical result text ── */
 
+.user-message-markdown__measurement.has-inline-prefix > .md-body {
+  display: contents;
+
+  > p:first-child {
+    display: inline;
+  }
+}
+
 .canonical-text-item--result {
   width: 100%;
   background: transparent;

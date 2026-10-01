@@ -37,6 +37,7 @@ type TextMeasurement = {
 
 export type CollapsibleUserMarkdownProps = {
   text: string;
+  inlinePrefix?: React.ReactNode;
   cwd?: string | null;
   collapsedLineCount?: number;
   canCopyFileReferenceContents?: MarkdownMessageProps[
@@ -50,6 +51,7 @@ export type CollapsibleUserMarkdownProps = {
 
 export function CollapsibleUserMarkdown({
   text,
+  inlinePrefix,
   cwd = null,
   collapsedLineCount = DEFAULT_COLLAPSED_LINE_COUNT,
   canCopyFileReferenceContents,
@@ -132,9 +134,10 @@ export function CollapsibleUserMarkdown({
           style={collapsed ? { maxHeight: `${visibleLineCount}lh` } : undefined}
         >
           <div
-            className="user-message-markdown__measurement"
+            className={inlinePrefix ? "user-message-markdown__measurement has-inline-prefix" : "user-message-markdown__measurement"}
             ref={setMeasurementElement}
           >
+            {inlinePrefix}
             <ConversationMarkdownErrorBoundary contentKey={text}>
               <MarkdownMessage
                 canCopyFileReferenceContents={canCopyFileReferenceContents}

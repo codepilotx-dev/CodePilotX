@@ -16,6 +16,7 @@ import {
   toolToRequest,
 } from '../../../services/agentThreadAdapter.js'
 import { sessionTitleFromContent } from '../../../uiTypes.js'
+import { desktopUserMessageInputToPreviewText } from '../../../../shared/desktopUserMessage.js'
 
 export type SourceLink = {
   label: string
@@ -151,8 +152,8 @@ function selectQueuedFollowUps(
     if (!input) return []
     return [{
       id: input.id,
-      input: { text: input.content },
-      previewText: input.content,
+      input: { text: input.content, ...(input.skills ? { skills: input.skills } : {}) },
+      previewText: input.skills?.length ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills }) : input.content,
       createdAt: new Date(input.createdAt).toISOString(),
     }]
   })

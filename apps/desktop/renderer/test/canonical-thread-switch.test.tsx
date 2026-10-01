@@ -12,6 +12,7 @@ import {
 } from "../src/features/session/timeline/CanonicalThreadView.js";
 import { QuickChatContext } from "../src/features/session/QuickChatContext.js";
 import { ConversationItemContext } from "../src/features/session/timeline/ConversationItemContext.js";
+import { CanonicalUserInput } from "../src/features/session/timeline/CanonicalItemRenderer.js";
 import { TooltipProvider } from "../src/components/ui/Tooltip.js";
 import { createKeyedDisclosureStore } from "../src/components/ui/keyedDisclosureStore.js";
 import {
@@ -53,6 +54,23 @@ function CanonicalTestProviders({
 }
 
 describe("canonical thread switch", () => {
+  test("Skill 在 canonical 用户消息正文中展示，不依赖聊天标题", () => {
+    const input = {
+      id: "input-skill", threadId: "thread-skill", turnId: "turn-skill", content: "你好",
+      skills: [{ name: "mmx-cli", path: "skills/mmx-cli/SKILL.md" }, { name: "review", path: "skills/review/SKILL.md" }],
+      delivery: "start", mode: "chat", model: { providerID: "openai", id: "gpt-5" },
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      state: "completed", createdAt: 1,
+    } as React.ComponentProps<typeof CanonicalUserInput>["input"];
+    const markup = renderToStaticMarkup(<CanonicalTestProviders><CanonicalUserInput input={input} attachments={[]} contextReferences={[]} /></CanonicalTestProviders>);
+    expect(markup).toContain("$mmx-cli");
+    expect(markup).toContain("$review");
+    expect(markup).toContain("composer-inline-skill-token");
+    expect(markup).not.toContain("lucide-box");
+    expect(markup).toContain("user-message-markdown__measurement has-inline-prefix");
+    expect(markup).toContain("你好");
+    expect(markup).not.toContain("skills/mmx-cli/SKILL.md");
+  });
   test("does not expose state from the previous thread", () => {
     const state = {
       thread: { id: "thread-a" },

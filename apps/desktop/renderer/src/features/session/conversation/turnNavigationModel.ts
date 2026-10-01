@@ -1,5 +1,6 @@
 import type { RenderTurnEntry } from "@codepilotx/session-view";
 import { normalizePathForComparison } from "../../../utils/pathUtils.js";
+import { desktopUserMessageInputToPreviewText } from "../../../../shared/desktopUserMessage.js";
 
 export type ConversationTurnNavOutput = {
   type: "file";
@@ -28,7 +29,7 @@ export function deriveConversationTurnNavItems(
       id: turn.id,
       rowIndex,
       userText: turn.userInputs
-        .map((input) => input.content)
+        .map((input) => input.skills?.length ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills }) : input.content)
         .join("\n")
         .trim(),
       assistantText: assistantText || null,

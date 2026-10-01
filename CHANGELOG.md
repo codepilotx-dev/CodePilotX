@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [desktop/renderer] 去掉用户消息内联 Skill 标记前的方块图标，保留强调色与同排正文。
+
 - [agent/desktop] Skills 调用改为结构化多选与正文 `$name` 引用；显式选择在推理前加载，自动选择通过普通 Read 按需读取真实路径，复用现有活动展示。history schema 50 以 nullable 字段保存队列、steer 和重启后的选择，并保留冻结引用校验及回合内只读目录权限。
 
 - [desktop/renderer] 侧栏与会话共用工作流归属选择函数，补充加入、移出、取消和无效序号的回归检查。
@@ -134,6 +136,10 @@
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ### Fixed
+
+- [desktop/renderer] 用户消息中的 Skill 改为带方块图标和强调色的内联标记，与首段正文同排；复用输入框 Skill 样式，长消息折叠计入标记高度。
+
+- [desktop/renderer] 修复聊天标题含 Skill 而 canonical 用户消息正文不显示的问题；正文、复制与回合导航显示结构化选择，排队编辑和修改后重发保留 Skills。
 
 - [desktop/renderer] 修复 Skill 连续选择与发送后再次选择使用旧输入框状态的问题；从当前草稿追加、去重并提交选择，避免后续消息丢失 Skill。
 

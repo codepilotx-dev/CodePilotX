@@ -26,6 +26,7 @@ import type { Attachment, Input, Item, LocalContextReference, ToolResultBlock } 
 import { decodeResultCardEnvelope, type ResultCard } from "@codepilotx/shared/thread-result-card";
 import type { RpcParams, RpcResult } from "@codepilotx/agent-protocol";
 import type { DesktopDiffMarkerStyle } from "../../../../shared/types.js";
+import { desktopUserMessageInputToPreviewText } from "../../../../shared/desktopUserMessage.js";
 import type {
   ComposerEditorHandle,
   ComposerEditorProps,
@@ -228,6 +229,9 @@ export function CanonicalUserInput({
     workspacePath,
   } = useConversationItemContext();
   const [editing, setEditing] = React.useState(false);
+  const displayText = input.skills?.length
+    ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills })
+    : input.content;
   const [draft, setDraft] = React.useState(input.content);
   const [retainedAttachmentIds, setRetainedAttachmentIds] = React.useState<
     string[]
@@ -252,7 +256,7 @@ export function CanonicalUserInput({
     [contextReferences, retainedContextReferenceIds],
   );
   const canSubmit =
-    draft.trim().length > 0 &&
+    (draft.trim().length > 0 || Boolean(input.skills?.length)) &&
     !submitting &&
     sessionStatus !== "running" &&
     sessionStatus !== "waiting";
@@ -294,6 +298,7 @@ export function CanonicalUserInput({
     try {
       await onSubmitEditedUserMessage({
         text: draft.trim(),
+        ...(input.skills ? { skills: input.skills } : {}),
         retainedAttachmentIds,
         retainedContextReferenceIds,
       });
@@ -409,6 +414,13 @@ export function CanonicalUserInput({
       ) : null}
       <div className="canonical-user-message__bubble" data-user-message-bubble>
         <CollapsibleUserMarkdown
+          inlinePrefix={input.skills?.length ? <>{input.skills.map(skill => (
+            <React.Fragment key={skill.path}>
+              <span className="composer-inline-skill-token">
+                <span className="composer-inline-skill-token-label">${skill.name}</span>
+              </span>{" "}
+            </React.Fragment>
+          ))}</> : undefined}
           canCopyFileReferenceContents={canCopyFileReferenceContents}
           cwd={workspacePath}
           onCopyFileReferenceContents={onCopyFileReferenceContents}
@@ -417,7 +429,7 @@ export function CanonicalUserInput({
         />
       </div>
       <div className="canonical-message-actions" aria-label="用户消息操作">
-        <CopyButton text={input.content} />
+        <CopyButton text={displayText} />
         <Tooltip content="修改并重新发送">
           <IconButton
             aria-label="修改并重新发送"
