@@ -4,9 +4,11 @@ import React, {
   useState,
 } from 'react'
 import * as Slider from '@radix-ui/react-slider'
+import { getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
 
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
+import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
   DesktopChromeTheme,
@@ -22,6 +24,7 @@ import { useDesktopTheme } from '../theme/themeContext.js'
 import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
+  applyChromeThemeAccentPreset,
 } from '../theme/codeThemeSeed.js'
 import {
   deriveThemeVariables,
@@ -34,6 +37,7 @@ import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ThemeFontPicker } from './ThemeFontPicker.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
   onError?: (message: string) => void
@@ -45,6 +49,17 @@ type ThemeSettingsUpdater = (
 
 const VARIANTS = ['light', 'dark'] as const
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+const ACCENT_PRESET_OPTIONS: Array<{ value: DesktopAccentPreset; label: string }> = [
+  { value: 'default', label: '默认' },
+  { value: 'blue', label: '蓝色' },
+  { value: 'green', label: '绿色' },
+  { value: 'yellow', label: '黄色' },
+  { value: 'pink', label: '粉色' },
+  { value: 'orange', label: '橙色' },
+  { value: 'purple', label: '紫色' },
+  { value: 'black', label: '黑色' },
+  { value: 'custom', label: '自定义' },
+]
 
 function visualThemeSeedDelay(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve()
@@ -141,16 +156,8 @@ function ColorControl({
     if (next !== normalizedValue) onCommit(next)
   }
 
-  const foreground = getReadableColor(normalizedValue)
-
   return (
-    <div
-      className="appearance-color-control"
-      style={{
-        backgroundColor: normalizedValue,
-        color: foreground,
-      }}
-    >
+    <div className="appearance-color-control">
       <AnchoredPopover
         align="end"
         className="appearance-color-popover"
@@ -205,7 +212,6 @@ function ColorControl({
           background: 'transparent',
           border: 0,
           borderRadius: 0,
-          color: foreground,
           outline: 'none',
         }}
       />
@@ -216,22 +222,6 @@ function ColorControl({
 function sanitizeHexColor(value: string): string {
   const characters = value.toUpperCase().replace(/[^#0-9A-F]/g, '')
   return `#${characters.replaceAll('#', '').slice(0, 6)}`
-}
-
-function getReadableColor(value: string): '#101010' | '#FFFFFF' {
-  const [red, green, blue] = hexToRgb(value)
-  const luminance =
-    (0.2126 * linearColor(red) +
-      0.7152 * linearColor(green) +
-      0.0722 * linearColor(blue))
-  return luminance > 0.179 ? '#101010' : '#FFFFFF'
-}
-
-function linearColor(value: number): number {
-  const channel = value / 255
-  return channel <= 0.04045
-    ? channel / 12.92
-    : ((channel + 0.055) / 1.055) ** 2.4
 }
 
 function hexToRgb(value: string): [number, number, number] {
@@ -684,6 +674,8 @@ function VariantThemeEditor({
   onError: (message: string) => void
 }) {
   const chromeTheme = settings.chromeThemes[variant]
+  const { t } = useLocale()
+  const accentPreset = chromeTheme.accentPreset ?? 'custom'
   const codeThemeId = settings.codeThemeIds[variant]
   const variantLabel = variant === 'light' ? '浅色' : '深色'
   const themes = useMemo(() => getThemesForVariant(variant), [variant])
@@ -691,6 +683,15 @@ function VariantThemeEditor({
     Record<string, Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'>>
   >({})
   const [themeSeedsReady, setThemeSeedsReady] = useState(false)
+  const accentOptions: SelectOption<DesktopAccentPreset>[] = ACCENT_PRESET_OPTIONS.map(option => {
+    const color = getDesktopAccentPresetColor(option.value, variant)
+    return {
+      value: option.value,
+      label: t(option.value === 'black' && variant === 'dark' ? '白色' : option.label),
+      disabled: option.value === 'custom' && accentPreset !== 'custom' && !themeSeeds[codeThemeId],
+      icon: color ? <span aria-hidden="true" className="appearance-accent-dot" style={{ backgroundColor: color }} /> : undefined,
+    }
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -844,11 +845,33 @@ function VariantThemeEditor({
           title="强调色"
           size="compact"
           control={
-            <ColorControl
-              ariaLabel={`${variantLabel}强调色`}
-              value={chromeTheme.accent}
-              onCommit={accent => updateChromeTheme({ accent })}
-            />
+            <div className="appearance-accent-control">
+              <Select
+                ariaLabel={t(`${variantLabel}强调色预设`)}
+                options={accentOptions}
+                showSelectedIndicator
+                triggerClassName="appearance-accent-select"
+                value={accentPreset}
+                width={180}
+                onValueChange={preset => onUpdate(current => ({
+                  ...current,
+                  chromeThemes: {
+                    ...current.chromeThemes,
+                    [variant]: applyChromeThemeAccentPreset(
+                      current.chromeThemes[variant], preset, variant,
+                      themeSeeds[current.codeThemeIds[variant]]?.accent,
+                    ),
+                  },
+                }))}
+              />
+              {accentPreset === 'custom' ? (
+                <ColorControl
+                  ariaLabel={`${variantLabel}强调色`}
+                  value={chromeTheme.accent}
+                  onCommit={accent => updateChromeTheme({ accent, accentPreset: 'custom' })}
+                />
+              ) : null}
+            </div>
           }
         />
         <SettingsRow

@@ -13,6 +13,7 @@ import {
   DEFAULT_APPEARANCE_SETTINGS,
   DEFAULT_CHROME_THEMES,
   desktopThemeFontFaceMatchesFamily,
+  normalizeDesktopAccentPreset,
 } from "@codepilotx/shared/desktop-theme"
 import { writeJsonAtomically } from "../windows/debounced-atomic-json-writer.js"
 
@@ -84,7 +85,7 @@ function codeThemeIdOr(value: unknown, fallback: string): string {
     : fallback
 }
 
-function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): DesktopChromeTheme {
+function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme, variant: DesktopThemeVariant): DesktopChromeTheme {
   const source = isRecord(value) ? value : {}
   const fonts = isRecord(source.fonts) ? source.fonts : {}
   const semanticColors = isRecord(source.semanticColors) ? source.semanticColors : {}
@@ -92,8 +93,10 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   const code = fontOr(fonts.code)
   const uiFace = fontFaceOr(fonts.uiFace)
   const codeFace = fontFaceOr(fonts.codeFace)
+  const accent = colorOr(source.accent, fallback.accent)
   return {
-    accent: colorOr(source.accent, fallback.accent),
+    accent,
+    accentPreset: normalizeDesktopAccentPreset(source.accentPreset, accent, variant),
     surface: colorOr(source.surface, fallback.surface),
     ink: colorOr(source.ink, fallback.ink),
     contrast: numberInRange(source.contrast, fallback.contrast, 0, 100),
@@ -125,8 +128,8 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
     version: 7,
     mode,
     chromeThemes: {
-      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light),
-      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark),
+      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, "light"),
+      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, "dark"),
     },
     codeThemeIds: {
       light: codeThemeIdOr(codeThemeIds.light, "codex-light"),
@@ -215,11 +218,16 @@ function migrationBackupOr(value: unknown): AppearanceMigrationBackup | null {
   // 备份只由本迁移写入，字段缺失即视为无法识别，不做兜底猜测。
   if (typeof fontSizes.ui !== "number" || !Number.isFinite(fontSizes.ui)) return null
   if (!isRecord(chromeThemes.light) || !isRecord(chromeThemes.dark)) return null
+  const normalizedThemes = {
+    light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, "light"),
+    dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, "dark"),
+  }
+  // 旧迁移备份没有预设字段；完成记账时保留原字段集合。
+  for (const [variant, source] of [["light", chromeThemes.light], ["dark", chromeThemes.dark]] as const) {
+    if (source.accentPreset === undefined) delete normalizedThemes[variant].accentPreset
+  }
   return {
-    chromeThemes: {
-      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light),
-      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark),
-    },
+    chromeThemes: normalizedThemes,
     fontSizes: { ui: fontSizes.ui },
   }
 }
@@ -292,74 +300,14 @@ export class AppearanceSettingsStore {
         return normalized
       }
       const migrationRecord = recordRead.status === "record" ? recordRead.record : null
-      if (migrationRecord && migrationRecord.state === "completed") {
-        if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-          await this.save(normalized)
-        }
-        return normalized
+      if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+        await this.save(normalized)
       }
-
-      // 迁移顺序固定为：保存原外观及待执行状态 → 原子写入新主题 → 标记完成。
-      let backup = migrationRecord?.backup
-      if (!backup) {
-        backup = {
-          chromeThemes: {
-            light: { ...normalized.chromeThemes.light },
-            dark: { ...normalized.chromeThemes.dark },
-          },
-          fontSizes: {
-            ui: normalized.fontSizes.ui,
-          },
-        }
+      // 仅完成旧迁移的记账，默认配色更新不得覆盖当前外观或原备份。
+      if (migrationRecord?.state === "pending") {
+        await this.#writeMigrationRecord({ ...migrationRecord, state: "completed" })
       }
-
-      await this.#writeMigrationRecord({
-        version: MIGRATION_RECORD_VERSION,
-        migrationId: MIGRATION_ID,
-        state: "pending",
-        backup,
-      })
-
-      const migratedSettings: DesktopThemeSettingsV7 = {
-        ...normalized,
-        chromeThemes: {
-          light: {
-            ...DEFAULT_CHROME_THEMES.light,
-            fonts: {
-              ...DEFAULT_CHROME_THEMES.light.fonts,
-              code: normalized.chromeThemes.light.fonts.code,
-              codeFace: normalized.chromeThemes.light.fonts.codeFace,
-            },
-          },
-          dark: {
-            ...DEFAULT_CHROME_THEMES.dark,
-            fonts: {
-              ...DEFAULT_CHROME_THEMES.dark.fonts,
-              code: normalized.chromeThemes.dark.fonts.code,
-              codeFace: normalized.chromeThemes.dark.fonts.codeFace,
-            },
-          },
-        },
-        fontSizes: {
-          ...normalized.fontSizes,
-          ui: 14,
-        },
-      }
-
-      await this.#writeAtomically(migratedSettings)
-
-      await this.#writeMigrationRecord({
-        version: MIGRATION_RECORD_VERSION,
-        migrationId: MIGRATION_ID,
-        state: "completed",
-        backup,
-      })
-
-      this.#logger?.info("appearance-settings.migrated-ui-design", {
-        preservedMode: normalized.mode,
-      })
-
-      return migratedSettings
+      return normalized
     } catch (error) {
       if (!isMissingFileError(error)) throw error
       const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
@@ -395,6 +343,7 @@ export class AppearanceSettingsStore {
         light: {
           ...current.chromeThemes.light,
           accent: backup.chromeThemes.light.accent,
+          accentPreset: backup.chromeThemes.light.accentPreset ?? "custom",
           surface: backup.chromeThemes.light.surface,
           ink: backup.chromeThemes.light.ink,
           contrast: backup.chromeThemes.light.contrast,
@@ -408,6 +357,7 @@ export class AppearanceSettingsStore {
         dark: {
           ...current.chromeThemes.dark,
           accent: backup.chromeThemes.dark.accent,
+          accentPreset: backup.chromeThemes.dark.accentPreset ?? "custom",
           surface: backup.chromeThemes.dark.surface,
           ink: backup.chromeThemes.dark.ink,
           contrast: backup.chromeThemes.dark.contrast,
@@ -435,24 +385,12 @@ export class AppearanceSettingsStore {
       chromeThemes: {
         light: {
           ...DEFAULT_CHROME_THEMES.light,
-          fonts: {
-            ...DEFAULT_CHROME_THEMES.light.fonts,
-            code: current.chromeThemes.light.fonts.code,
-            codeFace: current.chromeThemes.light.fonts.codeFace,
-          },
+          fonts: { ...current.chromeThemes.light.fonts },
         },
         dark: {
           ...DEFAULT_CHROME_THEMES.dark,
-          fonts: {
-            ...DEFAULT_CHROME_THEMES.dark.fonts,
-            code: current.chromeThemes.dark.fonts.code,
-            codeFace: current.chromeThemes.dark.fonts.codeFace,
-          },
+          fonts: { ...current.chromeThemes.dark.fonts },
         },
-      },
-      fontSizes: {
-        ...current.fontSizes,
-        ui: 14,
       },
     }
     await this.save(next)

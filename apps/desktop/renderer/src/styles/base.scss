@@ -142,7 +142,7 @@ select:focus-visible,
 textarea:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
+  outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 2px;
 }
 

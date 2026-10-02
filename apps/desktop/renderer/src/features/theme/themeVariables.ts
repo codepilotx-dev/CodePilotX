@@ -23,6 +23,7 @@ type CodexRoles = {
   textTertiary: string
   textDisabled: string
   accentSubtle: string
+  accentForeground: string
   accentHover: string
   accentActive: string
   buttonPrimaryBg: string
@@ -122,11 +123,11 @@ export function deriveThemeVariables(
     editorBackground: roles.editorBackground,
     ink: theme.ink,
   })
-  const accentTone = deriveSemanticTone({
-    hue: theme.accent,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
-  })
+  const accentForeground = [
+    theme.surface, roles.editorBackground, roles.accentSubtle,
+  ].reduce((candidate, background) => ensureContrast(
+    parseColor(candidate), interactionInk, parseColor(background), 4.5,
+  ), roles.accentForeground)
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
   const shadowResting = dark
     ? '0 1px 2px rgb(0 0 0 / 20%)'
@@ -166,9 +167,9 @@ export function deriveThemeVariables(
     '--cpx-sys-color-border-focus': roles.borderFocus,
 
     // System Layer: Accent & semantic multi-hues
-    '--cpx-sys-color-accent-subtle-bg': accentTone.lineBackground,
+    '--cpx-sys-color-accent-subtle-bg': roles.accentSubtle,
     '--cpx-sys-color-accent-subtle-border': rgba(parseHex(theme.accent), 0.22),
-    '--cpx-sys-color-accent-fg': accentTone.foreground,
+    '--cpx-sys-color-accent-fg': accentForeground,
     '--cpx-sys-color-accent-hover': roles.accentHover,
     '--cpx-sys-color-accent-active': roles.accentActive,
     '--cpx-sys-color-danger': theme.semanticColors.diffRemoved,
@@ -258,9 +259,9 @@ export function deriveThemeVariables(
     '--cpx-comp-switch-thumb-fill': '#ffffff',
     '--cpx-comp-tooltip-border': `1px solid ${roles.borderLight}`,
     '--cpx-comp-tooltip-shadow': shadowFloating,
-    '--cpx-comp-scrollbar-slider-bg': rgba(interactionInk, 0.22),
-    '--cpx-comp-scrollbar-slider-hover-bg': rgba(interactionInk, 0.32),
-    '--cpx-comp-scrollbar-slider-active-bg': rgba(interactionInk, 0.42),
+    '--cpx-comp-scrollbar-slider-bg': roles.border,
+    '--cpx-comp-scrollbar-slider-hover-bg': roles.borderHeavy,
+    '--cpx-comp-scrollbar-slider-active-bg': roles.borderHeavy,
 
     '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
     '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
@@ -284,13 +285,13 @@ function deriveCodexRoles(
   const inkRgb = parseHex(ink)
   const accentRgb = parseHex(accent)
   const normalizedContrast = normalizeCodexContrast(contrast, variant)
-  const hierarchy = Math.min(1, Math.max(0, normalizedContrast))
-  const panel = mixHex(surfaceRgb, inkRgb, dark
-    ? 0.045 + hierarchy * 0.025
-    : 0.018 + hierarchy * 0.012)
-  const editorBackground = mixHex(surfaceRgb, inkRgb, dark
-    ? 0.07
-    : 0.012 + hierarchy * 0.008)
+  const white = { red: 255, green: 255, blue: 255 }
+  const panel = mixHex(surfaceRgb, dark ? inkRgb : white, dark
+    ? 0.03 + normalizedContrast * 0.03
+    : 0.18 + normalizedContrast * 0.008)
+  const editorBackground = mixHex(
+    surfaceRgb, dark ? inkRgb : white, dark ? 0.07 : 0.12,
+  )
   const palette = dark
     ? deriveDarkPalette(
         surfaceRgb,
@@ -314,16 +315,17 @@ function deriveCodexRoles(
     ),
     panel,
     control: palette.controlBackgroundOpaque,
-    raised: palette.elevatedSecondaryOpaque,
+    raised: palette.elevatedPrimaryOpaque,
     editorBackground,
     borderLight: palette.borderLight,
     border: palette.border,
     borderHeavy: palette.borderHeavy,
     borderFocus: palette.borderFocus,
-    textSecondary: palette.textForegroundSecondary,
+    textSecondary: rgba(inkRgb, 0.65),
     textTertiary: palette.textForegroundTertiary,
     textDisabled: palette.buttonPrimaryBackgroundInactive,
     accentSubtle: palette.accentBackground,
+    accentForeground: palette.textAccent,
     accentHover: palette.accentBackgroundHover,
     accentActive: palette.accentBackgroundActive,
     buttonPrimaryBg: palette.buttonPrimaryBackground,
@@ -467,16 +469,16 @@ function deriveLightPalette(
     elevatedSecondaryOpaque: rgbString(elevatedSecondary),
     iconAccent: hexString(accent),
     iconPrimary: hexString(ink),
-    iconSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
-    iconTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
-    simpleScrim: rgba(black, 0.22 + contrast * 0.05),
+    iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
+    iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    simpleScrim: rgba(black, 0.08 + contrast * 0.04),
     textAccent: hexString(accent),
     textButtonPrimary: hexString(surface),
     textButtonSecondary: hexString(ink),
     textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
-    textForegroundSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
-    textForegroundTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
+    textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
+    textForegroundTertiary: rgba(ink, 0.45 + contrast * 0.1),
   }
 }
 
@@ -507,7 +509,7 @@ function deriveDarkPalette(
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: rgba(accentOnDark, 0.7 + contrast * 0.1),
     borderHeavy: rgba(ink, 0.12 + contrast * 0.06),
-    borderLight: rgba(ink, 0.05 + contrast * 0.01),
+    borderLight: rgba(ink, 0.03 + contrast * 0.02),
     buttonPrimaryBackground: rgbString(primaryText),
     buttonPrimaryBackgroundActive: rgba(ink, 0.07 + contrast * 0.05),
     buttonPrimaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),
@@ -530,10 +532,10 @@ function deriveDarkPalette(
       0.04 + contrast * 0.05,
     ),
     iconAccent: rgbString(accentOnDark),
-    iconPrimary: mixHex(surface, ink, 0.82 + contrast * 0.14),
-    iconSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
-    iconTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
-    simpleScrim: rgba(black, 0.26 + contrast * 0.05),
+    iconPrimary: rgba(ink, 0.82 + contrast * 0.14),
+    iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
+    iconTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    simpleScrim: rgba(ink, 0.08 + contrast * 0.04),
     textAccent: rgbString(accentOnDark),
     textButtonPrimary: rgbString(primaryText),
     textButtonSecondary: mixHex(
@@ -543,8 +545,8 @@ function deriveDarkPalette(
     ),
     textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
-    textForegroundSecondary: mixHex(surface, ink, 0.65 + contrast * 0.1),
-    textForegroundTertiary: mixHex(surface, ink, 0.42 + contrast * 0.13),
+    textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
+    textForegroundTertiary: rgba(ink, 0.42 + contrast * 0.13),
   }
 }
 

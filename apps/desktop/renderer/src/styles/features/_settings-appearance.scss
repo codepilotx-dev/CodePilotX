@@ -55,7 +55,7 @@
   }
 
   > input:focus-visible + .appearance-mode-visual {
-    outline: 2px solid var(--cpx-sys-color-accent);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 
@@ -136,7 +136,7 @@
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-panel);
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   font: var(--cpx-sys-type-label);
 }
 
@@ -163,16 +163,40 @@
   }
 }
 
+.appearance-accent-control {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+}
+
+.appearance-accent-select {
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  border-radius: var(--cpx-sys-radius-pill);
+}
+
+.appearance-accent-dot {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-pill);
+}
+
 .appearance-color-control {
   display: flex;
   align-items: center;
-  width: 100%;
-  max-width: 136px;
+  width: 96px;
+  flex: 0 0 auto;
   height: 28px;
   gap: var(--cpx-sys-space-2);
   padding-inline: var(--cpx-sys-space-2);
-  border: 1px solid transparent;
-  border-radius: var(--cpx-sys-radius-control);
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-pill);
+  background: transparent;
+  color: var(--cpx-sys-color-fg-primary);
 }
 
 .appearance-color-control:has(.appearance-color-input:focus-visible) {
@@ -387,7 +411,6 @@
     justify-content: flex-start;
   }
 
-  .appearance-color-control,
   .appearance-font-input {
     width: min(100%, 240px);
     max-width: 240px;

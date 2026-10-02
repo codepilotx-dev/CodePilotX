@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
+import { getDesktopAccentPresetColor, type DesktopAccentPreset } from "@codepilotx/shared/desktop-theme"
 import {
   AppearanceSettingsStore,
   DEFAULT_APPEARANCE_SETTINGS,
@@ -22,6 +23,44 @@ function temporaryRoot(): string {
 }
 
 describe("Electron 外观设置存储", () => {
+  test("强调色预设区分默认与黑白，保存重载并保留旧版或不匹配的实际颜色", async () => {
+    const root = temporaryRoot()
+    const store = new AppearanceSettingsStore(root)
+    const current = await store.load()
+    const presets: DesktopAccentPreset[] = ["default", "blue", "green", "yellow", "pink", "orange", "purple", "black", "custom"]
+    for (const preset of presets) {
+      const chromeThemes = { ...current.chromeThemes }
+      for (const variant of ["light", "dark"] as const) {
+        chromeThemes[variant] = {
+          ...chromeThemes[variant],
+          accent: getDesktopAccentPresetColor(preset, variant) ?? "#123abc",
+          accentPreset: preset,
+        }
+      }
+      await store.save({ ...current, chromeThemes })
+      const reloaded = await new AppearanceSettingsStore(root).load()
+      for (const variant of ["light", "dark"] as const) {
+        expect(reloaded.chromeThemes[variant]).toEqual({
+          ...chromeThemes[variant], accent: chromeThemes[variant].accent.toLowerCase(),
+        })
+      }
+    }
+    for (const version of [6, 7]) {
+      for (const accentPreset of [undefined, "unknown", "blue", "default", "black"]) {
+        const normalized = normalizeAppearanceSettings({
+          ...current, version,
+          chromeThemes: {
+            light: { ...current.chromeThemes.light, accent: "#fa70ab", accentPreset },
+            dark: { ...current.chromeThemes.dark, accent: "#fa70ab", accentPreset },
+          },
+        })
+        expect(normalized.chromeThemes.light.accentPreset).toBe("custom")
+        expect(normalized.chromeThemes.dark.accentPreset).toBe("custom")
+        expect(normalized.chromeThemes.light.accent).toBe("#fa70ab")
+        expect(normalized.chromeThemes.dark.accent).toBe("#fa70ab")
+      }
+    }
+  })
   test("首次读取创建当前代际的设置文件与 completed 迁移记录（无备份）", async () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
@@ -204,44 +243,57 @@ describe("Electron 外观设置存储", () => {
       pointerCursorEnabled: true,
       reduceMotion: "off",
       fontSmoothingEnabled: false,
-      fontSizes: { ui: 14, code: 13 },
+      fontSizes: { ui: 15, code: 13 },
     })
-    expect(loaded.chromeThemes.light.accent).toBe("#0066cc")
-    expect(loaded.chromeThemes.light.surface).toBe("#ffffff")
+    expect(loaded.chromeThemes.light.accent).toBe("#abcdef")
+    expect(loaded.chromeThemes.light.surface).toBe("#fefefe")
+    expect(loaded.chromeThemes.light.fonts.ui).toBe("Inter")
     expect(loaded.chromeThemes.light.fonts.code).toBe("JetBrains Mono")
     expect(loaded.chromeThemes.dark.fonts.code).toBe("Cascadia Code")
-    expect(records).toEqual([{
-      event: "appearance-settings.migrated-ui-design",
-      fields: { preservedMode: "light" },
-    }])
-
-    expect(await store.canRestorePreviousAppearance()).toBe(true)
-
-    const restored = await store.restorePreviousAppearance()
-    expect(restored.chromeThemes.light).toMatchObject({
-      accent: "#abcdef",
-      surface: "#fefefe",
-      ink: "#111111",
-      contrast: 42,
-    })
-    expect(restored.chromeThemes.light.fonts.ui).toBe("Inter")
-    expect(restored.fontSizes.ui).toBe(15)
-    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(restored)
+    expect(records).toEqual([])
+    expect(await store.canRestorePreviousAppearance()).toBe(false)
+    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(loaded)
+    expect(await new AppearanceSettingsStore(root).load()).toEqual(loaded)
 
     const reapplied = await store.applyNewDesignTheme()
-    expect(reapplied.chromeThemes.light.accent).toBe("#0066cc")
+    expect(reapplied.chromeThemes.light.accent).toBe("#339cff")
     expect(reapplied.chromeThemes.light.surface).toBe("#ffffff")
-    expect(reapplied.fontSizes.ui).toBe(14)
+    expect(reapplied.fontSizes.ui).toBe(15)
+    expect(reapplied.chromeThemes.light.fonts.ui).toBe("Inter")
     expect(reapplied.chromeThemes.light.fonts.code).toBe("JetBrains Mono")
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(reapplied)
-    expect(await store.canRestorePreviousAppearance()).toBe(true)
+    expect(await store.canRestorePreviousAppearance()).toBe(false)
+  })
+
+  test("V7 缺少迁移记录时保留已保存配色、字体和字号，重启仍一致", async () => {
+    const root = temporaryRoot()
+    const store = new AppearanceSettingsStore(root)
+    const current = normalizeAppearanceSettings({
+      ...DEFAULT_APPEARANCE_SETTINGS,
+      chromeThemes: {
+        ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes,
+        light: {
+          ...DEFAULT_APPEARANCE_SETTINGS.chromeThemes.light,
+          accent: "#0066cc",
+          ink: "#1d1d1f",
+          fonts: { ui: "Inter", code: "Cascadia Code" },
+        },
+      },
+      fontSizes: { ui: 16, code: 14 },
+    })
+    await mkdir(root, { recursive: true })
+    await writeFile(store.filePath, JSON.stringify(current), "utf8")
+    expect(await store.load()).toEqual(current)
+    expect(await new AppearanceSettingsStore(root).load()).toEqual(current)
+    expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(current)
+    expect(await readdir(root)).toEqual(["appearance-settings.json"])
   })
 
   test("重复启动幂等性：已有 completed 迁移记录时不重新覆盖用户外观设置", async () => {
     const root = temporaryRoot()
     const store1 = new AppearanceSettingsStore(root)
     const initial = await store1.load()
-    expect(initial.chromeThemes.light.accent).toBe("#0066cc")
+    expect(initial.chromeThemes.light.accent).toBe("#339cff")
 
     const custom = {
       ...initial,
@@ -260,7 +312,7 @@ describe("Electron 外观设置存储", () => {
     expect(reloaded.chromeThemes.light.accent).toBe("#ff0077")
   })
 
-  test("迁移中断恢复：pending 状态重入时沿用原 backup 完成迁移并标记 completed", async () => {
+  test("迁移中断恢复：pending 仅完成记账，保留当前外观和原 backup", async () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
     await mkdir(root, { recursive: true })
@@ -293,10 +345,16 @@ describe("Electron 外观设置存储", () => {
       state: "pending",
       backup: customBackup,
     }), "utf8")
-    await writeFile(store.filePath, JSON.stringify(DEFAULT_APPEARANCE_SETTINGS), "utf8")
+    const current = normalizeAppearanceSettings({
+      ...DEFAULT_APPEARANCE_SETTINGS,
+      chromeThemes: customBackup.chromeThemes,
+      fontSizes: { ui: 15, code: 16 },
+    })
+    await writeFile(store.filePath, JSON.stringify(current), "utf8")
 
     const loaded = await store.load()
-    expect(loaded.fontSizes.ui).toBe(14)
+    expect(loaded).toEqual(current)
+    expect(await new AppearanceSettingsStore(root).load()).toEqual(current)
 
     const migrationRecord = JSON.parse(await readFile(store.migrationFilePath, "utf8"))
     expect(migrationRecord.state).toBe("completed")
@@ -450,10 +508,7 @@ describe("Electron 外观设置存储", () => {
 
     expect(loaded).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(loaded)
-    expect(records).toEqual([{
-      event: "appearance-settings.migrated-ui-design",
-      fields: { preservedMode: "system" },
-    }])
+    expect(records).toEqual([])
   })
 
   test("所有已知旧版本都重置为 V7 默认值", () => {

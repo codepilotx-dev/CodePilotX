@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import type { Project } from '@codepilotx/shared'
 import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
-import { createDesktopClient } from '../src/services/desktop-client/index.js'
+import { createDesktopClient, type DesktopClientEnvironment } from '../src/services/desktop-client/index.js'
+import { DEFAULT_DESKTOP_THEME_SETTINGS } from '../shared/theme.js'
 
 const now = 1_700_000_000_000
 const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
@@ -129,7 +130,7 @@ describe('desktop history client', () => {
       reduceMotion: 'on',
       fontSizes: { ui: 15, code: 13 },
     }
-    const client = createDesktopClient({
+    const environment: DesktopClientEnvironment = {
       window: {
         codePilotXDesktop: {
           pickWorkspaceDirectory: async () => null,
@@ -140,7 +141,8 @@ describe('desktop history client', () => {
           },
         },
       },
-    })
+    }
+    const client = createDesktopClient(environment)
 
     const loaded = await client.getThemeSettings()
     expect(loaded).toMatchObject({
@@ -152,6 +154,58 @@ describe('desktop history client', () => {
 
     await client.saveThemeSettings({ ...loaded, mode: 'light' })
     expect(stored).toMatchObject({ version: 7, mode: 'light' })
+    await client.saveThemeSettings({
+      ...loaded,
+      chromeThemes: {
+        light: { ...loaded.chromeThemes.light, accent: '#000000', accentPreset: 'default' },
+        dark: { ...loaded.chromeThemes.dark, accent: '#FFFFFF', accentPreset: 'black' },
+      },
+    })
+    const reloaded = await createDesktopClient(environment).getThemeSettings()
+    expect(reloaded.chromeThemes.light).toMatchObject({ accent: '#000000', accentPreset: 'default' })
+    expect(reloaded.chromeThemes.dark).toMatchObject({ accent: '#ffffff', accentPreset: 'black' })
+  })
+
+  test('saves accent presets through config key paths while preserving unknown settings', async () => {
+    const appearance: Record<string, unknown> = {
+      ...structuredClone(DEFAULT_DESKTOP_THEME_SETTINGS), unknownField: 'kept',
+    }
+    const edits: Array<{ keyPath: string[]; value: unknown }> = []
+    const version = 'a'.repeat(64)
+    const client = createDesktopClient({ fetch: async (_path, init) => {
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'config/read') return rpc(body.id, {
+        config: { desktop: { appearance } }, origins: {}, diagnostics: [],
+        profileState: { activeProfile: null, selectedProfile: null, restartRequired: false },
+        layers: [{ kind: 'user', displayName: 'User', version, writable: true, trusted: true, config: {} }],
+      })
+      if (body.method === 'config/batchWrite') {
+        expect(body.params.expectedVersion).toBe(version)
+        edits.push(...body.params.edits)
+        for (const edit of edits) {
+          expect(edit.keyPath.slice(0, 2)).toEqual(['desktop', 'appearance'])
+          const keys = edit.keyPath.slice(2)
+          let target = appearance
+          for (const key of keys.slice(0, -1)) target = target[key] as Record<string, unknown>
+          target[keys.at(-1)!] = edit.value
+        }
+        return rpc(body.id, { status: 'ok', version, filePath: 'config.toml' })
+      }
+      throw new Error(`Unexpected RPC method: ${body.method}`)
+    } })
+    await client.getRuntimeCapabilities()
+    const loaded = await client.getThemeSettings()
+    await client.saveThemeSettings({
+      ...loaded, chromeThemes: {
+        ...loaded.chromeThemes,
+        light: { ...loaded.chromeThemes.light, accent: '#3566F0', accentPreset: 'blue' },
+      },
+    })
+    expect(edits).toContainEqual({ keyPath: ['desktop', 'appearance', 'chromeThemes', 'light', 'accentPreset'], value: 'blue' })
+    expect(appearance.unknownField).toBe('kept')
+    expect((await client.getThemeSettings()).chromeThemes.light).toMatchObject({ accent: '#3566f0', accentPreset: 'blue' })
   })
 
   test('never batch-writes over a newer Agent appearance generation', async () => {

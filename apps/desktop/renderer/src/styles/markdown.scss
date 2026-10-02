@@ -178,7 +178,7 @@
   }
 
   a {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     text-decoration: none;
   }
 
@@ -238,7 +238,7 @@
 
 .md-file-reference:focus-visible {
   border-radius: 0;
-  outline: 2px solid var(--cpx-sys-color-accent);
+  outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 2px;
 }
 
@@ -409,7 +409,7 @@
   }
 
   &:focus-visible {
-    outline: 1px solid var(--cpx-sys-color-accent);
+    outline: 1px solid var(--cpx-sys-color-border-focus);
     outline-offset: -1px;
   }
 }
@@ -527,7 +527,7 @@
 }
 
 .md-table-copy:focus-visible {
-  outline: 2px solid var(--cpx-sys-color-accent);
+  outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 1px;
 }
 
@@ -732,11 +732,11 @@
 
 .md-code-comment__target:not(:disabled):hover strong,
 .md-code-comment__target:not(:disabled):focus-visible strong {
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
 }
 
 .md-code-comment__target:focus-visible {
-  outline: 2px solid var(--cpx-sys-color-accent);
+  outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 4px;
   border-radius: 0;
 }

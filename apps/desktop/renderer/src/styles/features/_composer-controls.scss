@@ -83,12 +83,12 @@
 
   &:hover {
     background: var(--cpx-sys-color-hover);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &.active {
     background: var(--cpx-sys-color-selected);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &.active:hover {
@@ -490,7 +490,7 @@
 }
 
 .chat-input__dropdown-check {
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   flex-shrink: 0;
 }
 
@@ -1221,7 +1221,7 @@
 }
 
 .composer-reasoning-menu-check {
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   flex-shrink: 0;
 }
 

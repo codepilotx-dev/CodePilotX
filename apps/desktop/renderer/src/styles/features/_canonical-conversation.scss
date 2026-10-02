@@ -292,7 +292,7 @@
     margin-left: auto;
     border: 0;
     background: transparent;
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     cursor: pointer;
   }
 }
@@ -398,7 +398,7 @@
   }
 
   &[data-state="active"] > &__header {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 }
 
@@ -645,7 +645,7 @@
 
   &:focus-visible {
     border-radius: var(--cpx-sys-radius-md);
-    outline: 2px solid var(--cpx-sys-color-accent);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 
@@ -791,7 +791,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--cpx-sys-color-accent);
+      outline: 2px solid var(--cpx-sys-color-border-focus);
       outline-offset: 1px;
     }
 
@@ -879,14 +879,14 @@
     > :is(.cpx-agent-activity__item, .cpx-agent-activity__file-changes) .cpx-agent-activity__item-header,
     > .canonical-process-card > .canonical-process-card__summary,
     > .canonical-subagent-card {
-      color: var(--cpx-sys-color-accent);
+      color: var(--cpx-sys-color-accent-fg);
     }
 
     .cpx-agent-activity__icon,
     .cpx-agent-activity__verb,
     .cpx-agent-activity__target,
     .cpx-agent-activity__file-link {
-      color: var(--cpx-sys-color-accent);
+      color: var(--cpx-sys-color-accent-fg);
     }
   }
 
@@ -1583,7 +1583,7 @@
       flex: 0 0 auto;
       width: var(--cpx-sys-icon-size-lg);
       height: var(--cpx-sys-icon-size-lg);
-      color: var(--cpx-sys-color-accent);
+      color: var(--cpx-sys-color-accent-fg);
     }
   }
 
@@ -1821,7 +1821,7 @@
   }
 
   &:focus-visible {
-    outline: 2px solid var(--cpx-sys-color-accent);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 

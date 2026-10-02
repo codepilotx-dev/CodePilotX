@@ -1,4 +1,5 @@
 import type { ThemeRegistration } from 'shiki'
+import { DEFAULT_CHROME_THEMES, getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
 
 import type {
   DesktopChromeTheme,
@@ -20,33 +21,6 @@ export type DesktopChromeThemeSeed = Pick<
   Partial<
     Pick<DesktopChromeTheme, 'contrast' | 'fonts'>
   >
-
-const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
-  light: {
-    accent: '#339cff',
-    surface: '#f9f9f9',
-    ink: '#111111',
-    contrast: 45,
-    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
-    semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#ba2623',
-      skill: '#924ff7',
-    },
-  },
-  dark: {
-    accent: '#339cff',
-    surface: '#111111',
-    ink: '#f7f7f7',
-    contrast: 60,
-    fonts: { ui: null, code: null, uiFace: null, codeFace: null },
-    semanticColors: {
-      diffAdded: '#40c977',
-      diffRemoved: '#fa423e',
-      skill: '#ad7bf9',
-    },
-  },
-}
 
 const ACCENT_KEYS = [
   'activityBarBadge.background',
@@ -90,7 +64,7 @@ export function deriveChromeThemeSeed(
 ): DesktopChromeThemeSeed {
   // Ported from Codex mtn/htn/gtn/vtn/btn (webview bundle byte 2,873,815).
   const theme = registration as ThemeWithChrome
-  const defaults = DEFAULT_SEEDS[variant]
+  const defaults = DEFAULT_CHROME_THEMES[variant]
   const colors = asStringMap(theme.colors)
   const surface =
     firstColor(colors, [
@@ -145,12 +119,24 @@ export function mergeChromeThemeSeed(
   return {
     ...current,
     ...seed,
+    accentPreset: 'custom',
     fonts: mergeSeedFonts(current.fonts, seed.fonts),
     semanticColors: {
       ...current.semanticColors,
       ...seed.semanticColors,
     },
   }
+}
+
+export function applyChromeThemeAccentPreset(
+  current: DesktopChromeTheme,
+  preset: DesktopAccentPreset,
+  variant: DesktopThemeVariant,
+  themeAccent?: DesktopChromeTheme['accent'],
+): DesktopChromeTheme {
+  if (preset === 'custom' && (current.accentPreset ?? 'custom') === 'custom') return current
+  const accent = getDesktopAccentPresetColor(preset, variant) ?? themeAccent
+  return accent ? { ...current, accent, accentPreset: preset } : current
 }
 
 function mergeSeedFonts(

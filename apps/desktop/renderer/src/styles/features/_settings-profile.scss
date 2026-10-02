@@ -402,7 +402,7 @@
   cursor: pointer;
 
   &:hover .profile-repository-name {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &:focus-visible {

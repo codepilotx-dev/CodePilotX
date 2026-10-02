@@ -86,13 +86,13 @@
 
 .ui-button[data-color="accentSubtle"] {
   border-color: transparent;
-  background: color-mix(in srgb, var(--cpx-sys-color-accent) 10%, transparent);
-  color: var(--cpx-sys-color-accent);
+  background: color-mix(in srgb, var(--cpx-sys-color-accent-fg) 10%, transparent);
+  color: var(--cpx-sys-color-accent-fg);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: color-mix(in srgb, var(--cpx-sys-color-accent) 15%, transparent);
+    background: color-mix(in srgb, var(--cpx-sys-color-accent-fg) 15%, transparent);
   }
 }
 
@@ -203,17 +203,17 @@
 
 .ui-button[data-color="primary"] {
   border-color: var(--cpx-sys-color-border-strong);
-  background: var(--cpx-sys-color-fg-primary);
-  color: var(--cpx-sys-color-surface-canvas);
+  background: var(--cpx-comp-button-primary-bg);
+  color: var(--cpx-comp-button-primary-fg);
 
   &:enabled:hover,
   &[data-state="open"],
   &[data-active] {
-    background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 88%, transparent);
+    background: var(--cpx-comp-button-primary-hover-bg);
   }
 
   &:active:not(:disabled) {
-    background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 80%, transparent);
+    background: var(--cpx-comp-button-primary-active-bg);
   }
 }
 

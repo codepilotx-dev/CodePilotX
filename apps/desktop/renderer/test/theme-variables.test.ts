@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
+import { deriveDesktopSurfaceUnder, getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
 
 import {
   DEFAULT_DARK_THEME,
@@ -15,6 +15,36 @@ import {
 } from '../src/features/theme/themeVariables.js'
 
 describe('fixed Codex UI themes', () => {
+  test('normalizes all accent presets by variant and preserves legacy or mismatched colors', () => {
+    for (const variant of ['light', 'dark'] as const) {
+      const monochrome = variant === 'light' ? '#000000' : '#FFFFFF'
+      const presets: Array<[DesktopAccentPreset, `#${string}`]> = [
+        ['default', monochrome], ['blue', '#3566F0'], ['green', '#19B79E'],
+        ['yellow', '#FDCD54'], ['pink', '#FA70AB'], ['orange', '#FF8771'],
+        ['purple', '#AB5EFF'], ['black', monochrome],
+      ]
+      for (const [preset, accent] of presets) {
+        expect(getDesktopAccentPresetColor(preset, variant)).toBe(accent)
+        const normalized = normalizeDesktopThemeSettings({
+          ...DEFAULT_DESKTOP_THEME_SETTINGS,
+          chromeThemes: { [variant]: { accent, accentPreset: preset } },
+        }).chromeThemes[variant]
+        expect(normalized.accentPreset).toBe(preset)
+        expect(normalized.accent.toLowerCase()).toBe(accent.toLowerCase())
+      }
+      for (const version of [6, 7]) {
+        for (const accentPreset of [undefined, null, 'unknown', 'blue', 'default', 'black']) {
+          const accent = '#fa70ab'
+          const normalized = normalizeDesktopThemeSettings({
+            version,
+            chromeThemes: { [variant]: { accent, accentPreset } },
+          }).chromeThemes[variant]
+          expect(normalized.accentPreset).toBe('custom')
+          expect(normalized.accent).toBe(accent)
+        }
+      }
+    }
+  })
   test('keeps code-theme seed labels readable on light, dark, and custom surfaces', () => {
     const seeds = [
       { accent: '#339cff', ink: '#1a1c1f', surface: '#ffffff' },
@@ -101,20 +131,23 @@ describe('fixed Codex UI themes', () => {
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
     expect(light['--cpx-sys-color-surface-canvas']).toBe('#ffffff')
+    expect(light['--cpx-sys-color-surface-editor']).toBe('#ffffff')
+    expect(light['--cpx-sys-color-accent']).toBe('#339cff')
+    expect(light['--cpx-sys-color-accent-subtle-bg']).toBe('#e5f2ff')
     expect(light['--cpx-sys-color-surface-recessed']).not.toBe(
       light['--cpx-sys-color-surface-canvas'],
     )
-    expect(light['--cpx-sys-color-fg-primary']).toBe('#1d1d1f')
-    expect(light['--cpx-sys-color-fg-secondary']).toBe('#626263')
-    expect(light['--cpx-sys-color-fg-tertiary']).toBe('#8f8f90')
-    expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(29, 29, 31, 0.049)')
-    expect(light['--cpx-sys-color-border-default']).toBe('rgba(29, 29, 31, 0.078)')
-    expect(light['--cpx-sys-color-border-strong']).toBe('rgba(29, 29, 31, 0.117)')
+    expect(light['--cpx-sys-color-fg-primary']).toBe('#1a1c1f')
+    expect(light['--cpx-sys-color-fg-secondary']).toBe('rgba(26, 28, 31, 0.65)')
+    expect(light['--cpx-sys-color-fg-tertiary']).toBe('rgba(26, 28, 31, 0.495)')
+    expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
+    expect(light['--cpx-sys-color-border-default']).toBe('rgba(26, 28, 31, 0.078)')
+    expect(light['--cpx-sys-color-border-strong']).toBe('rgba(26, 28, 31, 0.117)')
     expect(light['--cpx-sys-color-hover']).toBe(
-      'rgba(29, 29, 31, 0.05)',
+      'rgba(26, 28, 31, 0.05)',
     )
     expect(light['--cpx-sys-color-selected']).toBe(
-      'rgba(29, 29, 31, 0.05)',
+      'rgba(26, 28, 31, 0.05)',
     )
     expect(light['--cpx-sys-color-diff-added-line']).not.toBe(
       light['--cpx-sys-color-surface-editor'],
@@ -124,32 +157,37 @@ describe('fixed Codex UI themes', () => {
     )
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#0f1011')
+    expect(dark['--cpx-sys-color-surface-canvas']).toBe('#181818')
+    expect(dark['--cpx-sys-color-surface-editor']).toBe('#282828')
+    expect(dark['--cpx-sys-color-surface-panel']).toBe('#232323')
+    expect(dark['--cpx-sys-color-surface-raised']).toBe('rgb(54, 54, 54)')
+    expect(dark['--cpx-sys-color-accent-fg']).toBe('#83c3ff')
+    expect(dark['--cpx-sys-color-accent-subtle-bg']).toBe('#0d273f')
     expect(dark['--cpx-sys-color-surface-recessed']).not.toBe(
       dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--cpx-sys-color-fg-primary']).toBe('#f7f8f8')
+    expect(dark['--cpx-sys-color-fg-primary']).toBe('#ffffff')
     expect(dark['--cpx-sys-color-surface-panel']).not.toBe(
       dark['--cpx-sys-color-surface-canvas'],
     )
-    expect(dark['--cpx-sys-color-fg-secondary']).toBe('#b4b5b5')
-    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('#838484')
+    expect(dark['--cpx-sys-color-fg-secondary']).toBe('rgba(255, 255, 255, 0.65)')
+    expect(dark['--cpx-sys-color-fg-tertiary']).toBe('rgba(255, 255, 255, 0.498)')
     expect(dark['--cpx-sys-color-border-subtle']).toBe(
-      'rgba(247, 248, 248, 0.056)',
+      'rgba(255, 255, 255, 0.042)',
     )
     expect(dark['--cpx-sys-color-border-default']).toBe(
-      'rgba(247, 248, 248, 0.084)',
+      'rgba(255, 255, 255, 0.084)',
     )
     expect(dark['--cpx-sys-color-border-strong']).toBe(
-      'rgba(247, 248, 248, 0.156)',
+      'rgba(255, 255, 255, 0.156)',
     )
     expect(dark['--cpx-sys-color-hover']).toBe(
-      'rgba(247, 248, 248, 0.08)',
+      'rgba(255, 255, 255, 0.08)',
     )
     expect(dark['--cpx-sys-color-selected']).toBe(
-      'rgba(247, 248, 248, 0.05)',
+      'rgba(255, 255, 255, 0.05)',
     )
-    expect(dark['--cpx-sys-color-fg-on-accent']).toBe('#000000')
+    expect(dark['--cpx-sys-color-fg-on-accent']).toBe('#ffffff')
   })
 
   test('keeps control thumbs white in light and dark themes', () => {
@@ -316,6 +354,7 @@ describe('fixed Codex UI themes', () => {
     const control = variables['--cpx-sys-color-surface-control']
     const raised = variables['--cpx-sys-color-surface-raised']
 
+    expect(variables['--cpx-sys-color-surface-editor']).toBe('#f6f4ef')
     expect(recessed).toBe(
       deriveDesktopSurfaceUnder('#f5f3ed', '#2f312d', 'light', 40),
     )
@@ -379,10 +418,10 @@ describe('fixed Codex UI themes', () => {
 
   test('keeps the recovered contrast boundary palette deterministic', () => {
     const expected = [
-      [0, 'rgba(29, 29, 31, 0.06)'],
-      [45, 'rgba(29, 29, 31, 0.078)'],
-      [60, 'rgba(29, 29, 31, 0.1)'],
-      [100, 'rgba(29, 29, 31, 0.1)'],
+      [0, 'rgba(26, 28, 31, 0.06)'],
+      [45, 'rgba(26, 28, 31, 0.078)'],
+      [60, 'rgba(26, 28, 31, 0.1)'],
+      [100, 'rgba(26, 28, 31, 0.1)'],
     ] as const
 
     for (const [contrast, border] of expected) {
@@ -405,11 +444,11 @@ describe('fixed Codex UI themes', () => {
     }
   })
 
-  test('keeps dark subtle borders near the Codex five-percent baseline', () => {
+  test('keeps dark subtle borders near the Codex three-percent baseline', () => {
     const expected = [
-      [0, 'rgba(247, 248, 248, 0.05)'],
-      [60, 'rgba(247, 248, 248, 0.056)'],
-      [100, 'rgba(247, 248, 248, 0.06)'],
+      [0, 'rgba(255, 255, 255, 0.03)'],
+      [60, 'rgba(255, 255, 255, 0.042)'],
+      [100, 'rgba(255, 255, 255, 0.05)'],
     ] as const
 
     for (const [contrast, border] of expected) {
@@ -546,7 +585,7 @@ describe('fixed Codex UI themes', () => {
     }
   })
 
-  test('derives pure black subtle floating shadows and dark scrims across light and dark modes', () => {
+  test('keeps floating shadows black and derives reference scrims for both variants', () => {
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
@@ -555,9 +594,8 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--cpx-sys-shadow-floating']).toContain('rgb(0 0 0 /')
     expect(dark['--cpx-sys-shadow-floating']).not.toContain('255')
 
-    // Scrim / backdrop must be pure black alpha
-    expect(light['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
-    expect(dark['--cpx-sys-color-scrim']).toMatch(/^rgba\(0, 0, 0, 0\.\d+\)$/)
+    expect(light['--cpx-sys-color-scrim']).toBe('rgba(0, 0, 0, 0.098)')
+    expect(dark['--cpx-sys-color-scrim']).toBe('rgba(255, 255, 255, 0.104)')
   })
 })
 

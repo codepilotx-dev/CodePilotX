@@ -12,6 +12,7 @@ import {
   DEFAULT_LIGHT_CHROME_THEME,
   desktopThemeFontFaceMatchesFamily,
   isNewerDesktopThemeSettingsVersion,
+  normalizeDesktopAccentPreset,
 } from '@codepilotx/shared/desktop-theme'
 import {
   CODEX_HIGHLIGHT_THEMES,
@@ -89,10 +90,12 @@ export function normalizeDesktopThemeSettings(
       light: normalizeChromeTheme(
         chromeThemes.light,
         DEFAULT_LIGHT_CHROME_THEME,
+        'light',
       ),
       dark: normalizeChromeTheme(
         chromeThemes.dark,
         DEFAULT_DARK_CHROME_THEME,
+        'dark',
       ),
     },
     codeThemeIds: normalizeCodeThemeIds(record),
@@ -148,6 +151,7 @@ function normalizeReducedMotion(
 function normalizeChromeTheme(
   value: unknown,
   fallback: DesktopChromeTheme,
+  variant: DesktopThemeVariant,
 ): DesktopChromeTheme {
   const record = isRecord(value) ? value : {}
   const fonts = isRecord(record.fonts) ? record.fonts : {}
@@ -158,8 +162,10 @@ function normalizeChromeTheme(
   const ui = normalizeOptionalFont(fonts.ui)
   const codeFace = normalizeOptionalFontFace(fonts.codeFace)
   const uiFace = normalizeOptionalFontFace(fonts.uiFace)
+  const accent = normalizeHex(record.accent, fallback.accent)
   return {
-    accent: normalizeHex(record.accent, fallback.accent),
+    accent,
+    accentPreset: normalizeDesktopAccentPreset(record.accentPreset, accent, variant),
     contrast: clampNumber(record.contrast, 0, 100, fallback.contrast),
     fonts: {
       code,

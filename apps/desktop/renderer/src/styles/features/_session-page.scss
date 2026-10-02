@@ -111,7 +111,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--cpx-sys-color-accent);
+      outline: 2px solid var(--cpx-sys-color-border-focus);
       outline-offset: 4px;
     }
   }
@@ -160,7 +160,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--cpx-sys-color-accent);
+      outline: 2px solid var(--cpx-sys-color-border-focus);
       outline-offset: 3px;
     }
   }
@@ -292,7 +292,7 @@
   cursor: pointer;
 
   &:focus-visible {
-    outline: 1px solid var(--cpx-sys-color-accent);
+    outline: 1px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
   }
 }
@@ -790,7 +790,7 @@
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &__plan-icon--error {
@@ -798,7 +798,7 @@
   }
 
   &__plan-icon--running {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
 
     svg {
       animation: composer-change-summary-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;

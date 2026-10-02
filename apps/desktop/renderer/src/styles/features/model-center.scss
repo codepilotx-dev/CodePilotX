@@ -191,7 +191,7 @@
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-accent-subtle-bg);
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   font: var(--cpx-sys-type-label);
   white-space: nowrap;
 }
@@ -655,7 +655,7 @@
   }
 
   a {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     font-size: var(--cpx-sys-font-size-sm);
   }
 }
@@ -671,7 +671,7 @@
   flex-wrap: wrap;
 
   a {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     font-size: var(--cpx-sys-font-size-sm);
     text-decoration: none;
 
@@ -845,7 +845,7 @@
 
   .model-card.selected .model-card-tag {
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   .model-card-orphan-label {
@@ -980,7 +980,7 @@
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
     margin-top: var(--cpx-sys-space-1);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 }
 
@@ -1600,7 +1600,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   }
 
   a {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     font-size: var(--cpx-sys-font-size-sm);
   }
 }
@@ -1802,7 +1802,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   &[data-tone="active"] {
     border-color: var(--cpx-sys-color-accent-subtle-border);
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &[data-tone="healthy"] {
@@ -2379,7 +2379,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   gap: var(--cpx-sys-space-3);
 
   svg {
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
     flex: 0 0 auto;
   }
 
@@ -2413,7 +2413,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 
   &[data-tone="info"] {
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 
   &[data-tone="positive"] {
@@ -2528,10 +2528,10 @@ html[data-theme="dark"] .model-center-key-dialog {
 
   &--highlight {
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
 
     svg {
-      color: var(--cpx-sys-color-accent);
+      color: var(--cpx-sys-color-accent-fg);
     }
   }
 }
@@ -2607,7 +2607,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   justify-content: center;
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-accent-subtle-bg);
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   flex: 0 0 auto;
 
   svg {
@@ -2673,7 +2673,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   &:hover {
     border-color: var(--cpx-sys-color-accent);
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 }
 
@@ -2747,7 +2747,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   transition: border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
   &:focus {
-    outline: 2px solid color-mix(in srgb, var(--cpx-sys-color-accent) 72%, transparent);
+    outline: 2px solid var(--cpx-sys-color-border-focus);
     outline-offset: -1px;
     border-color: var(--cpx-sys-color-accent);
   }
@@ -2825,7 +2825,7 @@ html[data-theme="dark"] .model-center-key-dialog {
   &[data-tone="info"] {
     background: var(--cpx-sys-color-accent-subtle-bg);
     border: 1px solid var(--cpx-sys-color-accent-subtle-border);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 }
 
@@ -3014,7 +3014,7 @@ html[data-theme="dark"] .model-center-key-dialog {
 
   &--vision {
     background: var(--cpx-sys-color-accent-subtle-bg);
-    color: var(--cpx-sys-color-accent);
+    color: var(--cpx-sys-color-accent-fg);
   }
 }
 

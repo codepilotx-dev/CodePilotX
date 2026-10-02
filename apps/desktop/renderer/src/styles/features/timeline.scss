@@ -244,7 +244,7 @@
   outline: none;
 
   &:focus-visible {
-    outline: 1px solid var(--cpx-sys-color-accent);
+    outline: 1px solid var(--cpx-sys-color-border-focus);
     outline-offset: 2px;
     border-radius: var(--cpx-sys-radius-md);
   }

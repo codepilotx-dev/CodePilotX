@@ -13,7 +13,7 @@
   border-radius: var(--cpx-sys-radius-full);
   background: transparent;
   box-shadow: none;
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   font: var(--cpx-sys-type-control);
   cursor: pointer;
   outline: none;
@@ -141,7 +141,7 @@
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
 }
 
 /* --- Semantic Tinted Chips & Badges --- */

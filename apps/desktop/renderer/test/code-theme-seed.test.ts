@@ -5,6 +5,7 @@ import {
   deriveChromeThemeSeed,
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
+  applyChromeThemeAccentPreset,
 } from '../src/features/theme/codeThemeSeed.js'
 import { DEFAULT_DARK_CHROME_THEME, DEFAULT_LIGHT_CHROME_THEME } from '../shared/theme.js'
 import { CODEX_HIGHLIGHT_THEMES } from '../shared/codexThemes/manifest.js'
@@ -80,6 +81,8 @@ describe('code theme Chrome seed', () => {
     const merged = mergeChromeThemeSeed(
       {
         ...DEFAULT_DARK_CHROME_THEME,
+        accent: '#3566f0',
+        accentPreset: 'blue',
         contrast: 73,
         fonts: { ui: 'Inter', code: 'Cascadia Code' },
       },
@@ -92,6 +95,23 @@ describe('code theme Chrome seed', () => {
       surface: '#282a36',
       ink: '#f8f8f2',
       accent: '#ff79c6',
+      accentPreset: 'custom',
     })
+  })
+
+  test('custom starts from the selected theme seed and preserves an existing custom value', async () => {
+    for (const variant of ['light', 'dark'] as const) {
+      const current = variant === 'light' ? DEFAULT_LIGHT_CHROME_THEME : DEFAULT_DARK_CHROME_THEME
+      const seed = await loadChromeThemeSeed(`codex-${variant}`, variant)
+      const blue = applyChromeThemeAccentPreset(current, 'blue', variant)
+      expect(blue).toEqual({ ...current, accent: '#3566F0', accentPreset: 'blue' })
+      expect(applyChromeThemeAccentPreset(blue, 'custom', variant)).toBe(blue)
+      const custom = applyChromeThemeAccentPreset(blue, 'custom', variant, seed.accent)
+      expect(custom).toEqual({ ...current, accent: seed.accent, accentPreset: 'custom' })
+      const edited = { ...custom, accent: '#123abc' as const }
+      expect(applyChromeThemeAccentPreset(edited, 'custom', variant, seed.accent)).toBe(edited)
+      const legacy = { ...edited, accentPreset: undefined }
+      expect(applyChromeThemeAccentPreset(legacy, 'custom', variant, seed.accent)).toBe(legacy)
+    }
   })
 })

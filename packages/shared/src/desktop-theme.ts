@@ -2,6 +2,40 @@ export type DesktopThemeVariant = "light" | "dark"
 export type DesktopThemeMode = DesktopThemeVariant | "system"
 export type DesktopHexColor = `#${string}`
 
+export const DESKTOP_ACCENT_PRESET_COLORS = {
+  blue: "#3566F0",
+  green: "#19B79E",
+  yellow: "#FDCD54",
+  pink: "#FA70AB",
+  orange: "#FF8771",
+  purple: "#AB5EFF",
+} as const
+
+export type DesktopAccentPreset = keyof typeof DESKTOP_ACCENT_PRESET_COLORS
+  | "default" | "black" | "custom"
+
+export function getDesktopAccentPresetColor(
+  preset: DesktopAccentPreset,
+  variant: DesktopThemeVariant,
+): DesktopHexColor | undefined {
+  if (preset === "custom") return undefined
+  if (preset === "default" || preset === "black") {
+    return variant === "light" ? "#000000" : "#FFFFFF"
+  }
+  return DESKTOP_ACCENT_PRESET_COLORS[preset]
+}
+
+export function normalizeDesktopAccentPreset(
+  value: unknown,
+  accent: DesktopHexColor,
+  variant: DesktopThemeVariant,
+): DesktopAccentPreset {
+  const preset = ["default", ...Object.keys(DESKTOP_ACCENT_PRESET_COLORS), "black"]
+    .find(preset => preset === value) as Exclude<DesktopAccentPreset, "custom"> | undefined
+  return preset && getDesktopAccentPresetColor(preset, variant)?.toLowerCase() === accent.toLowerCase()
+    ? preset : "custom"
+}
+
 export function deriveDesktopSurfaceUnder(
   surface: string,
   ink: string,
@@ -90,6 +124,7 @@ export type DesktopSystemFontsResult =
 
 export type DesktopChromeTheme = {
   accent: DesktopHexColor
+  accentPreset?: DesktopAccentPreset
   contrast: number
   fonts: {
     code: string | null
@@ -130,29 +165,31 @@ export type DesktopThemeSettingsV7<CodeThemeId extends string = string> =
   Omit<DesktopThemeSettingsV6<CodeThemeId>, "version"> & { version: 7 }
 
 export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
-  accent: "#0066cc",
+  accent: "#339cff",
+  accentPreset: "custom",
   contrast: 45,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: "#1d1d1f",
+  ink: "#1a1c1f",
   semanticColors: {
-    diffAdded: "#16a34a",
-    diffRemoved: "#dc2626",
-    skill: "#9333ea",
+    diffAdded: "#00a240",
+    diffRemoved: "#ba2623",
+    skill: "#924ff7",
   },
   surface: "#ffffff",
 }
 
 export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
-  accent: "#2997ff",
+  accent: "#339cff",
+  accentPreset: "custom",
   contrast: 60,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: "#f7f8f8",
+  ink: "#ffffff",
   semanticColors: {
     diffAdded: "#40c977",
     diffRemoved: "#fa423e",
     skill: "#ad7bf9",
   },
-  surface: "#0f1011",
+  surface: "#181818",
 }
 
 export const DEFAULT_CHROME_THEMES: Record<DesktopThemeVariant, DesktopChromeTheme> = {

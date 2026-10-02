@@ -184,19 +184,24 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps primary/secondary buttons distinct and settings rows height-free', async () => {
-    const [buttons, settings] = await Promise.all([
+    const [buttons, settings, tokens] = await Promise.all([
       Bun.file(
         new URL('../src/styles/components/button.scss', import.meta.url),
       ).text(),
       Bun.file(
         new URL('../src/styles/features/_settings-core.scss', import.meta.url),
       ).text(),
+      Bun.file(
+        new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+      ).text(),
     ])
 
     // primary：foreground 实底、反色文字；secondary：5% 弱背景、透明边框。
     expect(buttons).toMatch(
-      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--cpx-sys-color-fg-primary\)/,
+      /\.ui-button\[data-color="primary"\]\s*\{[\s\S]*?background: var\(--cpx-comp-button-primary-bg\)/,
     )
+    expect(tokens).toContain('--cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);')
+    expect(tokens).toContain('--cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);')
     expect(buttons).toMatch(
       /\.ui-button\[data-color="secondary"\]\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--cpx-sys-color-fg-primary\) 5%, transparent\)/,
     )

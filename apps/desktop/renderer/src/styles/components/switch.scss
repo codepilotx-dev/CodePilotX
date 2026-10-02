@@ -5,11 +5,7 @@
 .context-menu-switch {
   box-sizing: border-box;
   border: 1px solid var(--cpx-sys-color-border-default);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 14%,
-    var(--cpx-comp-surface-panel)
-  );
+  background: var(--cpx-comp-switch-bg);
   box-shadow: none;
   outline: none;
   transition:
@@ -21,7 +17,7 @@
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-fg-primary) 20%,
-      var(--cpx-comp-surface-panel)
+      transparent
     );
   }
 
@@ -35,11 +31,7 @@
   }
 
   &[data-state="unchecked"] {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 14%,
-      var(--cpx-comp-surface-panel)
-    );
+    background: var(--cpx-comp-switch-bg);
   }
 
   &[data-state="checked"],

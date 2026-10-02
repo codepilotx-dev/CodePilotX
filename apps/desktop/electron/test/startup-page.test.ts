@@ -135,8 +135,8 @@ describe("startup page", () => {
       variant: "light",
       theme: {
         surface: "#ffffff",
-        ink: "#1d1d1f",
-        accent: "#0066cc",
+        ink: "#1a1c1f",
+        accent: "#339cff",
         surfaceUnder: "#f6f6f6",
       },
     })
@@ -145,10 +145,10 @@ describe("startup page", () => {
     ).toEqual({
       variant: "dark",
       theme: {
-        surface: "#0f1011",
-        ink: "#f7f8f8",
-        accent: "#2997ff",
-        surfaceUnder: "#0d0d0e",
+        surface: "#181818",
+        ink: "#ffffff",
+        accent: "#339cff",
+        surfaceUnder: "#141414",
       },
     })
   })

@@ -35,8 +35,8 @@
   --cpx-comp-button-size-large: 36px;
   --cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);
-  --cpx-comp-button-primary-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 85%, transparent);
-  --cpx-comp-button-primary-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 75%, transparent);
+  --cpx-comp-button-primary-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 80%, transparent);
+  --cpx-comp-button-primary-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 80%, transparent);
   --cpx-comp-button-primary-disabled-bg: var(--cpx-sys-color-fg-disabled);
 
   // 3. Input / SearchInput Component
@@ -54,7 +54,7 @@
   --cpx-comp-input-validation-warning-border: var(--cpx-sys-color-warning);
 
   // 4. Switch & SegmentedControl Component
-  --cpx-comp-switch-bg: var(--cpx-sys-color-surface-canvas);
+  --cpx-comp-switch-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 10%, transparent);
   --cpx-comp-switch-border: var(--cpx-sys-color-border-default);
   --cpx-comp-switch-checked-bg: var(--cpx-sys-color-accent);
   --cpx-comp-switch-radius: var(--cpx-sys-radius-full);
@@ -72,9 +72,9 @@
   --cpx-comp-tooltip-border: 1px solid var(--cpx-sys-color-border-subtle);
   --cpx-comp-tooltip-shadow: var(--cpx-sys-shadow-floating);
   --cpx-comp-tooltip-radius: var(--cpx-sys-radius-sm);
-  --cpx-comp-scrollbar-slider-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 22%, transparent);
-  --cpx-comp-scrollbar-slider-hover-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 32%, transparent);
-  --cpx-comp-scrollbar-slider-active-bg: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 42%, transparent);
+  --cpx-comp-scrollbar-slider-bg: var(--cpx-sys-color-border-default);
+  --cpx-comp-scrollbar-slider-hover-bg: var(--cpx-sys-color-border-strong);
+  --cpx-comp-scrollbar-slider-active-bg: var(--cpx-sys-color-border-strong);
   --cpx-comp-chip-bg: var(--cpx-sys-color-surface-canvas);
   --cpx-comp-chip-fg: var(--cpx-sys-color-fg-primary);
   --cpx-comp-chip-border: var(--cpx-sys-color-border-subtle);

@@ -492,7 +492,7 @@
   align-items: center;
   gap: var(--cpx-sys-space-1);
   font: var(--cpx-sys-type-caption);
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   text-decoration: none;
 
   &:hover {
@@ -605,7 +605,7 @@
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-control);
-  color: var(--cpx-sys-color-accent);
+  color: var(--cpx-sys-color-accent-fg);
   font: var(--cpx-sys-type-label);
   cursor: pointer;
   transition: background-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
