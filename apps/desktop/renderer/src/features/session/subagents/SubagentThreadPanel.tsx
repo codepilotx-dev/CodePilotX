@@ -27,6 +27,7 @@ import type { VirtualizerHandle } from 'virtua'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
@@ -181,7 +182,7 @@ export function SubagentThreadPanel({
             </IconButton>
           ) : null}
           <span className="subagent-thread-panel__avatar" aria-hidden="true">
-            <Bot size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Bot data-icon-kind="artwork" size={14} strokeWidth={2} />
           </span>
           <div className="subagent-thread-panel__title-block">
             <h2>{task.displayName}</h2>
@@ -320,7 +321,7 @@ function RunResult({ result }: { result: NonNullable<SubagentRun['result']> }): 
     <article className="subagent-thread-panel__result" data-outcome={result.outcome}>
       <header>
         {result.outcome === 'succeeded'
-          ? <Check size={APP_ICON_SIZE} />
+          ? <Check size={APP_ICON_SIZES.sm} />
           : <AlertCircle size={APP_ICON_SIZE} />}
         <strong>{result.summary}</strong>
       </header>
@@ -342,12 +343,12 @@ function StatusBadge({ status }: { status: SubagentRun['status'] }): React.React
   return (
     <span className="subagent-thread-panel__status-badge" data-status={status}>
       {isActiveRunStatus(status)
-        ? <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
+        ? <LoaderCircle className="is-spinning" size={APP_ICON_SIZES.sm} />
         : status === 'completed'
-          ? <Check size={APP_ICON_SIZE} />
+          ? <Check size={APP_ICON_SIZES.sm} />
           : status === 'failed'
-            ? <X size={APP_ICON_SIZE} />
-            : <Circle size={APP_ICON_SIZE} />}
+            ? <X size={APP_ICON_SIZES.sm} />
+            : <Circle size={APP_ICON_SIZES.sm} />}
       {subagentStatusLabel(status)}
     </span>
   )

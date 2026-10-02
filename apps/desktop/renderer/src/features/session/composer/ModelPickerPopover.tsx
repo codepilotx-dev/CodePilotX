@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH, APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import {
@@ -319,7 +320,7 @@ export function ModelPickerPopover({
                   className={`composer-hub-trigger-btn${isHubOpen ? ' is-active' : ''}`}
                   title="模型中心：发现并配置服务商"
                 >
-                  <Plus size={18} strokeWidth={2.2} />
+                  <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </button>
               </div>
             </div>
@@ -337,15 +338,15 @@ export function ModelPickerPopover({
                         className="composer-hub-back"
                         title="返回模型列表"
                       >
-                        <ChevronLeft size={16} strokeWidth={2.2} />
+                        <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </button>
                       <span className="composer-models-title">模型中心</span>
                     </div>
 
                     <div className="composer-hub-search-bar">
                       <Search
-                        size={14}
-                        strokeWidth={2}
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
                         className="composer-search-bar-icon"
                       />
                       <input
@@ -431,8 +432,8 @@ export function ModelPickerPopover({
                       {searchExpanded ? (
                         <div className="composer-search-bar animate-search-in">
                           <Search
-                            size={14}
-                            strokeWidth={2}
+                            size={APP_ICON_SIZE}
+                            strokeWidth={APP_ICON_STROKE_WIDTH}
                             className="composer-search-bar-icon"
                           />
                           <input
@@ -457,7 +458,7 @@ export function ModelPickerPopover({
                             className="composer-search-clear"
                             title="清除并关闭"
                           >
-                            <X size={12} strokeWidth={2.5} />
+                            <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                           </button>
                         </div>
                       ) : (
@@ -467,7 +468,7 @@ export function ModelPickerPopover({
                           className="composer-search-trigger"
                         >
                           <span>快速搜索</span>
-                          <Search size={14} strokeWidth={2.2} />
+                          <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                         </button>
                       )}
                     </div>
@@ -520,7 +521,7 @@ export function ModelPickerPopover({
                                       aria-label={`推理思考强度：${currentThinkingLabel}`}
                                     >
                                       <span>{currentThinkingLabel}</span>
-                                      <ChevronDown size={12} strokeWidth={2.5} />
+                                      <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                                     </button>
                                   }
                                 />

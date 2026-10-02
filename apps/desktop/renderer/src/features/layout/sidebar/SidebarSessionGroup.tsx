@@ -12,7 +12,7 @@ import {
 } from "react";
 import { Archive, Clock3, Copy, Eye, EyeOff, Folder, MessageCircle, MessageSquare, Pencil, Pin, PinOff, Split } from "lucide-react";
 import { Reorder } from "motion/react";
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZE, APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
 import {
   sessionDisplayTitle,
@@ -414,6 +414,7 @@ function SidebarSessionGroupComponent({
                   <IconButton
                     className="sidebar-session-action-button"
                     color="ghostSecondary"
+                    iconSize="md"
                     onClick={() => onUnpinSession(session)}
                     size="iconMd"
                     title="取消置顶"
@@ -424,6 +425,7 @@ function SidebarSessionGroupComponent({
                   <IconButton
                     className="sidebar-session-action-button"
                     color="ghostSecondary"
+                    iconSize="md"
                     onClick={() => onPinSession(session)}
                     size="iconMd"
                     title="置顶"
@@ -434,6 +436,7 @@ function SidebarSessionGroupComponent({
                 <IconButton
                   className="sidebar-session-action-button"
                   color="ghostSecondary"
+                  iconSize="md"
                   onClick={() => setConfirmArchiveSessionId(session.id)}
                   size="iconMd"
                   title="归档"
@@ -450,7 +453,7 @@ function SidebarSessionGroupComponent({
                 {visualState === 'unread' ? (
                   <span aria-label="未读" className="sidebar-unread-dot" />
                 ) : visualState === 'running' ? (
-                  <Spinner className="sidebar-session-spinner" label="加载中" />
+                  <Spinner className="sidebar-session-spinner" label="加载中" size="medium" />
                 ) : null}
               </span>
             ) : null}
@@ -720,7 +723,7 @@ function SidebarSessionWorkspaceMeta({
   if (session.standalone) {
     return (
       <span className="sidebar-session-workspace-meta">
-        <MessageSquare className="sidebar-session-workspace-meta__icon" size={APP_ICON_SIZE} />
+        <MessageSquare className="sidebar-session-workspace-meta__icon" size={APP_ICON_SIZES.sm} />
         <span className="sidebar-session-workspace-meta__name">会话</span>
       </span>
     )
@@ -730,7 +733,7 @@ function SidebarSessionWorkspaceMeta({
       <span className="sidebar-session-workspace-meta">
         <ProjectAppearanceGlyph
           className="sidebar-session-workspace-meta__glyph"
-          size={APP_ICON_SIZE}
+          size={APP_ICON_SIZES.sm}
         />
         <span className="sidebar-session-workspace-meta__name">
           {session.workspaceName}

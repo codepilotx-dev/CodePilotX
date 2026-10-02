@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from './iconTokens.js'
+import { APP_ICON_SIZES } from './iconTokens.js'
 import React from 'react'
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
 import { Check, Minus } from 'lucide-react'
@@ -36,8 +36,8 @@ export function Checkbox({
     >
       <CheckboxPrimitive.Indicator className="ui-checkbox-indicator">
         {checked === 'indeterminate'
-          ? <Minus size={APP_ICON_SIZE} aria-hidden="true" />
-          : <Check size={APP_ICON_SIZE} aria-hidden="true" />}
+          ? <Minus size={APP_ICON_SIZES.sm} aria-hidden="true" />
+          : <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

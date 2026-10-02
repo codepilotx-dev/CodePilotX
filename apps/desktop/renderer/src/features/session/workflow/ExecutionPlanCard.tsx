@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { Circle, CircleCheck, LoaderCircle } from "lucide-react";
 import type { Item } from "@codepilotx/shared/thread";
@@ -68,11 +68,11 @@ function ExecutionPlanStepView({
     >
       <span className="execution-plan-card__step-icon" aria-hidden="true">
         {step.status === "completed" ? (
-          <CircleCheck size={APP_ICON_SIZE} />
+          <CircleCheck size={APP_ICON_SIZES.sm} />
         ) : step.status === "in_progress" ? (
-          <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" />
         ) : (
-          <Circle size={APP_ICON_SIZE} />
+          <Circle size={APP_ICON_SIZES.sm} />
         )}
       </span>
       <span className="execution-plan-card__step-text">{step.step}</span>

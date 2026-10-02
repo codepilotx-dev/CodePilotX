@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Send, X } from 'lucide-react'
 import { PetSprite } from './PetSprite.js'
@@ -117,7 +117,7 @@ export function PetOverlayPage(): React.ReactNode {
                   onClick={() => controller.dismiss(notification.id)}
                   type="button"
                 >
-                  <X size={APP_ICON_SIZE} />
+                  <X size={APP_ICON_SIZES.sm} />
                 </button>
               </div>
             ) : null}

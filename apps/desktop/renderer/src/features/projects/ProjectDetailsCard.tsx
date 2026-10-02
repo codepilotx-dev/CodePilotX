@@ -4,7 +4,7 @@ import { FolderOpen, MessageSquare, Pin, PinOff, Settings } from 'lucide-react'
 import type { DesktopWorkspace, ProjectAppearance } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { ProjectAppearanceGlyph } from './projectAppearance.js'
 import { SidebarHoverCardFrame, SidebarHoverCardHeader, SidebarHoverCardRow } from '../layout/sidebar/SidebarHoverCardLayout.js'
 
@@ -53,7 +53,7 @@ export function ProjectDetailsCard({ appearance, conversationCount, openCount, u
         <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
           <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
           <strong title={project.name}>{project.name}</strong>
-          <IconButton
+          <IconButton iconSize="sm"
             className="sidebar-project-hover-card-pin"
             color={isPinned ? "ghostActive" : "ghostSecondary"}
             ref={pinRef}
@@ -64,9 +64,9 @@ export function ProjectDetailsCard({ appearance, conversationCount, openCount, u
             }}
           >
             {isPinned ? (
-              <PinOff size={APP_ICON_SIZE} />
+              <PinOff size={APP_ICON_SIZES.sm} />
             ) : (
-              <Pin size={APP_ICON_SIZE} />
+              <Pin size={APP_ICON_SIZES.sm} />
             )}
           </IconButton>
         </SidebarHoverCardHeader>
@@ -113,7 +113,7 @@ export function ProjectDetailsCard({ appearance, conversationCount, openCount, u
             onEdit()
           }}
         >
-          <Settings aria-hidden="true" size={APP_ICON_SIZE} />
+          <Settings aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <span>编辑项目</span>
         </Button>
       </SidebarHoverCardFrame>

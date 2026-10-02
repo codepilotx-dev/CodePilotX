@@ -7,7 +7,7 @@ import type {
   DesktopSessionStatus,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { WorkbenchTabDescriptor } from '../../layout/dock/rightDockState.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
@@ -167,19 +167,19 @@ export function SideChatThreadPanel({
       >
         {creating ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : expired ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <CirclePlus size={APP_ICON_SIZE} aria-hidden="true" />
+            <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
             <Button color="primary" onClick={() => onRecreate(tab)}>开始新的侧边聊天</Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
           <div className="right-dock-side-chat__empty" role="status">
-            <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : visibleTurnCount === 0 && !conversation.error ? (
@@ -187,7 +187,7 @@ export function SideChatThreadPanel({
             <span className="right-dock-side-chat__empty-icon">
               <CirclePlus
                 aria-hidden="true"
-                size={APP_ICON_SIZE}
+                size={APP_ICON_SIZES.lg}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>

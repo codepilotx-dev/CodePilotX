@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, Ellipsis, Plus, SquarePen } from "lucide-react";
 import { AnimatePresence, motion, Reorder, useIsPresent } from "motion/react";
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZE, APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import type {
   DesktopSidebarOrganization,
   DesktopSidebarSort,
@@ -1345,7 +1345,7 @@ function SidebarSection({
                 aria-hidden="true"
                 className="sidebar-section-chevron"
               >
-                <ChevronDown size={APP_ICON_SIZE} />
+                <ChevronDown size={APP_ICON_SIZES.sm} />
               </span>
             </span>
           </button>

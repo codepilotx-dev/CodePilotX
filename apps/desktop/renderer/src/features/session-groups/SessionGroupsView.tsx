@@ -31,7 +31,7 @@ import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { Spinner } from '../../components/ui/Spinner.js'
 import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
 import { useHeightTransition } from '../../hooks/useHeightTransition.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
   DesktopSessionGroup,
@@ -222,7 +222,7 @@ export function SessionGroupsView(): React.ReactNode {
       ) : null}
       <WorkspaceHeaderItem align="end" id="session-groups.actions" order={100} slot="right">
         <Button aria-label="新建工作流" color="primary" size="compact" onClick={openCreateDialog}>
-          <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Plus size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <span>新建工作流</span>
         </Button>
       </WorkspaceHeaderItem>
@@ -256,7 +256,7 @@ export function SessionGroupsView(): React.ReactNode {
               <p>{error}</p>
               <div>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
-                  <RefreshCw size={APP_ICON_SIZE} />
+                  <RefreshCw size={APP_ICON_SIZES.sm} />
                   <span>重试</span>
                 </Button>
                 <Button color="secondary" size="compact" onClick={() => navigate('/workflows')}>
@@ -276,7 +276,7 @@ export function SessionGroupsView(): React.ReactNode {
               <header className="session-group-detail__header">
                 <div className="session-group-detail__info">
                   <span className="chip-semantic accent session-group-eyebrow">
-                    <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Sparkles size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     共享上下文
                   </span>
                   <h1>{detail.group.name}</h1>
@@ -284,11 +284,11 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
                 <div className="session-group-actions">
                   <Button color="secondary" size="compact" onClick={openEditDialog}>
-                    <Pencil size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Pencil size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>编辑</span>
                   </Button>
                   <Button color="secondary" size="compact" onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>删除组</span>
                   </Button>
                 </div>
@@ -346,7 +346,7 @@ export function SessionGroupsView(): React.ReactNode {
                     size="compact"
                     onClick={() => void addSession()}
                   >
-                    <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    <Plus size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>加入组</span>
                   </Button>
                 </div>
@@ -428,7 +428,7 @@ export function SessionGroupsView(): React.ReactNode {
                 <AlertCircle size={APP_ICON_SIZE} />
                 <span>{error}</span>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
-                  <RefreshCw size={APP_ICON_SIZE} />
+                  <RefreshCw size={APP_ICON_SIZES.sm} />
                   <span>重试</span>
                 </Button>
               </div>
@@ -465,7 +465,7 @@ export function SessionGroupsView(): React.ReactNode {
                       </span>
                       <span className="session-group-row__updated">
                         <span>{formatGroupTime(group.latestStepAt) || '暂无记录'}</span>
-                        <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+                        <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
                       </span>
                     </Link>
                   ))}
@@ -474,7 +474,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <h2>暂无工作流</h2>
                 <p>将相关任务组织在一起，共享上下文并追踪每一步验证。</p>
                 <Button color="secondary" onClick={openCreateDialog}>创建新工作流</Button>
@@ -482,7 +482,7 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <h2>未找到工作流</h2>
                 <p>没有与“{search}”匹配的工作流。</p>
                 <Button color="secondary" size="compact" onClick={() => setSearch('')}>清除搜索</Button>
@@ -572,11 +572,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           )}
         >
           {isFailed ? (
-            <AlertCircle size={APP_ICON_SIZE} strokeWidth={2.2} />
+            <AlertCircle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : isCompleted ? (
-            <CheckCircle2 size={APP_ICON_SIZE} strokeWidth={2.2} />
+            <CheckCircle2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : (
-            <Sparkles size={APP_ICON_SIZE} strokeWidth={2} />
+            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
         </div>
         <span className="session-group-step__seq">{step.sequence}</span>
@@ -666,11 +666,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               >
                 <div className="session-group-step__validation-header">
                   {validation.status === 'passed' ? (
-                    <Check className="u-text-success" size={APP_ICON_SIZE} />
+                    <Check className="u-text-success" size={APP_ICON_SIZES.sm} />
                   ) : validation.status === 'failed' ? (
-                    <AlertCircle className="u-text-danger" size={APP_ICON_SIZE} />
+                    <AlertCircle className="u-text-danger" size={APP_ICON_SIZES.sm} />
                   ) : (
-                    <History className="u-text-meta" size={APP_ICON_SIZE} />
+                    <History className="u-text-meta" size={APP_ICON_SIZES.sm} />
                   )}
                   <strong>
                     {validation.status === 'passed'
@@ -708,7 +708,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             >
               <FileDiff size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span>{step.changedFiles.length} 个变更文件</span>
-              {diffOpen ? <ChevronUp size={APP_ICON_SIZE} /> : <ChevronDown size={APP_ICON_SIZE} />}
+              {diffOpen ? <ChevronUp size={APP_ICON_SIZES.sm} /> : <ChevronDown size={APP_ICON_SIZES.sm} />}
             </button>
             <DisclosureContent
               contentClassName="session-group-step__diff"

@@ -4,7 +4,7 @@ import {
   SearchablePopoverAction,
   SearchablePopoverContent,
 } from '../../../components/ui/SearchablePopoverContent.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
 
 type BranchSelectPopoverProps = {
@@ -102,7 +102,7 @@ export function BranchSelectPopover({
             )}
           </span>
           <span className="popover-item-trailing">
-            {selected ? <Check size={APP_ICON_SIZE} /> : null}
+            {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
           </span>
         </>
       )}

@@ -47,6 +47,7 @@ import {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import type {
   DesktopPermissionMode,
@@ -1370,7 +1371,7 @@ export function ComposerCard({
                 </span>
                 <Select.Icon asChild>
                   <ChevronDown
-                    size={APP_ICON_SIZE}
+                    size={APP_ICON_SIZES.sm}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 </Select.Icon>
@@ -1418,7 +1419,7 @@ export function ComposerCard({
                           </span>
                           <Select.ItemIndicator className="permission-select-item-indicator">
                             <Check
-                              size={APP_ICON_SIZE}
+                              size={APP_ICON_SIZES.sm}
                               strokeWidth={APP_ICON_STROKE_WIDTH}
                             />
                           </Select.ItemIndicator>
@@ -1452,7 +1453,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={APP_ICON_SIZE}
+                      size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1483,7 +1484,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={APP_ICON_SIZE}
+                      size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1518,7 +1519,7 @@ export function ComposerCard({
                     />
                     <X
                       className="composer-plan-mode-chip-icon-exit"
-                      size={APP_ICON_SIZE}
+                      size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
@@ -1657,7 +1658,7 @@ export function ComposerCard({
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
 
-            <button
+            <IconButton
               aria-label={
                 submitting
                   ? "正在发送"
@@ -1666,6 +1667,9 @@ export function ComposerCard({
                     : "发送"
               }
               className={`send-button${submitting ? " is-submitting" : ""}`}
+              color="primary"
+              size="composer"
+              iconSize="lg"
               disabled={!isRunning && !canSubmit}
               onClick={
                 isRunning && !canSubmit
@@ -1680,16 +1684,16 @@ export function ComposerCard({
               type="button"
             >
               {submitting ? (
-                <Activity aria-hidden="true" size={APP_ICON_SIZE} />
+                <Activity aria-hidden="true" size={APP_ICON_SIZES.lg} />
               ) : isRunning && !canSubmit ? (
-                <Square size={APP_ICON_SIZE} fill="currentColor" />
+                <Square size={APP_ICON_SIZES.lg} fill="currentColor" />
               ) : (
                 <ArrowUp
-                  size={APP_ICON_SIZE}
+                  size={APP_ICON_SIZES.lg}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
               )}
-            </button>
+            </IconButton>
           </div>
         </div>
         <ComposerStatusOverlay
@@ -1966,7 +1970,7 @@ function composerCommandMenuItem(
     meta: command.source === 'skill' ? skillScopeLabel(command.skill.scope) : undefined,
     icon:
       command.source === "skill" ? (
-        <BuiltinSkillIcon skill={command.skill} size={APP_ICON_SIZE} />
+        <BuiltinSkillIcon skill={command.skill} size={14} />
       ) : (
         composerSlashCommandIcon(command.id)
       ),

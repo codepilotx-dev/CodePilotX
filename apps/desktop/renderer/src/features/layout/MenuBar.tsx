@@ -12,7 +12,7 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import {
   buildPopoverSizingStyle,
@@ -365,7 +365,7 @@ export function MenuBar({
             size="toolbar"
             title="前进"
           >
-            <ChevronRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
 
           <Menubar.Root
@@ -702,7 +702,7 @@ export function WindowControls({
         title="关闭"
         type="button"
       >
-        <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
       </button>
     </div>
   )

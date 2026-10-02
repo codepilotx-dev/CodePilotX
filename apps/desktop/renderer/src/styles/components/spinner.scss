@@ -20,8 +20,8 @@
 }
 
 .ui-button-spinner {
-  width: var(--button-icon-size, var(--button-icon-size-xs));
-  height: var(--button-icon-size, var(--button-icon-size-xs));
+  width: var(--button-icon-size-override, var(--button-icon-size, var(--cpx-sys-icon-size)));
+  height: var(--button-icon-size-override, var(--button-icon-size, var(--cpx-sys-icon-size)));
 }
 
 @keyframes ui-spinner-spin {

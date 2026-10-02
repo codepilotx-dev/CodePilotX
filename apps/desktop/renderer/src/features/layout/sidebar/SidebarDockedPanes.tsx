@@ -11,6 +11,7 @@ import {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
@@ -129,9 +130,9 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0">
                     <span className="tw:text-app-text-muted tw:shrink-0">
                       {active ? (
-                        <ChevronDown size={14} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       ) : (
-                        <ChevronRight size={14} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       )}
                     </span>
                     <span className="tw:shrink-0">{tabIcon}</span>
@@ -150,7 +151,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到右侧栏"
                       onClick={() => onMoveTab('sidebar', 'right', tab.id)}
                     >
-                      <MoveRight size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="移到底部面板"
@@ -159,7 +160,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="移到底部面板"
                       onClick={() => onMoveTab('sidebar', 'bottom', tab.id)}
                     >
-                      <MoveDown size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <MoveDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="关闭视图"
@@ -168,7 +169,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       title="关闭视图"
                       onClick={() => onCloseTab(tab.id)}
                     >
-                      <X size={12} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                   </div>
                 </div>

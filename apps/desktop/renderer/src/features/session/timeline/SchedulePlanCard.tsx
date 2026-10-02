@@ -8,7 +8,7 @@ import type { Item } from '@codepilotx/shared/thread'
 import { Button } from '../../../components/ui/Button.js'
 import { Input } from '../../../components/ui/Input.js'
 import { Select } from '../../../components/ui/Select.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 
 type ToolItem = Extract<Item, { type: 'tool' }>
@@ -85,9 +85,9 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
   return (
     <article className="schedule-plan-card" data-state={proposal.status}>
       <header>
-        <span className="schedule-plan-card__icon" aria-hidden="true"><CalendarCheck2 size={APP_ICON_SIZE} /></span>
+        <span className="schedule-plan-card__icon" aria-hidden="true"><CalendarCheck2 size={APP_ICON_SIZES.sm} /></span>
         <div><strong>{committed ? '日程已创建' : '确认任务规划'}</strong><span>{horizonLabel(proposal.horizon)} · {enabledCount}/{items.length} 项已启用</span></div>
-        {committed ? <Button color="secondary" size="compact" onClick={openCalendar}>打开<ExternalLink aria-hidden="true" size={APP_ICON_SIZE} /></Button> : null}
+        {committed ? <Button color="secondary" size="compact" onClick={openCalendar}>打开<ExternalLink aria-hidden="true" size={APP_ICON_SIZES.sm} /></Button> : null}
       </header>
       <ol className="schedule-plan-card__items">
         {items.map(candidate => (

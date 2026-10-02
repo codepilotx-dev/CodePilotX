@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH, APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import type { DesktopComposerAttachment } from '../../../../shared/types.js'
 import { resolveDraftAttachmentPreviewContent } from '../attachments/attachmentPreviewSupport.js'
@@ -23,36 +24,36 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   if (['xlsx', 'xls', 'csv', 'tsv'].includes(ext)) {
     return {
       bg: '#1a73e8',
-      icon: <FileSpreadsheet className="composer-attachment-tile-icon" size={14} />,
+      icon: <FileSpreadsheet className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
   if (['pptx', 'ppt', 'key'].includes(ext)) {
     return {
       bg: '#9061f9',
-      icon: <Presentation className="composer-attachment-tile-icon" size={14} />,
+      icon: <Presentation className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
   if (['ts', 'tsx', 'js', 'jsx', 'json', 'py', 'go', 'rs', 'c', 'cpp', 'html', 'css', 'sql', 'sh'].includes(ext)) {
     return {
       bg: '#00bba7',
-      icon: <Box className="composer-attachment-tile-icon" size={14} />,
+      icon: <Box className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
   if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext) || kind === 'audio') {
     return {
       bg: '#f59e0b',
-      icon: <Music className="composer-attachment-tile-icon" size={14} />,
+      icon: <Music className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
   if (['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext) || kind === 'video') {
     return {
       bg: '#ef4444',
-      icon: <Video className="composer-attachment-tile-icon" size={14} />,
+      icon: <Video className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
   return {
     bg: '#6b7280',
-    icon: <FileText className="composer-attachment-tile-icon" size={14} />,
+    icon: <FileText className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
   }
 }
 
@@ -105,7 +106,7 @@ export function ComposerAttachmentTray({
                   className="composer-attachment-error-badge"
                   title={attachment.error ?? '加载失败'}
                 >
-                  <AlertCircle size={14} />
+                  <AlertCircle size={APP_ICON_SIZE} />
                 </div>
               )}
               {onRemove && (
@@ -119,7 +120,7 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X size={11} strokeWidth={2.6} />
+                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </button>
               )}
             </div>
@@ -162,7 +163,7 @@ export function ComposerAttachmentTray({
                   title="移除附件"
                   type="button"
                 >
-                  <X size={11} strokeWidth={2.6} />
+                  <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </button>
               )}
             </div>

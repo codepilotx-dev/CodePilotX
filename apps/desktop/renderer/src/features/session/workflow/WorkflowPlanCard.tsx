@@ -2,8 +2,8 @@ import React from "react";
 import { Maximize2, PanelRight } from "lucide-react";
 import type { StructuredPlan } from "@codepilotx/shared/thread";
 import {
-  APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import { MarkdownMessage } from "../../markdown/index.js";
 
@@ -68,7 +68,7 @@ export function WorkflowPlanCard({
           </span>
           <span className="workflow-plan-card__compact-title">{title}</span>
           <PanelRight
-            size={APP_ICON_SIZE}
+            size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         </button>
@@ -90,7 +90,7 @@ export function WorkflowPlanCard({
               onClick={() => onOpenInRightDock(plan)}
             >
               <Maximize2
-                size={APP_ICON_SIZE}
+                size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </button>

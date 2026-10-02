@@ -4,6 +4,7 @@ import { Check, Copy, Folder, FolderOpen, ListChecks } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import {
   AnimatePresence,
@@ -158,7 +159,7 @@ export function RightDockPlanPanel({
         contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
-          <ListChecks size={APP_ICON_SIZE} strokeWidth={1.8} />
+          <ListChecks size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <strong className="tw:text-app-text">暂无计划</strong>
           <span className="tw:max-w-full tw:text-app-text-soft">从主对话里的计划卡片打开计划书</span>
         </div>
@@ -532,7 +533,7 @@ export function RightDockFilePreviewPanel({
   if (document.status !== 'ready') {
     return (
       <div className="right-dock-empty-state">
-        <Folder size={APP_ICON_SIZE} strokeWidth={1.8} />
+        <Folder size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
         <strong>正在读取文件</strong>
         <span>{expectedPath}</span>
       </div>

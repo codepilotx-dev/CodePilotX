@@ -28,6 +28,7 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
@@ -773,7 +774,7 @@ const ProviderModelCard = memo(function ProviderModelCard({
           onClick={() => setExpanded(current => !current)}
         >
           <span className="provider-editor-model-card-chevron">
-            {expanded ? <ChevronDown aria-hidden size={APP_ICON_SIZE} /> : <ChevronRight aria-hidden size={APP_ICON_SIZE} />}
+            {expanded ? <ChevronDown aria-hidden size={APP_ICON_SIZES.sm} /> : <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />}
           </span>
           <code>{model.id || '(未命名模型)'}</code>
           {model.name && model.name !== model.id ? (
@@ -925,7 +926,7 @@ function ModelEditor({
           onClick={() => setAdvanced(current => !current)}
           type="button"
         >
-          <ChevronRight size={APP_ICON_SIZE} aria-hidden="true" />
+          <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
           高级配置与 Token 计费
         </button>
         <DisclosureContent

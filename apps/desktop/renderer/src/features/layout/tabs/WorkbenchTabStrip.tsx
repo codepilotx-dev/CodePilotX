@@ -6,6 +6,7 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import {
   PopoverRadioGroup,
@@ -298,7 +299,7 @@ export function WorkbenchTabStrip({
                         }}
                       >
                         <X
-                          size={APP_ICON_SIZE}
+                          size={APP_ICON_SIZES.sm}
                           strokeWidth={APP_ICON_STROKE_WIDTH}
                         />
                       </IconButton>

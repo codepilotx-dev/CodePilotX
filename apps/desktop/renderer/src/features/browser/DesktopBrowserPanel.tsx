@@ -13,7 +13,7 @@ import {
 import type { DesktopBrowserState } from '../../../shared/types.js'
 import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
@@ -356,7 +356,7 @@ export function DesktopBrowserPanel({
       >
         {!state.url ? (
           <div className="browser-empty-state">
-            <Globe2 size={APP_ICON_SIZE} strokeWidth={1.6} />
+            <Globe2 size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <strong>开始浏览</strong>
             <span>输入 URL 以打开页面</span>
           </div>

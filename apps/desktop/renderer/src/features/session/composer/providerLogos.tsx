@@ -1,7 +1,6 @@
 import React from 'react'
 import { Server } from 'lucide-react'
 
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 
 /**
@@ -18,8 +17,9 @@ export function ProviderLogo({
   const fallback = (
     <Server
       aria-hidden="true"
-      size={APP_ICON_SIZE}
-      strokeWidth={APP_ICON_STROKE_WIDTH}
+      size={14}
+      data-icon-kind="artwork"
+      strokeWidth={2}
     />
   )
 

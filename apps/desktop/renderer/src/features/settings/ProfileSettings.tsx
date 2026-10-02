@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import {
@@ -177,11 +177,11 @@ export function ProfileSettings(): React.ReactNode {
                   {user?.avatarUrl ? (
                     <RemoteImage
                       alt=""
-                      fallback={<User size={APP_ICON_SIZE} />}
+                      fallback={<User data-icon-kind="artwork" size={14} />}
                       src={user.avatarUrl}
                     />
                   ) : (
-                    <User size={APP_ICON_SIZE} />
+                    <User data-icon-kind="artwork" size={14} />
                   )}
                 </div>
                 {user ? (
@@ -223,11 +223,11 @@ export function ProfileSettings(): React.ReactNode {
               ) : null}
               {githubOverview ? (
                 <div className="profile-meta-line">
-                  <ProfileMeta icon={<User size={APP_ICON_SIZE} />} value={`${githubOverview.user.followers} followers`} />
-                  <ProfileMeta icon={<GitFork size={APP_ICON_SIZE} />} value={`${githubOverview.user.following} following`} />
-                  <ProfileMeta icon={<MapPin size={APP_ICON_SIZE} />} value={githubOverview.user.location} />
-                  <ProfileMeta icon={<Globe size={APP_ICON_SIZE} />} value={githubOverview.user.websiteUrl} />
-                  <ProfileMeta icon={<Mail size={APP_ICON_SIZE} />} value={githubOverview.user.email} />
+                  <ProfileMeta icon={<User size={APP_ICON_SIZES.sm} />} value={`${githubOverview.user.followers} followers`} />
+                  <ProfileMeta icon={<GitFork size={APP_ICON_SIZES.sm} />} value={`${githubOverview.user.following} following`} />
+                  <ProfileMeta icon={<MapPin size={APP_ICON_SIZES.sm} />} value={githubOverview.user.location} />
+                  <ProfileMeta icon={<Globe size={APP_ICON_SIZES.sm} />} value={githubOverview.user.websiteUrl} />
+                  <ProfileMeta icon={<Mail size={APP_ICON_SIZES.sm} />} value={githubOverview.user.email} />
                 </div>
               ) : null}
             </section>

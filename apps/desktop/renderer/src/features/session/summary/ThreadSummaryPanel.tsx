@@ -15,7 +15,7 @@ import {
   SquarePlus,
   X,
 } from "lucide-react";
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZE, APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { BranchSelectPopover } from "../composer/BranchSelectPopover.js";
 import type { ThreadSummaryViewModel } from "./threadSummaryViewModel.js";
@@ -198,7 +198,7 @@ export function ThreadSummaryPanel({
               <span>本地</span>
             </button>
             <DisabledSummaryControl label="暂不支持切换执行位置">
-              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </DisabledSummaryControl>
           </div>
           <BranchSelectPopover
@@ -227,7 +227,7 @@ export function ThreadSummaryPanel({
                 <span>
                   {model.environment.branchName ?? "未检测到 Git 分支"}
                 </span>
-                <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+                <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
               </button>
             }
           />
@@ -334,7 +334,7 @@ function ThreadSummarySubagentsRow({
       <span className="thread-summary-subagents-summary__avatars">
         {subagents.slice(0, 4).map((subagent) => (
           <span aria-hidden="true" key={subagent.id}>
-            <Bot size={APP_ICON_SIZE} />
+            <Bot data-icon-kind="artwork" size={14} />
           </span>
         ))}
       </span>
@@ -440,7 +440,7 @@ function ThreadSummarySection({
           >
             <span id={headingId}>{title}</span>
             {!expanded ? collapsedSummary : null}
-            <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+            <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         </h2>
         <span className="thread-summary-section__actions">

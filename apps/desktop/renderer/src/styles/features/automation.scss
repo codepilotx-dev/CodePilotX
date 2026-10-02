@@ -228,8 +228,8 @@
 }
 
 .automation-empty-state svg {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: var(--cpx-sys-icon-size-lg);
+  height: var(--cpx-sys-icon-size-lg);
 }
 
 .automation-empty-state h2,
@@ -539,8 +539,8 @@
 }
 
 .automation-save-state svg {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: var(--cpx-sys-icon-size-sm);
+  height: var(--cpx-sys-icon-size-sm);
 }
 
 .automation-save-retry {

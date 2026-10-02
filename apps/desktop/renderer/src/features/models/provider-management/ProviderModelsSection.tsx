@@ -28,6 +28,7 @@ import { Input } from '../../../components/ui/Input.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../../utils/errors.js'
@@ -369,17 +370,17 @@ function ModelRowItem({
         {/* Speedtest Status Feedback */}
         {testStatus.state === 'testing' ? (
           <span className="model-speed-status model-speed-status--testing">
-            <Loader2 aria-hidden size={APP_ICON_SIZE} className="spin" />
+            <Loader2 aria-hidden size={APP_ICON_SIZES.sm} className="spin" />
             测速中...
           </span>
         ) : testStatus.state === 'reachable' ? (
           <span className="model-speed-status model-speed-status--healthy" title={`响应耗时 ${testStatus.latencyMs} 毫秒`}>
-            <CheckCircle2 aria-hidden size={APP_ICON_SIZE} />
+            <CheckCircle2 aria-hidden size={APP_ICON_SIZES.sm} />
             {testStatus.latencyMs} ms
           </span>
         ) : testStatus.state === 'failed' ? (
           <span className="model-speed-status model-speed-status--failed" title={testStatus.message}>
-            <AlertCircle aria-hidden size={APP_ICON_SIZE} />
+            <AlertCircle aria-hidden size={APP_ICON_SIZES.sm} />
             测速失败
           </span>
         ) : null}

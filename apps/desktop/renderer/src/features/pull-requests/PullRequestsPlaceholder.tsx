@@ -2,8 +2,8 @@ import type React from 'react'
 import { GitPullRequest } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 
@@ -21,7 +21,7 @@ export function PullRequestsPlaceholder(): React.ReactNode {
       >
         <span aria-hidden="true" className="pull-requests-placeholder__icon">
           <GitPullRequest
-            size={APP_ICON_SIZE}
+            size={APP_ICON_SIZES.lg}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         </span>

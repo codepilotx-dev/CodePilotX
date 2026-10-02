@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -166,7 +166,7 @@ export function CollapsibleUserMarkdown({
           type="button"
         >
           <span>{collapseState === "expanded" ? "收起" : "展开全文"}</span>
-          <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" />
+          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" />
         </button>
       )}
     </div>

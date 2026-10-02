@@ -362,10 +362,10 @@
   }
 
   .model-card-tag-icon {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
     flex-shrink: 0;
-    stroke-width: 1.75;
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
   &.selected .model-card-tag {

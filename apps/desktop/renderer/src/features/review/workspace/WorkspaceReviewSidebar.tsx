@@ -47,6 +47,7 @@ import {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
@@ -2454,7 +2455,7 @@ function WorkspaceReviewSidebarImpl({
                     type="button"
                   >
                     <span>{source.baseBranch}</span>
-                    <ChevronDown size={APP_ICON_SIZE} />
+                    <ChevronDown size={APP_ICON_SIZES.sm} />
                   </button>
                 }
                 onOpenChange={setBranchPickerOpen}
@@ -2611,14 +2612,14 @@ function WorkspaceReviewSidebarImpl({
             onSetAllExpanded={setAllDiffsExpanded}
           />
           <Tooltip content="搜索文件">
-            <IconButton
+            <IconButton iconSize="sm"
               className="review-sidebar-search-action"
               color="ghostSecondary"
               size="toolbar"
               title="搜索文件"
               onClick={() => fileSearchInputRef.current?.focus()}
             >
-              <Search size={APP_ICON_SIZE} />
+              <Search size={APP_ICON_SIZES.sm} />
             </IconButton>
           </Tooltip>
           <Tooltip
@@ -2662,26 +2663,26 @@ function WorkspaceReviewSidebarImpl({
             </IconButton>
           </Tooltip>
           <Tooltip content="提交或推送">
-            <Button color="secondary"
+            <Button iconSize="sm" color="secondary"
               aria-label="提交或推送"
               className="review-sidebar-primary-action"
               ref={commitButtonRef}
               size="toolbar"
               onClick={() => setCommitPopoverOpen((value) => !value)}
             >
-              <GitCommitHorizontal size={APP_ICON_SIZE} />
+              <GitCommitHorizontal size={APP_ICON_SIZES.sm} />
               <span className="review-sidebar-action-label">提交或推送</span>
             </Button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
-            <Button color="secondary"
+            <Button iconSize="sm" color="secondary"
               aria-label="创建拉取请求"
               className="review-sidebar-primary-action"
               ref={prButtonRef}
               size="toolbar"
               onClick={() => setPrPopoverOpen((value) => !value)}
             >
-              <GitPullRequestArrow size={APP_ICON_SIZE} />
+              <GitPullRequestArrow size={APP_ICON_SIZES.sm} />
               <span className="review-sidebar-action-label">创建拉取请求</span>
             </Button>
           </Tooltip>

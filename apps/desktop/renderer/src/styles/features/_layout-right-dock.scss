@@ -412,7 +412,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  stroke-width: 1.75;
+  stroke-width: var(--cpx-sys-icon-stroke-width);
 }
 
 .right-dock-tab-close {
@@ -584,6 +584,11 @@
   border-radius: var(--cpx-sys-radius-full);
   background: var(--cpx-sys-color-hover);
   color: var(--cpx-sys-color-fg-tertiary);
+
+  > svg {
+    width: var(--cpx-sys-icon-size-lg);
+    height: var(--cpx-sys-icon-size-lg);
+  }
 }
 
 .workbench-panel-state__actions {

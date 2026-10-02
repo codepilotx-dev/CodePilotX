@@ -1,5 +1,14 @@
 /* ===== Shared Button Patterns ===== */
 
+.lucide:not([data-icon-kind="artwork"]) {
+  flex-shrink: 0;
+  stroke-width: var(--cpx-sys-icon-stroke-width);
+}
+
+.lucide[data-icon-kind="artwork"] {
+  --cpx-sys-icon-stroke-width: 2;
+}
+
 .ui-button {
   box-sizing: border-box;
   display: inline-flex;
@@ -52,9 +61,14 @@
 
   > svg {
     display: block;
-    width: var(--button-icon-size, var(--cpx-sys-icon-size));
-    height: var(--button-icon-size, var(--cpx-sys-icon-size));
+    width: var(--button-icon-size-override, var(--button-icon-size, var(--cpx-sys-icon-size)));
+    height: var(--button-icon-size-override, var(--button-icon-size, var(--cpx-sys-icon-size)));
     flex: 0 0 auto;
+  }
+
+  &:not([data-uniform]) > :is(.lucide-chevron-down, .lucide-chevron-up, .lucide-chevron-right):last-child {
+    width: var(--button-icon-size-override, var(--cpx-sys-icon-size-sm));
+    height: var(--button-icon-size-override, var(--cpx-sys-icon-size-sm));
   }
 }
 
@@ -238,6 +252,10 @@
   --button-padding-inline: 8px;
 }
 
+.ui-button[data-size="composerSm"] {
+  --button-icon-size: var(--cpx-sys-icon-size-sm);
+}
+
 .ui-button[data-size="composerSm"],
 .ui-button[data-size="composerUtility"] {
   --button-padding-inline: 6px;
@@ -247,7 +265,7 @@
   --button-size: var(--cpx-comp-button-size-compact);
   --button-padding-inline: 8px;
   --button-radius: var(--cpx-sys-radius-full);
-  --button-icon-size: var(--button-icon-size-xs);
+  --button-icon-size: var(--cpx-sys-icon-size-md);
 }
 
 .ui-button[data-size="icon"] {
@@ -258,6 +276,7 @@
 }
 
 .ui-button[data-size="iconLarge"] {
+  --button-icon-size: var(--cpx-sys-icon-size-lg);
   --button-size: var(--button-size-icon-large);
   --button-padding-inline: 0;
   --button-radius: var(--cpx-comp-button-radius-2xl);
@@ -278,6 +297,7 @@
 }
 
 .ui-button[data-size="large"] {
+  --button-icon-size: var(--cpx-sys-icon-size-lg);
   --button-size: var(--cpx-comp-button-size-large);
   --button-padding-inline: 20px;
   --button-radius: var(--cpx-sys-radius-full);
@@ -308,6 +328,18 @@
   --button-padding-inline: 10px;
   --button-radius: var(--cpx-comp-button-radius-lg);
   --button-icon-size: var(--cpx-sys-icon-size);
+}
+
+.ui-button[data-icon-size="sm"] {
+  --button-icon-size-override: var(--cpx-sys-icon-size-sm);
+}
+
+.ui-button[data-icon-size="md"] {
+  --button-icon-size-override: var(--cpx-sys-icon-size-md);
+}
+
+.ui-button[data-icon-size="lg"] {
+  --button-icon-size-override: var(--cpx-sys-icon-size-lg);
 }
 
 .ui-button[aria-pressed="true"] {

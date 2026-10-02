@@ -263,10 +263,10 @@
   --cpx-comp-dropdown-icon-size: var(--cpx-sys-icon-size);
 
   // Icon
-  --cpx-comp-icon-size-sm: var(--cpx-sys-icon-size);
-  --cpx-comp-icon-size-md: var(--cpx-sys-icon-size);
-  --cpx-comp-icon-size-lg: var(--cpx-sys-icon-size);
-  --cpx-comp-icon-stroke-width: 1.75;
+  --cpx-comp-icon-size-sm: var(--cpx-sys-icon-size-sm);
+  --cpx-comp-icon-size-md: var(--cpx-sys-icon-size-md);
+  --cpx-comp-icon-size-lg: var(--cpx-sys-icon-size-lg);
+  --cpx-comp-icon-stroke-width: var(--cpx-sys-icon-stroke-width);
 
   // Navigation row
   --cpx-comp-nav-row-height: calc(var(--cpx-sys-font-size-md) + 16px);

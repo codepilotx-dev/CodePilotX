@@ -16,6 +16,7 @@ import { Textarea } from '../../components/ui/Textarea.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import type { AutomationController } from './useAutomationController.js'
 import {
@@ -523,7 +524,7 @@ function SaveIndicator({
   if (controller.saveState === 'saved')
     return (
       <span className="automation-save-state">
-        <Check size={APP_ICON_SIZE} aria-hidden="true" />
+        <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
         已保存
       </span>
     )

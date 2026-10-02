@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -150,7 +150,7 @@ export function PetSettings({
                   size="iconMd"
                   title="删除当前宠物"
                 >
-                  <Trash2 size={APP_ICON_SIZE} />
+                  <Trash2 size={APP_ICON_SIZES.sm} />
                 </IconButton>
               </div>
             }

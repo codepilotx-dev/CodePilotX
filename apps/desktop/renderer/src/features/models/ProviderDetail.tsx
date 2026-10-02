@@ -4,10 +4,6 @@ import { useId } from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
 
 export const PROVIDER_DETAIL_TABS = ['connection', 'models'] as const
 export type ProviderDetailTab = (typeof PROVIDER_DETAIL_TABS)[number]
@@ -60,8 +56,9 @@ export function ProviderDetail({
               fallback={(
                 <Server
                   aria-hidden
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                  size={14}
+                  data-icon-kind="artwork"
+                  strokeWidth={2}
                 />
               )}
               src={provider.logoURL}
@@ -70,8 +67,9 @@ export function ProviderDetail({
             <span className="model-center-provider-identity-logo">
               <Server
                 aria-hidden
-                size={APP_ICON_SIZE}
-                strokeWidth={APP_ICON_STROKE_WIDTH}
+                size={14}
+                data-icon-kind="artwork"
+                strokeWidth={2}
               />
             </span>
           )}

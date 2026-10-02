@@ -10,6 +10,7 @@ import {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Button } from '../../components/ui/Button.js'
@@ -116,7 +117,7 @@ export function SessionFollowUpDock({
                       size="iconMd"
                       title="保存编辑"
                     >
-                      <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="取消编辑"
@@ -126,7 +127,7 @@ export function SessionFollowUpDock({
                       size="iconMd"
                       title="取消编辑"
                     >
-                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                   </>
                 ) : (
@@ -139,7 +140,7 @@ export function SessionFollowUpDock({
                       size="iconMd"
                       title="移除"
                     >
-                      <Trash2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="编辑排队消息"
@@ -150,7 +151,7 @@ export function SessionFollowUpDock({
                       title="更多：编辑消息"
                     >
                       <MoreHorizontal
-                        size={APP_ICON_SIZE}
+                        size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </IconButton>

@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useRef } from 'react'
 import type React from 'react'
 import { Search, X } from 'lucide-react'
-import { APP_ICON_SIZE } from './iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from './iconTokens.js'
 import { IconButton } from './IconButton.js'
 import { cx } from '../../utils/cx.js'
 
@@ -138,7 +138,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             size="iconMd"
             title={clearLabel}
           >
-            <X size={APP_ICON_SIZE} />
+            <X size={APP_ICON_SIZES.sm} />
           </IconButton>
         ) : null}
       </div>

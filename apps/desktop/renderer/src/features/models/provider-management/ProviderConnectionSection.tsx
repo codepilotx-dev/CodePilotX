@@ -27,6 +27,7 @@ import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
@@ -392,7 +393,7 @@ function ApiKeyRowItem({
           size="iconMd"
           title={`上移 ${keyItem.label}`}
         >
-          <ArrowUp size={APP_ICON_SIZE} aria-hidden />
+          <ArrowUp size={APP_ICON_SIZES.sm} aria-hidden />
         </IconButton>
         <IconButton
           color="ghostSecondary"
@@ -401,7 +402,7 @@ function ApiKeyRowItem({
           size="iconMd"
           title={`下移 ${keyItem.label}`}
         >
-          <ArrowDown size={APP_ICON_SIZE} aria-hidden />
+          <ArrowDown size={APP_ICON_SIZES.sm} aria-hidden />
         </IconButton>
       </div>
 
@@ -450,7 +451,7 @@ function ApiKeyRowItem({
               size="iconMd"
               title={`操作 ${keyItem.label}`}
             >
-              <MoreHorizontal size={APP_ICON_SIZE} aria-hidden />
+              <MoreHorizontal size={APP_ICON_SIZES.sm} aria-hidden />
             </IconButton>
           )}
           width={180}

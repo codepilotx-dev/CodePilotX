@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import React, { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cx } from '../../../utils/cx.js'
@@ -114,8 +115,8 @@ export const ModelSelectTrigger = React.forwardRef<
         className="composer-model-trigger-chevron-wrap"
       >
         <ChevronDown
-          size={14}
-          strokeWidth={2.4}
+          size={APP_ICON_SIZES.sm}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
           className={cx(
             'composer-model-trigger-chevron',
             isOpen && 'is-open',

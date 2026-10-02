@@ -2,7 +2,7 @@ import type React from 'react'
 import { useId, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { ChevronRight } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 import { SearchInput } from './SearchInput.js'
 import { cx } from '../../utils/cx.js'
@@ -254,7 +254,7 @@ export function SearchablePopoverAction({
           <ChevronRight
             aria-hidden="true"
             className="popover-item-arrow"
-            size={APP_ICON_SIZE}
+            size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : null}

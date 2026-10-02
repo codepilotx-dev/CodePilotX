@@ -388,7 +388,7 @@ export function PetCatalogSection({
                             className="pet-catalog-preview"
                             decoding="async"
                             fallback={
-                              <PawPrint aria-hidden="true" size={APP_ICON_SIZE} />
+                              <PawPrint data-icon-kind="artwork" aria-hidden="true" size={APP_ICON_SIZE} />
                             }
                             imageClassName="pet-catalog-preview__image"
                             loading="lazy"

@@ -14,7 +14,7 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
@@ -382,7 +382,7 @@ export function AutomationView(): React.ReactNode {
             <Button ref={createButtonRef} color="primary">
               <Plus aria-hidden="true" size={APP_ICON_SIZE} />
               <span>创建</span>
-              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
             </Button>
           )}
         >
@@ -706,7 +706,7 @@ function AutomationRunsList({
           </SkeletonRegion>
         ) : !sortedRuns.length ? (
           <div className="automation-empty-state" role="status">
-            <CalendarClock size={APP_ICON_SIZE} aria-hidden="true" />
+            <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <h2>暂无执行记录</h2>
             <p>任务在计划时间或手动触发运行后，执行记录会显示在这里。</p>
           </div>
@@ -754,7 +754,7 @@ function AutomationRunsList({
                         <time className="automation-runs-page-time">{time}</time>
                         {hasThread ? (
                           <span className="automation-runs-page-link" aria-label="查看对话">
-                            <ArrowUpRight size={APP_ICON_SIZE} aria-hidden="true" />
+                            <ArrowUpRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
                           </span>
                         ) : null}
                       </div>
@@ -833,7 +833,7 @@ function AutomationRow({ automation, selected, runs, targetLabel, menuOpen, onMe
 function AutomationEmptyState(): React.ReactNode {
   return (
     <div className="automation-empty-state" role="status">
-      <CalendarClock size={APP_ICON_SIZE} aria-hidden="true" />
+      <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
       <h2>暂无已安排任务</h2>
       <p>创建任务后，它们会按状态显示在这里。</p>
     </div>

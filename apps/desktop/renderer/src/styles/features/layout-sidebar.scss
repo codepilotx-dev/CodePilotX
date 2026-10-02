@@ -37,7 +37,7 @@
 .desktop-sidebar {
   --sidebar-inline-gutter: var(--cpx-sys-space-2);
   --sidebar-leading-width: var(--cpx-sys-space-4);
-  --sidebar-icon-size: var(--button-icon-size-xs);
+  --sidebar-icon-size: var(--cpx-sys-icon-size-md);
   --sidebar-icon-button-size: var(--cpx-sys-space-6);
   --sidebar-item-gap: var(--cpx-sys-space-2);
   --sidebar-row-gap: calc(var(--cpx-sys-space-1) / 2);
@@ -50,14 +50,8 @@
   );
 }
 
-.desktop-sidebar svg {
-  width: var(--sidebar-icon-size);
-  height: var(--sidebar-icon-size);
-}
-
 .desktop-sidebar .icon-button {
   --button-size: var(--sidebar-icon-button-size);
-  --button-icon-size: var(--sidebar-icon-size);
 }
 
 .sidebar-header {
@@ -929,6 +923,11 @@
   width: var(--sidebar-icon-button-size);
   height: var(--sidebar-icon-button-size);
   color: var(--cpx-sys-color-fg-tertiary);
+
+  > svg {
+    width: var(--cpx-sys-icon-size-md);
+    height: var(--cpx-sys-icon-size-md);
+  }
 }
 
 .sidebar-session-meta--approval {
@@ -951,7 +950,7 @@
 }
 
 .sidebar-hover-card-surface {
-  --sidebar-icon-size: var(--button-icon-size-xs);
+  --sidebar-icon-size: var(--cpx-sys-icon-size-sm);
   --sidebar-icon-button-size: var(--cpx-sys-space-6);
   --sidebar-hover-leading-width: var(--sidebar-icon-size);
   --sidebar-hover-column-gap: var(--cpx-sys-space-2);
@@ -967,14 +966,8 @@
   -webkit-app-region: no-drag;
 }
 
-.sidebar-hover-card-surface svg {
-  width: var(--sidebar-icon-size);
-  height: var(--sidebar-icon-size);
-}
-
 .sidebar-hover-card-surface .icon-button {
   --button-size: var(--sidebar-icon-button-size);
-  --button-icon-size: var(--sidebar-icon-size);
 }
 
 .sidebar-hover-card-layout {
@@ -1119,8 +1112,8 @@
   font: var(--cpx-sys-type-caption);
 
   svg {
-    width: var(--sidebar-icon-size);
-    height: var(--sidebar-icon-size);
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
     color: var(--cpx-sys-color-fg-tertiary);
   }
 
@@ -1142,7 +1135,7 @@
   gap: var(--cpx-sys-space-1);
 
   svg {
-    flex: 0 0 var(--sidebar-icon-size);
+    flex: 0 0 var(--cpx-sys-icon-size-sm);
   }
 
   span {
@@ -1623,7 +1616,7 @@
   width: var(--cpx-sys-icon-size);
   height: var(--cpx-sys-icon-size);
   color: var(--cpx-sys-color-fg-tertiary);
-  stroke-width: 1.75;
+  stroke-width: var(--cpx-sys-icon-stroke-width);
 }
 
 /* --- Resizer --- */

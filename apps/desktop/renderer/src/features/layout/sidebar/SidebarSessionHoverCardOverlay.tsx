@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Folder, GitBranch, Laptop } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import {
   SidebarHoverCardFrame,
@@ -136,7 +136,7 @@ export function SidebarSessionHoverCardOverlay({
                   <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">·</span>
                   <GitBranch
                     aria-hidden="true"
-                    size={APP_ICON_SIZE}
+                    size={APP_ICON_SIZES.sm}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                   <span>{model.gitBranch}</span>

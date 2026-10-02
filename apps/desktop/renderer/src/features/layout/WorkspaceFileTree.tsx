@@ -16,6 +16,7 @@ import { createWorkspaceFileTabId } from './tabs/workspaceFileTabId.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
@@ -69,7 +70,7 @@ export function WorkspaceFileTree(
               <ChevronRight
                 aria-hidden="true"
                 className="right-dock-tree-chevron"
-                size={APP_ICON_SIZE}
+                size={APP_ICON_SIZES.sm}
               />
               <span>{folder.name}</span>
               {folder.role === 'primary' ? <em>主目录</em> : null}
@@ -489,7 +490,7 @@ function WorkspaceFileTreeContent({
               'right-dock-tree-chevron',
               expandedDirectories.has(key) && 'is-expanded',
             )}
-            size={APP_ICON_SIZE}
+            size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (

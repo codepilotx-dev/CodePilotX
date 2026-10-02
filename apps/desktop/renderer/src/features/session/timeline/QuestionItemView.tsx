@@ -1,7 +1,7 @@
 import React from "react";
 import { Check, ChevronDown, ListChecks, MessageCircleQuestion } from "lucide-react";
 import type { Item, QuestionItem } from "@codepilotx/shared/thread";
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 import type { ResolvedCanonicalItemDisclosure } from "./CanonicalItemRenderer.js";
 
@@ -28,11 +28,11 @@ export function QuestionItemView({ item, disclosure }: {
     return (
       <div data-question-id={item.id} data-state={item.status}>
         <div className="canonical-lifecycle-tool">
-          <MessageCircleQuestion size={APP_ICON_SIZE} aria-hidden="true" />
+          <MessageCircleQuestion size={APP_ICON_SIZES.sm} aria-hidden="true" />
           <span>正在询问问题</span>
         </div>
         <div className="canonical-lifecycle-tool" role="status">
-          <ListChecks size={APP_ICON_SIZE} aria-hidden="true" />
+          <ListChecks size={APP_ICON_SIZES.sm} aria-hidden="true" />
           <span>正在等待你的回答</span>
         </div>
       </div>
@@ -51,9 +51,9 @@ export function QuestionItemView({ item, disclosure }: {
           : setLocalExpanded(!expanded)}
         type="button"
       >
-        <Check size={APP_ICON_SIZE} aria-hidden="true" />
+        <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
         <span>{label}</span>
-        <ChevronDown size={APP_ICON_SIZE} className="canonical-process-card__chevron" aria-hidden="true" />
+        <ChevronDown size={APP_ICON_SIZES.sm} className="canonical-process-card__chevron" aria-hidden="true" />
       </button>
       <DisclosureContent contentClassName="canonical-process-card__body" expanded={expanded} id={contentId} mountPolicy="until-exit">
         {item.questions?.length ? item.questions.map(question => {

@@ -45,7 +45,7 @@ import {
 } from "../../../services/desktop-client/index.js";
 import {
   APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
@@ -1255,7 +1255,7 @@ export function ReviewProjectEmptyState({
   return (
     <div className="review-project-empty-state">
       <div className="review-project-empty-state__content">
-        <FileDiff size={APP_ICON_SIZE} aria-hidden="true" />
+        <FileDiff size={APP_ICON_SIZES.lg} aria-hidden="true" />
         <div className="review-project-empty-state__copy">
           <strong>尚无文件更改</strong>
           <span>此项目中的更改将显示在此处。</span>

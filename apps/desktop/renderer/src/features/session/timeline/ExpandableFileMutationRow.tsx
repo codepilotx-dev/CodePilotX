@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import { ChevronRight, Pencil } from "lucide-react";
 import type { Item } from "@codepilotx/shared/thread";
@@ -114,7 +114,7 @@ export function ExpandableFileMutationRow({
         onClick={() => disclosure.store.setExpanded(disclosure.id, !expanded)}
         type="button"
       >
-        <Pencil size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+        <Pencil size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
         <span className="cpx-agent-activity__review-indicator">
           {file.additions !== null ? (
@@ -124,7 +124,7 @@ export function ExpandableFileMutationRow({
             <small className="canonical-diff-remove">-{file.deletions}</small>
           ) : null}
         </span>
-        <ChevronRight size={APP_ICON_SIZE} className="cpx-agent-activity__chevron" aria-hidden="true" />
+        <ChevronRight size={APP_ICON_SIZES.sm} className="cpx-agent-activity__chevron" aria-hidden="true" />
       </button>
       <DisclosureContent
         contentClassName="cpx-agent-activity__details cpx-agent-activity__details--diff"

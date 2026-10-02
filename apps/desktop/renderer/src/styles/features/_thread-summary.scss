@@ -214,7 +214,7 @@
     width: var(--cpx-sys-icon-size);
     height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: 1.75;
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
   > span {
@@ -258,7 +258,7 @@
     width: var(--cpx-sys-icon-size);
     height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-primary);
-    stroke-width: 1.75;
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
   > span {
@@ -286,8 +286,8 @@
   cursor: not-allowed;
 
   svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
   }
 
   &:hover,

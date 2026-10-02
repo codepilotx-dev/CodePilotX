@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { FileTypeIcon, FolderTypeIcon } from '../../layout/FileTypeIcon.js'
 import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './buildReviewFileTree.js'
 import {
@@ -65,7 +65,7 @@ export function ReviewFileTreeRow({
       <ChevronRight
         aria-hidden="true"
         className={collapsed ? undefined : 'is-expanded'}
-        size={APP_ICON_SIZE}
+        size={APP_ICON_SIZES.sm}
       />
       <FolderTypeIcon
         aria-hidden="true"
@@ -157,7 +157,7 @@ function ReviewFileStatusIcon({
       data-git-status={status}
       title={label}
     >
-      <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+      <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
     </span>
   )
 }

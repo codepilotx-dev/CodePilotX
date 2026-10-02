@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import {
   ArrowRight,
@@ -377,11 +377,11 @@ export function QuestionAnswerForm({
             <span aria-live="polite">{currentQuestionIndex + 1} of {questionCount}</span>
             <button type="button" className="ask-user-question-nav-button" aria-label="下一题"
               disabled={disabled || isLastQuestion || !canConfirm} onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}>
-              <ChevronRight size={APP_ICON_SIZE} />
+              <ChevronRight size={APP_ICON_SIZES.sm} />
             </button></div> : null}
             <button type="button" className="ask-user-question-nav-button" aria-label={closeLabel}
               disabled={disabled || !onInterrupt} onClick={() => void interrupt()}>
-              <X size={APP_ICON_SIZE} />
+              <X size={APP_ICON_SIZES.sm} />
             </button>
           </div>}>
         <div
@@ -530,7 +530,7 @@ export function QuestionAnswerForm({
                       }
                       aria-hidden="true"
                     >
-                      {selected ? <Check size={APP_ICON_SIZE} /> : null}
+                      {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
                     </span>
                   </span>
                 ) : selected ? (

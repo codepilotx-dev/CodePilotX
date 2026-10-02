@@ -664,8 +664,8 @@
 
 .composer-inline-skill-token-icon,
 .composer-inline-skill-token-fallback-icon {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: 14px;
+  height: 14px;
   margin-inline-end: var(--cpx-sys-space-1);
   border-radius: var(--cpx-sys-radius-indicator);
   object-fit: contain;
@@ -846,7 +846,7 @@
     transition: none;
   }
 }
-.send-button {
+.composer .send-button {
   width: var(--cpx-sys-space-7);
   height: var(--cpx-sys-space-7);
   display: inline-flex;

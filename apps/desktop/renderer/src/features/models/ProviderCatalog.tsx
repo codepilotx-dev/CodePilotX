@@ -8,6 +8,7 @@ import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../components/ui/iconTokens.js";
 import type { ProviderCatalogFilter } from "./modelCenterState.js";
 
@@ -118,8 +119,9 @@ export function ProviderCatalog({
                         fallback={
                           <Server
                             aria-hidden
-                            size={APP_ICON_SIZE}
-                            strokeWidth={APP_ICON_STROKE_WIDTH}
+                            size={14}
+                            data-icon-kind="artwork"
+                            strokeWidth={2}
                           />
                         }
                         src={provider.logoURL}
@@ -127,8 +129,9 @@ export function ProviderCatalog({
                     ) : (
                       <Server
                         aria-hidden
-                        size={APP_ICON_SIZE}
-                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                        size={14}
+                        data-icon-kind="artwork"
+                        strokeWidth={2}
                       />
                     )}
                   </span>
@@ -165,7 +168,7 @@ export function ProviderCatalog({
                       data-tone="healthy"
                       title="凭据健康"
                     >
-                      <CheckCircle2 size={APP_ICON_SIZE} aria-hidden />
+                      <CheckCircle2 size={APP_ICON_SIZES.sm} aria-hidden />
                     </span>
                   ) : provider.healthTone === "warning" ? (
                     <span
@@ -173,7 +176,7 @@ export function ProviderCatalog({
                       data-tone="warning"
                       title="凭据异常"
                     >
-                      <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
+                      <AlertTriangle size={APP_ICON_SIZES.sm} aria-hidden />
                     </span>
                   ) : null}
                 </button>

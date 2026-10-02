@@ -8,10 +8,6 @@ import {
   Package,
   Sparkles,
 } from 'lucide-react'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
 import type { PluginIconName } from './pluginCatalog.js'
 import browserLogo from '../../assets/plugin-icons/browser.png'
 import chromeLogo from '../../assets/plugin-icons/chrome.png'
@@ -73,8 +69,9 @@ export function PluginIcon({
   const props = {
     'aria-hidden': true,
     className,
-    size: APP_ICON_SIZE,
-    strokeWidth: APP_ICON_STROKE_WIDTH,
+    size: 14,
+    'data-icon-kind': 'artwork',
+    strokeWidth: 2,
   } as const
 
   switch (name) {

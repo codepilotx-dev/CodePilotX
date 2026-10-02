@@ -14,7 +14,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
 import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
@@ -232,15 +232,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             leading={
               <span className="sidebar-account-avatar" aria-hidden="true">
                 {!githubAuthenticated ? (
-                  <Settings size={APP_ICON_SIZE} />
+                  <Settings data-icon-kind="artwork" size={14} />
                 ) : githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
-                    fallback={<CircleUser size={APP_ICON_SIZE} />}
+                    fallback={<CircleUser data-icon-kind="artwork" size={14} />}
                     src={githubUser.avatarUrl}
                   />
                 ) : (
-                  <CircleUser size={APP_ICON_SIZE} />
+                  <CircleUser data-icon-kind="artwork" size={14} />
                 )}
               </span>
             }
@@ -260,11 +260,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   {githubUser?.avatarUrl ? (
                     <RemoteImage
                       alt=""
-                      fallback={<CircleUser size={APP_ICON_SIZE} />}
+                      fallback={<CircleUser data-icon-kind="artwork" size={14} />}
                       src={githubUser.avatarUrl}
                     />
                   ) : (
-                    <CircleUser size={APP_ICON_SIZE} />
+                    <CircleUser data-icon-kind="artwork" size={14} />
                   )}
                 </span>
               }
@@ -294,7 +294,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 <span className="popover-item-trailing">
                   <ChevronRight
                     className="popover-item-arrow"
-                    size={APP_ICON_SIZE}
+                    size={APP_ICON_SIZES.sm}
                   />
                 </span>
               </DropdownMenu.SubTrigger>

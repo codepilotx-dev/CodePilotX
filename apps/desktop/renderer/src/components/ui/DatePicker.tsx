@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from './iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from './iconTokens.js'
 import React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -202,7 +202,7 @@ export function DatePicker({
           <span className={cx('ui-date-picker-value', !value && 'ui-date-picker-value--placeholder')}>
             {value ? displayDate(value, locale) : t(placeholder)}
           </span>
-          <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" className="ui-date-picker-chevron" />
+          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="ui-date-picker-chevron" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -220,7 +220,7 @@ export function DatePicker({
             </button>
             <div aria-live="polite" className="ui-date-picker-month">{monthLabel(visibleMonth, locale)}</div>
             <button aria-label={t('下个月')} className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(1)}>
-              <ChevronRight size={APP_ICON_SIZE} aria-hidden="true" />
+              <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
             </button>
           </div>
           <div ref={calendarRef} aria-label={monthLabel(visibleMonth, locale)} className="ui-date-picker-grid" role="grid">

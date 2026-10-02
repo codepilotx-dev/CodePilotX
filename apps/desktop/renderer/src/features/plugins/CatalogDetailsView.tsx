@@ -47,7 +47,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
           aria-hidden="true"
           className="catalog-details-view__icon"
         >
-          <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
         </span>
         <div className="catalog-details-view__identity">
           <h1>{item.name}</h1>

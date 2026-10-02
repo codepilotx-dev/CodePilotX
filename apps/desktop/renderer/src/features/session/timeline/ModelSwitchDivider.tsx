@@ -1,7 +1,7 @@
 import React from 'react'
 import { ArrowRightLeft } from 'lucide-react'
 import type { RenderTurnEntry } from '@codepilotx/session-view'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { ConversationItemContext } from './ConversationItemContext.js'
 
 type TurnModel = RenderTurnEntry['turn']['model']
@@ -21,7 +21,7 @@ export function ModelSwitchDivider({ previousModel, model }: {
   return (
     <div className="canonical-model-switch-divider">
       <span className="canonical-model-switch-divider__content">
-        <ArrowRightLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} aria-hidden="true" />
+        <ArrowRightLeft size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} aria-hidden="true" />
         <span>模型已切换 {label(previousModel)} → {label(model)}</span>
       </span>
     </div>

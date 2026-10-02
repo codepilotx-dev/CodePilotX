@@ -35,6 +35,7 @@ import type {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import { Button } from "../../../components/ui/Button.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
@@ -661,12 +662,12 @@ function ReasoningItemView({ disclosure, item, threadId }: {
         type="button"
       >
         {streaming ? (
-          <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
         ) : (
-          <Check size={APP_ICON_SIZE} aria-hidden="true" />
+          <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
         )}
         <span>{streaming ? "正在思考" : "思考过程"}</span>
-        <ChevronDown size={APP_ICON_SIZE} className="canonical-process-card__chevron" aria-hidden="true" />
+        <ChevronDown size={APP_ICON_SIZES.sm} className="canonical-process-card__chevron" aria-hidden="true" />
       </button>
       <DisclosureContent
         contentClassName="canonical-process-card__body tw:bg-app-chrome"
@@ -717,14 +718,14 @@ function ActivityItemView({ disclosure, item }: {
         type="button"
       >
         {active ? (
-          <LoaderCircle size={APP_ICON_SIZE} className="cpx-agent-activity__icon canonical-spin" aria-hidden="true" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon canonical-spin" aria-hidden="true" />
         ) : item.status === "error" ? (
-          <CircleAlert size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <CircleAlert size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : (
-          <Check size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <Check size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         )}
         <span className="cpx-agent-activity__label">{item.title}</span>
-        <ChevronRight size={APP_ICON_SIZE} className="cpx-agent-activity__chevron" aria-hidden="true" />
+        <ChevronRight size={APP_ICON_SIZES.sm} className="cpx-agent-activity__chevron" aria-hidden="true" />
       </button>
       <DisclosureContent
         contentClassName="cpx-agent-activity__details"
@@ -797,13 +798,13 @@ export function ToolItemView({
         }}
       >
         {view.active ? (
-          <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
+          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
         ) : item.state === "interrupted" ? (
-          <CircleStop size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <CircleStop size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : view.failed ? (
-          <CircleAlert size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <CircleAlert size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         ) : (
-          <SummaryIcon size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+          <SummaryIcon size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
         )}
         {view.semanticSummary ? (
           <ToolActivityLabel summary={view.semanticSummary} />
@@ -812,7 +813,7 @@ export function ToolItemView({
             {expanded ? view.expandedLabel : view.collapsedLabel}
           </span>
         )}
-        <ChevronRight size={APP_ICON_SIZE} className="cpx-agent-activity__chevron" aria-hidden="true" />
+        <ChevronRight size={APP_ICON_SIZES.sm} className="cpx-agent-activity__chevron" aria-hidden="true" />
       </ToolActivityHeader>
       <DisclosureContent
         contentClassName="cpx-agent-activity__details"
@@ -908,11 +909,11 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
       <footer className="canonical-command-shell__footer">
         <span className="canonical-command-shell__status">
           {item.state === "completed" ? (
-            <Check size={APP_ICON_SIZE} aria-hidden="true" />
+            <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : item.state === "error" || item.state === "interrupted" ? (
-            <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
+            <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
           ) : (
-            <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin" aria-hidden="true" />
+            <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
           )}
           {view.statusLabel}
         </span>
@@ -996,7 +997,7 @@ function ToolResultBlockView({
       const url = safeCitationUrl(block.url);
       return (
         <div className="canonical-tool-result-block canonical-tool-result-block--citation">
-          <Globe2 aria-hidden="true" size={APP_ICON_SIZE} />
+          <Globe2 aria-hidden="true" size={APP_ICON_SIZES.sm} />
           {url ? (
             <a href={url} rel="noopener noreferrer" target="_blank">
               {block.title ?? url}
@@ -1182,7 +1183,7 @@ export function PatchSummaryView({
     <article className="canonical-patch-card">
       <header className="canonical-patch-card__header">
         <span className="canonical-patch-card__icon" aria-hidden="true">
-          <FileDiff size={APP_ICON_SIZE} />
+          <FileDiff size={APP_ICON_SIZES.sm} />
         </span>
         <span className="canonical-patch-card__summary">
           <strong>已编辑 {patch.files.length} 个文件</strong>
@@ -1242,9 +1243,9 @@ export function PatchSummaryView({
         >
           {filesExpanded ? "收起文件" : `再显示 ${hiddenFileCount} 个文件`}
           {filesExpanded ? (
-            <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" className="is-expanded" />
+            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="is-expanded" />
           ) : (
-            <ChevronDown size={APP_ICON_SIZE} aria-hidden="true" />
+            <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" />
           )}
         </button>
       ) : null}
@@ -1292,11 +1293,11 @@ export function FileMutationItemView({
               key={`${item.id}:${file.path}`}
             >
               {active ? (
-                <LoaderCircle size={APP_ICON_SIZE} className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
+                <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin cpx-agent-activity__icon" aria-hidden="true" />
               ) : failed ? (
-                <CircleAlert size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+                <CircleAlert size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
               ) : (
-                <Pencil size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+                <Pencil size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
               )}
               <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
               <span className="cpx-agent-activity__review-indicator">
@@ -1315,7 +1316,7 @@ export function FileMutationItemView({
           <React.Suspense
             fallback={(
               <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--static">
-                <Pencil size={APP_ICON_SIZE} className="cpx-agent-activity__icon" aria-hidden="true" />
+                <Pencil size={APP_ICON_SIZES.sm} className="cpx-agent-activity__icon" aria-hidden="true" />
                 <span className="cpx-agent-activity__label" title={file.path}>{fileMutationLabel(item.state, file.path, file.operation)}</span>
                 <span className="cpx-agent-activity__review-indicator">
                   {file.additions !== null ? <small className="canonical-diff-add">+{file.additions}</small> : null}
@@ -1360,7 +1361,7 @@ function SubagentItemView({
       type="button"
       onClick={() => onOpen(item.subagentTaskId)}
     >
-      <Bot size={APP_ICON_SIZE} aria-hidden="true" />
+      <Bot size={APP_ICON_SIZES.sm} aria-hidden="true" />
       <span>
         <strong>{item.displayName}</strong>
         <small>{item.task}</small>
@@ -1878,12 +1879,12 @@ export function LifecycleToolItemView({
         role={display.active ? "status" : undefined}
       >
         {display.failed ? (
-          <CircleAlert size={APP_ICON_SIZE} aria-hidden="true" />
+          <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
         ) : (
           <span className="canonical-lifecycle-tool__icon">
-            <LifecycleIcon size={APP_ICON_SIZE} aria-hidden="true" />
+            <LifecycleIcon size={APP_ICON_SIZES.sm} aria-hidden="true" />
             {display.active ? (
-              <LifecycleIcon size={APP_ICON_SIZE}
+              <LifecycleIcon size={APP_ICON_SIZES.sm}
                 className="canonical-lifecycle-tool__icon-flash"
                 aria-hidden="true"
               />

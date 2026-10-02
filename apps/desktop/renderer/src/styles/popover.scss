@@ -337,14 +337,12 @@
 
 .sidebar-context-menu-leading > svg,
 .sidebar-context-menu-leading > img {
-  width: var(--cpx-comp-menu-icon-size);
-  height: var(--cpx-comp-menu-icon-size);
   stroke-width: var(--cpx-comp-icon-stroke-width);
 }
 
 .sidebar-context-menu-arrow {
-  width: var(--cpx-comp-menu-icon-size);
-  height: var(--cpx-comp-menu-icon-size);
+  width: var(--cpx-sys-icon-size-sm);
+  height: var(--cpx-sys-icon-size-sm);
   stroke-width: var(--cpx-comp-icon-stroke-width);
 }
 
@@ -496,8 +494,8 @@
 }
 
 .context-plugin-icon {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -621,12 +619,21 @@
   color: var(--cpx-sys-color-fg-primary);
 }
 
-.popover-item-icon svg,
-.popover-item-icon img,
+.popover-item-icon > svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.popover-item-icon > img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
 .popover-item-check,
 .popover-item-arrow {
-  width: var(--cpx-comp-menu-icon-size);
-  height: var(--cpx-comp-menu-icon-size);
+  width: var(--cpx-sys-icon-size-sm);
+  height: var(--cpx-sys-icon-size-sm);
   display: block;
   stroke-width: var(--cpx-comp-icon-stroke-width);
   object-fit: contain;
@@ -692,9 +699,7 @@
 
 .popover-item.rich {
   .popover-item-leading,
-  .popover-item-icon,
-  .popover-item-icon svg,
-  .popover-item-icon img {
+  .popover-item-icon {
     width: var(--cpx-comp-menu-icon-size);
     height: var(--cpx-comp-menu-icon-size);
   }

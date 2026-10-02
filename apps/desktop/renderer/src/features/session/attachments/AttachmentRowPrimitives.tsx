@@ -1,7 +1,7 @@
 import { FileText, Image, ImageOff, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 
 type AttachmentHorizontalRowProps = {
   ariaLabel: string
@@ -148,7 +148,7 @@ function AttachmentRemoveButton({
       size="iconMd"
       title={`移除 ${name}`}
     >
-      <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={2.25} />
+      <X aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
     </IconButton>
   )
 }

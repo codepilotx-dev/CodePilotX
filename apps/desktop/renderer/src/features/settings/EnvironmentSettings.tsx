@@ -27,6 +27,7 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
@@ -149,7 +150,7 @@ function EnvironmentList({
       </span>
       <ChevronRight
         aria-hidden="true"
-        size={APP_ICON_SIZE}
+        size={APP_ICON_SIZES.sm}
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
     </button>
@@ -502,9 +503,9 @@ function EnvironmentDetail({
         >
           <ArrowLeft size={APP_ICON_SIZE} />
           环境
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <span>{project.name}</span>
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <span>编辑</span>
         </button>
 

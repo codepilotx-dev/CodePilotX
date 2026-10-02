@@ -30,7 +30,7 @@
     width: var(--cpx-sys-icon-size);
     height: var(--cpx-sys-icon-size);
     color: var(--cpx-sys-color-fg-secondary);
-    stroke-width: 1.75;
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
   &-badge {
@@ -267,8 +267,8 @@
 }
 
 .settings-provider-logo {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: 14px;
+  height: 14px;
   border-radius: var(--cpx-sys-radius-md);
   flex-shrink: 0;
   object-fit: contain;

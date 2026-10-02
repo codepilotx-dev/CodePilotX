@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Check, Plus, ShieldAlert, ShieldCheck, ShieldX, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import type {
   DesktopSkillAuditStatus,
   DesktopSkillCatalogItem,
@@ -30,7 +30,7 @@ export function SkillCatalogCard({
           type="button"
         >
           <span aria-hidden="true" className="skill-catalog-card__icon">
-            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
           </span>
           <span className="skill-catalog-card__copy">
             <span className="skill-catalog-card__title-line">
@@ -54,7 +54,7 @@ export function SkillCatalogCard({
         <div className="skill-catalog-card__actions">
           {skill.installed ? (
             <span className="skill-catalog-card__installed">
-              <Check aria-hidden="true" size={APP_ICON_SIZE} />
+              <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
               已添加
             </span>
           ) : (

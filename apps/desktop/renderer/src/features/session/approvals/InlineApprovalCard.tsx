@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, X } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
@@ -150,9 +150,9 @@ export function InlineApprovalCard({
     try { await action() } catch { setError('操作失败，请重试。') }
     finally { busyRef.current = false; setBusy(false) }
   }
-  const navigation = onInterrupt ? <button type="button" className="ask-user-question-nav-button" aria-label="中断当前对话" disabled={disabled} onClick={() => void act(onInterrupt)}><X size={APP_ICON_SIZE} /></button> : null
+  const navigation = onInterrupt ? <button type="button" className="ask-user-question-nav-button" aria-label="中断当前对话" disabled={disabled} onClick={() => void act(onInterrupt)}><X size={APP_ICON_SIZES.sm} /></button> : null
   const actions = <div className="inline-approval-actions">
-    {isPermissionGrant && scopeOptions.length > 1 ? <Dropdown width="auto" align="end" trigger={<button type="button" className="inline-approval-scope-trigger" disabled={disabled} aria-label="授权范围">{scopeOptions.find(option => option.scope === selectedScope)?.label}<ChevronDown size={APP_ICON_SIZE} /></button>}>
+    {isPermissionGrant && scopeOptions.length > 1 ? <Dropdown width="auto" align="end" trigger={<button type="button" className="inline-approval-scope-trigger" disabled={disabled} aria-label="授权范围">{scopeOptions.find(option => option.scope === selectedScope)?.label}<ChevronDown size={APP_ICON_SIZES.sm} /></button>}>
       <DropdownMenu.RadioGroup value={selectedScope ?? ''} onValueChange={value => {
         if (!disabled && scopeOptions.some(option => option.scope === value)) setSelectedScope(value as DesktopPermissionGrantScope)
       }}>

@@ -66,7 +66,7 @@
   svg {
     width: var(--cpx-sys-icon-size);
     height: var(--cpx-sys-icon-size);
-    stroke-width: 1.75;
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 }
 
@@ -118,8 +118,8 @@
   }
 
   svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: 14px;
+    height: 14px;
     stroke-width: 1.75;
   }
 }
@@ -216,9 +216,9 @@
   }
 
   svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
-    stroke-width: 1.75;
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 }
 
@@ -437,9 +437,9 @@
   font-variant-numeric: tabular-nums;
 
   svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
-    stroke-width: 1.75;
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
+    stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 }
 

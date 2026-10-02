@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from "react";
 import {
   CheckCircle2,
@@ -993,12 +993,12 @@ export function ReviewComment({
       <div className="review-comment-actions">
         {comment.status === "open" ? (
           <Button size="compact" type="button" onClick={onResolve}>
-            <CheckCircle2 size={APP_ICON_SIZE} />
+            <CheckCircle2 size={APP_ICON_SIZES.sm} />
             解决
           </Button>
         ) : null}
         <Button size="compact" color="danger" type="button" onClick={onDelete}>
-          <Trash2 size={APP_ICON_SIZE} />
+          <Trash2 size={APP_ICON_SIZES.sm} />
           删除
         </Button>
       </div>

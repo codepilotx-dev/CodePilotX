@@ -3,6 +3,7 @@ import type React from 'react'
 import { cx } from '../../utils/cx.js'
 import { useResolvedButtonSize } from './TabStripButtonContext.js'
 import { Spinner } from './Spinner.js'
+import type { AppIconSize } from './iconTokens.js'
 
 export type ButtonColor =
   | 'accent'
@@ -41,6 +42,7 @@ export type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'c
   allowShrink?: boolean
   color?: ButtonColor
   contentLayout?: ButtonContentLayout
+  iconSize?: AppIconSize
   loading?: boolean
   radius?: ButtonRadius
   size?: ButtonSize
@@ -55,6 +57,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     color = 'primary',
     contentLayout = 'default',
     disabled,
+    iconSize,
     loading = false,
     radius = 'default',
     size = 'default',
@@ -78,6 +81,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       data-allow-shrink={allowShrink || undefined}
       data-color={color}
       data-content-layout={contentLayout}
+      data-icon-size={iconSize}
       data-loading={loading || undefined}
       data-radius={radius}
       data-size={resolvedSize}

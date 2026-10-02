@@ -6,7 +6,7 @@ import { Button } from '../../../components/ui/Button.js'
 import { DisclosureController } from '../../../components/ui/DisclosureController.js'
 import { Input } from '../../../components/ui/Input.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
@@ -118,7 +118,7 @@ export function OAuthConnection({
       <div className="model-center-oauth-body">
         {status ? (
           <div className="model-center-oauth-status" role="status">
-            {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZE} aria-hidden />}
+            {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZES.sm} aria-hidden />}
             <div>
               <strong>{t(status)}</strong>
               {active && authUrlNotice && !completing ? (
@@ -175,7 +175,7 @@ export function OAuthConnection({
               mountPolicy="until-exit"
               renderTrigger={({ expanded, contentId, toggle }) => (
                 <Button color="ghostSecondary" aria-controls={contentId} aria-expanded={expanded} onClick={toggle}>
-                  {expanded ? <ChevronDown size={APP_ICON_SIZE} aria-hidden /> : <ChevronRight size={APP_ICON_SIZE} aria-hidden />}
+                  {expanded ? <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden /> : <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden />}
                   {t('无法自动完成？')}
                 </Button>
               )}

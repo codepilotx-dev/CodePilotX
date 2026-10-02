@@ -1,10 +1,6 @@
 import { ListChecks } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
 import type { DesktopInstalledSkill } from '../../../shared/types.js'
 
 export type BuiltinSkillPresentation = {
@@ -42,7 +38,7 @@ type BuiltinSkillIconProps = {
 /** A compact image icon with a deterministic Lucide fallback for failed loads. */
 export function BuiltinSkillIcon({
   skill,
-  size = APP_ICON_SIZE,
+  size = 14,
   className,
 }: BuiltinSkillIconProps): React.ReactNode {
   const [failed, setFailed] = useState(false)
@@ -54,7 +50,8 @@ export function BuiltinSkillIcon({
         aria-hidden="true"
         className={className}
         size={size}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
+        data-icon-kind="artwork"
+        strokeWidth={2}
       />
     )
   }

@@ -7,7 +7,7 @@ import {
   GitFork,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import {
@@ -128,13 +128,13 @@ export function PullRequestPopover({
           <span className="review-popover-branch-name">{branchLabel}</span>
           <ArrowUpRight size={APP_ICON_SIZE} />
           <span>{targetLabel}</span>
-          <ChevronDown size={APP_ICON_SIZE} />
+          <ChevronDown size={APP_ICON_SIZES.sm} />
         </span>
         <span className="review-popover-counts">
           <strong>+{formatPanelNumber(additions)}</strong>
           <em>-{formatPanelNumber(deletions)}</em>
         </span>
-        <IconButton
+        <IconButton iconSize="sm"
           className="review-popover-close"
           color="ghostSecondary"
           size="toolbar"
@@ -142,7 +142,7 @@ export function PullRequestPopover({
           type="button"
           onClick={onClose}
         >
-          <X size={APP_ICON_SIZE} />
+          <X size={APP_ICON_SIZES.sm} />
         </IconButton>
       </header>
 

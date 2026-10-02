@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import React, { useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { Check } from 'lucide-react'
@@ -82,8 +83,8 @@ export function ReasoningMenu({
                   </span>
                   {isSelected ? (
                     <Check
-                      size={14}
-                      strokeWidth={2.6}
+                      size={APP_ICON_SIZES.sm}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
                       className="composer-reasoning-menu-check"
                     />
                   ) : null}

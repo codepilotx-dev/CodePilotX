@@ -2,7 +2,7 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -146,7 +146,7 @@ function renderAction(
             <span className="app-context-menu-trailing sidebar-context-menu-trailing">
               <ChevronRight
                 className="app-context-menu-arrow sidebar-context-menu-arrow"
-                size={APP_ICON_SIZE}
+                size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>

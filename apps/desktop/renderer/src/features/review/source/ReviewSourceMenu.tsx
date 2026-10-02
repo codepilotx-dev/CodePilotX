@@ -9,7 +9,7 @@ import {
 } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import {
   pickDefaultReviewBaseBranch,
   reviewSourceLabel,
@@ -60,7 +60,7 @@ export function ReviewSourceMenu({
           <span className="review-scope-trigger-label">
             {reviewSourceLabel(source)}
           </span>
-          <ChevronDown size={APP_ICON_SIZE} />
+          <ChevronDown size={APP_ICON_SIZES.sm} />
         </button>
       }
       onOpenChange={onOpenChange}
@@ -161,7 +161,7 @@ function ReviewCommitSourceSubmenu({
         <span className="popover-item-trailing">
           <ChevronRight
             className="popover-item-arrow"
-            size={APP_ICON_SIZE}
+            size={APP_ICON_SIZES.sm}
           />
         </span>
       </DropdownMenu.SubTrigger>

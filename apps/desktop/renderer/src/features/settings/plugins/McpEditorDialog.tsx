@@ -18,6 +18,7 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { SettingsDropdown } from '../SettingsDropdown.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
@@ -696,7 +697,7 @@ const McpAdvancedDisclosure = memo(function McpAdvancedDisclosure({
         type="button"
         onClick={toggle}
       >
-        {expanded ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZE} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />}
+        {expanded ? <ChevronUp aria-hidden="true" size={APP_ICON_SIZES.sm} /> : <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />}
         高级选项
       </button>
       <DisclosureContent
@@ -783,7 +784,7 @@ function ValueListField({
               title={`删除${label}`}
               onClick={() => onChange(removeValueRow(rows, row.id))}
             >
-              <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Trash2 aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
@@ -838,7 +839,7 @@ function MapListField({
               title={`删除${label}`}
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
-              <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Trash2 aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}
@@ -886,7 +887,7 @@ function ToolApprovalListField({
               title={`删除工具审批覆盖 ${index + 1}`}
               onClick={() => onChange(removeMapRow(rows, row.id))}
             >
-              <Trash2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Trash2 aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           </div>
         ))}

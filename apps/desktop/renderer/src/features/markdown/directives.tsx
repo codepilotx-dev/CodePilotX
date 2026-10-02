@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React from 'react'
 import { ChevronRight } from 'lucide-react'
 import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
@@ -85,7 +85,7 @@ function DetailsDirective({
         onClick={() => setExpanded((current) => !current)}
         type="button"
       >
-        <ChevronRight size={APP_ICON_SIZE} aria-hidden="true" />
+        <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
         {argument || '详情'}
       </button>
       <DisclosureContent expanded={expanded} id={contentId} mountPolicy="always">

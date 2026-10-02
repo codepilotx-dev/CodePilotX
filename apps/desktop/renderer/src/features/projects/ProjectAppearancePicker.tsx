@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -78,7 +78,7 @@ export function ProjectAppearancePicker({
                 value={color}
               >
                 <RadioGroup.Indicator>
-                  <Check aria-hidden="true" size={APP_ICON_SIZE} />
+                  <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
                 </RadioGroup.Indicator>
               </RadioGroup.Item>
             ))}

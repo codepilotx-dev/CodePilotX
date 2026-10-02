@@ -15,7 +15,7 @@ import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/types.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
@@ -339,7 +339,7 @@ export function PluginsView(): React.ReactNode {
             <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
               插件
             </Button>
-            <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span>{selectedPlugin?.name ?? target.id}</span>
           </div>
         ) : target ? (

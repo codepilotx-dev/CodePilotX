@@ -61,8 +61,8 @@
   outline: none;
 
   > svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
     display: block;
     flex-shrink: 0;
   }
@@ -155,8 +155,8 @@
   border: 1px solid transparent;
 
   > svg {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: var(--cpx-sys-icon-size-sm);
+    height: var(--cpx-sys-icon-size-sm);
     display: block;
     flex-shrink: 0;
   }

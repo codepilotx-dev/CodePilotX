@@ -762,7 +762,7 @@ export function PluginsSettingsPage({
                   description={skill.shortDescription || skill.description || '未提供技能说明。'}
                   icon={
                     getBuiltinSkillPresentation(skill) ? (
-                      <BuiltinSkillIcon size={APP_ICON_SIZE} skill={skill} />
+                      <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
                       <FileCode2
                         size={APP_ICON_SIZE}

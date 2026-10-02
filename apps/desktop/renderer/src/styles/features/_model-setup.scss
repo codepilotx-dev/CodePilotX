@@ -166,17 +166,17 @@
 
 .model-setup-provider-logo {
   display: grid;
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
-  flex: 0 0 var(--cpx-sys-icon-size);
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   place-items: center;
   border-radius: var(--cpx-sys-radius-md);
   object-fit: contain;
 }
 
 .model-setup-provider-logo svg {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: 14px;
+  height: 14px;
   color: var(--cpx-sys-color-fg-tertiary);
 }
 
@@ -224,8 +224,8 @@
 .model-setup-provider-status svg,
 .model-setup-connected svg,
 .model-setup-model-row > svg {
-  width: var(--cpx-sys-icon-size);
-  height: var(--cpx-sys-icon-size);
+  width: var(--cpx-sys-icon-size-sm);
+  height: var(--cpx-sys-icon-size-sm);
 }
 
 .model-setup-connection {

@@ -1,7 +1,7 @@
 import type React from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { Tooltip } from './Tooltip.js'
 
 type BaseProps = {
@@ -92,11 +92,11 @@ function PopoverItemContent({
         ) : null}
         {indicator ?? (withArrow ? (
           arrowDirection === 'down' ? (
-            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : arrowDirection === 'up' ? (
-            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : (
-            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )
         ) : null)}
       </span>
@@ -162,7 +162,7 @@ export function PopoverItem({
         description={description}
         icon={icon}
         indicator={selected && withCheck ? (
-          <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
         ) : undefined}
         shortcut={shortcut}
         withArrow={withArrow}
@@ -210,7 +210,7 @@ export function PopoverCheckboxItem({
         icon={icon}
         indicator={(
           <DropdownMenu.ItemIndicator asChild>
-            <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </DropdownMenu.ItemIndicator>
         )}
         shortcut={shortcut}
@@ -264,7 +264,7 @@ export function PopoverRadioItem({
         icon={icon}
         indicator={(
           <DropdownMenu.ItemIndicator asChild>
-            <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </DropdownMenu.ItemIndicator>
         )}
         shortcut={shortcut}

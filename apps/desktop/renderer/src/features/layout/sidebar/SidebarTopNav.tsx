@@ -12,7 +12,7 @@ import {
   Search,
   SquarePen,
 } from "lucide-react";
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import type { SidebarProductMode } from "../../../../shared/types.js";
 import type { AppView } from "../../../uiTypes.js";
@@ -253,7 +253,7 @@ export function SidebarHeader({
             type="button"
           >
             <span className="sidebar-product-mode-label">{activeMode.label}</span>
-            <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+            <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         }
         onOpenChange={setModeMenuOpen}

@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
@@ -289,7 +290,7 @@ export function AutomationCalendar({
                   {monthLabel(visibleMonth)}
                 </h2>
                 <ChevronDown
-                  size={16}
+                  size={APP_ICON_SIZES.sm}
                   aria-hidden="true"
                   className="automation-calendar__month-trigger-icon"
                 />
@@ -310,7 +311,7 @@ export function AutomationCalendar({
                     aria-label="上一年"
                     onClick={() => setPickerYear(y => y - 1)}
                   >
-                    <ChevronLeft size={14} />
+                    <ChevronLeft size={APP_ICON_SIZES.sm} />
                   </IconButton>
                   <span className="automation-calendar__year-label">
                     {pickerYear}年
@@ -322,7 +323,7 @@ export function AutomationCalendar({
                     aria-label="下一年"
                     onClick={() => setPickerYear(y => y + 1)}
                   >
-                    <ChevronRight size={14} />
+                    <ChevronRight size={APP_ICON_SIZES.sm} />
                   </IconButton>
                 </div>
                 <div className="automation-calendar__month-grid">
@@ -443,7 +444,7 @@ export function AutomationCalendar({
             aria-label="上个月"
             onClick={() => handleMonthChange(-1)}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={APP_ICON_SIZES.sm} />
           </IconButton>
           <Button size="compact" color="secondary" onClick={handleToday}>
             今天
@@ -455,7 +456,7 @@ export function AutomationCalendar({
             aria-label="下个月"
             onClick={() => handleMonthChange(1)}
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={APP_ICON_SIZES.sm} />
           </IconButton>
         </div>
       </div>
@@ -541,7 +542,7 @@ export function AutomationCalendar({
             <div className="automation-calendar__agenda-empty">
               <Calendar
                 className="automation-calendar__agenda-empty-icon"
-                size={24}
+                size={APP_ICON_SIZES.lg}
                 aria-hidden="true"
               />
               <p className="automation-calendar__agenda-empty-text">
@@ -592,7 +593,7 @@ export function AutomationCalendar({
                         onRunOccurrence(occurrence)
                       }}
                     >
-                      <Play size={12} />
+                      <Play size={APP_ICON_SIZES.sm} />
                     </IconButton>
                   ) : null}
                   {occurrence.threadId && onOpenThread ? (
@@ -606,7 +607,7 @@ export function AutomationCalendar({
                         onOpenThread(occurrence.threadId!)
                       }}
                     >
-                      <MessageSquare size={12} />
+                      <MessageSquare size={APP_ICON_SIZES.sm} />
                     </IconButton>
                   ) : null}
                 </div>

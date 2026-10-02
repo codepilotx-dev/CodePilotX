@@ -23,6 +23,7 @@ import {
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from "../../../components/ui/iconTokens.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import type {
@@ -1606,7 +1607,7 @@ function SessionSubmenu({
         </span>
         <span className="popover-item-label">{label}</span>
         <span className="popover-item-trailing">
-          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
         </span>
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>

@@ -18,7 +18,7 @@ import type {
   ResultCardTone,
 } from "@codepilotx/shared/thread-result-card";
 
-import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
+import { APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
 import { DisclosureContent } from "../../../components/ui/DisclosureContent.js";
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from "../../markdown/index.js";
 import { ConversationItemContext } from "./ConversationItemContext.js";
@@ -99,7 +99,7 @@ export function ResultCardView({ card }: { card: ResultCard }): React.ReactNode 
       data-tone={card.tone}
     >
       <header className="canonical-result-card__header">
-        <ToneIcon aria-hidden="true" className="canonical-result-card__icon" size={APP_ICON_SIZE} />
+        <ToneIcon aria-hidden="true" className="canonical-result-card__icon" size={APP_ICON_SIZES.lg} />
         <h3 className="canonical-result-card__title" id={titleId}>{card.title}</h3>
         <span className="canonical-result-card__tone">{tone.label}</span>
         <CopyButton ariaLabel="复制结构化结果" text={resultCardPlainText(card)} />
@@ -158,7 +158,7 @@ function ResultCardSectionView({ section }: { section: ResultCardSection }): Rea
             type="button"
           >
             {expanded ? "收起" : `再显示 ${hiddenCount} 项`}
-            <ChevronDown aria-hidden="true" className={expanded ? "is-expanded" : undefined} size={APP_ICON_SIZE} />
+            <ChevronDown aria-hidden="true" className={expanded ? "is-expanded" : undefined} size={APP_ICON_SIZES.sm} />
           </button>
         </>
       ) : null}
@@ -197,7 +197,7 @@ function ResultCardReferenceItem({
     const url = safeCitationUrl(reference.value);
     return (
       <li className="canonical-result-card__reference">
-        <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+        <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
         {url ? (
           <a href={url} rel="noopener noreferrer" target="_blank" title={reference.value}>
             {text}
@@ -213,7 +213,7 @@ function ResultCardReferenceItem({
     if (path && onOpenFileReference) {
       return (
         <li className="canonical-result-card__reference">
-          <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+          <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <button
             aria-label={`打开文件 ${text}`}
             className="canonical-result-card__file-link"
@@ -228,14 +228,14 @@ function ResultCardReferenceItem({
     }
     return (
       <li className="canonical-result-card__reference">
-        <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+        <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
         <span title={reference.value}>{text}</span>
       </li>
     );
   }
   return (
     <li className="canonical-result-card__reference">
-      <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+      <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
       <span title={reference.value}>{text}</span>
     </li>
   );

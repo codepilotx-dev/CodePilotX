@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Check, MessagesSquare, Plus, Unlink } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import {
   SearchablePopoverAction,
   SearchablePopoverContent,
@@ -87,7 +87,7 @@ export function SessionGroupSwitcherPopover({
           ) : (
             <span className="popover-item-label">不使用工作流</span>
           )}
-          <span className="popover-item-trailing">{selected ? <Check size={APP_ICON_SIZE} /> : null}</span>
+          <span className="popover-item-trailing">{selected ? <Check size={APP_ICON_SIZES.sm} /> : null}</span>
         </>
       )}
       search={search}
