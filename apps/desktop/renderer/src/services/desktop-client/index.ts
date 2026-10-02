@@ -1,8 +1,8 @@
 import { createAgentSessionDesktopClient } from './agent-session-client.js'
 import { createLazyBrowserMockClient } from './lazy-browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
+import { createGithubAccountCache } from './github-account-cache.js'
 import type {
-  CodePilotXDesktopClient,
   DesktopAttachmentApi,
   DesktopLocalContextApi,
   DesktopClientEnvironment,
@@ -65,13 +65,14 @@ export type {
 
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
-): CodePilotXDesktopClient {
+) {
   const fallbackClient = createLazyBrowserMockClient(environment.localStorage)
-  return createAgentSessionDesktopClient(
+  const client = createAgentSessionDesktopClient(
     environment,
     fallbackClient,
     environment.window?.codePilotXDesktop === undefined,
   )
+  return { ...client, ...createGithubAccountCache(client) }
 }
 
-export const desktopClient: CodePilotXDesktopClient = createDesktopClient()
+export const desktopClient = createDesktopClient()

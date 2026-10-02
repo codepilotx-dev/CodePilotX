@@ -1,5 +1,5 @@
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import {
   Edit3,
@@ -14,9 +14,7 @@ import {
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { useNavigate } from 'react-router-dom'
 import type {
-  DesktopGithubAuthStatus,
   DesktopGithubContributionWeek,
-  DesktopGithubProfileOverview,
   DesktopGithubProfileRepository,
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
@@ -39,10 +37,11 @@ const STATUS_EMOJI_OPTIONS = [
 
 export function ProfileSettings(): React.ReactNode {
   const navigate = useNavigate()
-  const [githubAuth, setGithubAuth] =
-    useState<DesktopGithubAuthStatus | null>(null)
-  const [githubOverview, setGithubOverview] =
-    useState<DesktopGithubProfileOverview | null>(null)
+  const { auth: githubAuth, overview: githubOverview } = useSyncExternalStore(
+    desktopClient.onGithubAccountChange,
+    desktopClient.getGithubAccountSnapshot,
+    desktopClient.getGithubAccountSnapshot,
+  )
   const [githubOverviewError, setGithubOverviewError] = useState<string | null>(
     null,
   )
@@ -51,25 +50,20 @@ export function ProfileSettings(): React.ReactNode {
   const [statusMessage, setStatusMessage] = useState('')
   const [statusBusy, setStatusBusy] = useState(false)
   const [statusLimited, setStatusLimited] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(githubOverview === null)
 
-  const loadGithubAuth = async (): Promise<void> => {
-    setLoading(true)
+  const loadGithubAuth = async (force = false): Promise<void> => {
+    setLoading(force || desktopClient.getGithubAccountSnapshot().overview === null)
+    setGithubOverviewError(null)
     try {
-      const status = await desktopClient.getGithubAuthStatus()
-      setGithubAuth(status)
+      const status = await desktopClient.getGithubAuthStatus({ force })
       if (status.authenticated) {
-        const result = await desktopClient.getGithubProfileOverview()
+        const result = await desktopClient.getGithubProfileOverview({ force })
         if (result.ok === false) {
-          setGithubOverview(null)
           setGithubOverviewError(result.error)
-        } else {
-          setGithubOverview(result.overview)
-          setGithubOverviewError(null)
         }
       } else {
-        setGithubOverview(null)
-        setGithubOverviewError(null)
+        setGithubOverviewError(status.error ?? null)
       }
     } finally {
       setLoading(false)
@@ -93,11 +87,7 @@ export function ProfileSettings(): React.ReactNode {
   )
   const contributionWeeks = githubOverview?.contributions.weeks ?? []
   const currentStatus = githubOverview?.user.status ?? null
-  const showInitialSkeleton =
-    loading &&
-    githubAuth === null &&
-    githubOverview === null &&
-    githubOverviewError === null
+  const showLoadingSkeleton = loading && githubOverview === null
 
   const openStatusEditor = (): void => {
     setStatusEmoji(statusEmojiName(currentStatus?.emoji) ?? 'speech_balloon')
@@ -120,7 +110,7 @@ export function ProfileSettings(): React.ReactNode {
         return
       }
       setStatusEditorOpen(false)
-      await loadGithubAuth()
+      await loadGithubAuth(true)
     } finally {
       setStatusBusy(false)
     }
@@ -135,7 +125,7 @@ export function ProfileSettings(): React.ReactNode {
         return
       }
       setStatusEditorOpen(false)
-      await loadGithubAuth()
+      await loadGithubAuth(true)
     } finally {
       setStatusBusy(false)
     }
@@ -157,7 +147,7 @@ export function ProfileSettings(): React.ReactNode {
             </Button>
             <Button color="primary"
               disabled={loading}
-              onClick={() => void loadGithubAuth()}
+              onClick={() => void loadGithubAuth(true)}
               title={loading ? '正在刷新中...' : '刷新'}
             >
               <RefreshCw size={APP_ICON_SIZE} />
@@ -167,7 +157,7 @@ export function ProfileSettings(): React.ReactNode {
           </div>
         </header>
 
-        {showInitialSkeleton ? (
+        {showLoadingSkeleton ? (
           <ProfileLoadingSkeleton />
         ) : (
           <>
@@ -315,12 +305,15 @@ export function ProfileSettings(): React.ReactNode {
               <section className="profile-empty-state">
                 <p>
                   {githubOverviewError ??
-                    '连接 GitHub 失败，请稍后重试。'
+                    githubAuth?.error ??
+                    (githubAuth?.authenticated
+                      ? '连接 GitHub 失败，请稍后重试。'
+                      : '尚未登录 GitHub，请前往 Git 设置登录。')
                   }
                 </p>
                 <div className="profile-empty-actions">
                   <Button color="secondary"
-                    onClick={() => void loadGithubAuth()}
+                    onClick={() => void loadGithubAuth(true)}
                     type="button"
                   >
                     <RefreshCw size={APP_ICON_SIZE} />

@@ -1,5 +1,5 @@
 import type React from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -20,7 +20,6 @@ import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
-  DesktopGithubAuthStatus,
   DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../../shared/types.js'
@@ -88,7 +87,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
-  const [githubAuth, setGithubAuth] = useState<DesktopGithubAuthStatus | null>(null);
+  const { auth: githubAuth } = useSyncExternalStore(
+    desktopClient.onGithubAccountChange,
+    desktopClient.getGithubAccountSnapshot,
+    desktopClient.getGithubAccountSnapshot,
+  );
   const [petToggleBusy, setPetToggleBusy] = useState(false);
   const settingsActive = location.pathname.startsWith("/settings/");
   const usageAvailable = Boolean(configuredProviderID && model);
@@ -151,9 +154,9 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 
   const refreshGithubAuth = useCallback(async (): Promise<void> => {
     try {
-      setGithubAuth(await desktopClient.getGithubAuthStatus());
+      await desktopClient.getGithubAuthStatus();
     } catch {
-      setGithubAuth(null);
+      // 保留已有账户信息，下一次打开菜单时重试。
     }
   }, []);
 
@@ -167,7 +170,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 
   const logoutGithub = useCallback(async (): Promise<void> => {
     try {
-      setGithubAuth(await desktopClient.logoutGithub());
+      await desktopClient.logoutGithub();
     } catch (error) {
       onReport(error instanceof Error ? error.message : String(error));
     }

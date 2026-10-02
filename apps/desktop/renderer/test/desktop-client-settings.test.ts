@@ -1638,6 +1638,12 @@ describe('desktop thread settings client', () => {
       ok: true,
       overview: { user: { login: 'octocat' } },
     })
+    await client.getGithubAuthStatus()
+    await client.getGithubProfileOverview()
+    expect(requests.filter(request => request.method === 'github/profileOverview')).toHaveLength(1)
+    expect(client.getGithubAccountSnapshot().overview?.user.login).toBe('octocat')
+    await client.getGithubProfileOverview({ force: true })
+    expect(requests.filter(request => request.method === 'github/profileOverview')).toHaveLength(2)
     expect(await client.pushWorkspaceBranch({
       workspacePath: projectRootPath,
       setUpstream: true,
@@ -1658,6 +1664,7 @@ describe('desktop thread settings client', () => {
       authenticated: false,
       user: null,
     })
+    expect(client.getGithubAccountSnapshot().overview).toBeNull()
 
     expect(requests).toContainEqual({
       method: 'github/auth/start',
