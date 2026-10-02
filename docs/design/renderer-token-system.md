@@ -79,7 +79,21 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 ### 图标
 
-所有界面图标统一为 `14×14 CSS px`，CSS 消费 `--cpx-sys-icon-size`，React 图标复用 `APP_ICON_SIZE`。按钮、菜单、状态、加载、文件/文件夹和空状态均遵循此尺寸，组件尺寸槽位统一引用公共 Token。界面内的品牌/插件 Logo 使用真实图片资源，改为跟随所在槽位 `100%` 等比显示（`object-fit: contain`），不再固定 `14×14`。按钮点击区域、行高和图标线宽独立保留；内容图片、图表、宠物、安装包图标和系统原生窗口按钮不适用。禁止使用全局 `svg` / `img` 强制覆盖内容尺寸。
+功能图标固定使用 `12 / 16 / 20 CSS px`，按位置职责选择，默认 `16px`。尺寸不跟随 UI 字号设置；应用整体缩放仍正常生效。
+
+| 档位 | 系统 Token / React 常量 | 使用场景 |
+| --- | --- | --- |
+| 辅助 · 12px | `--cpx-sys-icon-size-sm` / `APP_ICON_SIZES.sm` | 展开与下拉箭头、选中勾、标签关闭、清除、行尾更多/置顶/归档、时间线状态、元信息 |
+| 常规 · 16px | `--cpx-sys-icon-size-md` / `APP_ICON_SIZE` | 侧栏导航与项目、侧栏行尾状态与操作、菜单前置图标、搜索、工具栏、普通按钮、文件/文件夹、附件、Composer 添加与麦克风 |
+| 突出 · 20px | `--cpx-sys-icon-size-lg` / `APP_ICON_SIZES.lg` | Composer 发送/停止、大尺寸动作按钮、独立空状态与结果提示符号 |
+
+`--cpx-sys-icon-size` 是默认 `md` 的别名；组件 `sm/md/lg` 分别映射三档。`Button` 与 `IconButton` 的 `iconSize="sm|md|lg"` 只控制图标，不改变点击区域、行高或按钮颜色。未指定时，`compact / composerSm / iconSm / iconMd` 使用 12px，`large / iconLarge` 使用 20px，其余使用 16px；组合按钮的尾部箭头使用 12px，显式 `iconSize` 优先。按钮加载指示器与所在按钮的图标同尺寸；独立 `Spinner` 的 `small/medium/large` 使用 12/16/20px。文件/文件夹默认 16px，异步加载前后保持一致。
+
+同组同级操作保持一致，菜单前置图标为 16px、尾部勾选与箭头为 12px。`primary`、危险、选中、hover、禁用或加载状态不决定尺寸；状态替换必须保持原尺寸，例如发送、停止、发送中均为 20px。20px 不用于紧凑行尾操作。图标盒子必须正方形、居中且不收缩；普通图文间距沿用 4px，列表与菜单沿用现有间距 Token。普通 Lucide 图标统一使用 `--cpx-sys-icon-stroke-width` / `APP_ICON_STROKE_WIDTH`（1.6），样式同样覆盖未指定 `strokeWidth` 时的默认值；1.6 是 24×24 viewBox 内的线宽，随显示尺寸缩放，功能图标不使用 `absoluteStrokeWidth`。彩色文件与填充图标保留原始绘制方式，不测量图形边界或添加逐图标偏移。
+
+头像、鲸鱼、品牌形象、Provider/插件/Skill Logo、宠物、内容图片、插图、图表、安装包图标和系统原生窗口按钮不属于功能图标。它们及其占位图形由各自槽位管理，保留原有几何，不随功能图标 Token 变化。其中的 Lucide 占位图标必须标记 `data-icon-kind="artwork"`，保留原始描边属性和局部样式，并将其自身的描边 Token 保持为 2，避免组件局部样式受到功能图标轻轮廓的影响。禁止新增其他功能图标尺寸，也禁止使用全局或整个区域的 `svg` / `img` 选择器强制覆盖尺寸；样式只能作用于组件拥有的图标槽位。
+
+侧栏导航、项目前置图标、行尾时钟/分叉状态及置顶/归档/更多/新建操作统一使用 16px。行尾按钮显式指定 `iconSize="md"`，覆盖紧凑按钮默认的 12px；运行状态 Spinner 使用 `medium`，点击区域保持原有大小。
 
 ### 间距
 
