@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -38,7 +38,7 @@ import {
   type AutomationTemplate,
   type AutomationTemplateId,
 } from './automationModel.js'
-import { useAutomationController } from './useAutomationController.js'
+import { AutomationControllerContext, AutomationControllerProvider, useSharedAutomationController } from './AutomationControllerProvider.js'
 import { useCalendarController } from './useCalendarController.js'
 
 export type AutomationTab = 'calendar' | 'runs'
@@ -57,6 +57,13 @@ const FILTER_OPTIONS: Array<{ value: AutomationFilter; label: string }> = [
 ]
 
 export function AutomationView(): React.ReactNode {
+  const controller = useContext(AutomationControllerContext)
+  return controller ? <AutomationViewContent /> : (
+    <AutomationControllerProvider enabled><AutomationViewContent /></AutomationControllerProvider>
+  )
+}
+
+function AutomationViewContent(): React.ReactNode {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const tab: AutomationTab = params.get('tab') === 'runs' ? 'runs' : 'calendar'
@@ -64,7 +71,7 @@ export function AutomationView(): React.ReactNode {
   const creating = params.get('automationMode') === 'create'
   const scheduledTaskId = params.get('scheduledTaskId')
   const creatingScheduledTask = params.get('scheduledTaskMode') === 'create'
-  const controller = useAutomationController(selectedId)
+  const controller = useSharedAutomationController()
   const calendar = useCalendarController(controller.query, 'all')
   const [scheduledTask, setScheduledTask] = useState<ScheduledTask | null>(null)
   const [scheduledTaskLoading, setScheduledTaskLoading] = useState(false)

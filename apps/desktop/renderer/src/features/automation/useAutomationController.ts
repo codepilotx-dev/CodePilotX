@@ -54,6 +54,7 @@ export type AutomationController = {
 
 export function useAutomationController(
   selectedId: string | null,
+  enabled = true,
 ): AutomationController {
   const [supported, setSupported] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
@@ -110,11 +111,11 @@ export function useAutomationController(
   }, [])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    if (enabled) void refresh()
+  }, [enabled, refresh])
   useEffect(
     () =>
-      desktopClient.subscribeAgentEventEnvelopes(
+      enabled ? desktopClient.subscribeAgentEventEnvelopes(
         { liveEventTypes: [] },
         events => {
           if (
@@ -127,8 +128,8 @@ export function useAutomationController(
             void refresh()
           }
         },
-      ),
-    [refresh],
+      ) : undefined,
+    [enabled, refresh],
   )
 
   useEffect(() => {

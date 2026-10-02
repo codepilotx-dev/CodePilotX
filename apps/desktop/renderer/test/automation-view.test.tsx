@@ -1,3 +1,6 @@
+import { AutomationControllerContext } from '../src/features/automation/AutomationControllerProvider.js'
+import type { AutomationController } from '../src/features/automation/useAutomationController.js'
+import { SidebarScheduledPane } from '../src/features/layout/sidebar/SidebarScheduledPane.js'
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
@@ -9,6 +12,25 @@ import { taskDefinition } from '../src/features/automation/ScheduledTaskDetailPa
 import { WorkspaceHeaderProvider } from '../src/features/layout/workspace-header/index.js'
 
 describe('AutomationView', () => {
+  test('侧栏复用传入控制器的筛选结果与详情路由', () => {
+    const controller = {
+      query: '发布', filter: 'paused', loading: false, supported: true, error: null,
+      runs: [], filteredAutomations: [{ id: 'task/publish', name: '发布检查', status: 'paused' }],
+      setQuery: () => {}, setFilter: () => {},
+    } as unknown as AutomationController
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/automations?automationId=task%2Fpublish']}>
+        <AutomationControllerContext.Provider value={controller}><SidebarScheduledPane /></AutomationControllerContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(html).toContain('value="发布"')
+    expect(html).toContain('发布检查')
+    expect(html).toContain('已暂停')
+    expect(html).toContain('href="/automations?automationId=task%2Fpublish"')
+    expect(html).toContain('href="/automations?automationMode=create"')
+    expect(html).not.toContain('正在加载任务')
+  })
+
   test('one-off drafts create and update through exact RPC params without the recurring schedule', async () => {
     const draft = {
       ...defaultAutomationDraft({ projectId: 'project:calendar', model: { providerID: 'openai', id: 'gpt-5' } }),
