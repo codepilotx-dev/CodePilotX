@@ -704,6 +704,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
   const effectiveSettings = useMemo<StoredDesktopSettings>(
     () => ({
       language: committedDraftValues.language,
+      sidebarLayout: committedDraftValues.sidebarLayout,
       enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
@@ -785,6 +786,7 @@ export function useDesktopRuntimeSettings(): UseDesktopRuntimeSettingsResult {
 	    }),
 	    [
 	      committedDraftValues.language,
+      committedDraftValues.sidebarLayout,
 	      enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,

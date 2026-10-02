@@ -1,21 +1,25 @@
 import type React from 'react'
 import { useCallback, useLayoutEffect, useRef } from 'react'
+import type { SidebarPane } from './sidebarNavigation.js'
 import type { DesktopSidebarOrganization } from '../../../../shared/types.js'
 
 export type SidebarScrollModeKey =
   | 'timeline:priority'
   | 'standard:projects'
   | 'standard:flat'
+  | `modern:${SidebarPane}:${'timeline:priority' | 'standard:projects' | 'standard:flat'}`
 
 export function getSidebarScrollModeKey({
   organization,
   timelineEnabled,
+  pane,
 }: {
   organization: DesktopSidebarOrganization
   timelineEnabled: boolean
+  pane?: SidebarPane
 }): SidebarScrollModeKey {
-  if (timelineEnabled) return 'timeline:priority'
-  return organization === 'projects' ? 'standard:projects' : 'standard:flat'
+  const mode = timelineEnabled ? 'timeline:priority' : organization === 'projects' ? 'standard:projects' : 'standard:flat'
+  return pane ? `modern:${pane}:${mode}` : mode
 }
 
 export function useSidebarScrollController({

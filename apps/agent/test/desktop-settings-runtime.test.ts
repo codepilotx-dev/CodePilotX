@@ -7,6 +7,7 @@ import { createApp, type TransportDependencies } from "../src/transport/server"
 const createSettingsApp = () => {
   const runtimeSettings = new Map<string, unknown>()
   let writtenEdits: ConfigEdit[] = []
+  let sidebarLayout = "classic"
   const configService = {
     read: async () => ({
       config: {
@@ -17,6 +18,7 @@ const createSettingsApp = () => {
           coding: "provider:test/coder",
         },
         desktop: {
+          sidebarLayout,
           sidebarOrganization: "flat",
           sidebarProjectSort: "updated",
           sidebarSort: "manual",
@@ -33,6 +35,8 @@ const createSettingsApp = () => {
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       writtenEdits = edits
+      const layoutEdit = edits.find(edit => edit.keyPath.join('.') === 'desktop.sidebarLayout')
+      if (layoutEdit) sidebarLayout = String(layoutEdit.value)
       return { status: "ok", version: "v1", filePath: "config.json" }
     },
   } as unknown as ConfigService
@@ -81,6 +85,21 @@ const createSettingsApp = () => {
 }
 
 describe("桌面侧栏运行时设置", () => {
+  test("侧栏布局通过 desktop.sidebarLayout 局部写入并往返读取", async () => {
+    const { app, writtenEdits, runtimeSettings } = createSettingsApp()
+    expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({ sidebarLayout: 'classic' })
+    const response = await app.request('/api/config/desktop-projection', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sidebarLayout: 'modern' }),
+    })
+    expect(response.status).toBe(200)
+    expect(writtenEdits()).toEqual([{ keyPath: ['desktop', 'sidebarLayout'], value: 'modern' }])
+    expect(runtimeSettings.get('desktop.runtime-state.v1')).toEqual({})
+    expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({
+      sidebarLayout: 'modern', sidebarOrganization: 'flat', sidebarSort: 'manual',
+    })
+  })
+
   test("专用模型通过桌面投影读取并写入对应配置路径", async () => {
     const { app, writtenEdits } = createSettingsApp()
 

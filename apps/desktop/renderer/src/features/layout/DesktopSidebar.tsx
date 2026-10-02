@@ -51,7 +51,13 @@ import {
 } from './sidebar/sidebarDisclosureStore.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
+import type { SidebarPane } from './sidebar/sidebarNavigation.js'
+
 type Props = {
+  active?: boolean;
+  onNavigate?: () => void;
+  pane?: SidebarPane;
+  capabilityState?: SidebarCapabilityState;
   activeSessionId: string | null;
   catalogStatus: DesktopSessionCatalogStatus;
   pendingPermissionSessionIds: ReadonlySet<string>;
@@ -59,7 +65,6 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
   sessionFallbackTitles: Record<string, string>;
-  sidebarWidth: number;
   sessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
@@ -97,6 +102,10 @@ type Props = {
 };
 
 export function DesktopSidebar({
+  active = true,
+  onNavigate,
+  pane,
+  capabilityState: sidebarCapabilityState = UNKNOWN_SIDEBAR_CAPABILITY_STATE,
   activeSessionId,
   catalogStatus,
   pendingPermissionSessionIds,
@@ -104,7 +113,6 @@ export function DesktopSidebar({
   recentWorkspaces,
   removedWorkspaces,
   sessionFallbackTitles,
-  sidebarWidth,
   sessions,
   unavailableWorkspacePaths,
   workspace,
@@ -134,8 +142,7 @@ export function DesktopSidebar({
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
   const [sidebarScrollOverlapping, setSidebarScrollOverlapping] =
     useState(false)
-  const [sidebarCapabilityState, setSidebarCapabilityState] =
-    useState<SidebarCapabilityState>(UNKNOWN_SIDEBAR_CAPABILITY_STATE)
+  const modern = pane !== undefined
   const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(
     new Map(),
   )
@@ -182,31 +189,6 @@ export function DesktopSidebar({
     const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    let cancelled = false
-    void desktopClient
-      .getRuntimeCapabilities()
-      .then(capabilities => {
-        if (!cancelled) {
-          setSidebarCapabilityState({
-            status: 'ready',
-            capabilities: new Set(capabilities),
-          })
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSidebarCapabilityState({
-            status: 'unavailable',
-            capabilities: null,
-          })
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const mergedProjects = useMemo(
     () => mergeCatalogProjects(projectCatalogState.projects, recentWorkspaces),
@@ -255,6 +237,7 @@ export function DesktopSidebar({
       sidebarOrganization,
       sidebarShowScheduledSessions,
       sidebarSessionPins,
+      pane,
     ],
   )
 
@@ -281,7 +264,7 @@ export function DesktopSidebar({
       }),
     [activityFilteredSessions, relativeNow, sidebarActivityShowPinned],
   )
-  const timeline = sidebarTimelineEnabled ? timelineModel : null
+  const timeline = (modern ? pane === 'activity' : sidebarTimelineEnabled) ? timelineModel : null
   const hasUnread = useMemo(
     () => hasSidebarUnreadSessions(viewModel.visibleSessions),
     [viewModel.visibleSessions],
@@ -297,6 +280,7 @@ export function DesktopSidebar({
   const sidebarScrollModeKey = getSidebarScrollModeKey({
     organization: sidebarOrganization,
     timelineEnabled: timeline !== null,
+    pane: modern ? pane : undefined,
   })
 
   const markAttentionRead = useCallback(async (): Promise<void> => {
@@ -487,10 +471,12 @@ export function DesktopSidebar({
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
       <SidebarHeader
+        showActions={active}
         hasUnread={hasUnread}
         onOpenCommandMenu={onOpenCommandMenu}
       />
       <SidebarNewTaskNav
+        label={modern ? '新聊天' : undefined}
         isActiveView={isActiveView}
         scrollOverlapping={sidebarScrollOverlapping}
       />
@@ -498,11 +484,11 @@ export function DesktopSidebar({
         onScrollOverlapChange={setSidebarScrollOverlapping}
         scrollHeader={
           <>
-            <SidebarTopNav
+            {!modern ? <SidebarTopNav
               capabilityState={sidebarCapabilityState}
               isActiveView={isActiveView}
               showProjects={sidebarOrganization === 'flat'}
-            />
+            /> : null}
             {catalogStatus.state === 'loading' ? (
               <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
             ) : null}
@@ -579,11 +565,11 @@ export function DesktopSidebar({
           onSelectTab={onSelectDockedTab ?? (() => undefined)}
         />
       ) : null}
-      <SidebarFooter
-        sidebarWidth={sidebarWidth}
+      {!modern ? <SidebarFooter
+        onNavigate={onNavigate}
         onOpenWhatsNew={onOpenWhatsNew}
         onReport={onReport}
-      />
+      /> : null}
       {archiveAttentionDialogMounted ? (
         <Suspense fallback={null}>
           <ConfirmationDialog

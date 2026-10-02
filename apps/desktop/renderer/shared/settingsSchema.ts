@@ -208,6 +208,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     conversationWidth: 'default',
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
+    sidebarLayout: 'modern',
     sidebarOrganization: 'projects',
     sidebarProductMode: 'coding',
     sidebarStateVersion: SIDEBAR_STATE_VERSION,
@@ -483,6 +484,7 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.rustSearchAndDiffKernels === 'boolean'
         ? parsed.rustSearchAndDiffKernels
         : defaults.rustSearchAndDiffKernels,
+    sidebarLayout: parsed.sidebarLayout === 'classic' ? 'classic' : 'modern',
     sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
       ? parsed.sidebarOrganization
       : defaults.sidebarOrganization,

@@ -1,3 +1,12 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
+import { Provider as TooltipProvider } from '@radix-ui/react-tooltip'
+import { DesktopSettingsProvider } from '../src/features/settings/useDesktopSettings.js'
+import { SidebarNavigationRail } from '../src/features/layout/sidebar/SidebarNavigationRail.js'
+import { SidebarHeader, SidebarNewTaskNav } from '../src/features/layout/sidebar/SidebarTopNav.js'
+import type { SidebarShellController } from '../src/features/layout/sidebarShellState.js'
+import { sidebarPaneForRoute, SIDEBAR_RAIL_WIDTH } from '../src/features/layout/sidebar/sidebarNavigation.js'
 import { resolveConversationProject } from '../src/features/projects/projectDetailsModel.js'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -14,6 +23,7 @@ import {
   type SessionListItem,
 } from '../src/uiTypes.js'
 import {
+  canShowSidebarTooltip,
   deriveSidebarShellMode,
   isSidebarEdgeHit,
   isSidebarNarrow,
@@ -101,6 +111,31 @@ function sidebarNavItems(
 }
 
 describe('Codex 侧栏导航', () => {
+  test('新版图标栏只放页面入口，聊天操作保留在首页面板', () => {
+    const shell = { mode: 'docked' } as unknown as SidebarShellController
+    const render = (child: ReturnType<typeof createElement>) => renderToStaticMarkup(
+      createElement(MemoryRouter, { initialEntries: ['/new'] },
+        createElement(DesktopSettingsProvider, null, createElement(TooltipProvider, null, child))),
+    )
+    const rail = render(createElement(SidebarNavigationRail, {
+      shell, activePane: 'chats', capabilityState: unknownSidebarCapabilities,
+      onOpenWhatsNew: () => {}, onReport: () => {}, onPinPanel: () => {},
+    }))
+    expect(rail).toContain('aria-label="首页"')
+    expect(rail).not.toContain('title="首页"')
+    expect(rail).not.toContain('aria-label="项目"')
+    expect(rail).not.toContain('aria-label="设置"')
+    expect(rail).not.toContain('title="新建任务"')
+    expect(rail).not.toContain('搜索任务')
+    expect(rail).not.toContain('查看活动')
+    const header = render(createElement(SidebarHeader, { hasUnread: false, onOpenCommandMenu: () => {} }))
+    expect(header).toContain('搜索任务')
+    expect(header).toContain('查看活动')
+    const newChat = render(createElement(SidebarNewTaskNav, { label: '新聊天', isActiveView: () => false, scrollOverlapping: false }))
+    expect(newChat).toContain('新聊天')
+    expect(newChat).toContain('href="/new?surface=coding"')
+  })
+
   test('产品模式按约定顺序展示名称和说明', () => {
     expect(
       SIDEBAR_PRODUCT_MODE_ORDER.map(value => ({
@@ -343,6 +378,44 @@ describe('设置导航', () => {
 })
 
 describe('sidebar shell modes', () => {
+  test('经典版预览只在隐藏时触发，与 Tooltip 互斥；拖拽只保持已有预览', () => {
+    const base = { delayedTriggerHover: true, pointerX: 60, previewOpen: false, rearmBlocked: false, resizing: false, sidebarWidth: 340 }
+    expect(shouldShowSidebarPreview({ ...base, sidebarHidden: false })).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, sidebarHidden: true })).toBe(true)
+    expect(shouldShowSidebarPreview({ ...base, resizing: true })).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, resizing: true, previewOpen: true })).toBe(true)
+    expect(shouldShowSidebarPreview({ ...base, sidebarHidden: false, resizing: true, previewOpen: true })).toBe(false)
+    expect(canShowSidebarTooltip('docked', false)).toBe(true)
+    expect(canShowSidebarTooltip('collapsed', true)).toBe(false)
+    expect(canShowSidebarTooltip('collapsed', false)).toBe(true)
+    expect(canShowSidebarTooltip('preview', false)).toBe(false)
+  })
+
+  test('新版入口映射功能面板，独立页面只显示图标栏', () => {
+    expect(['/new', '/threads/task-1', '/projects', '/projects/project-1', '/automations', '/settings/appearance', '/plugins', '/workflows'].map(path => sidebarPaneForRoute(path, false)))
+      .toEqual(['chats', 'chats', 'chats', 'chats', 'scheduled', 'settings', null, null])
+    expect(sidebarPaneForRoute('/threads/task-1', true)).toBe('activity')
+    const base = { organization: 'projects', timelineEnabled: false } as const
+    expect(sidebarPaneForRoute('/projects/project-1', true)).toBe('activity')
+    expect(getSidebarScrollModeKey({ ...base, pane: 'chats' })).not.toBe(getSidebarScrollModeKey({ ...base, pane: 'activity' }))
+  })
+
+  test('新版图标栏附近与悬停均不预览，经典版仍支持边缘触发', () => {
+    expect(isSidebarEdgeHit(0, SIDEBAR_RAIL_WIDTH)).toBe(false)
+    expect(isSidebarEdgeHit(52, SIDEBAR_RAIL_WIDTH)).toBe(true)
+    expect(isSidebarEdgeHit(64, SIDEBAR_RAIL_WIDTH)).toBe(true)
+    expect(isSidebarPanelHit(51, 340, SIDEBAR_RAIL_WIDTH)).toBe(false)
+    expect(isSidebarPanelHit(340, 340, SIDEBAR_RAIL_WIDTH)).toBe(true)
+    const base = { delayedTriggerHover: false, pointerX: 200, previewOpen: true, rearmBlocked: false, resizing: false, sidebarWidth: 340, railWidth: SIDEBAR_RAIL_WIDTH }
+    expect(shouldShowSidebarPreview(base)).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, pointerX: 52, previewOpen: false })).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, delayedTriggerHover: true })).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, resizing: true })).toBe(false)
+    expect(shouldShowSidebarPreview({ ...base, railWidth: 0, pointerX: 0, previewOpen: false })).toBe(true)
+    expect(deriveSidebarShellMode({ desktopCollapsed: true, responsiveAutoHidden: false, previewOpen: true })).toBe('preview')
+    expect(deriveSidebarShellMode({ desktopCollapsed: false, responsiveAutoHidden: false, previewOpen: false })).toBe('docked')
+  })
+
   test('keeps independent runtime scroll modes without persistent storage', () => {
     expect([
       getSidebarScrollModeKey({
@@ -510,6 +583,7 @@ describe('sidebar shell modes', () => {
         ...base,
         rearmBlocked: true,
         resizing: true,
+        previewOpen: true,
       }),
     ).toBe(true)
   })

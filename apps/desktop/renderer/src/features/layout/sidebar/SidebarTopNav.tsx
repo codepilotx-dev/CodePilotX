@@ -1,5 +1,6 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -54,6 +55,20 @@ export type SidebarNavItem = {
 export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
   status: 'unknown',
   capabilities: null,
+}
+
+export function useSidebarCapabilities(): SidebarCapabilityState {
+  const [state, setState] = useState<SidebarCapabilityState>(UNKNOWN_SIDEBAR_CAPABILITY_STATE)
+  useEffect(() => {
+    let active = true
+    void desktopClient.getRuntimeCapabilities().then(capabilities => {
+      if (active) setState({ status: 'ready', capabilities: new Set(capabilities) })
+    }).catch(() => {
+      if (active) setState({ status: 'unavailable', capabilities: null })
+    })
+    return () => { active = false }
+  }, [])
+  return state
 }
 
 export const TOP_NAV_ITEMS: SidebarNavItem[] = [
@@ -208,9 +223,11 @@ export const SIDEBAR_PRODUCT_MODE_META: Record<
 }
 
 export function SidebarHeader({
+  showActions = true,
   hasUnread = false,
   onOpenCommandMenu,
 }: {
+  showActions?: boolean
   hasUnread?: boolean
   onOpenCommandMenu: () => void
 }): React.ReactNode {
@@ -278,7 +295,7 @@ export function SidebarHeader({
           })}
         </PopoverRadioGroup>
       </PopoverMenu>
-      <div className="sidebar-header-actions">
+      {showActions ? <div className="sidebar-header-actions">
         <IconButton
           aria-haspopup="dialog"
           className="sidebar-search-button"
@@ -353,7 +370,7 @@ export function SidebarHeader({
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-      </div>
+      </div> : null}
     </header>
   )
 }
@@ -386,9 +403,11 @@ export function SidebarTopNav({
  * 内容滚过固定入口时显示边界分隔线，滚回顶部立即隐藏。
  */
 export function SidebarNewTaskNav({
+  label,
   isActiveView,
   scrollOverlapping,
 }: {
+  label?: string;
   isActiveView: (view: AppView) => boolean;
   scrollOverlapping: boolean;
 }): React.ReactNode {
@@ -407,7 +426,7 @@ export function SidebarNewTaskNav({
       className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >
-      <SidebarNavItems items={fixedItems} isActiveView={isActiveView} />
+      <SidebarNavItems items={label ? fixedItems.map(item => ({ ...item, label })) : fixedItems} isActiveView={isActiveView} />
     </nav>
   );
 }

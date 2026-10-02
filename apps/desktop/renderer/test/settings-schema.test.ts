@@ -9,7 +9,28 @@ import {
   SIDEBAR_STATE_VERSION,
 } from "../shared/settingsSchema"
 
-describe('界面语言设置', () => {
+describe('侧边栏布局设置', () => {
+  test('默认新版，缺失或无效配置回退新版，经典配置往返保留原侧栏状态', () => {
+    expect(defaultDesktopStoredSettings().sidebarLayout).toBe('modern')
+    for (const sidebarLayout of [undefined, null, '', 'old']) {
+      expect(normalizeDesktopStoredSettings({ sidebarLayout: sidebarLayout as never }).sidebarLayout).toBe('modern')
+    }
+    const classic = normalizeDesktopStoredSettings({
+      sidebarLayout: 'classic',
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      sidebarSessionPins: { 'session-1': '2026-10-03T01:00:00.000Z' },
+      sidebarManualOrder: { all: ['session-2', 'session-1'] },
+    })
+    expect(normalizeDesktopStoredSettings(JSON.parse(JSON.stringify(classic)))).toMatchObject({
+      sidebarLayout: 'classic',
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      sidebarSessionPins: { 'session-1': '2026-10-03T01:00:00.000Z' },
+      sidebarManualOrder: { all: ['session-2', 'session-1'] },
+    })
+  })
+})
+
+describe('界面语言设置' , () => {
   test('旧设置默认跟随系统，且只接受已支持的语言', () => {
     expect(normalizeDesktopStoredSettings({}).language).toBe('system')
     expect(normalizeDesktopStoredSettings({ language: 'en-US' }).language).toBe('en-US')

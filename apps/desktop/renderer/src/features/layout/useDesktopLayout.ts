@@ -14,17 +14,17 @@ export function clampSidebarWidth(value: number): number {
   );
 }
 
-export function readStoredSidebarWidth(): number {
+export function readStoredSidebarWidth(defaultWidth = DEFAULT_SIDEBAR_WIDTH): number {
   let raw: string | null = null
   try {
     raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
   } catch {
-    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+    return clampSidebarWidth(defaultWidth)
   }
-  if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+  if (!raw) return clampSidebarWidth(defaultWidth);
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed)) {
-    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    return clampSidebarWidth(defaultWidth);
   }
   return clampSidebarWidth(parsed);
 }
@@ -55,18 +55,22 @@ export type UseDesktopLayoutResult = {
   toggleSidebarCollapsed: () => void;
 };
 
-export function useDesktopLayout(): UseDesktopLayoutResult {
+export function useDesktopLayout(defaultWidth = DEFAULT_SIDEBAR_WIDTH): UseDesktopLayoutResult {
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
     readStoredSidebarCollapsed(),
   );
   const [sidebarWidth, setSidebarWidthState] = useState(() =>
-    readStoredSidebarWidth(),
+    readStoredSidebarWidth(defaultWidth),
   );
+
+  useEffect(() => {
+    setSidebarWidthState(readStoredSidebarWidth(defaultWidth))
+  }, [defaultWidth])
 
   useEffect(() => {
     function handleSidebarLayoutReset(): void {
       setSidebarCollapsedState(false);
-      setSidebarWidthState(DEFAULT_SIDEBAR_WIDTH);
+      setSidebarWidthState(defaultWidth);
     }
 
     window.addEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset);
@@ -75,7 +79,7 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
         SIDEBAR_LAYOUT_RESET_EVENT,
         handleSidebarLayoutReset,
       );
-  }, []);
+  }, [defaultWidth]);
 
   const setSidebarWidth = useCallback((nextWidth: number): void => {
     const clamped = clampSidebarWidth(nextWidth);

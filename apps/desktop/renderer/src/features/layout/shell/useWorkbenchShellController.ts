@@ -63,16 +63,18 @@ export {
   rightDockWidthToRatio,
 } from './workbenchLayoutSizing.js'
 
+import { MODERN_SIDEBAR_DEFAULT_WIDTH, MODERN_SIDEBAR_MIN_WIDTH, SIDEBAR_RAIL_WIDTH, type SidebarPane } from '../sidebar/sidebarNavigation.js'
+
 const NON_NATIVE_RESIZE_SETTLE_MS = 500
 
-export function useWorkbenchShellController() {
-  const layout = useDesktopLayout()
+export function useWorkbenchShellController({ modern = false, activePane }: { modern?: boolean; activePane?: SidebarPane | null } = {}) {
+  const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
+  const layout = useDesktopLayout(modern ? MODERN_SIDEBAR_DEFAULT_WIDTH : undefined)
   const {
     sidebarCollapsed,
     sidebarWidth,
     setSidebarCollapsed,
     setSidebarWidth: setSidebarWidthLegacy,
-    toggleSidebarCollapsed: toggleSidebarCollapsedLegacy,
   } = layout
   const [workbenchPanelState, setWorkbenchPanelState] =
     useState<WorkbenchTabsState>(createDefaultWorkbenchTabsState)
@@ -114,9 +116,15 @@ export function useWorkbenchShellController() {
   const [workbenchLayoutState, setWorkbenchLayoutState] =
     useState<WorkbenchLayoutState | null>(null)
 
+  const displayedSidebarWidth = modern
+    ? Math.max(MODERN_SIDEBAR_MIN_WIDTH, workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth)
+    : workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth
+
   const sidebarShell = useSidebarShellController({
     desktopCollapsed: sidebarCollapsed,
-    sidebarWidth,
+    sidebarWidth: displayedSidebarWidth,
+    railWidth,
+    activePane,
     setDesktopCollapsed: setSidebarCollapsed,
   })
   const rightDockState = workbenchPanelState.right
@@ -487,8 +495,8 @@ export function useWorkbenchShellController() {
   )
 
   const toggleSidebarCollapsed = useCallback((): void => {
-    toggleSidebarCollapsedLegacy()
-  }, [toggleSidebarCollapsedLegacy])
+    sidebarShell.toggle()
+  }, [sidebarShell.toggle])
 
   useEffect(() => {
     const workspaceElement = workspaceRef.current
@@ -851,12 +859,12 @@ export function useWorkbenchShellController() {
 
   return {
     sidebarCollapsed,
-    sidebarWidth: workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth,
+    sidebarWidth: displayedSidebarWidth,
     setSidebarWidth,
     toggleSidebarCollapsed,
     collapseSidebar,
     sidebarShell,
-    sidebarMinWidth: SIDEBAR_MIN_WIDTH,
+    sidebarMinWidth: modern ? MODERN_SIDEBAR_MIN_WIDTH : SIDEBAR_MIN_WIDTH,
     sidebarMaxWidth: SIDEBAR_MAX_WIDTH,
     workbenchPanelState,
     setWorkbenchPanelState,

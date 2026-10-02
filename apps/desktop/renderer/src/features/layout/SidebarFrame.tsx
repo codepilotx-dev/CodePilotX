@@ -18,6 +18,7 @@ import {
 } from './useSidebarResizeCollapseConfirm.js'
 import { useLiveResizeValue } from './useLiveResizeValue.js'
 import type { SidebarShellController } from './sidebarShellState.js'
+import { SIDEBAR_RAIL_WIDTH } from './sidebar/sidebarNavigation.js'
 
 export type SidebarContentKind = 'tasks' | 'settings'
 
@@ -33,6 +34,7 @@ export function getSidebarContentLabels(contentKind: SidebarContentKind): {
 }
 
 type Props = {
+  rail?: React.ReactNode;
   children: React.ReactNode;
   collapsed: boolean;
   contentKind: SidebarContentKind;
@@ -45,6 +47,7 @@ type Props = {
 };
 
 export function SidebarFrame({
+  rail,
   children,
   collapsed,
   contentKind,
@@ -55,6 +58,8 @@ export function SidebarFrame({
   onSetWidth,
   shell,
 }: Props): React.ReactNode {
+  const modern = rail != null
+  const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
   const sidebarRef = useRef<HTMLElement>(null);
   const reducedMotion = usePrefersReducedMotion()
   const labels = getSidebarContentLabels(contentKind)
@@ -87,11 +92,12 @@ export function SidebarFrame({
   });
 
   const floating = shell.mode === 'preview'
-  const hidden = shell.mode === 'collapsed'
-  const docked = shell.mode === 'docked'
+  const hidden = shell.mode === 'collapsed' || (modern && shell.pane === null)
+  const docked = modern ? shell.dockedVisible : shell.mode === 'docked'
+  const transition = modern ? { ...layoutTween, duration: floating ? 0.12 : 0.3 } : layoutTween
   const dockedRef = useRef(docked)
   dockedRef.current = docked
-  const allocatedWidth = useMotionValue(docked ? width : 0)
+  const allocatedWidth = useMotionValue(docked ? width : railWidth)
   const allocatedWidthAnimationRef =
     useRef<ReturnType<typeof animate> | null>(null)
   const previousHiddenRef = useRef(hidden)
@@ -106,10 +112,10 @@ export function SidebarFrame({
   useEffect(() => {
     const animation = animate(
       allocatedWidth,
-      docked ? liveWidth.get() : 0,
+      docked ? liveWidth.get() : railWidth,
       motionTransition(
         reducedMotion,
-        layoutTween,
+        transition,
       ),
     )
     allocatedWidthAnimationRef.current = animation
@@ -119,7 +125,7 @@ export function SidebarFrame({
         allocatedWidthAnimationRef.current = null
       }
     }
-  }, [allocatedWidth, docked, liveWidth, reducedMotion])
+  }, [allocatedWidth, docked, liveWidth, reducedMotion, modern, floating, railWidth])
 
   useLayoutEffect(() => {
     const wasHidden = previousHiddenRef.current
@@ -146,13 +152,18 @@ export function SidebarFrame({
 
   return (
     <>
+      {modern ? <div className="desktop-sidebar-rail-slot" data-sidebar-layout="modern">{rail}</div> : null}
       <motion.div
         aria-hidden="true"
         className="desktop-sidebar-spacer"
         style={{ width: allocatedWidth }}
       />
       <motion.aside
+        id="desktop-sidebar-pane"
         ref={sidebarRef}
+        onClick={modern ? event => {
+          if (event.target instanceof Element && event.target.closest('a[href], .sidebar-timeline-toggle-button')) shell.pin()
+        } : undefined}
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
         className={[
@@ -176,6 +187,8 @@ export function SidebarFrame({
               }
         }
         data-sidebar-content={contentKind}
+        data-sidebar-layout={modern ? 'modern' : 'classic'}
+        data-sidebar-pane={modern ? shell.pane : undefined}
         initial={
           hidden
             ? { opacity: 0, visibility: 'hidden', x: -8 }
@@ -185,11 +198,12 @@ export function SidebarFrame({
         style={
           {
             "--sidebar-current-width": liveWidthPixels,
+            "--sidebar-rail-width": `${railWidth}px`,
           } as unknown as React.CSSProperties
         }
         transition={motionTransition(
           reducedMotion,
-          layoutTween,
+          transition,
         )}
       >
         {children}

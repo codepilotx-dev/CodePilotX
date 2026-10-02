@@ -37,6 +37,7 @@ describe('desktop settings provider', () => {
       expect(typeof settings[0].setSidebarShowScheduledSessions).toBe('function')
       expect(runtime[0].values.sidebarShowScheduledSessions).toBe(true)
       expect(runtime[0].values.model).toBe(settings[0].model)
+      expect(runtime[0].values.sidebarLayout).toBe('modern')
       expect(runtime[0].setModel).toBe(settings[0].setModel)
     },
   )

@@ -21,6 +21,7 @@ export type IconButtonSize =
 type Props = Omit<ButtonProps, 'children' | 'color' | 'size' | 'uniform'> & {
   children: React.ReactNode
   title: string
+  nativeTitle?: boolean
   active?: boolean
   color: ButtonColor
   size: IconButtonSize
@@ -31,6 +32,7 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(
     {
       children,
       title,
+      nativeTitle = true,
       active = false,
       className,
       color,
@@ -48,7 +50,7 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(
         color={color}
         data-active={active || undefined}
         size={size}
-        title={title}
+        title={nativeTitle ? title : undefined}
         uniform
       >
         {children}

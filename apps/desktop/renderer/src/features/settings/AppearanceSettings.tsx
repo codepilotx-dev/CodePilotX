@@ -1071,6 +1071,29 @@ export function AppearanceSettings({
 
         </SettingsSection>
 
+        <SettingsSection title="界面设置">
+          <SettingsRow
+            autoSave
+            title="侧边栏"
+            description="选择新版图标栏与功能面板，或经典侧边栏布局"
+            control={
+              <SegmentedControl
+                ariaLabel="侧边栏"
+                options={[
+                  { value: 'modern', label: '新版' },
+                  { value: 'classic', label: '经典' },
+                ]}
+                value={desktopSettings.draft.values.sidebarLayout}
+                onChange={sidebarLayout => {
+                  desktopSettings.draft.setValue('sidebarLayout', sidebarLayout)
+                  void desktopSettings.draft.save().catch(error => {
+                    reportError(error instanceof Error ? error.message : '侧边栏设置保存失败')
+                  })
+                }}
+              />
+            }
+          />
+        </SettingsSection>
         <SettingsSection title="偏好设置">
           <SettingsRow
             autoSave

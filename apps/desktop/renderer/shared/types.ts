@@ -1039,6 +1039,7 @@ gitBranchPrefix: string
   conversationWidth: 'default' | 'narrow' | 'wide'
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
+  sidebarLayout: 'modern' | 'classic'
   sidebarOrganization: DesktopSidebarOrganization
   sidebarProductMode: SidebarProductMode
   sidebarStateVersion: number

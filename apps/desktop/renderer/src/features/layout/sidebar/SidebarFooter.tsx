@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   CircleUser,
+  Download,
   Gauge,
   HelpCircle,
   Keyboard,
@@ -16,14 +17,12 @@ import {
 } from "lucide-react";
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
-import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
   DesktopUpdateStatus,
   ModelProviderID,
 } from '../../../../shared/types.js'
-import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem, PopoverSeparator } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
@@ -66,13 +65,14 @@ const EMPTY_USAGE: ProviderUsageState = {
 };
 
 type SidebarFooterProps = {
-  sidebarWidth: number;
+  compact?: boolean;
+  onNavigate?: () => void;
   onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
   onReport: (message: string) => void;
 };
 
 export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(function SidebarFooter(
-  { sidebarWidth, onOpenWhatsNew, onReport },
+  { compact = false, onNavigate, onOpenWhatsNew, onReport },
   ref,
 ): React.ReactNode {
   const location = useLocation();
@@ -84,8 +84,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     providerID: configuredProviderID,
   } = useDesktopSettings();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
-  const helpMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const accountMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
   const { auth: githubAuth } = useSyncExternalStore(
     desktopClient.onGithubAccountChange,
@@ -102,12 +101,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   useEffect(() => {
     return startDesktopUpdateMonitoring(desktopClient, setUpdateStatus)
   }, [])
-
-  useEffect(() => {
-    if (updateIndicator.visible) {
-      setHelpMenuOpen(false)
-    }
-  }, [updateIndicator.visible])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
     setUsage(previous => ({ ...previous, loading: true, error: null }));
@@ -212,22 +205,30 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   const githubAuthenticated = githubAuth?.authenticated === true;
   const githubUser = githubAuthenticated ? githubAuth.user : null;
   const accountName = githubUser?.name || githubUser?.login || t("个人资料");
-  const accountTriggerName = githubAuthenticated ? accountName : t("设置");
+  const accountTriggerName = compact || githubAuthenticated ? accountName : t("设置");
+  const openSettings = (path: string): void => {
+    setMenuOpen(false)
+    onNavigate?.()
+    navigate(path)
+  }
+
   return (
     <footer
-      className="sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center"
+      className={`sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center${compact ? ' sidebar-footer--rail' : ''}`}
       ref={ref}
     >
       <PopoverMenu
         className="popover-sidebar-footer popover-menu--grid"
         open={menuOpen}
-        side="top"
+        side={compact ? 'right' : 'top'}
+        align="end"
         sideOffset={8}
-        width={Math.max(0, sidebarWidth - 12)}
+        width={360}
         maxWidth="calc(100vw - 16px)"
         trigger={
           <SidebarRow
-            active={settingsActive}
+            active={settingsActive || menuOpen}
+            ref={accountMenuTriggerRef}
             asChild
             className="sidebar-settings-link"
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0')}
@@ -235,7 +236,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             leading={
               <span className="sidebar-account-avatar" aria-hidden="true">
                 {!githubAuthenticated ? (
-                  <Settings data-icon-kind="artwork" size={14} />
+                  compact ? <CircleUser data-icon-kind="artwork" size={14} /> : <Settings data-icon-kind="artwork" size={14} />
                 ) : githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
@@ -245,11 +246,12 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 ) : (
                   <CircleUser data-icon-kind="artwork" size={14} />
                 )}
+                {updateIndicator.visible ? <span className="sidebar-account-update-dot" aria-hidden="true" /> : null}
               </span>
             }
           >
-            <button className="sidebar-footer-trigger" type="button">
-              {accountTriggerName}
+            <button aria-label={updateIndicator.visible ? `${accountTriggerName}，${t(updateIndicator.ariaLabel)}` : accountTriggerName} className="sidebar-footer-trigger" type="button">
+              <span className={compact ? 'u-sr-only' : undefined}>{accountTriggerName}</span>
             </button>
           </SidebarRow>
         }
@@ -271,10 +273,8 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   )}
                 </span>
               }
-              onClick={() => {
-                setMenuOpen(false);
-                navigate(githubAuthenticated ? "/settings/profile" : "/settings/git");
-              }}
+              description={githubAuthenticated ? (githubUser?.name && githubUser.name !== githubUser.login ? `@${githubUser.login}` : t('GitHub 账户')) : t('未登录')}
+              onClick={() => openSettings(githubAuthenticated ? "/settings/profile" : "/settings/git")}
             >
               {accountName}
             </PopoverItem>
@@ -353,8 +353,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       className="popover-usage-action"
                       tabIndex={-1}
                       onSelect={() => {
-                        setMenuOpen(false);
-                        navigate("/settings/billing");
+                        openSettings("/settings/billing");
                       }}
                     >
                       <span
@@ -389,13 +388,48 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             active={settingsActive}
             icon={<Settings size={APP_ICON_SIZE} />}
             shortcut="Ctrl+,"
-            onClick={() => {
-              setMenuOpen(false);
-              navigate("/settings/general");
-            }}
+            onClick={() => openSettings("/settings/general")}
           >
             {t('设置')}
           </PopoverItem>
+        </div>
+        <PopoverSeparator />
+        <div className="popover-section">
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger className="popover-item popover-sub-trigger" tabIndex={-1}>
+              <span className="popover-item-leading"><span className="popover-item-icon"><HelpCircle size={APP_ICON_SIZE} /></span></span>
+              <span className="popover-item-label">{t('帮助')}</span>
+              <span className="popover-item-trailing"><ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} /></span>
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent
+                data-theme-component="dropdown-surface"
+                aria-label={t('帮助')}
+                className="popover-surface popover popover-sub-content popover-menu--grid"
+                collisionPadding={6}
+                sideOffset={4}
+                style={buildPopoverSizingStyle({ width: 280, maxWidth: 'calc(100vw - 16px)' })}
+              >
+                <PopoverItem icon={<Sparkles size={APP_ICON_SIZE} />} onClick={() => {
+                  setMenuOpen(false)
+                  onOpenWhatsNew(accountMenuTriggerRef.current)
+                }}>{t('新特性')}</PopoverItem>
+                <PopoverItem icon={<Keyboard size={APP_ICON_SIZE} />} onClick={() => openSettings('/settings/shortcuts')}>
+                  {t('键盘快捷键')}
+                </PopoverItem>
+                <PopoverItem
+                  icon={<Download size={APP_ICON_SIZE} />}
+                  description={updateIndicator.visible ? t(updateIndicator.ariaLabel) : undefined}
+                  disabled={updateIndicator.disabled}
+                  onClick={() => {
+                    void runDesktopUpdateIndicatorAction(desktopClient, updateIndicator.action ?? 'check').catch(() => {
+                      setUpdateStatus({ phase: 'error', message: '更新操作失败，请稍后重试' })
+                    })
+                  }}
+                >{t(updateIndicator.visible ? updateIndicator.label : '检查更新')}</PopoverItem>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
           {githubAuthenticated ? (
             <PopoverItem
               icon={<LogOut size={APP_ICON_SIZE} />}
@@ -409,80 +443,6 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           ) : null}
         </div>
       </PopoverMenu>
-      <div className="sidebar-footer-status-slot">
-        {updateIndicator.visible ? (
-          <Button color="primary"
-            aria-label={t(updateIndicator.ariaLabel)}
-            className="sidebar-update-indicator"
-            data-phase={updateIndicator.phase}
-            disabled={updateIndicator.disabled}
-            onClick={() => {
-              if (!updateIndicator.action) {
-                return
-              }
-              void runDesktopUpdateIndicatorAction(
-                desktopClient,
-                updateIndicator.action,
-              ).catch(() => {
-                setUpdateStatus({
-                  phase: 'error',
-                  message: '更新操作失败，请稍后重试',
-                })
-              })
-            }}
-          >
-            {t(updateIndicator.label)}
-          </Button>
-        ) : (
-          <PopoverMenu
-            align="end"
-            className="popover-sidebar-help popover-menu--grid"
-            open={helpMenuOpen}
-            side="top"
-            width={180}
-            trigger={
-              <IconButton
-                className="sidebar-help-button"
-                color="ghost"
-                ref={helpMenuTriggerRef}
-                size="icon"
-                title={t('帮助')}
-              >
-                <HelpCircle size={APP_ICON_SIZE} />
-              </IconButton>
-            }
-            onOpenChange={setHelpMenuOpen}
-          >
-            <PopoverItem
-              icon={<Sparkles size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setHelpMenuOpen(false)
-                onOpenWhatsNew(helpMenuTriggerRef.current)
-              }}
-            >
-              {t('新特性')}
-            </PopoverItem>
-            <PopoverItem
-              icon={<Keyboard size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setHelpMenuOpen(false)
-                navigate('/settings/shortcuts')
-              }}
-            >
-              {t('键盘快捷键')}
-            </PopoverItem>
-            <PopoverItem
-              icon={<Settings size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setHelpMenuOpen(false)
-                navigate('/settings/general')
-              }}
-            >
-              {t('帮助与设置')}
-            </PopoverItem>
-          </PopoverMenu>
-        )}
-      </div>
       <span aria-atomic="true" aria-live="polite" className="u-sr-only">
         {t(updateIndicator.announcement)}
       </span>
