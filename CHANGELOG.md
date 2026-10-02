@@ -9,6 +9,8 @@
 
 ### Added
 
+- [desktop] 外观页强调色新增默认、六种彩色、黑/白与自定义预设，复用主题 seed 初始化自定义颜色并保留 V6/V7 配色；背景、前景和自定义强调色统一使用中性色点胶囊。
+
 - [desktop] 外观主题下拉新增 `Codex(new)` 浅色与深色选项，复用新版默认配色和 Codex 代码高亮，保留原版 Codex 与自定义字体；移除独立的应用新设计主题和恢复升级前外观按钮。
 
 - [dev] 新增 ZCode 忽略规则，排除依赖、构建产物、凭据文件、用户数据和自动化测试输出，减少开发工具索引噪声。
@@ -56,6 +58,8 @@
 - [agent/protocol] Thread 与 ThreadListItem 新增 `executionEnvironment` 投影：Local 提供 `cwd`/`revision`，Worktree 另提供 `worktreeId`/`branchName`/`status`，由 `thread_execution_bindings` 与 `managed_worktrees` 组合派生；客户端不再根据 workspace、分支或 standalone 自行猜测执行环境。同时新增 `workflowId` 字段，与保留的历史读取字段 `sessionGroupId` 取同一成员关系值，新客户端只使用 `workflowId`。Desktop Goal 已改为真实 `thread/goal/*` RPC 与共享 `ThreadGoal`，从 Thread snapshot 对账并保留稳定 id、version、completedAt 及连字符状态值。
 
 ### Changed
+
+- [desktop] 对齐通用桌面主题的浅深色默认配色、表面与强调色派生，统一链接、焦点、按钮、开关和滚动条着色；保留已保存的 V6/V7 配色、字体与字号，旧 pending 外观迁移仅完成记账，Codex(new) 可主动选用新默认色。
 
 - [desktop/renderer] 将功能图标按职责拆分为 12/16/20px，统一按钮图标与加载态尺寸、菜单前后图标层级及线宽，保留头像、鲸鱼和品牌槽位原有几何，并补充尺寸使用规则。
 
@@ -148,6 +152,10 @@
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ### Fixed
+
+- [desktop/renderer] 侧栏账户与个人资料页共用 5 分钟内存缓存并合并并发请求；返回资料页先展示缓存、过期后后台更新，手动刷新强制请求，登录及退出清理旧账户资料，失败保留已有内容。
+
+- [desktop/renderer] 修复个人资料页在 GitHub 资料加载及失败后重试期间提前显示连接失败的问题；无资料时保持加载骨架，已有资料时刷新继续展示原内容。
 
 - [desktop/renderer] 用户消息中的 Skill 改为带方块图标和强调色的内联标记，与首段正文同排；复用输入框 Skill 样式，长消息折叠计入标记高度。
 

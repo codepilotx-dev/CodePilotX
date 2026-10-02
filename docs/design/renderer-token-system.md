@@ -31,9 +31,9 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 2. **基础组件与业务组件全面对齐**：
    - 基础控件（`Button`、`Input`、`Switch`、`Card`、`SegmentedControl`、`Modal`、`Popover` 等）统一接入系统圆角、投影与微动效。
    - 业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar、Settings 等）移除私有几何与投影变量，直接收敛至语义 Token。
-3. **外观平滑升级与备份恢复**：
-   - 首次启动自动将老版本外观平滑迁移至 UI-Design 默认主题，并在 `appearance-migration.json` 中原子化写入升级前外观备份。
-   - 设置页通过浅色、深色主题下拉中的 `Codex` 与 `Codex(new)` 选择原版或新版默认配色，不再显示独立的应用与恢复按钮；已有升级备份保留。
+3. **外观设置保留与默认配色选择**：
+   - V6 保留式升级至 V7；有效 V6/V7 设置不因迁移记录缺失而重置。旧 pending 记录仅完成记账并保留当前设置及原备份，completed、未知或不可读记录继续保留。
+   - 设置页通过浅色、深色主题下拉中的 `Codex` 与 `Codex(new)` 选择原版或新版默认配色，不再显示独立的应用与恢复按钮；选择新配色保留自定义字体与字号。V1～V5 和损坏 JSON 仍遵守既有恢复契约。
 
 ## 固定选择流程
 
