@@ -230,7 +230,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0')}
             layout="flex"
             leading={
-              <span className="popover-account-avatar" aria-hidden="true">
+              <span className="sidebar-account-avatar" aria-hidden="true">
                 {!githubAuthenticated ? (
                   <Settings size={APP_ICON_SIZE} />
                 ) : githubUser?.avatarUrl ? (

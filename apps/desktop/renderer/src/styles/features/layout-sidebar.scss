@@ -1372,6 +1372,9 @@
 }
 
 .sidebar-settings-link {
+  --sidebar-leading-width: 24px;
+
+  grid-template-columns: var(--sidebar-leading-width) minmax(0, 1fr) auto;
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -1379,7 +1382,7 @@
   font: var(--cpx-sys-type-body);
 }
 
-.sidebar-settings-link .popover-account-avatar {
+.sidebar-settings-link .sidebar-account-avatar {
   width: var(--sidebar-leading-width);
   height: var(--sidebar-leading-width);
 }
@@ -1463,13 +1466,13 @@
 
 .popover-account-row {
   .popover-item {
-    grid-template-columns: 18px minmax(min-content, 1fr) max-content;
+    grid-template-columns: 24px minmax(min-content, 1fr) max-content;
   }
 
   .popover-item-leading,
   .popover-item-icon {
-    width: var(--cpx-sys-icon-size);
-    height: var(--cpx-sys-icon-size);
+    width: 24px;
+    height: 24px;
   }
 
   .popover-item-label {
@@ -1477,9 +1480,10 @@
   }
 }
 
+.sidebar-account-avatar,
 .popover-account-avatar {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -57,6 +57,10 @@
 
 ### Changed
 
+- [desktop/renderer] 账户弹出菜单头像与侧栏头像统一为 24px，并同步菜单头像槽位和网格列宽。
+
+- [desktop/renderer] 侧栏账户头像改为 24px，使用专用 sidebar-account-avatar 类并同步前导槽位及网格列宽，避免头像挤占文字间距。
+
 - [desktop/renderer] 移除新任务页鲸鱼遮罩的通用图标尺寸限制。
 
 - [desktop/renderer] 将常规设置中的听写拆为独立「语音」设置页，同步侧栏导航与设置搜索，保留本地语音模型、麦克风选择、听写快捷键及隐私设置功能。
