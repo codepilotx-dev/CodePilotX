@@ -218,12 +218,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       ref={ref}
     >
       <PopoverMenu
-        className="popover-sidebar-footer popover-menu--grid"
+        className="popover-menu--grid"
         open={menuOpen}
         side={compact ? 'right' : 'top'}
         align="end"
-        sideOffset={8}
-        width={360}
+        width={200}
         maxWidth="calc(100vw - 16px)"
         trigger={
           <SidebarRow
@@ -258,27 +257,25 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         onOpenChange={setMenuOpen}
       >
         <div className="popover-section">
-          <div className="popover-account-row">
-            <PopoverItem
-              icon={
-                <span className="popover-account-avatar" aria-hidden="true">
-                  {githubUser?.avatarUrl ? (
-                    <RemoteImage
-                      alt=""
-                      fallback={<CircleUser data-icon-kind="artwork" size={14} />}
-                      src={githubUser.avatarUrl}
-                    />
-                  ) : (
-                    <CircleUser data-icon-kind="artwork" size={14} />
-                  )}
-                </span>
-              }
-              description={githubAuthenticated ? (githubUser?.name && githubUser.name !== githubUser.login ? `@${githubUser.login}` : t('GitHub 账户')) : t('未登录')}
-              onClick={() => openSettings(githubAuthenticated ? "/settings/profile" : "/settings/git")}
-            >
-              {accountName}
-            </PopoverItem>
-          </div>
+          <PopoverItem
+            icon={
+              <span className="popover-account-avatar" aria-hidden="true">
+                {githubUser?.avatarUrl ? (
+                  <RemoteImage
+                    alt=""
+                    fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+                    src={githubUser.avatarUrl}
+                  />
+                ) : (
+                  <CircleUser data-icon-kind="artwork" size={14} />
+                )}
+              </span>
+            }
+            description={githubAuthenticated ? (githubUser?.name && githubUser.name !== githubUser.login ? `@${githubUser.login}` : t('GitHub 账户')) : t('未登录')}
+            onClick={() => openSettings(githubAuthenticated ? "/settings/profile" : "/settings/git")}
+          >
+            {accountName}
+          </PopoverItem>
         </div>
         <PopoverSeparator />
         <div className="popover-section">
@@ -408,7 +405,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 className="popover-surface popover popover-sub-content popover-menu--grid"
                 collisionPadding={6}
                 sideOffset={4}
-                style={buildPopoverSizingStyle({ width: 280, maxWidth: 'calc(100vw - 16px)' })}
+                style={buildPopoverSizingStyle({ width: 200, maxWidth: 'calc(100vw - 16px)' })}
               >
                 <PopoverItem icon={<Sparkles size={APP_ICON_SIZE} />} onClick={() => {
                   setMenuOpen(false)

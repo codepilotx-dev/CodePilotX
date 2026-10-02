@@ -1571,46 +1571,6 @@
   -webkit-app-region: no-drag;
 }
 
-.popover-sidebar-footer {
-  padding: var(--cpx-sys-space-2);
-  border-radius: var(--cpx-sys-radius-xl);
-  box-shadow: var(--cpx-sys-shadow-floating);
-
-  .popover-item,
-  .popover-sub-trigger {
-    min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
-    border-radius: var(--cpx-sys-radius-md);
-  }
-  .popover-section {
-    padding: 0;
-  }
-
-  .popover-item-label {
-    overflow: hidden;
-    text-overflow: clip;
-    white-space: nowrap;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-}
-
-.popover-account-row {
-  .popover-item {
-    grid-template-columns: var(--cpx-sys-space-8) minmax(0, 1fr) auto;
-    min-height: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-6));
-  }
-
-  .popover-item-leading,
-  .popover-item-icon {
-    width: var(--cpx-sys-space-8);
-    height: var(--cpx-sys-space-8);
-  }
-
-  .popover-item-label {
-    font-weight: var(--cpx-sys-font-weight-medium);
-  }
-}
-
 .sidebar-account-avatar,
 .popover-account-avatar {
   position: relative;
@@ -1637,9 +1597,9 @@
   }
 }
 
-.popover-account-row .popover-account-avatar {
-  width: var(--cpx-sys-space-8);
-  height: var(--cpx-sys-space-8);
+.popover-account-avatar {
+  width: 100%;
+  height: 100%;
 }
 
 .sidebar-account-update-dot {
