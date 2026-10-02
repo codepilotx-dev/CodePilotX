@@ -57,6 +57,8 @@
 
 ### Changed
 
+- [desktop/renderer] 将常规设置中的听写拆为独立「语音」设置页，同步侧栏导航与设置搜索，保留本地语音模型、麦克风选择、听写快捷键及隐私设置功能。
+
 - [desktop/renderer] 去掉用户消息内联 Skill 标记前的方块图标，保留强调色与同排正文。
 
 - [agent/desktop] Skills 调用改为结构化多选与正文 `$name` 引用；显式选择在推理前加载，自动选择通过普通 Read 按需读取真实路径，复用现有活动展示。history schema 50 以 nullable 字段保存队列、steer 和重启后的选择，并保留冻结引用校验及回合内只读目录权限。
