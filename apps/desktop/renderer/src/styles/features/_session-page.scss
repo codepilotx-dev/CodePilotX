@@ -95,8 +95,8 @@
     padding: 0;
     border: 0;
     background-color: var(--cpx-sys-color-fg-primary);
-    -webkit-mask: url('/whale-icon.svg') center / var(--cpx-sys-icon-size) var(--cpx-sys-icon-size) no-repeat;
-    mask: url('/whale-icon.svg') center / var(--cpx-sys-icon-size) var(--cpx-sys-icon-size) no-repeat;
+    -webkit-mask: url('/whale-icon.svg') center no-repeat;
+    mask: url('/whale-icon.svg') center no-repeat;
     opacity: 0.3;
     transform: scale(1) rotate(0deg);
     transform-origin: center;
