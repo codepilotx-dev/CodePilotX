@@ -64,7 +64,14 @@ export type WorkbenchTabKind =
 
 export type WorkbenchTabDescriptor =
   | { id: 'review'; kind: 'review' }
-  | { id: 'browser'; kind: 'browser' }
+  | {
+      id: `browser:${string}`
+      kind: 'browser'
+      tabId: string
+      title?: string
+      busy?: boolean
+      suspended?: boolean
+    }
   | {
       id: 'file-browser'
       kind: 'file-browser'

@@ -157,6 +157,11 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
 } as const satisfies typeof import('@codepilotx/shared/desktop-attachment-ipc').DESKTOP_ATTACHMENT_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
+  list: 'desktop-browser:list',
+  attach: 'desktop-browser:attach',
+  control: 'desktop-browser:control',
+  layout: 'desktop-browser:layout',
+  permission: 'desktop-browser:permission',
   getState: 'desktop-browser:get-state',
   createOrRestore: 'desktop-browser:create-or-restore',
   navigate: 'desktop-browser:navigate',
@@ -271,6 +276,28 @@ type SystemThemeVariant = 'light' | 'dark'
 const pendingComposerDropPaths = new Set<string>()
 
 const desktop = {
+  listDesktopBrowserTabs: (): Promise<DesktopBrowserSnapshot[]> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.list),
+  attachDesktopBrowserGuest: (input: {
+    tabId: string
+    generation: string
+    guestId: number
+  }): Promise<void> => ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.attach, input),
+  controlDesktopBrowser: (input: {
+    tabId: string
+    threadId: string | null
+  }): Promise<DesktopBrowserSnapshot> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.control, input),
+  layoutDesktopBrowser: (input: {
+    tabId: string
+    panel: 'right' | 'bottom'
+    order: number
+  }): Promise<void> => ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.layout, input),
+  setDesktopBrowserPermission: (input: {
+    origin: string
+    decision: 'allow' | 'deny' | 'remove'
+  }): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserSitePermission[]> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.permission, input),
   getDesktopBrowserState: (input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.getState, input),
   createOrRestoreDesktopBrowser: (

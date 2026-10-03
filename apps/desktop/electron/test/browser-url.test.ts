@@ -10,6 +10,9 @@ describe('desktop browser URL policy', () => {
       url: 'https://example.com/docs',
       origin: 'https://example.com',
     })
+    expect(normalizeDesktopBrowserUrl('localhost:3000')).toMatchObject({
+      url: 'http://localhost:3000/',
+    })
     expect(normalizeDesktopBrowserUrl('about:blank')).toEqual({
       url: 'about:blank',
       origin: null,

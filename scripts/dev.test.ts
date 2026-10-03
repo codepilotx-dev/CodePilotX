@@ -282,7 +282,7 @@ describe('独立开发启动命令', () => {
     const desktop = await readFile(new URL('./dev-desktop.ts', import.meta.url), 'utf8')
     expect(agent).toContain('CODEPILOTX_SIDECAR_INSTANCE_TOKEN: instanceToken')
     expect(agent).not.toContain('CODEPILOTX_RENDERER_DEV_URL')
-    expect(desktop).toContain('CODEPILOTX_AGENT_MANAGED: "1"')
+    expect(desktop).toMatch(/CODEPILOTX_AGENT_MANAGED:\s*['"]1['"]/)
     expect(desktop).toContain('CODEPILOTX_RENDERER_DEV_URL: rendererOrigin')
     expect(desktop).toContain('CODEPILOTX_USER_DATA_DIR: instance.userDataDir')
     expect(desktop).not.toContain('/api/shutdown')

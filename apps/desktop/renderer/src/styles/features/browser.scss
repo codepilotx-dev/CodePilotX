@@ -262,3 +262,11 @@
     outline-offset: -2px;
   }
 }
+
+// Window-owned guest hosts remain attached while panels are hidden.
+.browser-guest-surface {
+  position: fixed;
+  z-index: 1;
+  display: flex;
+  border: 0;
+}

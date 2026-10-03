@@ -471,6 +471,17 @@ export type DesktopToolchainInstallResult =
 export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
 export type DesktopBrowserState = {
+  tabId?: string
+  sourceThreadId?: string | null
+  controlThreadId?: string | null
+  state?: 'parked' | 'live' | 'suspended' | 'crashed'
+  busy?: boolean
+  generation?: string
+  documentId?: string
+  viewport?: { width: number; height: number }
+  panel?: 'right' | 'bottom'
+  order?: number
+  revision?: number
   open: boolean
   url: string
   title: string

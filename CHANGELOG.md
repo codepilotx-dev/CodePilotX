@@ -247,6 +247,8 @@
 
 ### Fixed
 
+- [agent/desktop/browser] 修复 history 50 → 51 迁移重复创建浏览器表导致的升级失败，保留已有记录与未知字段；同步相关 schema 断言和浏览器仅停靠右栏、底栏的能力测试，修正格式并消除启动测试对引号风格的依赖。
+
 - [desktop/renderer] 修复两处条件调用 hooks 的真实缺陷：`SidebarSessionHoverCard` 把提前 return 移到 hooks 之后，`usePrefersReducedMotion` 改用 `useContext` 读取主题并在无 Provider 时回退，避免标题重生成状态翻转时改变 hook 顺序导致渲染失败。
 
 - [desktop] 移除新版侧栏分组标题的独立背景覆盖，使其透出面板底色，避免自定义或调试容器背景时出现异色块。

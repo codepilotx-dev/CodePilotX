@@ -3,13 +3,10 @@ import type {
   DesktopBrowserIpcBridge,
   DesktopBrowserSnapshot,
 } from '@codepilotx/shared/desktop-browser-ipc'
-import {
-  createDesktopBrowserClient,
-  WORKBENCH_BROWSER_TAB_ID,
-} from '../src/services/desktop-client/desktop-browser-client.js'
+import { createDesktopBrowserClient } from '../src/services/desktop-client/desktop-browser-client.js'
 
 const snapshot = (overrides: Partial<DesktopBrowserSnapshot> = {}): DesktopBrowserSnapshot => ({
-  tabId: WORKBENCH_BROWSER_TAB_ID,
+  tabId: 'tab:one',
   open: true,
   url: 'https://example.com/',
   title: 'Example',
@@ -23,10 +20,15 @@ const snapshot = (overrides: Partial<DesktopBrowserSnapshot> = {}): DesktopBrows
 })
 
 describe('desktop browser client', () => {
-  test('delegates the stable workbench tab and forwards state events', async () => {
+  test('delegates an explicit browser tab and forwards state events', async () => {
     const calls: unknown[] = []
     let stateListener: ((state: DesktopBrowserSnapshot) => void) | null = null
     const bridge = {
+      listDesktopBrowserTabs: async () => [snapshot()],
+      attachDesktopBrowserGuest: async () => {},
+      controlDesktopBrowser: async () => snapshot(),
+      layoutDesktopBrowser: async () => {},
+      setDesktopBrowserPermission: async () => [],
       getDesktopBrowserState: async (input) => (calls.push(input), snapshot()),
       createOrRestoreDesktopBrowser: async (input) => (calls.push(input), snapshot()),
       navigateDesktopBrowser: async (input) => (calls.push(input), snapshot({ url: input.url })),
@@ -48,7 +50,8 @@ describe('desktop browser client', () => {
         }
       },
     } satisfies DesktopBrowserIpcBridge
-    const client = createDesktopBrowserClient(bridge)
+    const root = createDesktopBrowserClient(bridge)
+    const client = root.forTab('tab:one')
     const events: string[] = []
     const unsubscribe = client.onBrowserStateChange((state) => events.push(state.url))
 
@@ -61,17 +64,20 @@ describe('desktop browser client', () => {
     unsubscribe()
 
     expect(calls).toEqual([
-      { tabId: WORKBENCH_BROWSER_TAB_ID },
-      { tabId: WORKBENCH_BROWSER_TAB_ID, url: 'https://openai.com/' },
-      { tabId: WORKBENCH_BROWSER_TAB_ID, visible: false },
-      { tabId: WORKBENCH_BROWSER_TAB_ID },
+      { tabId: 'tab:one', sourceThreadId: null },
+      { tabId: 'tab:one', url: 'https://openai.com/' },
+      { tabId: 'tab:one', visible: false },
+      { tabId: 'tab:one' },
     ])
-    expect(events).toEqual(['https://event.example/'])
+    expect(events.at(-1)).toBe('https://event.example/')
+    expect(root.getTab('tab:one')?.url).toBe('https://event.example/')
   })
 
   test('reports unavailable instead of succeeding with an Electron mock', async () => {
     const client = createDesktopBrowserClient()
     expect(client.available).toBe(false)
-    await expect(client.openBrowser()).rejects.toThrow('仅在 CodePilotX 桌面应用中可用')
+    await expect(client.openBrowser()).rejects.toThrow(
+      '仅在连接 Agent 的 CodePilotX 桌面应用中可用',
+    )
   })
 })

@@ -7,11 +7,11 @@ import {
   Check,
   Globe2,
   MessageSquarePlus,
-  MoreVertical,
+  Plus,
   RefreshCw,
 } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
-import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
+import type { DesktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import {
   APP_ICON_SIZE,
@@ -24,6 +24,9 @@ import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
 
 type Props = {
+  client: DesktopBrowserClient
+  threadId?: string | null
+  onNewTab?: () => void
   state: DesktopBrowserState
   onAppendAnnotation: (text: string) => void
   onAppendComposerText?: (text: string) => void
@@ -39,6 +42,9 @@ type BrowserBounds = {
 
 export function DesktopBrowserPanel({
   state,
+  client,
+  threadId,
+  onNewTab,
   onAppendAnnotation,
   onAppendComposerText,
   onStateChange,
@@ -53,7 +59,6 @@ export function DesktopBrowserPanel({
   const [annotationTarget, setAnnotationTarget] = useState('')
   const [annotationBody, setAnnotationBody] = useState('')
   const lastBoundsRef = useRef<BrowserBounds | null>(null)
-  const boundsPausedRef = useRef(false)
   const syncBrowserBoundsRef = useRef<() => Promise<void>>(async () => undefined)
 
   useEffect(() => {
@@ -62,16 +67,15 @@ export function DesktopBrowserPanel({
     }
   }, [state.url])
 
-  useEffect(() => desktopBrowserClient.onBrowserStateChange(onStateChange), [onStateChange])
+  useEffect(() => client.onBrowserStateChange(onStateChange), [client, onStateChange])
 
   useEffect(() => {
-    if (!desktopBrowserClient.available || !state.open || annotationOpen || boundsPausedRef.current)
-      return
-    void desktopBrowserClient
+    if (!client.available || !state.open) return
+    void client
       .setBrowserVisible(true)
       .then(onStateChange)
       .catch(() => undefined)
-  }, [annotationOpen, onStateChange, state.open])
+  }, [client, onStateChange, state.open])
 
   useLayoutEffect(() => {
     if (!annotationOpen) return
@@ -93,7 +97,7 @@ export function DesktopBrowserPanel({
 
       lastBoundsRef.current = bounds
       try {
-        const next = await desktopBrowserClient.setBrowserBounds(bounds)
+        const next = await client.setBrowserBounds(bounds)
         onStateChange(next)
       } catch {
         // Bounds synchronization is retried by the next resize or visibility change.
@@ -116,7 +120,6 @@ export function DesktopBrowserPanel({
     syncBrowserBoundsRef.current = syncBounds
 
     const scheduleSyncBounds = (): void => {
-      if (boundsPausedRef.current) return
       if (animationFrame) return
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = 0
@@ -124,7 +127,7 @@ export function DesktopBrowserPanel({
       })
     }
 
-    if (!boundsPausedRef.current) void syncBounds()
+    void syncBounds()
     const resizeObserver = new ResizeObserver(scheduleSyncBounds)
     resizeObserver.observe(viewport)
     window.addEventListener('resize', scheduleSyncBounds)
@@ -137,7 +140,7 @@ export function DesktopBrowserPanel({
       resizeObserver.disconnect()
       window.removeEventListener('resize', scheduleSyncBounds)
     }
-  }, [onStateChange, state.open, state.url])
+  }, [client, onStateChange, state.open, state.url])
 
   async function runBrowserAction(action: () => Promise<DesktopBrowserState>): Promise<void> {
     try {
@@ -152,7 +155,7 @@ export function DesktopBrowserPanel({
   }
 
   function handleNavigate(): void {
-    void runBrowserAction(() => desktopBrowserClient.navigateBrowser(address))
+    void runBrowserAction(() => client.navigateBrowser(address))
   }
 
   function handleSubmitAnnotation(): void {
@@ -173,7 +176,6 @@ export function DesktopBrowserPanel({
   }
 
   function closeAnnotation(): void {
-    boundsPausedRef.current = true
     annotationPanelRef.current?.setAttribute('aria-hidden', 'true')
     annotationPanelRef.current?.setAttribute('inert', '')
     annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
@@ -188,25 +190,10 @@ export function DesktopBrowserPanel({
   }
 
   function openAnnotation(): void {
-    boundsPausedRef.current = true
-    void desktopBrowserClient
-      .setBrowserVisible(false)
-      .then((next) => {
-        onStateChange(next)
-        setAnnotationOpen(true)
-      })
-      .catch(() => setAnnotationOpen(true))
+    setAnnotationOpen(true)
   }
-
   function finishAnnotationExit(): void {
-    void syncBrowserBoundsRef
-      .current()
-      .then(() => desktopBrowserClient.setBrowserVisible(true))
-      .then(onStateChange)
-      .catch(() => undefined)
-      .finally(() => {
-        boundsPausedRef.current = false
-      })
+    void syncBrowserBoundsRef.current()
   }
 
   function handleSendPageToComposer(): void {
@@ -234,7 +221,7 @@ export function DesktopBrowserPanel({
             disabled={!state.canGoBack}
             size="toolbar"
             title="后退"
-            onClick={() => void runBrowserAction(desktopBrowserClient.goBackBrowser)}
+            onClick={() => void runBrowserAction(client.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -243,7 +230,7 @@ export function DesktopBrowserPanel({
             disabled={!state.canGoForward}
             size="toolbar"
             title="前进"
-            onClick={() => void runBrowserAction(desktopBrowserClient.goForwardBrowser)}
+            onClick={() => void runBrowserAction(client.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -252,11 +239,7 @@ export function DesktopBrowserPanel({
             size="toolbar"
             title={state.loading ? '停止加载' : '重新加载'}
             onClick={() =>
-              void runBrowserAction(
-                state.loading
-                  ? desktopBrowserClient.stopBrowser
-                  : desktopBrowserClient.reloadBrowser,
-              )
+              void runBrowserAction(state.loading ? client.stopBrowser : client.reloadBrowser)
             }
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -282,6 +265,18 @@ export function DesktopBrowserPanel({
           {state.error ? <span className="browser-address-error">!</span> : null}
         </form>
         <div className="browser-toolbar-actions">
+          <Button
+            color="secondary"
+            disabled={!state.controlThreadId && !threadId}
+            onClick={() =>
+              void runBrowserAction(() =>
+                client.control(state.controlThreadId ? null : (threadId ?? null)),
+              )
+            }
+          >
+            {state.controlThreadId ? '接管' : '交给 Agent'}
+          </Button>
+          {state.busy ? <span className="browser-address-state">Agent 操作中</span> : null}
           <IconButton
             color="ghostSecondary"
             disabled={!state.url && !address.trim()}
@@ -303,8 +298,8 @@ export function DesktopBrowserPanel({
           >
             <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
-          <IconButton color="ghostSecondary" size="toolbar" title="更多">
-            <MoreVertical size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          <IconButton color="ghostSecondary" size="toolbar" title="新标签页" onClick={onNewTab}>
+            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </div>
       </div>
@@ -318,9 +313,7 @@ export function DesktopBrowserPanel({
             type="button"
             onClick={() =>
               void runBrowserAction(
-                state.url
-                  ? desktopBrowserClient.reloadBrowser
-                  : () => desktopBrowserClient.navigateBrowser(address),
+                state.url ? client.reloadBrowser : () => client.navigateBrowser(address),
               )
             }
           >
@@ -333,8 +326,8 @@ export function DesktopBrowserPanel({
         className="browser-viewport"
         ref={viewportRef}
         onPointerDown={() => {
-          if (desktopBrowserClient.available) {
-            void desktopBrowserClient.focusBrowser().catch(() => undefined)
+          if (client.available) {
+            void client.focusBrowser().catch(() => undefined)
           }
         }}
       >

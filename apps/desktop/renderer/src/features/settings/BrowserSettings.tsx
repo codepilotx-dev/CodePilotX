@@ -30,6 +30,7 @@ export function BrowserSettings(): React.ReactNode {
     setBrowserAllowedSites(nextState.allowedSites)
     setSitePermissions(nextState.sitePermissions)
     draft.setValue('browserAllowedSites', nextState.allowedSites)
+    draft.setValue('browserSitePermissions', nextState.sitePermissions)
   }
 
   return (
@@ -38,20 +39,18 @@ export function BrowserSettings(): React.ReactNode {
         <div className="settings-page-header">
           <h2 className="settings-page-title">浏览器</h2>
           <p className="settings-page-desc">
-            在桌面线程中预览本地开发页面和无需登录的 HTTP/HTTPS
-            页面。需要登录态、扩展、本地文件或已有标签页时，请使用常规浏览器。
+            在工作台管理多个网页，并让 Agent 在后台完成常用浏览器操作。
           </p>
         </div>
 
         <SettingsSection
           title="内置浏览器"
-          description="浏览器内容在隔离的会话中运行，不继承你的常规浏览器 Cookie、扩展或登录状态。"
+          description="浏览器内容在隔离的会话中运行，保留内置浏览器登录状态，不继承常规浏览器的 Cookie 或扩展。"
         >
           <div className="browser-settings-info">
             <span>支持 HTTP 和 HTTPS URL；本地文件继续使用文件预览。</span>
             <span>批注会先插入输入框，由你确认后再发送。</span>
-            <span>Browser Use 通过插件页的 Browser 入口启用。</span>
-            <span>Developer Mode 暂不可用。</span>
+            <span>Agent 使用浏览器前需获得站点授权；人工标签可在工具栏交给当前聊天。</span>
           </div>
         </SettingsSection>
 
@@ -79,6 +78,16 @@ export function BrowserSettings(): React.ReactNode {
               {sitePermissions.map((site) => (
                 <span className="settings-chip" key={site.origin}>
                   {site.origin} · {site.decision === 'allow' ? '允许' : '拒绝'}
+                  <Button
+                    color="secondary"
+                    onClick={() =>
+                      void desktopBrowserClient
+                        .setPermission(site.origin, 'remove')
+                        .then(setSitePermissions)
+                    }
+                  >
+                    撤销
+                  </Button>
                 </span>
               ))}
             </div>

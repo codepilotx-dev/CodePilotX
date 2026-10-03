@@ -251,6 +251,7 @@ async function startDesktop(): Promise<void> {
   })
   const composerPathGrants = new ComposerPathGrantService()
   browserController = new DesktopBrowserController({
+    getSupervisor: () => supervisor,
     publish: (owner, state) => {
       if (!owner.isDestroyed()) {
         owner.webContents.send(DESKTOP_BROWSER_IPC_CHANNELS.stateChanged, state)

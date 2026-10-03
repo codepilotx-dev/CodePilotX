@@ -1,3 +1,4 @@
+import { mergeBrowserWorkbench } from '../../browser/browserWorkbenchState.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
 import {
   desktopClient,
@@ -878,12 +879,20 @@ export function DesktopLayout(): React.ReactNode {
       setErrorMessage('当前桌面运行环境没有提供内置浏览器能力。')
       return
     }
-    openRightDockTab({ id: 'browser', kind: 'browser' })
     void desktopBrowserClient
-      .openBrowser()
-      .then(setBrowserState)
+      .createTab(sessionId)
+      .then((next) => {
+        if (!next.tabId) return
+        setBrowserState(next)
+        openRightDockTab({
+          id: `browser:${next.tabId}`,
+          kind: 'browser',
+          tabId: next.tabId,
+          title: next.title,
+        })
+      })
       .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
-  }, [openRightDockTab])
+  }, [openRightDockTab, sessionId])
 
   const handleOpenFilesDock = useCallback((): void => {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
@@ -1325,14 +1334,25 @@ export function DesktopLayout(): React.ReactNode {
 
     prevSessionIdRef.current = currentId
 
-    const restoreAttachmentPreview = (state: ReturnType<typeof createDefaultWorkbenchTabsState>) =>
-      attachmentPreviewTabRef.current
+    const restoreAttachmentPreview = (
+      restored: ReturnType<typeof createDefaultWorkbenchTabsState>,
+    ) => {
+      const records = Object.values(uiSnapshotRef.current.workbench.tabsById).flatMap((tab) =>
+        tab?.kind === 'browser'
+          ? [desktopBrowserClient.getTab(tab.tabId)].filter(
+              (record): record is DesktopBrowserState => record !== null,
+            )
+          : [],
+      )
+      const state = mergeBrowserWorkbench(restored, records, uiSnapshotRef.current.workbench)
+      return attachmentPreviewTabRef.current
         ? applyWorkbenchPanelAction(state, {
             type: 'openTab',
             target: 'right',
             tab: attachmentPreviewTabRef.current,
           })
         : state
+    }
 
     if (currentId) {
       const saved = loadConversationUiState(currentId)
@@ -1366,6 +1386,19 @@ export function DesktopLayout(): React.ReactNode {
       setReviewTabState(createDefaultReviewTabUiState())
     }
   }, [activeSessionItem, currentWorkspace, currentWorkspaceUiIdentity, sessionId])
+
+  useEffect(() => {
+    desktopBrowserClient.setContext(sessionId)
+    if (!desktopBrowserClient.available) return
+    const synchronize = (tabs: DesktopBrowserState[]) =>
+      setWorkbenchPanelState((current) => mergeBrowserWorkbench(current, tabs))
+    const unsubscribe = desktopBrowserClient.onTabsChange(synchronize)
+    void desktopBrowserClient
+      .listTabs()
+      .then(synchronize)
+      .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
+    return unsubscribe
+  }, [sessionId, setWorkbenchPanelState])
 
   useEffect(() => {
     if (!sessionId || sideChatTabsForSource.length === 0) return
@@ -2586,7 +2619,10 @@ export function DesktopLayout(): React.ReactNode {
       }
       try {
         if (!desktopBrowserClient.available) return
-        setBrowserState(await desktopBrowserClient.closeBrowser())
+        for (const id of tabIds) {
+          const tab = workbenchPanelState.tabsById[id]
+          if (tab?.kind === 'browser') await desktopBrowserClient.forTab(tab.tabId).closeBrowser()
+        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : String(error))
       }
@@ -2608,7 +2644,7 @@ export function DesktopLayout(): React.ReactNode {
           status: browserAvailability,
           ...(browserAvailability === 'unavailable'
             ? {
-                reason: '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+                reason: '当前环境未连接桌面浏览器宿主。',
               }
             : {}),
         }}
@@ -2682,6 +2718,7 @@ export function DesktopLayout(): React.ReactNode {
               return
             }
             void desktopBrowserClient
+              .forTab(tab.tabId)
               .openBrowser()
               .then(setBrowserState)
               .catch((error) =>
@@ -2782,11 +2819,13 @@ export function DesktopLayout(): React.ReactNode {
           status: browserAvailability,
           ...(browserAvailability === 'unavailable'
             ? {
-                reason: '当前桌面运行环境没有提供安全的 WebContentsView 浏览器桥接。',
+                reason: '当前环境未连接桌面浏览器宿主。',
               }
             : {}),
         },
         state: browserState,
+        threadId: sessionId,
+        onNewTab: handleOpenBrowser,
         onAppendAnnotation: handleBrowserAnnotation,
         onAppendComposerText: handleAppendComposerText,
         onStateChange: setBrowserState,
@@ -2870,6 +2909,7 @@ export function DesktopLayout(): React.ReactNode {
       handleAddComposerFiles,
       handleAppendComposerText,
       handleBrowserAnnotation,
+      handleOpenBrowser,
       handleCopyMarkdownFileReferenceContents,
       handleCreateBranch,
       handleFileLoadError,

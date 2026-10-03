@@ -22,6 +22,66 @@ export function registerBrowserIpc(dependencies: BrowserIpcDependencies): void {
     return owner
   }
 
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.list, (event) =>
+    controller.list(senderWindow(event.sender)),
+  )
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.attach, (event, value: unknown) => {
+    if (
+      !isExactRecord(value, ['tabId', 'generation', 'guestId']) ||
+      !isIdentifier(value.tabId) ||
+      !isIdentifier(value.generation) ||
+      !Number.isSafeInteger(value.guestId)
+    )
+      invalidInput()
+    return controller.attach(
+      senderWindow(event.sender),
+      value.tabId,
+      value.generation,
+      value.guestId as number,
+    )
+  })
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.control, (event, value: unknown) => {
+    if (
+      !isExactRecord(value, ['tabId', 'threadId']) ||
+      !isIdentifier(value.tabId) ||
+      !(value.threadId === null || isIdentifier(value.threadId))
+    )
+      invalidInput()
+    return controller.control(
+      senderWindow(event.sender),
+      value.tabId,
+      value.threadId as string | null,
+    )
+  })
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.layout, (event, value: unknown) => {
+    if (
+      !isExactRecord(value, ['tabId', 'panel', 'order']) ||
+      !isIdentifier(value.tabId) ||
+      !['right', 'bottom'].includes(String(value.panel)) ||
+      typeof value.order !== 'number' ||
+      !Number.isFinite(value.order)
+    )
+      invalidInput()
+    return controller.layout(
+      senderWindow(event.sender),
+      value.tabId,
+      value.panel as 'right' | 'bottom',
+      value.order,
+    )
+  })
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.permission, (event, value: unknown) => {
+    if (
+      !isExactRecord(value, ['origin', 'decision']) ||
+      !isUrlInput(value.origin) ||
+      !['allow', 'deny', 'remove'].includes(String(value.decision))
+    )
+      invalidInput()
+    return controller.permission(
+      senderWindow(event.sender),
+      value.origin,
+      value.decision as 'allow' | 'deny' | 'remove',
+    )
+  })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.getState, (event, input) => {
     const owner = senderWindow(event.sender)
     const value = requireTabInput(input)
@@ -30,7 +90,7 @@ export function registerBrowserIpc(dependencies: BrowserIpcDependencies): void {
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.createOrRestore, (event, input) => {
     const owner = senderWindow(event.sender)
     const value = requireCreateInput(input)
-    return controller.createOrRestore(owner, value.tabId, value.url)
+    return controller.createOrRestore(owner, value.tabId, value.url, value.sourceThreadId ?? null)
   })
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.navigate, async (event, input) => {
     const owner = senderWindow(event.sender)
@@ -91,7 +151,17 @@ function requireTabInput(value: unknown): DesktopBrowserTabInput {
 
 function requireCreateInput(value: unknown): CreateOrRestoreDesktopBrowserInput {
   if (!isRecord(value)) invalidInput()
-  const keys = value.url === undefined ? ['tabId'] : ['tabId', 'url']
+  const keys = [
+    'tabId',
+    ...(value.url === undefined ? [] : ['url']),
+    ...(value.sourceThreadId === undefined ? [] : ['sourceThreadId']),
+  ]
+  if (!(
+    value.sourceThreadId === undefined ||
+    value.sourceThreadId === null ||
+    isIdentifier(value.sourceThreadId)
+  ))
+    invalidInput()
   if (
     !isExactRecord(value, keys) ||
     !isIdentifier(value.tabId) ||

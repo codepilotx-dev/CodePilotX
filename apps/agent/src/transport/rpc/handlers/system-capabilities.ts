@@ -1,11 +1,12 @@
-import { Capabilities, type ProtocolCapability } from "@codepilotx/agent-protocol"
-import type { AgentDatabase } from "../../../storage/database/AgentDatabase"
+import { BrowserRepository } from '../../../storage/repositories/browser-repository'
+import { Capabilities, type ProtocolCapability } from '@codepilotx/agent-protocol'
+import type { AgentDatabase } from '../../../storage/database/AgentDatabase'
 import {
   probeAutomationStorageCapabilities,
   probeArtifactsStorageCapabilities,
   probeScheduleCalendarStorageCapabilities,
   probeThreadsStorageCapabilities,
-} from "../../../storage/database/storage-capabilities"
+} from '../../../storage/database/storage-capabilities'
 
 /**
  * 探测服务端实际支持的能力子集，按 serverAvailable 稳定顺序返回。
@@ -24,19 +25,24 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
   const { creationSurface } = probeThreadsStorageCapabilities(db.sqlite)
   const { itemArtifactsTable } = probeArtifactsStorageCapabilities(db.sqlite)
   const { automations, automationRuns } = probeAutomationStorageCapabilities(db.sqlite)
-  const { scheduledTasks, schedulePlanProposals } = probeScheduleCalendarStorageCapabilities(db.sqlite)
+  const { scheduledTasks, schedulePlanProposals } = probeScheduleCalendarStorageCapabilities(
+    db.sqlite,
+  )
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
-      (capability !== "thread.creation-surface.v1" || creationSurface)
-      && (capability !== "plan.approval.v1" || db.repositories.planApprovals.available())
-      && (capability !== "thread.goal.v1"
-        || (db.repositories.threadGoals.available()
-          && db.repositories.threadGoalLedger.available()
-          && db.repositories.threadGoalContinuations.available()
-          && db.repositories.threadGoals.visibleGoalsValid()))
-      && (capability !== "artifacts.read.v1" || itemArtifactsTable)
-      && (capability !== "automation.manage.v1" || (automations && automationRuns))
-      && (capability !== "calendar.manage.v1" || (automations && automationRuns && scheduledTasks && schedulePlanProposals)),
+      ((capability !== 'browser.manage.v1' && capability !== 'browser.host.v1') ||
+        new BrowserRepository(db).available()) &&
+      (capability !== 'thread.creation-surface.v1' || creationSurface) &&
+      (capability !== 'plan.approval.v1' || db.repositories.planApprovals.available()) &&
+      (capability !== 'thread.goal.v1' ||
+        (db.repositories.threadGoals.available() &&
+          db.repositories.threadGoalLedger.available() &&
+          db.repositories.threadGoalContinuations.available() &&
+          db.repositories.threadGoals.visibleGoalsValid())) &&
+      (capability !== 'artifacts.read.v1' || itemArtifactsTable) &&
+      (capability !== 'automation.manage.v1' || (automations && automationRuns)) &&
+      (capability !== 'calendar.manage.v1' ||
+        (automations && automationRuns && scheduledTasks && schedulePlanProposals)),
   )
 }
 

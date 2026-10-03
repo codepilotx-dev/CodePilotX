@@ -303,6 +303,7 @@ export class WindowManager {
         nodeIntegration: false,
         sandbox: true,
         webSecurity: true,
+        webviewTag: true,
         devTools: true,
       },
     })

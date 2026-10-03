@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.json && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --external node-pty --sourcemap=external && bun scripts/build-browser-runtime.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.preload.json --noEmit",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.preload.json --noEmit && bun build src/preload.cts --target=node --format=cjs --outfile=dist/preload.cjs --external electron && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --external node-pty --sourcemap=external && bun scripts/build-browser-runtime.ts",
     "dev": "bun run build && electron .",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "test:performance": "playwright test --config playwright.performance.config.ts",
@@ -18,6 +18,7 @@
     "@codepilotx/shared": "workspace:*",
     "@codepilotx/agent-protocol": "workspace:*",
     "playwright-core": "1.59.1",
+    "effect": "4.0.0-beta.83",
     "@playwright/test": "1.55.1",
     "@types/node": "^24.0.0",
     "electron": "39.8.10",

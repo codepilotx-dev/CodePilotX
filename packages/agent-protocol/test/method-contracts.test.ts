@@ -673,7 +673,90 @@ const schedulePlanProposal = {
   committedAt: null,
 } as const
 
+const browserTab = {
+  tabId: 'browser:1',
+  windowId: 'window:1',
+  sourceThreadId: 'thread:1',
+  controlThreadId: null,
+  url: 'about:blank',
+  title: '新标签页',
+  state: 'suspended',
+  loading: false,
+  busy: false,
+  canGoBack: false,
+  canGoForward: false,
+  error: null,
+  generation: 'generation:1',
+  documentId: 'document:1',
+  viewport: { width: 1280, height: 720 },
+  panel: 'right',
+  order: 1,
+  lastUsedAt: 1,
+  revision: 1,
+} as const
+const browserHost = { windowId: 'window:1', instanceId: 'instance:1' } as const
 const fixtures = {
+  'browser/list': methodFixture('browser/list', {}, { tabs: [browserTab], permissions: [] }),
+  'browser/create': methodFixture(
+    'browser/create',
+    {
+      tabId: browserTab.tabId,
+      windowId: browserTab.windowId,
+      sourceThreadId: browserTab.sourceThreadId,
+      url: browserTab.url,
+    },
+    browserTab,
+  ),
+  'browser/close': methodFixture('browser/close', { tabId: browserTab.tabId }, { ok: true }),
+  'browser/control': methodFixture(
+    'browser/control',
+    { tabId: browserTab.tabId, threadId: null },
+    browserTab,
+  ),
+  'browser/layout': methodFixture(
+    'browser/layout',
+    { tabId: browserTab.tabId, panel: 'bottom', order: 1 },
+    browserTab,
+  ),
+  'browser/permissions': methodFixture(
+    'browser/permissions',
+    { decision: 'clear' },
+    { permissions: [] },
+  ),
+  'browser/host/register': methodFixture('browser/host/register', browserHost, {
+    tabs: [browserTab],
+  }),
+  'browser/host/next': methodFixture('browser/host/next', browserHost, {
+    tabs: [browserTab],
+    permissions: [],
+    command: null,
+  }),
+  'browser/host/restore': methodFixture(
+    'browser/host/restore',
+    { ...browserHost, tabId: browserTab.tabId, generation: browserTab.generation },
+    browserTab,
+  ),
+  'browser/host/report': methodFixture(
+    'browser/host/report',
+    {
+      ...browserHost,
+      tabId: browserTab.tabId,
+      generation: browserTab.generation,
+      patch: { loading: false },
+    },
+    browserTab,
+  ),
+  'browser/host/complete': methodFixture(
+    'browser/host/complete',
+    {
+      ...browserHost,
+      requestId: 'request:1',
+      generation: browserTab.generation,
+      result: { text: '完成' },
+    },
+    { ok: true },
+  ),
+  'browser/host/release': methodFixture('browser/host/release', browserHost, { ok: true }),
   'planApproval/read': methodFixture(
     'planApproval/read',
     {
@@ -5373,7 +5456,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(256)
+    expect(methods).toHaveLength(268)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -5741,7 +5824,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(250)
+    expect(Object.keys(RpcMethods)).toHaveLength(256)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

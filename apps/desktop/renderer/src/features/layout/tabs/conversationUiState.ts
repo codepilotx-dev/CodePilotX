@@ -480,9 +480,8 @@ function validateTabDescriptor(
   if (tab.id === 'review' && tab.kind === 'review') {
     return { id: 'review', kind: 'review' }
   }
-  if (tab.id === 'browser' && tab.kind === 'browser') {
-    return { id: 'browser', kind: 'browser' }
-  }
+  // Browser tabs are restored from Agent state, never per-conversation localStorage.
+  if (tab.kind === 'browser') return null
   if (tab.id === 'file-browser' && tab.kind === 'file-browser') {
     const directoryPath =
       typeof tab.directoryPath === 'string' && isSafePath(tab.directoryPath, true)

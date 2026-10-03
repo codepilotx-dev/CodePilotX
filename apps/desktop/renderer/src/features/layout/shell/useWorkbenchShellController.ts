@@ -1,3 +1,4 @@
+import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, useDesktopLayout } from '../useDesktopLayout.js'
 import {
@@ -170,7 +171,26 @@ export function useWorkbenchShellController({
   }, [setSidebarCollapsed])
 
   const dispatchPanelAction = useCallback((action: WorkbenchPanelAction): void => {
-    setWorkbenchPanelState((current) => applyWorkbenchTabsAction(current, action))
+    setWorkbenchPanelState((current) => {
+      const tab = 'tabId' in action ? current.tabsById[action.tabId] : undefined
+      if (
+        tab?.kind === 'browser' &&
+        ((action.type === 'moveTab' && action.target === 'sidebar') || action.type === 'popOutTab')
+      )
+        return current
+      const next = applyWorkbenchTabsAction(current, action)
+      if (
+        tab?.kind === 'browser' &&
+        (action.type === 'moveTab' || action.type === 'reorderTab' || action.type === 'openTab')
+      ) {
+        const panel = next.bottom.tabIds.includes(tab.id) ? 'bottom' : 'right'
+        void desktopBrowserClient
+          .forTab(tab.tabId)
+          .layout(panel, next[panel].tabIds.indexOf(tab.id))
+          .catch(() => {})
+      }
+      return next
+    })
   }, [])
 
   const dispatchLayoutAction = useCallback((action: WorkbenchLayoutAction): void => {
@@ -288,6 +308,7 @@ export function useWorkbenchShellController({
   const popOutPanelTab = useCallback(
     (source: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
       const tab = workbenchPanelState.tabsById[tabId]
+      if (tab?.kind === 'browser') return
       const title = tab ? getWorkbenchTabDisplayTitle(tab, null) : 'CodePilotX'
       const entry = auxiliaryWindowService.open(tabId, title)
       if (entry) {

@@ -1,5 +1,5 @@
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import React, { Suspense, useEffect, type ReactNode } from 'react'
+import React, { Suspense, useEffect, useState, useCallback, type ReactNode } from 'react'
 import {
   Bot,
   Folder,
@@ -67,47 +67,51 @@ function deferred(element: ReactNode): ReactNode {
 }
 
 function BrowserTabContent({
+  tab,
   context,
 }: {
+  tab: Extract<WorkbenchTabDescriptor, { kind: 'browser' }>
   context: WorkbenchTabRenderContext['browser']
 }): React.ReactNode {
-  const { availability, onStateChange, state } = context
-  const initialized = state !== null
+  const client = desktopBrowserClient.forTab(tab.tabId)
+  const [state, setState] = useState<DesktopBrowserState | null>(() => client.getTab(tab.tabId))
+  const onStateChange = useCallback(
+    (next: DesktopBrowserState) => {
+      setState(next)
+      context.onStateChange(next)
+    },
+    [context.onStateChange],
+  )
   useEffect(() => {
-    if (availability.status !== 'available') return
-    const unsubscribe = desktopBrowserClient.onBrowserStateChange(onStateChange)
-    if (!initialized) {
-      void desktopBrowserClient
-        .openBrowser()
-        .then(onStateChange)
-        .catch(() => undefined)
-    } else {
-      void desktopBrowserClient
-        .setBrowserVisible(true)
-        .then(onStateChange)
-        .catch(() => undefined)
-    }
+    if (context.availability.status !== 'available') return
+    desktopBrowserClient.selectTab(tab.tabId)
+    const unsubscribe = client.onBrowserStateChange(onStateChange)
+    void client
+      .openBrowser()
+      .then(() => client.setBrowserVisible(true))
+      .then(onStateChange)
+      .catch(() => undefined)
     return () => {
       unsubscribe()
-      void desktopBrowserClient.setBrowserVisible(false).catch(() => undefined)
+      void client.setBrowserVisible(false).catch(() => undefined)
     }
-  }, [availability.status, initialized, onStateChange])
-
-  if (availability.status === 'loading') {
-    return <WorkbenchPanelLoading label="正在连接内置浏览器…" />
-  }
-  if (availability.status === 'unavailable') {
+  }, [client, tab.tabId, context.availability.status, onStateChange])
+  if (context.availability.status === 'unavailable')
     return (
       <WorkbenchPanelUnavailable
         title="内置浏览器不可用"
-        description={availability.reason ?? '当前桌面运行环境没有提供浏览器能力。'}
+        description={context.availability.reason ?? '当前环境没有浏览器能力。'}
       />
     )
-  }
-  if (!state) {
-    return <WorkbenchPanelLoading label="正在启动内置浏览器…" />
-  }
-  return deferred(<DesktopBrowserPanel {...context} state={state} />)
+  if (!state) return <WorkbenchPanelLoading label="正在连接内置浏览器…" />
+  return deferred(
+    <DesktopBrowserPanel
+      {...context}
+      client={client}
+      state={state}
+      onStateChange={onStateChange}
+    />,
+  )
 }
 
 export type WorkbenchTabRenderContext = {
@@ -135,6 +139,8 @@ export type WorkbenchTabRenderContext = {
   browser: {
     availability: WorkbenchTabAvailability
     state: DesktopBrowserState | null
+    threadId?: string | null
+    onNewTab?: () => void
     onAppendAnnotation: (text: string) => void
     onAppendComposerText?: (text: string) => void
     onStateChange: (state: DesktopBrowserState) => void
@@ -264,8 +270,12 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     lifecycle: 'external-surface',
     getAvailability: (context) => context.browser.availability,
-    getTitle: () => '浏览器',
-    render: (_tab, context) => <BrowserTabContent context={context.browser} />,
+    getTitle: (tab) =>
+      tab.kind === 'browser'
+        ? `${tab.title || '浏览器'}${tab.busy ? ' · 运行中' : tab.suspended ? ' · 已暂停' : ''}`
+        : '浏览器',
+    render: (tab, context) =>
+      tab.kind === 'browser' ? <BrowserTabContent tab={tab} context={context.browser} /> : null,
   },
   {
     kind: 'file-browser',
@@ -497,7 +507,10 @@ export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefiniti
 
 export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescriptor | null {
   if (kind === 'review') return { id: 'review', kind: 'review' }
-  if (kind === 'browser') return { id: 'browser', kind: 'browser' }
+  if (kind === 'browser') {
+    const tabId = crypto.randomUUID()
+    return { id: `browser:${tabId}`, kind: 'browser', tabId }
+  }
   if (kind === 'file-browser') {
     return { id: 'file-browser', kind: 'file-browser' }
   }

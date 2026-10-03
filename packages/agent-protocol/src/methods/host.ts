@@ -1,8 +1,10 @@
-import { RpcMethods } from "./index"
-import { TerminalRpcMethods } from "./terminal"
-import { LocalEnvironmentHostRpcMethods } from "./local-environment"
+import { BrowserHostRpcMethods } from './browser'
+import { RpcMethods } from './index'
+import { TerminalRpcMethods } from './terminal'
+import { LocalEnvironmentHostRpcMethods } from './local-environment'
 
 export const HostRpcMethods = {
+  ...BrowserHostRpcMethods,
   ...TerminalRpcMethods,
   ...LocalEnvironmentHostRpcMethods,
 } as const

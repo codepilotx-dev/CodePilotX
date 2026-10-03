@@ -416,6 +416,17 @@ export class ToolExecutor {
     }
     const definition = catalog.get(name)
     const fileSnapshots = this.fileSnapshots(context, workspace)
+    const baseInvocation: ToolInvocation = {
+      id: context.toolCallID ?? crypto.randomUUID(),
+      threadID: context.threadID,
+      turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
+      name,
+      input,
+      permissionConfig,
+      model,
+      taskMode: context.taskMode,
+    }
     const inspection = definition.inspectInput
       ? this.validateToolInputInspection(
           await definition.inspectInput(input, {
@@ -426,8 +437,15 @@ export class ToolExecutor {
             permissionConfig,
             model,
             fileSnapshots,
+            invocation: {
+              threadID: context.threadID,
+              turnID: context.turnID,
+              agentID: baseInvocation.agentID,
+              toolCallID: baseInvocation.id,
+            },
             ...(context.onProgress ? { onProgress: context.onProgress } : {}),
           }),
+          definition.capabilities.filesystem === 'none',
         )
       : undefined
     for (const configWrite of inspection?.configWrites ?? []) {
@@ -467,15 +485,8 @@ export class ToolExecutor {
         ? { ...input, __ruleRequiresApproval: true }
         : input
     const invocation: ToolInvocation = {
-      id: context.toolCallID ?? crypto.randomUUID(),
-      threadID: context.threadID,
-      turnID: context.turnID,
-      agentID: context.agentID ?? context.turnID,
-      name,
+      ...baseInvocation,
       input: policyInput,
-      permissionConfig,
-      model,
-      taskMode: context.taskMode,
       ...(authorizationScope ? { authorizationScope } : {}),
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
@@ -1244,7 +1255,10 @@ export class ToolExecutor {
     }
   }
 
-  private validateToolInputInspection(value: ToolInputInspection): ToolInputInspection {
+  private validateToolInputInspection(
+    value: ToolInputInspection,
+    nonFileScope = false,
+  ): ToolInputInspection {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new AgentError('INVALID_TOOL_INSPECTION', '工具输入检查结果无效', 500)
     }
@@ -1253,7 +1267,7 @@ export class ToolExecutor {
       !scope ||
       typeof scope !== 'object' ||
       !Array.isArray(scope.affectedPaths) ||
-      scope.affectedPaths.length === 0 ||
+      (!nonFileScope && scope.affectedPaths.length === 0) ||
       scope.affectedPaths.length > 256 ||
       !/^[a-f0-9]{64}$/.test(scope.fingerprint) ||
       typeof scope.ruleRequiresApproval !== 'boolean'

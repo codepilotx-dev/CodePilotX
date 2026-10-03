@@ -1,48 +1,50 @@
-import { type RpcHandlers, type RpcMethod } from "@codepilotx/agent-protocol"
-import { AllRpcMethods as RpcMethods } from "@codepilotx/agent-protocol/host"
-import { configHandlers } from "./handlers/config"
-import { githubHandlers } from "./handlers/github"
-import { gitHandlers } from "./handlers/git"
-import { interactionHandlers } from "./handlers/interaction"
-import { memoryHandlers } from "./handlers/memory"
-import { localContextHandlers } from "./handlers/local-context"
-import { mcpHandlers } from "./handlers/mcp"
-import { petHandlers } from "./handlers/pet"
-import { pluginHandlers } from "./handlers/plugins"
-import { miniMaxCliHandlers } from "./handlers/minimax-cli"
-import { releaseNotesHandlers } from "./handlers/release-notes"
-import { permissionHandlers } from "./handlers/permission"
-import { providerHandlers } from "./handlers/provider"
-import { reviewHandlers } from "./handlers/review"
-import { skillHandlers } from "./handlers/skills"
-import { subagentHandlers } from "./handlers/subagent"
-import { suggestionHandlers } from "./handlers/suggestions"
-import { systemHandlers } from "./handlers/system"
-import { terminalHandlers } from "./handlers/terminal"
-import { localEnvironmentHandlers } from "./handlers/local-environment"
-import { worktreeHandlers } from "./handlers/worktree"
-import { handoffHandlers } from "./handlers/handoff"
-import { threadForkHandlers } from "./handlers/thread-fork"
-import { sideChatHandlers } from "./handlers/side-chat"
-import { threadGoalHandlers } from "./handlers/thread-goal"
-import { threadHandlers } from "./handlers/thread"
-import { toolingHandlers } from "./handlers/tooling"
-import { usageHandlers } from "./handlers/usage"
-import { speechHandlers } from "./handlers/speech"
-import { sessionGroupHandlers } from "./handlers/session-group"
-import { workflowHandlers } from "./handlers/workflow"
-import { automationHandlers } from "./handlers/automation"
-import { calendarHandlers } from "./handlers/calendar"
-import { planApprovalHandlers } from "./handlers/plan-approval"
-import type { RpcHandlerGroup } from "./handlers/types"
-import { workspaceHandlers } from "./handlers/workspace"
-import type { RpcRouterContext } from "./request-context"
+import { type RpcHandlers, type RpcMethod } from '@codepilotx/agent-protocol'
+import { AllRpcMethods as RpcMethods } from '@codepilotx/agent-protocol/host'
+import { browserHandlers } from './handlers/browser'
+import { configHandlers } from './handlers/config'
+import { githubHandlers } from './handlers/github'
+import { gitHandlers } from './handlers/git'
+import { interactionHandlers } from './handlers/interaction'
+import { memoryHandlers } from './handlers/memory'
+import { localContextHandlers } from './handlers/local-context'
+import { mcpHandlers } from './handlers/mcp'
+import { petHandlers } from './handlers/pet'
+import { pluginHandlers } from './handlers/plugins'
+import { miniMaxCliHandlers } from './handlers/minimax-cli'
+import { releaseNotesHandlers } from './handlers/release-notes'
+import { permissionHandlers } from './handlers/permission'
+import { providerHandlers } from './handlers/provider'
+import { reviewHandlers } from './handlers/review'
+import { skillHandlers } from './handlers/skills'
+import { subagentHandlers } from './handlers/subagent'
+import { suggestionHandlers } from './handlers/suggestions'
+import { systemHandlers } from './handlers/system'
+import { terminalHandlers } from './handlers/terminal'
+import { localEnvironmentHandlers } from './handlers/local-environment'
+import { worktreeHandlers } from './handlers/worktree'
+import { handoffHandlers } from './handlers/handoff'
+import { threadForkHandlers } from './handlers/thread-fork'
+import { sideChatHandlers } from './handlers/side-chat'
+import { threadGoalHandlers } from './handlers/thread-goal'
+import { threadHandlers } from './handlers/thread'
+import { toolingHandlers } from './handlers/tooling'
+import { usageHandlers } from './handlers/usage'
+import { speechHandlers } from './handlers/speech'
+import { sessionGroupHandlers } from './handlers/session-group'
+import { workflowHandlers } from './handlers/workflow'
+import { automationHandlers } from './handlers/automation'
+import { calendarHandlers } from './handlers/calendar'
+import { planApprovalHandlers } from './handlers/plan-approval'
+import type { RpcHandlerGroup } from './handlers/types'
+import { workspaceHandlers } from './handlers/workspace'
+import type { RpcRouterContext } from './request-context'
 
-import type { RpcRouter } from "./RpcRouter"
+import type { RpcRouter } from './RpcRouter'
 
 type MapRpcError = (method: RpcMethod, cause: unknown) => Error
 
 const groups: readonly RpcHandlerGroup[] = [
+  browserHandlers,
   configHandlers,
   systemHandlers,
   interactionHandlers,
@@ -88,7 +90,7 @@ const uniqueMethods = new Set(registeredMethods)
 const declaredMethods = Object.keys(RpcMethods) as RpcMethod[]
 
 if (uniqueMethods.size !== registeredMethods.length) {
-  throw new Error("RPC handler registry contains duplicate methods")
+  throw new Error('RPC handler registry contains duplicate methods')
 }
 
 const missingMethods = declaredMethods.filter((method) => !uniqueMethods.has(method))
@@ -96,7 +98,7 @@ const unknownMethods = registeredMethods.filter((method) => !(method in RpcMetho
 
 if (missingMethods.length > 0 || unknownMethods.length > 0) {
   throw new Error(
-    `RPC handler registry mismatch (missing: ${missingMethods.join(", ") || "none"}; unknown: ${unknownMethods.join(", ") || "none"})`,
+    `RPC handler registry mismatch (missing: ${missingMethods.join(', ') || 'none'}; unknown: ${unknownMethods.join(', ') || 'none'})`,
   )
 }
 

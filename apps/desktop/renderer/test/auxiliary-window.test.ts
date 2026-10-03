@@ -13,12 +13,11 @@ import {
 import { AuxiliaryWindowService } from '../src/features/layout/auxiliary/auxiliaryWindowService.js'
 
 describe('Auxiliary Window (Phase 3) - View Floating Capabilities', () => {
-  test('all dockable built-in views allow floating', () => {
+  test('built-in views with floating capability allow floating; browser remains docked', () => {
     const floatableKinds: WorkbenchTabKind[] = [
       'terminal',
       'file-browser',
       'review',
-      'browser',
       'file-preview',
       'plan',
       'side-chat',
@@ -30,6 +29,9 @@ describe('Auxiliary Window (Phase 3) - View Floating Capabilities', () => {
       expect(BUILTIN_COMPOSITE_VIEWS[kind].canFloat).toBe(true)
       expect(BUILTIN_COMPOSITE_VIEWS[kind].allowedLocations).toContain('floating')
     }
+    expect(canViewFloat('browser')).toBe(false)
+    expect(BUILTIN_COMPOSITE_VIEWS.browser.canFloat).toBe(false)
+    expect(BUILTIN_COMPOSITE_VIEWS.browser.allowedLocations).toEqual(['right', 'bottom'])
   })
 })
 

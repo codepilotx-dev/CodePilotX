@@ -79,4 +79,8 @@ trademark owners, and CodePilotX is not affiliated with those vendors.
 
 ## ZCode browser helpers
 
-Playwright injected runtime loading and keyboard input helpers adapted from ZCode (revision 872ad96), Apache-2.0. Source: https://github.com/ZCode-ai/ZCode . License: third_party/zcode-browser/LICENSE.
+Playwright injected runtime loading and keyboard input helpers adapted from ZCode (revision 872ad96), Apache-2.0. Source: https://github.com/zai-org/ZCode . License: third_party/zcode-browser/LICENSE.
+
+## Playwright injected runtime
+
+The browser DOM runtime is extracted at build time from playwright-core 1.59.1, maintained by Microsoft Corporation and licensed under Apache-2.0. Source: https://github.com/microsoft/playwright . License: third_party/playwright-core/LICENSE.

@@ -60,7 +60,7 @@ import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFra
 import { WorkbenchPanelLauncher } from '../src/features/layout/panels/WorkbenchPanelStates.js'
 
 const review = { id: 'review', kind: 'review' } as const
-const browser = { id: 'browser', kind: 'browser' } as const
+const browser = { id: 'browser:fixture', kind: 'browser', tabId: 'fixture' } as const
 
 function open(
   state: ReturnType<typeof createDefaultWorkbenchTabsState>,
@@ -693,11 +693,11 @@ describe('workbench dynamic tab state', () => {
     state = applyWorkbenchPanelAction(state, {
       type: 'reorderTab',
       target: 'right',
-      tabId: 'browser',
+      tabId: 'browser:fixture',
       index: 0,
     })
 
-    expect(state.right.tabIds).toEqual(['browser'])
+    expect(state.right.tabIds).toEqual(['browser:fixture'])
     expect(state.bottom.tabIds).toEqual(['review'])
     expect(
       [...state.right.tabIds, ...state.bottom.tabIds].filter((id) => id === 'review'),
@@ -711,12 +711,12 @@ describe('workbench dynamic tab state', () => {
     state = applyWorkbenchPanelAction(state, {
       type: 'selectTab',
       target: 'right',
-      tabId: 'browser',
+      tabId: 'browser:fixture',
     })
     state = applyWorkbenchPanelAction(state, {
       type: 'closeTab',
       target: 'right',
-      tabId: 'browser',
+      tabId: 'browser:fixture',
     })
     expect(state.right.activeTabId).toBe('file-browser')
 
@@ -735,17 +735,17 @@ describe('workbench dynamic tab state', () => {
     state = applyWorkbenchPanelAction(state, {
       type: 'closeTabsToRight',
       target: 'right',
-      tabId: 'browser',
+      tabId: 'browser:fixture',
     })
-    expect(state.right.tabIds).toEqual(['review', 'browser'])
+    expect(state.right.tabIds).toEqual(['review', 'browser:fixture'])
     expect(state.tabsById['file-browser']).toBeUndefined()
 
     state = applyWorkbenchPanelAction(state, {
       type: 'closeOtherTabs',
       target: 'right',
-      tabId: 'browser',
+      tabId: 'browser:fixture',
     })
-    expect(state.right.tabIds).toEqual(['browser'])
+    expect(state.right.tabIds).toEqual(['browser:fixture'])
     expect(state.tabsById.review).toBeUndefined()
   })
 

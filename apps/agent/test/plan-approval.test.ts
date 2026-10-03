@@ -9,7 +9,7 @@ import {
   formatStructuredPlanMarkdown,
   type StructuredPlan,
 } from '@codepilotx/shared/thread'
-import { AgentDatabase } from '../src/storage/database/AgentDatabase'
+import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
 import { ThreadService } from '../src/session/ThreadService'
 import { PlanApprovalService } from '../src/session/plan/PlanApprovalService'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
@@ -211,7 +211,9 @@ test('旧 schema43 升级恢复最新完整计划，保留历史数据与未知�
   databases.splice(databases.indexOf(db), 1)
   const upgraded = new AgentDatabase(path)
   databases.push(upgraded)
-  expect(upgraded.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: 50 })
+  expect(upgraded.sqlite.query('PRAGMA user_version').get()).toEqual({
+    user_version: SCHEMA_VERSION,
+  })
   expect(upgraded.repositories.planApprovals.pending(thread.id)?.markdown).toBe(approval.markdown)
   expect(upgraded.sqlite.query('SELECT value FROM future_fixture').get()).toEqual({
     value: 'retained',
