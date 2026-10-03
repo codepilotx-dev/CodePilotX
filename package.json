@@ -36,6 +36,7 @@
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:website": "bun run --cwd apps/website build",
     "build:agent": "bun run --cwd apps/agent build",
+    "build:cua": "bun run scripts/build-cua.ts",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
     "test:desktop:smoke": "bun run --cwd apps/desktop/electron test:smoke",
     "perf:renderer": "bun scripts/performance/run-suite.ts --suite=renderer --enforce",

@@ -16,6 +16,7 @@ const unpacked = unpackedArgument
 
 const application = join(unpacked, 'CodePilotX.exe')
 const agent = join(unpacked, 'resources/agent/codepilotx-agent.exe')
+const cuaRuntime = join(unpacked, 'resources/cua/cpx-cua.exe')
 const appUpdateConfiguration = join(unpacked, 'resources/app-update.yml')
 const nodePtyDirectory = join(unpacked, 'resources/app.asar.unpacked/node_modules/node-pty')
 const nodePtyManifest = join(nodePtyDirectory, 'package.json')
@@ -28,6 +29,7 @@ const nodePtyNativeFiles = [
 const requiredFiles = [
   application,
   agent,
+  cuaRuntime,
   appUpdateConfiguration,
   join(unpacked, 'resources/app.asar'),
   join(unpacked, 'resources/renderer/index.html'),
@@ -44,7 +46,7 @@ const thirdPartyDirectory = join(unpacked, 'resources/third_party')
 if (!existsSync(thirdPartyDirectory) || !(await stat(thirdPartyDirectory)).isDirectory()) {
   throw new Error(`Windows x64 包缺少第三方许可证目录：${thirdPartyDirectory}`)
 }
-for (const path of [application, agent]) {
+for (const path of [application, agent, cuaRuntime]) {
   await assertWindowsX64PE(path)
 }
 for (const path of nodePtyNativeFiles) {
@@ -64,6 +66,7 @@ if (
 }
 await assertAgentBinaryHasNoStaticRiskFeatures(agent)
 await verifyPackagedAgentRuntime({ agentPath: agent, requireAuthenticode: requireSigning })
+await verifyPackagedCuaRuntime(cuaRuntime)
 
 const rootManifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
   version?: unknown
@@ -154,4 +157,46 @@ async function sha256(path: string): Promise<string> {
     stream.once('end', resolveHash)
   })
   return hash.digest('hex')
+}
+
+/**
+ * The packaged runtime is spawned by Electron at first use, so the installer is
+ * only trustworthy if the shipped binary still completes the MCP stdio
+ * handshake on a clean machine.
+ */
+async function verifyPackagedCuaRuntime(executable: string): Promise<void> {
+  const child = Bun.spawn([executable], { stdin: 'pipe', stdout: 'pipe', stderr: 'ignore' })
+  const handshake = (async () => {
+    child.stdin.write(
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-06-18',
+          capabilities: {},
+          clientInfo: { name: 'package-verifier', version: '1.0.0' },
+        },
+      })}\n`,
+    )
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for await (const chunk of child.stdout) {
+      buffer += decoder.decode(chunk as Uint8Array, { stream: true })
+      let index = buffer.indexOf('\n')
+      while (index >= 0) {
+        const line = buffer.slice(0, index).trim()
+        buffer = buffer.slice(index + 1)
+        if (line) {
+          const message = JSON.parse(line) as { id?: number; result?: { serverInfo?: { name?: string } } }
+          if (message.id === 1) return message.result?.serverInfo?.name ?? null
+        }
+        index = buffer.indexOf('\n')
+      }
+    }
+    return null
+  })()
+  const name = await Promise.race([handshake, Bun.sleep(20_000).then(() => null)])
+  child.kill()
+  if (name !== 'CPX-CUA') throw new Error(`打包的 CPX-CUA 运行时无法启动：${name ?? '无响应'}`)
 }

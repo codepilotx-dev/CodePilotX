@@ -50,3 +50,5 @@ performance-results/
 *.sw?
 .gstack/
 .zcode/
+apps/desktop/native/cpx-cua/target/
+apps/desktop/native/cpx-cua/dist/

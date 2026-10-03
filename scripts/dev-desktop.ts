@@ -1,4 +1,6 @@
+import { existsSync } from 'node:fs'
 import { mkdir, realpath } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   agentDataDir,
@@ -31,6 +33,14 @@ function spawn(command: string[], env: Record<string, string | undefined> = {}) 
   })
   children.push(child)
   return child
+}
+
+/** Development start builds the native runtime only when the artifact is missing. */
+async function ensureCuaRuntime() {
+  if (existsSync(resolve(root, 'apps/desktop/native/cpx-cua/dist/cpx-cua.exe'))) return
+  console.log('未发现 CPX-CUA 原生运行时，先执行构建…')
+  const build = spawn(['bun', 'run', 'build:cua'])
+  if ((await build.exited) !== 0) throw new Error('CPX-CUA 原生运行时构建失败')
 }
 
 async function waitForRenderer(child: Child, rendererOrigin: string) {
@@ -109,6 +119,7 @@ try {
   await mkdir(instance.logDir, { recursive: true, mode: 0o700 })
   const { renderer, rendererOrigin, port } = await startRenderer(runtime.origin, runtime.authToken)
   console.log(`Renderer 已就绪（端口 ${port}，worktree ${instance.shortId}）。`)
+  await ensureCuaRuntime()
   const electron = spawn([process.execPath, 'run', '--cwd', 'apps/desktop/electron', 'dev'], {
     CODEPILOTX_AGENT_URL: runtime.origin,
     CODEPILOTX_RENDERER_DEV_URL: rendererOrigin,
