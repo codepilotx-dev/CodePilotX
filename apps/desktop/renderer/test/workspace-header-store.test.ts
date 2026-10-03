@@ -47,7 +47,7 @@ describe('workspace header store', () => {
     })
 
     cleanupFirst()
-    expect(store.getSnapshot().map(item => item.node)).toEqual(['replacement'])
+    expect(store.getSnapshot().map((item) => item.node)).toEqual(['replacement'])
     cleanupReplacement()
     expect(store.getSnapshot()).toEqual([])
   })
@@ -64,28 +64,27 @@ describe('workspace header store', () => {
     }
 
     expect(
-      selectWorkspaceHeaderItems(store.getSnapshot(), '/plugins', 'right').map(
-        item => item.id,
-      ),
+      selectWorkspaceHeaderItems(store.getSnapshot(), '/plugins', 'right').map((item) => item.id),
     ).toEqual(['last', 'first', 'second'])
     expect(
-      selectWorkspaceHeaderItems(store.getSnapshot(), '/settings').map(
-        item => item.id,
-      ),
+      selectWorkspaceHeaderItems(store.getSnapshot(), '/settings').map((item) => item.id),
     ).toEqual(['other'])
   })
 
   test('updates an entry without changing its registration sequence', () => {
     const store = createWorkspaceHeaderStore()
     const token = Symbol('first')
-    store.register({
-      id: 'first',
-      routeScope: '/models',
-      slot: 'right',
-      align: 'end',
-      order: 100,
-      node: 'old',
-    }, token)
+    store.register(
+      {
+        id: 'first',
+        routeScope: '/models',
+        slot: 'right',
+        align: 'end',
+        order: 100,
+        node: 'old',
+      },
+      token,
+    )
     store.register({
       id: 'second',
       routeScope: '/models',
@@ -105,7 +104,7 @@ describe('workspace header store', () => {
     })
 
     expect(
-      selectWorkspaceHeaderItems(store.getSnapshot(), '/models').map(item => item.node),
+      selectWorkspaceHeaderItems(store.getSnapshot(), '/models').map((item) => item.node),
     ).toEqual(['new', 'second'])
   })
 })

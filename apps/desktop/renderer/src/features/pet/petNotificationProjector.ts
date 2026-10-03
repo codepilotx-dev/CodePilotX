@@ -10,13 +10,7 @@ import {
 } from '../notifications/taskNotificationProjector.js'
 
 export type PetNotificationKind =
-  | 'approval'
-  | 'question'
-  | 'exec'
-  | 'network'
-  | 'tool'
-  | 'completed'
-  | 'failed'
+  'approval' | 'question' | 'exec' | 'network' | 'tool' | 'completed' | 'failed'
 
 export type PetNotification = {
   id: string
@@ -43,10 +37,7 @@ export function resolvePetReplyDelivery(
   status: DesktopSessionStatus | undefined,
   hasPendingRequest: boolean,
 ): 'follow-up' | 'message' {
-  return hasPendingRequest
-    || status === 'running'
-    || status === 'waiting'
-    || status === 'queued'
+  return hasPendingRequest || status === 'running' || status === 'waiting' || status === 'queued'
     ? 'follow-up'
     : 'message'
 }
@@ -73,12 +64,12 @@ export function projectPetNotifications({
   }
 
   return notifications
-    .filter(item => item.expiresAt === null || item.expiresAt > now)
+    .filter((item) => item.expiresAt === null || item.expiresAt > now)
     .sort(
       (left, right) =>
-        right.priority - left.priority
-        || left.createdAt - right.createdAt
-        || left.id.localeCompare(right.id),
+        right.priority - left.priority ||
+        left.createdAt - right.createdAt ||
+        left.id.localeCompare(right.id),
     )
 }
 
@@ -142,9 +133,7 @@ function petNotification(
   return null
 }
 
-function isBlockerKind(
-  candidate: TaskNotificationCandidate,
-): boolean {
+function isBlockerKind(candidate: TaskNotificationCandidate): boolean {
   return candidate.kind === 'permission' || candidate.kind === 'question'
 }
 

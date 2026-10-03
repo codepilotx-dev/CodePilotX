@@ -26,18 +26,11 @@ export function setCodeWrapPreference(nextValue: boolean): void {
       // Keep the in-memory preference when storage is unavailable or full.
     }
   }
-  listeners.forEach(listener => listener())
+  listeners.forEach((listener) => listener())
 }
 
-export function useCodeWrapPreference(): readonly [
-  boolean,
-  (nextValue: boolean) => void,
-] {
-  const value = useSyncExternalStore(
-    subscribe,
-    readCodeWrapPreference,
-    () => false,
-  )
+export function useCodeWrapPreference(): readonly [boolean, (nextValue: boolean) => void] {
+  const value = useSyncExternalStore(subscribe, readCodeWrapPreference, () => false)
   return [value, setCodeWrapPreference] as const
 }
 

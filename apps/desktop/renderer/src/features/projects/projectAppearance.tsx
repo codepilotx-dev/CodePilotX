@@ -37,10 +37,7 @@ import type {
   ProjectAppearanceColor,
   ProjectAppearanceIcon,
 } from '../../../shared/types.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 
 export const DEFAULT_PROJECT_APPEARANCE: ProjectAppearance = {
   color: 'default',
@@ -108,7 +105,7 @@ export function ProjectAppearanceGlyph({
   return (
     <span
       aria-hidden="true"
-      className={className}
+      className={['project-appearance-glyph', className].filter(Boolean).join(' ')}
       data-project-color={appearance.color}
     >
       <Icon size={size} strokeWidth={APP_ICON_STROKE_WIDTH} />

@@ -7,9 +7,7 @@ export type LastWorkspaceRestoreState = {
   recentWorkspaceCount?: number
 }
 
-export function shouldRestoreLastWorkspace(
-  state: LastWorkspaceRestoreState,
-): boolean {
+export function shouldRestoreLastWorkspace(state: LastWorkspaceRestoreState): boolean {
   return (
     state.settingsLoaded &&
     state.isQuickChatPage &&

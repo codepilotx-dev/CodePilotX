@@ -9,50 +9,49 @@
  * on the container.
  */
 
-import React from 'react';
-import { Virtualizer, type VirtualizerHandle } from 'virtua';
+import React from 'react'
+import { Virtualizer, type VirtualizerHandle } from 'virtua'
 
-import { useThreadScrollController } from '../conversation/useThreadScrollController.js';
+import { useThreadScrollController } from '../conversation/useThreadScrollController.js'
 
-const TIMELINE_BOTTOM_SENTINEL = Symbol('timeline-bottom-sentinel');
+const TIMELINE_BOTTOM_SENTINEL = Symbol('timeline-bottom-sentinel')
 
 /* ── Props ──────────────────────────────────────────────── */
 
 export type SessionTimelineViewProps<T> = {
   /** Timeline rows; the virtualizer asks for React elements only near the viewport. */
-  items: readonly T[];
+  items: readonly T[]
   /** Lazily renders a row. Returned elements must have stable keys. */
-  renderItem: (item: T, index: number) => React.ReactElement;
+  renderItem: (item: T, index: number) => React.ReactElement
   /** Ref to the VirtualizerHandle for imperative scroll control. */
-  listRef?: React.RefObject<VirtualizerHandle | null>;
+  listRef?: React.RefObject<VirtualizerHandle | null>
   /** Commands used by overlays that navigate within the virtual timeline. */
-  navigationRef?: React.Ref<ThreadTimelineNavigationHandle>;
+  navigationRef?: React.Ref<ThreadTimelineNavigationHandle>
   /** The single overflow element owned by ThreadScrollLayout. */
-  scrollRef: React.RefObject<HTMLElement | null>;
+  scrollRef: React.RefObject<HTMLElement | null>
   /** Called when the user scrolls (for scroll-position persistence). */
-  onScroll?: (scrollTop: number) => void;
+  onScroll?: (scrollTop: number) => void
   /** Reports whether the timeline has been measured away from the bottom. */
-  onCanReturnToBottomChange?: (canReturnToBottom: boolean) => void;
+  onCanReturnToBottomChange?: (canReturnToBottom: boolean) => void
   /** Persisted scroll offset to restore when mounting this session. */
-  initialScrollOffset?: number;
+  initialScrollOffset?: number
+  /** True only for the start/end-bounded workbench resize session. */
+  layoutResizeActive?: boolean
   /**
    * If true, scroll to the end whenever the child count changes.
    * Used during streaming to keep the latest content visible.
    */
-  scrollToBottom?: boolean;
+  scrollToBottom?: boolean
   /** Number of children — used to detect additions for auto-scroll. */
-  count: number;
+  count: number
   /** Stable session identity used to reset and restore per-session scroll state. */
-  sessionKey?: string;
-};
+  sessionKey?: string
+}
 
 export type ThreadTimelineNavigationHandle = {
-  revealTurn: (
-    index: number,
-    behavior: 'smooth' | 'instant',
-  ) => boolean;
-  returnToBottom: () => void;
-};
+  revealTurn: (index: number, behavior: 'smooth' | 'instant') => boolean
+  returnToBottom: () => void
+}
 
 /* ── Main component ─────────────────────────────────────── */
 
@@ -65,68 +64,59 @@ export function SessionTimelineView<T>({
   onScroll,
   onCanReturnToBottomChange,
   initialScrollOffset,
+  layoutResizeActive,
   scrollToBottom,
   count,
   sessionKey,
 }: SessionTimelineViewProps<T>): React.ReactNode {
-  const internalListRef = React.useRef<VirtualizerHandle>(null);
-  const listHandle = externalListRef ?? internalListRef;
-  const virtualItems = React.useMemo(
-    () => [...items, TIMELINE_BOTTOM_SENTINEL],
-    [items],
-  );
+  const internalListRef = React.useRef<VirtualizerHandle>(null)
+  const listHandle = externalListRef ?? internalListRef
+  const virtualItems = React.useMemo(() => [...items, TIMELINE_BOTTOM_SENTINEL], [items])
   const scrollController = useThreadScrollController({
     active: Boolean(scrollToBottom),
+    contentRevision: items.at(-1),
     initialScrollOffset,
     itemCount: count,
+    layoutResizeActive,
     listRef: listHandle,
     onScroll,
     scrollRef,
     sessionKey,
-  });
+  })
 
   React.useImperativeHandle(
     navigationRef,
     () => ({
-      revealTurn: (
-        index: number,
-        behavior: 'smooth' | 'instant',
-      ): boolean => {
-        const handle = listHandle.current;
-        if (!handle) return false;
-        const smooth = scrollController.beginProgrammaticScroll(
-          behavior === 'smooth',
-        );
+      revealTurn: (index: number, behavior: 'smooth' | 'instant'): boolean => {
+        const handle = listHandle.current
+        if (!handle) return false
+        const smooth = scrollController.beginProgrammaticScroll(behavior === 'smooth')
         try {
-          handle.scrollToIndex(index, { align: 'start', smooth });
-          return true;
+          handle.scrollToIndex(index, { align: 'start', smooth })
+          return true
         } catch {
-          return false;
+          return false
         }
       },
       returnToBottom: scrollController.returnToBottom,
     }),
-    [
-      listHandle,
-      scrollController.beginProgrammaticScroll,
-      scrollController.returnToBottom,
-    ],
-  );
+    [listHandle, scrollController.beginProgrammaticScroll, scrollController.returnToBottom],
+  )
 
   React.useEffect(() => {
-    onCanReturnToBottomChange?.(scrollController.canReturnToBottom);
-  }, [onCanReturnToBottomChange, scrollController.canReturnToBottom]);
+    onCanReturnToBottomChange?.(scrollController.canReturnToBottom)
+  }, [onCanReturnToBottomChange, scrollController.canReturnToBottom])
 
   React.useEffect(
     () => () => {
-      onCanReturnToBottomChange?.(false);
+      onCanReturnToBottomChange?.(false)
     },
     [onCanReturnToBottomChange],
-  );
+  )
 
   return (
     <div
-      className="session-timeline-container tw:mx-auto tw:min-w-0"
+      className="session-timeline-container tw:min-w-0"
       data-component="session-timeline"
       data-scroll-mode={scrollController.mode}
     >
@@ -141,11 +131,15 @@ export function SessionTimelineView<T>({
           {(item, index) =>
             item === TIMELINE_BOTTOM_SENTINEL ? (
               <div
-                ref={scrollController.bottomSentinelRef}
                 aria-hidden="true"
                 className="session-timeline-bottom-sentinel"
                 key="timeline-bottom-sentinel"
-              />
+              >
+                <div
+                  ref={scrollController.bottomSentinelRef}
+                  className="session-timeline-bottom-observer"
+                />
+              </div>
             ) : (
               renderItem(item as T, index)
             )
@@ -153,7 +147,7 @@ export function SessionTimelineView<T>({
         </Virtualizer>
       </div>
     </div>
-  );
+  )
 }
 
 /* ── Scroll helpers ─────────────────────────────────────── */
@@ -166,9 +160,9 @@ export function scrollToIndex(
   index: number,
   align: 'start' | 'end' | 'center' = 'start',
 ): void {
-  if (!handle) return;
+  if (!handle) return
   try {
-    handle.scrollToIndex(index, { align });
+    handle.scrollToIndex(index, { align })
   } catch {
     // Virtualizer may not be mounted yet
   }

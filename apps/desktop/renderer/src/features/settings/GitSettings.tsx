@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SegmentedControl } from './SegmentedControl.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
   desktopClient,
+  desktopClipboard,
   startGithubLoginFlow,
 } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
@@ -35,14 +36,12 @@ export function GitSettings(): React.ReactNode {
     commitMessagePrompt,
     pullRequestPrompt,
   } = draft.values
-  const [githubAuth, setGithubAuth] =
-    useState<DesktopGithubAuthStatus | null>(null)
-  const [githubLogin, setGithubLogin] =
-    useState<DesktopGithubLoginStatus | null>(null)
+  const [githubAuth, setGithubAuth] = useState<DesktopGithubAuthStatus | null>(null)
+  const [githubLogin, setGithubLogin] = useState<DesktopGithubLoginStatus | null>(null)
   const [githubBusy, setGithubBusy] = useState(false)
   useEffect(() => {
     let mounted = true
-    void desktopClient.getGithubAuthStatus().then(status => {
+    void desktopClient.getGithubAuthStatus().then((status) => {
       if (mounted) setGithubAuth(status)
     })
     return () => {
@@ -55,7 +54,7 @@ export function GitSettings(): React.ReactNode {
       return
     }
     const timer = window.setInterval(() => {
-      void desktopClient.pollGithubLogin().then(status => {
+      void desktopClient.pollGithubLogin().then((status) => {
         setGithubLogin(status)
         if (status.auth) {
           setGithubAuth(status.auth)
@@ -65,9 +64,7 @@ export function GitSettings(): React.ReactNode {
     return () => window.clearInterval(timer)
   }, [githubLogin])
 
-  const startGithubLogin = async (
-    mode: DesktopGithubAuthMode,
-  ): Promise<void> => {
+  const startGithubLogin = async (mode: DesktopGithubAuthMode): Promise<void> => {
     setGithubBusy(true)
     try {
       const status = await startGithubLoginFlow(desktopClient, mode)
@@ -97,13 +94,11 @@ export function GitSettings(): React.ReactNode {
       ? '登录失败'
       : '未登录'
   const activeDeviceLogin =
-    githubLogin?.mode === 'device' &&
-    githubLogin.state === 'awaiting_auth' &&
-    githubLogin.userCode
+    githubLogin?.mode === 'device' && githubLogin.state === 'awaiting_auth' && githubLogin.userCode
 
   const copyGithubCode = async (): Promise<void> => {
     if (!githubLogin?.userCode) return
-    await navigator.clipboard.writeText(githubLogin.userCode)
+    await desktopClipboard.writeText(githubLogin.userCode)
   }
 
   const openGithubDevicePage = async (): Promise<void> => {
@@ -127,9 +122,7 @@ export function GitSettings(): React.ReactNode {
                 className="settings-input-narrow"
                 value={gitBranchPrefix}
                 placeholder="codepilotx/"
-                onChange={event =>
-                  draft.setValue('gitBranchPrefix', event.target.value)
-                }
+                onChange={(event) => draft.setValue('gitBranchPrefix', event.target.value)}
               />
             }
           />
@@ -141,7 +134,7 @@ export function GitSettings(): React.ReactNode {
               <SegmentedControl
                 value={gitPrMergeMethod}
                 options={PR_MERGE_OPTIONS}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('gitPrMergeMethod', value)
                   draft.autoSave()
                 }}
@@ -155,7 +148,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitShowPrIconsInSidebar}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('gitShowPrIconsInSidebar', value)
                   draft.autoSave()
                 }}
@@ -170,7 +163,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={allowForcePush}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('allowForcePush', value)
                   draft.autoSave()
                 }}
@@ -185,7 +178,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitDraftPullRequest}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('gitDraftPullRequest', value)
                   draft.autoSave()
                 }}
@@ -200,7 +193,7 @@ export function GitSettings(): React.ReactNode {
             control={
               <ToggleSwitch
                 checked={gitAutoDeleteWorktree}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('gitAutoDeleteWorktree', value)
                   draft.autoSave()
                 }}
@@ -218,13 +211,10 @@ export function GitSettings(): React.ReactNode {
                 min={1}
                 step={1}
                 value={gitAutoDeleteWorktreeLimit}
-                onChange={event => {
+                onChange={(event) => {
                   const next = Number(event.target.value)
                   if (Number.isFinite(next)) {
-                    draft.setValue(
-                      'gitAutoDeleteWorktreeLimit',
-                      Math.max(1, Math.floor(next)),
-                    )
+                    draft.setValue('gitAutoDeleteWorktreeLimit', Math.max(1, Math.floor(next)))
                   }
                 }}
               />
@@ -240,9 +230,7 @@ export function GitSettings(): React.ReactNode {
                   rows={4}
                   value={commitMessagePrompt}
                   placeholder="添加提交消息指引..."
-                  onChange={event =>
-                    draft.setValue('commitMessagePrompt', event.target.value)
-                  }
+                  onChange={(event) => draft.setValue('commitMessagePrompt', event.target.value)}
                 />
               </div>
             }
@@ -257,9 +245,7 @@ export function GitSettings(): React.ReactNode {
                   rows={4}
                   value={pullRequestPrompt}
                   placeholder="添加拉取请求消息指引..."
-                  onChange={event =>
-                    draft.setValue('pullRequestPrompt', event.target.value)
-                  }
+                  onChange={(event) => draft.setValue('pullRequestPrompt', event.target.value)}
                 />
               </div>
             }
@@ -274,24 +260,14 @@ export function GitSettings(): React.ReactNode {
             <div className="github-device-code-card">
               <div>
                 <div className="github-device-code-label">GitHub 设备验证码</div>
-                <div className="github-device-code-value">
-                  {githubLogin.userCode}
-                </div>
-                <p>
-                  在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。
-                </p>
+                <div className="github-device-code-value">{githubLogin.userCode}</div>
+                <p>在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。</p>
               </div>
               <div className="github-device-code-actions">
-                <Button
-                  onClick={() => void copyGithubCode()}
-                  type="button"
-                >
+                <Button color="secondary" onClick={() => void copyGithubCode()} type="button">
                   复制验证码
                 </Button>
-                <Button
-                  onClick={() => void openGithubDevicePage()}
-                  type="button"
-                >
+                <Button color="secondary" onClick={() => void openGithubDevicePage()} type="button">
                   打开验证页面
                 </Button>
               </div>
@@ -302,15 +278,16 @@ export function GitSettings(): React.ReactNode {
             description={
               activeDeviceLogin
                 ? `请在打开的 GitHub 页面输入验证码 ${githubLogin.userCode}`
-                : githubLogin?.error ??
+                : (githubLogin?.error ??
                   githubAuth?.error ??
-                  '浏览器授权完成后，GitHub token 只会加密保存在本机。'
+                  '浏览器授权完成后，GitHub token 只会加密保存在本机。')
             }
             control={
               <div className="settings-inline-actions">
                 <span className="settings-row-status">{githubStatusText}</span>
                 {githubAuth?.authenticated ? (
                   <Button
+                    color="danger"
                     disabled={githubBusy}
                     onClick={() => void logoutGithub()}
                     type="button"
@@ -320,6 +297,7 @@ export function GitSettings(): React.ReactNode {
                 ) : (
                   <>
                     <Button
+                      color="primary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('browser')}
                       type="button"
@@ -327,6 +305,7 @@ export function GitSettings(): React.ReactNode {
                       登录 GitHub
                     </Button>
                     <Button
+                      color="secondary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('device')}
                       type="button"

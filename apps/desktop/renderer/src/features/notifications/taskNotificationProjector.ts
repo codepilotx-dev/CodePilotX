@@ -1,13 +1,6 @@
-import type {
-  DesktopPermissionRequest,
-  DesktopSessionSnapshot,
-} from '../../../shared/types.js'
+import type { DesktopPermissionRequest, DesktopSessionSnapshot } from '../../../shared/types.js'
 
-export type TaskNotificationKind =
-  | 'permission'
-  | 'question'
-  | 'completed'
-  | 'failed'
+export type TaskNotificationKind = 'permission' | 'question' | 'completed' | 'failed'
 
 export type TaskNotificationCandidate = {
   id: string
@@ -30,31 +23,24 @@ export function projectTaskNotifications({
   previous,
   current,
 }: TaskNotificationProjectionInput): TaskNotificationCandidate[] {
-  const previousById = new Map(
-    previous.map(snapshot => [snapshot.item.id, snapshot]),
-  )
+  const previousById = new Map(previous.map((snapshot) => [snapshot.item.id, snapshot]))
   const candidates: TaskNotificationCandidate[] = []
 
   for (const snapshot of current) {
-    if (
-      snapshot.item.archivedAt
-      || snapshot.item.source === 'internal_guardian'
-    ) {
+    if (snapshot.item.archivedAt || snapshot.item.source === 'internal_guardian') {
       continue
     }
     const threadId = snapshot.item.id
     const source = snapshot.item.source === 'subagent' ? 'subagent' : 'user'
     const taskTitle =
-      snapshot.item.customTitle
-      || snapshot.item.aiTitle
-      || snapshot.item.sessionName
-      || snapshot.item.firstPrompt
-      || '未命名任务'
+      snapshot.item.customTitle ||
+      snapshot.item.aiTitle ||
+      snapshot.item.sessionName ||
+      snapshot.item.firstPrompt ||
+      '未命名任务'
 
     for (const request of snapshot.view.pendingPermissions) {
-      const kind = request.toolName === 'AskUserQuestion'
-        ? 'question'
-        : 'permission'
+      const kind = request.toolName === 'AskUserQuestion' ? 'question' : 'permission'
       candidates.push({
         id: `${threadId}:${request.requestId}`,
         threadId,
@@ -71,10 +57,10 @@ export function projectTaskNotifications({
     const previousStatus = previousById.get(threadId)?.item.status
     const status = snapshot.item.status
     if (
-      source === 'user'
-      && previousStatus !== undefined
-      && previousStatus !== 'done'
-      && status === 'done'
+      source === 'user' &&
+      previousStatus !== undefined &&
+      previousStatus !== 'done' &&
+      status === 'done'
     ) {
       candidates.push({
         id: `${threadId}:completed:${snapshot.updatedAt}`,
@@ -85,10 +71,10 @@ export function projectTaskNotifications({
       })
     }
     if (
-      source === 'user'
-      && previousStatus !== undefined
-      && previousStatus !== 'error'
-      && status === 'error'
+      source === 'user' &&
+      previousStatus !== undefined &&
+      previousStatus !== 'error' &&
+      status === 'error'
     ) {
       candidates.push({
         id: `${threadId}:failed:${snapshot.updatedAt}`,

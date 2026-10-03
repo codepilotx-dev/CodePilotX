@@ -26,9 +26,7 @@ export function useModelCatalogLoading(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
-export async function withModelCatalogLoading<T>(
-  operation: () => Promise<T>,
-): Promise<T> {
+export async function withModelCatalogLoading<T>(operation: () => Promise<T>): Promise<T> {
   pendingModelCatalogRequests += 1
   emitModelCatalogLoadingChange()
   try {

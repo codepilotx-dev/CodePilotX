@@ -1,12 +1,7 @@
-import type {
-  DesktopGithubAuthMode,
-  DesktopGithubLoginStatus,
-} from '../../../shared/types.js'
+import type { DesktopGithubAuthMode, DesktopGithubLoginStatus } from '../../../shared/types.js'
 
 export type GithubLoginClient = {
-  startGithubLogin(input: {
-    mode: DesktopGithubAuthMode
-  }): Promise<DesktopGithubLoginStatus>
+  startGithubLogin(input: { mode: DesktopGithubAuthMode }): Promise<DesktopGithubLoginStatus>
   openExternalURL(url: string): Promise<void>
 }
 
@@ -24,11 +19,7 @@ export async function startGithubLoginFlow(
     return status
   }
   if (!status.authorizationUrl) {
-    return failedGithubLogin(
-      mode,
-      'GitHub 登录服务未返回浏览器授权地址，请稍后重试。',
-      status,
-    )
+    return failedGithubLogin(mode, 'GitHub 登录服务未返回浏览器授权地址，请稍后重试。', status)
   }
 
   try {

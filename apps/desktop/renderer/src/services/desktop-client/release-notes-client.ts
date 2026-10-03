@@ -15,9 +15,7 @@ export function listAgentReleaseNotes(
   return rpc.call('release-notes/list', params)
 }
 
-export function mockReleaseNotes(
-  currentVersion: string,
-): RpcResult<'release-notes/list'> {
+export function mockReleaseNotes(currentVersion: string): RpcResult<'release-notes/list'> {
   return {
     source: 'github-releases',
     repository: 'codepilotx-dev/CodePilotX',

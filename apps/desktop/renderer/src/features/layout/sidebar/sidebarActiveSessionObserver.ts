@@ -25,13 +25,10 @@ export function observeActiveSidebarSession({
   let resizeObserver: ResizeObserver | null = null
   let observedRow: HTMLElement | null = null
 
-  const isSuppressed = (): boolean =>
-    suppressedActiveIdRef.current === activeSessionId
+  const isSuppressed = (): boolean => suppressedActiveIdRef.current === activeSessionId
 
   const findActiveRow = (): HTMLElement | null => {
-    for (const row of viewport.querySelectorAll<HTMLElement>(
-      '[data-sidebar-session-id]',
-    )) {
+    for (const row of viewport.querySelectorAll<HTMLElement>('[data-sidebar-session-id]')) {
       if (row.dataset.sidebarSessionId === activeSessionId) return row
     }
     return null

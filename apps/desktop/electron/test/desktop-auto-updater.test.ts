@@ -1,19 +1,19 @@
-import { describe, expect, test } from "bun:test"
-import type { DesktopUpdateStatus } from "@codepilotx/shared/desktop-update-ipc"
-import type { DesktopLogger } from "../src/logging/desktop-logger"
+import { describe, expect, test } from 'bun:test'
+import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+import type { DesktopLogger } from '../src/logging/desktop-logger'
 import {
   DesktopAutoUpdater,
   resolveDesktopUpdateChannel,
   type ElectronAutoUpdaterLike,
-} from "../src/update/desktop-auto-updater"
+} from '../src/update/desktop-auto-updater'
 
-describe("桌面自动更新通道", () => {
+describe('桌面自动更新通道', () => {
   test.each([
-    ["1.2.3", "latest", false],
-    ["1.2.3-alpha.1", "alpha", true],
-    ["1.2.3-beta.4", "beta", true],
-    ["1.2.3-rc.2", "rc", true],
-  ] as const)("%s 使用 %s 通道", (version, channel, allowPrerelease) => {
+    ['1.2.3', 'latest', false],
+    ['1.2.3-alpha.1', 'alpha', true],
+    ['1.2.3-beta.4', 'beta', true],
+    ['1.2.3-rc.2', 'rc', true],
+  ] as const)('%s 使用 %s 通道', (version, channel, allowPrerelease) => {
     expect(resolveDesktopUpdateChannel(version)).toEqual({
       channel,
       allowPrerelease,
@@ -21,8 +21,8 @@ describe("桌面自动更新通道", () => {
   })
 })
 
-describe("桌面自动更新服务", () => {
-  test("合并并发检查和下载，并只在下载完成后安装", async () => {
+describe('桌面自动更新服务', () => {
+  test('合并并发检查和下载，并只在下载完成后安装', async () => {
     const updater = new FakeUpdater()
     const statuses: DesktopUpdateStatus[] = []
     const check = deferred()
@@ -34,25 +34,25 @@ describe("桌面自动更新服务", () => {
     expect(updater.autoDownload).toBeFalse()
     expect(updater.autoInstallOnAppQuit).toBeFalse()
     expect(updater.allowPrerelease).toBeTrue()
-    expect(updater.channel).toBe("beta")
+    expect(updater.channel).toBe('beta')
 
     const firstCheck = service.checkForUpdates()
     const secondCheck = service.checkForUpdates()
     expect(updater.checkCalls).toBe(1)
-    expect(statuses.at(-1)).toEqual({ phase: "checking" })
-    updater.emit("update-available", { version: "0.2.0-beta.5" })
+    expect(statuses.at(-1)).toEqual({ phase: 'checking' })
+    updater.emit('update-available', { version: '0.2.0-beta.5' })
     check.resolve()
     await Promise.all([firstCheck, secondCheck])
 
     const firstDownload = service.downloadUpdate()
     const secondDownload = service.downloadUpdate()
     expect(updater.downloadCalls).toBe(1)
-    updater.emit("download-progress", { percent: 42.5 })
+    updater.emit('download-progress', { percent: 42.5 })
     expect(statuses.at(-1)).toEqual({
-      phase: "downloading",
+      phase: 'downloading',
       percent: 42.5,
     })
-    updater.emit("update-downloaded")
+    updater.emit('update-downloaded')
     download.resolve()
     await Promise.all([firstDownload, secondDownload])
 
@@ -60,21 +60,15 @@ describe("桌面自动更新服务", () => {
     expect(updater.installCalls).toBe(1)
   })
 
-  test("拒绝错误阶段的下载和安装", async () => {
+  test('拒绝错误阶段的下载和安装', async () => {
     const service = createService(new FakeUpdater(), [])
-    await expect(service.downloadUpdate()).rejects.toThrow(
-      "当前没有可下载的更新",
-    )
-    await expect(service.quitAndInstall()).rejects.toThrow(
-      "更新尚未下载完成",
-    )
+    await expect(service.downloadUpdate()).rejects.toThrow('当前没有可下载的更新')
+    await expect(service.quitAndInstall()).rejects.toThrow('更新尚未下载完成')
   })
 
-  test("错误状态不会暴露原始异常内容", async () => {
+  test('错误状态不会暴露原始异常内容', async () => {
     const updater = new FakeUpdater()
-    updater.checkResult = Promise.reject(
-      new Error("C:\\Users\\secret token=super-secret"),
-    )
+    updater.checkResult = Promise.reject(new Error('C:\\Users\\secret token=super-secret'))
     const statuses: DesktopUpdateStatus[] = []
     const warnings: Array<Record<string, unknown> | undefined> = []
     const service = createService(updater, statuses, warnings)
@@ -82,31 +76,31 @@ describe("桌面自动更新服务", () => {
     await service.checkForUpdates()
 
     expect(statuses.at(-1)).toEqual({
-      phase: "error",
-      message: "检查更新失败，请稍后重试",
+      phase: 'error',
+      message: '检查更新失败，请稍后重试',
     })
-    expect(JSON.stringify(warnings)).not.toContain("secret")
+    expect(JSON.stringify(warnings)).not.toContain('secret')
     expect(warnings.at(-1)).toEqual({
-      operation: "check",
-      reason: "updater-error",
+      operation: 'check',
+      reason: 'updater-error',
     })
   })
 
-  test("开发环境不访问更新源", async () => {
+  test('开发环境不访问更新源', async () => {
     const updater = new FakeUpdater()
     const statuses: DesktopUpdateStatus[] = []
     const service = new DesktopAutoUpdater({
       packaged: false,
-      version: "0.2.0-beta.4",
+      version: '0.2.0-beta.4',
       logger: loggerStub(),
-      onStatusChange: status => statuses.push(status),
+      onStatusChange: (status) => statuses.push(status),
       updater,
     })
 
     await service.checkForUpdates()
 
     expect(updater.checkCalls).toBe(0)
-    expect(statuses).toEqual([{ phase: "no-update" }])
+    expect(statuses).toEqual([{ phase: 'no-update' }])
   })
 })
 
@@ -117,18 +111,16 @@ function createService(
 ): DesktopAutoUpdater {
   return new DesktopAutoUpdater({
     packaged: true,
-    version: "0.2.0-beta.4",
+    version: '0.2.0-beta.4',
     logger: loggerStub(warnings),
-    onStatusChange: status => statuses.push(status),
+    onStatusChange: (status) => statuses.push(status),
     updater,
   })
 }
 
-function loggerStub(
-  warnings: Array<Record<string, unknown> | undefined> = [],
-): DesktopLogger {
+function loggerStub(warnings: Array<Record<string, unknown> | undefined> = []): DesktopLogger {
   return {
-    directory: "",
+    directory: '',
     consoleEnabled: false,
     debug: () => {},
     info: () => {},
@@ -143,7 +135,7 @@ function deferred(): {
   resolve: () => void
 } {
   let resolve = (): void => {}
-  const promise = new Promise<void>(resolvePromise => {
+  const promise = new Promise<void>((resolvePromise) => {
     resolve = resolvePromise
   })
   return { promise, resolve }

@@ -8,9 +8,7 @@ export function notifyProjectCatalogChanged(): void {
   }
 }
 
-export function subscribeProjectCatalogChanges(
-  listener: ProjectCatalogListener,
-): () => void {
+export function subscribeProjectCatalogChanges(listener: ProjectCatalogListener): () => void {
   projectCatalogListeners.add(listener)
   return () => projectCatalogListeners.delete(listener)
 }

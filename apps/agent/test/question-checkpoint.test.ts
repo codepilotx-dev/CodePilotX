@@ -1,12 +1,14 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { Effect } from "effect"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { QuestionService } from "../src/session/QuestionService"
-import { createLifecycleTools } from "../src/orchestration/pi/PiToolAdapter"
-import { EventHub } from "../src/storage/events/EventHub"
-import { AgentDatabase } from "../src/storage/database/AgentDatabase"
-import { Model, Provider } from "@codepilotx/model-schema"
+import { afterEach, describe, expect, test } from 'bun:test'
+import { Effect, Schema } from 'effect'
+import { RpcMethods, decodeServerRequestResult } from '@codepilotx/agent-protocol'
+import { ThreadReadViewRepository } from '../src/session/ThreadReadViewRepository'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { QuestionService } from '../src/session/QuestionService'
+import { createLifecycleTools } from '../src/orchestration/pi/PiToolAdapter'
+import { EventHub } from '../src/storage/events/EventHub'
+import { AgentDatabase } from '../src/storage/database/AgentDatabase'
+import { Model, Provider } from '@codepilotx/model-schema'
 
 const databases: AgentDatabase[] = []
 
@@ -14,160 +16,342 @@ afterEach(() => {
   for (const database of databases.splice(0)) database.close()
 })
 
-describe("问题 checkpoint", () => {
-  test("request_user_input 接受 rich questions 并拒绝越界超时", async () => {
-    const received: unknown[] = []
-    const [tool] = createLifecycleTools({
-      requestUserInput: async (input) => {
-        received.push(input)
-        return { paused: true }
-      },
-    }, { exposedTools: ["request_user_input"] } as never)
-    const input = {
-      questions: [{
-        id: "delivery",
-        header: "发送方式",
-        question: "下一条消息如何处理？",
-        options: [
-          { label: "Steer", description: "进入当前 Turn" },
-          { label: "排队", description: "等待下一 Turn" },
+describe('问题 checkpoint', () => {
+  test.each([false, true])(
+    '逐题跳过经过校验、持久化、严格历史及恢复保留（全部跳过：%s）',
+    async (skipAll) => {
+      const path = join(tmpdir(), `codepilotx-question-skip-${crypto.randomUUID()}.sqlite`)
+      const db = new AgentDatabase(path)
+      databases.push(db)
+      const hub = await Effect.runPromise(EventHub.make)
+      const thread = db.createThread()
+      const input = {
+        content: '规划',
+        model: Model.Ref.make({
+          providerID: Provider.ID.make('openai'),
+          id: Model.ID.make('test'),
+        }),
+        permissionConfig: {
+          sandboxMode: 'workspace-write',
+          approvalPolicy: 'on-request',
+          approvalsReviewer: 'user',
+        },
+        strategy: 'queue',
+        taskMode: 'plan',
+      } as const
+      const turn = db.createTurn(thread.id, input)
+      db.startTurnExecution(turn.turnID, { ...input, id: turn.inputID })
+      const service = new QuestionService(db, hub)
+      const id = await service.checkpoint(thread.id, turn.turnID, turn.agentID, {
+        kind: 'clarification',
+        questions: ['scope', 'format', 'selection'].map((id) => ({
+          id,
+          header: id,
+          question: `Choose ${id}`,
+          options: [
+            { label: 'A', description: '第一项说明' },
+            { label: 'B', description: '第二项说明' },
+          ],
+        })),
+        checkpoint: { state: '{"version":2}', interruption: { name: 'request_user_input' } },
+      })
+      const answers = ['scope', 'format', 'selection'].map((questionId, index) =>
+        skipAll || index === 0
+          ? { questionId, choiceIds: [], skipped: true as const }
+          : { questionId, choiceIds: [`${questionId}:1`] },
+      )
+      for (const invalid of [
+        answers.slice(1),
+        [{ questionId: 'scope', choiceIds: [] }, ...answers.slice(1)],
+        [{ ...answers[0], choiceIds: ['scope:0'] }, ...answers.slice(1)],
+        [{ ...answers[0], text: '' }, ...answers.slice(1)],
+        [...answers, answers[0]],
+      ])
+        await expect(service.reply(id, invalid)).rejects.toThrow()
+      await expect(service.reply(id, answers, false, 'auto')).rejects.toThrow()
+      expect(db.repositories.interactions.isQuestionPending(id)).toBe(true)
+      await service.reply(id, answers, false, 'user', false)
+      const event = db.sqlite
+        .query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?")
+        .get(turn.turnID) as { params: string }
+      expect(
+        decodeServerRequestResult('question/request', JSON.parse(event.params).result),
+      ).toMatchObject({ status: 'answered', answers })
+      service.dispose()
+      databases.splice(databases.indexOf(db), 1)
+      db.close()
+      const reopened = new AgentDatabase(path)
+      databases.push(reopened)
+      // Restart recovery queues the interrupted turn; resume it before reading its history page.
+      reopened.startTurnExecution(turn.turnID, { ...input, id: turn.inputID })
+      const definition = RpcMethods['thread/history/read']
+      const history = new ThreadReadViewRepository(reopened).history(thread.id, { limit: 10 })
+      const encoded = Schema.encodeSync(definition.result, { onExcessProperty: 'error' })(history)
+      const question = encoded.turns
+        .flatMap((turn) => turn.items)
+        .find((item) => item.type === 'question')
+      expect(question).toMatchObject({
+        id,
+        status: 'answered',
+        answers,
+        questions: [
+          {
+            id: 'scope',
+            minAnswers: 1,
+            maxAnswers: 1,
+            choices: [{ description: '第一项说明' }, { description: '第二项说明' }],
+          },
+          { id: 'format' },
+          { id: 'selection' },
         ],
-      }],
+      })
+      const restored = new QuestionService(reopened, hub)
+      expect(JSON.parse(restored.claimResolvedCheckpoint(turn.turnID)!.approval.answer!)).toEqual({
+        resolution: 'user',
+        answers,
+      })
+      restored.dispose()
+    },
+  )
+
+  test('request_user_input 接受 rich questions 并拒绝越界超时', async () => {
+    const received: unknown[] = []
+    const [tool] = createLifecycleTools(
+      {
+        requestUserInput: async (input) => {
+          received.push(input)
+          return { paused: true }
+        },
+      },
+      { exposedTools: ['request_user_input'] } as never,
+    )
+    const input = {
+      questions: [
+        {
+          id: 'delivery',
+          header: '发送方式',
+          question: '下一条消息如何处理？',
+          options: [
+            { label: 'Steer', description: '进入当前 Turn' },
+            { label: '排队', description: '等待下一 Turn' },
+          ],
+        },
+      ],
       autoResolutionMs: 60_000,
     }
-    await tool!.execute("question-call", input as never, new AbortController().signal)
+    await tool!.execute('question-call', input as never, new AbortController().signal)
     expect(received).toEqual([input])
-    await expect(tool!.execute("question-call-2", { ...input, autoResolutionMs: 59_999 } as never, new AbortController().signal)).rejects.toThrow()
+    await expect(
+      tool!.execute(
+        'question-call-2',
+        { ...input, autoResolutionMs: 59_999 } as never,
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow()
   })
 
-  test("rich questions 按结构化 answers 恢复，不压平多题答案", async () => {
-    const db = new AgentDatabase(join(tmpdir(), `codepilotx-question-rich-${crypto.randomUUID()}.sqlite`))
+  test('rich questions 按结构化 answers 恢复，不压平多题答案', async () => {
+    const db = new AgentDatabase(
+      join(tmpdir(), `codepilotx-question-rich-${crypto.randomUUID()}.sqlite`),
+    )
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
     const thread = db.createThread()
-    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "plan" } as const
+    const input = {
+      content: '规划一个改动',
+      model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      },
+      strategy: 'queue',
+      taskMode: 'plan',
+    } as const
     const turn = db.createTurn(thread.id, input)
     db.claimTurnExecution(turn.turnID)
     const questions = new QuestionService(db, hub)
     const id = await questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
-      kind: "clarification",
+      kind: 'clarification',
       questions: [
         {
-          id: "delivery",
-          header: "发送方式",
-          question: "下一条消息如何处理？",
+          id: 'delivery',
+          header: '发送方式',
+          question: '下一条消息如何处理？',
           options: [
-            { label: "Steer", description: "进入当前 Turn" },
-            { label: "排队", description: "等待下一 Turn" },
+            { label: 'Steer', description: '进入当前 Turn' },
+            { label: '排队', description: '等待下一 Turn' },
           ],
         },
         {
-          id: "persist",
-          header: "持久化",
-          question: "是否持久化？",
+          id: 'persist',
+          header: '持久化',
+          question: '是否持久化？',
           options: [
-            { label: "是", description: "写入 SQLite" },
-            { label: "否", description: "仅保存在内存" },
+            { label: '是', description: '写入 SQLite' },
+            { label: '否', description: '仅保存在内存' },
           ],
         },
       ],
-      checkpoint: { state: '{"version":2}', interruption: { name: "request_user_input" } },
+      checkpoint: {
+        state: '{"version":2}',
+        interruption: {
+          name: 'request_user_input',
+          toolCallID: 'question-call',
+        },
+      },
     })
-    const row = db.sqlite.query("SELECT payload, payload_version FROM question_requests WHERE id = ?").get(id) as { payload: string; payload_version: number }
+    const row = db.sqlite
+      .query('SELECT payload, payload_version, tool_call_id FROM question_requests WHERE id = ?')
+      .get(id) as { payload: string; payload_version: number; tool_call_id: string }
     expect(row.payload_version).toBe(2)
+    expect(row.tool_call_id).toBe('question-call')
     expect(JSON.parse(row.payload).questions).toHaveLength(2)
 
     await questions.reply(id, [
-      { questionId: "delivery", choiceIds: ["delivery:0"] },
-      { questionId: "persist", choiceIds: [], text: "需要持久化" },
+      { questionId: 'delivery', choiceIds: ['delivery:0'] },
+      { questionId: 'persist', choiceIds: [], text: '需要持久化' },
     ])
     const checkpoint = questions.claimResolvedCheckpoint(turn.turnID)
     expect(JSON.parse(checkpoint!.approval.answer!)).toEqual({
-      resolution: "user",
+      resolution: 'user',
       answers: [
-        { questionId: "delivery", choiceIds: ["delivery:0"] },
-        { questionId: "persist", choiceIds: [], text: "需要持久化" },
+        { questionId: 'delivery', choiceIds: ['delivery:0'] },
+        { questionId: 'persist', choiceIds: [], text: '需要持久化' },
       ],
     })
   })
 
-  test("回复持久化 RunState 并触发恢复回调，不依赖内存 Promise", async () => {
-    const db = new AgentDatabase(join(tmpdir(), `codepilotx-question-${crypto.randomUUID()}.sqlite`))
+  test('回复持久化 RunState 并触发恢复回调，不依赖内存 Promise', async () => {
+    const db = new AgentDatabase(
+      join(tmpdir(), `codepilotx-question-${crypto.randomUUID()}.sqlite`),
+    )
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
     const thread = db.createThread()
-    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "plan" } as const
+    const input = {
+      content: '规划一个改动',
+      model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      },
+      strategy: 'queue',
+      taskMode: 'plan',
+    } as const
     const turn = db.createTurn(thread.id, input)
     db.claimTurnExecution(turn.turnID)
     const questions = new QuestionService(db, hub)
     const resumed: string[] = []
     questions.setResumeHandler((_threadID, turnID) => resumed.push(turnID))
     const id = await questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
-      kind: "clarification",
-      question: "选择实现方式",
-      options: ["A", "B"],
-      checkpoint: { state: '{"version":1}', interruption: { name: "request_user_input" } },
+      kind: 'clarification',
+      question: '选择实现方式',
+      options: ['A', 'B'],
+      checkpoint: { state: '{"version":1}', interruption: { name: 'request_user_input' } },
     })
 
-    await questions.reply(id, "A")
+    await questions.reply(id, 'A')
     const checkpoint = questions.claimResolvedCheckpoint(turn.turnID)
 
     expect(resumed).toEqual([turn.turnID])
-    expect(checkpoint?.approval).toEqual({ state: '{"version":1}', interruption: { name: "request_user_input" }, answer: "A", checkpointID: id })
+    expect(checkpoint?.approval).toEqual({
+      state: '{"version":1}',
+      interruption: { name: 'request_user_input' },
+      answer: 'A',
+      checkpointID: id,
+    })
   })
 
-  test("问题创建和回复在 outbox 失败时整体回滚", async () => {
-    const db = new AgentDatabase(join(tmpdir(), `codepilotx-question-atomic-${crypto.randomUUID()}.sqlite`))
+  test('问题创建和回复在 outbox 失败时整体回滚', async () => {
+    const db = new AgentDatabase(
+      join(tmpdir(), `codepilotx-question-atomic-${crypto.randomUUID()}.sqlite`),
+    )
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
     const thread = db.createThread()
-    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "plan" } as const
+    const input = {
+      content: '规划一个改动',
+      model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      },
+      strategy: 'queue',
+      taskMode: 'plan',
+    } as const
     const turn = db.createTurn(thread.id, input)
     db.claimTurnExecution(turn.turnID)
     const questions = new QuestionService(db, hub)
-    db.sqlite.exec(`CREATE TRIGGER fail_question_requested BEFORE INSERT ON events WHEN NEW.method = 'question/requested' BEGIN SELECT RAISE(ABORT, 'question outbox unavailable'); END`)
-    await expect(questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
-      kind: "clarification",
-      question: "选择实现方式",
-      options: ["A", "B"],
-      checkpoint: { state: '{"version":1}', interruption: { name: "request_user_input" } },
-    })).rejects.toThrow("question outbox unavailable")
-    expect(db.sqlite.query("SELECT COUNT(*) AS count FROM question_requests WHERE turn_id = ?").get(turn.turnID)).toEqual({ count: 0 })
-    expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "running" })
-    db.sqlite.exec("DROP TRIGGER fail_question_requested")
+    db.sqlite.exec(
+      `CREATE TRIGGER fail_question_requested BEFORE INSERT ON events WHEN NEW.method = 'question/requested' BEGIN SELECT RAISE(ABORT, 'question outbox unavailable'); END`,
+    )
+    await expect(
+      questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
+        kind: 'clarification',
+        question: '选择实现方式',
+        options: ['A', 'B'],
+        checkpoint: { state: '{"version":1}', interruption: { name: 'request_user_input' } },
+      }),
+    ).rejects.toThrow('question outbox unavailable')
+    expect(
+      db.sqlite
+        .query('SELECT COUNT(*) AS count FROM question_requests WHERE turn_id = ?')
+        .get(turn.turnID),
+    ).toEqual({ count: 0 })
+    expect(db.sqlite.query('SELECT status FROM turns WHERE id = ?').get(turn.turnID)).toEqual({
+      status: 'running',
+    })
+    db.sqlite.exec('DROP TRIGGER fail_question_requested')
 
     const id = await questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
-      kind: "clarification",
-      question: "选择实现方式",
-      options: ["A", "B"],
-      checkpoint: { state: '{"version":1}', interruption: { name: "request_user_input" } },
+      kind: 'clarification',
+      question: '选择实现方式',
+      options: ['A', 'B'],
+      checkpoint: { state: '{"version":1}', interruption: { name: 'request_user_input' } },
     })
-    db.sqlite.exec(`CREATE TRIGGER fail_question_resolved BEFORE INSERT ON events WHEN NEW.method = 'interaction/resolved' BEGIN SELECT RAISE(ABORT, 'resolve outbox unavailable'); END`)
-    await expect(questions.reply(id, "A")).rejects.toThrow("resolve outbox unavailable")
-    expect(db.sqlite.query("SELECT status FROM question_requests WHERE id = ?").get(id)).toEqual({ status: "pending" })
-    expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "waiting_question" })
-    db.sqlite.exec("DROP TRIGGER fail_question_resolved")
+    db.sqlite.exec(
+      `CREATE TRIGGER fail_question_resolved BEFORE INSERT ON events WHEN NEW.method = 'interaction/resolved' BEGIN SELECT RAISE(ABORT, 'resolve outbox unavailable'); END`,
+    )
+    await expect(questions.reply(id, 'A')).rejects.toThrow('resolve outbox unavailable')
+    expect(db.sqlite.query('SELECT status FROM question_requests WHERE id = ?').get(id)).toEqual({
+      status: 'pending',
+    })
+    expect(db.sqlite.query('SELECT status FROM turns WHERE id = ?').get(turn.turnID)).toEqual({
+      status: 'waiting_question',
+    })
+    db.sqlite.exec('DROP TRIGGER fail_question_resolved')
 
     const operation = {
-      operationID: "question:resolve:atomic",
+      operationID: 'question:resolve:atomic',
       interactionID: id,
       response: {
-        kind: "question",
-        status: "answered",
-        answers: [{ questionId: "question-tool", choiceIds: ["question-tool:0"] }],
-        resolution: "user",
+        kind: 'question',
+        status: 'answered',
+        answers: [{ questionId: 'question-tool', choiceIds: ['question-tool:0'] }],
+        resolution: 'user',
       },
-      result: { interactionId: id, state: "resolved" },
+      result: { interactionId: id, state: 'resolved' },
     }
-    db.sqlite.exec(`CREATE TRIGGER fail_interaction_operation BEFORE INSERT ON interaction_operations BEGIN SELECT RAISE(ABORT, 'operation unavailable'); END`)
-    await expect(questions.reply(id, "A", false, "user", false, operation)).rejects.toThrow("operation unavailable")
-    expect(db.sqlite.query("SELECT status FROM question_requests WHERE id = ?").get(id)).toEqual({ status: "pending" })
+    db.sqlite.exec(
+      `CREATE TRIGGER fail_interaction_operation BEFORE INSERT ON interaction_operations BEGIN SELECT RAISE(ABORT, 'operation unavailable'); END`,
+    )
+    await expect(questions.reply(id, 'A', false, 'user', false, operation)).rejects.toThrow(
+      'operation unavailable',
+    )
+    expect(db.sqlite.query('SELECT status FROM question_requests WHERE id = ?').get(id)).toEqual({
+      status: 'pending',
+    })
     expect(db.interactionOperation(operation.operationID)).toBeNull()
-    db.sqlite.exec("DROP TRIGGER fail_interaction_operation")
+    db.sqlite.exec('DROP TRIGGER fail_interaction_operation')
 
-    await questions.reply(id, "A", false, "user", false, operation)
+    await questions.reply(id, 'A', false, 'user', false, operation)
     expect(db.interactionOperation(operation.operationID)?.result).toEqual(operation.result)
-    const resolvedEvent = db.sqlite.query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?").get(turn.turnID) as { params: string }
+    const resolvedEvent = db.sqlite
+      .query("SELECT params FROM events WHERE method = 'interaction/resolved' AND turn_id = ?")
+      .get(turn.turnID) as { params: string }
     expect(JSON.parse(resolvedEvent.params)).toEqual({
       interactionId: id,
       result: operation.response,

@@ -1,11 +1,16 @@
-import React, { Suspense, type ReactNode } from 'react'
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import React, { Suspense, useEffect, useState, useCallback, type ReactNode } from 'react'
 import {
   Bot,
+  Folder,
   FileText,
+  FileCode2,
   GitPullRequest,
   Globe2,
   ListChecks,
-  MessageSquarePlus,
+  MessageCirclePlus,
+  Paperclip,
+  SquarePlus,
   SquareTerminal,
 } from 'lucide-react'
 import type {
@@ -14,11 +19,16 @@ import type {
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopGitStatus,
+  DesktopPermissionMode,
+  DesktopModelSelection,
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { ReviewTabUiState } from './conversationUiState.js'
+import type { SideChatComposerRenderContext } from '../../session/conversation/SideChatThreadPanel.js'
+import type { ConversationItemContextValue } from '../../session/timeline/ConversationItemContext.js'
+import type { OpenPlanInDockRequest } from '../../session/workflow/WorkflowPlanCard.js'
 import type { FileDocumentLoadErrorPhase } from '../dock/RightDockPanels.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
 import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
@@ -27,17 +37,81 @@ import type {
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from '../dock/rightDockState.js'
+import {
+  WorkbenchPanelEmpty,
+  WorkbenchPanelLoading,
+  WorkbenchPanelUnavailable,
+} from '../panels/WorkbenchPanelStates.js'
+import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
+import { WorkspaceReviewSidebar } from '../../review/workspace/WorkspaceReviewSidebar.js'
+import {
+  RightDockFilePreviewPanel,
+  RightDockFilesPanel,
+  RightDockPlanPanel,
+  RightDockSkillPreviewPanel,
+} from '../dock/RightDockPanels.js'
+import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
+import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
 
-const DesktopBrowserPanel = React.lazy(() => import('../../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
-const WorkspaceReviewSidebar = React.lazy(() => import('../../review/workspace/WorkspaceReviewSidebar.js').then(module => ({ default: module.WorkspaceReviewSidebar })))
-const RightDockFilePreviewPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
-const RightDockFilesPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
-const RightDockPlanPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
-const RightDockSideChatPanel = React.lazy(() => import('../dock/RightDockPanels.js').then(module => ({ default: module.RightDockSideChatPanel })))
-const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
+const DesktopBrowserPanel = React.lazy(() =>
+  import('../../browser/DesktopBrowserPanel.js').then((module) => ({
+    default: module.DesktopBrowserPanel,
+  })),
+)
+const TerminalPanel = React.lazy(() =>
+  import('../../terminal/TerminalPanel.js').then((module) => ({ default: module.TerminalPanel })),
+)
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
+}
+
+function BrowserTabContent({
+  tab,
+  context,
+}: {
+  tab: Extract<WorkbenchTabDescriptor, { kind: 'browser' }>
+  context: WorkbenchTabRenderContext['browser']
+}): React.ReactNode {
+  const client = desktopBrowserClient.forTab(tab.tabId)
+  const [state, setState] = useState<DesktopBrowserState | null>(() => client.getTab(tab.tabId))
+  const onStateChange = useCallback(
+    (next: DesktopBrowserState) => {
+      setState(next)
+      context.onStateChange(next)
+    },
+    [context.onStateChange],
+  )
+  useEffect(() => {
+    if (context.availability.status !== 'available') return
+    desktopBrowserClient.selectTab(tab.tabId)
+    const unsubscribe = client.onBrowserStateChange(onStateChange)
+    void client
+      .openBrowser()
+      .then(() => client.setBrowserVisible(true))
+      .then(onStateChange)
+      .catch(() => undefined)
+    return () => {
+      unsubscribe()
+      void client.setBrowserVisible(false).catch(() => undefined)
+    }
+  }, [client, tab.tabId, context.availability.status, onStateChange])
+  if (context.availability.status === 'unavailable')
+    return (
+      <WorkbenchPanelUnavailable
+        title="内置浏览器不可用"
+        description={context.availability.reason ?? '当前环境没有浏览器能力。'}
+      />
+    )
+  if (!state) return <WorkbenchPanelLoading label="正在连接内置浏览器…" />
+  return deferred(
+    <DesktopBrowserPanel
+      {...context}
+      client={client}
+      state={state}
+      onStateChange={onStateChange}
+    />,
+  )
 }
 
 export type WorkbenchTabRenderContext = {
@@ -58,16 +132,18 @@ export type WorkbenchTabRenderContext = {
     onOpenWorkspacePath: () => void
     onRefreshDiff: () => void
     onReviewTabStateChange: (
-      value:
-        | ReviewTabUiState
-        | ((current: ReviewTabUiState) => ReviewTabUiState),
+      value: ReviewTabUiState | ((current: ReviewTabUiState) => ReviewTabUiState),
     ) => void
     onToggleReviewView: () => void
   }
   browser: {
+    availability: WorkbenchTabAvailability
     state: DesktopBrowserState | null
-    onAppendAnnotation: (text: string) => void
-    onAppendComposerText?: (text: string) => void
+    threadId?: string | null
+    onNewTab?: () => void
+    draftKey: import('../../session/composer/composerTypes.js').ComposerDraftKey
+    onOpenSettings?: () => void
+    onAppendImage?: (image: { data: string; mimeType: 'image/png' }) => void
     onStateChange: (state: DesktopBrowserState) => void
   }
   files: {
@@ -91,18 +167,47 @@ export type WorkbenchTabRenderContext = {
   }
   planContentByEventId: Readonly<Record<string, string>>
   sideChat: {
-    composer: ReactNode
-    focusVersion: number
+    activeTabId: WorkbenchTabDescriptor['id'] | null
     available: boolean
+    focusVersion: number
+    isCreating: (tabId: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>['id']) => boolean
+    itemContext: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+      status: DesktopSessionStatus,
+    ) => ConversationItemContextValue
+    getPermissionMode: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    ) => DesktopPermissionMode
+    getModelSelection?: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    ) => Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
+    onInteractionError: (message: string) => void
+    onOpenPatchReview?: (path?: string) => void
+    onOpenPlan?: (request: OpenPlanInDockRequest) => void
+    onRecreate: (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>) => void
+    onStateChange: (threadId: string, count: number, status: DesktopSessionStatus) => void
+    renderComposer: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+      context: SideChatComposerRenderContext,
+    ) => ReactNode
   }
   sideTask: {
     activeTaskId: string | null
+    availability: WorkbenchTabAvailability
     content?: ReactNode
   }
   terminal: {
+    availability: WorkbenchTabAvailability
     threadId: string | null
     onDisplayPathChange: (displayPath: string | null) => void
   }
+}
+
+export type WorkbenchTabLifecycle = 'unmount-when-hidden' | 'keep-alive-hidden' | 'external-surface'
+
+export type WorkbenchTabAvailability = {
+  status: 'loading' | 'available' | 'unavailable'
+  reason?: string
 }
 
 export type WorkbenchTabDefinition = {
@@ -111,15 +216,40 @@ export type WorkbenchTabDefinition = {
   icon: ReactNode
   shortcut?: string
   launcher: boolean
+  launcherLabel?: string
+  launcherIcon?: ReactNode
+  launcherShortcut?: string | null
+  lifecycle: WorkbenchTabLifecycle
+  getAvailability?: (context: WorkbenchTabRenderContext) => WorkbenchTabAvailability
   getTitle: (tab: WorkbenchTabDescriptor) => string
   getIcon?: (tab: WorkbenchTabDescriptor) => ReactNode
-  render: (
-    tab: WorkbenchTabDescriptor,
-    context: WorkbenchTabRenderContext,
-  ) => ReactNode
+  render: (tab: WorkbenchTabDescriptor, context: WorkbenchTabRenderContext) => ReactNode
 }
 
-const iconSize = 14
+const iconSize = APP_ICON_SIZE
+
+const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
+  review: 0,
+  terminal: 1,
+  browser: 2,
+  'file-browser': 3,
+  'side-chat': 4,
+}
+
+export function getWorkbenchLauncherPresentation(definition: WorkbenchTabDefinition): {
+  label: string
+  icon: ReactNode
+  shortcut?: string
+} {
+  return {
+    label: definition.launcherLabel ?? definition.label,
+    icon: definition.launcherIcon ?? definition.icon,
+    shortcut:
+      definition.launcherShortcut === undefined
+        ? definition.shortcut
+        : (definition.launcherShortcut ?? undefined),
+  }
+}
 
 const definitions: readonly WorkbenchTabDefinition[] = [
   {
@@ -128,10 +258,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <GitPullRequest size={iconSize} />,
     shortcut: 'Ctrl+Shift+G',
     launcher: true,
+    lifecycle: 'unmount-when-hidden',
+    launcherIcon: <SquarePlus size={iconSize} />,
     getTitle: () => '审阅',
-    render: (_tab, context) => deferred(
-      <WorkspaceReviewSidebar {...context.review} />,
-    ),
+    render: (_tab, context) => <WorkspaceReviewSidebar {...context.review} />,
   },
   {
     kind: 'browser',
@@ -139,8 +269,14 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <Globe2 size={iconSize} />,
     shortcut: 'Ctrl+T',
     launcher: true,
-    getTitle: () => '浏览器',
-    render: (_tab, context) => deferred(<DesktopBrowserPanel {...context.browser} />),
+    lifecycle: 'external-surface',
+    getAvailability: (context) => context.browser.availability,
+    getTitle: (tab) =>
+      tab.kind === 'browser'
+        ? `${tab.title || '浏览器'}${tab.busy ? ' · 运行中' : tab.suspended ? ' · 已暂停' : ''}`
+        : '浏览器',
+    render: (tab, context) =>
+      tab.kind === 'browser' ? <BrowserTabContent tab={tab} context={context.browser} /> : null,
   },
   {
     kind: 'file-browser',
@@ -148,17 +284,21 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileText size={iconSize} />,
     shortcut: 'Ctrl+Shift+E',
     launcher: true,
+    lifecycle: 'unmount-when-hidden',
+    launcherLabel: '文件',
+    launcherIcon: <Folder size={iconSize} />,
+    launcherShortcut: 'Ctrl+P',
     getTitle: () => '打开文件',
     render: (tab, context) => {
       const directoryPath = tab.kind === 'file-browser' ? tab.directoryPath : undefined
-      return deferred(
+      return (
         <RightDockFilesPanel
           activePath={directoryPath ?? null}
           files={context.files.files}
           workspace={context.files.workspace}
           onAddComposerFiles={context.files.onAddComposerFiles}
           onOpenFile={(file) => context.files.onOpenFileFromBrowser(file)}
-        />,
+        />
       )
     },
   },
@@ -167,17 +307,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     label: '文件预览',
     icon: <FileText size={iconSize} />,
     launcher: false,
-    getTitle: tab =>
-      tab.kind === 'file-preview'
-        ? basename(tab.relativePath)
-        : '文件预览',
-    getIcon: tab =>
-      tab.kind === 'file-preview' ? (
-        <FileTypeIcon path={tab.relativePath} size={16} />
-      ) : (
-        <FileText size={iconSize} />
-      ),
-    render: (tab, context) => deferred(
+    lifecycle: 'unmount-when-hidden',
+    getTitle: (tab) => (tab.kind === 'file-preview' ? basename(tab.relativePath) : '文件预览'),
+    getIcon: () => <FileText size={iconSize} />,
+    render: (tab, context) =>
       tab.kind === 'file-preview' ? (
         <RightDockFilePreviewPanel
           expectedPath={tab.relativePath}
@@ -189,13 +322,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           revealLine={tab.line}
           previewTab={tab.preview}
           markdownViewMode={tab.markdownViewMode}
-          onSetMarkdownViewMode={mode =>
-            context.files.onSetFileMarkdownViewMode(tab.id, mode)
-          }
+          onSetMarkdownViewMode={(mode) => context.files.onSetFileMarkdownViewMode(tab.id, mode)}
           onPinTab={() => context.files.onPinFileTab(tab.id)}
-          onLoadError={(error, phase) =>
-            context.files.onLoadError(tab, error, phase)
-          }
+          onLoadError={(error, phase) => context.files.onLoadError(tab, error, phase)}
           onOpenFile={(file, options) => {
             context.files.onPreviewFile(file)
             if (!options.preview && file.type === 'file') {
@@ -213,43 +342,70 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onAppendComposerText={context.files.onAppendComposerText}
         />
       ) : null,
-    ),
   },
   {
     kind: 'plan',
     label: '计划',
     icon: <ListChecks size={iconSize} />,
     launcher: false,
-    getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
-    render: (tab, context) => deferred(
+    lifecycle: 'unmount-when-hidden',
+    getTitle: (tab) => (tab.kind === 'plan' ? tab.title : '计划'),
+    render: (tab, context) => (
       <RightDockPlanPanel
         content={
           tab.kind === 'plan'
-            ? context.planContentByEventId[tab.eventId] ?? null
+            ? tab.content?.trim() || context.planContentByEventId[tab.eventId] || null
             : null
         }
-      />,
+      />
     ),
+  },
+  {
+    kind: 'skill-preview',
+    label: '技能预览',
+    icon: <FileCode2 size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getTitle: (tab) => (tab.kind === 'skill-preview' ? tab.skill.name : '技能预览'),
+    render: (tab) =>
+      tab.kind === 'skill-preview' ? <RightDockSkillPreviewPanel tab={tab} /> : null,
+  },
+  {
+    kind: 'attachment-preview',
+    label: '用户附件',
+    icon: <Paperclip size={iconSize} />,
+    launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getTitle: () => '用户附件',
+    render: (tab) =>
+      tab.kind === 'attachment-preview' ? <UserAttachmentPreviewPanel tab={tab} /> : null,
   },
   {
     kind: 'side-chat',
     label: '侧边聊天',
-    icon: <MessageSquarePlus size={iconSize} />,
+    icon: <MessageCirclePlus size={iconSize} />,
     shortcut: 'Ctrl+Alt+S',
     launcher: true,
-    getTitle: () => '侧边聊天',
-    render: (_tab, context) =>
-      context.sideChat.available ? (
-        deferred(<RightDockSideChatPanel
-          composer={context.sideChat.composer}
+    lifecycle: 'unmount-when-hidden',
+    getTitle: (tab) => (tab.kind === 'side-chat' ? tab.title : '侧边聊天'),
+    render: (tab, context) =>
+      tab.kind === 'side-chat' ? (
+        <SideChatThreadPanel
+          active={context.sideChat.activeTabId === tab.id}
+          creating={context.sideChat.isCreating(tab.id)}
           focusVersion={context.sideChat.focusVersion}
-        />)
-      ) : (
-        <div className="right-dock-empty-state">
-          <strong>侧边聊天已在其他标签切换</strong>
-          <span>选择此标签即可继续草稿。</span>
-        </div>
-      ),
+          itemContext={(status) => context.sideChat.itemContext(tab, status)}
+          onInteractionError={context.sideChat.onInteractionError}
+          onOpenPatchReview={context.sideChat.onOpenPatchReview}
+          onOpenPlan={context.sideChat.onOpenPlan}
+          onRecreate={context.sideChat.onRecreate}
+          onStateChange={context.sideChat.onStateChange}
+          permissionMode={context.sideChat.getPermissionMode(tab)}
+          modelSelection={context.sideChat.getModelSelection?.(tab)}
+          renderComposer={context.sideChat.renderComposer}
+          tab={tab}
+        />
+      ) : null,
   },
   {
     kind: 'terminal',
@@ -257,9 +413,25 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <SquareTerminal size={iconSize} />,
     shortcut: 'Ctrl+`',
     launcher: true,
+    launcherShortcut: null,
+    lifecycle: 'keep-alive-hidden',
+    getAvailability: (context) => context.terminal.availability,
     getTitle: () => '终端',
-    render: (_tab, context) =>
-      context.terminal.threadId ? (
+    render: (_tab, context) => {
+      if (context.terminal.availability.status === 'loading') {
+        return <WorkbenchPanelLoading label="正在连接集成终端…" />
+      }
+      if (context.terminal.availability.status === 'unavailable') {
+        return (
+          <WorkbenchPanelUnavailable
+            title="集成终端不可用"
+            description={
+              context.terminal.availability.reason ?? '当前桌面运行环境没有提供终端能力。'
+            }
+          />
+        )
+      }
+      return context.terminal.threadId ? (
         deferred(
           <TerminalPanel
             threadId={context.terminal.threadId}
@@ -267,24 +439,26 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           />,
         )
       ) : (
-        <div className="right-dock-empty-state">
-          <strong>请先创建任务</strong>
-          <span>集成终端会绑定到当前任务的工作目录。</span>
-        </div>
-      ),
+        <WorkbenchPanelEmpty
+          title="请先创建任务"
+          description="集成终端会绑定到当前任务的工作目录。"
+        />
+      )
+    },
   },
   {
     kind: 'side-task',
     label: '子智能体',
     icon: <Bot size={iconSize} />,
     launcher: false,
+    lifecycle: 'unmount-when-hidden',
+    getAvailability: (context) => context.sideTask.availability,
     getTitle: () => '子智能体',
     render: (tab, context) =>
-      tab.kind === 'side-task' &&
-      context.sideTask.activeTaskId === tab.taskId ? (
-        context.sideTask.content ?? (
+      tab.kind === 'side-task' && context.sideTask.activeTaskId === tab.taskId ? (
+        (context.sideTask.content ?? (
           <div className="right-dock-empty-state">正在加载子智能体…</div>
-        )
+        ))
       ) : (
         <div className="right-dock-empty-state">
           <strong>子智能体已在其他标签切换</strong>
@@ -294,7 +468,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
   },
 ]
 
-const registry = new Map(definitions.map(definition => [definition.kind, definition]))
+const registry = new Map(definitions.map((definition) => [definition.kind, definition]))
 
 export function getWorkbenchTabDefinition(
   tabOrKind: WorkbenchTabDescriptor | WorkbenchTabKind,
@@ -318,18 +492,30 @@ export function getWorkbenchTabDisplayTitle(
 }
 
 export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
-  return definitions.filter(definition => definition.launcher)
+  return definitions
+    .filter((definition) => definition.launcher)
+    .map((definition, index) => ({ definition, index }))
+    .sort((left, right) => {
+      const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
+      const rightOrder = WORKBENCH_LAUNCHER_ORDER[right.definition.kind]
+      return (
+        (leftOrder ?? Object.keys(WORKBENCH_LAUNCHER_ORDER).length + left.index) -
+        (rightOrder ?? Object.keys(WORKBENCH_LAUNCHER_ORDER).length + right.index)
+      )
+    })
+    .map(({ definition }) => definition)
 }
 
-export function createLauncherTab(
-  kind: WorkbenchTabKind,
-): WorkbenchTabDescriptor | null {
+export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescriptor | null {
   if (kind === 'review') return { id: 'review', kind: 'review' }
-  if (kind === 'browser') return { id: 'browser', kind: 'browser' }
+  if (kind === 'browser') {
+    const tabId = crypto.randomUUID()
+    return { id: `browser:${tabId}`, kind: 'browser', tabId }
+  }
   if (kind === 'file-browser') {
     return { id: 'file-browser', kind: 'file-browser' }
   }
-  if (kind === 'side-chat') return { id: 'side-chat', kind: 'side-chat' }
+  if (kind === 'side-chat') return null
   if (kind === 'terminal') return { id: 'terminal', kind: 'terminal' }
   return null
 }

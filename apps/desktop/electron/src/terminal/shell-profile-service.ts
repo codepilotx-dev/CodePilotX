@@ -1,7 +1,7 @@
-import { existsSync } from "node:fs"
-import { join } from "node:path"
-import type { DesktopTerminalProfile } from "@codepilotx/shared/desktop-terminal-ipc"
-import { TerminalError } from "./terminal-errors.js"
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
+import { TerminalError } from './terminal-errors.js'
 
 export interface ResolvedShellProfile extends DesktopTerminalProfile {
   executable: string
@@ -30,13 +30,10 @@ export class ShellProfileService {
 
   resolve(profileId: string | null): ResolvedShellProfile {
     const profile = profileId
-      ? this.#profiles.find(candidate => candidate.id === profileId)
-      : this.#profiles.find(candidate => candidate.isDefault)
+      ? this.#profiles.find((candidate) => candidate.id === profileId)
+      : this.#profiles.find((candidate) => candidate.isDefault)
     if (!profile?.available) {
-      throw new TerminalError(
-        "TERMINAL_PROFILE_UNAVAILABLE",
-        "所选 Shell 当前不可用",
-      )
+      throw new TerminalError('TERMINAL_PROFILE_UNAVAILABLE', '所选 Shell 当前不可用')
     }
     return profile
   }
@@ -47,33 +44,47 @@ function detectProfiles(
   environment: NodeJS.ProcessEnv,
   fileExists: (path: string) => boolean,
 ): readonly ResolvedShellProfile[] {
-  if (platform === "win32") {
-    const systemRoot = environment.SystemRoot ?? "C:\\Windows"
+  if (platform === 'win32') {
+    const systemRoot = environment.SystemRoot ?? 'C:\\Windows'
     const candidates = [
-      profile("pwsh", "PowerShell 7", findOnPath("pwsh.exe", environment, fileExists, platform), []),
       profile(
-        "windows-powershell",
-        "Windows PowerShell",
-        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+        'pwsh',
+        'PowerShell 7',
+        findOnPath('pwsh.exe', environment, fileExists, platform),
         [],
       ),
-      profile("cmd", "Command Prompt", environment.ComSpec ?? join(systemRoot, "System32", "cmd.exe"), []),
-      profile("git-bash", "Git Bash", findGitBash(environment, fileExists, platform), ["--login", "-i"]),
+      profile(
+        'windows-powershell',
+        'Windows PowerShell',
+        join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+        [],
+      ),
+      profile(
+        'cmd',
+        'Command Prompt',
+        environment.ComSpec ?? join(systemRoot, 'System32', 'cmd.exe'),
+        [],
+      ),
+      profile('git-bash', 'Git Bash', findGitBash(environment, fileExists, platform), [
+        '--login',
+        '-i',
+      ]),
     ]
     return markDefault(candidates, fileExists)
   }
   const shell = environment.SHELL?.trim()
-  const candidates = platform === "darwin"
-    ? [
-        profile("user-shell", "Default Shell", shell, ["-l"]),
-        profile("zsh", "zsh", "/bin/zsh", ["-l"]),
-        profile("bash", "bash", "/bin/bash", ["-l"]),
-      ]
-    : [
-        profile("user-shell", "Default Shell", shell, ["-l"]),
-        profile("bash", "bash", "/bin/bash", ["-l"]),
-        profile("sh", "sh", "/bin/sh", ["-l"]),
-      ]
+  const candidates =
+    platform === 'darwin'
+      ? [
+          profile('user-shell', 'Default Shell', shell, ['-l']),
+          profile('zsh', 'zsh', '/bin/zsh', ['-l']),
+          profile('bash', 'bash', '/bin/bash', ['-l']),
+        ]
+      : [
+          profile('user-shell', 'Default Shell', shell, ['-l']),
+          profile('bash', 'bash', '/bin/bash', ['-l']),
+          profile('sh', 'sh', '/bin/sh', ['-l']),
+        ]
   return markDefault(candidates, fileExists)
 }
 
@@ -86,11 +97,11 @@ function profile(
   return {
     id,
     label,
-    executable: executable ?? "",
+    executable: executable ?? '',
     args,
     available: false,
     isDefault: false,
-    unavailableReason: "未找到可执行文件",
+    unavailableReason: '未找到可执行文件',
   }
 }
 
@@ -99,7 +110,7 @@ function markDefault(
   fileExists: (path: string) => boolean,
 ): readonly ResolvedShellProfile[] {
   let defaultAssigned = false
-  return candidates.map(candidate => {
+  return candidates.map((candidate) => {
     const available = candidate.executable.length > 0 && fileExists(candidate.executable)
     const isDefault = available && !defaultAssigned
     if (isDefault) defaultAssigned = true
@@ -118,8 +129,8 @@ function findOnPath(
   fileExists: (path: string) => boolean,
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
-  const pathValue = environment.Path ?? environment.PATH ?? ""
-  for (const directory of pathValue.split(platform === "win32" ? ";" : ":")) {
+  const pathValue = environment.Path ?? environment.PATH ?? ''
+  for (const directory of pathValue.split(platform === 'win32' ? ';' : ':')) {
     if (!directory) continue
     const candidate = join(directory, executable)
     if (fileExists(candidate)) return candidate
@@ -132,11 +143,11 @@ function findGitBash(
   fileExists: (path: string) => boolean,
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
-  const fromPath = findOnPath("bash.exe", environment, fileExists, platform)
+  const fromPath = findOnPath('bash.exe', environment, fileExists, platform)
   if (fromPath) return fromPath
-  for (const root of [environment.ProgramFiles, environment["ProgramFiles(x86)"]]) {
+  for (const root of [environment.ProgramFiles, environment['ProgramFiles(x86)']]) {
     if (!root) continue
-    const candidate = join(root, "Git", "bin", "bash.exe")
+    const candidate = join(root, 'Git', 'bin', 'bash.exe')
     if (fileExists(candidate)) return candidate
   }
   return undefined

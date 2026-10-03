@@ -1,8 +1,4 @@
-import {
-  createContext,
-  useContext,
-  type Context,
-} from 'react'
+import { createContext, useContext, type Context } from 'react'
 import type {
   DesktopThemeConfigV1,
   DesktopThemeMode,
@@ -30,9 +26,13 @@ export type DesktopThemeContextValue = {
   resolvedVariant: DesktopThemeVariant
   activeTheme: DesktopThemeConfigV1
   codeThemeId: string
+  reducedMotion: boolean
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
+  canRestorePreviousAppearance: () => Promise<boolean>
+  restorePreviousAppearance: () => Promise<void>
+  applyNewDesignTheme: () => Promise<void>
 }
 
 type DesktopThemeHotData = {
@@ -42,8 +42,7 @@ type DesktopThemeHotData = {
 const hotData = import.meta.hot?.data as DesktopThemeHotData | undefined
 
 export const DesktopThemeContext =
-  hotData?.desktopThemeContext ??
-  createContext<DesktopThemeContextValue | null>(null)
+  hotData?.desktopThemeContext ?? createContext<DesktopThemeContextValue | null>(null)
 
 if (import.meta.hot) {
   const data = import.meta.hot.data as DesktopThemeHotData

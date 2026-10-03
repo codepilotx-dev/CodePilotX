@@ -17,9 +17,8 @@ export function anchorPopoverToButton(
   const margin = 6
 
   let side: PopoverAnchorSide = preferredSide
-  let left = preferredSide === 'right'
-    ? anchorRect.right + margin
-    : anchorRect.left - popoverWidth - margin
+  let left =
+    preferredSide === 'right' ? anchorRect.right + margin : anchorRect.left - popoverWidth - margin
 
   if (side === 'right' && left + popoverWidth > viewportWidth - margin) {
     side = 'left'

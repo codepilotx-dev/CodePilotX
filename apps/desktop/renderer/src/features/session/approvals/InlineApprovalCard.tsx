@@ -1,24 +1,24 @@
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
-import { ArrowDown, ArrowUp, CornerDownLeft, Info, Pencil } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, X } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import type {
   DesktopPermissionDecision,
   DesktopPermissionGrantScope,
   DesktopPermissionMode,
-  DesktopPermissionRememberOptionId,
   DesktopPermissionRequest,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
+import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
+import { useQuestionSkipCapability } from './useQuestionSkipCapability.js'
+import { RequestCard } from './RequestCard.js'
 import {
   McpElicitationForm,
   McpElicitationUnsupported,
 } from '../mcpElicitation/McpElicitationForm.js'
-import {
-  getSchemaMode,
-  parseMcpElicitationSchema,
-} from '../mcpElicitation/mcpElicitationUtils.js'
-
-type ApprovalChoice = 'allow' | `remember:${DesktopPermissionRememberOptionId}`
+import { getSchemaMode, parseMcpElicitationSchema } from '../mcpElicitation/mcpElicitationUtils.js'
+import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 
 export type InlineApprovalCommand = {
   full: string
@@ -41,21 +41,18 @@ export function permissionGrantScopeOptions(
 ): PermissionGrantScopeOption[] {
   const grant = request.permissionGrant
   const allowedScopes = grant?.allowedScopes ?? []
-  const scopes = allowedScopes.length > 0
-    ? allowedScopes
-    : grant?.requestedScope
-      ? [grant.requestedScope]
-      : []
-  return scopes.map(scope => ({ scope, label: PERMISSION_GRANT_SCOPE_LABELS[scope] }))
+  const scopes =
+    allowedScopes.length > 0 ? allowedScopes : grant?.requestedScope ? [grant.requestedScope] : []
+  return scopes.map((scope) => ({ scope, label: PERMISSION_GRANT_SCOPE_LABELS[scope] }))
 }
 
 export function permissionGrantDefaultScope(
   options: PermissionGrantScopeOption[],
   requestedScope: DesktopPermissionGrantScope | undefined,
 ): DesktopPermissionGrantScope | null {
-  return options.find(option => option.scope === requestedScope)?.scope
-    ?? options[0]?.scope
-    ?? null
+  return (
+    options.find((option) => option.scope === requestedScope)?.scope ?? options[0]?.scope ?? null
+  )
 }
 
 export function permissionGrantGroups(
@@ -81,6 +78,9 @@ export function permissionGrantGroups(
 }
 
 export type InlineApprovalCardProps = {
+  identity?: string
+  disabledReason?: string
+  onInterrupt?: () => void | Promise<void>
   request: DesktopPermissionRequest
   currentPermissionMode?: DesktopPermissionMode
   onDecide: (
@@ -88,8 +88,8 @@ export type InlineApprovalCardProps = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<DesktopPermissionDecision, 'rememberOptionId' | 'grantScope'>,
-  ) => void
+    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope'>,
+  ) => void | Promise<void>
 }
 
 const COMMAND_HINT_MAX_LENGTH = 56
@@ -98,11 +98,20 @@ export function InlineApprovalCard({
   request,
   currentPermissionMode,
   onDecide,
+  onInterrupt,
+  identity,
+  disabledReason,
 }: InlineApprovalCardProps): React.ReactNode {
-  const [selectedChoice, setSelectedChoice] =
-    React.useState<ApprovalChoice>('allow')
-  const [feedback, setFeedback] = React.useState('')
+  const supportsQuestionSkip = useQuestionSkipCapability(
+    request.requestId,
+    request.toolName === 'AskUserQuestion',
+  )
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const busyRef = React.useRef(false)
+  const disabled = busy || Boolean(disabledReason)
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
+  const commandPreviewId = React.useId()
   const isPermissionGrant =
     request.requestKind === 'permission-grant' || Boolean(request.permissionGrant)
   const scopeOptions = permissionGrantScopeOptions(request)
@@ -110,60 +119,146 @@ export function InlineApprovalCard({
     scopeOptions,
     request.permissionGrant?.requestedScope,
   )
-  const [selectedScope, setSelectedScope] =
-    React.useState<DesktopPermissionGrantScope | null>(defaultScope)
+  const [selectedScope, setSelectedScope] = React.useState<DesktopPermissionGrantScope | null>(
+    defaultScope,
+  )
   React.useEffect(() => {
     // A fresh permission request must not inherit the scope chosen for the
     // previous one rendered by the same card instance.
     setSelectedScope(defaultScope)
+    busyRef.current = false
+    setBusy(false)
+    setError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
+  const commandPreviewTransition = useHeightTransition([isCommandExpanded, command.full])
   const approvalTitle = inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
   const reviewSummary = inlineApprovalReviewSummary(request)
-  const rememberOptions = request.rememberOptions ?? []
+  async function act(action: () => void | Promise<void>): Promise<void> {
+    if (busyRef.current || disabledReason) return
+    busyRef.current = true
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+    } catch {
+      setError('操作失败，请重试。')
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }
+  const navigation = onInterrupt ? (
+    <button
+      type="button"
+      className="ask-user-question-nav-button"
+      aria-label="中断当前对话"
+      disabled={disabled}
+      onClick={() => void act(onInterrupt)}
+    >
+      <X size={APP_ICON_SIZES.sm} />
+    </button>
+  ) : null
+  const actions = (
+    <div className="inline-approval-actions">
+      {isPermissionGrant && scopeOptions.length > 1 ? (
+        <Dropdown
+          width="auto"
+          align="end"
+          trigger={
+            <button
+              type="button"
+              className="inline-approval-scope-trigger"
+              disabled={disabled}
+              aria-label="授权范围"
+            >
+              {scopeOptions.find((option) => option.scope === selectedScope)?.label}
+              <ChevronDown size={APP_ICON_SIZES.sm} />
+            </button>
+          }
+        >
+          <DropdownMenu.RadioGroup
+            value={selectedScope ?? ''}
+            onValueChange={(value) => {
+              if (!disabled && scopeOptions.some((option) => option.scope === value))
+                setSelectedScope(value as DesktopPermissionGrantScope)
+            }}
+          >
+            {scopeOptions.map((option) => (
+              <DropdownMenu.RadioItem
+                className="popover-item"
+                key={option.scope}
+                value={option.scope}
+                disabled={disabled}
+              >
+                {option.label}
+              </DropdownMenu.RadioItem>
+            ))}
+          </DropdownMenu.RadioGroup>
+        </Dropdown>
+      ) : isPermissionGrant && selectedScope ? (
+        <span className="inline-approval-scope-label">
+          {PERMISSION_GRANT_SCOPE_LABELS[selectedScope]}
+        </span>
+      ) : null}
+      <Button
+        color="secondary"
+        disabled={disabled}
+        onClick={() => void act(() => onDecide(request, 'deny'))}
+      >
+        拒绝
+      </Button>
+      <Button
+        color="primary"
+        disabled={disabled || (isPermissionGrant && !selectedScope)}
+        onClick={() =>
+          void act(() =>
+            onDecide(
+              request,
+              'allow',
+              false,
+              undefined,
+              isPermissionGrant && selectedScope ? { grantScope: selectedScope } : undefined,
+            ),
+          )
+        }
+      >
+        {isPermissionGrant ? '允许' : '允许一次'}
+      </Button>
+    </div>
+  )
 
   if (request.toolName === 'AskUserQuestion') {
     return (
-      <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-question tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
-        data-variant="question"
-        aria-label="回答问题"
-      >
-        <AskUserQuestionApproval
-          request={request}
-          onReject={() => onDecide(request, 'deny')}
-          onSubmit={updatedInput =>
-            onDecide(request, 'allow', false, updatedInput)
-          }
-        />
-      </section>
+      <AskUserQuestionApproval
+        supportsQuestionSkip={supportsQuestionSkip}
+        identity={identity}
+        disabledReason={disabledReason}
+        onInterrupt={onInterrupt}
+        request={request}
+        onReject={() => onDecide(request, 'deny')}
+        onSubmit={(updatedInput) => onDecide(request, 'allow', false, updatedInput)}
+      />
     )
   }
 
   if (request.toolName === 'McpElicitation') {
-    const elicitationRequest = request.input?.request as
-      | Record<string, unknown>
-      | undefined
-    const serverName =
-      (request.input?.serverName as string) ?? '未知服务器'
+    const elicitationRequest = request.input?.request as Record<string, unknown> | undefined
+    const serverName = (request.input?.serverName as string) ?? '未知服务器'
     const message = (elicitationRequest?.message as string) ?? ''
     const mode = getSchemaMode(elicitationRequest)
 
     if (mode === 'form') {
-      const schema = parseMcpElicitationSchema(
-        elicitationRequest?.requestedSchema,
-      )
+      const schema = parseMcpElicitationSchema(elicitationRequest?.requestedSchema)
       if (schema) {
         return (
           <McpElicitationForm
             serverName={serverName}
             message={message}
             schema={schema}
-            onSubmit={content =>
-              onDecide(request, 'allow', false, { content })
-            }
+            onSubmit={(content) => onDecide(request, 'allow', false, { content })}
             onDecline={() => onDecide(request, 'deny')}
             onCancel={() =>
               onDecide(request, 'deny', false, {
@@ -195,23 +290,30 @@ export function InlineApprovalCard({
   if (isPermissionGrant) {
     const permissionGroups = permissionGrantGroups(request)
     return (
-      <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
-        data-variant="permission-grant"
-        aria-label="等待权限授权"
+      <RequestCard
+        title="需要额外权限，是否允许？"
+        variant="permission-grant"
+        identity={identity}
+        disabledReason={disabledReason}
+        error={error}
+        navigation={navigation}
       >
-        <header className="inline-approval-header">
-          <h2>需要额外权限，是否允许？</h2>
-        </header>
+        {request.description ? (
+          <p className="inline-approval-target">{request.description}</p>
+        ) : null}
+        {request.autoReviewFallbackReason ? (
+          <p className="inline-approval-target">
+            自动审查无法完成，已转为人工审批：{request.autoReviewFallbackReason}
+          </p>
+        ) : null}
+        {reviewSummary ? <p className="inline-approval-target">{reviewSummary}</p> : null}
         {permissionGroups.length > 0 ? (
           <div className="inline-approval-permission-grant">
-            {permissionGroups.map(group => (
+            {permissionGroups.map((group) => (
               <div className="inline-approval-permission-group" key={group.title}>
-                <span className="inline-approval-permission-group-title">
-                  {group.title}
-                </span>
+                <span className="inline-approval-permission-group-title">{group.title}</span>
                 <ul className="inline-approval-permission-group-items">
-                  {group.items.map(item => (
+                  {group.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -219,95 +321,54 @@ export function InlineApprovalCard({
             ))}
           </div>
         ) : null}
-        {scopeOptions.length > 0 ? (
-          <div
-            aria-label="授权范围"
-            className="inline-approval-options"
-            role="radiogroup"
-          >
-            {scopeOptions.map((option, index) => (
-              <ApprovalOption
-                key={option.scope}
-                index={index + 1}
-                label={option.label}
-                selected={selectedScope === option.scope}
-                onSelect={() => setSelectedScope(option.scope)}
-              />
-            ))}
-          </div>
-        ) : null}
-        <div className="inline-approval-fixed-option">
-          <div className="inline-approval-actions">
-            <Button onClick={() => onDecide(request, 'deny')}>
-              跳过
-            </Button>
-            <Button onClick={submitPermissionGrant}>
-              提交
-              <CornerDownLeft size={14} />
-            </Button>
-          </div>
-        </div>
-      </section>
+        {actions}
+      </RequestCard>
     )
   }
 
-  function submitPermissionGrant(): void {
-    const scope = selectedScope ?? defaultScope
-    if (scope) onDecide(request, 'allow', false, undefined, { grantScope: scope })
-    else onDecide(request, 'allow')
-  }
-
-  function submitChoice(): void {
-    if (feedback.trim()) {
-      onDecide(request, 'deny', false, { feedback: feedback.trim() })
-      return
-    }
-    const rememberOptionId = rememberOptionIdFromChoice(selectedChoice)
-    if (rememberOptionId) {
-      onDecide(request, 'allow', false, undefined, { rememberOptionId })
-      return
-    }
-    onDecide(request, 'allow')
-  }
-
   return (
-    <section
-      className="inline-approval-card workflow-composer-card workflow-composer-card-permission tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
-      data-variant="permission"
-      aria-label="等待审批"
+    <RequestCard
+      title={approvalTitle}
+      variant="permission"
+      identity={identity}
+      disabledReason={disabledReason}
+      error={error}
+      navigation={navigation}
     >
-      <header className="inline-approval-header">
-        <h2>{approvalTitle}</h2>
-      </header>
+      {request.description && request.description !== approvalTitle ? (
+        <p className="inline-approval-target">{request.description}</p>
+      ) : null}
       {request.autoReviewFallbackReason ? (
         <p className="inline-approval-target">
           自动审查无法完成，已转为人工审批：{request.autoReviewFallbackReason}
         </p>
       ) : null}
-      {reviewSummary ? (
-        <p className="inline-approval-target">{reviewSummary}</p>
-      ) : null}
+      {reviewSummary ? <p className="inline-approval-target">{reviewSummary}</p> : null}
 
       <div className="inline-approval-summary">
         <div
+          id={commandPreviewId}
+          ref={commandPreviewTransition.ref}
           className={
             isCommandExpanded
               ? 'inline-approval-command-preview expanded'
               : 'inline-approval-command-preview'
           }
+          style={commandPreviewTransition.style}
         >
           <div className="inline-approval-command-preview-header">
             <span>{previewLabel}</span>
             <button
+              aria-controls={commandPreviewId}
               type="button"
               aria-expanded={isCommandExpanded}
-              onClick={() => setIsCommandExpanded(value => !value)}
+              onClick={() => setIsCommandExpanded((value) => !value)}
             >
               {isCommandExpanded ? '折叠' : '展开'}
               {isCommandExpanded ? (
-                <ArrowUp size={14} />
+                <ArrowUp size={APP_ICON_SIZE} />
               ) : (
-                <ArrowDown size={14} />
+                <ArrowDown size={APP_ICON_SIZE} />
               )}
             </button>
           </div>
@@ -315,67 +376,8 @@ export function InlineApprovalCard({
         </div>
       </div>
 
-      <div className="inline-approval-options" role="radiogroup">
-        <ApprovalOption
-          index={1}
-          label="是"
-          selected={selectedChoice === 'allow'}
-          onSelect={() => setSelectedChoice('allow')}
-        />
-        {rememberOptions.map((option, index) => {
-          const choice = rememberChoice(option.id)
-          return (
-            <ApprovalOption
-              key={option.id}
-              index={index + 2}
-              label={option.label}
-              hint={option.hint}
-              selected={selectedChoice === choice}
-              onSelect={() => setSelectedChoice(choice)}
-            />
-          )
-        })}
-      </div>
-
-      <div className="inline-approval-fixed-option">
-        <div
-          className={
-            feedback.trim()
-              ? 'inline-approval-note filled'
-              : 'inline-approval-note'
-          }
-        >
-          <span className="inline-approval-note-icon" aria-hidden="true">
-            <Pencil size={16} />
-          </span>
-          <textarea
-            className="inline-approval-feedback-input"
-            placeholder="否，请告知 CodePilotX 如何调整"
-            rows={1}
-            value={feedback}
-            onChange={event => {
-              const next = event.target.value
-              setFeedback(next)
-              if (next.trim()) setSelectedChoice('allow')
-            }}
-          />
-        </div>
-
-        <div className="inline-approval-actions">
-          <Button
-            onClick={() => onDecide(request, 'deny')}
-          >
-            跳过
-          </Button>
-          <Button
-            onClick={submitChoice}
-          >
-            提交
-            <CornerDownLeft size={14} />
-          </Button>
-        </div>
-      </div>
-    </section>
+      {actions}
+    </RequestCard>
   )
 }
 
@@ -391,14 +393,10 @@ function inlineApprovalTitle(request: DesktopPermissionRequest): string {
 function inlineApprovalPreviewLabel(request: DesktopPermissionRequest): string {
   if (isCommandPermission(request)) return 'Shell'
   const affectedPaths = inlineApprovalAffectedPaths(request)
-  return affectedPaths.length > 0
-    ? `影响文件（${affectedPaths.length}）`
-    : request.toolName
+  return affectedPaths.length > 0 ? `影响文件（${affectedPaths.length}）` : request.toolName
 }
 
-function inlineApprovalReviewSummary(
-  request: DesktopPermissionRequest,
-): string | null {
+function inlineApprovalReviewSummary(request: DesktopPermissionRequest): string | null {
   const value = request.input.reviewSummary
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const summary = value as Record<string, unknown>
@@ -406,12 +404,8 @@ function inlineApprovalReviewSummary(
   const hunkCount = nonNegativeInteger(summary.hunkCount)
   const additions = nonNegativeInteger(summary.additions)
   const deletions = nonNegativeInteger(summary.deletions)
-  if (
-    fileCount === null ||
-    hunkCount === null ||
-    additions === null ||
-    deletions === null
-  ) return null
+  if (fileCount === null || hunkCount === null || additions === null || deletions === null)
+    return null
   return `${fileCount} 个文件，${hunkCount} 个变更块，+${additions} -${deletions}`
 }
 
@@ -421,73 +415,6 @@ function isCommandPermission(request: DesktopPermissionRequest): boolean {
     request.toolName === 'PowerShell' ||
     stringValue(request.input.command) !== null ||
     stringValue(request.input.cmd) !== null
-  )
-}
-
-function rememberChoice(
-  id: DesktopPermissionRememberOptionId,
-): ApprovalChoice {
-  return `remember:${id}`
-}
-
-function rememberOptionIdFromChoice(
-  choice: ApprovalChoice,
-): DesktopPermissionRememberOptionId | undefined {
-  return choice.startsWith('remember:')
-    ? (choice.slice('remember:'.length) as DesktopPermissionRememberOptionId)
-    : undefined
-}
-
-function ApprovalOption({
-  index,
-  indexIcon,
-  label,
-  hint,
-  muted = false,
-  selected,
-  onSelect,
-}: {
-  index?: number
-  indexIcon?: React.ReactNode
-  label: string
-  hint?: string
-  muted?: boolean
-  selected: boolean
-  onSelect: () => void
-}): React.ReactNode {
-  return (
-    <button
-      aria-checked={selected}
-      className={
-        selected
-          ? 'inline-approval-option selected'
-          : muted
-            ? 'inline-approval-option muted'
-            : 'inline-approval-option'
-      }
-      role="radio"
-      type="button"
-      onClick={onSelect}
-    >
-      <span className="inline-approval-option-index">
-        {indexIcon ?? index}
-      </span>
-      <span className="inline-approval-option-label">
-        {label}
-        {hint ? (
-          <span className="inline-approval-option-hint"> {hint}</span>
-        ) : null}
-      </span>
-      <span className="inline-approval-option-info" aria-hidden="true">
-        <Info size={14} />
-      </span>
-      {selected ? (
-        <span className="inline-approval-option-arrows" aria-hidden="true">
-          <ArrowUp size={14} />
-          <ArrowDown size={14} />
-        </span>
-      ) : null}
-    </button>
   )
 }
 
@@ -506,9 +433,7 @@ function formatCommandLine(request: DesktopPermissionRequest): string {
   const affectedPaths = inlineApprovalAffectedPaths(request)
   if (affectedPaths.length > 0) {
     return affectedPaths
-      .map(({ path, operation }) =>
-        `${operation === 'create' ? '新增' : '修改'} ${path}`,
-      )
+      .map(({ path, operation }) => `${operation === 'create' ? '新增' : '修改'} ${path}`)
       .join('\n')
   }
   if (toolName.toLowerCase() === 'apply_patch') {
@@ -516,10 +441,7 @@ function formatCommandLine(request: DesktopPermissionRequest): string {
   }
   const filePath = stringValue(input.file_path) ?? stringValue(input.filePath)
   const isFileTool =
-    toolName === 'Edit' ||
-    toolName === 'Write' ||
-    toolName === 'MultiEdit' ||
-    toolName === 'Read'
+    toolName === 'Edit' || toolName === 'Write' || toolName === 'MultiEdit' || toolName === 'Read'
 
   if (isFileTool) {
     return filePath ? `${toolName} ${filePath}` : toolName
@@ -558,15 +480,13 @@ function stringValue(value: unknown): string | null {
 }
 
 function stringArrayValue(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
 }
 
 function nonNegativeInteger(value: unknown): number | null {
-  return typeof value === 'number'
-    && Number.isSafeInteger(value)
-    && value >= 0
-    ? value
-    : null
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
 function inlineApprovalAffectedPaths(
@@ -574,15 +494,13 @@ function inlineApprovalAffectedPaths(
 ): Array<{ path: string; operation: 'create' | 'update' }> {
   const value = request.input.affectedPaths
   if (!Array.isArray(value)) return []
-  return value.flatMap(candidate => {
+  return value.flatMap((candidate) => {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
       return []
     }
     const affected = candidate as Record<string, unknown>
     const path = stringValue(affected.path)
     const operation = affected.operation
-    return path && (operation === 'create' || operation === 'update')
-      ? [{ path, operation }]
-      : []
+    return path && (operation === 'create' || operation === 'update') ? [{ path, operation }] : []
   })
 }

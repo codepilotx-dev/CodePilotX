@@ -29,18 +29,14 @@ describe('桌面更新状态胶囊', () => {
       label: '',
       visible: false,
     })
-    expect(
-      buildDesktopUpdateIndicatorModel({ phase: 'no-update' }),
-    ).toMatchObject({
+    expect(buildDesktopUpdateIndicatorModel({ phase: 'no-update' })).toMatchObject({
       action: null,
       ariaLabel: '',
       disabled: false,
       label: '',
       visible: false,
     })
-    expect(
-      buildDesktopUpdateIndicatorModel({ phase: 'checking' }),
-    ).toMatchObject({
+    expect(buildDesktopUpdateIndicatorModel({ phase: 'checking' })).toMatchObject({
       action: null,
       ariaLabel: '正在检查应用更新',
       disabled: true,
@@ -71,9 +67,7 @@ describe('桌面更新状态胶囊', () => {
       label: '43%',
       visible: true,
     })
-    expect(
-      buildDesktopUpdateIndicatorModel({ phase: 'downloaded' }),
-    ).toMatchObject({
+    expect(buildDesktopUpdateIndicatorModel({ phase: 'downloaded' })).toMatchObject({
       action: 'quit-and-install',
       ariaLabel: '更新已下载，重启并安装',
       disabled: false,
@@ -115,9 +109,7 @@ function createBridge(calls: string[]): DesktopUpdateIpcBridge {
     quitAndInstall: async () => {
       calls.push('install')
     },
-    onUpdateStatusChange: (
-      _listener: (status: DesktopUpdateStatus) => void,
-    ) => {
+    onUpdateStatusChange: (_listener: (status: DesktopUpdateStatus) => void) => {
       calls.push('subscribe')
       return () => {
         calls.push('unsubscribe')

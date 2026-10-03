@@ -1,11 +1,11 @@
 export type ManagedWorktreeStatus =
-  | "creating"
-  | "ready"
-  | "ready-with-setup-error"
-  | "deleting"
-  | "cleaned"
-  | "restoring"
-  | "restore-conflict"
+  | 'creating'
+  | 'ready'
+  | 'ready-with-setup-error'
+  | 'deleting'
+  | 'cleaned'
+  | 'restoring'
+  | 'restore-conflict'
 
 export type ManagedWorktree = {
   id: string
@@ -19,7 +19,7 @@ export type ManagedWorktree = {
   permanent: boolean
   pinned: boolean
   boundOnce: boolean
-  setupStatus: "pending" | "succeeded" | "failed" | "skipped"
+  setupStatus: 'pending' | 'succeeded' | 'failed' | 'skipped'
   environmentRevision: number
   continuedWithoutSetup: boolean
   restoreSnapshotPath: string | null
@@ -32,7 +32,7 @@ export type ManagedWorktree = {
 export type TaskExecutionBinding = {
   threadId: string
   bindingId: string
-  kind: "local" | "worktree"
+  kind: 'local' | 'worktree'
   projectId: string | null
   cwd: string
   worktreeId: string | null
@@ -43,13 +43,13 @@ export type TaskExecutionBinding = {
 }
 
 export type WorktreeOperationKind =
-  | "create"
-  | "retry-setup"
-  | "continue-without-setup"
-  | "set-permanent"
-  | "delete"
-  | "restore"
-  | "auto-cleanup"
+  | 'create'
+  | 'retry-setup'
+  | 'continue-without-setup'
+  | 'set-permanent'
+  | 'delete'
+  | 'restore'
+  | 'auto-cleanup'
 
 export type WorktreeOperation = {
   operationId: string
@@ -58,7 +58,7 @@ export type WorktreeOperation = {
   kind: WorktreeOperationKind
   requestHash: string
   step: string
-  status: "pending" | "running" | "completed" | "failed"
+  status: 'pending' | 'running' | 'completed' | 'failed'
   revision: number
   errorCode: string | null
   warnings: string[]
@@ -68,7 +68,7 @@ export type WorktreeOperation = {
 }
 
 export type WorktreeSetupResult = {
-  status: "succeeded" | "failed"
+  status: 'succeeded' | 'failed'
   environmentRevision: number
   warnings?: readonly string[]
 }
@@ -92,6 +92,6 @@ export interface WorktreeEnvironmentLifecycle {
 }
 
 export const NOOP_WORKTREE_ENVIRONMENT: WorktreeEnvironmentLifecycle = {
-  setup: async () => ({ status: "succeeded", environmentRevision: 0 }),
+  setup: async () => ({ status: 'succeeded', environmentRevision: 0 }),
   cleanup: async () => ({}),
 }

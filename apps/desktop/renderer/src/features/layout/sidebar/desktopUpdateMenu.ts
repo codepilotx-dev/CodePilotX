@@ -3,10 +3,7 @@ import type {
   DesktopUpdateStatus,
 } from '@codepilotx/shared/desktop-update-ipc'
 
-export type DesktopUpdateIndicatorAction =
-  | 'check'
-  | 'download'
-  | 'quit-and-install'
+export type DesktopUpdateIndicatorAction = 'check' | 'download' | 'quit-and-install'
 
 export type DesktopUpdateIndicatorModel = {
   action: DesktopUpdateIndicatorAction | null

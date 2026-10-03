@@ -1,4 +1,3 @@
-import type { ModelRef } from '@codepilotx/shared'
 import {
   ArrowLeft,
   ChevronRight,
@@ -10,12 +9,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import type {
   DesktopProjectSource,
@@ -23,12 +17,18 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
 import { WorkspaceFileTree } from '../layout/WorkspaceFileTree.js'
+import { PrimaryPageLayout } from '../layout/primary-page/index.js'
+import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
   ProjectAppearanceGlyph,
@@ -39,9 +39,11 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsSection } from './SettingsSection.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import {
+  filterEnvironmentProjects,
   isProjectSettingsConflict,
   sortEnvironmentProjects,
 } from './environmentSettingsModel.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 type Props = {
   onError: (message: string) => void
@@ -54,26 +56,20 @@ export function EnvironmentSettings(props: Props): React.ReactNode {
   const routeBase = location.pathname.startsWith('/projects')
     ? '/projects'
     : '/settings/environment'
-  return projectId
-    ? (
-        <EnvironmentDetail
-          projectId={decodeURIComponent(projectId)}
-          routeBase={routeBase}
-          {...props}
-        />
-      )
-    : <EnvironmentList routeBase={routeBase} {...props} />
+  return projectId ? (
+    <EnvironmentDetail projectId={decodeURIComponent(projectId)} routeBase={routeBase} {...props} />
+  ) : (
+    <EnvironmentList routeBase={routeBase} {...props} />
+  )
 }
 
-function EnvironmentList({
-  onError,
-  routeBase,
-}: Props & { routeBase: string }): React.ReactNode {
+function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }): React.ReactNode {
   const navigate = useNavigate()
   const { projectAppearances } = useDesktopSettings()
   const [projects, setProjects] = useState<DesktopWorkspace[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [query, setQuery] = useState('')
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -108,80 +104,144 @@ function EnvironmentList({
     }
   }
 
+  const visibleProjects = filterEnvironmentProjects(projects, query)
+
+  const projectRows = visibleProjects.map((project) => (
+    <button
+      className="environment-project-row"
+      key={project.projectId ?? project.id ?? project.path}
+      type="button"
+      onClick={() => {
+        if (!project.projectId) {
+          onError('该项目缺少稳定的项目标识。')
+          return
+        }
+        navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
+      }}
+    >
+      <span className="environment-project-icon">
+        <ProjectAppearanceGlyph
+          appearance={
+            project.projectId
+              ? (projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
+              : DEFAULT_PROJECT_APPEARANCE
+          }
+          className="project-appearance-marker"
+          size={APP_ICON_SIZE}
+        />
+      </span>
+      <span className="environment-project-copy">
+        <strong>{project.name}</strong>
+        <span title={project.path}>{project.path}</span>
+      </span>
+      <span className="environment-project-meta">{project.folders?.length ?? 1} 个目录</span>
+      <ChevronRight
+        aria-hidden="true"
+        size={APP_ICON_SIZES.sm}
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+      />
+    </button>
+  ))
+
+  const projectList = loading ? (
+    <EnvironmentEmpty>正在载入项目…</EnvironmentEmpty>
+  ) : projects.length === 0 ? (
+    <EnvironmentEmpty>暂无项目。选择一个目录来创建或打开项目。</EnvironmentEmpty>
+  ) : visibleProjects.length === 0 ? (
+    <div className="environment-search-empty">
+      <p>未找到匹配“{query}”的项目。</p>
+      <Button color="secondary" size="compact" onClick={() => setQuery('')}>
+        清除搜索
+      </Button>
+    </div>
+  ) : (
+    <div className="environment-project-list">{projectRows}</div>
+  )
+
+  const projectSection = (
+    <SettingsSection bare title="选择项目" description="最近打开的项目排在前面。">
+      {projectList}
+    </SettingsSection>
+  )
+
+  if (routeBase === '/projects') {
+    return (
+      <>
+        <WorkspaceHeaderItem align="end" id="projects.add" order={100} slot="right">
+          <Button color="primary" loading={adding} onClick={() => void addProject()}>
+            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            添加项目
+          </Button>
+        </WorkspaceHeaderItem>
+        <PrimaryPageLayout
+          className="projects-primary-page"
+          description="管理项目环境、项目指令和共享来源。"
+          search={
+            <SearchInput
+              aria-label="搜索项目"
+              onChange={setQuery}
+              placeholder="搜索项目名称或路径…"
+              value={query}
+            />
+          }
+          title="项目"
+        >
+          <div className="environment-settings environment-primary-content">
+            {loading ? (
+              <div className="environment-primary-empty">正在载入项目…</div>
+            ) : projects.length === 0 ? (
+              <div className="environment-primary-empty">
+                <h2>暂无项目</h2>
+                <p>添加一个本地目录，开始管理项目环境与默认设置。</p>
+                <Button color="secondary" onClick={() => void addProject()}>
+                  添加项目
+                </Button>
+              </div>
+            ) : visibleProjects.length === 0 ? (
+              <div className="environment-primary-empty">
+                <h2>未找到项目</h2>
+                <p>没有与“{query}”匹配的项目。</p>
+                <Button color="secondary" size="compact" onClick={() => setQuery('')}>
+                  清除搜索
+                </Button>
+              </div>
+            ) : (
+              <div className="environment-primary-projects">
+                <div className="environment-primary-projects__header" aria-hidden="true">
+                  <span>项目</span>
+                  <span>目录</span>
+                </div>
+                <div className="environment-project-list">{projectRows}</div>
+              </div>
+            )}
+          </div>
+        </PrimaryPageLayout>
+      </>
+    )
+  }
+
   return (
     <SettingsContentArea>
       <div className="settings-content-inner environment-settings">
         <header className="settings-page-header environment-page-heading">
           <div>
             <h1 className="settings-page-title">环境</h1>
-            <p className="settings-page-desc">
-              管理项目的默认模型、项目指令和共享来源。
-            </p>
+            <p className="settings-page-desc">管理项目的项目指令和共享来源。</p>
           </div>
         </header>
 
         <SettingsSection
-          actions={(
-            <Button loading={adding} onClick={() => void addProject()}>
+          actions={
+            <Button color="primary" loading={adding} onClick={() => void addProject()}>
               <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               添加项目
             </Button>
-          )}
+          }
           bare
           title="选择项目"
           description="最近打开的项目排在前面。"
         >
-          {loading ? (
-            <EnvironmentEmpty>正在载入项目…</EnvironmentEmpty>
-          ) : projects.length === 0 ? (
-            <EnvironmentEmpty>
-              暂无项目。选择一个目录来创建或打开项目。
-            </EnvironmentEmpty>
-          ) : (
-            <div className="environment-project-list">
-              {projects.map(project => (
-                <button
-                  className="environment-project-row"
-                  key={project.projectId ?? project.id ?? project.path}
-                  type="button"
-                  onClick={() => {
-                    if (!project.projectId) {
-                      onError('该项目缺少稳定的项目标识。')
-                      return
-                    }
-                    navigate(
-                      `${routeBase}/${encodeURIComponent(project.projectId)}`,
-                    )
-                  }}
-                >
-                  <span className="environment-project-icon">
-                    <ProjectAppearanceGlyph
-                      appearance={
-                        project.projectId
-                          ? projectAppearances[project.projectId]
-                            ?? DEFAULT_PROJECT_APPEARANCE
-                          : DEFAULT_PROJECT_APPEARANCE
-                      }
-                      className="project-appearance-marker"
-                      size={APP_ICON_SIZE + 2}
-                    />
-                  </span>
-                  <span className="environment-project-copy">
-                    <strong>{project.name}</strong>
-                    <span title={project.path}>{project.path}</span>
-                  </span>
-                  <span className="environment-project-meta">
-                    {(project.folders?.length ?? 1)} 个目录
-                  </span>
-                  <Plus
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+          {projectList}
         </SettingsSection>
       </div>
     </SettingsContentArea>
@@ -199,60 +259,38 @@ function EnvironmentDetail({
   const [project, setProject] = useState<DesktopWorkspace | null>(null)
   const [draftName, setDraftName] = useState('')
   const [instructions, setInstructions] = useState('')
-  const [defaultModelKey, setDefaultModelKey] = useState('')
-  const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
+  const [executionEnvironment, setExecutionEnvironment] = useState<'auto' | 'local'>('auto')
   const [sources, setSources] = useState<DesktopProjectSource[]>([])
   const [sourceFolderId, setSourceFolderId] = useState('')
   const [sourcePath, setSourcePath] = useState('')
   const [relinkSourceId, setRelinkSourceId] = useState<string | null>(null)
-  const [preview, setPreview] =
-    useState<DesktopProjectSourceReadResult | null>(null)
+  const [preview, setPreview] = useState<DesktopProjectSourceReadResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
 
-  const loadProject = useCallback(async (
-    preserveDraft: boolean,
-  ): Promise<DesktopWorkspace | null> => {
-    const projects = await desktopClient.listProjects()
-    const next = projects.find(item => item.projectId === projectId) ?? null
-    setProject(next)
-    if (next && !preserveDraft) {
-      setDraftName(next.name)
-      setInstructions(next.projectSettings?.instructions ?? '')
-      setDefaultModelKey(modelKey(next.projectSettings?.defaultModel ?? null))
-      setSourceFolderId(next.primaryFolderId ?? next.folders?.[0]?.id ?? '')
-      setRelinkSourceId(null)
-    }
-    return next
-  }, [projectId])
+  const loadProject = useCallback(
+    async (preserveDraft: boolean): Promise<DesktopWorkspace | null> => {
+      const projects = await desktopClient.listProjects()
+      const next = projects.find((item) => item.projectId === projectId) ?? null
+      setProject(next)
+      if (next && !preserveDraft) {
+        setDraftName(next.name)
+        setInstructions(next.projectSettings?.instructions ?? '')
+        setExecutionEnvironment(next.projectSettings?.executionEnvironment ?? 'auto')
+        setSourceFolderId(next.primaryFolderId ?? next.folders?.[0]?.id ?? '')
+        setRelinkSourceId(null)
+      }
+      return next
+    },
+    [projectId],
+  )
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
       const next = await loadProject(false)
       if (next) {
-        const [nextSources, providerState] = await Promise.all([
-          desktopClient.listProjectSources(projectId),
-          desktopClient.getModelProviderState(),
-        ])
-        setSources(nextSources)
-        const models = providerState.models.map(id => ({
-          providerID: String(providerState.selectedProviderID),
-          id,
-        }))
-        const configured = next.projectSettings?.defaultModel
-        if (
-          configured
-          && !models.some(model =>
-            model.providerID === configured.providerID
-            && model.id === configured.id)
-        ) {
-          models.unshift({
-            providerID: configured.providerID,
-            id: configured.id,
-          })
-        }
-        setModelOptions(models)
+        setSources(await desktopClient.listProjectSources(projectId))
       }
     } catch (error) {
       onError(errorMessage(error))
@@ -265,10 +303,7 @@ function EnvironmentDetail({
     void load()
   }, [load])
 
-  const run = async (
-    key: string,
-    action: () => Promise<void>,
-  ): Promise<void> => {
+  const run = async (key: string, action: () => Promise<void>): Promise<void> => {
     if (busy) return
     setBusy(key)
     try {
@@ -297,23 +332,22 @@ function EnvironmentDetail({
           expectedVersion: project.projectVersion ?? 0,
         })
       }
-      const selectedModel = parseModelKey(defaultModelKey)
-      const currentModel = next.projectSettings?.defaultModel ?? null
+      const currentExecution = next.projectSettings?.executionEnvironment ?? 'auto'
       if (
-        instructions !== (next.projectSettings?.instructions ?? '')
-        || !sameModel(selectedModel, currentModel)
+        instructions !== (next.projectSettings?.instructions ?? '') ||
+        executionEnvironment !== currentExecution
       ) {
         next = await desktopClient.updateProjectSettings({
           projectId,
           instructions,
-          defaultModel: selectedModel,
+          executionEnvironment,
           expectedVersion: next.projectSettings?.version ?? 0,
         })
       }
       setProject(next)
       setDraftName(next.name)
       setInstructions(next.projectSettings?.instructions ?? '')
-      setDefaultModelKey(modelKey(next.projectSettings?.defaultModel ?? null))
+      setExecutionEnvironment(next.projectSettings?.executionEnvironment ?? 'auto')
       notifyProjectCatalogChanged()
       onNotice?.('项目设置已保存。')
     } catch (error) {
@@ -339,16 +373,14 @@ function EnvironmentDetail({
     const selected = [...files].slice(0, 8)
     await run('upload', async () => {
       const uploads = await Promise.all(
-        selected.map(async file => {
+        selected.map(async (file) => {
           const isImage = file.type.startsWith('image/')
           return {
-            kind: isImage ? 'image' as const : 'text' as const,
+            kind: isImage ? ('image' as const) : ('text' as const),
             name: file.name,
             mediaType: file.type || (isImage ? 'image/png' : 'text/plain'),
-            encoding: isImage ? 'base64' as const : 'utf8' as const,
-            data: isImage
-              ? arrayBufferToBase64(await file.arrayBuffer())
-              : await file.text(),
+            encoding: isImage ? ('base64' as const) : ('utf8' as const),
+            data: isImage ? arrayBufferToBase64(await file.arrayBuffer()) : await file.text(),
           }
         }),
       )
@@ -360,43 +392,35 @@ function EnvironmentDetail({
   const addReference = async (): Promise<void> => {
     if (!sourceFolderId || !sourcePath.trim()) return
     await run('reference', async () => {
-      const relinking = sources.find(source => source.id === relinkSourceId)
+      const relinking = sources.find((source) => source.id === relinkSourceId)
       if (
-        relinking?.storage === 'workspace-file'
-        && relinking.folderId === sourceFolderId
-        && relinking.path === sourcePath.trim()
+        relinking?.storage === 'workspace-file' &&
+        relinking.folderId === sourceFolderId &&
+        relinking.path === sourcePath.trim()
       ) {
         throw new Error('重新关联时请选择不同的目录或相对路径。')
       }
-      await desktopClient.addProjectSourceReference(
-        projectId,
-        sourceFolderId,
-        sourcePath.trim(),
-      )
+      await desktopClient.addProjectSourceReference(projectId, sourceFolderId, sourcePath.trim())
       if (relinkSourceId) {
         await desktopClient.removeProjectSource(projectId, relinkSourceId)
       }
       setSources(await desktopClient.listProjectSources(projectId))
       setSourcePath('')
       setRelinkSourceId(null)
-      onNotice?.(
-        relinkSourceId
-          ? '共享来源已重新关联。'
-          : '工作区文件已添加为共享来源。',
-      )
+      onNotice?.(relinkSourceId ? '共享来源已重新关联。' : '工作区文件已添加为共享来源。')
     })
   }
 
-  const previewSource = async (
-    source: DesktopProjectSource,
-  ): Promise<void> => {
+  const previewSource = async (source: DesktopProjectSource): Promise<void> => {
     if (source.status !== 'available') return
     await run(`preview:${source.id}`, async () => {
-      setPreview(await desktopClient.readProjectSource(
-        projectId,
-        source.id,
-        source.kind === 'text' ? { offset: 0, length: 64 * 1024 } : undefined,
-      ))
+      setPreview(
+        await desktopClient.readProjectSource(
+          projectId,
+          source.id,
+          source.kind === 'text' ? { offset: 0, length: 64 * 1024 } : undefined,
+        ),
+      )
     })
   }
 
@@ -438,9 +462,9 @@ function EnvironmentDetail({
         >
           <ArrowLeft size={APP_ICON_SIZE} />
           环境
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE - 2} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <span>{project.name}</span>
-          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE - 2} />
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
           <span>编辑</span>
         </button>
 
@@ -451,56 +475,43 @@ function EnvironmentDetail({
               {project.path}
             </p>
           </div>
-          <Button loading={busy === 'save'} onClick={() => void saveProject()}>
+          <Button color="primary" loading={busy === 'save'} onClick={() => void saveProject()}>
             保存更改
           </Button>
         </header>
 
-        <SettingsSection
-          title="基本信息"
-          description="名称、默认模型与项目任务的共享指令一起保存。"
-        >
+        <SettingsSection title="基本信息" description="名称与项目任务的共享指令一起保存。">
           <label className="environment-field">
             <span>项目名称</span>
             <input
               maxLength={120}
               value={draftName}
-              onChange={event => setDraftName(event.target.value)}
+              onChange={(event) => setDraftName(event.target.value)}
             />
           </label>
           <div className="environment-field">
-            <span>默认模型</span>
+            <span>任务执行环境</span>
+            <small>仅影响该项目之后新建的任务；已有任务保持创建时的执行环境不变。</small>
             <SettingsDropdown
-              ariaLabel="默认模型"
-              maxWidth="calc(100vw - 32px)"
+              ariaLabel="任务执行环境"
               options={[
-                {
-                  value: '',
-                  label: '继承全局默认模型',
-                },
-                ...modelOptions.map(model => ({
-                  value: `${model.providerID}\u0000${model.id}`,
-                  label: `${model.providerID} / ${model.id}`,
-                })),
+                { value: 'auto', label: '自动（推荐）' },
+                { value: 'local', label: '本地目录' },
               ]}
-              searchable
-              searchPlaceholder="搜索模型"
               showSelectedIndicator
               triggerClassName="environment-settings-dropdown"
-              value={defaultModelKey}
-              width={360}
-              onChange={setDefaultModelKey}
+              value={executionEnvironment}
+              width={240}
+              onChange={(value) => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
             />
           </div>
           <label className="environment-field environment-field-textarea">
             <span>项目指令</span>
-            <small>
-              应用于该项目的每个新轮次；AGENTS、Skills 与配置仍只从主目录发现。
-            </small>
+            <small>应用于该项目的每个新轮次；AGENTS、Skills 与配置仍只从主目录发现。</small>
             <textarea
               rows={9}
               value={instructions}
-              onChange={event => setInstructions(event.target.value)}
+              onChange={(event) => setInstructions(event.target.value)}
             />
           </label>
         </SettingsSection>
@@ -508,19 +519,20 @@ function EnvironmentDetail({
         <SettingsSection
           title="共享来源"
           description="来源操作立即生效，不需要点击页面顶部的保存。"
-          actions={(
+          actions={
             <>
               <input
                 hidden
                 multiple
                 ref={uploadRef}
                 type="file"
-                onChange={event => {
+                onChange={(event) => {
                   void importFiles(event.currentTarget.files)
                   event.currentTarget.value = ''
                 }}
               />
               <Button
+                color="primary"
                 loading={busy === 'upload'}
                 onClick={() => uploadRef.current?.click()}
               >
@@ -528,14 +540,14 @@ function EnvironmentDetail({
                 上传来源
               </Button>
             </>
-          )}
+          }
         >
           <div className="environment-source-file-tree">
             <WorkspaceFileTree
               files={[]}
               searchable={false}
               workspace={project}
-              onOpenFile={file => {
+              onOpenFile={(file) => {
                 if (file.type !== 'file' || !file.folderId) return
                 setSourceFolderId(file.folderId)
                 setSourcePath(file.path)
@@ -546,7 +558,7 @@ function EnvironmentDetail({
             <SettingsDropdown
               ariaLabel="来源所属目录"
               maxWidth="calc(100vw - 32px)"
-              options={(project.folders ?? []).map(folder => ({
+              options={(project.folders ?? []).map((folder) => ({
                 value: folder.id,
                 label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
               }))}
@@ -560,9 +572,10 @@ function EnvironmentDetail({
               aria-label="工作区文件相对路径"
               placeholder="docs/overview.md"
               value={sourcePath}
-              onChange={event => setSourcePath(event.target.value)}
+              onChange={(event) => setSourcePath(event.target.value)}
             />
             <Button
+              color="primary"
               disabled={busy !== null || !sourcePath.trim()}
               onClick={() => void addReference()}
             >
@@ -571,6 +584,7 @@ function EnvironmentDetail({
             </Button>
             {relinkSourceId ? (
               <Button
+                color="secondary"
                 disabled={busy !== null}
                 onClick={() => {
                   setRelinkSourceId(null)
@@ -586,41 +600,35 @@ function EnvironmentDetail({
             <EnvironmentEmpty>暂无共享来源。</EnvironmentEmpty>
           ) : (
             <div className="environment-source-list">
-              {sources.map(source => (
+              {sources.map((source) => (
                 <div className="environment-source-row" key={source.id}>
                   <div>
                     <strong>{source.name}</strong>
-                    <span>
-                      {source.storage === 'managed' ? '托管文件' : source.path}
-                    </span>
+                    <span>{source.storage === 'managed' ? '托管文件' : source.path}</span>
                   </div>
-                  <span
-                    className="environment-source-status"
-                    data-status={source.status}
-                  >
+                  <span className="environment-source-status" data-status={source.status}>
                     {sourceStatusLabel(source.status)}
                   </span>
-                  <button
-                    aria-label={`预览来源 ${source.name}`}
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={busy !== null || source.status !== 'available'}
-                    title="预览"
+                    size="toolbar"
+                    title={`预览来源 ${source.name}`}
                     type="button"
                     onClick={() => void previewSource(source)}
                   >
                     <Eye size={APP_ICON_SIZE} />
-                  </button>
-                  <button
-                    aria-label={`重新关联来源 ${source.name}`}
+                  </IconButton>
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={
-                      busy !== null
-                      || source.storage !== 'workspace-file'
-                      || source.status === 'available'
+                      busy !== null ||
+                      source.storage !== 'workspace-file' ||
+                      source.status === 'available'
                     }
-                    hidden={
-                      source.storage !== 'workspace-file'
-                      || source.status === 'available'
-                    }
-                    title="重新关联"
+                    hidden={source.storage !== 'workspace-file' || source.status === 'available'}
+                    size="toolbar"
+                    title={`重新关联来源 ${source.name}`}
                     type="button"
                     onClick={() => {
                       if (source.storage !== 'workspace-file') return
@@ -630,29 +638,25 @@ function EnvironmentDetail({
                     }}
                   >
                     <RefreshCw size={APP_ICON_SIZE} />
-                  </button>
-                  <button
-                    aria-label={`移除来源 ${source.name}`}
+                  </IconButton>
+                  <IconButton
+                    color="ghostSecondary"
                     disabled={busy !== null}
-                    title="移除"
+                    size="toolbar"
+                    title={`移除来源 ${source.name}`}
                     type="button"
-                    onClick={() => void run(`remove:${source.id}`, async () => {
-                      if (
-                        await desktopClient.removeProjectSource(
-                          projectId,
-                          source.id,
-                        )
-                      ) {
-                        setSources(current =>
-                          current.filter(item => item.id !== source.id),
-                        )
-                        if (preview?.source.id === source.id) setPreview(null)
-                        onNotice?.('共享来源已移除。')
-                      }
-                    })}
+                    onClick={() =>
+                      void run(`remove:${source.id}`, async () => {
+                        if (await desktopClient.removeProjectSource(projectId, source.id)) {
+                          setSources((current) => current.filter((item) => item.id !== source.id))
+                          if (preview?.source.id === source.id) setPreview(null)
+                          onNotice?.('共享来源已移除。')
+                        }
+                      })
+                    }
                   >
                     <Trash2 size={APP_ICON_SIZE} />
-                  </button>
+                  </IconButton>
                 </div>
               ))}
             </div>
@@ -662,13 +666,15 @@ function EnvironmentDetail({
             <div className="environment-source-preview">
               <header>
                 <strong>{preview.source.name}</strong>
-                <button
-                  aria-label="关闭来源预览"
+                <IconButton
+                  color="ghostSecondary"
+                  size="toolbar"
+                  title="关闭来源预览"
                   type="button"
                   onClick={() => setPreview(null)}
                 >
                   <X size={APP_ICON_SIZE} />
-                </button>
+                </IconButton>
               </header>
               {preview.encoding === 'base64' ? (
                 <img
@@ -691,49 +697,11 @@ function EnvironmentDetail({
   )
 }
 
-function EnvironmentEmpty({
-  children,
-}: {
-  children: React.ReactNode
-}): React.ReactNode {
+function EnvironmentEmpty({ children }: { children: React.ReactNode }): React.ReactNode {
   return <p className="environment-empty">{children}</p>
 }
 
-type ModelOption = {
-  providerID: string
-  id: string
-}
-
-function modelKey(model: ModelRef | null): string {
-  return model ? `${model.providerID}\u0000${model.id}` : ''
-}
-
-function parseModelKey(value: string): ModelRef | null {
-  const [providerID, id] = value.split('\u0000')
-  return providerID && id ? { providerID, id } as ModelRef : null
-}
-
-function sameModel(left: ModelRef | null, right: ModelRef | null): boolean {
-  return left?.providerID === right?.providerID && left?.id === right?.id
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  const chunkSize = 0x8000
-  let binary = ''
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
-  }
-  return btoa(binary)
-}
-
-function sourceStatusLabel(
-  status: DesktopProjectSource['status'],
-): string {
+function sourceStatusLabel(status: DesktopProjectSource['status']): string {
   if (status === 'available') return '可用'
   if (status === 'missing') return '文件缺失'
   if (status === 'denied') return '拒绝访问'

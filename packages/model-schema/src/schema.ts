@@ -1,4 +1,4 @@
-import { Option, Schema, SchemaGetter } from "effect"
+import { Option, Schema, SchemaGetter } from 'effect'
 
 export const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 

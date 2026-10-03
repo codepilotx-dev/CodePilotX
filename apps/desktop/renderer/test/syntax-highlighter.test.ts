@@ -13,12 +13,8 @@ function contrastRatio(first: string, second: string): number {
     const channels = value
       .slice(1)
       .match(/.{2}/g)!
-      .map(channel => Number.parseInt(channel, 16) / 255)
-      .map(channel =>
-        channel <= 0.04045
-          ? channel / 12.92
-          : ((channel + 0.055) / 1.055) ** 2.4,
-      )
+      .map((channel) => Number.parseInt(channel, 16) / 255)
+      .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
     return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
   }
   const values = [luminance(first), luminance(second)].sort((a, b) => b - a)
@@ -43,7 +39,7 @@ describe('Shiki highlighter', () => {
         theme,
       })
       expect(result.theme).toBe(theme)
-      expect(result.tokens.flat().some(token => Boolean(token.color))).toBeTrue()
+      expect(result.tokens.flat().some((token) => Boolean(token.color))).toBeTrue()
     }
   })
 
@@ -75,9 +71,9 @@ describe('Shiki highlighter', () => {
     expect(codexDark.theme).toBe('codex-dark')
     expect(dracula.theme).toBe('dracula')
     expect(dracula.background).not.toBe(codexDark.background)
-    expect(
-      dracula.tokens.flat().map(token => token.color),
-    ).not.toEqual(codexDark.tokens.flat().map(token => token.color))
+    expect(dracula.tokens.flat().map((token) => token.color)).not.toEqual(
+      codexDark.tokens.flat().map((token) => token.color),
+    )
   })
 
   test('keeps syntax token colors readable against their code background', async () => {
@@ -109,10 +105,10 @@ describe('Shiki highlighter', () => {
       })
       const variables = deriveThemeVariables(config)
       const backgrounds = [
-        variables['--color-diff-added-line-background'],
-        variables['--color-diff-added-text-background'],
-        variables['--color-diff-removed-line-background'],
-        variables['--color-diff-removed-text-background'],
+        variables['--cpx-sys-color-diff-added-line'],
+        variables['--cpx-sys-color-diff-added-text'],
+        variables['--cpx-sys-color-diff-removed-line'],
+        variables['--cpx-sys-color-diff-removed-text'],
       ]
 
       for (const token of result.tokens.flat()) {

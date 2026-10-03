@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useId, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
+import { ChevronRight } from 'lucide-react'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 import { SearchInput } from './SearchInput.js'
 import { cx } from '../../utils/cx.js'
@@ -74,7 +76,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
   function moveActive(direction: 1 | -1): void {
     const enabledIndices = options
       .map((option, index) => (option.disabled ? -1 : index))
-      .filter(index => index >= 0)
+      .filter((index) => index >= 0)
     if (enabledIndices.length === 0) return
     const currentPosition = enabledIndices.indexOf(activeIndex)
     const nextPosition =
@@ -104,11 +106,9 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
       event.preventDefault()
       const enabledIndices = options
         .map((option, index) => (option.disabled ? -1 : index))
-        .filter(index => index >= 0)
+        .filter((index) => index >= 0)
       const next =
-        event.key === 'Home'
-          ? enabledIndices[0]
-          : enabledIndices[enabledIndices.length - 1]
+        event.key === 'Home' ? enabledIndices[0] : enabledIndices[enabledIndices.length - 1]
       if (next !== undefined) setActiveIndex(next)
       return
     }
@@ -137,7 +137,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             className,
           )}
           collisionPadding={6}
-          onOpenAutoFocus={event => {
+          onOpenAutoFocus={(event) => {
             event.preventDefault()
             searchRef.current?.focus()
             searchRef.current?.select()
@@ -154,7 +154,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
               controls={listboxId}
               expanded={open}
               mode="combobox"
-              onChange={value => {
+              onChange={(value) => {
                 onSearchChange(value)
                 setActiveIndex(-1)
               }}
@@ -182,7 +182,9 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
                 return (
                   <button
                     aria-selected={selected}
-                    className={[
+                    className={cx(
+                      'interactive-row',
+                      'interactive-row--menu',
                       'popover-item',
                       'tw:w-full',
                       'tw:min-w-0',
@@ -191,8 +193,8 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
                       'tw:text-left',
                       'tw:text-app-text',
                       'tw:outline-none',
-                      selected ? 'selected' : '',
-                    ].join(' ')}
+                      selected && 'selected',
+                    )}
                     data-highlighted={index === activeIndex || undefined}
                     disabled={option.disabled}
                     id={`${instanceId}-option-${index}`}
@@ -210,9 +212,9 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             )}
           </div>
           {footer ? (
-            <div className="popover-scroll-content popover-footer-region">
+            <div className="popover-footer-region">
               <div aria-hidden="true" className="popover-divider" />
-              {footer}
+              <div className="popover-scroll-content">{footer}</div>
             </div>
           ) : null}
         </Popover.Content>
@@ -236,14 +238,23 @@ export function SearchablePopoverAction({
   return (
     <button
       {...buttonProps}
-      className={['popover-item', className].join(' ')}
+      className={cx('interactive-row', 'interactive-row--menu', 'popover-item', className)}
       type="button"
     >
       <span className="popover-item-leading">
         {icon ? <span className="popover-item-icon">{icon}</span> : null}
       </span>
       <span className="popover-item-label">{children}</span>
-      {withArrow ? <span aria-hidden="true" className="popover-item-arrow">›</span> : null}
+      <span className="popover-item-trailing">
+        {withArrow ? (
+          <ChevronRight
+            aria-hidden="true"
+            className="popover-item-arrow"
+            size={APP_ICON_SIZES.sm}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        ) : null}
+      </span>
     </button>
   )
 }

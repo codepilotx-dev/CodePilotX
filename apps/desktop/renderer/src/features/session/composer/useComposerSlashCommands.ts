@@ -1,9 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ComposerCapabilities } from './composerTypes.js'
-import type {
-  ComposerSlashCommand,
-  ComposerSlashCommandId,
-} from './composerSlashCommands.js'
+import type { ComposerSlashCommand, ComposerSlashCommandId } from './composerSlashCommands.js'
 
 type UseComposerSlashCommandsOptions = {
   capabilities: ComposerCapabilities
@@ -14,6 +11,7 @@ type UseComposerSlashCommandsOptions = {
   canReview: boolean
   subagentMode: boolean
   sessionBusy: boolean
+  reasoningAvailable: boolean
   onOpenModel: () => void
   onOpenReasoning: () => void
   onOpenStatus: () => void
@@ -22,6 +20,15 @@ type UseComposerSlashCommandsOptions = {
   onGoalModeChange?: (active: boolean) => void
   onOpenReview: () => void
   onCompact?: () => Promise<void>
+  onOpenSide?: () => void
+  onFork?: () => void
+  onArchive?: () => void
+  onChooseProject?: () => void
+  onClearProject?: () => void
+  showThreadActions: boolean
+  showNewSessionActions: boolean
+  canFork: boolean
+  hasProject: boolean
   onError?: (message: string) => void
 }
 
@@ -34,6 +41,7 @@ export function useComposerSlashCommands({
   canReview,
   subagentMode,
   sessionBusy,
+  reasoningAvailable,
   onOpenModel,
   onOpenReasoning,
   onOpenStatus,
@@ -42,6 +50,15 @@ export function useComposerSlashCommands({
   onGoalModeChange,
   onOpenReview,
   onCompact,
+  onOpenSide,
+  onFork,
+  onArchive,
+  onChooseProject,
+  onClearProject,
+  showThreadActions,
+  showNewSessionActions,
+  canFork,
+  hasProject,
   onError,
 }: UseComposerSlashCommandsOptions): {
   commands: ComposerSlashCommand[]
@@ -49,25 +66,20 @@ export function useComposerSlashCommands({
   executeCommand: (command: ComposerSlashCommand) => Promise<void>
 } {
   const executingRef = useRef<ComposerSlashCommandId | null>(null)
-  const [executingCommandId, setExecutingCommandId] =
-    useState<ComposerSlashCommandId | null>(null)
+  const [executingCommandId, setExecutingCommandId] = useState<ComposerSlashCommandId | null>(null)
 
   const compactEnabled =
-    hasThread &&
-    hasConversationMessages &&
-    !subagentMode &&
-    !sessionBusy &&
-    Boolean(onCompact)
+    hasThread && hasConversationMessages && !subagentMode && !sessionBusy && Boolean(onCompact)
 
   const commands = useMemo<ComposerSlashCommand[]>(
     () => [
       command('model', '模型', '选择当前任务使用的模型', true, true, onOpenModel),
       command(
         'reasoning',
-        '推理',
-        '选择当前任务的推理强度',
-        true,
-        true,
+        '思考等级',
+        '选择当前任务的思考等级',
+        reasoningAvailable,
+        reasoningAvailable,
         onOpenReasoning,
       ),
       command(
@@ -92,7 +104,7 @@ export function useComposerSlashCommands({
         'review',
         '代码审查',
         '审查未提交更改或与基础分支比较',
-        capabilities.review && !subagentMode,
+        capabilities.review && !subagentMode && hasThread,
         hasThread && canReview,
         onOpenReview,
         '请先创建任务后再开始代码审查',
@@ -101,7 +113,7 @@ export function useComposerSlashCommands({
         'compact',
         '压缩上下文',
         '压缩当前任务的上下文',
-        !subagentMode,
+        hasThread && !subagentMode,
         compactEnabled,
         async () => onCompact?.(),
         hasThread
@@ -129,6 +141,48 @@ export function useComposerSlashCommands({
         true,
         onOpenStatus,
       ),
+      command(
+        'side',
+        '侧边聊天',
+        '在侧边栏打开一个聊天',
+        showThreadActions && Boolean(onOpenSide),
+        Boolean(onOpenSide),
+        () => onOpenSide?.(),
+      ),
+      command(
+        'fork',
+        '在新聊天中继续',
+        '从当前任务的最新消息创建分支',
+        showThreadActions,
+        canFork && Boolean(onFork),
+        () => onFork?.(),
+        '当前任务还没有可继续的消息',
+      ),
+      command(
+        'archive',
+        '归档任务',
+        '归档当前任务',
+        showThreadActions && Boolean(onArchive),
+        Boolean(onArchive),
+        () => onArchive?.(),
+      ),
+      command(
+        'project',
+        '选择项目',
+        '选择新任务关联的项目',
+        showNewSessionActions,
+        Boolean(onChooseProject),
+        () => onChooseProject?.(),
+      ),
+      command(
+        'task',
+        '独立任务',
+        hasProject ? '不在项目中运行此任务' : '当前已是独立任务',
+        showNewSessionActions,
+        hasProject && Boolean(onClearProject),
+        () => onClearProject?.(),
+        '当前已是独立任务',
+      ),
     ],
     [
       capabilities.goals,
@@ -140,6 +194,11 @@ export function useComposerSlashCommands({
       hasConversationMessages,
       hasThread,
       onCompact,
+      onOpenSide,
+      onFork,
+      onArchive,
+      onChooseProject,
+      onClearProject,
       onGoalModeChange,
       onOpenMcp,
       onOpenModel,
@@ -148,8 +207,13 @@ export function useComposerSlashCommands({
       onOpenStatus,
       onPlanModeChange,
       planModeActive,
+      reasoningAvailable,
       sessionBusy,
       subagentMode,
+      showThreadActions,
+      showNewSessionActions,
+      canFork,
+      hasProject,
     ],
   )
 

@@ -114,8 +114,10 @@ export const reviewAgentClient = {
     workspacePath: string,
     source: DesktopReviewSource,
     refresh = false,
+    projectId?: string,
   ): Promise<ReviewSummaryResult> {
     return desktopClient.getAgentReviewSummary({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       refresh,
@@ -128,8 +130,10 @@ export const reviewAgentClient = {
     generation: string,
     path: string,
     hideWhitespace: boolean,
+    projectId?: string,
   ): Promise<ReviewFileDiff> {
     return desktopClient.getAgentReviewFileDiff({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       generation,
@@ -145,12 +149,12 @@ export const reviewAgentClient = {
       generation: string
       expectedRevision: string
       action: 'stage' | 'unstage' | 'revert'
-      target:
-        | { kind: 'file'; path: string }
-        | { kind: 'hunk'; path: string; hunkId: string }
+      target: { kind: 'file'; path: string } | { kind: 'hunk'; path: string; hunkId: string }
     },
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.applyAgentReviewOperation({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source: input.source,
       generation: input.generation,
@@ -166,8 +170,10 @@ export const reviewAgentClient = {
     generation: string,
     paths: readonly string[],
     hideWhitespace: boolean,
+    projectId?: string,
   ): Promise<ReviewFileDiffsResult> {
     const result = await desktopClient.getAgentReviewFileDiffs({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source,
       generation,
@@ -178,10 +184,10 @@ export const reviewAgentClient = {
       ? { ...result }
       : {
           ...result,
-          files: result.files.map(file => ({
+          files: result.files.map((file) => ({
             ...file,
             file: { ...file.file },
-            hunks: file.hunks.map(hunk => ({ ...hunk })),
+            hunks: file.hunks.map((hunk) => ({ ...hunk })),
           })),
         }
   },
@@ -197,8 +203,10 @@ export const reviewAgentClient = {
         ...Array<{ path: string; expectedRevision: string }>,
       ]
     },
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.applyAgentReviewBatch({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       source: input.source,
       generation: input.generation,
@@ -207,21 +215,23 @@ export const reviewAgentClient = {
     })
   },
 
-  async branches(workspacePath: string): Promise<ReviewBranch[]> {
-    return desktopClient.getAgentReviewBranches(workspacePath)
+  async branches(workspacePath: string, projectId?: string): Promise<ReviewBranch[]> {
+    return desktopClient.getAgentReviewBranches(workspacePath, projectId)
   },
 
-  async commits(workspacePath: string): Promise<ReviewCommit[]> {
-    return desktopClient.getAgentReviewCommits(workspacePath)
+  async commits(workspacePath: string, projectId?: string): Promise<ReviewCommit[]> {
+    return desktopClient.getAgentReviewCommits(workspacePath, projectId)
   },
 
   async listComments(
     workspacePath: string,
     threadId: string,
     source: DesktopReviewSource,
+    projectId?: string,
   ): Promise<DesktopReviewComment[]> {
     const sourceKey = reviewSourceKey(source)
     const comments = await desktopClient.listAgentReviewComments({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       threadId,
       sourceKey,
@@ -241,18 +251,20 @@ export const reviewAgentClient = {
       body: string
       hunkId?: string | null
     },
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     const comment = await desktopClient.saveAgentReviewComment({
-        workspacePath,
-        threadId,
-        sourceKey: reviewSourceKey(source),
-        path: input.filePath,
-        side: input.side === 'left' ? 'old' : 'new',
-        line: input.lineNumber,
-        hunkId: input.hunkId ?? null,
-        revision,
-        body: input.body,
-      })
+      ...(projectId ? { projectId } : {}),
+      workspacePath,
+      threadId,
+      sourceKey: reviewSourceKey(source),
+      path: input.filePath,
+      side: input.side === 'left' ? 'old' : 'new',
+      line: input.lineNumber,
+      hunkId: input.hunkId ?? null,
+      revision,
+      body: input.body,
+    })
     return toDesktopComment(comment)
   },
 
@@ -260,9 +272,11 @@ export const reviewAgentClient = {
     workspacePath: string,
     threadId: string,
     id: string,
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     return toDesktopComment(
       await desktopClient.resolveAgentReviewComment({
+        ...(projectId ? { projectId } : {}),
         workspacePath,
         threadId,
         id,
@@ -274,8 +288,10 @@ export const reviewAgentClient = {
     workspacePath: string,
     threadId: string,
     id: string,
+    projectId?: string,
   ): Promise<void> {
     await desktopClient.deleteAgentReviewComment({
+      ...(projectId ? { projectId } : {}),
       workspacePath,
       threadId,
       id,
@@ -309,12 +325,14 @@ export const reviewAgentClient = {
     source: Extract<DesktopReviewSource, { kind: 'pull-request' }>,
     comment: DesktopReviewComment,
     github: { id: number },
+    projectId?: string,
   ): Promise<DesktopReviewComment> {
     if (!comment.revision) {
       throw new Error('本地评论缺少 revision，无法建立 GitHub 映射')
     }
     return toDesktopComment(
       await desktopClient.saveAgentReviewComment({
+        ...(projectId ? { projectId } : {}),
         id: comment.id,
         workspacePath,
         threadId: comment.sessionId,
@@ -345,25 +363,19 @@ export const reviewAgentClient = {
   },
 
   isSnapshotExpired(error: unknown): boolean {
-    return (
-      error instanceof AgentRpcError &&
-      error.errorCode === 'REVIEW_SNAPSHOT_EXPIRED'
-    )
+    return error instanceof AgentRpcError && error.errorCode === 'REVIEW_SNAPSHOT_EXPIRED'
   },
 
   isBatchPartial(error: unknown): boolean {
-    return (
-      error instanceof AgentRpcError &&
-      error.errorCode === 'REVIEW_BATCH_PARTIAL'
-    )
+    return error instanceof AgentRpcError && error.errorCode === 'REVIEW_BATCH_PARTIAL'
   },
 
   isBatchUnsupported(error: unknown): boolean {
     return Boolean(
       error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        error.code === 'AGENT_OPERATION_UNSUPPORTED',
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'AGENT_OPERATION_UNSUPPORTED',
     )
   },
 }
@@ -397,7 +409,7 @@ export class ReviewFileRequestCoordinator {
     const existing = this.#requests.get(key)
     if (existing) {
       if (priority === 'selected') {
-        const queuedIndex = this.#queue.findIndex(request => request.key === key)
+        const queuedIndex = this.#queue.findIndex((request) => request.key === key)
         if (queuedIndex > 0) {
           const [queued] = this.#queue.splice(queuedIndex, 1)
           if (queued) this.#queue.unshift(queued)
@@ -426,18 +438,18 @@ export class ReviewFileRequestCoordinator {
   }
 
   #drain(): void {
-    while (
-      this.#activeCount < this.#maxConcurrency &&
-      this.#queue.length > 0
-    ) {
+    while (this.#activeCount < this.#maxConcurrency && this.#queue.length > 0) {
       const request = this.#queue.shift()
       if (!request) return
       this.#activeCount += 1
-      void request.run().then(request.resolve, request.reject).finally(() => {
-        this.#activeCount -= 1
-        this.#requests.delete(request.key)
-        this.#drain()
-      })
+      void request
+        .run()
+        .then(request.resolve, request.reject)
+        .finally(() => {
+          this.#activeCount -= 1
+          this.#requests.delete(request.key)
+          this.#drain()
+        })
     }
   }
 }
@@ -446,13 +458,9 @@ export function retainCurrentReviewFileDiffs(
   nextSummary: ReviewSummarySnapshot,
   loadedDiffs: ReadonlyMap<string, ReviewFileDiff>,
 ): Map<string, ReviewFileDiff> {
-  const revisions = new Map(
-    nextSummary.files.map(file => [file.path, file.revision] as const),
-  )
+  const revisions = new Map(nextSummary.files.map((file) => [file.path, file.revision] as const))
   return new Map(
-    [...loadedDiffs].filter(
-      ([path, loaded]) => revisions.get(path) === loaded.revision,
-    ),
+    [...loadedDiffs].filter(([path, loaded]) => revisions.get(path) === loaded.revision),
   )
 }
 
@@ -489,9 +497,7 @@ export function reviewSourceLabel(source: DesktopReviewSource): string {
   }
 }
 
-export function pickDefaultReviewBaseBranch(
-  branches: readonly ReviewBranch[],
-): string | null {
+export function pickDefaultReviewBaseBranch(branches: readonly ReviewBranch[]): string | null {
   if (branches.length === 0) return null
   const preferredNames = [
     'origin/main',
@@ -502,15 +508,13 @@ export function pickDefaultReviewBaseBranch(
     'master',
   ]
   for (const name of preferredNames) {
-    const match = branches.find(
-      branch => !branch.current && branch.name === name,
-    )
+    const match = branches.find((branch) => !branch.current && branch.name === name)
     if (match) return match.name
   }
   return (
-    branches.find(branch => !branch.current && branch.remote)?.name ??
-    branches.find(branch => !branch.current)?.name ??
-    branches.find(branch => branch.current)?.name ??
+    branches.find((branch) => !branch.current && branch.remote)?.name ??
+    branches.find((branch) => !branch.current)?.name ??
+    branches.find((branch) => branch.current)?.name ??
     branches[0]?.name ??
     null
   )

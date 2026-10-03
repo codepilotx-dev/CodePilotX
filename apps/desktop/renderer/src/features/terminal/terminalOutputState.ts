@@ -11,6 +11,11 @@ export type TerminalOutputState = {
   nextSequence: number
   state: DesktopTerminalState
   exitCode: number | null
+  /**
+   * 主进程缓冲因有界容量丢弃过最旧输出。渲染端据此给出明确的"已截断"提示，
+   * 而不是让用户以为丢了数据或终端坏了。
+   */
+  truncated: boolean
 }
 
 export type TerminalOutputUpdate = {
@@ -27,6 +32,7 @@ export function createTerminalOutputState(): TerminalOutputState {
     nextSequence: 0,
     state: 'starting',
     exitCode: null,
+    truncated: false,
   }
 }
 
@@ -35,15 +41,12 @@ export function consumeTerminalSnapshot(
   snapshot: DesktopTerminalSnapshot,
 ): TerminalOutputUpdate {
   const instanceChanged =
-    current.terminalId !== snapshot.terminalId ||
-    current.instanceId !== snapshot.instanceId
+    current.terminalId !== snapshot.terminalId || current.instanceId !== snapshot.instanceId
   const reset = instanceChanged || snapshot.gap
   let expected = reset ? snapshot.oldestSequence : current.nextSequence
   const chunks: DesktopTerminalChunk[] = []
 
-  for (const chunk of [...snapshot.chunks].sort(
-    (left, right) => left.sequence - right.sequence,
-  )) {
+  for (const chunk of [...snapshot.chunks].sort((left, right) => left.sequence - right.sequence)) {
     if (chunk.sequence < expected) continue
     if (chunk.sequence > expected) {
       return {
@@ -53,6 +56,7 @@ export function consumeTerminalSnapshot(
           nextSequence: expected,
           state: snapshot.state,
           exitCode: snapshot.exitCode,
+          truncated: snapshot.truncated,
         },
         chunks,
         reset,
@@ -70,6 +74,7 @@ export function consumeTerminalSnapshot(
       nextSequence: Math.max(expected, snapshot.nextSequence),
       state: snapshot.state,
       exitCode: snapshot.exitCode,
+      truncated: snapshot.truncated,
     },
     chunks,
     reset,
@@ -83,10 +88,7 @@ export function consumeTerminalEvent(
 ): TerminalOutputUpdate {
   const terminalId = event.type === 'output' ? event.chunk.terminalId : event.terminalId
   const instanceId = event.type === 'output' ? event.chunk.instanceId : event.instanceId
-  if (
-    terminalId !== current.terminalId ||
-    instanceId !== current.instanceId
-  ) {
+  if (terminalId !== current.terminalId || instanceId !== current.instanceId) {
     return { state: current, chunks: [], reset: false, replayRequired: false }
   }
   if (event.type === 'state') {

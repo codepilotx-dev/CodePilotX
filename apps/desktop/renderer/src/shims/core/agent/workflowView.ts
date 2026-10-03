@@ -39,7 +39,7 @@ export function deriveWorkflowSessionView(
   threadId?: string | null,
 ): WorkflowSessionView {
   const events = workflowEvents
-    .filter(event => !threadId || event.threadId === threadId)
+    .filter((event) => !threadId || event.threadId === threadId)
     .map((event, index): AgentSessionEvent => ({
       id: event.eventId ?? `workflow-${index}`,
       sessionId: event.threadId,

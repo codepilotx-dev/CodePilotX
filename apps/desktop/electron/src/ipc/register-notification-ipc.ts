@@ -1,15 +1,13 @@
-import { dirname, join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
-import { app, ipcMain, Notification } from "electron"
-import {
-  DESKTOP_NOTIFICATION_IPC_CHANNELS,
-} from "@codepilotx/shared/desktop-notification-ipc"
-import type { WindowManager } from "../windows/window-manager.js"
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { app, ipcMain, Notification } from 'electron'
+import { DESKTOP_NOTIFICATION_IPC_CHANNELS } from '@codepilotx/shared/desktop-notification-ipc'
+import type { WindowManager } from '../windows/window-manager.js'
 import {
   createShowNotificationHandler,
   type DesktopNotificationFactory,
   type DesktopNotificationService,
-} from "../notifications/desktop-notification-service.js"
+} from '../notifications/desktop-notification-service.js'
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 
@@ -18,12 +16,11 @@ export function registerNotificationIpc(
   service: DesktopNotificationService,
 ): void {
   const handler = createShowNotificationHandler({
-    isMainSender: sender => windows.isMainSender(sender as Electron.WebContents),
+    isMainSender: (sender) => windows.isApplicationSender(sender as Electron.WebContents),
     service,
   })
-  ipcMain.handle(
-    DESKTOP_NOTIFICATION_IPC_CHANNELS.show,
-    (event, payload: unknown) => handler(event.sender, payload),
+  ipcMain.handle(DESKTOP_NOTIFICATION_IPC_CHANNELS.show, (event, payload: unknown) =>
+    handler(event.sender, payload),
   )
 }
 
@@ -31,7 +28,7 @@ export function registerNotificationIpc(
 export function createElectronNotificationFactory(): DesktopNotificationFactory {
   return {
     isSupported: () => Notification.isSupported(),
-    create: options => {
+    create: (options) => {
       const notification = new Notification({
         title: options.title,
         body: options.body,
@@ -39,10 +36,9 @@ export function createElectronNotificationFactory(): DesktopNotificationFactory 
       })
       return {
         show: () => notification.show(),
-        onClick: listener => notification.on("click", listener),
-        onClose: listener => notification.on("close", listener),
-        onFailed: listener =>
-          notification.on("failed", (_event, error) => listener(error)),
+        onClick: (listener) => notification.on('click', listener),
+        onClose: (listener) => notification.on('close', listener),
+        onFailed: (listener) => notification.on('failed', (_event, error) => listener(error)),
       }
     },
   }
@@ -50,13 +46,13 @@ export function createElectronNotificationFactory(): DesktopNotificationFactory 
 
 export function resolveNotificationIconPath(): string {
   return app.isPackaged
-    ? join(process.resourcesPath, "icon.ico")
-    : resolve(moduleDirectory, "../../build/icon.ico")
+    ? join(process.resourcesPath, 'icon.ico')
+    : resolve(moduleDirectory, '../../build/icon.ico')
 }
 
 export function publishNotificationActivation(
   windows: WindowManager | undefined,
   activation: { notificationId: string; threadId: string },
 ): void {
-  windows?.send(DESKTOP_NOTIFICATION_IPC_CHANNELS.activated, activation)
+  windows?.sendToFocused(DESKTOP_NOTIFICATION_IPC_CHANNELS.activated, activation)
 }

@@ -2,20 +2,11 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
-import {
-  buildPopoverSizingStyle,
-  type PopoverSizingProps,
-} from './popoverSizing.js'
-import {
-  type CapturedEditCommandContext,
-  useEditCommands,
-} from './EditCommandProvider.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
+import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
+import { type CapturedEditCommandContext, useEditCommands } from './EditCommandProvider.js'
 
-export type AppContextMenuItemColor =
-  | 'red'
-  | 'gray'
-  | 'amber'
+export type AppContextMenuItemColor = 'red' | 'gray' | 'amber'
 
 export type AppContextMenuLayout = 'flex' | 'grid'
 
@@ -62,29 +53,23 @@ export function AppContextMenu({
   includeEditActions = true,
 }: AppContextMenuProps): ReactNode {
   const editCommands = useEditCommands()
-  const [editContext, setEditContext] =
-    useState<CapturedEditCommandContext | null>(null)
+  const [editContext, setEditContext] = useState<CapturedEditCommandContext | null>(null)
   const editActions = useMemo(
     () =>
       includeEditActions && editContext
-        ? createEditActions(editContext, action => {
+        ? createEditActions(editContext, (action) => {
             void editCommands.perform(action, editContext)
           })
         : [],
     [editCommands, editContext, includeEditActions],
   )
-  const mergedActions = useMemo(
-    () => mergeActions(actions, editActions),
-    [actions, editActions],
-  )
+  const mergedActions = useMemo(() => mergeActions(actions, editActions), [actions, editActions])
 
   function handleContextMenu(event: MouseEvent<HTMLSpanElement>): void {
     if (event.defaultPrevented) return
-    const nextContext = includeEditActions
-      ? editCommands.captureContext(event.target)
-      : null
+    const nextContext = includeEditActions ? editCommands.captureContext(event.target) : null
     const nextEditActions = nextContext
-      ? createEditActions(nextContext, action => {
+      ? createEditActions(nextContext, (action) => {
           void editCommands.perform(action, nextContext)
         })
       : []
@@ -96,8 +81,7 @@ export function AppContextMenu({
 
   return (
     <ContextMenu.Root
-      onOpenChange={open => {
-        if (!open) setEditContext(null)
+      onOpenChange={(open) => {
         onOpenChange?.(open)
       }}
     >
@@ -110,21 +94,17 @@ export function AppContextMenu({
           collisionPadding={6}
           data-size={size}
           data-variant={variant}
+          onCloseAutoFocus={() => setEditContext(null)}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
-          {mergedActions.map((action, index) =>
-            renderAction(action, index),
-          )}
+          {mergedActions.map((action, index) => renderAction(action, index))}
         </ContextMenu.Content>
       </ContextMenu.Portal>
     </ContextMenu.Root>
   )
 }
 
-function renderAction(
-  action: AppContextMenuAction,
-  key: number,
-): ReactNode {
+function renderAction(action: AppContextMenuAction, key: number): ReactNode {
   switch (action.kind) {
     case 'separator':
       return (
@@ -146,7 +126,7 @@ function renderAction(
             <span className="app-context-menu-trailing sidebar-context-menu-trailing">
               <ChevronRight
                 className="app-context-menu-arrow sidebar-context-menu-arrow"
-                size={APP_ICON_SIZE}
+                size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </span>
@@ -159,9 +139,7 @@ function renderAction(
               sideOffset={4}
               style={buildPopoverSizingStyle({ width: 'auto' })}
             >
-              {action.children.map((child, childKey) =>
-                renderAction(child, childKey),
-              )}
+              {action.children.map((child, childKey) => renderAction(child, childKey))}
             </ContextMenu.SubContent>
           </ContextMenu.Portal>
         </ContextMenu.Sub>
@@ -178,9 +156,7 @@ function renderAction(
           <span className="app-context-menu-leading sidebar-context-menu-leading">
             {action.icon}
           </span>
-          <span className="app-context-menu-label sidebar-context-menu-label">
-            {action.label}
-          </span>
+          <span className="app-context-menu-label sidebar-context-menu-label">{action.label}</span>
           <span className="app-context-menu-trailing sidebar-context-menu-trailing">
             {action.shortcut ? (
               <span className="app-context-menu-shortcut sidebar-context-menu-shortcut">
@@ -249,21 +225,16 @@ function mergeActions(
 ): AppContextMenuAction[] {
   const merged = [
     ...trimSeparators(primary),
-    ...(hasItems(primary) && hasItems(secondary)
-      ? [{ kind: 'separator' as const }]
-      : []),
+    ...(hasItems(primary) && hasItems(secondary) ? [{ kind: 'separator' as const }] : []),
     ...trimSeparators(secondary),
   ]
   return merged.filter(
     (action, index) =>
-      action.kind !== 'separator' ||
-      (index > 0 && merged[index - 1]?.kind !== 'separator'),
+      action.kind !== 'separator' || (index > 0 && merged[index - 1]?.kind !== 'separator'),
   )
 }
 
-function trimSeparators(
-  actions: AppContextMenuAction[],
-): AppContextMenuAction[] {
+function trimSeparators(actions: AppContextMenuAction[]): AppContextMenuAction[] {
   let start = 0
   let end = actions.length
   while (actions[start]?.kind === 'separator') start += 1
@@ -272,5 +243,5 @@ function trimSeparators(
 }
 
 function hasItems(actions: AppContextMenuAction[]): boolean {
-  return actions.some(action => action.kind !== 'separator')
+  return actions.some((action) => action.kind !== 'separator')
 }

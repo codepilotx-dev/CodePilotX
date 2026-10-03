@@ -25,11 +25,18 @@ export type MarkdownStreamingCodeToken = {
   text: string
 }
 
+export type MarkdownStreamingTextToken = {
+  type: 'streaming_text'
+  raw: string
+  text: string
+}
+
 export type MarkdownToken =
   | Token
   | MarkdownMathToken
   | MarkdownDirectiveToken
   | MarkdownStreamingCodeToken
+  | MarkdownStreamingTextToken
 
 export type MarkdownDirectiveRenderProps = {
   argument: string
@@ -39,14 +46,9 @@ export type MarkdownDirectiveRenderProps = {
   rawText: string
 }
 
-export type MarkdownDirectiveRenderer = (
-  props: MarkdownDirectiveRenderProps,
-) => React.ReactNode
+export type MarkdownDirectiveRenderer = (props: MarkdownDirectiveRenderProps) => React.ReactNode
 
-export type MarkdownDirectiveRegistry = ReadonlyMap<
-  string,
-  MarkdownDirectiveRenderer
->
+export type MarkdownDirectiveRegistry = ReadonlyMap<string, MarkdownDirectiveRenderer>
 
 export type MarkdownExternalResourcePolicy = {
   allowExternalLinks?: boolean
@@ -70,4 +72,12 @@ export type MarkdownParseResult = {
   tokens: MarkdownToken[]
   stableText: string
   pendingText: string
+}
+
+export type MarkdownRenderBlock = {
+  id: string
+  raw: string
+  tokens: MarkdownToken[]
+  state: 'stable' | 'pending'
+  visibleText: string
 }

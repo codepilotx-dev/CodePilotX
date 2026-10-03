@@ -9,7 +9,10 @@ import {
   prepareComposerSubmission,
 } from '../src/features/session/composer/composerSubmitTransaction.js'
 import type { ComposerDraft } from '../src/features/session/composer/composerTypes.js'
-import { createComposerDocument } from '../src/features/session/composer/composerTypes.js'
+import {
+  createComposerDocument,
+  isInlineComposerFailure,
+} from '../src/features/session/composer/composerTypes.js'
 
 function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
   return {
@@ -22,10 +25,27 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
+  test('连续选择与发送后再次选择从当前草稿追加，提交保留全部 Skill', () => {
+    const store = new ComposerDraftStore(() => 'draft-1')
+    const review = { name: 'review', path: 'skills/review' }
+    const plan = { name: 'plan', path: 'skills/plan' }
+    store.addSkill('session:test', review)
+    store.addSkill('session:test', plan)
+    store.addSkill('session:test', review)
+    expect(prepareComposerSubmission(store.get('session:test'))).toMatchObject({
+      input: { skills: [review, plan] },
+    })
+    store.completeSubmission('session:test', 'draft-1', { clearContent: true })
+    store.addSkill('session:test', review)
+    store.addSkill('session:test', plan)
+    expect(prepareComposerSubmission(store.get('session:test'))).toMatchObject({
+      input: { skills: [review, plan] },
+    })
+  })
   test('hands off a HOME draft and atomically rotates the source id', () => {
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
-    store.update('home', current => ({
+    store.update('home', (current) => ({
       ...current,
       document: createComposerDocument('首页草稿'),
     }))
@@ -43,7 +63,7 @@ describe('composer submit transaction', () => {
   test('does not restore a consumed id when the old route syncs after handoff', async () => {
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
-    store.update('home', current => ({
+    store.update('home', (current) => ({
       ...current,
       document: createComposerDocument('第一条消息'),
     }))
@@ -53,10 +73,10 @@ describe('composer submit transaction', () => {
     await executeComposerSubmitTransaction({
       draft: firstDraft,
       createSession: async () => 'session-1',
-      navigateToSession: sessionId => {
+      navigateToSession: (sessionId) => {
         const handoff = store.handoff('home', `session:${sessionId}`)
         expect(handoff?.replacement.clientId).toBe('draft-2')
-        store.update('home', current => ({
+        store.update('home', (current) => ({
           ...current,
           clientId: handoff?.replacement.clientId ?? current.clientId,
           document: createComposerDocument('路由切换期间的旧页面回写'),
@@ -83,6 +103,87 @@ describe('composer submit transaction', () => {
     })
 
     expect(submittedIds).toEqual(['draft-1', 'draft-2'])
+  })
+
+  test('notifies the routed composer when a submitted id is consumed', () => {
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    store.update('home', (current) => ({
+      ...current,
+      document: createComposerDocument('第一条消息'),
+    }))
+    store.handoff('home', 'session:created')
+    let mountedClientId = store.get('session:created').clientId
+    const unsubscribe = store.subscribe(() => {
+      mountedClientId = store.get('session:created').clientId
+    })
+
+    const completed = store.completeSubmission('session:created', 'draft-1', { clearContent: true })
+
+    expect(completed.clientId).toBe('draft-3')
+    expect(completed.document.text).toBe('')
+    expect(mountedClientId).toBe('draft-3')
+    unsubscribe()
+  })
+
+  test('rotates the consumed id without clearing edits made during submission', () => {
+    let nextId = 0
+    const store = new ComposerDraftStore(() => `draft-${++nextId}`)
+    const initial = store.get('session:active')
+    store.set('session:active', {
+      ...initial,
+      document: createComposerDocument('第二条消息'),
+      attachments: [
+        {
+          id: 'attachment-1',
+          name: 'notes.txt',
+          path: 'notes.txt',
+          mediaType: 'text/plain',
+          sizeBytes: 5,
+          kind: 'text',
+          status: 'ready',
+        },
+      ],
+      skillInvocation: { name: 'review', path: 'skills/review' },
+    })
+
+    const completed = store.completeSubmission('session:active', initial.clientId, {
+      clearContent: false,
+    })
+
+    expect(completed.clientId).toBe('draft-2')
+    expect(completed.document.text).toBe('第二条消息')
+    expect(completed.attachments.map((item) => item.id)).toEqual(['attachment-1'])
+    expect(completed.skillInvocation?.name).toBe('review')
+  })
+
+  test('keeps failed submission ids retryable and only prepares errors inline', () => {
+    const store = new ComposerDraftStore(() => 'draft-1')
+    const failedDraft = store.get('session:active')
+
+    expect(store.get('session:active').clientId).toBe(failedDraft.clientId)
+    expect(
+      isInlineComposerFailure({
+        status: 'failed',
+        phase: 'prepare',
+        message: '附件不可用',
+      }),
+    ).toBe(true)
+    expect(
+      isInlineComposerFailure({
+        status: 'failed',
+        phase: 'create',
+        message: '创建失败',
+      }),
+    ).toBe(false)
+    expect(
+      isInlineComposerFailure({
+        status: 'failed',
+        phase: 'send',
+        message: '发送失败',
+        sessionId: 'session:active',
+      }),
+    ).toBe(false)
   })
 
   test('publishes an externally selected skill invocation to the active composer', () => {
@@ -113,10 +214,7 @@ describe('composer submit transaction', () => {
     expect('input' in prepared && prepared.input).toEqual({
       text: '检查当前改动',
       attachments: [],
-      skillInvocation: {
-        name: 'review',
-        skillPath: 'skills/review',
-      },
+      skills: [{ name: 'review', path: 'skills/review' }],
     })
   })
 
@@ -130,15 +228,9 @@ describe('composer submit transaction', () => {
       },
     }
 
-    expect(desktopUserMessageInputToPreviewText(input)).toBe(
-      '$review\n\n检查当前改动',
-    )
-    expect(buildDesktopUserMessageContent(input).text).toBe(
-      '$review\n\n检查当前改动',
-    )
-    expect(buildDesktopUserMessageContent(input).text).not.toContain(
-      'SKILL.md',
-    )
+    expect(desktopUserMessageInputToPreviewText(input)).toBe('$review\n\n检查当前改动')
+    expect(buildDesktopUserMessageContent(input).text).toBe('$review\n\n检查当前改动')
+    expect(buildDesktopUserMessageContent(input).text).not.toContain('SKILL.md')
   })
 
   test('allows a skill-only submission', () => {
@@ -149,16 +241,47 @@ describe('composer submit transaction', () => {
       }),
     )
 
-    expect('input' in prepared && prepared.input.skillInvocation?.name).toBe(
-      'review',
+    expect('input' in prepared && prepared.input.skills?.[0]?.name).toBe('review')
+  })
+
+  test('serializes visible task and browser references and allows reference-only submission', () => {
+    const prepared = prepareComposerSubmission(
+      draft({
+        document: {
+          text: '',
+          tokens: [
+            {
+              id: 'thread-1',
+              kind: 'thread',
+              label: '任务：[登录修复]',
+              value: 'codepilotx://threads/thread-1',
+              from: 0,
+              to: 0,
+            },
+            {
+              id: 'browser-1',
+              kind: 'browser',
+              label: '网页：参考文档',
+              value: 'https://example.com/docs',
+              from: 0,
+              to: 0,
+            },
+          ],
+        },
+      }),
     )
+
+    expect('input' in prepared && prepared.input.text).toBe(
+      '[任务：\\[登录修复\\]](<codepilotx://threads/thread-1>) [网页：参考文档](<https://example.com/docs>)',
+    )
+    expect('input' in prepared && prepared.input.attachments).toEqual([])
   })
 
   test('navigates before the first send and reports a recoverable send failure', async () => {
     const events: string[] = []
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
-    store.update('home', current => ({
+    store.update('home', (current) => ({
       ...current,
       document: createComposerDocument('检查当前改动'),
     }))
@@ -170,7 +293,7 @@ describe('composer submit transaction', () => {
         events.push('create')
         return 'session-1'
       },
-      navigateToSession: sessionId => {
+      navigateToSession: (sessionId) => {
         const handoff = store.handoff('home', `session:${sessionId}`)
         expect(handoff?.replacement.clientId).toBe('draft-2')
         events.push(`navigate:${sessionId}`)
@@ -182,11 +305,7 @@ describe('composer submit transaction', () => {
       },
     })
 
-    expect(events).toEqual([
-      'create',
-      'navigate:session-1',
-      'send:session-1',
-    ])
+    expect(events).toEqual(['create', 'navigate:session-1', 'send:session-1'])
     expect(outcome).toEqual({
       status: 'failed',
       phase: 'send',
@@ -212,10 +331,12 @@ describe('composer submit transaction', () => {
       submitToSession: async () => 'sent',
     })
 
-    expect(calls).toEqual([{
-      name: '$review 检查当前改动',
-      prompt: '检查当前改动',
-    }])
+    expect(calls).toEqual([
+      {
+        name: '$review 检查当前改动',
+        prompt: '检查当前改动',
+      },
+    ])
     expect(outcome).toEqual({ status: 'sent', sessionId: 'session-projectless' })
   })
 
@@ -223,7 +344,7 @@ describe('composer submit transaction', () => {
     const events: string[] = []
     let nextId = 0
     const store = new ComposerDraftStore(() => `draft-${++nextId}`)
-    store.update('home', current => ({
+    store.update('home', (current) => ({
       ...current,
       document: createComposerDocument('检查当前改动'),
     }))
@@ -233,8 +354,8 @@ describe('composer submit transaction', () => {
       createSession: async () => {
         throw new Error('无法创建无项目工作区')
       },
-      navigateToSession: sessionId => events.push(`navigate:${sessionId}`),
-      submitToSession: async sessionId => {
+      navigateToSession: (sessionId) => events.push(`navigate:${sessionId}`),
+      submitToSession: async (sessionId) => {
         events.push(`send:${sessionId}`)
         return 'sent'
       },

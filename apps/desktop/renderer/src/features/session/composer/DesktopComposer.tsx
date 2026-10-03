@@ -1,8 +1,11 @@
+import { Button } from '../../../components/ui/Button.js'
+import { useEffect } from 'react'
 import type React from 'react'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopModelMetadata,
+  DesktopModelProviderSummary,
   DesktopPermissionMode,
   DesktopQueuePauseReason,
   DesktopQueuedFollowUp,
@@ -21,28 +24,34 @@ import { ComposerCard } from './ComposerCard.js'
 import type {
   ComposerCapabilities,
   ComposerDeliveryIntent,
+  ComposerBrowserContext,
+  ComposerContextTask,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
+  ComposerDocument,
+  ComposerLayout,
   ComposerPlacement,
+  ComposerRadiusVariant,
   ComposerSubmitShortcut,
   ComposerSurface,
+  ComposerUtilityBarVariant,
   WorkingPlugin,
 } from './composerTypes.js'
-import {
-  useDesktopComposerController,
-} from './useDesktopComposerController.js'
+import { useDesktopComposerController } from './useDesktopComposerController.js'
+import { resolveAvailableCodingModel } from './codingModelSelection.js'
 
-export {
-  getDesktopComposerBranchName,
-  loadCachedRuntimeSkills,
-} from './useDesktopComposerController.js'
+export { loadCachedRuntimeSkills } from './useDesktopComposerController.js'
+export { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 export type {
   ComposerCapabilities,
   ComposerCollaborationMode,
   ComposerExecutionMode,
+  ComposerLayout,
   ComposerPlacement,
+  ComposerRadiusVariant,
   ComposerStackMode,
   ComposerSubmitShortcut,
+  ComposerUtilityBarVariant,
 } from './composerTypes.js'
 
 type ProviderModelOption = {
@@ -60,8 +69,13 @@ export type DesktopComposerProps = {
   capabilities?: Partial<ComposerCapabilities>
   submitShortcut?: ComposerSubmitShortcut
   surface?: ComposerSurface
+  layout?: ComposerLayout
+  radiusVariant?: ComposerRadiusVariant
+  utilityBarVariant?: ComposerUtilityBarVariant
   workingPlugin?: WorkingPlugin | null
   onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
+  onWorkingPluginAvailabilityChange?: (available: boolean) => void
+  onSkillTokenActivate?: (skill: { name: string; path: string }) => void
   placeholder?: string
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
@@ -72,13 +86,17 @@ export type DesktopComposerProps = {
   enableFusionRouter: boolean
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
-  planExecutionModel?: string
+  codingModel?: string
+  modelVariant?: string
+  modelVariantOptions?: { value: string; label: string }[]
+  onModelVariantChange?: (value: string) => void
   thinkingMode: DesktopThinkingMode
   selectedProviderID?: ModelProviderID
   selectedModelPreset: string
+  modelSelectionError?: string | null
+  onRetryModelSelection?: () => void
   modelConfigured: boolean
   modelCatalogLoading?: boolean
-  modelConfigurationMessage?: string
   selectedModelMetadata?: DesktopModelMetadata
   showThinkingOptions: boolean
   deepSeekThinkingControls: boolean
@@ -86,7 +104,10 @@ export type DesktopComposerProps = {
   contextUsage: DesktopContextUsage | null
   modelPresets: ModelPreset[]
   providerOptions: ProviderModelOption[]
+  allProviders?: readonly DesktopModelProviderSummary[]
   recentWorkspaces: DesktopWorkspace[]
+  contextTasks?: ComposerContextTask[]
+  browserContext?: ComposerBrowserContext | null
   workspace: DesktopWorkspace | null
   attachments: DesktopComposerAttachment[]
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
@@ -94,36 +115,32 @@ export type DesktopComposerProps = {
     draftKey: ComposerDraftKey,
     attachments: DesktopComposerAttachment[],
   ) => void
-  onRemoveAttachmentForDraft?: (
-    draftKey: ComposerDraftKey,
-    attachmentId: string,
-  ) => void
+  onRemoveAttachmentForDraft?: (draftKey: ComposerDraftKey, attachmentId: string) => void
+  onOpenAttachment?: (attachment: DesktopComposerAttachment) => void
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
-  ) => void
+  ) => boolean | void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onInputChange: (value: string) => void
   onInterrupt: () => Promise<void>
-  onProviderModelChange: (
-    providerID: ModelProviderID,
-    modelPresetID: string,
-  ) => void
+  onProviderModelChange: (providerID: ModelProviderID, modelPresetID: string) => void
   onProviderOpen?: (providerID: ModelProviderID) => void
   onProviderSearch?: (providerID: ModelProviderID, query: string) => void
-  onOpenWorkspace: (
-    workspace: DesktopWorkspace,
-  ) => Promise<DesktopWorkspace | null>
+  onOpenWorkspace: (workspace: DesktopWorkspace) => Promise<DesktopWorkspace | null>
   onCloneGithub: () => void
   onClearWorkspace: () => void
-  onOpenBrowser?: () => void
   onOpenMcpSettings?: () => void
+  onOpenComputerSettings?: () => void
+  onOpenModelSettings?: () => void
+  onOpenSideChat?: () => void
+  onForkConversation?: () => void
+  canForkConversation?: boolean
+  onArchiveConversation?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onStartReview?: (
-    target:
-      | { type: 'uncommittedChanges' }
-      | { type: 'baseBranch'; branch: string },
+    target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onPlanModeChange: (active: boolean) => void
@@ -149,6 +166,8 @@ export type DesktopComposerProps = {
   onFollowUpRemove?: (followUpId: string) => void
   onFollowUpResume?: () => void
   threadGoal?: DesktopThreadGoal | null
+  /** Global error notification for failures that block sending. */
+  onError?: (message: string) => void
   onGoalPause?: () => void
   onGoalResume?: () => void
   onGoalComplete?: () => void
@@ -165,8 +184,13 @@ export function DesktopComposer({
   capabilities,
   submitShortcut,
   surface,
+  layout,
+  radiusVariant,
+  utilityBarVariant,
   workingPlugin,
   onWorkingPluginChange,
+  onWorkingPluginAvailabilityChange,
+  onSkillTokenActivate,
   placeholder: placeholderOverride,
   routedSessionId,
   sessionStatus,
@@ -177,13 +201,17 @@ export function DesktopComposer({
   enableFusionRouter,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
-  planExecutionModel,
+  codingModel,
   thinkingMode,
+  modelVariant,
+  modelVariantOptions,
+  onModelVariantChange,
   selectedProviderID,
   selectedModelPreset,
+  modelSelectionError,
+  onRetryModelSelection,
   modelConfigured,
   modelCatalogLoading = false,
-  modelConfigurationMessage,
   selectedModelMetadata,
   showThinkingOptions,
   deepSeekThinkingControls,
@@ -191,12 +219,16 @@ export function DesktopComposer({
   contextUsage,
   modelPresets,
   providerOptions,
+  allProviders,
   recentWorkspaces,
+  contextTasks,
+  browserContext,
   workspace,
   attachments,
   onAttachmentsChange,
   onAppendAttachmentsForDraft,
   onRemoveAttachmentForDraft,
+  onOpenAttachment,
   onDraftAccepted,
   onChooseWorkspace,
   onInputChange,
@@ -207,8 +239,13 @@ export function DesktopComposer({
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
-  onOpenBrowser,
   onOpenMcpSettings,
+  onOpenComputerSettings,
+  onOpenModelSettings,
+  onOpenSideChat,
+  onForkConversation,
+  canForkConversation,
+  onArchiveConversation,
   onBranchSelect,
   onCreateBranch,
   onStartReview,
@@ -218,6 +255,7 @@ export function DesktopComposer({
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
+  onError,
   queuedFollowUps,
   queuePauseReason,
   onFollowUpEdit,
@@ -232,17 +270,26 @@ export function DesktopComposer({
 }: DesktopComposerProps): React.ReactNode {
   const effectiveCapabilities =
     placement === 'new-session'
-      ? { ...capabilities, goals: false }
-      : capabilities
+      ? {
+          ...capabilities,
+          goals: false,
+          dictation: capabilities?.dictation ?? true,
+        }
+      : {
+          ...capabilities,
+          dictation: capabilities?.dictation ?? true,
+        }
   const {
     branchName,
     canSubmit,
     effectivePermissionMode,
+    fileAttachmentsAvailable,
     goalModeEnabled,
+    handleAddFiles,
     handleAddFilePaths,
     handleCommandError,
     handleCompact,
-    handleOpenFiles,
+    handleComposerDocumentChange,
     handleRemoveAttachment,
     handleSkillDeselect,
     handleSkillSelect,
@@ -253,9 +300,11 @@ export function DesktopComposer({
     isSubmitting,
     lastSubmitOutcome,
     permissionOptions,
-    selectedSkillToken,
+    activeSkillToken,
+    composerDocument,
     setGoalModeEnabled,
     skillCommands,
+    taskPlanningAvailable,
     unsupportedAttachmentReason,
   } = useDesktopComposerController({
     input,
@@ -267,13 +316,16 @@ export function DesktopComposer({
     permissionMode,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
-    planExecutionModel,
+    codingModel: resolveAvailableCodingModel(codingModel, providerOptions),
     planModeActive,
     modelConfigured,
     selectedModelMetadata,
     workspace,
     attachments,
     subagentMode,
+    surface,
+    workingPlugin,
+    onWorkingPluginChange,
     onAttachmentsChange,
     onAppendAttachmentsForDraft,
     onRemoveAttachmentForDraft,
@@ -282,101 +334,164 @@ export function DesktopComposer({
     onProviderModelChange,
     createSessionForWorkspace,
     submitToSession,
+    onError,
   })
 
+  useEffect(() => {
+    onWorkingPluginAvailabilityChange?.(taskPlanningAvailable)
+  }, [onWorkingPluginAvailabilityChange, taskPlanningAvailable])
+
+  useEffect(() => {
+    if (workingPlugin && planModeActive) onPlanModeChange(false)
+  }, [onPlanModeChange, planModeActive, workingPlugin])
+
+  function handleWorkingPluginChange(plugin: WorkingPlugin | null): void {
+    onWorkingPluginChange?.(plugin)
+  }
+
+  function handlePlanModeChange(active: boolean): void {
+    if (active && workingPlugin) onWorkingPluginChange?.(null)
+    onPlanModeChange(active)
+  }
+
+  function handleSkillSelectWithWorkingPluginClear(
+    skill: Parameters<typeof handleSkillSelect>[0],
+  ): void {
+    if (workingPlugin) onWorkingPluginChange?.(null)
+    handleSkillSelect(skill)
+  }
+
+  function handleComposerDocumentChangeWithInput(document: ComposerDocument): void {
+    handleComposerDocumentChange(document)
+    onInputChange(document.text)
+  }
+
   return (
-    <ComposerCard
-      input={input}
-      canSubmit={canSubmit}
-      sessionStatus={sessionStatus}
-      permissionMode={effectivePermissionMode}
-      planModeActive={planModeActive}
-      placement={placement}
-      capabilities={effectiveCapabilities}
-      submitShortcut={submitShortcut}
-      surface={surface}
-      workingPlugin={workingPlugin}
-      onWorkingPluginChange={onWorkingPluginChange}
-      submitting={isSubmitting}
-      submitOutcome={lastSubmitOutcome}
-      goalModeEnabled={goalModeEnabled}
-      onGoalModeChange={setGoalModeEnabled}
-      localRouterMode={localRouterMode}
-      enableParetoCodeRouter={enableParetoCodeRouter}
-      enableFusionRouter={enableFusionRouter}
-      thinkingMode={thinkingMode}
-      selectedProviderID={selectedProviderID ?? 'anthropic'}
-      selectedModelPreset={selectedModelPreset}
-      modelConfigured={modelConfigured}
-      modelCatalogLoading={modelCatalogLoading}
-      modelConfigurationMessage={modelConfigurationMessage}
-      submitDisabledReason={unsupportedAttachmentReason ?? undefined}
-      showThinkingOptions={showThinkingOptions}
-      deepSeekThinkingControls={deepSeekThinkingControls}
-      showContextUsage={showContextUsage}
-      contextUsage={contextUsage}
-      modelPresets={modelPresets}
-      providerOptions={providerOptions}
-      permissionOptions={permissionOptions}
-      thinkingOptions={THINKING_MODE_OPTIONS}
-      branchName={branchName}
-      branches={workspace?.branches ?? []}
-      recentWorkspaces={recentWorkspaces}
-      workspace={workspace}
-      attachments={attachments}
-      skillCommands={skillCommands}
-      selectedSkillToken={selectedSkillToken ?? undefined}
-      hasConversationMessages={hasConversationMessages}
-      placeholder={
-        placeholderOverride ??
-        (modelCatalogLoading
-          ? '加载模型列表中……'
-          : modelConfigured
-          ? hasConversationMessages
-            ? '要求后续变更'
-            : '随心输入'
-          : '未配置模型，请先在设置中配置模型')
-      }
-      onChooseWorkspace={() => void onChooseWorkspace()}
-      onInputChange={onInputChange}
-      onCompositionStart={handleCompositionStart}
-      onCompositionEnd={handleCompositionEnd}
-      onInterrupt={() => void onInterrupt()}
-      onProviderModelChange={onProviderModelChange}
-      onProviderOpen={onProviderOpen}
-      onProviderSearch={onProviderSearch}
-      onAddFiles={filePaths => void handleAddFilePaths(filePaths)}
-      onOpenFiles={() => void handleOpenFiles()}
-      onRemoveAttachment={handleRemoveAttachment}
-      onOpenWorkspace={workspaceItem => void onOpenWorkspace(workspaceItem)}
-      onCloneGithub={onCloneGithub}
-      onClearWorkspace={onClearWorkspace}
-      onOpenBrowser={onOpenBrowser}
-      onOpenMcpSettings={onOpenMcpSettings}
-      onBranchSelect={branch => void onBranchSelect(branch)}
-      onCreateBranch={onCreateBranch}
-      onStartReview={onStartReview}
-      onPermissionChange={onPermissionChange}
-      onPlanModeChange={onPlanModeChange}
-      onLocalRouterModeChange={onLocalRouterModeChange}
-      onSubmit={handleSubmit}
-      onCompact={handleCompact}
-      onCommandError={handleCommandError}
-      onThinkingChange={onThinkingChange}
-      onSkillSelect={handleSkillSelect}
-      onSkillDeselect={handleSkillDeselect}
-      routedSessionId={routedSessionId}
-      contextDropdownSide="top"
-      queuedFollowUps={queuedFollowUps}
-      queuePauseReason={queuePauseReason}
-      onFollowUpEdit={onFollowUpEdit}
-      onFollowUpRemove={onFollowUpRemove}
-      onFollowUpResume={onFollowUpResume}
-      threadGoal={threadGoal}
-      onGoalPause={onGoalPause}
-      onGoalResume={onGoalResume}
-      onGoalComplete={onGoalComplete}
-      onGoalClear={onGoalClear}
-    />
+    <>
+      {modelSelectionError && (
+        <div role="alert">
+          {modelSelectionError}
+          <Button color="secondary" onClick={onRetryModelSelection}>
+            重新加载模型
+          </Button>
+        </div>
+      )}
+      <ComposerCard
+        draftKey={draftKey}
+        input={input}
+        canSubmit={canSubmit}
+        sessionStatus={sessionStatus}
+        permissionMode={effectivePermissionMode}
+        planModeActive={planModeActive}
+        placement={placement}
+        capabilities={{
+          ...effectiveCapabilities,
+          fileAttachments:
+            fileAttachmentsAvailable && (effectiveCapabilities?.fileAttachments ?? true),
+        }}
+        submitShortcut={submitShortcut}
+        surface={surface}
+        layout={layout}
+        radiusVariant={radiusVariant}
+        utilityBarVariant={utilityBarVariant}
+        workingPlugin={workingPlugin}
+        onWorkingPluginChange={handleWorkingPluginChange}
+        submitting={isSubmitting}
+        submitOutcome={lastSubmitOutcome}
+        goalModeEnabled={goalModeEnabled}
+        onGoalModeChange={setGoalModeEnabled}
+        localRouterMode={localRouterMode}
+        enableParetoCodeRouter={enableParetoCodeRouter}
+        enableFusionRouter={enableFusionRouter}
+        modelVariant={modelVariant}
+        modelVariantOptions={modelVariantOptions}
+        onModelVariantChange={onModelVariantChange}
+        thinkingMode={thinkingMode}
+        selectedProviderID={selectedProviderID ?? 'anthropic'}
+        selectedModelPreset={selectedModelPreset}
+        modelConfigured={modelConfigured}
+        modelCatalogLoading={modelCatalogLoading}
+        submitDisabledReason={unsupportedAttachmentReason ?? undefined}
+        showThinkingOptions={showThinkingOptions}
+        deepSeekThinkingControls={deepSeekThinkingControls}
+        showContextUsage={showContextUsage}
+        contextUsage={contextUsage}
+        modelPresets={modelPresets}
+        providerOptions={providerOptions}
+        allProviders={allProviders}
+        permissionOptions={permissionOptions}
+        thinkingOptions={THINKING_MODE_OPTIONS}
+        branchName={branchName}
+        branches={workspace?.branches ?? []}
+        recentWorkspaces={recentWorkspaces}
+        contextTasks={contextTasks}
+        browserContext={browserContext}
+        workspace={workspace}
+        attachments={attachments}
+        skillCommands={skillCommands}
+        document={composerDocument}
+        selectedSkillToken={activeSkillToken ?? undefined}
+        hasConversationMessages={hasConversationMessages}
+        placeholder={
+          placeholderOverride ??
+          (modelCatalogLoading
+            ? '加载模型列表中……'
+            : hasConversationMessages
+              ? '要求后续变更'
+              : '随心输入')
+        }
+        onChooseWorkspace={() => void onChooseWorkspace()}
+        onInputChange={onInputChange}
+        onDocumentChange={handleComposerDocumentChangeWithInput}
+        onSkillTokenActivate={onSkillTokenActivate}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
+        onInterrupt={() =>
+          void onInterrupt().catch((error) =>
+            handleCommandError(error instanceof Error ? error.message : String(error)),
+          )
+        }
+        onProviderModelChange={onProviderModelChange}
+        onProviderOpen={onProviderOpen}
+        onProviderSearch={onProviderSearch}
+        onAddFiles={(files) => void handleAddFiles(files)}
+        onAddFilePaths={handleAddFilePaths}
+        onRemoveAttachment={handleRemoveAttachment}
+        onOpenAttachment={onOpenAttachment}
+        onOpenWorkspace={(workspaceItem) => void onOpenWorkspace(workspaceItem)}
+        onCloneGithub={onCloneGithub}
+        onClearWorkspace={onClearWorkspace}
+        onOpenMcpSettings={onOpenMcpSettings}
+        onOpenComputerSettings={onOpenComputerSettings}
+        onOpenModelSettings={onOpenModelSettings}
+        onOpenSideChat={onOpenSideChat}
+        onForkConversation={onForkConversation}
+        canForkConversation={canForkConversation}
+        onArchiveConversation={onArchiveConversation}
+        onBranchSelect={(branch) => void onBranchSelect(branch)}
+        onCreateBranch={onCreateBranch}
+        onStartReview={onStartReview}
+        onPermissionChange={onPermissionChange}
+        onPlanModeChange={handlePlanModeChange}
+        onLocalRouterModeChange={onLocalRouterModeChange}
+        onSubmit={handleSubmit}
+        onCompact={handleCompact}
+        onCommandError={handleCommandError}
+        onThinkingChange={onThinkingChange}
+        onSkillSelect={handleSkillSelectWithWorkingPluginClear}
+        routedSessionId={routedSessionId}
+        contextDropdownSide="top"
+        queuedFollowUps={queuedFollowUps}
+        queuePauseReason={queuePauseReason}
+        onFollowUpEdit={onFollowUpEdit}
+        onFollowUpRemove={onFollowUpRemove}
+        onFollowUpResume={onFollowUpResume}
+        threadGoal={threadGoal}
+        onGoalPause={onGoalPause}
+        onGoalResume={onGoalResume}
+        onGoalComplete={onGoalComplete}
+        onGoalClear={onGoalClear}
+      />
+    </>
   )
 }

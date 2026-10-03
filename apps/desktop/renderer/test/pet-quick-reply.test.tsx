@@ -11,16 +11,18 @@ describe('PetQuickReply', () => {
           toolName: 'AskUserQuestion',
           description: '请选择',
           input: {
-            questions: [{
-              id: 'editor',
-              header: '编辑器',
-              question: '选择编辑器',
-              options: [
-                { label: 'VS Code', description: '使用 VS Code' },
-                { label: 'Zed', description: '使用 Zed' },
-              ],
-              multiSelect: false,
-            }],
+            questions: [
+              {
+                id: 'editor',
+                header: '编辑器',
+                question: '选择编辑器',
+                options: [
+                  { label: 'VS Code', description: '使用 VS Code' },
+                  { label: 'Zed', description: '使用 Zed' },
+                ],
+                multiSelect: false,
+              },
+            ],
           },
         }}
         onRespond={() => undefined}
@@ -28,6 +30,8 @@ describe('PetQuickReply', () => {
     )
     expect(html).toContain('选择编辑器')
     expect(html).toContain('其他回答')
+    expect(html).toContain('role="radio"')
+    expect(html).not.toContain('aria-pressed')
     expect(html).toMatch(/disabled=""[^>]*>提交回答</)
   })
 
@@ -45,6 +49,7 @@ describe('PetQuickReply', () => {
     )
     expect(approval).toContain('允许一次')
     expect(approval).toContain('拒绝')
+    expect(approval).toContain('role="radio"')
   })
 
   test('offers a safe fallback for malformed question requests', () => {

@@ -21,27 +21,16 @@ type ProviderCredentialApiMethod =
   | 'testApiKey'
   | 'deleteProviderCredential'
 
-type ProviderCredentialApi = Pick<
-  CodePilotXDesktopClient,
-  ProviderCredentialApiMethod
->
+type ProviderCredentialApi = Pick<CodePilotXDesktopClient, ProviderCredentialApiMethod>
 
 type Dependencies = {
   invalidateModelCatalog: () => void
-  loadProviderCredentials: (
-    force?: boolean,
-  ) => Promise<DesktopProviderCredential[]>
+  loadProviderCredentials: (force?: boolean) => Promise<DesktopProviderCredential[]>
   mockClient: ProviderCredentialApi
-  requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'provider.auth.pi.v1'>,
-  ) => void
+  requireAgentCapability: (name: Extract<ProtocolCapability, 'provider.auth.pi.v1'>) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
-  setProviderCredentialsCache: (
-    credentials: DesktopProviderCredential[] | null,
-  ) => void
-  providerState: (
-    providerID: ModelProviderID,
-  ) => Promise<DesktopModelProviderState>
+  setProviderCredentialsCache: (credentials: DesktopProviderCredential[] | null) => void
+  providerState: (providerID: ModelProviderID) => Promise<DesktopModelProviderState>
   withAgentOrMock: <T>(
     agentOperation: () => Promise<T>,
     mockOperation: () => Promise<T>,
@@ -74,11 +63,9 @@ export function createAgentProviderCredentialApi({
       invalidateCredentials()
       return providerState(providerID)
     },
-    deleteProviderApiKey: async providerID => {
+    deleteProviderApiKey: async (providerID) => {
       const credentials = (await loadProviderCredentials(true)).filter(
-        credential =>
-          credential.providerId === providerID
-          && credential.kind === 'api-key',
+        (credential) => credential.providerId === providerID && credential.kind === 'api-key',
       )
       if (credentials.length === 0) {
         throw new Error('当前 Provider 没有可删除的应用内 API 密钥。')
@@ -92,7 +79,7 @@ export function createAgentProviderCredentialApi({
       invalidateCredentials()
       return providerState(providerID)
     },
-    listProviderCredentials: providerId =>
+    listProviderCredentials: (providerId) =>
       withAgentOrMock(
         async () => {
           const result = await rpc.call(
@@ -116,7 +103,7 @@ export function createAgentProviderCredentialApi({
         },
         () => mockClient.readProviderCredentialStore(),
       ),
-    updateProviderCredentialStore: store =>
+    updateProviderCredentialStore: (store) =>
       withAgentOrMock(
         async () => {
           requireAgentCapability('provider.auth.pi.v1')
@@ -127,7 +114,7 @@ export function createAgentProviderCredentialApi({
         },
         () => mockClient.updateProviderCredentialStore(store),
       ),
-    createApiKey: input =>
+    createApiKey: (input) =>
       withAgentOrMock(
         async () => {
           const result = await rpc.call('provider/apiKey/create', {
@@ -140,7 +127,7 @@ export function createAgentProviderCredentialApi({
         },
         () => mockClient.createApiKey(input),
       ),
-    updateApiKey: input =>
+    updateApiKey: (input) =>
       withAgentOrMock(
         async () => {
           const result = await rpc.call('provider/apiKey/update', {
@@ -158,7 +145,8 @@ export function createAgentProviderCredentialApi({
         async () => {
           const result = await rpc.call('provider/credential/setActive', {
             providerId: providerId as RpcParams<'provider/credential/setActive'>['providerId'],
-            credentialId: credentialId as RpcParams<'provider/credential/setActive'>['credentialId'],
+            credentialId:
+              credentialId as RpcParams<'provider/credential/setActive'>['credentialId'],
             operationId: crypto.randomUUID(),
           })
           invalidateCredentials()
@@ -170,7 +158,8 @@ export function createAgentProviderCredentialApi({
       withAgentOrMock(
         async () => {
           const result = await rpc.call('provider/credential/setEnabled', {
-            credentialId: credentialId as RpcParams<'provider/credential/setEnabled'>['credentialId'],
+            credentialId:
+              credentialId as RpcParams<'provider/credential/setEnabled'>['credentialId'],
             enabled,
             operationId: crypto.randomUUID(),
           })
@@ -193,7 +182,7 @@ export function createAgentProviderCredentialApi({
         },
         () => mockClient.reorderApiKeys(providerId, orderedCredentialIds),
       ),
-    testApiKey: credentialId =>
+    testApiKey: (credentialId) =>
       withAgentOrMock(
         async () => {
           const result = await rpc.call('provider/apiKey/test', {
@@ -206,7 +195,7 @@ export function createAgentProviderCredentialApi({
         },
         () => mockClient.testApiKey(credentialId),
       ),
-    deleteProviderCredential: credentialId =>
+    deleteProviderCredential: (credentialId) =>
       withAgentOrMock(
         async () => {
           const result = await rpc.call('provider/credential/delete', {

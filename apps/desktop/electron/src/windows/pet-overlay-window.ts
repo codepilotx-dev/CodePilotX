@@ -1,20 +1,17 @@
-import { join } from "node:path"
-import { BrowserWindow, screen, type WebContents } from "electron"
+import { join } from 'node:path'
+import { BrowserWindow, screen, type WebContents } from 'electron'
 import {
   PET_OVERLAY_CHANNELS,
   type DesktopPetOverlayWindowState,
   type DesktopPetPresentation,
-} from "@codepilotx/shared/desktop-pet-overlay"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
-import {
-  isAllowedApplicationUrl,
-  normalizeOrigin,
-} from "../security/navigation.js"
+} from '@codepilotx/shared/desktop-pet-overlay'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
+import { isAllowedApplicationUrl, normalizeOrigin } from '../security/navigation.js'
 import {
   clampPetOverlayBounds,
   type PetOverlayWindowStateV1,
   PetOverlayWindowStateStore,
-} from "./pet-overlay-window-state.js"
+} from './pet-overlay-window-state.js'
 import {
   advancePetThrow,
   estimatePetThrowVelocity,
@@ -23,11 +20,15 @@ import {
   PET_THROW_TICK_MS,
   type PetThrowSample,
   type PetThrowVelocity,
-} from "./pet-overlay-throw.js"
+} from './pet-overlay-throw.js'
 
 export class PetOverlayWindowController {
   #window?: BrowserWindow
   #applicationOrigin?: string
+  #pendingLoad?: {
+    target: string
+    promise: Promise<void>
+  }
   #dragStart?: {
     cursor: Electron.Point
     bounds: Electron.Rectangle
@@ -55,10 +56,27 @@ export class PetOverlayWindowController {
   }
 
   async open(): Promise<void> {
-    if (!this.#applicationOrigin) throw new Error("Agent 尚未连接")
+    if (!this.#applicationOrigin) throw new Error('Agent 尚未连接')
     const overlay = this.#ensureWindow()
     const target = `${this.#applicationOrigin}/#/pet-overlay`
-    if (overlay.webContents.getURL() !== target) await overlay.loadURL(target)
+    while (overlay.webContents.getURL() !== target) {
+      const pending = this.#pendingLoad
+      if (pending) {
+        if (pending.target === target) await pending.promise
+        else await pending.promise.catch(() => undefined)
+        continue
+      }
+      const load = {
+        target,
+        promise: overlay.loadURL(target),
+      }
+      this.#pendingLoad = load
+      try {
+        await load.promise
+      } finally {
+        if (this.#pendingLoad === load) this.#pendingLoad = undefined
+      }
+    }
     overlay.showInactive()
   }
 
@@ -114,14 +132,11 @@ export class PetOverlayWindowController {
     const sample = sampleCursor(cursor)
     this.#dragSamples.push(sample)
     this.#dragSamples = this.#dragSamples.filter(
-      item => item.timestampMs >= sample.timestampMs - PET_THROW_SAMPLE_WINDOW_MS,
+      (item) => item.timestampMs >= sample.timestampMs - PET_THROW_SAMPLE_WINDOW_MS,
     )
     const deltaX = cursor.x - start.cursor.x
     const deltaY = cursor.y - start.cursor.y
-    if (
-      !this.#dragActivated
-      && Math.hypot(deltaX, deltaY) < PET_DRAG_THRESHOLD_PX
-    ) {
+    if (!this.#dragActivated && Math.hypot(deltaX, deltaY) < PET_DRAG_THRESHOLD_PX) {
       return
     }
     this.#dragActivated = true
@@ -248,9 +263,9 @@ export class PetOverlayWindowController {
       fullscreenable: false,
       skipTaskbar: true,
       focusable: false,
-      backgroundColor: "#00000000",
+      backgroundColor: '#00000000',
       webPreferences: {
-        preload: join(this.moduleDirectory, "preload.cjs"),
+        preload: join(this.moduleDirectory, 'preload.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
@@ -259,40 +274,40 @@ export class PetOverlayWindowController {
       },
     })
     this.#window = overlay
-    overlay.setAlwaysOnTop(true, "floating")
+    overlay.setAlwaysOnTop(true, 'floating')
     overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     overlay.setIgnoreMouseEvents(true, { forward: true })
-    overlay.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
-    overlay.webContents.on("will-navigate", (event, url) => {
+    overlay.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    overlay.webContents.on('will-navigate', (event, url) => {
       if (!isAllowedApplicationUrl(url, this.#applicationOrigin)) {
         event.preventDefault()
       }
     })
-    overlay.webContents.on("preload-error", (_event, _preloadPath, error) => {
-      this.logger.error("pet-overlay.preload-error", {
+    overlay.webContents.on('preload-error', (_event, _preloadPath, error) => {
+      this.logger.error('pet-overlay.preload-error', {
         message: error.message,
       })
     })
     overlay.webContents.on(
-      "did-fail-load",
+      'did-fail-load',
       (_event, errorCode, errorDescription, _validatedURL, isMainFrame) => {
-        this.logger.error("pet-overlay.did-fail-load", {
+        this.logger.error('pet-overlay.did-fail-load', {
           errorCode,
           errorDescription,
           isMainFrame,
         })
       },
     )
-    overlay.webContents.on("render-process-gone", (_event, details) => {
-      this.logger.error("pet-overlay.render-process-gone", {
+    overlay.webContents.on('render-process-gone', (_event, details) => {
+      this.logger.error('pet-overlay.render-process-gone', {
         reason: details.reason,
         exitCode: details.exitCode,
       })
     })
-    overlay.on("unresponsive", () => {
-      this.logger.warn("pet-overlay.unresponsive")
+    overlay.on('unresponsive', () => {
+      this.logger.warn('pet-overlay.unresponsive')
     })
-    overlay.on("closed", () => {
+    overlay.on('closed', () => {
       if (this.#window === overlay) this.#window = undefined
     })
     return overlay

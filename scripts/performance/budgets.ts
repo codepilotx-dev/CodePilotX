@@ -2,8 +2,27 @@ import type { PerformanceBudget } from './metrics.js'
 
 export const rendererBudgets: readonly PerformanceBudget[] = [
   { scenario: 'sidebar-resize', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'sidebar-resize', metric: 'maxLongTaskMs', max: 50 },
   { scenario: 'sidebar-resize', metric: 'writesDuringDrag', max: 0 },
   { scenario: 'sidebar-resize', metric: 'writesAfterDrop', min: 1, max: 1 },
+  { scenario: 'workbench-right-live-resize', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'workbench-right-live-resize', metric: 'maxLongTaskMs', max: 50 },
+  { scenario: 'workbench-right-live-resize', metric: 'liveMainSizeChanged', min: 1, max: 1 },
+  { scenario: 'workbench-right-live-resize', metric: 'livePanelSizeChanged', min: 1, max: 1 },
+  { scenario: 'workbench-right-live-resize', metric: 'panelBoundaryGap', max: 1 },
+  { scenario: 'workbench-right-live-resize', metric: 'writesDuringDrag', max: 0 },
+  { scenario: 'workbench-right-live-resize', metric: 'writesAfterDrop', min: 1, max: 1 },
+  { scenario: 'bottom-panel-live-resize', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'bottom-panel-live-resize', metric: 'maxLongTaskMs', max: 50 },
+  { scenario: 'bottom-panel-live-resize', metric: 'liveMainSizeChanged', min: 1, max: 1 },
+  { scenario: 'bottom-panel-live-resize', metric: 'livePanelSizeChanged', min: 1, max: 1 },
+  { scenario: 'bottom-panel-live-resize', metric: 'panelSpacerDelta', max: 1 },
+  { scenario: 'bottom-panel-live-resize', metric: 'writesDuringDrag', max: 0 },
+  { scenario: 'bottom-panel-live-resize', metric: 'writesAfterDrop', min: 1, max: 1 },
+  { scenario: 'window-resize', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'window-resize', metric: 'maxLongTaskMs', max: 50 },
+  { scenario: 'window-resize', metric: 'writesDuringDrag', max: 0 },
+  { scenario: 'window-resize', metric: 'writesAfterDrop', min: 1, max: 1 },
   { scenario: 'review-live-resize', metric: 'frameP95Ms', max: 20 },
   { scenario: 'review-live-resize', metric: 'maxLongTaskMs', max: 50 },
   { scenario: 'review-live-resize', metric: 'liveWidthChanged', min: 1, max: 1 },
@@ -130,7 +149,49 @@ export const rendererBudgets: readonly PerformanceBudget[] = [
   { scenario: 'composer-input', metric: 'relativeDegradationPercent', max: 10 },
   { scenario: 'sidebar-dnd', metric: 'moveMs', max: 80 },
   { scenario: 'sidebar-dnd', metric: 'dropReadyMs', max: 250 },
+  {
+    scenario: 'editor-file-tree-toggle',
+    metric: 'frameP95Ms',
+    max: 20,
+  },
+  {
+    scenario: 'editor-file-tree-toggle',
+    metric: 'maxLongTaskMs',
+    max: 50,
+  },
+  {
+    scenario: 'nested-scroll-edge-fade',
+    metric: 'frameP95Ms',
+    max: 20,
+  },
+  {
+    scenario: 'nested-scroll-edge-fade',
+    metric: 'maxLongTaskMs',
+    max: 50,
+  },
+  { scenario: 'skeleton-shimmer', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'skeleton-shimmer', metric: 'maxLongTaskMs', max: 50 },
   { scenario: 'memory-stability', metric: 'heapRegressionScore', max: 0 },
+  // 流式：提交按帧合并（每帧至多一次），且只有尾部 item 重渲染。
+  // 提交/渲染次数用"每帧"表达，才能在 60Hz 与 120Hz 显示器上同样成立。
+  { scenario: 'streaming-throughput', metric: 'frameP95Ms', max: 20 },
+  { scenario: 'streaming-throughput', metric: 'longTaskP95Ms', max: 50 },
+  { scenario: 'streaming-throughput', metric: 'maxLongTaskMs', max: 50 },
+  { scenario: 'streaming-throughput', metric: 'canonicalCommitsPerFrame', max: 1.5 },
+  { scenario: 'streaming-throughput', metric: 'streamingItemRendersPerFrame', max: 4 },
+  { scenario: 'streaming-throughput', metric: 'tailIsolationSlack', max: 64 },
+  {
+    scenario: 'streaming-throughput',
+    metric: 'pendingDeltaCharacters',
+    min: 0,
+    max: 0,
+  },
+  {
+    scenario: 'streaming-throughput',
+    metric: 'streamedItemTextMatches',
+    min: 1,
+    max: 1,
+  },
 ] as const
 
 export const electronBudgets: readonly PerformanceBudget[] = [

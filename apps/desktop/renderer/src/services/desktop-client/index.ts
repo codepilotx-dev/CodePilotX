@@ -1,8 +1,10 @@
 import { createAgentSessionDesktopClient } from './agent-session-client.js'
-import { createBrowserMockDesktopClient } from './browser-mock-client.js'
+import { createLazyBrowserMockClient } from './lazy-browser-mock-client.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
+import { createGithubAccountCache } from './github-account-cache.js'
 import type {
-  CodePilotXDesktopClient,
+  DesktopAttachmentApi,
+  DesktopLocalContextApi,
   DesktopClientEnvironment,
 } from './types.js'
 
@@ -12,18 +14,23 @@ export {
   WORKSPACE_GIT_CHANGED_EVENT,
 } from './agent-session-client.js'
 export { startGithubLoginFlow } from './github-login.js'
+export { desktopClipboard } from './clipboard-client.js'
+export type { DesktopClipboard } from './clipboard-client.js'
 export type { DesktopTerminalClient } from './terminal-client.js'
+export type { DesktopBrowserClient } from './desktop-browser-client.js'
 
-let terminalClientPromise:
-  | Promise<import('./terminal-client.js').DesktopTerminalClient>
-  | null = null
+let terminalClientPromise: Promise<import('./terminal-client.js').DesktopTerminalClient> | null =
+  null
 
 export function loadDesktopTerminalClient(): Promise<
   import('./terminal-client.js').DesktopTerminalClient
 > {
-  terminalClientPromise ??= import('./terminal-client.js').then(
-    module => module.terminalClient,
-  )
+  terminalClientPromise ??= import('./terminal-client.js')
+    .then((module) => module.terminalClient)
+    .catch((error) => {
+      terminalClientPromise = null
+      throw error
+    })
   return terminalClientPromise
 }
 export type { GithubLoginClient } from './github-login.js'
@@ -36,6 +43,17 @@ export type {
   DesktopClientEnvironment,
   DesktopReleaseNotesApi,
   DesktopRuntimeCapabilityApi,
+  DesktopAutomationApi,
+  DesktopCalendarApi,
+  DesktopPluginApi,
+  DesktopMiniMaxCliApi,
+  DesktopSessionGroupApi,
+  DesktopSessionGroup,
+  DesktopSessionGroupDetail,
+  DesktopSessionGroupStep,
+  DesktopLocalContextApi,
+  DesktopSpeechApi,
+  DesktopSpeechStatus,
   DesktopUsageApi,
   DesktopReviewAgentComment,
   DesktopReviewAgentFileDiff,
@@ -46,14 +64,14 @@ export type {
 
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
-): CodePilotXDesktopClient {
-  const fallbackClient =
-    createBrowserMockDesktopClient(environment.localStorage)
-  return createAgentSessionDesktopClient(
+) {
+  const fallbackClient = createLazyBrowserMockClient(environment.localStorage)
+  const client = createAgentSessionDesktopClient(
     environment,
     fallbackClient,
     environment.window?.codePilotXDesktop === undefined,
   )
+  return { ...client, ...createGithubAccountCache(client) }
 }
 
-export const desktopClient: CodePilotXDesktopClient = createDesktopClient()
+export const desktopClient = createDesktopClient()

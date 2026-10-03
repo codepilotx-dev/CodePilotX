@@ -1,4 +1,5 @@
 import type { DesktopApiMethod } from './ipcChannels.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const undefinedMarkerKey = '__desktopBrowserDebugUndefined'
 const undefinedMarker = { [undefinedMarkerKey]: true } as const
@@ -10,15 +11,10 @@ const optionalArgumentIndexes: Partial<Record<DesktopApiMethod, readonly number[
   sendUserMessage: [2],
 }
 
-export function encodeDesktopBridgeArgs(
-  method: DesktopApiMethod,
-  args: unknown[],
-): unknown[] {
+export function encodeDesktopBridgeArgs(method: DesktopApiMethod, args: unknown[]): unknown[] {
   const optionalIndexes = new Set(optionalArgumentIndexes[method] ?? [])
   return args.map((arg, index) =>
-    encodeDesktopBridgeValue(
-      arg === null && optionalIndexes.has(index) ? undefined : arg,
-    ),
+    encodeDesktopBridgeValue(arg === null && optionalIndexes.has(index) ? undefined : arg),
   )
 }
 
@@ -31,10 +27,7 @@ function encodeDesktopBridgeValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(encodeDesktopBridgeValue)
   if (!isRecord(value)) return value
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [
-      key,
-      encodeDesktopBridgeValue(entry),
-    ]),
+    Object.entries(value).map(([key, entry]) => [key, encodeDesktopBridgeValue(entry)]),
   )
 }
 
@@ -43,21 +36,10 @@ function decodeDesktopBridgeValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(decodeDesktopBridgeValue)
   if (!isRecord(value)) return value
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [
-      key,
-      decodeDesktopBridgeValue(entry),
-    ]),
+    Object.entries(value).map(([key, entry]) => [key, decodeDesktopBridgeValue(entry)]),
   )
 }
 
 function isUndefinedMarker(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    value[undefinedMarkerKey] === true &&
-    Object.keys(value).length === 1
-  )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+  return isRecord(value) && value[undefinedMarkerKey] === true && Object.keys(value).length === 1
 }

@@ -1,24 +1,20 @@
 import type React from 'react'
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
-import {
-  FileSearch,
-  FolderOpen,
-  LoaderCircle,
-  Search,
-  SquarePen,
-} from 'lucide-react'
-import type {
-  DesktopSessionCatalogStatus,
-} from '../../../shared/types.js'
+import { FileSearch, FolderOpen, Search, SquarePen } from 'lucide-react'
+import type { DesktopSessionCatalogStatus } from '../../../shared/types.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { Spinner } from '../../components/ui/Spinner.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import type { SessionListItem } from '../../uiTypes.js'
 import type { CommandMenuTask } from './commandMenuModel.js'
+import {
+  commandMenuActionStore,
+  filterCommandMenuActions,
+  type CommandMenuActionGroup,
+  type CommandMenuActionSnapshot,
+} from './commandMenuActionStore.js'
 import { useCommandMenuController } from './useCommandMenuController.js'
 
 export type CommandMenuDialogProps = {
@@ -72,11 +68,20 @@ export function CommandMenuDialog({
     pendingPermissionSessionIds,
     onSelectTask,
   })
+  const registeredActions = useSyncExternalStore(
+    commandMenuActionStore.subscribe,
+    commandMenuActionStore.getSnapshot,
+    commandMenuActionStore.getServerSnapshot,
+  )
+  const actions = useMemo(
+    () => filterCommandMenuActions(registeredActions, query),
+    [query, registeredActions],
+  )
   const showRecommendations = query.trim().length === 0
   const recommendations: Recommendation[] = [
     {
       id: 'new-task',
-      label: '新建任务',
+      label: '新建对话',
       shortcut: 'Ctrl+N',
       icon: <SquarePen aria-hidden="true" size={APP_ICON_SIZE} />,
       action: onCreateTask,
@@ -102,106 +107,157 @@ export function CommandMenuDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        {open ? (
-          <Dialog.Overlay className="command-menu-backdrop">
-            <Dialog.Content
-              aria-describedby="command-menu-description"
-              className="command-menu-dialog"
-              onCloseAutoFocus={onCloseAutoFocus}
-              onOpenAutoFocus={event => {
-                event.preventDefault()
-                internalInputRef.current?.focus()
-                internalInputRef.current?.select()
-              }}
-            >
-              <Dialog.Title className="u-sr-only">
-                任务命令菜单
-              </Dialog.Title>
-              <Dialog.Description
-                className="u-sr-only"
-                id="command-menu-description"
-              >
-                搜索最近任务，或执行常用操作。
-              </Dialog.Description>
-              <Command
-                className="command-menu"
-                label="搜索任务"
-                shouldFilter={false}
-                vimBindings={false}
-              >
-                <div className="command-menu-search">
-                  <Search
-                    aria-hidden="true"
-                    className="command-menu-search-icon"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                  <input
-                    aria-keyshortcuts="Control+K Control+Shift+P"
-                    aria-label="搜索任务"
-                    className="command-menu-input"
-                    defaultValue={query}
-                    onChange={event => setQuery(event.currentTarget.value)}
-                    placeholder="搜索任务"
-                    ref={setInputRef}
-                    type="search"
-                  />
-                </div>
-                <Command.List className="command-menu-list">
-                  <CommandMenuTaskGroup
-                    catalogStatus={catalogStatus}
-                    query={query}
-                    tasks={tasks}
-                    onSelectTask={onSelectTask}
-                  />
-                  {showRecommendations ? (
-                    <Command.Group
-                      className="command-menu-group"
-                      heading="推荐"
+        <Dialog.Overlay className="ui-dialog-backdrop command-menu-backdrop" />
+        <Dialog.Content
+          aria-describedby="command-menu-description"
+          className="ui-dialog-surface ui-dialog-surface--centered command-menu-dialog"
+          onCloseAutoFocus={onCloseAutoFocus}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            internalInputRef.current?.focus()
+            internalInputRef.current?.select()
+          }}
+        >
+          <Dialog.Title className="u-sr-only">任务命令菜单</Dialog.Title>
+          <Dialog.Description className="u-sr-only" id="command-menu-description">
+            搜索最近任务，或执行常用操作。
+          </Dialog.Description>
+          <Command
+            className="command-menu"
+            label="搜索任务"
+            shouldFilter={false}
+            vimBindings={false}
+          >
+            <div className="command-menu-search">
+              <Search
+                aria-hidden="true"
+                className="command-menu-search-icon"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+              <input
+                aria-keyshortcuts="Control+K Control+Shift+P"
+                aria-label="搜索任务"
+                className="command-menu-input"
+                defaultValue={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                placeholder="搜索任务"
+                ref={setInputRef}
+                type="search"
+              />
+            </div>
+            <Command.List className="command-menu-list">
+              <CommandMenuTaskGroup
+                catalogStatus={catalogStatus}
+                query={query}
+                tasks={tasks}
+                onSelectTask={onSelectTask}
+              />
+              <CommandMenuActionGroups
+                actions={actions}
+                onSelect={(action) => {
+                  onOpenChange(false)
+                  queueMicrotask(() => {
+                    void Promise.resolve(action.execute()).catch(reportCommandActionError)
+                  })
+                }}
+              />
+              {showRecommendations ? (
+                <Command.Group className="command-menu-group" heading="推荐">
+                  {recommendations.map((recommendation) => (
+                    <Command.Item
+                      className="command-menu-item command-menu-recommendation"
+                      disabled={recommendation.disabled}
+                      key={recommendation.id}
+                      onSelect={() => {
+                        if (!recommendation.disabled) {
+                          recommendation.action()
+                        }
+                      }}
+                      value={`recommendation:${recommendation.id}`}
                     >
-                      {recommendations.map(recommendation => (
-                        <Command.Item
-                          className="command-menu-item command-menu-recommendation"
-                          disabled={recommendation.disabled}
-                          key={recommendation.id}
-                          onSelect={() => {
-                            if (!recommendation.disabled) {
-                              recommendation.action()
-                            }
-                          }}
-                          value={`recommendation:${recommendation.id}`}
-                        >
-                          <span className="command-menu-item-status command-menu-item-icon">
-                            {recommendation.icon}
+                      <span className="command-menu-item-status command-menu-item-icon">
+                        {recommendation.icon}
+                      </span>
+                      <span className="command-menu-item-copy">
+                        <span className="command-menu-item-title">{recommendation.label}</span>
+                        {recommendation.description ? (
+                          <span className="command-menu-item-description">
+                            {recommendation.description}
                           </span>
-                          <span className="command-menu-item-copy">
-                            <span className="command-menu-item-title">
-                              {recommendation.label}
-                            </span>
-                            {recommendation.description ? (
-                              <span className="command-menu-item-description">
-                                {recommendation.description}
-                              </span>
-                            ) : null}
-                          </span>
-                          <kbd className="command-menu-shortcut">
-                            {recommendation.shortcut}
-                          </kbd>
-                        </Command.Item>
-                      ))}
-                    </Command.Group>
-                  ) : null}
-                </Command.List>
-              </Command>
-            </Dialog.Content>
-          </Dialog.Overlay>
-        ) : null}
+                        ) : null}
+                      </span>
+                      <kbd className="command-menu-shortcut">{recommendation.shortcut}</kbd>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+              ) : null}
+            </Command.List>
+          </Command>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
 }
 
-function CommandMenuTaskGroup({
+const commandGroupLabels: Record<CommandMenuActionGroup, string> = {
+  'workspace-actions': '工作区操作',
+  'task-transfer': '任务移交',
+}
+
+function CommandMenuActionGroups({
+  actions,
+  onSelect,
+}: {
+  actions: readonly CommandMenuActionSnapshot[]
+  onSelect: (action: CommandMenuActionSnapshot) => void
+}): React.ReactNode {
+  return (Object.keys(commandGroupLabels) as CommandMenuActionGroup[]).map((group) => {
+    const groupActions = actions.filter((action) => action.group === group)
+    if (groupActions.length === 0) return null
+    return (
+      <Command.Group className="command-menu-group" heading={commandGroupLabels[group]} key={group}>
+        {groupActions.map((action) => {
+          const disabled = action.availability !== 'available'
+          const description = action.disabledReason ?? action.description
+          return (
+            <Command.Item
+              className="command-menu-item command-menu-recommendation"
+              disabled={disabled}
+              key={action.id}
+              onSelect={() => {
+                if (!disabled) onSelect(action)
+              }}
+              value={`action:${action.id}`}
+            >
+              <span className="command-menu-item-status command-menu-item-icon">
+                {action.availability === 'loading' ? (
+                  <Spinner className="command-menu-spinner" />
+                ) : (
+                  action.icon
+                )}
+              </span>
+              <span className="command-menu-item-copy">
+                <span className="command-menu-item-title">{action.label}</span>
+                {description ? (
+                  <span className="command-menu-item-description">{description}</span>
+                ) : null}
+              </span>
+            </Command.Item>
+          )
+        })}
+      </Command.Group>
+    )
+  })
+}
+
+function reportCommandActionError(cause: unknown): void {
+  if (typeof window === 'undefined') return
+  const detail = cause instanceof Error ? cause.message : '命令执行失败，请重试。'
+  window.dispatchEvent(new CustomEvent('desktop:error', { detail }))
+}
+
+export function CommandMenuTaskGroup({
   catalogStatus,
   query,
   tasks,
@@ -218,12 +274,10 @@ function CommandMenuTaskGroup({
     <Command.Group className="command-menu-group" heading="任务">
       {catalogStatus.state === 'loading' ? (
         <CommandMenuStatus busy>正在加载任务目录…</CommandMenuStatus>
-      ) : catalogStatus.state === 'unavailable' ? (
-        <CommandMenuStatus>任务目录暂不可用，请稍后重试。</CommandMenuStatus>
       ) : tasks.length === 0 ? (
         <CommandMenuStatus>{emptyLabel}</CommandMenuStatus>
       ) : (
-        tasks.map(task => (
+        tasks.map((task) => (
           <Command.Item
             className="command-menu-item command-menu-task"
             key={task.id}
@@ -234,12 +288,8 @@ function CommandMenuTaskGroup({
             <span className="command-menu-item-copy">
               <span className="command-menu-item-title">{task.title}</span>
             </span>
-            <span className="command-menu-workspace">
-              {task.workspaceName}
-            </span>
-            <kbd className="command-menu-shortcut">
-              {task.shortcutLabel}
-            </kbd>
+            <span className="command-menu-workspace">{task.workspaceName}</span>
+            <kbd className="command-menu-shortcut">{task.shortcutLabel}</kbd>
           </Command.Item>
         ))
       )}
@@ -261,60 +311,30 @@ function CommandMenuStatus({
       disabled
       value="command-menu-status"
     >
-      {busy ? (
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
-      ) : null}
+      {busy ? <Spinner className="command-menu-spinner" /> : null}
       <span>{children}</span>
     </Command.Item>
   )
 }
 
-function TaskStatus({
-  task,
-}: {
-  task: CommandMenuTask
-}): React.ReactNode {
-  if (
-    task.visualState === 'needs-input'
-    || task.visualState === 'running'
-  ) {
+function TaskStatus({ task }: { task: CommandMenuTask }): React.ReactNode {
+  if (task.visualState === 'needs-input' || task.visualState === 'running') {
     return (
       <span
-        aria-label={
-          task.visualState === 'needs-input'
-            ? '任务正在等待输入'
-            : '任务正在运行'
-        }
+        aria-label={task.visualState === 'needs-input' ? '任务正在等待输入' : '任务正在运行'}
         className="command-menu-item-status"
         role="img"
       >
-        <LoaderCircle
-          aria-hidden="true"
-          className="command-menu-spinner"
-          size={APP_ICON_SIZE}
-        />
+        <Spinner className="command-menu-spinner" />
       </span>
     )
   }
   if (task.visualState === 'unread') {
     return (
-      <span
-        aria-label="任务有未读更新"
-        className="command-menu-item-status"
-        role="img"
-      >
+      <span aria-label="任务有待整理更新" className="command-menu-item-status" role="img">
         <span aria-hidden="true" className="command-menu-unread-dot" />
       </span>
     )
   }
-  return (
-    <span
-      aria-hidden="true"
-      className="command-menu-item-status"
-    />
-  )
+  return <span aria-hidden="true" className="command-menu-item-status" />
 }

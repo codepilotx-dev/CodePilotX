@@ -1,14 +1,11 @@
 export const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
-  get: "desktop-data-location:get",
-  choose: "desktop-data-location:choose",
-  retry: "desktop-data-location:retry",
-  restore: "desktop-data-location:restore",
+  get: 'desktop-data-location:get',
+  choose: 'desktop-data-location:choose',
+  retry: 'desktop-data-location:retry',
+  restore: 'desktop-data-location:restore',
 } as const
 
-export type DesktopDataLocationControlSource =
-  | "default"
-  | "bootstrap"
-  | "env"
+export type DesktopDataLocationControlSource = 'default' | 'bootstrap' | 'env'
 
 export type DesktopDataLocationState = {
   defaultDataDir: string
@@ -26,9 +23,7 @@ export type DesktopDataLocationChange = {
 
 export interface DesktopDataLocationIpcBridge {
   getDataLocation(): Promise<DesktopDataLocationState>
-  chooseDataLocation(
-    workspaceRoots?: readonly string[],
-  ): Promise<DesktopDataLocationChange | null>
+  chooseDataLocation(workspaceRoots?: readonly string[]): Promise<DesktopDataLocationChange | null>
   retryDataLocation(): Promise<void>
   restoreDataLocation(): Promise<void>
 }

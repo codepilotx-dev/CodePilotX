@@ -7,29 +7,32 @@ import {
   parseMarkdownFileReference,
   segmentStreamingMarkdown,
 } from '../src/features/markdown/index.js'
-import type {
-  MarkdownDirectiveToken,
-  MarkdownMathToken,
-} from '../src/features/markdown/types.js'
+import { buildMarkdownBlocks } from '../src/features/markdown/parser.js'
+import {
+  STREAMING_RICH_PENDING_MAX_CHARACTERS,
+  STREAMING_TEXT_CHUNK_CHARACTERS,
+} from '../src/features/markdown/parser.js'
+import { completePendingMarkdown } from '../src/features/markdown/streaming.js'
+import type { MarkdownDirectiveToken, MarkdownMathToken } from '../src/features/markdown/types.js'
 
 describe('markdown parser', () => {
   test('enables GFM and treats a soft line break as a rendered break', () => {
     const [paragraph] = lexMarkdown('first\nsecond')
     expect(paragraph?.type).toBe('paragraph')
-    expect(
-      (paragraph as Tokens.Paragraph).tokens.map(token => token.type),
-    ).toEqual(['text', 'br', 'text'])
+    expect((paragraph as Tokens.Paragraph).tokens.map((token) => token.type)).toEqual([
+      'text',
+      'br',
+      'text',
+    ])
 
     const [table] = lexMarkdown('| A | B |\n| - | - |\n| 1 | 2 |')
     expect(table?.type).toBe('table')
   })
 
   test('emits structural inline and display math tokens', () => {
-    const [paragraph, , displayMath] = lexMarkdown(
-      'Value is $x + y$.\n\n$$\nE = mc^2\n$$\n',
-    )
+    const [paragraph, , displayMath] = lexMarkdown('Value is $x + y$.\n\n$$\nE = mc^2\n$$\n')
     const inlineMath = (paragraph as Tokens.Paragraph).tokens.find(
-      token => token.type === 'math',
+      (token) => token.type === 'math',
     ) as unknown as MarkdownMathToken
     expect(inlineMath).toMatchObject({
       display: false,
@@ -42,31 +45,25 @@ describe('markdown parser', () => {
       type: 'math',
     })
 
-    const [latexParagraph] = lexMarkdown(
-      'Inline \\(a + b\\) and display \\[c + d\\].',
-    )
+    const [latexParagraph] = lexMarkdown('Inline \\(a + b\\) and display \\[c + d\\].')
     const latexMath = (latexParagraph as Tokens.Paragraph).tokens.filter(
-      token => token.type === 'math',
+      (token) => token.type === 'math',
     ) as unknown as MarkdownMathToken[]
-    expect(latexMath.map(token => [token.display, token.text])).toEqual([
+    expect(latexMath.map((token) => [token.display, token.text])).toEqual([
       [false, 'a + b'],
       [true, 'c + d'],
     ])
   })
 
   test('parses registered directive-shaped blocks without interpreting raw HTML', () => {
-    const [directive] = lexMarkdown(
-      ':::warning Check this\n**Careful**\n:::\n',
-    )
+    const [directive] = lexMarkdown(':::warning Check this\n**Careful**\n:::\n')
     expect(directive).toMatchObject({
       argument: 'Check this',
       name: 'warning',
       text: '**Careful**\n',
       type: 'directive',
     })
-    expect((directive as MarkdownDirectiveToken).tokens[0]?.type).toBe(
-      'paragraph',
-    )
+    expect((directive as MarkdownDirectiveToken).tokens[0]?.type).toBe('paragraph')
 
     const [leaf, inline] = lexMarkdown(':badge ready\n::mention user\n')
     expect(leaf).toMatchObject({
@@ -103,8 +100,7 @@ describe('markdown parser', () => {
 
   test('parses long escaped directive attributes without regex backtracking', () => {
     const escaped = '\\!'.repeat(20_000)
-    const source =
-      '::code-comment{title="' + escaped + '" file="src/main.ts"}\n'
+    const source = '::code-comment{title="' + escaped + '" file="src/main.ts"}\n'
     const [directive] = lexMarkdown(source)
 
     expect(directive).toMatchObject({
@@ -125,11 +121,53 @@ describe('markdown parser', () => {
     const result = parseMarkdown('done\n\npending', true)
     expect(result.stableText).toBe('done\n\n')
     expect(result.pendingText).toBe('pending')
-    expect(result.tokens.map(token => token.type)).toEqual([
-      'paragraph',
-      'space',
-      'paragraph',
-    ])
+    expect(result.tokens.map((token) => token.type)).toEqual(['paragraph', 'space', 'paragraph'])
+  })
+
+  test('keeps completed blocks and pending block identities stable while appending', () => {
+    const first = buildMarkdownBlocks('第一段\n\n第二', true)
+    const next = buildMarkdownBlocks('第一段\n\n第二段继续', true, first, '第一段\n\n第二')
+
+    expect(next[0]).toBe(first[0])
+    expect(next[1]?.id).toBe(first[1]?.id)
+    expect(next[1]?.raw).not.toBe(first[1]?.raw)
+
+    const replacement = buildMarkdownBlocks('完全替换', true, next, '第一段\n\n第二段继续')
+    expect(replacement[0]).not.toBe(next[0])
+  })
+
+  test('completes unfinished prose only in the parse copy', () => {
+    expect(completePendingMarkdown('**正在生成')).toBe('**正在生成**')
+    expect(completePendingMarkdown('snake_case')).toBe('snake_case')
+    expect(completePendingMarkdown('`a_b')).toBe('`a_b`')
+    expect(completePendingMarkdown('[文件](F:/Code')).toBe('文件')
+    expect(completePendingMarkdown('![预览](https://example.com/a')).toBe('预览')
+
+    const source = '**正在生成'
+    const parsed = parseMarkdown(source, true)
+    expect(parsed.pendingText).toBe(source)
+    expect(buildMarkdownBlocks(source, true)[0]?.raw).toBe(source)
+  })
+
+  test('uses lightweight text for a long unfinished streaming block', () => {
+    const source = 'a'.repeat(STREAMING_TEXT_CHUNK_CHARACTERS * 2 + 1)
+    const parsed = parseMarkdown(source, true)
+
+    expect(parsed.tokens).toHaveLength(3)
+    expect(parsed.tokens.every((token) => token.type === 'streaming_text')).toBe(true)
+    expect(parsed.tokens.map((token) => token.raw).join('')).toBe(source)
+    expect(parseMarkdown(source, false).tokens[0]?.type).toBe('paragraph')
+  })
+
+  test('reuses completed lightweight chunks while streaming text grows', () => {
+    const firstText = 'a'.repeat(STREAMING_RICH_PENDING_MAX_CHARACTERS * 2)
+    const first = buildMarkdownBlocks(firstText, true)
+    const nextText = `${firstText}more`
+    const next = buildMarkdownBlocks(nextText, true, first, firstText)
+
+    expect(next[0]).toBe(first[0])
+    expect(next[1]).toBe(first[1])
+    expect(next[2]).toBeDefined()
   })
 })
 
@@ -208,9 +246,7 @@ describe('safe markdown targets', () => {
       endLine: 20,
       endColumn: 8,
     })
-    expect(
-      classifyMarkdownTarget('file:///C:/repo/file.ts#L7-L9'),
-    ).toEqual({
+    expect(classifyMarkdownTarget('file:///C:/repo/file.ts#L7-L9')).toEqual({
       kind: 'file',
       path: 'C:/repo/file.ts',
       line: 7,

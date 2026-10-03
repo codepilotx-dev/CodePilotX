@@ -1,21 +1,37 @@
-import { DEFAULT_UI_FONT } from '../../../shared/theme.js'
+import { DEFAULT_CODE_FONT, DEFAULT_UI_FONT } from '../../../shared/theme.js'
+import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
+import { fontFamilyWithFace } from './themeFontFaces.js'
 
 export type ThemeVariableName = `--${string}`
 export type ThemeVariableMap = Record<ThemeVariableName, string>
 
 type CodexRoles = {
-  tokens: ThemeVariableMap
-  editorBackground: string
+  surfaceRecessed: string
+  panel: string
+  control: string
   raised: string
-  codeInline: string
-  hover: string
-  selected: string
-  borderControl: string
-  borderStrong: string
+  editorBackground: string
+  borderLight: string
+  border: string
+  borderHeavy: string
+  borderFocus: string
   textSecondary: string
   textTertiary: string
   textDisabled: string
+  accentSubtle: string
+  accentForeground: string
+  accentHover: string
+  accentActive: string
+  buttonPrimaryBg: string
+  buttonPrimaryFg: string
+  buttonPrimaryHover: string
+  buttonPrimaryActive: string
+  buttonSecondaryBg: string
+  buttonSecondaryFg: string
+  buttonSecondaryHover: string
+  buttonSecondaryActive: string
+  simpleScrim: string
 }
 
 type DerivedSemanticTone = {
@@ -34,12 +50,7 @@ export function ensureThemePreviewContrast({
   ink: string
   surface: string
 }): string {
-  return ensureContrast(
-    parseColor(accent),
-    parseColor(ink),
-    parseColor(surface),
-    4.5,
-  )
+  return ensureContrast(parseColor(accent), parseColor(ink), parseColor(surface), 4.5)
 }
 
 const CODEX_LIGHT_SYNTAX = {
@@ -62,21 +73,13 @@ const CODEX_DARK_SYNTAX = {
   punctuation: '#c9d1d9',
 }
 
-export function deriveThemeVariables(
-  config: DesktopThemeConfigV1,
-): ThemeVariableMap {
+export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariableMap {
   const { theme, variant } = config
   const dark = variant === 'dark'
   const interactionInk = parseHex(theme.ink)
   const interactionHover = rgba(interactionInk, dark ? 0.08 : 0.05)
   const interactionSelected = rgba(interactionInk, 0.05)
-  const roles = deriveCodexRoles(
-    theme.surface,
-    theme.ink,
-    theme.accent,
-    dark,
-    theme.contrast,
-  )
+  const roles = deriveCodexRoles(theme.surface, theme.ink, theme.accent, dark, theme.contrast)
   const added = deriveSemanticTone({
     hue: theme.semanticColors.diffAdded,
     editorBackground: roles.editorBackground,
@@ -87,92 +90,164 @@ export function deriveThemeVariables(
     editorBackground: roles.editorBackground,
     ink: theme.ink,
   })
+  const warningHue = dark ? '#f0a33b' : '#a05a00'
+  const warningTone = deriveSemanticTone({
+    hue: warningHue,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const skillTone = deriveSemanticTone({
+    hue: theme.semanticColors.skill,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const infoHue = dark ? '#38bdf8' : '#0284c7'
+  const infoTone = deriveSemanticTone({
+    hue: infoHue,
+    editorBackground: roles.editorBackground,
+    ink: theme.ink,
+  })
+  const accentForeground = [theme.surface, roles.editorBackground, roles.accentSubtle].reduce(
+    (candidate, background) =>
+      ensureContrast(parseColor(candidate), interactionInk, parseColor(background), 4.5),
+    roles.accentForeground,
+  )
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
-  const shadowResting = 'none'
-  const shadowRaised = '0 1px 3px -1px rgb(0 0 0 / 14%)'
-  const shadowFloat =
-    '0 8px 20px -8px rgb(0 0 0 / 28%), 0 2px 6px -3px rgb(0 0 0 / 18%)'
+  const shadowResting = dark ? '0 1px 2px rgb(0 0 0 / 20%)' : '0 1px 2px rgb(0 0 0 / 2%)'
+  const shadowRaised = dark
+    ? '0 2px 8px rgb(0 0 0 / 40%)'
+    : '0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)'
+  const shadowFloating = dark ? '0 8px 30px rgb(0 0 0 / 50%)' : '0 8px 30px rgb(0 0 0 / 12%)'
+  const shadowControl = dark ? '0 1px 2px rgb(0 0 0 / 20%)' : '0 1px 2px rgb(0 0 0 / 2%)'
 
   return {
-    '--codex-base-accent': theme.accent,
-    '--codex-base-contrast': String(theme.contrast),
-    '--codex-base-ink': theme.ink,
-    '--codex-base-surface': theme.surface,
-    ...roles.tokens,
-    '--color-accent-blue': theme.accent,
-    '--color-accent-purple': theme.semanticColors.skill,
-    '--color-decoration-added': theme.semanticColors.diffAdded,
-    '--color-decoration-deleted': theme.semanticColors.diffRemoved,
-    '--color-diff-added-foreground': added.foreground,
-    '--color-diff-added-indicator': added.indicator,
-    '--color-diff-added-line-background': added.lineBackground,
-    '--color-diff-added-text-background': added.textBackground,
-    '--color-diff-removed-foreground': removed.foreground,
-    '--color-diff-removed-indicator': removed.indicator,
-    '--color-diff-removed-line-background': removed.lineBackground,
-    '--color-diff-removed-text-background': removed.textBackground,
-    '--contrast': String(theme.contrast),
-    '--color-danger': theme.semanticColors.diffRemoved,
-    '--color-warning': dark ? '#f0a33b' : '#a05a00',
-    '--codex-base-on-accent': textOnAccent(theme.accent),
-    '--shadow-resting': shadowResting,
-    '--shadow-raised': shadowRaised,
-    '--shadow-float': shadowFloat,
-    '--font-family-sans': theme.fonts.ui ?? DEFAULT_UI_FONT,
-    '--font-family-mono':
-      theme.fonts.code ??
-      '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-    '--vscode-font-family': theme.fonts.ui ?? DEFAULT_UI_FONT,
-    '--vscode-editor-font-family':
-      theme.fonts.code ??
-      '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-    '--vscode-editor-background': theme.surface,
-    '--vscode-editor-foreground': theme.ink,
-    '--vscode-editorCursor-foreground': theme.accent,
-    '--vscode-editor-selectionBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.28,
+    // System Layer: Foundation & Contrast
+    '--cpx-sys-contrast': String(theme.contrast),
+    '--cpx-sys-color-accent': theme.accent,
+    '--cpx-sys-color-fg-on-accent': textOnAccent(theme.accent),
+    '--cpx-sys-color-fg-primary': theme.ink,
+    '--cpx-sys-color-surface-canvas': theme.surface,
+    '--cpx-sys-color-surface-recessed': roles.surfaceRecessed,
+    '--cpx-sys-color-surface-panel': roles.panel,
+    '--cpx-sys-color-surface-control': roles.control,
+    '--cpx-sys-color-surface-raised': roles.raised,
+    '--cpx-sys-color-surface-editor': roles.editorBackground,
+
+    // System Layer: Foreground / text
+    '--cpx-sys-color-fg-secondary': roles.textSecondary,
+    '--cpx-sys-color-fg-tertiary': roles.textTertiary,
+    '--cpx-sys-color-fg-disabled': roles.textDisabled,
+
+    // System Layer: Borders
+    '--cpx-sys-color-border-subtle': roles.borderLight,
+    '--cpx-sys-color-border-default': roles.border,
+    '--cpx-sys-color-border-strong': roles.borderHeavy,
+    '--cpx-sys-color-border-focus': roles.borderFocus,
+
+    // System Layer: Accent & semantic multi-hues
+    '--cpx-sys-color-accent-subtle-bg': roles.accentSubtle,
+    '--cpx-sys-color-accent-subtle-border': rgba(parseHex(theme.accent), 0.22),
+    '--cpx-sys-color-accent-fg': accentForeground,
+    '--cpx-sys-color-accent-hover': roles.accentHover,
+    '--cpx-sys-color-accent-active': roles.accentActive,
+    '--cpx-sys-color-danger': theme.semanticColors.diffRemoved,
+    '--cpx-sys-color-danger-subtle-bg': removed.lineBackground,
+    '--cpx-sys-color-danger-subtle-border': rgba(parseHex(theme.semanticColors.diffRemoved), 0.22),
+    '--cpx-sys-color-danger-fg': removed.foreground,
+    '--cpx-sys-color-warning': warningHue,
+    '--cpx-sys-color-warning-subtle-bg': warningTone.lineBackground,
+    '--cpx-sys-color-warning-subtle-border': rgba(parseHex(warningHue), 0.22),
+    '--cpx-sys-color-warning-fg': warningTone.foreground,
+    '--cpx-sys-color-success': theme.semanticColors.diffAdded,
+    '--cpx-sys-color-success-subtle-bg': added.lineBackground,
+    '--cpx-sys-color-success-subtle-border': rgba(parseHex(theme.semanticColors.diffAdded), 0.22),
+    '--cpx-sys-color-success-fg': added.foreground,
+    '--cpx-sys-color-skill': theme.semanticColors.skill,
+    '--cpx-sys-color-skill-subtle-bg': skillTone.lineBackground,
+    '--cpx-sys-color-skill-subtle-border': rgba(parseHex(theme.semanticColors.skill), 0.22),
+    '--cpx-sys-color-skill-fg': skillTone.foreground,
+    '--cpx-sys-color-info': infoHue,
+    '--cpx-sys-color-info-subtle-bg': infoTone.lineBackground,
+    '--cpx-sys-color-info-subtle-border': rgba(parseHex(infoHue), 0.22),
+    '--cpx-sys-color-info-fg': infoTone.foreground,
+    '--cpx-sys-color-scrim': roles.simpleScrim,
+
+    // System Charts Colors
+    '--cpx-sys-color-charts-red': theme.semanticColors.diffRemoved,
+    '--cpx-sys-color-charts-orange': dark ? '#fb923c' : '#ea580c',
+    '--cpx-sys-color-charts-yellow': warningHue,
+    '--cpx-sys-color-charts-green': theme.semanticColors.diffAdded,
+    '--cpx-sys-color-charts-blue': theme.accent,
+    '--cpx-sys-color-charts-purple': theme.semanticColors.skill,
+    '--cpx-sys-color-charts-cyan': infoHue,
+
+    // System Blur & Glass
+    '--cpx-sys-blur-sm': '8px',
+    '--cpx-sys-blur-md': '16px',
+    '--cpx-sys-blur-lg': '24px',
+    '--cpx-sys-glass-filter': 'blur(16px)',
+    '--cpx-sys-glass-bg': `color-mix(in srgb, ${roles.raised} 85%, transparent)`,
+    '--cpx-sys-glass-border': roles.borderLight,
+    '--cpx-sys-glass-shadow': shadowFloating,
+
+    // System Layer: Interactive states
+    '--cpx-sys-color-hover': interactionHover,
+    '--cpx-sys-color-active': interactionSelected,
+    '--cpx-sys-color-selected': interactionSelected,
+
+    // System Layer: Diff semantic tones
+    '--cpx-sys-color-diff-added-fg': added.foreground,
+    '--cpx-sys-color-diff-added-indicator': added.indicator,
+    '--cpx-sys-color-diff-added-line': added.lineBackground,
+    '--cpx-sys-color-diff-added-text': added.textBackground,
+    '--cpx-sys-color-diff-removed-fg': removed.foreground,
+    '--cpx-sys-color-diff-removed-indicator': removed.indicator,
+    '--cpx-sys-color-diff-removed-line': removed.lineBackground,
+    '--cpx-sys-color-diff-removed-text': removed.textBackground,
+
+    // System Layer: Shadows
+    '--cpx-sys-shadow-resting': shadowResting,
+    '--cpx-sys-shadow-raised': shadowRaised,
+    '--cpx-sys-shadow-prominent': shadowFloating,
+    '--cpx-sys-shadow-floating': shadowFloating,
+    '--cpx-sys-shadow-control': shadowControl,
+
+    // System Layer: Fonts
+    '--cpx-sys-font-family-sans': fontFamilyWithFace(
+      theme.fonts.uiFace,
+      theme.fonts.ui ?? DEFAULT_UI_FONT,
+      'ui',
     ),
-    '--vscode-editorWidget-background': roles.raised,
-    '--vscode-widget-border': roles.borderControl,
-    '--vscode-editor-findMatchBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.32,
+    '--cpx-sys-font-family-mono': fontFamilyWithFace(
+      theme.fonts.codeFace,
+      theme.fonts.code ?? DEFAULT_CODE_FONT,
+      'code',
     ),
-    '--vscode-editor-findMatchHighlightBackground': mixHex(
-      parseHex(theme.surface),
-      parseHex(theme.accent),
-      0.18,
-    ),
-    '--vscode-editor-findMatchHighlightBorder': roles.borderStrong,
-    '--vscode-editor-lineHighlightBackground': roles.hover,
-    '--vscode-editor-selectionHighlightBackground': roles.selected,
-    '--vscode-editorGutter-background': theme.surface,
-    '--vscode-editorLineNumber-foreground': roles.textTertiary,
-    '--vscode-editorLineNumber-activeForeground': roles.textSecondary,
-    '--vscode-editor-foldPlaceholderForeground': roles.textSecondary,
-    '--vscode-editor-foldBackground': roles.codeInline,
-    '--vscode-editorSuggestWidget-foreground': theme.ink,
-    '--vscode-editorSuggestWidget-background': roles.raised,
-    '--vscode-editorSuggestWidget-border': roles.borderControl,
-    '--vscode-editorSuggestWidget-selectedForeground': theme.ink,
-    '--vscode-editorSuggestWidget-selectedBackground': roles.selected,
-    '--vscode-button-secondaryHoverBackground': interactionHover,
-    '--vscode-focusBorder': theme.accent,
-    '--vscode-list-activeSelectionBackground': interactionSelected,
-    '--vscode-list-hoverBackground': interactionHover,
-    '--vscode-toolbar-hoverBackground': interactionHover,
-    '--syntax-keyword': syntax.keyword,
-    '--syntax-type': syntax.keyword,
-    '--syntax-property': syntax.property,
-    '--syntax-string': syntax.string,
-    '--syntax-number': syntax.number,
-    '--syntax-operator': syntax.number,
-    '--syntax-comment': syntax.comment,
-    '--syntax-variable': syntax.variable,
-    '--syntax-punctuation': syntax.punctuation,
+
+    // System Layer: Syntax
+    '--cpx-sys-color-syntax-keyword': syntax.keyword,
+    '--cpx-sys-color-syntax-property': syntax.property,
+    '--cpx-sys-color-syntax-string': syntax.string,
+    '--cpx-sys-color-syntax-number': syntax.number,
+    '--cpx-sys-color-syntax-comment': syntax.comment,
+    '--cpx-sys-color-syntax-variable': syntax.variable,
+    '--cpx-sys-color-syntax-punctuation': syntax.punctuation,
+
+    // Component Layer: only genuinely composite or component-specific values.
+    '--cpx-comp-switch-thumb-fill': '#ffffff',
+    '--cpx-comp-tooltip-border': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-tooltip-shadow': shadowFloating,
+    '--cpx-comp-scrollbar-slider-bg': roles.border,
+    '--cpx-comp-scrollbar-slider-hover-bg': roles.borderHeavy,
+    '--cpx-comp-scrollbar-slider-active-bg': roles.borderHeavy,
+
+    '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
+    '--cpx-comp-glass-shadow': shadowFloating,
+    '--cpx-comp-glass-filter': 'blur(16px)',
+    '--cpx-comp-modal-border': `1px solid ${roles.borderLight}`,
+    '--cpx-comp-modal-shadow': shadowFloating,
+    '--cpx-comp-sidebar-border': '0',
   }
 }
 
@@ -183,109 +258,48 @@ function deriveCodexRoles(
   dark: boolean,
   contrast: number,
 ): CodexRoles {
-  // Ported from Codex Men/Ien/Len/Ren/zen/Ben/Ven
-  // (webview bundle byte 2,863,772 onward). Existing names below are aliases.
   const variant = dark ? 'dark' : 'light'
   const surfaceRgb = parseHex(surface)
   const inkRgb = parseHex(ink)
   const accentRgb = parseHex(accent)
   const normalizedContrast = normalizeCodexContrast(contrast, variant)
   const white = { red: 255, green: 255, blue: 255 }
-  const black = { red: 0, green: 0, blue: 0 }
-  const editorBackground = mixRgb(
-    surfaceRgb,
-    dark ? inkRgb : white,
-    dark ? 0.07 : 0.12,
-  )
-  const surfaceUnder = mixHex(
-    surfaceRgb,
-    dark ? black : inkRgb,
-    (dark ? 0.16 : 0.04) +
-      (contrast - (dark ? 60 : 45)) * (dark ? 0.0015 : 0.0012),
-  )
   const panel = mixHex(
     surfaceRgb,
     dark ? inkRgb : white,
-    (dark ? 0.03 : 0.18) +
-      normalizedContrast * (dark ? 0.03 : 0.008),
+    dark ? 0.03 + normalizedContrast * 0.03 : 0.18 + normalizedContrast * 0.008,
   )
+  const editorBackground = mixHex(surfaceRgb, dark ? inkRgb : white, dark ? 0.07 : 0.12)
   const palette = dark
-    ? deriveDarkPalette(
-        surfaceRgb,
-        inkRgb,
-        accentRgb,
-        normalizedContrast,
-      )
-    : deriveLightPalette(
-        surfaceRgb,
-        inkRgb,
-        accentRgb,
-        normalizedContrast,
-      )
+    ? deriveDarkPalette(surfaceRgb, inkRgb, accentRgb, normalizedContrast)
+    : deriveLightPalette(surfaceRgb, inkRgb, accentRgb, normalizedContrast)
 
   return {
-    tokens: {
-      '--color-background-accent': palette.accentBackground,
-      '--color-background-accent-active': palette.accentBackgroundActive,
-      '--color-background-accent-hover': palette.accentBackgroundHover,
-      '--color-background-button-primary': palette.buttonPrimaryBackground,
-      '--color-background-button-primary-active':
-        palette.buttonPrimaryBackgroundActive,
-      '--color-background-button-primary-hover':
-        palette.buttonPrimaryBackgroundHover,
-      '--color-background-button-primary-inactive':
-        palette.buttonPrimaryBackgroundInactive,
-      '--color-background-button-secondary': palette.buttonSecondaryBackground,
-      '--color-background-button-secondary-active':
-        palette.buttonSecondaryBackgroundActive,
-      '--color-background-button-secondary-hover':
-        palette.buttonSecondaryBackgroundHover,
-      '--color-background-button-secondary-inactive':
-        palette.buttonSecondaryBackgroundInactive,
-      '--color-background-button-tertiary': palette.buttonTertiaryBackground,
-      '--color-background-button-tertiary-active':
-        palette.buttonTertiaryBackgroundActive,
-      '--color-background-button-tertiary-hover':
-        palette.buttonTertiaryBackgroundHover,
-      '--color-background-control': palette.controlBackground,
-      '--color-background-control-opaque': palette.controlBackgroundOpaque,
-      '--color-background-editor-opaque': rgbString(editorBackground),
-      '--color-background-elevated-primary': palette.elevatedPrimary,
-      '--color-background-elevated-primary-opaque':
-        palette.elevatedPrimaryOpaque,
-      '--color-background-elevated-secondary': palette.elevatedSecondary,
-      '--color-background-elevated-secondary-opaque':
-        palette.elevatedSecondaryOpaque,
-      '--color-background-panel': panel,
-      '--color-background-surface': surface,
-      '--color-background-surface-under': surfaceUnder,
-      '--color-border': palette.border,
-      '--color-border-focus': palette.borderFocus,
-      '--color-border-heavy': palette.borderHeavy,
-      '--color-border-light': palette.borderLight,
-      '--color-icon-accent': palette.iconAccent,
-      '--color-icon-primary': palette.iconPrimary,
-      '--color-icon-secondary': palette.iconSecondary,
-      '--color-icon-tertiary': palette.iconTertiary,
-      '--color-simple-scrim': palette.simpleScrim,
-      '--color-text-accent': palette.textAccent,
-      '--color-text-button-primary': palette.textButtonPrimary,
-      '--color-text-button-secondary': palette.textButtonSecondary,
-      '--color-text-button-tertiary': palette.textButtonTertiary,
-      '--color-text-foreground': palette.textForeground,
-      '--color-text-foreground-secondary': palette.textForegroundSecondary,
-      '--color-text-foreground-tertiary': palette.textForegroundTertiary,
-    },
-    editorBackground: rgbString(editorBackground),
-    raised: palette.elevatedSecondaryOpaque,
-    codeInline: palette.buttonSecondaryBackground,
-    hover: palette.buttonSecondaryBackgroundHover,
-    selected: palette.buttonSecondaryBackgroundActive,
-    borderControl: palette.border,
-    borderStrong: palette.borderHeavy,
-    textSecondary: palette.textForegroundSecondary,
+    surfaceRecessed: deriveDesktopSurfaceUnder(surface, ink, variant, contrast),
+    panel,
+    control: palette.controlBackgroundOpaque,
+    raised: palette.elevatedPrimaryOpaque,
+    editorBackground,
+    borderLight: palette.borderLight,
+    border: palette.border,
+    borderHeavy: palette.borderHeavy,
+    borderFocus: palette.borderFocus,
+    textSecondary: rgba(inkRgb, 0.65),
     textTertiary: palette.textForegroundTertiary,
     textDisabled: palette.buttonPrimaryBackgroundInactive,
+    accentSubtle: palette.accentBackground,
+    accentForeground: palette.textAccent,
+    accentHover: palette.accentBackgroundHover,
+    accentActive: palette.accentBackgroundActive,
+    buttonPrimaryBg: palette.buttonPrimaryBackground,
+    buttonPrimaryFg: palette.textButtonPrimary,
+    buttonPrimaryHover: palette.buttonPrimaryBackgroundHover,
+    buttonPrimaryActive: palette.buttonPrimaryBackgroundActive,
+    buttonSecondaryBg: palette.buttonSecondaryBackground,
+    buttonSecondaryFg: palette.textButtonSecondary,
+    buttonSecondaryHover: palette.buttonSecondaryBackgroundHover,
+    buttonSecondaryActive: palette.buttonSecondaryBackgroundActive,
+    simpleScrim: palette.simpleScrim,
   }
 }
 
@@ -301,16 +315,18 @@ function deriveSemanticTone({
   const hueRgb = parseHex(hue)
   const editorRgb = parseColor(editorBackground)
   const inkRgb = parseHex(ink)
+  const dark = relativeLuminance(editorRgb) < 0.3
   const lineBackground = mixHex(editorRgb, hueRgb, 0.02)
   const textBackground = mixHex(editorRgb, hueRgb, 0.04)
+  const backgrounds = [editorBackground, lineBackground, textBackground]
+  const foreground = backgrounds.reduce(
+    (candidate, background) =>
+      ensureContrast(parseHex(candidate), inkRgb, parseColor(background), 4.5),
+    hue,
+  )
 
   return {
-    foreground: ensureContrast(
-      hueRgb,
-      inkRgb,
-      parseHex(textBackground),
-      4.5,
-    ),
+    foreground,
     indicator: hue,
     lineBackground,
     textBackground,
@@ -367,28 +383,12 @@ function deriveLightPalette(
   const white = { red: 255, green: 255, blue: 255 }
   const black = { red: 0, green: 0, blue: 0 }
   const control = mixRgb(surface, white, 0.09 + contrast * 0.04)
-  const elevatedSecondary = mixRgb(
-    surface,
-    white,
-    0.08 + contrast * 0.08,
-  )
-  const elevatedPrimary = mixRgb(
-    surface,
-    white,
-    0.16 + contrast * 0.12,
-  )
+  const elevatedSecondary = mixRgb(surface, white, 0.08 + contrast * 0.08)
+  const elevatedPrimary = mixRgb(surface, white, 0.16 + contrast * 0.12)
   return {
     accentBackground: mixHex(surface, accent, 0.11 + contrast * 0.04),
-    accentBackgroundActive: mixHex(
-      surface,
-      accent,
-      0.13 + contrast * 0.05,
-    ),
-    accentBackgroundHover: mixHex(
-      surface,
-      accent,
-      0.12 + contrast * 0.045,
-    ),
+    accentBackgroundActive: mixHex(surface, accent, 0.13 + contrast * 0.05),
+    accentBackgroundHover: mixHex(surface, accent, 0.12 + contrast * 0.045),
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: hexString(accent),
     borderHeavy: rgba(ink, 0.09 + contrast * 0.06),
@@ -396,7 +396,7 @@ function deriveLightPalette(
     buttonPrimaryBackground: hexString(ink),
     buttonPrimaryBackgroundActive: rgba(ink, 0.1 + contrast * 0.12),
     buttonPrimaryBackgroundHover: rgba(ink, 0.05 + contrast * 0.06),
-    buttonPrimaryBackgroundInactive: rgba(ink, 0.18 + contrast * 0.14),
+    buttonPrimaryBackgroundInactive: mixHex(surface, ink, 0.25 + contrast * 0.2),
     buttonSecondaryBackground: rgba(ink, 0.04 + contrast * 0.02),
     buttonSecondaryBackgroundActive: rgba(ink, 0.03 + contrast * 0.02),
     buttonSecondaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),
@@ -418,7 +418,7 @@ function deriveLightPalette(
     textAccent: hexString(accent),
     textButtonPrimary: hexString(surface),
     textButtonSecondary: hexString(ink),
-    textButtonTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
     textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
     textForegroundTertiary: rgba(ink, 0.45 + contrast * 0.1),
@@ -439,16 +439,8 @@ function deriveDarkPalette(
   const elevatedPrimary = mixRgb(surface, ink, 0.08 + contrast * 0.08)
   return {
     accentBackground: mixHex(black, accent, 0.2 + contrast * 0.08),
-    accentBackgroundActive: mixHex(
-      black,
-      accent,
-      0.22 + contrast * 0.12,
-    ),
-    accentBackgroundHover: mixHex(
-      black,
-      accent,
-      0.21 + contrast * 0.1,
-    ),
+    accentBackgroundActive: mixHex(black, accent, 0.22 + contrast * 0.12),
+    accentBackgroundHover: mixHex(black, accent, 0.21 + contrast * 0.1),
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: rgba(accentOnDark, 0.7 + contrast * 0.1),
     borderHeavy: rgba(ink, 0.12 + contrast * 0.06),
@@ -456,7 +448,7 @@ function deriveDarkPalette(
     buttonPrimaryBackground: rgbString(primaryText),
     buttonPrimaryBackgroundActive: rgba(ink, 0.07 + contrast * 0.05),
     buttonPrimaryBackgroundHover: rgba(ink, 0.04 + contrast * 0.03),
-    buttonPrimaryBackgroundInactive: rgba(ink, 0.02 + contrast * 0.02),
+    buttonPrimaryBackgroundInactive: mixHex(surface, ink, 0.25 + contrast * 0.15),
     buttonSecondaryBackground: rgba(ink, 0.04 + contrast * 0.02),
     buttonSecondaryBackgroundActive: rgba(ink, 0.09 + contrast * 0.05),
     buttonSecondaryBackgroundHover: rgba(ink, 0.06 + contrast * 0.03),
@@ -469,11 +461,7 @@ function deriveDarkPalette(
     elevatedPrimary: rgba(elevatedPrimary, 0.96),
     elevatedPrimaryOpaque: rgbString(elevatedPrimary),
     elevatedSecondary: rgba(ink, 0.02 + contrast * 0.02),
-    elevatedSecondaryOpaque: mixHex(
-      surface,
-      ink,
-      0.04 + contrast * 0.05,
-    ),
+    elevatedSecondaryOpaque: mixHex(surface, ink, 0.04 + contrast * 0.05),
     iconAccent: rgbString(accentOnDark),
     iconPrimary: rgba(ink, 0.82 + contrast * 0.14),
     iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
@@ -481,28 +469,20 @@ function deriveDarkPalette(
     simpleScrim: rgba(ink, 0.08 + contrast * 0.04),
     textAccent: rgbString(accentOnDark),
     textButtonPrimary: rgbString(primaryText),
-    textButtonSecondary: mixHex(
-      ink,
-      surface,
-      0.7 + contrast * 0.1,
-    ),
-    textButtonTertiary: rgba(ink, 0.45 + contrast * 0.1),
+    textButtonSecondary: mixHex(ink, surface, 0.7 + contrast * 0.1),
+    textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
     textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
     textForegroundTertiary: rgba(ink, 0.42 + contrast * 0.13),
   }
 }
 
-function normalizeCodexContrast(
-  value: number,
-  variant: 'light' | 'dark',
-): number {
+function normalizeCodexContrast(value: number, variant: 'light' | 'dark'): number {
   const base = variant === 'dark' ? 60 : 45
   const baseRatio = base / 100
   const adjusted = value / 100 + ((value - base) / 60) * 0.7
-  return value <= base
-    ? adjusted
-    : baseRatio + (adjusted - baseRatio) * 2
+  const normalized = value <= base ? adjusted : baseRatio + (adjusted - baseRatio) * 2
+  return Math.min(1, Math.max(0, normalized))
 }
 
 function parseHex(value: string): Rgb {
@@ -527,12 +507,7 @@ function parseColor(value: string): Rgb {
   }
 }
 
-function ensureContrast(
-  color: Rgb,
-  ink: Rgb,
-  background: Rgb,
-  minimumRatio: number,
-): string {
+function ensureContrast(color: Rgb, ink: Rgb, background: Rgb, minimumRatio: number): string {
   if (contrastRatio(color, background) >= minimumRatio) {
     return hexString(color)
   }
@@ -542,10 +517,7 @@ function ensureContrast(
     let high = 1
     for (let iteration = 0; iteration < 16; iteration += 1) {
       const amount = (low + high) / 2
-      if (
-        contrastRatio(mixRgb(color, ink, amount), background) >=
-        minimumRatio
-      ) {
+      if (contrastRatio(mixRgb(color, ink, amount), background) >= minimumRatio) {
         high = amount
       } else {
         low = amount
@@ -556,8 +528,7 @@ function ensureContrast(
 
   const black = { red: 0, green: 0, blue: 0 }
   const white = { red: 255, green: 255, blue: 255 }
-  return contrastRatio(black, background) >=
-    contrastRatio(white, background)
+  return contrastRatio(black, background) >= contrastRatio(white, background)
     ? hexString(black)
     : hexString(white)
 }
@@ -571,15 +542,9 @@ function contrastRatio(first: Rgb, second: Rgb): number {
 function relativeLuminance(color: Rgb): number {
   const channel = (value: number): number => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
-  return (
-    channel(color.red) * 0.2126 +
-    channel(color.green) * 0.7152 +
-    channel(color.blue) * 0.0722
-  )
+  return channel(color.red) * 0.2126 + channel(color.green) * 0.7152 + channel(color.blue) * 0.0722
 }
 
 function mixRgb(from: Rgb, to: Rgb, amount: number): Rgb {
@@ -609,7 +574,7 @@ function rgbString(color: Rgb): string {
 
 function hexString(color: Rgb): string {
   return `#${[color.red, color.green, color.blue]
-    .map(channel => channel.toString(16).padStart(2, '0'))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`
 }
 
@@ -618,13 +583,9 @@ function textOnAccent(accent: string): string {
   const color = parseHex(accent)
   const channel = (value: number): number => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
   const luminance =
-    channel(color.red) * 0.2126 +
-    channel(color.green) * 0.7152 +
-    channel(color.blue) * 0.0722
+    channel(color.red) * 0.2126 + channel(color.green) * 0.7152 + channel(color.blue) * 0.0722
   return luminance > 0.179 ? '#000000' : '#ffffff'
 }

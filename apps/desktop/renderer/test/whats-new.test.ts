@@ -40,9 +40,7 @@ describe('whats new release notes', () => {
     })
 
     expect(await client.listReleaseNotes({ refresh: true })).toEqual(result)
-    expect(requests.find(request =>
-      request.method === 'release-notes/list'
-    )?.params).toEqual({
+    expect(requests.find((request) => request.method === 'release-notes/list')?.params).toEqual({
       currentVersion: '0.0.0-dev',
       refresh: true,
     })
@@ -52,7 +50,7 @@ describe('whats new release notes', () => {
     const calls: Array<{ refresh?: boolean } | undefined> = []
     const result = releaseNotesResult()
     const client: DesktopReleaseNotesApi = {
-      listReleaseNotes: async options => {
+      listReleaseNotes: async (options) => {
         calls.push(options)
         if (calls.length === 1) {
           throw {
@@ -63,7 +61,7 @@ describe('whats new release notes', () => {
       },
     }
 
-    const initialError = await loadReleaseNotes(client).catch(error => error)
+    const initialError = await loadReleaseNotes(client).catch((error) => error)
     const retried = await loadReleaseNotes(client, true)
 
     expect(releaseNotesViewError(initialError)).toBe('not-public')
@@ -80,15 +78,16 @@ function releaseNotesResult(): RpcResult<'release-notes/list'> {
     currentReleaseFound: true,
     fetchedAt: '2026-07-27T00:00:00.000Z',
     truncated: false,
-    releases: [{
-      tagName: 'v0.2.0-beta.1',
-      name: 'CodePilotX 0.2.0-beta.1',
-      body: '测试更新记录',
-      htmlUrl:
-        'https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1',
-      publishedAt: '2026-07-27T00:00:00.000Z',
-      prerelease: true,
-    }],
+    releases: [
+      {
+        tagName: 'v0.2.0-beta.1',
+        name: 'CodePilotX 0.2.0-beta.1',
+        body: '测试更新记录',
+        htmlUrl: 'https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1',
+        publishedAt: '2026-07-27T00:00:00.000Z',
+        prerelease: true,
+      },
+    ],
   }
 }
 

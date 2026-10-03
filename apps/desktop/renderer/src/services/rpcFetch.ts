@@ -20,8 +20,9 @@ export async function send(
   timeoutOverride?: (method: PublicRpcMethod) => number | undefined,
 ): Promise<Response> {
   const method = message.method as PublicRpcMethod
-  const timeoutMs = timeoutOverride?.(method)
-    ?? (method === 'review/summary' || method === 'review/refresh'
+  const timeoutMs =
+    timeoutOverride?.(method) ??
+    (method === 'review/summary' || method === 'review/refresh'
       ? 60_000
       : method === 'review/fileDiff' || method === 'review/file-diffs'
         ? 25_000
@@ -31,9 +32,7 @@ export async function send(
     credentials: 'include',
     headers: {
       'content-type': 'application/json',
-      ...(connectionId
-        ? { 'x-codepilotx-connection-id': connectionId }
-        : {}),
+      ...(connectionId ? { 'x-codepilotx-connection-id': connectionId } : {}),
     },
     body: JSON.stringify(message),
   }

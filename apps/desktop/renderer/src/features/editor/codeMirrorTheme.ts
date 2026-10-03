@@ -30,25 +30,29 @@ type EditorThemeRegistration = {
 
 const themeExtensionCache = new Map<string, Promise<Extension>>()
 
-export function loadCodeMirrorTheme(
-  options: CodeMirrorThemeOptions,
-): Promise<Extension> {
+/**
+ * Code editor line box in pixels. The explicit pixel value lets CodeMirror
+ * compute cursor, scrolling and syntax-line geometry; the seven-pixel leading
+ * matches the shared `--cpx-sys-line-height-code` token.
+ */
+export function codeEditorLineHeight(fontSize: number): number {
+  return fontSize + 7
+}
+
+export function loadCodeMirrorTheme(options: CodeMirrorThemeOptions): Promise<Extension> {
   const slug = resolveThemeId(options.codeThemeId, options.variant)
   const fontSize = Math.max(8, Math.min(24, options.fontSize))
-  const cacheKey = [slug, options.variant, options.fontFamily, fontSize].join(
-    '\u0000',
-  )
+  const cacheKey = [slug, options.variant, options.fontFamily, fontSize].join('\u0000')
   const cached = themeExtensionCache.get(cacheKey)
   if (cached) {
     return cached
   }
 
-  const loading = loadThemeRegistrationWithFallback(slug, options.variant).then(
-    registration =>
-      createThemeExtension(registration, {
-        ...options,
-        fontSize,
-      }),
+  const loading = loadThemeRegistrationWithFallback(slug, options.variant).then((registration) =>
+    createThemeExtension(registration, {
+      ...options,
+      fontSize,
+    }),
   )
   themeExtensionCache.set(cacheKey, loading)
   void loading.catch(() => {
@@ -64,15 +68,11 @@ async function loadThemeRegistrationWithFallback(
   variant: DesktopThemeVariant,
 ): Promise<EditorThemeRegistration> {
   try {
-    return (await loadCodexHighlightTheme(
-      slug,
-    )) as unknown as EditorThemeRegistration
+    return (await loadCodexHighlightTheme(slug)) as unknown as EditorThemeRegistration
   } catch (error) {
     const fallback = variant === 'dark' ? 'codex-dark' : 'codex-light'
     if (slug === fallback) throw error
-    return (await loadCodexHighlightTheme(
-      fallback,
-    )) as unknown as EditorThemeRegistration
+    return (await loadCodexHighlightTheme(fallback)) as unknown as EditorThemeRegistration
   }
 }
 
@@ -82,71 +82,39 @@ function createThemeExtension(
 ): Extension {
   const colors = theme.colors ?? {}
   const dark = options.variant === 'dark'
-  const background = themeColor(
-    colors,
-    'editor.background',
-    dark ? '#111111' : '#ffffff',
-  )
-  const foreground = themeColor(
-    colors,
-    'editor.foreground',
-    dark ? '#fcfcfc' : '#1a1c1f',
-  )
+  const background = themeColor(colors, 'editor.background', dark ? '#111111' : '#ffffff')
+  const foreground = themeColor(colors, 'editor.foreground', dark ? '#fcfcfc' : '#1a1c1f')
   const cursor = themeColor(
     colors,
     'editorCursor.foreground',
     themeColor(colors, 'focusBorder', dark ? '#339cff' : '#0169cc'),
   )
-  const selection = themeColor(
-    colors,
-    'editor.selectionBackground',
-    dark ? '#264f78' : '#add6ff',
-  )
+  const selection = themeColor(colors, 'editor.selectionBackground', dark ? '#264f78' : '#add6ff')
   const lineHighlight = themeColor(
     colors,
     'editor.lineHighlightBackground',
     dark ? '#ffffff0a' : '#00000008',
   )
-  const gutterBackground = themeColor(
-    colors,
-    'editorGutter.background',
-    background,
-  )
+  const gutterBackground = themeColor(colors, 'editorGutter.background', background)
   const gutterForeground = themeColor(
     colors,
     'editorLineNumber.foreground',
     dark ? '#858585' : '#6e7681',
   )
-  const activeGutterForeground = themeColor(
-    colors,
-    'editorLineNumber.activeForeground',
-    foreground,
-  )
+  const activeGutterForeground = themeColor(colors, 'editorLineNumber.activeForeground', foreground)
   const widgetBackground = themeColor(
     colors,
     'editorWidget.background',
     themeColor(colors, 'panel.background', background),
   )
-  const widgetForeground = themeColor(
-    colors,
-    'editorWidget.foreground',
-    foreground,
-  )
+  const widgetForeground = themeColor(colors, 'editorWidget.foreground', foreground)
   const widgetBorder = themeColor(
     colors,
     'editorWidget.border',
     themeColor(colors, 'widget.border', dark ? '#3d3d3d' : '#d0d7de'),
   )
-  const selectedSuggestion = themeColor(
-    colors,
-    'editorSuggestWidget.selectedBackground',
-    selection,
-  )
-  const findMatch = themeColor(
-    colors,
-    'editor.findMatchBackground',
-    dark ? '#515c6a' : '#a8ac94',
-  )
+  const selectedSuggestion = themeColor(colors, 'editorSuggestWidget.selectedBackground', selection)
+  const findMatch = themeColor(colors, 'editor.findMatchBackground', dark ? '#515c6a' : '#a8ac94')
   const findMatchHighlight = themeColor(
     colors,
     'editor.findMatchHighlightBackground',
@@ -167,11 +135,7 @@ function createThemeExtension(
     'scrollbarSlider.hoverBackground',
     dark ? '#646464b3' : '#64646499',
   )
-  const scrollbarTrack = themeColor(
-    colors,
-    'editor.background',
-    background,
-  )
+  const scrollbarTrack = themeColor(colors, 'editor.background', background)
   const insertedLine = themeColor(
     colors,
     'diffEditor.insertedLineBackground',
@@ -202,7 +166,7 @@ function createThemeExtension(
     'diffEditorGutter.removedLineBackground',
     dark ? '#f85149' : '#cf222e',
   )
-  const lineHeight = Math.round(options.fontSize * 1.8)
+  const lineHeight = codeEditorLineHeight(options.fontSize)
 
   return [
     EditorView.theme(
@@ -242,8 +206,9 @@ function createThemeExtension(
           borderLeftColor: cursor,
           borderLeftWidth: '2px',
         },
-        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection':
-          { backgroundColor: selection },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
+          backgroundColor: selection,
+        },
         '.cm-panels': {
           color: widgetForeground,
           backgroundColor: widgetBackground,
@@ -277,15 +242,11 @@ function createThemeExtension(
           color: widgetForeground,
           backgroundColor: widgetBackground,
           border: `1px solid ${widgetBorder}`,
-          borderRadius: 'var(--radius-3)',
-          boxShadow: 'var(--shadow-raised)',
+          borderRadius: '0',
+          boxShadow: 'none',
         },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-          color: themeColor(
-            colors,
-            'editorSuggestWidget.selectedForeground',
-            widgetForeground,
-          ),
+          color: themeColor(colors, 'editorSuggestWidget.selectedForeground', widgetForeground),
           backgroundColor: selectedSuggestion,
         },
         '&.cm-merge-a .cm-changedLine, .cm-deletedChunk': {
@@ -315,15 +276,9 @@ function createThemeExtension(
   ]
 }
 
-function createHighlightStyle(
-  theme: EditorThemeRegistration,
-  foreground: string,
-): HighlightStyle {
-  const color = (
-    semanticNames: string[],
-    scopes: string[],
-    fallback = foreground,
-  ) => tokenColor(theme, semanticNames, scopes) ?? fallback
+function createHighlightStyle(theme: EditorThemeRegistration, foreground: string): HighlightStyle {
+  const color = (semanticNames: string[], scopes: string[], fallback = foreground) =>
+    tokenColor(theme, semanticNames, scopes) ?? fallback
 
   return HighlightStyle.define([
     {
@@ -346,29 +301,17 @@ function createHighlightStyle(
     },
     {
       tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
-      color: color(
-        ['function', 'method'],
-        ['entity.name.function', 'support.function'],
-      ),
+      color: color(['function', 'method'], ['entity.name.function', 'support.function']),
     },
     {
-      tag: [
-        tags.propertyName,
-        tags.attributeName,
-        tags.definition(tags.propertyName),
-      ],
+      tag: [tags.propertyName, tags.attributeName, tags.definition(tags.propertyName)],
       color: color(
         ['property', 'enumMember'],
         ['variable.other.property', 'entity.other.attribute-name'],
       ),
     },
     {
-      tag: [
-        tags.string,
-        tags.special(tags.string),
-        tags.character,
-        tags.escape,
-      ],
+      tag: [tags.string, tags.special(tags.string), tags.character, tags.escape],
       color: color(['string'], ['string']),
     },
     {
@@ -377,10 +320,7 @@ function createHighlightStyle(
     },
     {
       tag: [tags.number, tags.bool, tags.null, tags.atom],
-      color: color(
-        ['number'],
-        ['constant.numeric', 'constant.language', 'constant'],
-      ),
+      color: color(['number'], ['constant.numeric', 'constant.language', 'constant']),
     },
     {
       tag: [
@@ -394,12 +334,7 @@ function createHighlightStyle(
       color: color(['operator'], ['keyword.operator']),
     },
     {
-      tag: [
-        tags.comment,
-        tags.lineComment,
-        tags.blockComment,
-        tags.docComment,
-      ],
+      tag: [tags.comment, tags.lineComment, tags.blockComment, tags.docComment],
       color: color(['comment'], ['comment']),
       fontStyle: tokenFontStyle(theme, ['comment']),
     },
@@ -410,34 +345,19 @@ function createHighlightStyle(
         tags.definition(tags.variableName),
         tags.labelName,
       ],
-      color: color(
-        ['variable', 'parameter'],
-        ['variable', 'entity.name.label'],
-      ),
+      color: color(['variable', 'parameter'], ['variable', 'entity.name.label']),
     },
     {
       tag: tags.special(tags.variableName),
-      color: color(
-        ['variable.defaultLibrary'],
-        ['variable.language', 'support.variable'],
-      ),
+      color: color(['variable.defaultLibrary'], ['variable.language', 'support.variable']),
     },
     {
-      tag: [
-        tags.punctuation,
-        tags.separator,
-        tags.brace,
-        tags.paren,
-        tags.squareBracket,
-      ],
+      tag: [tags.punctuation, tags.separator, tags.brace, tags.paren, tags.squareBracket],
       color: color([], ['punctuation']),
     },
     {
       tag: [tags.meta, tags.annotation, tags.processingInstruction],
-      color: color(
-        ['macro'],
-        ['meta', 'entity.name.function.preprocessor'],
-      ),
+      color: color(['macro'], ['meta', 'entity.name.function.preprocessor']),
     },
     {
       tag: tags.heading,
@@ -466,11 +386,7 @@ function createHighlightStyle(
     },
     {
       tag: tags.invalid,
-      color: themeColor(
-        theme.colors ?? {},
-        'editorError.foreground',
-        '#f14c4c',
-      ),
+      color: themeColor(theme.colors ?? {}, 'editorError.foreground', '#f14c4c'),
       textDecoration: 'underline wavy',
     },
   ])
@@ -483,10 +399,7 @@ function tokenColor(
 ): string | undefined {
   for (const semanticName of semanticNames) {
     const value = theme.semanticTokenColors?.[semanticName]
-    const foreground =
-      typeof value === 'string'
-        ? value
-        : readSemanticForeground(value)
+    const foreground = typeof value === 'string' ? value : readSemanticForeground(value)
     if (foreground) {
       return foreground
     }
@@ -500,7 +413,7 @@ function tokenColor(
     for (const entry of entries) {
       if (
         entry.settings?.foreground &&
-        tokenScopes(entry).some(scope =>
+        tokenScopes(entry).some((scope) =>
           scope.toLowerCase().includes(expectedScope.toLowerCase()),
         )
       ) {
@@ -518,10 +431,7 @@ function readSemanticForeground(value: unknown): string | undefined {
   return typeof foreground === 'string' ? foreground : undefined
 }
 
-function tokenFontStyle(
-  theme: EditorThemeRegistration,
-  scopes: string[],
-): string | undefined {
+function tokenFontStyle(theme: EditorThemeRegistration, scopes: string[]): string | undefined {
   const entries = [
     ...(Array.isArray(theme.tokenColors) ? theme.tokenColors : []),
     ...(Array.isArray(theme.settings) ? theme.settings : []),
@@ -529,15 +439,13 @@ function tokenFontStyle(
   for (const entry of entries) {
     if (
       entry.settings?.fontStyle &&
-      scopes.some(expectedScope =>
-        tokenScopes(entry).some(scope =>
+      scopes.some((expectedScope) =>
+        tokenScopes(entry).some((scope) =>
           scope.toLowerCase().includes(expectedScope.toLowerCase()),
         ),
       )
     ) {
-      return entry.settings.fontStyle.includes('italic')
-        ? 'italic'
-        : undefined
+      return entry.settings.fontStyle.includes('italic') ? 'italic' : undefined
     }
   }
 }
@@ -546,15 +454,9 @@ function tokenScopes(entry: TextMateToken): string[] {
   if (Array.isArray(entry.scope)) {
     return entry.scope
   }
-  return typeof entry.scope === 'string'
-    ? entry.scope.split(',').map(scope => scope.trim())
-    : []
+  return typeof entry.scope === 'string' ? entry.scope.split(',').map((scope) => scope.trim()) : []
 }
 
-function themeColor(
-  colors: Record<string, string>,
-  key: string,
-  fallback: string,
-): string {
+function themeColor(colors: Record<string, string>, key: string, fallback: string): string {
   return colors[key] ?? fallback
 }

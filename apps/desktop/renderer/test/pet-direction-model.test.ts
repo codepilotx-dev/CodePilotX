@@ -19,7 +19,7 @@ describe('pet v2 pointer direction', () => {
     }
     const radius = 100
     const frames = Array.from({ length: 16 }, (_, sector) => {
-      const radians = sector * 22.5 * Math.PI / 180
+      const radians = (sector * 22.5 * Math.PI) / 180
       return resolvePetLookFrame(
         MASCOT,
         {

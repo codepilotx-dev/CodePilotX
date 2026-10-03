@@ -1,15 +1,9 @@
-import type {
-  BundledLanguage,
-  Highlighter,
-  ThemedToken,
-} from 'shiki'
+import type { BundledLanguage, Highlighter, ThemedToken } from 'shiki'
 import {
   isCodexHighlightThemeSlug,
   loadCodexHighlightTheme,
 } from '../../../shared/codexThemes/manifest.js'
-import type {
-  CodexHighlightThemeSlug,
-} from '../../../shared/codexThemes/manifest.js'
+import type { CodexHighlightThemeSlug } from '../../../shared/codexThemes/manifest.js'
 
 import { LruCache } from './LruCache.js'
 import { normalizeSyntaxLanguage } from './language.js'
@@ -25,13 +19,10 @@ export const SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT = 8 * 1024 * 1024
 
 const textEncoder = new TextEncoder()
 
-const resultCache = new LruCache<string, SyntaxHighlightResult>(
-  SYNTAX_HIGHLIGHT_CACHE_CAPACITY,
-  {
-    maxWeight: SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT,
-    weigh: syntaxHighlightCacheWeight,
-  },
-)
+const resultCache = new LruCache<string, SyntaxHighlightResult>(SYNTAX_HIGHLIGHT_CACHE_CAPACITY, {
+  maxWeight: SYNTAX_HIGHLIGHT_CACHE_MAX_WEIGHT,
+  weigh: syntaxHighlightCacheWeight,
+})
 const pendingHighlights = new Map<
   string,
   {
@@ -53,7 +44,7 @@ function loadShiki(): Promise<ShikiModule> {
 async function getHighlighter(): Promise<Highlighter> {
   if (highlighterPromise) return highlighterPromise
 
-  highlighterPromise = loadShiki().then(shiki =>
+  highlighterPromise = loadShiki().then((shiki) =>
     shiki.getSingletonHighlighter({
       engine: shiki.createJavaScriptRegexEngine(),
       langs: [],
@@ -63,16 +54,10 @@ async function getHighlighter(): Promise<Highlighter> {
   return highlighterPromise
 }
 
-export async function highlightCode(
-  options: HighlightCodeOptions,
-): Promise<SyntaxHighlightResult> {
+export async function highlightCode(options: HighlightCodeOptions): Promise<SyntaxHighlightResult> {
   const requestedLanguage = normalizeSyntaxLanguage(options.language)
   const requestedTheme = options.theme.trim()
-  const cacheKey = highlightCacheKey(
-    options.code,
-    requestedLanguage,
-    requestedTheme,
-  )
+  const cacheKey = highlightCacheKey(options.code, requestedLanguage, requestedTheme)
   const cached = resultCache.get(cacheKey)
   if (cached) return cached
 
@@ -127,8 +112,7 @@ export function presentHighlightedCode(
   requestedTheme: string,
 ): SyntaxHighlightPresentation {
   const isCompatible =
-    result?.requestedLanguage === requestedLanguage &&
-    result.requestedTheme === requestedTheme
+    result?.requestedLanguage === requestedLanguage && result.requestedTheme === requestedTheme
 
   if (!result || !isCompatible) {
     return { highlighted: null, plainText: currentCode }
@@ -175,7 +159,7 @@ async function highlightCodeUncached({
         : highlighter.loadLanguage(shiki.bundledLanguages[language]),
       highlighter.getLoadedThemes().includes(theme)
         ? undefined
-        : loadCodexHighlightTheme(theme).then(registration =>
+        : loadCodexHighlightTheme(theme).then((registration) =>
             highlighter.loadTheme(registration),
           ),
     ])
@@ -192,10 +176,8 @@ async function highlightCodeUncached({
       requestedLanguage,
       requestedTheme,
       theme: highlighted.themeName ?? theme,
-      tokens: highlighted.tokens.map(line =>
-        line.map(token =>
-          toSyntaxToken(token, highlighted.fg, highlighted.bg),
-        ),
+      tokens: highlighted.tokens.map((line) =>
+        line.map((token) => toSyntaxToken(token, highlighted.fg, highlighted.bg)),
       ),
     }
   } catch {
@@ -219,12 +201,8 @@ function resolveBundledLanguage(
   return 'text'
 }
 
-function resolveCodexTheme(
-  requestedTheme: string,
-): CodexHighlightThemeSlug {
-  return isCodexHighlightThemeSlug(requestedTheme)
-    ? requestedTheme
-    : 'codex-dark'
+function resolveCodexTheme(requestedTheme: string): CodexHighlightThemeSlug {
+  return isCodexHighlightThemeSlug(requestedTheme) ? requestedTheme : 'codex-dark'
 }
 
 function toSyntaxToken(
@@ -234,11 +212,7 @@ function toSyntaxToken(
 ): SyntaxToken {
   return {
     content: token.content,
-    color: ensureSyntaxTokenContrast(
-      token.color,
-      foreground,
-      token.bgColor ?? background,
-    ),
+    color: ensureSyntaxTokenContrast(token.color, foreground, token.bgColor ?? background),
     backgroundColor: token.bgColor,
     fontStyle: token.fontStyle,
   }
@@ -257,21 +231,16 @@ function ensureSyntaxTokenContrast(
   // Review surfaces can be lighter than a dark syntax theme's own editor
   // background and add a subtle diff tint, so dark themes need more margin
   // above the WCAG AA text threshold.
-  const minimumRatio =
-    colorLuminance(backgroundColor) < 0.18 ? 6.5 : 5
+  const minimumRatio = colorLuminance(backgroundColor) < 0.18 ? 6.5 : 5
   if (colorContrast(tokenColor, backgroundColor) >= minimumRatio) return color
 
   const fallback =
-    (foreground && parseHexColor(foreground)) ??
-    pickHigherContrastMonochrome(backgroundColor)
+    (foreground && parseHexColor(foreground)) ?? pickHigherContrastMonochrome(backgroundColor)
   let low = 0
   let high = 1
   for (let iteration = 0; iteration < 16; iteration += 1) {
     const amount = (low + high) / 2
-    if (
-      colorContrast(mixColor(tokenColor, fallback, amount), backgroundColor) >=
-      minimumRatio
-    ) {
+    if (colorContrast(mixColor(tokenColor, fallback, amount), backgroundColor) >= minimumRatio) {
       high = amount
     } else {
       low = amount
@@ -287,7 +256,7 @@ function parseHexColor(value: string): RgbColor | null {
   if (!match) return null
   const hex =
     match[1].length === 3
-      ? [...match[1]].map(channel => `${channel}${channel}`).join('')
+      ? [...match[1]].map((channel) => `${channel}${channel}`).join('')
       : match[1]
   return {
     red: Number.parseInt(hex.slice(0, 2), 16),
@@ -299,16 +268,10 @@ function parseHexColor(value: string): RgbColor | null {
 function pickHigherContrastMonochrome(background: RgbColor): RgbColor {
   const black = { red: 0, green: 0, blue: 0 }
   const white = { red: 255, green: 255, blue: 255 }
-  return colorContrast(black, background) >= colorContrast(white, background)
-    ? black
-    : white
+  return colorContrast(black, background) >= colorContrast(white, background) ? black : white
 }
 
-function mixColor(
-  from: RgbColor,
-  to: RgbColor,
-  amount: number,
-): RgbColor {
+function mixColor(from: RgbColor, to: RgbColor, amount: number): RgbColor {
   return {
     red: Math.round(from.red + (to.red - from.red) * amount),
     green: Math.round(from.green + (to.green - from.green) * amount),
@@ -317,10 +280,7 @@ function mixColor(
 }
 
 function colorContrast(first: RgbColor, second: RgbColor): number {
-  const brightest = Math.max(
-    colorLuminance(first),
-    colorLuminance(second),
-  )
+  const brightest = Math.max(colorLuminance(first), colorLuminance(second))
   const darkest = Math.min(colorLuminance(first), colorLuminance(second))
   return (brightest + 0.05) / (darkest + 0.05)
 }
@@ -328,20 +288,14 @@ function colorContrast(first: RgbColor, second: RgbColor): number {
 function colorLuminance(color: RgbColor): number {
   const channel = (value: number): number => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
-  return (
-    channel(color.red) * 0.2126 +
-    channel(color.green) * 0.7152 +
-    channel(color.blue) * 0.0722
-  )
+  return channel(color.red) * 0.2126 + channel(color.green) * 0.7152 + channel(color.blue) * 0.0722
 }
 
 function colorToHex(color: RgbColor): string {
   return `#${[color.red, color.green, color.blue]
-    .map(channel => channel.toString(16).padStart(2, '0'))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`
 }
 
@@ -362,7 +316,7 @@ function plainTextResult({
     requestedLanguage,
     requestedTheme,
     theme,
-    tokens: code.split('\n').map(line => [
+    tokens: code.split('\n').map((line) => [
       {
         content: line,
       },
@@ -370,21 +324,12 @@ function plainTextResult({
   }
 }
 
-function highlightCacheKey(
-  code: string,
-  language: string,
-  theme: string,
-): string {
+function highlightCacheKey(code: string, language: string, theme: string): string {
   return JSON.stringify([language, theme, code])
 }
 
-function syntaxHighlightCacheWeight(
-  key: string,
-  result: SyntaxHighlightResult,
-): number {
-  let weight =
-    textEncoder.encode(key).byteLength +
-    textEncoder.encode(result.code).byteLength
+function syntaxHighlightCacheWeight(key: string, result: SyntaxHighlightResult): number {
+  let weight = textEncoder.encode(key).byteLength + textEncoder.encode(result.code).byteLength
   for (const line of result.tokens) {
     for (const token of line) {
       weight += textEncoder.encode(token.content).byteLength

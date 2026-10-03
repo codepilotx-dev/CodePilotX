@@ -6,6 +6,7 @@ import {
 } from '@codepilotx/agent-protocol/client'
 import {
   decodeEventEnvelope,
+  decodeServerNotification,
   type EventEnvelope,
   type LiveEventType,
 } from '@codepilotx/agent-protocol/events'
@@ -41,7 +42,14 @@ export type AgentRpcSubscription = {
   liveEventTypes?: readonly LiveEventType[]
   onReplayComplete?: () => void | Promise<void>
   onCursorExpired?: () => number | void | Promise<number | void>
+  onDeliveryError?: (error: unknown) => number | void | Promise<number | void>
 }
+
+export type EventBatchDelivery = (events: readonly EventEnvelope[]) => void | Promise<void>
+
+const MAX_EVENTS_PER_DELIVERY = 256
+const EVENT_DELIVERY_DELAY_MS = 50
+const MAX_BUFFERED_EVENTS = 1_024
 
 export class AgentRpcError extends Error {
   readonly code: number
@@ -108,11 +116,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   const typedClient = createRpcClient(transport, { idPrefix: 'renderer' })
 
   async function call<M>(
-    method: M extends PublicRpcMethod
-      ? M
-      : M extends string
-        ? never
-        : PublicRpcMethod,
+    method: M extends PublicRpcMethod ? M : M extends string ? never : PublicRpcMethod,
     params?: M extends PublicRpcMethod ? PublicRpcParams<M> : unknown,
   ): Promise<M extends PublicRpcMethod ? PublicRpcResult<M> : M> {
     const methodName = method as PublicRpcMethod
@@ -135,10 +139,10 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         (await recoverConnection(attemptedConnectionId))
       ) {
         try {
-          return await typedClient.call(
+          return (await typedClient.call(
             methodName,
             requestParams as never,
-          ) as M extends PublicRpcMethod ? PublicRpcResult<M> : M
+          )) as M extends PublicRpcMethod ? PublicRpcResult<M> : M
         } catch (retryError) {
           throw normalizeRpcError(retryError)
         }
@@ -147,9 +151,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  async function initialized(
-    params: Parameters<RpcClient['initialized']>[0],
-  ): Promise<void> {
+  async function initialized(params: Parameters<RpcClient['initialized']>[0]): Promise<void> {
     try {
       await typedClient.initialized(params)
       initializedParams = params
@@ -168,23 +170,22 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
     handshakePromise ??= (async () => {
       initializeParams = handshake.initialize
-      const result = await typedClient.call(
-        'initialize',
-        handshake.initialize,
-      )
+      const result = await typedClient.call('initialize', handshake.initialize)
       connectionId = result.connectionId
       initializeResult = result
       await typedClient.initialized(handshake.initialized)
       initializedParams = handshake.initialized
       return result
-    })().catch(error => {
-      connectionId = null
-      initializeResult = null
-      initializedParams = null
-      throw error
-    }).finally(() => {
-      handshakePromise = null
-    })
+    })()
+      .catch((error) => {
+        connectionId = null
+        initializeResult = null
+        initializedParams = null
+        throw error
+      })
+      .finally(() => {
+        handshakePromise = null
+      })
     try {
       return await handshakePromise
     } catch (error) {
@@ -192,22 +193,14 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  async function recoverConnection(
-    failedConnectionId: string | null,
-  ): Promise<boolean> {
+  async function recoverConnection(failedConnectionId: string | null): Promise<boolean> {
     if (!initializeParams || !initializedParams) return false
-    if (
-      connectionId !== null &&
-      connectionId !== failedConnectionId
-    ) {
+    if (connectionId !== null && connectionId !== failedConnectionId) {
       return true
     }
     recoveryPromise ??= (async () => {
       connectionId = null
-      const initialized = await typedClient.call(
-        'initialize',
-        initializeParams!,
-      )
+      const initialized = await typedClient.call('initialize', initializeParams!)
       connectionId = initialized.connectionId
       initializeResult = initialized
       await typedClient.initialized(initializedParams!)
@@ -224,7 +217,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
 
   function subscribeEnvelope(
     options: AgentRpcSubscription,
-    callback: (event: EventEnvelope) => void,
+    deliverBatch: EventBatchDelivery,
   ): () => void {
     const factory = environment.eventSourceFactory ?? defaultEventSourceFactory()
     if (!factory) return () => {}
@@ -233,11 +226,16 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     let source: EventSource | null = null
     let subscriptionId: string | null = null
     let ackTimer: ReturnType<typeof setTimeout> | null = null
+    let deliveryTimer: ReturnType<typeof setTimeout> | null = null
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let reconnectAttempt = 0
     let generation = 1
     let replayCompleteGeneration = 0
+    let failedDeliveryGeneration = 0
     let forceLatest = false
+    let pendingEvents: EventEnvelope[] = []
+    let inFlightEventCount = 0
+    let drainPromise: Promise<void> | null = null
     const pendingPositions = new Map<string, number>()
     const acknowledgedPositions = new Map<string, number>()
     if (options.after !== undefined) {
@@ -245,13 +243,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
 
     const reconnectDelay = (attempt: number): number =>
-      environment.eventReconnectDelay?.(attempt) ??
-      Math.min(250 * 2 ** attempt, 5_000)
+      environment.eventReconnectDelay?.(attempt) ?? Math.min(250 * 2 ** attempt, 5_000)
 
-    const recordPendingPosition = (
-      positionStreamId: string,
-      sequence: number,
-    ): void => {
+    const recordCommittedPosition = (positionStreamId: string, sequence: number): void => {
       pendingPositions.set(
         positionStreamId,
         Math.max(pendingPositions.get(positionStreamId) ?? 0, sequence),
@@ -264,11 +258,15 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       ackTimer = null
     }
 
+    const clearDeliveryTimer = (): void => {
+      if (deliveryTimer === null) return
+      clearTimeout(deliveryTimer)
+      deliveryTimer = null
+    }
+
     const unsubscribeBestEffort = (id: string | null): void => {
       if (!id) return
-      void call('event/unsubscribe', { subscriptionId: id }).catch(
-        () => undefined,
-      )
+      void call('event/unsubscribe', { subscriptionId: id }).catch(() => undefined)
     }
 
     const closeCurrentConnection = (unsubscribe: boolean): void => {
@@ -277,7 +275,116 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       source = null
       subscriptionId = null
       clearAckTimer()
+      clearDeliveryTimer()
+      pendingEvents = []
+      drainPromise = null
+      pendingPositions.clear()
       if (unsubscribe) unsubscribeBestEffort(currentSubscriptionId)
+    }
+
+    const scheduleReconnect = (expectedGeneration: number): void => {
+      if (disposed || generation !== expectedGeneration) return
+      generation += 1
+      closeCurrentConnection(true)
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      const reconnectGeneration = generation
+      const delay = reconnectDelay(reconnectAttempt)
+      reconnectAttempt += 1
+      retryTimer = setTimeout(() => {
+        retryTimer = null
+        if (disposed || generation !== reconnectGeneration) return
+        startConnect(reconnectGeneration)
+      }, delay)
+    }
+
+    const handleDeliveryFailure = (error: unknown, expectedGeneration: number): void => {
+      if (
+        disposed ||
+        generation !== expectedGeneration ||
+        failedDeliveryGeneration === expectedGeneration
+      ) {
+        return
+      }
+      failedDeliveryGeneration = expectedGeneration
+      source?.close()
+      source = null
+      clearDeliveryTimer()
+      pendingEvents = []
+      void Promise.resolve(options.onDeliveryError?.(error))
+        .then((recoveredAfter) => {
+          if (
+            typeof recoveredAfter === 'number' &&
+            Number.isSafeInteger(recoveredAfter) &&
+            recoveredAfter >= 0
+          ) {
+            acknowledgedPositions.set(streamId, recoveredAfter)
+            forceLatest = false
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          scheduleReconnect(expectedGeneration)
+        })
+    }
+
+    const drainEvents = (expectedGeneration: number): Promise<void> => {
+      if (drainPromise) return drainPromise
+      clearDeliveryTimer()
+      const currentDrain = (async () => {
+        while (
+          !disposed &&
+          generation === expectedGeneration &&
+          failedDeliveryGeneration !== expectedGeneration &&
+          pendingEvents.length > 0
+        ) {
+          const batch = pendingEvents.splice(0, MAX_EVENTS_PER_DELIVERY)
+          inFlightEventCount += batch.length
+          try {
+            await deliverBatch(batch)
+          } catch (error) {
+            handleDeliveryFailure(error, expectedGeneration)
+            return
+          } finally {
+            inFlightEventCount = Math.max(0, inFlightEventCount - batch.length)
+          }
+          if (
+            disposed ||
+            generation !== expectedGeneration ||
+            failedDeliveryGeneration === expectedGeneration
+          ) {
+            return
+          }
+          for (const event of batch) {
+            const sequence = event.durability === 'durable' ? event.sequence : event.afterSequence
+            recordCommittedPosition(event.streamId, sequence)
+          }
+          scheduleAck()
+        }
+      })().finally(() => {
+        if (drainPromise === currentDrain) drainPromise = null
+      })
+      drainPromise = currentDrain
+      return currentDrain
+    }
+
+    const scheduleDelivery = (expectedGeneration: number): void => {
+      if (
+        disposed ||
+        generation !== expectedGeneration ||
+        failedDeliveryGeneration === expectedGeneration
+      ) {
+        return
+      }
+      if (pendingEvents.length >= MAX_EVENTS_PER_DELIVERY) {
+        clearDeliveryTimer()
+        void drainEvents(expectedGeneration)
+        return
+      }
+      if (deliveryTimer !== null || drainPromise !== null) return
+      deliveryTimer = setTimeout(() => {
+        deliveryTimer = null
+        void drainEvents(expectedGeneration)
+      }, EVENT_DELIVERY_DELAY_MS)
     }
 
     const connect = async (expectedGeneration: number): Promise<void> => {
@@ -286,9 +393,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         !forceLatest && acknowledged !== undefined ? acknowledged : 'latest'
       const subscribeParams = () => ({
         streams: [{ streamId, after }],
-        ...(options.liveEventTypes
-          ? { liveEventTypes: [...options.liveEventTypes] }
-          : {}),
+        ...(options.liveEventTypes ? { liveEventTypes: [...options.liveEventTypes] } : {}),
       })
       let subscription: PublicRpcResult<'event/subscribe'>
       try {
@@ -314,56 +419,72 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         return
       }
 
+      if (after === 'latest') {
+        for (const position of subscription.highWatermarks) {
+          acknowledgedPositions.set(
+            position.streamId,
+            Math.max(acknowledgedPositions.get(position.streamId) ?? 0, position.sequence),
+          )
+        }
+      }
+
       subscriptionId = subscription.subscriptionId
       const nextSource = factory(
         `/rpc/events?subscriptionId=${encodeURIComponent(subscription.subscriptionId)}&connectionId=${encodeURIComponent(connectionId ?? '')}`,
       )
       source = nextSource
-      nextSource.onmessage = message => {
-        if (
-          disposed ||
-          generation !== expectedGeneration ||
-          source !== nextSource
-        ) {
+      nextSource.onmessage = (message) => {
+        if (disposed || generation !== expectedGeneration || source !== nextSource) {
           return
         }
         try {
-          const notification = JSON.parse(message.data) as Record<
-            string,
-            unknown
-          >
+          const notification = decodeServerNotification(JSON.parse(message.data))
+          if (notification.params.subscriptionId !== subscription.subscriptionId) {
+            throw new Error('事件通知与当前订阅不匹配。')
+          }
           if (notification.method === 'event/next') {
-            const params = asRecord(notification.params)
-            const event = decodeEventEnvelope(params.event)
-            const sequence = event.durability === 'durable'
-              ? event.sequence
-              : event.afterSequence
-            recordPendingPosition(event.streamId, sequence)
-            scheduleAck()
-            callback(event)
+            const event = decodeEventEnvelope(notification.params.event)
+            if (event.streamId !== streamId) {
+              throw new Error('事件通知与当前 stream scope 不匹配。')
+            }
+            if (pendingEvents.length + inFlightEventCount >= MAX_BUFFERED_EVENTS) {
+              handleDeliveryFailure(
+                new Error('事件消费队列已超过 1024 条，正在重新读取会话。'),
+                expectedGeneration,
+              )
+              return
+            }
+            pendingEvents.push(event)
+            scheduleDelivery(expectedGeneration)
             return
           }
           if (notification.method === 'event/replayComplete') {
-            const params = asRecord(notification.params)
-            recordNotificationPositions(params.positions)
-            scheduleAck()
-            reconnectAttempt = 0
-            if (replayCompleteGeneration !== expectedGeneration) {
-              replayCompleteGeneration = expectedGeneration
-              void Promise.resolve(options.onReplayComplete?.()).catch(
-                () => undefined,
-              )
-            }
+            clearDeliveryTimer()
+            void drainEvents(expectedGeneration)
+              .then(async () => {
+                if (
+                  disposed ||
+                  generation !== expectedGeneration ||
+                  failedDeliveryGeneration === expectedGeneration
+                ) {
+                  return
+                }
+                reconnectAttempt = 0
+                if (replayCompleteGeneration === expectedGeneration) return
+                replayCompleteGeneration = expectedGeneration
+                await options.onReplayComplete?.()
+              })
+              .catch((error) => {
+                handleDeliveryFailure(error, expectedGeneration)
+              })
             return
           }
           if (notification.method === 'event/subscriptionClosed') {
-            const params = asRecord(notification.params)
-            recordNotificationPositions(params.positions)
             scheduleReconnect(expectedGeneration)
             return
           }
-        } catch {
-          // Ignore malformed event payloads.
+        } catch (error) {
+          handleDeliveryFailure(error, expectedGeneration)
         }
       }
       nextSource.onerror = () => {
@@ -377,50 +498,16 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       })
     }
 
-    const scheduleReconnect = (expectedGeneration: number): void => {
-      if (disposed || generation !== expectedGeneration) return
-      generation += 1
-      closeCurrentConnection(true)
-      if (retryTimer !== null) clearTimeout(retryTimer)
-      const reconnectGeneration = generation
-      const delay = reconnectDelay(reconnectAttempt)
-      reconnectAttempt += 1
-      retryTimer = setTimeout(() => {
-        retryTimer = null
-        if (disposed || generation !== reconnectGeneration) return
-        startConnect(reconnectGeneration)
-      }, delay)
-    }
-
-    const recordNotificationPositions = (value: unknown): void => {
-      if (!Array.isArray(value)) return
-      for (const position of value) {
-        const item = asRecord(position)
-        if (
-          typeof item.streamId === 'string' &&
-          typeof item.sequence === 'number'
-        ) {
-          recordPendingPosition(item.streamId, item.sequence)
-        }
-      }
-    }
-
     const flushAck = async (force = false): Promise<void> => {
       const ackSubscriptionId = subscriptionId
       const ackGeneration = generation
-      if (
-        !ackSubscriptionId ||
-        pendingPositions.size === 0 ||
-        (disposed && !force)
-      ) {
+      if (!ackSubscriptionId || pendingPositions.size === 0 || (disposed && !force)) {
         return
       }
-      const positions = [...pendingPositions].map(
-        ([positionStreamId, sequence]) => ({
-          streamId: positionStreamId,
-          sequence,
-        }),
-      )
+      const positions = [...pendingPositions].map(([positionStreamId, sequence]) => ({
+        streamId: positionStreamId,
+        sequence,
+      }))
       try {
         await call('event/ack', {
           subscriptionId: ackSubscriptionId,
@@ -429,14 +516,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         for (const position of positions) {
           acknowledgedPositions.set(
             position.streamId,
-            Math.max(
-              acknowledgedPositions.get(position.streamId) ?? 0,
-              position.sequence,
-            ),
+            Math.max(acknowledgedPositions.get(position.streamId) ?? 0, position.sequence),
           )
-          if (
-            (pendingPositions.get(position.streamId) ?? 0) <= position.sequence
-          ) {
+          if ((pendingPositions.get(position.streamId) ?? 0) <= position.sequence) {
             pendingPositions.delete(position.streamId)
           }
         }
@@ -462,6 +544,8 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       if (retryTimer !== null) clearTimeout(retryTimer)
       retryTimer = null
       clearAckTimer()
+      clearDeliveryTimer()
+      pendingEvents = []
       const finalSubscriptionId = subscriptionId
       source?.close()
       source = null
@@ -476,8 +560,10 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     options: AgentRpcSubscription,
     callback: (notification: AgentNotification) => void,
   ): () => void {
-    return subscribeEnvelope(options, event => {
-      callback(eventEnvelopeToAgentNotification(event))
+    return subscribeEnvelope(options, (events) => {
+      for (const event of events) {
+        callback(eventEnvelopeToAgentNotification(event))
+      }
     })
   }
 
@@ -493,9 +579,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   }
 }
 
-function eventEnvelopeToAgentNotification(
-  event: EventEnvelope,
-): AgentNotification {
+function eventEnvelopeToAgentNotification(event: EventEnvelope): AgentNotification {
   const payload = asRecord(event.payload)
   const turn = asRecord(payload.turn)
   const error = asRecord(payload.error)
@@ -533,11 +617,7 @@ function rpcHeaders(connectionId: string | null): HeadersInit {
 
 function normalizeRpcError(error: unknown): unknown {
   if (!(error instanceof RpcRemoteError)) return error
-  return new AgentRpcError(
-    error.rpcError.message,
-    error.rpcError.code,
-    error.rpcError.data,
-  )
+  return new AgentRpcError(error.rpcError.message, error.rpcError.code, error.rpcError.data)
 }
 
 function isUninitializedConnectionError(error: unknown): boolean {
@@ -557,7 +637,7 @@ function isCursorExpiredError(error: unknown): boolean {
 
 function defaultEventSourceFactory(): ((url: string) => EventSource) | null {
   if (typeof EventSource === 'undefined') return null
-  return url => new EventSource(url, { withCredentials: true })
+  return (url) => new EventSource(url, { withCredentials: true })
 }
 
 async function rpcHttpError(response: Response): Promise<string> {
@@ -571,9 +651,7 @@ async function rpcHttpError(response: Response): Promise<string> {
   }
 }
 
-async function rpcNotificationError(
-  response: Response,
-): Promise<RpcError | null> {
+async function rpcNotificationError(response: Response): Promise<RpcError | null> {
   const payload = await response.json().catch(() => null)
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return null
@@ -591,11 +669,7 @@ async function rpcNotificationError(
   if (value.data === undefined) {
     return { code: value.code, message: value.message }
   }
-  if (
-    !value.data ||
-    typeof value.data !== 'object' ||
-    Array.isArray(value.data)
-  ) {
+  if (!value.data || typeof value.data !== 'object' || Array.isArray(value.data)) {
     return null
   }
   const data = value.data as {

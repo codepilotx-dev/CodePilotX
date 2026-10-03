@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type {
-  DesktopAuthSession,
-  DesktopAuthTarget,
-} from '../../../shared/types.js'
+import type { DesktopAuthSession, DesktopAuthTarget } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 
 type Options = {
@@ -11,11 +8,7 @@ type Options = {
   onError?: (message: string) => void
 }
 
-export function useAuthSession({
-  target,
-  onComplete,
-  onError,
-}: Options) {
+export function useAuthSession({ target, onComplete, onError }: Options) {
   const [session, setSession] = useState<DesktopAuthSession | null>(null)
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -30,8 +23,19 @@ export function useAuthSession({
   }, [])
 
   const applySession = useCallback(async (next: DesktopAuthSession) => {
+    const previousPromptID = sessionRef.current?.prompt?.id
     sessionRef.current = next
     setSession(next)
+
+    if (next.status === 'waiting') {
+      setBusy(false)
+
+      if (next.prompt?.id !== previousPromptID) {
+        setValue(next.prompt?.type === 'select' ? (next.prompt.options?.[0]?.id ?? '') : '')
+      }
+      return
+    }
+
     if (next.status === 'complete') {
       setBusy(false)
       setValue('')
@@ -48,6 +52,8 @@ export function useAuthSession({
 
   const start = useCallback(async () => {
     if (!target) return
+    sessionRef.current = null
+    setSession(null)
     setBusy(true)
     setValue('')
     try {
@@ -61,11 +67,9 @@ export function useAuthSession({
     if (!session?.prompt || !value.trim()) return
     setBusy(true)
     try {
-      await applySession(await desktopClient.respondAuthSession(
-        session.id,
-        session.prompt.id,
-        value,
-      ))
+      await applySession(
+        await desktopClient.respondAuthSession(session.id, session.prompt.id, value),
+      )
       setValue('')
     } catch (error) {
       fail(error)
@@ -86,22 +90,26 @@ export function useAuthSession({
     }
   }, [session])
 
-  useEffect(() => () => {
-    const current = sessionRef.current
-    if (current && ['running', 'waiting'].includes(current.status)) {
-      void desktopClient.cancelAuthSession(current.id).catch(() => {})
-    }
-  }, [])
+  useEffect(
+    () => () => {
+      const current = sessionRef.current
+      if (current && ['running', 'waiting'].includes(current.status)) {
+        void desktopClient.cancelAuthSession(current.id).catch(() => {})
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!session || !['running', 'waiting'].includes(session.status)) return
     let disposed = false
     const timer = setInterval(() => {
-      void desktopClient.getAuthSessionStatus(session.id)
-        .then(next => {
+      void desktopClient
+        .getAuthSessionStatus(session.id)
+        .then((next) => {
           if (!disposed) void applySession(next)
         })
-        .catch(error => {
+        .catch((error) => {
           if (!disposed) fail(error)
         })
     }, 1_000)

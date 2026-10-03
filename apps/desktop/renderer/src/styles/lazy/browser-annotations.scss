@@ -1,0 +1,57 @@
+@layer features {
+  .browser-annotation-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cpx-sys-space-2);
+    padding: var(--cpx-sys-space-2);
+    max-height: 20rem;
+    overflow: auto;
+  }
+  .browser-annotation-card {
+    display: flex;
+    gap: var(--cpx-sys-space-2);
+    border: 1px solid var(--cpx-sys-color-border-subtle);
+    border-radius: var(--cpx-sys-radius-md);
+    padding: var(--cpx-sys-space-2);
+    background: var(--cpx-sys-color-surface-panel);
+    color: var(--cpx-sys-color-fg-primary);
+    font: var(--cpx-sys-type-body-sm);
+    > img {
+      width: 5rem;
+      height: 5rem;
+      object-fit: contain;
+      border-radius: var(--cpx-sys-radius-sm);
+      align-self: flex-start;
+    }
+    > div {
+      min-width: 0;
+      flex: 1;
+    }
+    p,
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin: var(--cpx-sys-space-1) 0;
+    }
+    summary {
+      cursor: pointer;
+      color: var(--cpx-sys-color-fg-secondary);
+    }
+    textarea {
+      display: block;
+      width: 100%;
+      resize: vertical;
+      padding: var(--cpx-sys-space-1);
+      margin-block: var(--cpx-sys-space-1);
+      border: 1px solid var(--cpx-sys-color-border-subtle);
+      border-radius: var(--cpx-sys-radius-sm);
+      background: var(--cpx-sys-color-surface-raised);
+      color: inherit;
+      font: inherit;
+      &:focus-visible {
+        outline: 0;
+        box-shadow: var(--cpx-sys-focus-ring-inset);
+      }
+    }
+  }
+}

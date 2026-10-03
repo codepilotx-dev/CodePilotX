@@ -25,12 +25,7 @@ export function ScrollArea({
     direction === 'x' ? 'u-overflow-x-auto' : 'u-overflow-y-auto',
     className,
   )
-  const contentClass = cx(
-    'scroll-area__content',
-    'u-w-full',
-    'u-min-w-0',
-    contentClassName,
-  )
+  const contentClass = cx('scroll-area__content', 'u-w-full', 'u-min-w-0', contentClassName)
 
   return (
     <div

@@ -232,19 +232,9 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: [],
   },
   {
-    title: '打开听写',
-    description: 'Start dictation in the current composer',
-    keys: ['Ctrl+Shift+M'],
-  },
-  {
     title: '开始听写',
     description: 'Start dictation in the current composer',
     keys: ['Ctrl+Shift+D'],
-  },
-  {
-    title: '关注焦点模式',
-    description: 'Start or stop voice mode',
-    keys: ['Ctrl+Shift+V'],
   },
   {
     title: '发送消息',
@@ -322,6 +312,21 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+Shift+N'],
   },
   {
+    title: '放大页面',
+    description: 'Increase the page zoom',
+    keys: ['Ctrl++'],
+  },
+  {
+    title: '缩小页面',
+    description: 'Decrease the page zoom',
+    keys: ['Ctrl+-'],
+  },
+  {
+    title: '恢复实际大小',
+    description: 'Reset the page zoom to 100%',
+    keys: ['Ctrl+0'],
+  },
+  {
     title: 'Open command menu',
     description: 'Open the command menu',
     keys: ['Ctrl+K', 'Ctrl+Shift+P'],
@@ -364,7 +369,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const rows = useMemo(() => {
     if (!normalizedQuery) return SHORTCUT_ROWS
-    return SHORTCUT_ROWS.filter(row =>
+    return SHORTCUT_ROWS.filter((row) =>
       [row.title, row.description, row.keys.join(' ')]
         .join(' ')
         .toLocaleLowerCase()
@@ -393,14 +398,9 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
           </div>
           <div className="keyboard-shortcuts-list">
             {rows.map((row, index) => (
-              <ShortcutRowView
-                key={`${row.title}-${row.description}-${index}`}
-                row={row}
-              />
+              <ShortcutRowView key={`${row.title}-${row.description}-${index}`} row={row} />
             ))}
-            {rows.length === 0 && (
-              <p className="keyboard-shortcuts-empty">未找到匹配的快捷键。</p>
-            )}
+            {rows.length === 0 && <p className="keyboard-shortcuts-empty">未找到匹配的快捷键。</p>}
           </div>
         </section>
       </div>
@@ -411,10 +411,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
 function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
   const action = row.action ?? 'delete'
   const ActionIcon = action === 'edit' ? Pencil : Trash2
-  const actionLabel =
-    action === 'edit'
-      ? `编辑 ${row.title} 快捷键`
-      : `移除 ${row.title} 快捷键`
+  const actionLabel = action === 'edit' ? `编辑 ${row.title} 快捷键` : `移除 ${row.title} 快捷键`
 
   return (
     <div className="keyboard-shortcuts-row">
@@ -424,7 +421,7 @@ function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
       </div>
       <div className="keyboard-shortcuts-keys">
         {row.keys.length > 0 ? (
-          row.keys.map(key => (
+          row.keys.map((key) => (
             <span className="keyboard-shortcut-key" key={key}>
               {key}
             </span>

@@ -2,9 +2,7 @@ import {
   CODEX_HIGHLIGHT_THEMES,
   isCodexHighlightThemeSlug,
 } from '../../../shared/codexThemes/manifest.js'
-import type {
-  CodexHighlightThemeSlug,
-} from '../../../shared/codexThemes/manifest.js'
+import type { CodexHighlightThemeSlug } from '../../../shared/codexThemes/manifest.js'
 
 export type SyntaxThemeVariant = 'light' | 'dark'
 
@@ -21,10 +19,8 @@ export type { CodexHighlightThemeSlug }
 const THEME_LABEL_COLLATOR = new Intl.Collator()
 
 export function getThemesForVariant(variant: SyntaxThemeVariant) {
-  return CODEX_HIGHLIGHT_THEMES.filter(
-    theme => theme.variant === variant,
-  ).toSorted((left, right) =>
-    THEME_LABEL_COLLATOR.compare(left.label, right.label),
+  return CODEX_HIGHLIGHT_THEMES.filter((theme) => theme.variant === variant).toSorted(
+    (left, right) => THEME_LABEL_COLLATOR.compare(left.label, right.label),
   )
 }
 
@@ -33,15 +29,11 @@ export function isThemeCompatibleWithVariant(
   variant: SyntaxThemeVariant,
 ): codeThemeId is CodexHighlightThemeSlug {
   const normalized = codeThemeId?.trim().toLowerCase()
-  if (
-    !normalized ||
-    codeThemeId !== normalized ||
-    !isCodexHighlightThemeSlug(normalized)
-  ) {
+  if (!normalized || codeThemeId !== normalized || !isCodexHighlightThemeSlug(normalized)) {
     return false
   }
   return getThemesForVariant(variant).some(
-    theme => theme.slug === normalized && theme.variant === variant,
+    (theme) => theme.slug === normalized && theme.variant === variant,
   )
 }
 
@@ -50,9 +42,7 @@ export function normalizeThemeIdForVariant(
   variant: SyntaxThemeVariant,
 ): 'auto' | CodexHighlightThemeSlug {
   if (codeThemeId === 'auto') return 'auto'
-  return isThemeCompatibleWithVariant(codeThemeId, variant)
-    ? codeThemeId
-    : 'auto'
+  return isThemeCompatibleWithVariant(codeThemeId, variant) ? codeThemeId : 'auto'
 }
 
 export function resolveThemeId(

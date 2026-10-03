@@ -17,7 +17,7 @@ type SettingsDatabase = {
   setSetting(key: string, value: unknown): void
 }
 
-const SETTINGS_KEY = "skills.runtime.v1"
+const SETTINGS_KEY = 'skills.runtime.v1'
 const MAX_OPERATIONS = 100
 const defaultState = (): SkillSettingsState => ({
   version: 1,
@@ -31,19 +31,25 @@ const normalizeState = (value: SkillSettingsState | null): SkillSettingsState =>
   if (!value || value.version !== 1) return defaultState()
   return {
     version: 1,
-    disabledPathHashes: [...new Set(value.disabledPathHashes.filter((hash) => /^[a-f\d]{64}$/i.test(hash)))],
-    generation: Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
+    disabledPathHashes: [
+      ...new Set(value.disabledPathHashes.filter((hash) => /^[a-f\d]{64}$/i.test(hash))),
+    ],
+    generation:
+      Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
     updatedAt: Number.isFinite(value.updatedAt) && value.updatedAt >= 0 ? value.updatedAt : 0,
     operations: Array.isArray(value.operations)
-      ? value.operations.filter((operation) =>
-          typeof operation.operationId === "string"
-          && /^[a-f\d]{64}$/i.test(operation.pathHash)
-          && typeof operation.enabled === "boolean"
-          && Number.isSafeInteger(operation.generation)
-          && operation.generation >= 1
-          && Number.isFinite(operation.updatedAt)
-          && operation.updatedAt >= 0,
-        ).slice(-MAX_OPERATIONS)
+      ? value.operations
+          .filter(
+            (operation) =>
+              typeof operation.operationId === 'string' &&
+              /^[a-f\d]{64}$/i.test(operation.pathHash) &&
+              typeof operation.enabled === 'boolean' &&
+              Number.isSafeInteger(operation.generation) &&
+              operation.generation >= 1 &&
+              Number.isFinite(operation.updatedAt) &&
+              operation.updatedAt >= 0,
+          )
+          .slice(-MAX_OPERATIONS)
       : [],
   }
 }
@@ -61,16 +67,14 @@ export class SkillSettingsRepository {
     return new Set(this.state().disabledPathHashes)
   }
 
-  setEnabled(input: {
-    pathHash: string
-    enabled: boolean
-    operationId: string
-  }) {
+  setEnabled(input: { pathHash: string; enabled: boolean; operationId: string }) {
     const state = this.state()
-    const existing = state.operations.find((operation) => operation.operationId === input.operationId)
+    const existing = state.operations.find(
+      (operation) => operation.operationId === input.operationId,
+    )
     if (existing) {
       if (existing.pathHash !== input.pathHash || existing.enabled !== input.enabled) {
-        throw new SkillSettingsConflictError("operationId 已用于其他技能设置请求")
+        throw new SkillSettingsConflictError('operationId 已用于其他技能设置请求')
       }
       return {
         state: {

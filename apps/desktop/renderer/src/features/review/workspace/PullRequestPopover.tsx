@@ -1,14 +1,9 @@
 import React from 'react'
 import { formatReviewCount } from '../diff/reviewFormat.js'
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ExternalLink,
-  GitFork,
-  X,
-} from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { ArrowUpRight, ChevronDown, ExternalLink, GitFork, X } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -127,20 +122,23 @@ export function PullRequestPopover({
           <span className="review-popover-branch-name">{branchLabel}</span>
           <ArrowUpRight size={APP_ICON_SIZE} />
           <span>{targetLabel}</span>
-          <ChevronDown size={APP_ICON_SIZE} />
+          <ChevronDown size={APP_ICON_SIZES.sm} />
         </span>
         <span className="review-popover-counts">
           <strong>+{formatPanelNumber(additions)}</strong>
           <em>-{formatPanelNumber(deletions)}</em>
         </span>
-        <button
-          aria-label="关闭"
+        <IconButton
+          iconSize="sm"
           className="review-popover-close"
+          color="ghostSecondary"
+          size="toolbar"
+          title="关闭"
           type="button"
           onClick={onClose}
         >
-          <X size={APP_ICON_SIZE} />
-        </button>
+          <X size={APP_ICON_SIZES.sm} />
+        </IconButton>
       </header>
 
       <label className="review-popover-field">
@@ -148,8 +146,8 @@ export function PullRequestPopover({
         <input
           type="text"
           value={title}
-          onChange={event => setTitle(event.target.value)}
-          onKeyDown={event => {
+          onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault()
               onCreateDraftPR(title, body, pushFirst)
@@ -164,8 +162,8 @@ export function PullRequestPopover({
           placeholder="描述（留空将自动生成）..."
           rows={4}
           value={body}
-          onChange={event => setBody(event.target.value)}
-          onKeyDown={event => {
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault()
               onCreateDraftPR(title, body, pushFirst)
@@ -178,13 +176,14 @@ export function PullRequestPopover({
         <input
           checked={pushFirst}
           type="checkbox"
-          onChange={event => setPushFirst(event.target.checked)}
+          onChange={(event) => setPushFirst(event.target.checked)}
         />
         <span>先推送当前分支</span>
       </label>
 
       <div className="review-popover-actions">
         <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
@@ -195,6 +194,7 @@ export function PullRequestPopover({
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
         <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
@@ -203,10 +203,7 @@ export function PullRequestPopover({
             创建拉取请求
           </span>
         </Button>
-        <Button
-          className="tw:w-full tw:justify-between"
-          onClick={() => onOpenPR()}
-        >
+        <Button color="primary" className="tw:w-full tw:justify-between" onClick={() => onOpenPR()}>
           <span className="review-popover-action-label">
             <ExternalLink size={APP_ICON_SIZE} />
             在浏览器中打开 PR

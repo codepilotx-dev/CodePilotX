@@ -1,23 +1,26 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, OkResultSchema, TimestampSchema } from "../wire/primitives"
-
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
-const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
-const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import {
+  NonEmptyStringSchema,
+  NonNegativeIntSchema,
+  OpaqueIDSchema,
+  OkResultSchema,
+  PositiveIntSchema,
+  TimestampSchema,
+} from '../wire/primitives'
 
 export const ReviewSourceSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("unstaged") }),
-  Schema.Struct({ kind: Schema.Literal("staged") }),
-  Schema.Struct({ kind: Schema.Literal("branch"), baseBranch: NonEmptyStringSchema }),
-  Schema.Struct({ kind: Schema.Literal("commit"), commitSha: NonEmptyStringSchema }),
+  Schema.Struct({ kind: Schema.Literal('unstaged') }),
+  Schema.Struct({ kind: Schema.Literal('staged') }),
+  Schema.Struct({ kind: Schema.Literal('branch'), baseBranch: NonEmptyStringSchema }),
+  Schema.Struct({ kind: Schema.Literal('commit'), commitSha: NonEmptyStringSchema }),
   Schema.Struct({
-    kind: Schema.Literal("last-turn"),
+    kind: Schema.Literal('last-turn'),
     threadId: OpaqueIDSchema,
     turnId: OpaqueIDSchema,
   }),
   Schema.Struct({
-    kind: Schema.Literal("pull-request"),
+    kind: Schema.Literal('pull-request'),
     owner: NonEmptyStringSchema,
     repository: NonEmptyStringSchema,
     number: PositiveIntSchema,
@@ -26,14 +29,14 @@ export const ReviewSourceSchema = Schema.Union([
 export type ReviewSource = typeof ReviewSourceSchema.Type
 
 export const ReviewFileStatusSchema = Schema.Literals([
-  "added",
-  "modified",
-  "deleted",
-  "renamed",
-  "copied",
-  "untracked",
-  "type-changed",
-  "unknown",
+  'added',
+  'modified',
+  'deleted',
+  'renamed',
+  'copied',
+  'untracked',
+  'type-changed',
+  'unknown',
 ])
 export type ReviewFileStatus = typeof ReviewFileStatusSchema.Type
 
@@ -76,7 +79,7 @@ export const ReviewSummaryParamsSchema = Schema.Struct({
   source: ReviewSourceSchema,
 })
 
-export const ReviewSummaryCacheStateSchema = Schema.Literals(["fresh", "stale"])
+export const ReviewSummaryCacheStateSchema = Schema.Literals(['fresh', 'stale'])
 export type ReviewSummaryCacheState = typeof ReviewSummaryCacheStateSchema.Type
 
 export const ReviewSummaryResultSchema = Schema.Struct({
@@ -123,7 +126,7 @@ export const ReviewFileDiffResultSchema = Schema.Struct({
   patch: Schema.String,
   hunks: Schema.Array(ReviewHunkSchema),
   renderable: Schema.Boolean,
-  tooLargeReason: Schema.NullOr(Schema.Literals(["changed-lines", "changed-bytes", "line-bytes"])),
+  tooLargeReason: Schema.NullOr(Schema.Literals(['changed-lines', 'changed-bytes', 'line-bytes'])),
 })
 export type ReviewFileDiffResult = typeof ReviewFileDiffResultSchema.Type
 
@@ -131,31 +134,32 @@ export const ReviewFileDiffsParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   source: ReviewSourceSchema,
   generation: NonEmptyStringSchema,
-  paths: Schema.Array(NonEmptyStringSchema).check(
-    Schema.isMinLength(1),
-    Schema.isMaxLength(128),
-  ),
+  paths: Schema.Array(NonEmptyStringSchema).check(Schema.isMinLength(1), Schema.isMaxLength(128)),
   hideWhitespace: Schema.optional(Schema.Boolean),
 })
 
 export const ReviewFileDiffsResultSchema = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("success"),
+    type: Schema.Literal('success'),
     generation: NonEmptyStringSchema,
     files: Schema.Array(ReviewFileDiffResultSchema),
     changedBytes: NonNegativeIntSchema,
   }),
   Schema.Struct({
-    type: Schema.Literal("large"),
+    type: Schema.Literal('large'),
     generation: NonEmptyStringSchema,
-    reason: Schema.Literal("changed-bytes"),
+    reason: Schema.Literal('changed-bytes'),
   }),
 ])
 export type ReviewFileDiffsResult = typeof ReviewFileDiffsResultSchema.Type
 
 export const ReviewMutationTargetSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("file"), path: NonEmptyStringSchema }),
-  Schema.Struct({ kind: Schema.Literal("hunk"), path: NonEmptyStringSchema, hunkId: NonEmptyStringSchema }),
+  Schema.Struct({ kind: Schema.Literal('file'), path: NonEmptyStringSchema }),
+  Schema.Struct({
+    kind: Schema.Literal('hunk'),
+    path: NonEmptyStringSchema,
+    hunkId: NonEmptyStringSchema,
+  }),
 ])
 
 export const ReviewApplyParamsSchema = Schema.Struct({
@@ -163,14 +167,14 @@ export const ReviewApplyParamsSchema = Schema.Struct({
   source: ReviewSourceSchema,
   generation: NonEmptyStringSchema,
   expectedRevision: NonEmptyStringSchema,
-  action: Schema.Literals(["stage", "unstage", "revert"]),
+  action: Schema.Literals(['stage', 'unstage', 'revert']),
   target: ReviewMutationTargetSchema,
   atomic: Schema.Literal(true),
 })
 
 export const ReviewApplyResultSchema = Schema.Struct({
   ok: Schema.Literal(true),
-  action: Schema.Literals(["stage", "unstage", "revert"]),
+  action: Schema.Literals(['stage', 'unstage', 'revert']),
   path: NonEmptyStringSchema,
   generation: NonEmptyStringSchema,
 })
@@ -180,16 +184,18 @@ export const ReviewApplyBatchParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   source: ReviewSourceSchema,
   generation: NonEmptyStringSchema,
-  action: Schema.Literals(["stage", "unstage", "revert"]),
-  items: Schema.Array(Schema.Struct({
-    path: NonEmptyStringSchema,
-    expectedRevision: NonEmptyStringSchema,
-  })).check(Schema.isMinLength(1)),
+  action: Schema.Literals(['stage', 'unstage', 'revert']),
+  items: Schema.Array(
+    Schema.Struct({
+      path: NonEmptyStringSchema,
+      expectedRevision: NonEmptyStringSchema,
+    }),
+  ).check(Schema.isMinLength(1)),
 })
 
 export const ReviewApplyBatchResultSchema = Schema.Struct({
   ok: Schema.Literal(true),
-  action: Schema.Literals(["stage", "unstage", "revert"]),
+  action: Schema.Literals(['stage', 'unstage', 'revert']),
   paths: Schema.Array(NonEmptyStringSchema),
   generation: NonEmptyStringSchema,
   appliedCount: NonNegativeIntSchema,
@@ -199,12 +205,14 @@ export type ReviewApplyBatchResult = typeof ReviewApplyBatchResultSchema.Type
 export const ReviewBranchesParamsSchema = Schema.Struct({ projectId: OpaqueIDSchema })
 export const ReviewBranchesResultSchema = Schema.Struct({
   current: Schema.NullOr(NonEmptyStringSchema),
-  branches: Schema.Array(Schema.Struct({
-    name: NonEmptyStringSchema,
-    sha: NonEmptyStringSchema,
-    current: Schema.Boolean,
-    remote: Schema.Boolean,
-  })),
+  branches: Schema.Array(
+    Schema.Struct({
+      name: NonEmptyStringSchema,
+      sha: NonEmptyStringSchema,
+      current: Schema.Boolean,
+      remote: Schema.Boolean,
+    }),
+  ),
 })
 
 export const ReviewCommitsParamsSchema = Schema.Struct({
@@ -212,13 +220,15 @@ export const ReviewCommitsParamsSchema = Schema.Struct({
   limit: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 200 }))),
 })
 export const ReviewCommitsResultSchema = Schema.Struct({
-  commits: Schema.Array(Schema.Struct({
-    sha: NonEmptyStringSchema,
-    shortSha: NonEmptyStringSchema,
-    subject: Schema.String,
-    author: Schema.String,
-    authoredAt: TimestampSchema,
-  })),
+  commits: Schema.Array(
+    Schema.Struct({
+      sha: NonEmptyStringSchema,
+      shortSha: NonEmptyStringSchema,
+      subject: Schema.String,
+      author: Schema.String,
+      authoredAt: TimestampSchema,
+    }),
+  ),
 })
 
 export const ReviewGitFileStatusSchema = Schema.Struct({
@@ -258,8 +268,8 @@ export const ReviewCommitResultSchema = Schema.Struct({
   status: ReviewGitStatusSchema,
 })
 
-export const ReviewCommentSideSchema = Schema.Literals(["old", "new"])
-export const ReviewCommentStatusSchema = Schema.Literals(["open", "resolved"])
+export const ReviewCommentSideSchema = Schema.Literals(['old', 'new'])
+export const ReviewCommentStatusSchema = Schema.Literals(['open', 'resolved'])
 export const ReviewCommentSchema = Schema.Struct({
   id: OpaqueIDSchema,
   threadId: OpaqueIDSchema,
@@ -311,70 +321,199 @@ export const ReviewCommentIDParamsSchema = Schema.Struct({
 })
 
 export const ReviewAiTargetSchema = Schema.Union([
-  Schema.Struct({ type: Schema.Literal("uncommittedChanges") }),
-  Schema.Struct({ type: Schema.Literal("baseBranch"), branch: NonEmptyStringSchema }),
-  Schema.Struct({ type: Schema.Literal("commit"), sha: NonEmptyStringSchema, title: Schema.optional(Schema.NullOr(Schema.String)) }),
+  Schema.Struct({ type: Schema.Literal('uncommittedChanges') }),
+  Schema.Struct({ type: Schema.Literal('baseBranch'), branch: NonEmptyStringSchema }),
+  Schema.Struct({
+    type: Schema.Literal('commit'),
+    sha: NonEmptyStringSchema,
+    title: Schema.optional(Schema.NullOr(Schema.String)),
+  }),
 ])
 export type ReviewAiTarget = typeof ReviewAiTargetSchema.Type
 
 export const ReviewAiStartParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   target: ReviewAiTargetSchema,
-  delivery: Schema.Literals(["inline", "detached"]),
+  delivery: Schema.Literals(['inline', 'detached']),
 })
 
 export const ReviewAiStartResultSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   turnId: OpaqueIDSchema,
-  delivery: Schema.Literals(["inline", "detached"]),
+  delivery: Schema.Literals(['inline', 'detached']),
   source: ReviewSourceSchema,
 })
 
 const ReviewErrors = [
-  "PROJECT_NOT_FOUND",
-  "PATH_DENIED",
-  "REPOSITORY_NOT_FOUND",
-  "REVIEW_SOURCE_UNAVAILABLE",
-  "REVIEW_SNAPSHOT_EXPIRED",
-  "REVIEW_REPOSITORY_BUSY",
-  "REVIEW_SOURCE_NOT_PREPARED",
-  "GIT_COMMAND_FAILED",
-  "GIT_OUTPUT_TOO_LARGE",
-  "GIT_OUTPUT_ENCODING_INVALID",
-  "CONFLICT",
-  "RATE_LIMITED",
-  "INTERNAL_ERROR",
+  'PROJECT_NOT_FOUND',
+  'PATH_DENIED',
+  'REPOSITORY_NOT_FOUND',
+  'REVIEW_SOURCE_UNAVAILABLE',
+  'REVIEW_SNAPSHOT_EXPIRED',
+  'REVIEW_REPOSITORY_BUSY',
+  'REVIEW_SOURCE_NOT_PREPARED',
+  'GIT_COMMAND_FAILED',
+  'GIT_OUTPUT_TOO_LARGE',
+  'GIT_OUTPUT_ENCODING_INVALID',
+  'CONFLICT',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
 ] as const
 
-const ReviewMutationErrors = [
-  ...ReviewErrors,
-  "REVIEW_BATCH_PARTIAL",
-] as const
+const ReviewMutationErrors = [...ReviewErrors, 'REVIEW_BATCH_PARTIAL'] as const
 
 const ReviewPullRequestPrepareErrors = [
   ...ReviewErrors,
-  "GITHUB_AUTH_REQUIRED",
-  "GITHUB_AUTH_INVALID",
-  "GITHUB_API_FAILED",
-  "GITHUB_UNAVAILABLE",
-  "GITHUB_RATE_LIMITED",
+  'GITHUB_AUTH_REQUIRED',
+  'GITHUB_AUTH_INVALID',
+  'GITHUB_API_FAILED',
+  'GITHUB_UNAVAILABLE',
+  'GITHUB_RATE_LIMITED',
 ] as const
 
 export const ReviewRpcMethods = {
-  "review/summary": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/fileDiff": defineMethod({ params: ReviewFileDiffParamsSchema, result: ReviewFileDiffResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/file-diffs": defineMethod({ params: ReviewFileDiffsParamsSchema, result: ReviewFileDiffsResultSchema, errors: ReviewErrors, capability: "git.review.batch.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/refresh": defineMethod({ params: ReviewSummaryParamsSchema, result: ReviewSummaryResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/pullRequest/prepare": defineMethod({ params: ReviewPullRequestPrepareParamsSchema, result: ReviewPullRequestPrepareResultSchema, errors: ReviewPullRequestPrepareErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/apply": defineMethod({ params: ReviewApplyParamsSchema, result: ReviewApplyResultSchema, errors: ReviewMutationErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/applyBatch": defineMethod({ params: ReviewApplyBatchParamsSchema, result: ReviewApplyBatchResultSchema, errors: ReviewMutationErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/branches": defineMethod({ params: ReviewBranchesParamsSchema, result: ReviewBranchesResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/commits": defineMethod({ params: ReviewCommitsParamsSchema, result: ReviewCommitsResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/status": defineMethod({ params: ReviewStatusParamsSchema, result: ReviewStatusResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/commit": defineMethod({ params: ReviewCommitParamsSchema, result: ReviewCommitResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/comment/list": defineMethod({ params: ReviewCommentListParamsSchema, result: ReviewCommentListResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: false, exactParams: true, exactResult: true }),
-  "review/comment/save": defineMethod({ params: ReviewCommentSaveParamsSchema, result: ReviewCommentSaveResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/comment/resolve": defineMethod({ params: ReviewCommentIDParamsSchema, result: ReviewCommentSaveResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/comment/delete": defineMethod({ params: ReviewCommentIDParamsSchema, result: OkResultSchema, errors: ReviewErrors, capability: "git.review.v1", mutation: true, exactParams: true, exactResult: true }),
-  "review/ai/start": defineMethod({ params: ReviewAiStartParamsSchema, result: ReviewAiStartResultSchema, errors: [...ReviewErrors, "THREAD_NOT_FOUND", "MODEL_UNAVAILABLE"], capability: "ai.review.v1", mutation: true, exactParams: true, exactResult: true }),
+  'review/summary': defineMethod({
+    params: ReviewSummaryParamsSchema,
+    result: ReviewSummaryResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/fileDiff': defineMethod({
+    params: ReviewFileDiffParamsSchema,
+    result: ReviewFileDiffResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/file-diffs': defineMethod({
+    params: ReviewFileDiffsParamsSchema,
+    result: ReviewFileDiffsResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.batch.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/refresh': defineMethod({
+    params: ReviewSummaryParamsSchema,
+    result: ReviewSummaryResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/pullRequest/prepare': defineMethod({
+    params: ReviewPullRequestPrepareParamsSchema,
+    result: ReviewPullRequestPrepareResultSchema,
+    errors: ReviewPullRequestPrepareErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/apply': defineMethod({
+    params: ReviewApplyParamsSchema,
+    result: ReviewApplyResultSchema,
+    errors: ReviewMutationErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/applyBatch': defineMethod({
+    params: ReviewApplyBatchParamsSchema,
+    result: ReviewApplyBatchResultSchema,
+    errors: ReviewMutationErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/branches': defineMethod({
+    params: ReviewBranchesParamsSchema,
+    result: ReviewBranchesResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/commits': defineMethod({
+    params: ReviewCommitsParamsSchema,
+    result: ReviewCommitsResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/status': defineMethod({
+    params: ReviewStatusParamsSchema,
+    result: ReviewStatusResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/commit': defineMethod({
+    params: ReviewCommitParamsSchema,
+    result: ReviewCommitResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/comment/list': defineMethod({
+    params: ReviewCommentListParamsSchema,
+    result: ReviewCommentListResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/comment/save': defineMethod({
+    params: ReviewCommentSaveParamsSchema,
+    result: ReviewCommentSaveResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/comment/resolve': defineMethod({
+    params: ReviewCommentIDParamsSchema,
+    result: ReviewCommentSaveResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/comment/delete': defineMethod({
+    params: ReviewCommentIDParamsSchema,
+    result: OkResultSchema,
+    errors: ReviewErrors,
+    capability: 'git.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
+  'review/ai/start': defineMethod({
+    params: ReviewAiStartParamsSchema,
+    result: ReviewAiStartResultSchema,
+    errors: [...ReviewErrors, 'THREAD_NOT_FOUND', 'MODEL_UNAVAILABLE'],
+    capability: 'ai.review.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
 } as const satisfies MethodMap

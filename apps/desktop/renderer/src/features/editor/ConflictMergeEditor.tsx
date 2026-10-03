@@ -41,8 +41,7 @@ export function ConflictMergeEditor({
   path,
   saving = false,
 }: ConflictMergeEditorProps): React.ReactNode {
-  const { activeTheme, codeThemeId, draft, resolvedVariant } =
-    useDesktopTheme()
+  const { activeTheme, codeThemeId, draft, resolvedVariant } = useDesktopTheme()
   const configuredCodeFont = activeTheme.theme.fonts.code?.trim()
   const codeFontFamily = configuredCodeFont
     ? `${configuredCodeFont}, ${CODE_FONT_FALLBACK}`
@@ -86,7 +85,7 @@ export function ConflictMergeEditor({
         doc: localValue,
         extensions: [
           ...createCodeMirrorExtensions({
-            onChange: nextValue => {
+            onChange: (nextValue) => {
               if (!applyingExternalLocalValueRef.current) {
                 onChangeRef.current(nextValue)
               }
@@ -137,17 +136,15 @@ export function ConflictMergeEditor({
       return
     }
 
-    void loadCodeMirrorLanguage(path, language).then(extension => {
+    void loadCodeMirrorLanguage(path, language).then((extension) => {
       if (!active || mergeRef.current !== merge) {
         return
       }
       merge.b.dispatch({
-        effects:
-          localLanguageCompartmentRef.current.reconfigure(extension),
+        effects: localLanguageCompartmentRef.current.reconfigure(extension),
       })
       merge.a.dispatch({
-        effects:
-          diskLanguageCompartmentRef.current.reconfigure(extension),
+        effects: diskLanguageCompartmentRef.current.reconfigure(extension),
       })
     })
 
@@ -169,31 +166,21 @@ export function ConflictMergeEditor({
       fontSize: codeFontSize,
       variant: resolvedVariant,
     })
-      .then(extension => {
-        if (
-          request !== themeRequestRef.current ||
-          mergeRef.current !== merge
-        ) {
+      .then((extension) => {
+        if (request !== themeRequestRef.current || mergeRef.current !== merge) {
           return
         }
         merge.a.dispatch({
-          effects:
-            diskThemeCompartmentRef.current.reconfigure(extension),
+          effects: diskThemeCompartmentRef.current.reconfigure(extension),
         })
         merge.b.dispatch({
-          effects:
-            localThemeCompartmentRef.current.reconfigure(extension),
+          effects: localThemeCompartmentRef.current.reconfigure(extension),
         })
         merge.a.requestMeasure()
         merge.b.requestMeasure()
       })
       .catch(() => undefined)
-  }, [
-    codeFontFamily,
-    codeFontSize,
-    codeThemeId,
-    resolvedVariant,
-  ])
+  }, [codeFontFamily, codeFontSize, codeThemeId, resolvedVariant])
 
   return (
     <section className={cx('conflict-merge-editor', className)}>
@@ -203,16 +190,10 @@ export function ConflictMergeEditor({
           <span>左侧为磁盘版本，右侧为本地草稿。</span>
         </div>
         <div className="conflict-merge-editor-actions">
-          <Button
-            disabled={saving}
-            onClick={onUseDisk}
-          >
+          <Button color="secondary" disabled={saving} onClick={onUseDisk}>
             使用磁盘版本
           </Button>
-          <Button
-            loading={saving}
-            onClick={() => void onKeepLocal()}
-          >
+          <Button color="primary" loading={saving} onClick={() => void onKeepLocal()}>
             保留本地版本
           </Button>
         </div>

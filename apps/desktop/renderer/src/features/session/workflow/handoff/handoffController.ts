@@ -59,8 +59,8 @@ async function continueHandoff(
   initialOperation: HandoffOperation | null = null,
 ): Promise<HandoffResult> {
   const startOutcome = startPromise?.then(
-    value => ({ kind: 'start' as const, value }),
-    error => ({ kind: 'start-error' as const, error }),
+    (value) => ({ kind: 'start' as const, value }),
+    (error) => ({ kind: 'start-error' as const, error }),
   )
   let startPending = Boolean(startOutcome)
   let operation: HandoffOperation | null = initialOperation
@@ -69,10 +69,10 @@ async function continueHandoff(
     operation = next
     input.onProgress?.(next)
     if (
-      !terminalClosed
-      && next.status !== 'failed'
-      && next.status !== 'rollback-failed'
-      && HANDOFF_PROGRESS_STEPS.indexOf(next.step) >= HANDOFF_PROGRESS_STEPS.indexOf('stop-source')
+      !terminalClosed &&
+      next.status !== 'failed' &&
+      next.status !== 'rollback-failed' &&
+      HANDOFF_PROGRESS_STEPS.indexOf(next.step) >= HANDOFF_PROGRESS_STEPS.indexOf('stop-source')
     ) {
       await input.terminal.closeTerminalForThread({
         threadId: input.sourceThreadId,
@@ -84,22 +84,23 @@ async function continueHandoff(
   if (operation) await observe(operation)
   while (!operation || operation.status === 'running') {
     const statusOutcome = input.client.handoffStatus(operationId, operation?.revision).then(
-      value => ({ kind: 'status' as const, value }),
-      error => ({ kind: 'status-error' as const, error }),
+      (value) => ({ kind: 'status' as const, value }),
+      (error) => ({ kind: 'status-error' as const, error }),
     )
-    const outcome = startPending && startOutcome
-      ? await Promise.race([startOutcome, statusOutcome])
-      : await statusOutcome
+    const outcome =
+      startPending && startOutcome
+        ? await Promise.race([startOutcome, statusOutcome])
+        : await statusOutcome
     if (outcome.kind === 'start-error') throw outcome.error
     if (outcome.kind === 'start') {
       startPending = false
       await observe(outcome.value.operation)
-    }
-    else if (outcome.kind === 'status') await observe(outcome.value.operation)
+    } else if (outcome.kind === 'status') await observe(outcome.value.operation)
     else if (!operation) {
-      const startup = startPending && startOutcome
-        ? await Promise.race([startOutcome, delay(75).then(() => ({ kind: 'retry' as const }))])
-        : { kind: 'retry' as const }
+      const startup =
+        startPending && startOutcome
+          ? await Promise.race([startOutcome, delay(75).then(() => ({ kind: 'retry' as const }))])
+          : { kind: 'retry' as const }
       if (startup.kind === 'start-error') throw startup.error
       if (startup.kind === 'start') {
         startPending = false
@@ -131,13 +132,11 @@ async function continueHandoff(
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export function completedHandoffStepCount(operation: HandoffOperation | null): number {
   if (!operation) return 0
   const index = HANDOFF_PROGRESS_STEPS.indexOf(operation.step)
-  return operation.status === 'completed'
-    ? HANDOFF_PROGRESS_STEPS.length
-    : Math.max(0, index)
+  return operation.status === 'completed' ? HANDOFF_PROGRESS_STEPS.length : Math.max(0, index)
 }

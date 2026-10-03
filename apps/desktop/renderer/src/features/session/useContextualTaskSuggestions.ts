@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  DesktopGitStatus,
-  DesktopTaskSuggestion,
-} from "../../../shared/types.js";
-import { desktopClient } from "../../services/desktop-client/index.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DesktopGitStatus, DesktopTaskSuggestion } from '../../../shared/types.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   buildContextualTaskSuggestions,
+  type ContextualTaskSuggestionSurface,
   type NewSessionRecentTask,
   type NewSessionTaskSuggestion,
-} from "./newSessionSuggestions.js";
+  type WorkingContextualTaskSuggestion,
+} from './newSessionSuggestions.js'
 
-const windowsAbsolutePath = /(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/gu;
+const windowsAbsolutePath = /(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/gu
 
-const safeRecentPrompt = (value: string | null) =>
-  value?.replace(windowsAbsolutePath, "[路径]").slice(0, 500) ?? null;
+export const sanitizeTaskSuggestionContextText = (value: string, limit: number) =>
+  value.replace(windowsAbsolutePath, '[路径]').replace(/\s+/g, ' ').trim().slice(0, limit)
+
+const safeRecentPrompt = (value: string | null) => {
+  if (!value) return null
+  return sanitizeTaskSuggestionContextText(value, 500) || null
+}
 
 const normalizedGitContext = (gitStatus: DesktopGitStatus | null) =>
   gitStatus
@@ -22,130 +26,185 @@ const normalizedGitContext = (gitStatus: DesktopGitStatus | null) =>
         ahead: gitStatus.ahead,
         behind: gitStatus.behind,
         totalFiles: gitStatus.files.length,
-        files: gitStatus.files.slice(0, 30).map(file => ({
-          path: file.path.replace(windowsAbsolutePath, "[路径]").slice(0, 500),
-          status: file.status,
-          stagedStatus: file.stagedStatus,
-          unstagedStatus: file.unstagedStatus,
+        files: gitStatus.files.slice(0, 30).map((file) => ({
+          path: sanitizeTaskSuggestionContextText(file.path, 500) || '[路径]',
+          status: sanitizeTaskSuggestionContextText(file.status, 80),
+          stagedStatus: sanitizeTaskSuggestionContextText(file.stagedStatus, 80),
+          unstagedStatus: sanitizeTaskSuggestionContextText(file.unstagedStatus, 80),
         })),
       }
-    : null;
+    : null
 
-const desktopSuggestion = (
-  suggestion: DesktopTaskSuggestion,
-): NewSessionTaskSuggestion => ({
+const codingDesktopSuggestion = (suggestion: DesktopTaskSuggestion): NewSessionTaskSuggestion => ({
   id: suggestion.id,
-  categoryId: suggestion.categoryId,
+  categoryId: suggestion.categoryId as NewSessionTaskSuggestion['categoryId'],
   label: suggestion.label,
   prompt: suggestion.prompt,
-});
+})
+
+const workingDesktopSuggestion = (
+  suggestion: DesktopTaskSuggestion,
+): WorkingContextualTaskSuggestion => ({
+  id: suggestion.id,
+  categoryId: suggestion.categoryId as WorkingContextualTaskSuggestion['categoryId'],
+  label: suggestion.label,
+  prompt: suggestion.prompt,
+})
+
+const codingCategoryIds = new Set(['codex-explore', 'codex-create', 'codex-review', 'codex-fix'])
+const workingCategoryIds = new Set(['create', 'research', 'automate'])
+
+export const normalizeGeneratedSuggestionsForSurface = (
+  suggestions: readonly DesktopTaskSuggestion[],
+  surface: ContextualTaskSuggestionSurface,
+): readonly NewSessionTaskSuggestion[] | readonly WorkingContextualTaskSuggestion[] | null => {
+  const allowed = surface === 'working' ? workingCategoryIds : codingCategoryIds
+  if (suggestions.some((suggestion) => !allowed.has(suggestion.categoryId))) {
+    return null
+  }
+  if (surface === 'working') {
+    return suggestions.length === 3 ? suggestions.map(workingDesktopSuggestion) : null
+  }
+  return suggestions.length >= 3 ? suggestions.slice(0, 4).map(codingDesktopSuggestion) : null
+}
 
 export const shouldApplyGeneratedSuggestions = (input: {
-  request: number;
-  currentRequest: number;
-  interactionVersion: number;
-  currentInteractionVersion: number;
-  active: boolean;
+  request: number
+  currentRequest: number
+  interactionVersion: number
+  currentInteractionVersion: number
+  active: boolean
 }) =>
   input.request === input.currentRequest &&
   input.interactionVersion === input.currentInteractionVersion &&
-  input.active;
+  input.active
 
-export function useContextualTaskSuggestions(input: {
-  active: boolean;
-  workspaceName: string | null;
-  workspacePath: string | null;
-  branchName: string | null;
-  gitStatus: DesktopGitStatus | null;
-  recentTasks: readonly NewSessionRecentTask[];
-}) {
-  const git = useMemo(
-    () => normalizedGitContext(input.gitStatus),
-    [input.gitStatus],
-  );
+type ContextualTaskSuggestionsInput = {
+  surface?: ContextualTaskSuggestionSurface
+  active: boolean
+  workspaceName: string | null
+  workspacePath: string | null
+  branchName: string | null
+  gitStatus: DesktopGitStatus | null
+  recentTasks: readonly NewSessionRecentTask[]
+  buildWorkingSuggestions?: (input: {
+    workspaceName: string | null
+    recentTasks: readonly NewSessionRecentTask[]
+    git: ReturnType<typeof normalizedGitContext>
+  }) => readonly WorkingContextualTaskSuggestion[]
+}
+
+export function useContextualTaskSuggestions(
+  input: ContextualTaskSuggestionsInput & {
+    surface: 'working'
+    buildWorkingSuggestions: NonNullable<ContextualTaskSuggestionsInput['buildWorkingSuggestions']>
+  },
+): {
+  suggestions: readonly WorkingContextualTaskSuggestion[]
+  markInteracted: () => void
+}
+export function useContextualTaskSuggestions(
+  input: ContextualTaskSuggestionsInput & { surface?: 'coding' },
+): {
+  suggestions: readonly NewSessionTaskSuggestion[]
+  markInteracted: () => void
+}
+export function useContextualTaskSuggestions(input: ContextualTaskSuggestionsInput) {
+  const surface = input.surface ?? 'coding'
+  const workspaceName = useMemo(
+    () =>
+      input.workspaceName
+        ? sanitizeTaskSuggestionContextText(input.workspaceName, 160) || null
+        : null,
+    [input.workspaceName],
+  )
+  const branchName = useMemo(
+    () =>
+      input.branchName ? sanitizeTaskSuggestionContextText(input.branchName, 200) || null : null,
+    [input.branchName],
+  )
+  const git = useMemo(() => normalizedGitContext(input.gitStatus), [input.gitStatus])
   const recentTasks = useMemo(
     () =>
-      input.recentTasks.slice(0, 5).map(task => ({
+      input.recentTasks.slice(0, 5).map((task) => ({
         ...task,
-        title: task.title.slice(0, 160),
+        title: sanitizeTaskSuggestionContextText(task.title, 160) || '未命名任务',
         firstPrompt: safeRecentPrompt(task.firstPrompt),
       })),
     [input.recentTasks],
-  );
+  )
   const localSuggestions = useMemo(
-    () => buildContextualTaskSuggestions({ recentTasks, git }),
-    [git, recentTasks],
-  );
+    () =>
+      surface === 'working'
+        ? input.buildWorkingSuggestions!({
+            workspaceName,
+            recentTasks,
+            git,
+          })
+        : buildContextualTaskSuggestions({
+            recentTasks,
+            git,
+            hasWorkspace: Boolean(input.workspacePath || workspaceName),
+          }),
+    [git, input.buildWorkingSuggestions, input.workspacePath, recentTasks, surface, workspaceName],
+  )
   const context = useMemo(
     () => ({
-      workspaceName: input.workspaceName,
-      branchName: input.branchName,
+      workspaceName,
+      branchName,
       git,
       recentTasks,
       localCandidates: localSuggestions,
     }),
-    [
-      git,
-      input.branchName,
-      input.workspaceName,
-      localSuggestions,
-      recentTasks,
-    ],
-  );
-  const contextSignature = useMemo(
-    () => JSON.stringify({
-      workspacePath: input.workspacePath,
-      context,
-    }),
-    [context, input.workspacePath],
-  );
+    [branchName, git, localSuggestions, recentTasks, workspaceName],
+  )
   const [suggestions, setSuggestions] =
-    useState<readonly NewSessionTaskSuggestion[]>(localSuggestions);
-  const interactionVersionRef = useRef(0);
-  const activeRef = useRef(input.active);
-  const requestRef = useRef(0);
+    useState<readonly (NewSessionTaskSuggestion | WorkingContextualTaskSuggestion)[]>(
+      localSuggestions,
+    )
+  const interactionVersionRef = useRef(0)
+  const activeRef = useRef(input.active)
+  const requestRef = useRef(0)
 
-  activeRef.current = input.active;
+  activeRef.current = input.active
 
   const markInteracted = useCallback(() => {
-    interactionVersionRef.current += 1;
-  }, []);
+    interactionVersionRef.current += 1
+  }, [])
 
   useEffect(() => {
-    setSuggestions(localSuggestions);
-    if (!input.active) return;
-    const request = ++requestRef.current;
-    const interactionVersion = interactionVersionRef.current;
+    setSuggestions(localSuggestions)
+    if (!input.active) return
+    const request = ++requestRef.current
+    const interactionVersion = interactionVersionRef.current
     void desktopClient
       .generateTaskSuggestions({
+        surface,
         workspacePath: input.workspacePath,
         context,
       })
-      .then(result => {
-        if (!shouldApplyGeneratedSuggestions({
-          request,
-          currentRequest: requestRef.current,
-          interactionVersion,
-          currentInteractionVersion: interactionVersionRef.current,
-          active: activeRef.current,
-        })) {
-          return;
+      .then((result) => {
+        if (
+          !shouldApplyGeneratedSuggestions({
+            request,
+            currentRequest: requestRef.current,
+            interactionVersion,
+            currentInteractionVersion: interactionVersionRef.current,
+            active: activeRef.current,
+          })
+        ) {
+          return
         }
-        setSuggestions(result.suggestions.map(desktopSuggestion));
+        const generated = normalizeGeneratedSuggestionsForSurface(result.suggestions, surface)
+        if (generated) setSuggestions(generated)
       })
       .catch(() => {
         // Local rules remain available when the Agent or model is unavailable.
-      });
+      })
     return () => {
-      if (requestRef.current === request) requestRef.current += 1;
-    };
-  }, [
-    context,
-    contextSignature,
-    input.active,
-    input.workspacePath,
-    localSuggestions,
-  ]);
+      if (requestRef.current === request) requestRef.current += 1
+    }
+  }, [context, input.active, input.workspacePath, localSuggestions, surface])
 
-  return { suggestions, markInteracted };
+  return { suggestions, markInteracted }
 }

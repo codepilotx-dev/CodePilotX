@@ -5,9 +5,10 @@ import { ArchiveRestore, Trash2 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SettingsContentArea } from './SettingsContentArea.js';
+import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 import { canonicalThreadCache } from '../session/state/canonicalThreadCache.js'
+import { errorMessageOf } from '@codepilotx/shared/errors'
 
 export function ArchivedConversationsSettings(): React.ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -16,7 +17,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
   const loadSessions = useCallback(async (): Promise<void> => {
     try {
       const snapshots = await desktopClient.listSessions({ archived: true })
-      setSessions(snapshots.map(snapshot => snapshot.item))
+      setSessions(snapshots.map((snapshot) => snapshot.item))
       setError(null)
     } catch (loadError) {
       setError(errorMessageOf(loadError))
@@ -30,21 +31,16 @@ export function ArchivedConversationsSettings(): React.ReactNode {
   const archivedSessions = useMemo(
     () =>
       sessions
-        .filter(session => session.archivedAt)
-        .sort((left, right) =>
-          compareTimestamp(right.archivedAt, left.archivedAt),
-        ),
+        .filter((session) => session.archivedAt)
+        .sort((left, right) => compareTimestamp(right.archivedAt, left.archivedAt)),
     [sessions],
   )
 
   async function restoreSession(session: SessionListItem): Promise<void> {
     try {
-      const snapshot = await desktopClient.updateSessionMetadata(
-        session.id,
-        { archivedAt: null },
-      )
-      setSessions(current =>
-        current.map(item => (item.id === session.id ? snapshot.item : item)),
+      const snapshot = await desktopClient.updateSessionMetadata(session.id, { archivedAt: null })
+      setSessions((current) =>
+        current.map((item) => (item.id === session.id ? snapshot.item : item)),
       )
       setError(null)
     } catch (restoreError) {
@@ -56,7 +52,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
     try {
       await desktopClient.disposeSession(session.id)
       canonicalThreadCache.invalidate(session.id)
-      setSessions(current => current.filter(item => item.id !== session.id))
+      setSessions((current) => current.filter((item) => item.id !== session.id))
       setError(null)
     } catch (deleteError) {
       setError(errorMessageOf(deleteError))
@@ -76,7 +72,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
           {archivedSessions.length === 0 ? (
             <p className="archived-empty">暂无已归档对话。</p>
           ) : (
-            archivedSessions.map(session => (
+            archivedSessions.map((session) => (
               <article className="archived-session-row" key={session.id}>
                 <div className="archived-session-copy">
                   <h4>{sessionDisplayTitle(session)}</h4>
@@ -88,17 +84,14 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                 </div>
                 <div className="archived-session-actions">
                   <Button
+                    color="primary"
                     onClick={() => void restoreSession(session)}
                     type="button"
                   >
                     <ArchiveRestore size={APP_ICON_SIZE} />
                     <span>恢复</span>
                   </Button>
-                  <Button
-                    tone="danger"
-                    onClick={() => void deleteSession(session)}
-                    type="button"
-                  >
+                  <Button color="danger" onClick={() => void deleteSession(session)} type="button">
                     <Trash2 size={APP_ICON_SIZE} />
                     <span>删除</span>
                   </Button>
@@ -117,8 +110,4 @@ function compareTimestamp(
   right: string | null | undefined,
 ): number {
   return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime()
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

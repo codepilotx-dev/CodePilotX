@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { SessionListItem } from '../../uiTypes.js'
-import {
-  buildCommandMenuTasks,
-  type CommandMenuTask,
-} from './commandMenuModel.js'
+import { buildCommandMenuTasks, type CommandMenuTask } from './commandMenuModel.js'
 import { resolveCommandMenuShortcut } from './commandMenuShortcuts.js'
 
 export type UseCommandMenuControllerOptions = {
@@ -25,11 +22,7 @@ export function useCommandMenuController({
 }: UseCommandMenuControllerOptions): UseCommandMenuControllerResult {
   const [query, setQuery] = useState('')
   const tasks = useMemo(
-    () => buildCommandMenuTasks(
-      sessions,
-      query,
-      pendingPermissionSessionIds,
-    ),
+    () => buildCommandMenuTasks(sessions, query, pendingPermissionSessionIds),
     [pendingPermissionSessionIds, query, sessions],
   )
 

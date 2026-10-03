@@ -1,3 +1,4 @@
+import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
@@ -14,10 +15,7 @@ import {
   type ProviderQuotaWindow,
   type ProviderUsageSource,
 } from '../../../utils/usageFormatters.js'
-import type {
-  DesktopContextUsage,
-  ModelProviderID,
-} from '../../../../shared/types.js'
+import type { DesktopContextUsage, ModelProviderID } from '../../../../shared/types.js'
 
 type Props = {
   open: boolean
@@ -36,9 +34,7 @@ function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
       <div className="composer-status-bar-track">
         <div
           className="composer-status-bar-fill"
-          style={
-            { '--usage-ratio': percent / 100 } as React.CSSProperties
-          }
+          style={{ '--usage-ratio': percent / 100 } as React.CSSProperties}
         />
       </div>
       <div className="composer-status-bar-meta">
@@ -49,9 +45,7 @@ function renderQuotaRow(quota: ProviderQuotaWindow): React.ReactNode {
           {quota.remaining !== undefined
             ? `剩余 ${formatCount(quota.remaining)} ${quota.unit === 'tokens' ? 'Token' : '额度'}`
             : ''}
-          {quota.resetsAt !== undefined
-            ? ` · ${formatResetTime(quota.resetsAt)}`
-            : ''}
+          {quota.resetsAt !== undefined ? ` · ${formatResetTime(quota.resetsAt)}` : ''}
         </span>
       </div>
     </div>
@@ -83,7 +77,7 @@ export function ComposerStatusOverlay({
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
         providerIds: [protocolProviderId(selectedProviderID)],
       })
-      .then(result => {
+      .then((result) => {
         if (!cancelled) {
           const source = sourceForProvider(result.sources, selectedProviderID) ?? null
           setUsageSource(source)
@@ -91,7 +85,7 @@ export function ComposerStatusOverlay({
           setError(source?.error?.message ?? null)
         }
       })
-      .catch(err => {
+      .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err))
           setLoading(false)
@@ -103,17 +97,10 @@ export function ComposerStatusOverlay({
     }
   }, [open, selectedProviderID])
 
-  if (!open) return null
   const quotas = criticalQuotaWindows(usageSource, 3)
 
   return (
-    <ChatInputDropdown
-      open={open}
-      onClose={onClose}
-      side={side}
-      width="100%"
-      maxWidth="100%"
-    >
+    <ChatInputDropdown open={open} onClose={onClose} side={side} width="100%" maxWidth="100%">
       <div className="composer-status-content">
         {/* Header */}
         <div className="composer-status-header">
@@ -124,16 +111,14 @@ export function ComposerStatusOverlay({
             type="button"
             aria-label="关闭"
           >
-            <X size={14} />
+            <X size={APP_ICON_SIZES.sm} />
           </button>
         </div>
 
         {/* Session ID */}
         <div className="composer-status-section">
           <div className="composer-status-label">会话 ID</div>
-          <div className="composer-status-value">
-            {routedSessionId ?? '尚未创建会话'}
-          </div>
+          <div className="composer-status-value">{routedSessionId ?? '尚未创建会话'}</div>
         </div>
 
         {/* Context Usage */}
@@ -145,7 +130,9 @@ export function ComposerStatusOverlay({
                 <div
                   className="composer-status-bar-fill"
                   style={
-                    { '--usage-ratio': clampPercent(contextUsage.usedPercent) / 100 } as React.CSSProperties
+                    {
+                      '--usage-ratio': clampPercent(contextUsage.usedPercent) / 100,
+                    } as React.CSSProperties
                   }
                 />
               </div>
@@ -170,15 +157,11 @@ export function ComposerStatusOverlay({
             {loading ? (
               <div className="composer-status-empty">正在查询用量...</div>
             ) : error ? (
-              <div className="composer-status-empty composer-status-empty-error">
-                {error}
-              </div>
+              <div className="composer-status-empty composer-status-empty-error">{error}</div>
             ) : quotas.length > 0 ? (
               quotas.map(renderQuotaRow)
             ) : (
-              <div className="composer-status-empty">
-                当前提供商未返回用量数据
-              </div>
+              <div className="composer-status-empty">当前提供商未返回用量数据</div>
             )}
           </div>
         ) : null}

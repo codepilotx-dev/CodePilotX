@@ -1,38 +1,31 @@
-const PLAIN_TEXT_ALIASES = new Set([
-  '',
-  'none',
-  'plain',
-  'plaintext',
-  'text',
-  'txt',
-])
+const PLAIN_TEXT_ALIASES = new Set(['', 'none', 'plain', 'plaintext', 'text', 'txt'])
 
 const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
   'c#': 'csharp',
   'c++': 'cpp',
   'c-sharp': 'csharp',
-  'csharp': 'csharp',
-  'cs': 'csharp',
-  'docker': 'dockerfile',
-  'js': 'javascript',
-  'mjs': 'javascript',
-  'cjs': 'javascript',
-  'kt': 'kotlin',
-  'md': 'markdown',
-  'objc': 'objective-c',
-  'patch': 'diff',
-  'ps': 'powershell',
-  'ps1': 'powershell',
-  'py': 'python',
-  'rb': 'ruby',
-  'rs': 'rust',
-  'sh': 'shellscript',
-  'shell': 'shellscript',
+  csharp: 'csharp',
+  cs: 'csharp',
+  docker: 'dockerfile',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  kt: 'kotlin',
+  md: 'markdown',
+  objc: 'objective-c',
+  patch: 'diff',
+  ps: 'powershell',
+  ps1: 'powershell',
+  py: 'python',
+  rb: 'ruby',
+  rs: 'rust',
+  sh: 'shellscript',
+  shell: 'shellscript',
   'shell-session': 'shellsession',
-  'ts': 'typescript',
-  'cts': 'typescript',
-  'mts': 'typescript',
-  'yml': 'yaml',
+  ts: 'typescript',
+  cts: 'typescript',
+  mts: 'typescript',
+  yml: 'yaml',
 }
 
 const FILE_EXTENSION_LANGUAGES: Readonly<Record<string, string>> = {
@@ -102,9 +95,9 @@ const FILE_NAME_LANGUAGES: Readonly<Record<string, string>> = {
   '.gitattributes': 'git-commit',
   '.gitignore': 'git-commit',
   'cmakelists.txt': 'cmake',
-  'dockerfile': 'dockerfile',
-  'gemfile': 'ruby',
-  'makefile': 'make',
+  dockerfile: 'dockerfile',
+  gemfile: 'ruby',
+  makefile: 'make',
 }
 
 export function normalizeSyntaxLanguage(language?: string | null): string {
@@ -119,8 +112,7 @@ export function normalizeSyntaxLanguage(language?: string | null): string {
 }
 
 export function resolveLanguageFromPath(path: string): string {
-  const fileName =
-    path.trim().replaceAll('\\', '/').split('/').filter(Boolean).at(-1) ?? ''
+  const fileName = path.trim().replaceAll('\\', '/').split('/').filter(Boolean).at(-1) ?? ''
   const normalizedFileName = fileName.toLowerCase()
   const fileNameLanguage = FILE_NAME_LANGUAGES[normalizedFileName]
   if (fileNameLanguage) return fileNameLanguage
@@ -128,7 +120,7 @@ export function resolveLanguageFromPath(path: string): string {
   if (normalizedFileName.startsWith('.env.')) return 'dotenv'
 
   const extension = normalizedFileName.includes('.')
-    ? normalizedFileName.split('.').at(-1) ?? ''
+    ? (normalizedFileName.split('.').at(-1) ?? '')
     : ''
   return FILE_EXTENSION_LANGUAGES[extension] ?? 'text'
 }

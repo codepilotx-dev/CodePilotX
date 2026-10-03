@@ -18,9 +18,7 @@ export const PLAN_CODEPILOTX_COLLABORATION_MODE: CodePilotXCollaborationMode = {
   mode: 'plan',
 }
 
-export function normalizeCodePilotXCollaborationMode(
-  value: unknown,
-): CodePilotXCollaborationMode {
+export function normalizeCodePilotXCollaborationMode(value: unknown): CodePilotXCollaborationMode {
   if (!value || typeof value !== 'object') return DEFAULT_CODEPILOTX_COLLABORATION_MODE
   const mode = (value as { mode?: unknown }).mode
   return mode === 'plan'

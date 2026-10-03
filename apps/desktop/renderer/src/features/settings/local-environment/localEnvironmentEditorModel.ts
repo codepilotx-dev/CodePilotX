@@ -23,9 +23,10 @@ export const EMPTY_ENVIRONMENT_ACTION: EnvironmentActionEditorValue = {
 export function environmentActionsValue(value: unknown): EnvironmentActionEditorValue[] {
   if (!Array.isArray(value)) return []
   return value.map((entry, sourceIndex) => {
-    const record = entry && typeof entry === 'object' && !Array.isArray(entry)
-      ? entry as Record<string, unknown>
-      : {}
+    const record =
+      entry && typeof entry === 'object' && !Array.isArray(entry)
+        ? (entry as Record<string, unknown>)
+        : {}
     return {
       sourceIndex,
       name: stringValue(record.name),
@@ -71,10 +72,10 @@ export function buildEnvironmentConfigEdits(input: {
     const action = input.actions[index]!
     if (action.sourceIndex === null) continue
     if (
-      !Number.isSafeInteger(action.sourceIndex)
-      || action.sourceIndex < 0
-      || action.sourceIndex >= originalActions.length
-      || retainedIndexes.has(action.sourceIndex)
+      !Number.isSafeInteger(action.sourceIndex) ||
+      action.sourceIndex < 0 ||
+      action.sourceIndex >= originalActions.length ||
+      retainedIndexes.has(action.sourceIndex)
     ) {
       throw new Error('Action 编辑状态已失效，请重新加载配置。')
     }
@@ -93,7 +94,9 @@ export function buildEnvironmentConfigEdits(input: {
   return edits
 }
 
-export function serializeEnvironmentActions(actions: readonly EnvironmentActionEditorValue[]): JsonValue {
+export function serializeEnvironmentActions(
+  actions: readonly EnvironmentActionEditorValue[],
+): JsonValue {
   const names = new Set<string>()
   return actions.map((action, index) => {
     const name = action.name.trim()
@@ -103,14 +106,16 @@ export function serializeEnvironmentActions(actions: readonly EnvironmentActionE
     const normalizedName = name.toLocaleLowerCase()
     if (names.has(normalizedName)) throw new Error(`Action 名称重复：${name}`)
     names.add(normalizedName)
-    return Object.fromEntries(Object.entries({
-      name,
-      icon: action.icon.trim(),
-      command,
-      windows: action.windows.trim(),
-      macos: action.macos.trim(),
-      linux: action.linux.trim(),
-    }).filter(([, entry]) => entry))
+    return Object.fromEntries(
+      Object.entries({
+        name,
+        icon: action.icon.trim(),
+        command,
+        windows: action.windows.trim(),
+        macos: action.macos.trim(),
+        linux: action.linux.trim(),
+      }).filter(([, entry]) => entry),
+    )
   }) as JsonValue
 }
 
@@ -144,7 +149,9 @@ function appendKnownActionEdits(
   }
 }
 
-function compactCommand(value: EnvironmentPlatformCommand): Record<string, JsonValue> & { script: string } {
+function compactCommand(
+  value: EnvironmentPlatformCommand,
+): Record<string, JsonValue> & { script: string } {
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, entry]) => typeof entry === 'string' && entry.trim())

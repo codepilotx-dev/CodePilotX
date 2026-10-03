@@ -1,7 +1,5 @@
 import React from 'react'
-import { FileIcon, FolderIcon } from '@codepilotx/material-icon-theme'
 import {
-  ChevronDown,
   ChevronRight,
   Copy,
   MessageSquare,
@@ -13,7 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { FileTypeIcon, FolderTypeIcon } from '../../layout/FileTypeIcon.js'
 import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './buildReviewFileTree.js'
 import {
   normalizeReviewFileStatus,
@@ -59,16 +58,16 @@ export function ReviewFileTreeRow({
       aria-level={row.depth + 1}
       className="review-file-tree-dir"
       role="treeitem"
-      style={{ paddingLeft: `${12 + row.depth * 14}px` }}
+      style={{ paddingLeft: `${16 + row.depth * 14}px` }}
       type="button"
       onClick={() => onToggleDir(node.dirPath)}
     >
-      {collapsed ? (
-        <ChevronRight size={APP_ICON_SIZE} />
-      ) : (
-        <ChevronDown size={APP_ICON_SIZE} />
-      )}
-      <FolderIcon
+      <ChevronRight
+        aria-hidden="true"
+        className={collapsed ? undefined : 'is-expanded'}
+        size={APP_ICON_SIZES.sm}
+      />
+      <FolderTypeIcon
         aria-hidden="true"
         expanded={!collapsed}
         path={node.dirPath}
@@ -79,10 +78,7 @@ export function ReviewFileTreeRow({
         {dirCommentCount > 0 ? (
           <span className="review-comment-badge">{dirCommentCount}</span>
         ) : null}
-        <span
-          aria-hidden="true"
-          className="review-file-tree-directory-status"
-        />
+        <span aria-hidden="true" className="review-file-tree-directory-status" />
       </span>
     </button>
   )
@@ -110,12 +106,12 @@ function ReviewFileRow({
       aria-selected={active}
       className={active ? 'review-file-tree-row active' : 'review-file-tree-row'}
       role="treeitem"
-      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      style={{ paddingLeft: `${16 + depth * 14}px` }}
       title={`${file.path} · ${statusLabel}`}
       type="button"
       onClick={() => onSelect(file.path)}
     >
-      <FileIcon
+      <FileTypeIcon
         aria-hidden="true"
         associationMode="extension-only"
         path={file.path}
@@ -125,7 +121,7 @@ function ReviewFileRow({
       <span className="review-file-tree-trailing">
         {commentCount > 0 ? (
           <span className="review-comment-badge">
-            <MessageSquare size={12} />
+            <MessageSquare size={APP_ICON_SIZE} />
             {commentCount}
           </span>
         ) : null}
@@ -144,11 +140,7 @@ const REVIEW_FILE_STATUS_ICONS: Record<ReviewFileStatusKind, LucideIcon> = {
   unknown: SquareDashed,
 }
 
-function ReviewFileStatusIcon({
-  status,
-}: {
-  status: ReviewFileStatusKind
-}): React.ReactNode {
+function ReviewFileStatusIcon({ status }: { status: ReviewFileStatusKind }): React.ReactNode {
   const Icon = REVIEW_FILE_STATUS_ICONS[status]
   const label = reviewFileStatusLabel(status)
   return (
@@ -158,7 +150,7 @@ function ReviewFileStatusIcon({
       data-git-status={status}
       title={label}
     >
-      <Icon aria-hidden="true" size={APP_ICON_SIZE} />
+      <Icon aria-hidden="true" size={APP_ICON_SIZES.sm} />
     </span>
   )
 }

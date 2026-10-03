@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -19,10 +19,7 @@ type Props = {
   onNotice?: (message: string) => void
 }
 
-export function PetSettings({
-  onError,
-  onNotice,
-}: Props): React.ReactNode {
+export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [sourceUrl, setSourceUrl] = useState('')
   const [preview, setPreview] = useState<PetInstallPreview | null>(null)
@@ -75,7 +72,7 @@ export function PetSettings({
   const remove = async (): Promise<void> => {
     const id = settings.selectedPetId
     if (!id) return
-    const pet = pets.find(item => item.id === id)
+    const pet = pets.find((item) => item.id === id)
     if (!window.confirm(`删除宠物 ${pet?.displayName ?? id}？`)) return
     setOperationBusy(true)
     try {
@@ -108,7 +105,7 @@ export function PetSettings({
               <ToggleSwitch
                 ariaLabel="唤醒宠物"
                 checked={settings.enabled}
-                onChange={value => void setEnabled(value)}
+                onChange={(value) => void setEnabled(value)}
               />
             }
           />
@@ -121,10 +118,10 @@ export function PetSettings({
                 <SettingsDropdown
                   ariaLabel="选择宠物"
                   disabled={!pets.length}
-                  onChange={value => void selectPet(value || null)}
+                  onChange={(value) => void selectPet(value || null)}
                   options={
                     pets.length
-                      ? pets.map(pet => ({
+                      ? pets.map((pet) => ({
                           value: pet.id,
                           label: pet.displayName,
                         }))
@@ -135,18 +132,22 @@ export function PetSettings({
                   width={220}
                 />
                 <IconButton
+                  color="ghostSecondary"
                   disabled={busy}
                   onClick={() => void refreshPets()}
+                  size="toolbar"
                   title="刷新宠物"
                 >
                   <RefreshCw size={APP_ICON_SIZE} />
                 </IconButton>
                 <IconButton
+                  color="ghostSecondary"
                   disabled={busy || !settings.selectedPetId}
                   onClick={() => void remove()}
+                  size="iconMd"
                   title="删除当前宠物"
                 >
-                  <Trash2 size={APP_ICON_SIZE} />
+                  <Trash2 size={APP_ICON_SIZES.sm} />
                 </IconButton>
               </div>
             }
@@ -163,7 +164,7 @@ export function PetSettings({
                 type="range"
                 value={settings.size}
                 onBlur={flushPendingSize}
-                onChange={event => previewSize(Number(event.target.value))}
+                onChange={(event) => previewSize(Number(event.target.value))}
                 onPointerUp={flushPendingSize}
               />
             }
@@ -179,7 +180,7 @@ export function PetSettings({
               <ToggleSwitch
                 ariaLabel="需要处理提醒"
                 checked={settings.notifyAttention}
-                onChange={value => updatePet({ notifyAttention: value })}
+                onChange={(value) => updatePet({ notifyAttention: value })}
               />
             }
           />
@@ -191,7 +192,7 @@ export function PetSettings({
               <ToggleSwitch
                 ariaLabel="任务完成提醒"
                 checked={settings.notifyCompletion}
-                onChange={value => updatePet({ notifyCompletion: value })}
+                onChange={(value) => updatePet({ notifyCompletion: value })}
               />
             }
           />
@@ -203,7 +204,7 @@ export function PetSettings({
               <ToggleSwitch
                 ariaLabel="任务失败提醒"
                 checked={settings.notifyFailure}
-                onChange={value => updatePet({ notifyFailure: value })}
+                onChange={(value) => updatePet({ notifyFailure: value })}
               />
             }
           />
@@ -214,10 +215,7 @@ export function PetSettings({
             title="浏览社区宠物"
             description="搜索并一键安装社区提供的桌面伙伴"
             control={
-              <Button
-                onClick={() => navigate('/pets')}
-                type="button"
-              >
+              <Button color="secondary" onClick={() => navigate('/pets')} type="button">
                 打开宠物商店
               </Button>
             }
@@ -231,13 +229,14 @@ export function PetSettings({
           <div className="pet-settings-installer">
             <Input
               value={sourceUrl}
-              onChange={event => {
+              onChange={(event) => {
                 setSourceUrl(event.target.value)
                 setPreview(null)
               }}
               placeholder="https://example.com/my-pet/pet.json"
             />
             <Button
+              color="secondary"
               disabled={busy || !sourceUrl.trim()}
               onClick={() => void loadPreview()}
               type="button"
@@ -247,20 +246,15 @@ export function PetSettings({
           </div>
           {preview ? (
             <div className="pet-settings-preview">
-              <PawPrint size={20} />
+              <PawPrint size={APP_ICON_SIZE} />
               <div>
                 <strong>{preview.pet.displayName}</strong>
                 <p>
-                  {preview.pet.description || '无描述'} · v
-                  {preview.pet.spriteVersionNumber} ·{' '}
+                  {preview.pet.description || '无描述'} · v{preview.pet.spriteVersionNumber} ·{' '}
                   {(preview.sizeBytes / 1024).toFixed(1)} KiB
                 </p>
               </div>
-              <Button
-                disabled={busy}
-                onClick={() => void install()}
-                type="button"
-              >
+              <Button color="primary" disabled={busy} onClick={() => void install()} type="button">
                 安装
               </Button>
             </div>

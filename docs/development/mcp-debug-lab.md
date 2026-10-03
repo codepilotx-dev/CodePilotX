@@ -77,9 +77,11 @@ stderr，包含调用 ID、工具名、状态、耗时和结果大小；`--verbo
 16 KiB 限制的输入预览。
 
 只有现有测试 fixture 继续支持 `--auth-token=<value>`；共享调试 CLI 会明确拒绝该参数。
-fixture 同时保留 `--legacy-sse`、
-`--startup-delay=<ms>`、`--port=0` 和 `--port-file=<path>`。明文 `--auth-token`
+fixture 同时保留 `--startup-delay=<ms>`、`--port=0` 和 `--port-file=<path>`。明文 `--auth-token`
 仅用于仓库自动化测试，日常调试应使用 `--auth-token-env`。
+
+MCP 客户端使用固定版本 `@earendil-works/pi-mcp 0.99.2`，支持 stdio 和 Streamable HTTP。
+旧 HTTP+SSE 端点不再回退连接；已有配置保留，连接时报告安全错误。
 
 所有调用记录和频道都在重启时清空。Server 最多保存 200 条调用、32 个频道和
 1 MiB 状态，单个文本字段最多 16 KiB。

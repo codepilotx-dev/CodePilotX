@@ -1,8 +1,5 @@
-import {
-  McpServerDeclarationSchema,
-  type McpServerDeclaration,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
+import { McpServerDeclarationSchema, type McpServerDeclaration } from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
 
 type SettingsDatabase = {
   getSetting<T>(key: string): T | null
@@ -23,7 +20,7 @@ export type McpSettingsState = {
   operations: McpOperation[]
 }
 
-const SETTINGS_KEY = "mcp.runtime.v1"
+const SETTINGS_KEY = 'mcp.runtime.v1'
 const MAX_OPERATIONS = 100
 
 const defaultState = (): McpSettingsState => ({
@@ -31,14 +28,14 @@ const defaultState = (): McpSettingsState => ({
   generation: 1,
   user: {
     context7: {
-      name: "context7",
-      scope: "user",
+      name: 'context7',
+      scope: 'user',
       enabled: true,
       transport: {
-        type: "http",
-        url: "https://mcp.context7.com/mcp",
+        type: 'http',
+        url: 'https://mcp.context7.com/mcp',
         headerFromEnv: {
-          CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+          CONTEXT7_API_KEY: 'CONTEXT7_API_KEY',
         },
       },
       startupTimeoutMs: 20_000,
@@ -49,35 +46,44 @@ const defaultState = (): McpSettingsState => ({
 })
 
 const decodeDeclaration = Schema.decodeUnknownSync(McpServerDeclarationSchema, {
-  onExcessProperty: "error",
+  onExcessProperty: 'error',
 })
 
-const sanitizeUnknownStrings = (value: unknown) => Array.isArray(value)
-  ? value.flatMap((item) => {
-      if (typeof item !== "string") return [item]
-      const normalized = item.trim()
-      return normalized ? [normalized] : []
-    })
-  : value
+const sanitizeUnknownStrings = (value: unknown) =>
+  Array.isArray(value)
+    ? value.flatMap((item) => {
+        if (typeof item !== 'string') return [item]
+        const normalized = item.trim()
+        return normalized ? [normalized] : []
+      })
+    : value
 
 const sanitizeStoredDeclarationInput = (value: unknown) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return value
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const declaration = { ...value } as Record<string, unknown>
   declaration.enabledTools = sanitizeUnknownStrings(declaration.enabledTools)
   declaration.disabledTools = sanitizeUnknownStrings(declaration.disabledTools)
-  if (declaration.tools && typeof declaration.tools === "object" && !Array.isArray(declaration.tools)) {
+  if (
+    declaration.tools &&
+    typeof declaration.tools === 'object' &&
+    !Array.isArray(declaration.tools)
+  ) {
     declaration.tools = Object.fromEntries(
       Object.entries(declaration.tools)
         .map(([name, policy]) => [name.trim(), policy] as const)
         .filter(([name]) => Boolean(name)),
     )
   }
-  if (declaration.transport && typeof declaration.transport === "object" && !Array.isArray(declaration.transport)) {
+  if (
+    declaration.transport &&
+    typeof declaration.transport === 'object' &&
+    !Array.isArray(declaration.transport)
+  ) {
     const transport = { ...declaration.transport } as Record<string, unknown>
-    if ("scopes" in transport) {
+    if ('scopes' in transport) {
       transport.scopes = sanitizeUnknownStrings(transport.scopes)
     }
-    if ("oauthResource" in transport && typeof transport.oauthResource === "string") {
+    if ('oauthResource' in transport && typeof transport.oauthResource === 'string') {
       const resource = transport.oauthResource.trim()
       if (resource) transport.oauthResource = resource
       else delete transport.oauthResource
@@ -111,15 +117,11 @@ const normalizeDeclaration = (declaration: McpServerDeclaration): McpServerDecla
     tools: _tools,
     ...base
   } = declaration
-  if (declaration.transport.type === "stdio") {
+  if (declaration.transport.type === 'stdio') {
     return { ...base, ...policy }
   }
   const scopes = normalizedStrings(declaration.transport.scopes)
-  const {
-    scopes: _scopes,
-    oauthResource: _oauthResource,
-    ...transport
-  } = declaration.transport
+  const { scopes: _scopes, oauthResource: _oauthResource, ...transport } = declaration.transport
   return {
     ...base,
     ...policy,
@@ -134,7 +136,7 @@ const normalizeDeclaration = (declaration: McpServerDeclaration): McpServerDecla
 }
 
 const declarationRecord = (value: unknown): Record<string, McpServerDeclaration> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, server]) => {
       try {
@@ -151,26 +153,31 @@ const declarationRecord = (value: unknown): Record<string, McpServerDeclaration>
 
 const normalizeState = (value: McpSettingsState | null): McpSettingsState => {
   if (!value || value.version !== 2) return defaultState()
-  const local = value.local && typeof value.local === "object" && !Array.isArray(value.local)
-    ? Object.fromEntries(
-        Object.entries(value.local)
-          .filter(([workspaceHash]) => /^[a-f\d]{64}$/i.test(workspaceHash))
-          .map(([workspaceHash, servers]) => [workspaceHash, declarationRecord(servers)]),
-      )
-    : {}
+  const local =
+    value.local && typeof value.local === 'object' && !Array.isArray(value.local)
+      ? Object.fromEntries(
+          Object.entries(value.local)
+            .filter(([workspaceHash]) => /^[a-f\d]{64}$/i.test(workspaceHash))
+            .map(([workspaceHash, servers]) => [workspaceHash, declarationRecord(servers)]),
+        )
+      : {}
   return {
     version: 2,
-    generation: Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
+    generation:
+      Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
     user: declarationRecord(value.user),
     local,
     operations: Array.isArray(value.operations)
-      ? value.operations.filter((operation) =>
-          operation
-          && typeof operation.operationId === "string"
-          && typeof operation.fingerprint === "string"
-          && Number.isSafeInteger(operation.generation)
-          && operation.generation >= 1,
-        ).slice(-MAX_OPERATIONS)
+      ? value.operations
+          .filter(
+            (operation) =>
+              operation &&
+              typeof operation.operationId === 'string' &&
+              typeof operation.fingerprint === 'string' &&
+              Number.isSafeInteger(operation.generation) &&
+              operation.generation >= 1,
+          )
+          .slice(-MAX_OPERATIONS)
       : [],
   }
 }
@@ -197,10 +204,12 @@ export class McpSettingsRepository {
     apply: (draft: McpSettingsState) => boolean
   }): McpPreparedMutation {
     const state = this.state()
-    const existing = state.operations.find((operation) => operation.operationId === input.operationId)
+    const existing = state.operations.find(
+      (operation) => operation.operationId === input.operationId,
+    )
     if (existing) {
       if (existing.fingerprint !== input.fingerprint) {
-        throw new McpSettingsConflictError("operationId 已用于其他 MCP 设置请求")
+        throw new McpSettingsConflictError('operationId 已用于其他 MCP 设置请求')
       }
       return {
         baseState: state,
@@ -238,7 +247,7 @@ export class McpSettingsRepository {
       return { state: prepared.state, changed: prepared.changed }
     }
     if (JSON.stringify(this.state()) !== JSON.stringify(prepared.baseState)) {
-      throw new McpSettingsConflictError("MCP 设置已被其他请求更新")
+      throw new McpSettingsConflictError('MCP 设置已被其他请求更新')
     }
     this.database.setSetting(SETTINGS_KEY, prepared.state)
     return { state: prepared.state, changed: prepared.changed }

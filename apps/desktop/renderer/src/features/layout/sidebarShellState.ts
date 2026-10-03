@@ -1,10 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+
+import type { SidebarPane } from './sidebar/sidebarNavigation.js'
 
 export const SIDEBAR_RESPONSIVE_BREAKPOINT = 720
 export const SIDEBAR_EDGE_HIT_WIDTH = 12
@@ -12,9 +8,7 @@ export const SIDEBAR_TRIGGER_HOVER_DELAY = 100
 
 export type SidebarShellMode = 'docked' | 'collapsed' | 'preview'
 
-export type SidebarEscapeAction =
-  | 'none'
-  | 'settings-back'
+export type SidebarEscapeAction = 'none' | 'settings-back'
 
 export function resolveSidebarEscapeAction({
   defaultPrevented,
@@ -37,23 +31,18 @@ export function isSidebarNarrow(containerWidth: number): boolean {
   return containerWidth <= SIDEBAR_RESPONSIVE_BREAKPOINT
 }
 
-export function isSidebarEdgeHit(pointerX: number | null): boolean {
+export function isSidebarEdgeHit(pointerX: number | null, railWidth = 0): boolean {
   return (
-    pointerX !== null &&
-    pointerX >= 0 &&
-    pointerX <= SIDEBAR_EDGE_HIT_WIDTH
+    pointerX !== null && pointerX >= railWidth && pointerX <= railWidth + SIDEBAR_EDGE_HIT_WIDTH
   )
 }
 
 export function isSidebarPanelHit(
   pointerX: number | null,
   sidebarWidth: number,
+  railWidth = 0,
 ): boolean {
-  return (
-    pointerX !== null &&
-    pointerX >= 0 &&
-    pointerX <= sidebarWidth
-  )
+  return pointerX !== null && pointerX >= railWidth && pointerX <= sidebarWidth
 }
 
 export function isSidebarTriggerHoverReady(elapsedMs: number): boolean {
@@ -67,6 +56,8 @@ export function shouldShowSidebarPreview({
   rearmBlocked,
   resizing,
   sidebarWidth,
+  railWidth = 0,
+  sidebarHidden = true,
 }: {
   delayedTriggerHover: boolean
   pointerX: number | null
@@ -74,16 +65,20 @@ export function shouldShowSidebarPreview({
   rearmBlocked: boolean
   resizing: boolean
   sidebarWidth: number
+  railWidth?: number
+  sidebarHidden?: boolean
 }): boolean {
-  if (resizing) return true
+  if (railWidth > 0 || !sidebarHidden) return false
+  if (resizing) return previewOpen
   if (rearmBlocked) return false
   if (previewOpen) {
-    return (
-      isSidebarPanelHit(pointerX, sidebarWidth) ||
-      delayedTriggerHover
-    )
+    return isSidebarPanelHit(pointerX, sidebarWidth, railWidth) || delayedTriggerHover
   }
-  return isSidebarEdgeHit(pointerX) || delayedTriggerHover
+  return isSidebarEdgeHit(pointerX, railWidth) || delayedTriggerHover
+}
+
+export function canShowSidebarTooltip(mode: SidebarShellMode, previewPending: boolean): boolean {
+  return mode !== 'preview' && !previewPending
 }
 
 export function deriveSidebarShellMode({
@@ -102,9 +97,12 @@ export function deriveSidebarShellMode({
 export type SidebarShellController = {
   appBodyRef: RefObject<HTMLDivElement | null>
   mode: SidebarShellMode
+  pane: SidebarPane | null
+  dockedVisible: boolean
   onFloatingResizeChange: (resizing: boolean) => void
   onTriggerPointerEnter: () => void
   onTriggerPointerLeave: () => void
+  pin: () => void
   toggle: () => void
 }
 
@@ -122,21 +120,29 @@ export function useSidebarShellController({
   desktopCollapsed,
   setDesktopCollapsed,
   sidebarWidth,
+  railWidth = 0,
+  activePane,
 }: {
   desktopCollapsed: boolean
   setDesktopCollapsed: (collapsed: boolean) => void
   sidebarWidth: number
+  railWidth?: number
+  activePane?: SidebarPane | null
 }): SidebarShellController {
   const appBodyRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(() => window.innerWidth)
-  const [responsiveAutoHidden, setResponsiveAutoHidden] = useState(
-    () => isSidebarNarrow(window.innerWidth) && !desktopCollapsed,
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && isSidebarNarrow(window.innerWidth),
   )
+  const observedNarrowRef = useRef(narrow)
+  const [responsiveAutoHidden, setResponsiveAutoHidden] = useState(
+    () => typeof window !== 'undefined' && isSidebarNarrow(window.innerWidth) && !desktopCollapsed,
+  )
+  const modern = railWidth > 0
+  const paneAvailable = !modern || activePane != null
   const [previewOpen, setPreviewOpen] = useState(false)
   const [delayedTriggerHover, setDelayedTriggerHover] = useState(false)
   const [floatingResizing, setFloatingResizing] = useState(false)
-  const [pointerHits, setPointerHits] =
-    useState<PointerHits>(EMPTY_POINTER_HITS)
+  const [pointerHits, setPointerHits] = useState<PointerHits>(EMPTY_POINTER_HITS)
   const [rearmBlocked, setRearmBlocked] = useState(false)
   const triggerHoveredRef = useRef(false)
   const triggerTimerRef = useRef<number | null>(null)
@@ -146,9 +152,8 @@ export function useSidebarShellController({
   const rearmBlockedRef = useRef(rearmBlocked)
   const sidebarWidthRef = useRef(sidebarWidth)
   const narrowOverrideOpenRef = useRef(false)
-  const previousNarrowRef = useRef(isSidebarNarrow(window.innerWidth))
-  const narrow = isSidebarNarrow(containerWidth)
-  const sidebarHidden = desktopCollapsed || responsiveAutoHidden
+  const previousNarrowRef = useRef(narrow)
+  const sidebarHidden = desktopCollapsed || responsiveAutoHidden || !paneAvailable
   const sidebarHiddenRef = useRef(sidebarHidden)
   const previousSidebarHiddenRef = useRef(sidebarHidden)
 
@@ -158,9 +163,10 @@ export function useSidebarShellController({
   sidebarWidthRef.current = sidebarWidth
   sidebarHiddenRef.current = sidebarHidden
 
+  const dockedVisible = !desktopCollapsed && !responsiveAutoHidden && paneAvailable
   const mode = deriveSidebarShellMode({
-    desktopCollapsed,
-    previewOpen,
+    desktopCollapsed: desktopCollapsed || !paneAvailable,
+    previewOpen: !modern && previewOpen,
     responsiveAutoHidden,
   })
 
@@ -180,29 +186,33 @@ export function useSidebarShellController({
     setRearmBlocked(blocked)
   }, [])
 
-  const updatePointerX = useCallback((pointerX: number | null): void => {
-    pointerXRef.current = pointerX
-    const next = {
-      edge: isSidebarEdgeHit(pointerX),
-      panel: isSidebarPanelHit(pointerX, sidebarWidthRef.current),
-    }
-    const current = pointerHitsRef.current
-    if (
-      current.edge === next.edge &&
-      current.panel === next.panel
-    ) {
-      return
-    }
-    pointerHitsRef.current = next
-    setPointerHits(next)
-  }, [])
+  const updatePointerX = useCallback(
+    (pointerX: number | null): void => {
+      pointerXRef.current = pointerX
+      const next = {
+        edge: isSidebarEdgeHit(pointerX, railWidth),
+        panel: isSidebarPanelHit(pointerX, sidebarWidthRef.current, railWidth),
+      }
+      const current = pointerHitsRef.current
+      if (current.edge === next.edge && current.panel === next.panel) {
+        return
+      }
+      pointerHitsRef.current = next
+      setPointerHits(next)
+    },
+    [railWidth],
+  )
 
   useEffect(() => {
     const root = appBodyRef.current
     if (!root) return
-    const update = (): void => setContainerWidth(root.getBoundingClientRect().width)
-    update()
-    const observer = new ResizeObserver(update)
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0) return
+      const nextNarrow = isSidebarNarrow(entry.contentRect.width)
+      if (nextNarrow === observedNarrowRef.current) return
+      observedNarrowRef.current = nextNarrow
+      setNarrow(nextNarrow)
+    })
     observer.observe(root)
     return () => observer.disconnect()
   }, [])
@@ -221,77 +231,71 @@ export function useSidebarShellController({
   }, [desktopCollapsed, narrow])
 
   useEffect(() => {
-    const onPointerMove = (event: PointerEvent): void => {
-      updatePointerX(event.clientX)
+    if (modern) {
+      updatePointerX(null)
+      return
     }
+    const onPointerMove = (event: PointerEvent): void => updatePointerX(event.clientX)
     const onPointerOut = (event: PointerEvent): void => {
       if (event.relatedTarget === null) updatePointerX(null)
     }
     const clearPointer = (): void => updatePointerX(null)
-
-    window.addEventListener('pointermove', onPointerMove, {
-      capture: true,
-      passive: true,
-    })
-    window.addEventListener('pointerout', onPointerOut, {
-      capture: true,
-      passive: true,
-    })
+    window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true })
+    window.addEventListener('pointerout', onPointerOut, { capture: true, passive: true })
     window.addEventListener('blur', clearPointer)
     return () => {
       window.removeEventListener('pointermove', onPointerMove, true)
       window.removeEventListener('pointerout', onPointerOut, true)
       window.removeEventListener('blur', clearPointer)
     }
-  }, [updatePointerX])
+  }, [modern, updatePointerX])
 
   useEffect(() => {
     updatePointerX(pointerXRef.current)
-  }, [sidebarWidth, updatePointerX])
+  }, [sidebarWidth, railWidth, updatePointerX])
 
   useEffect(() => {
     const wasHidden = previousSidebarHiddenRef.current
     previousSidebarHiddenRef.current = sidebarHidden
     if (wasHidden || !sidebarHidden) return
     const hits = pointerHitsRef.current
-    updateRearmBlocked(
-      triggerHoveredRef.current || hits.edge || hits.panel,
-    )
+    updateRearmBlocked(triggerHoveredRef.current || hits.edge || hits.panel)
   }, [sidebarHidden, updateRearmBlocked])
 
   useEffect(() => {
-    if (!sidebarHidden) {
+    if (modern || !sidebarHidden) {
       cancelTriggerTimer()
       setDelayedTriggerHover(false)
       updatePreviewOpen(false)
       if (rearmBlocked) updateRearmBlocked(false)
       return
     }
-
     if (rearmBlockedRef.current && !floatingResizing) {
       updatePreviewOpen(false)
-      if (
-        !triggerHoveredRef.current &&
-        !pointerHits.edge &&
-        !pointerHits.panel
-      ) {
+      if (!triggerHoveredRef.current) {
         updateRearmBlocked(false)
       }
       return
     }
 
-    updatePreviewOpen(shouldShowSidebarPreview({
-      delayedTriggerHover,
-      pointerX: pointerXRef.current,
-      previewOpen: previewOpenRef.current,
-      rearmBlocked: rearmBlockedRef.current,
-      resizing: floatingResizing,
-      sidebarWidth,
-    }))
+    updatePreviewOpen(
+      shouldShowSidebarPreview({
+        delayedTriggerHover,
+        pointerX: pointerXRef.current,
+        previewOpen: previewOpenRef.current,
+        rearmBlocked: rearmBlockedRef.current,
+        resizing: floatingResizing,
+        sidebarWidth,
+        railWidth,
+        sidebarHidden,
+      }),
+    )
   }, [
     cancelTriggerTimer,
     delayedTriggerHover,
     floatingResizing,
+    modern,
+    railWidth,
     pointerHits,
     rearmBlocked,
     sidebarHidden,
@@ -310,32 +314,45 @@ export function useSidebarShellController({
   const onFloatingResizeChange = useCallback(
     (resizing: boolean): void => {
       setFloatingResizing(resizing)
-      if (resizing) updatePreviewOpen(true)
+      if (resizing && previewOpenRef.current) updatePreviewOpen(true)
     },
     [updatePreviewOpen],
   )
 
   const onTriggerPointerEnter = useCallback((): void => {
+    if (modern) return
     triggerHoveredRef.current = true
     cancelTriggerTimer()
     if (!sidebarHiddenRef.current || rearmBlockedRef.current) return
     triggerTimerRef.current = window.setTimeout(() => {
       triggerTimerRef.current = null
-      if (
-        triggerHoveredRef.current &&
-        sidebarHiddenRef.current &&
-        !rearmBlockedRef.current
-      ) {
+      if (triggerHoveredRef.current && sidebarHiddenRef.current && !rearmBlockedRef.current) {
         setDelayedTriggerHover(true)
       }
     }, SIDEBAR_TRIGGER_HOVER_DELAY)
-  }, [cancelTriggerTimer])
+  }, [cancelTriggerTimer, modern])
+
+  useEffect(() => {
+    cancelTriggerTimer()
+    updatePreviewOpen(false)
+  }, [activePane, modern, cancelTriggerTimer, updatePreviewOpen])
 
   const onTriggerPointerLeave = useCallback((): void => {
     triggerHoveredRef.current = false
     cancelTriggerTimer()
     setDelayedTriggerHover(false)
-  }, [cancelTriggerTimer])
+    updateRearmBlocked(false)
+  }, [cancelTriggerTimer, updateRearmBlocked])
+
+  const pin = useCallback((): void => {
+    cancelTriggerTimer()
+    setDelayedTriggerHover(false)
+    narrowOverrideOpenRef.current = narrow
+    setResponsiveAutoHidden(false)
+    updateRearmBlocked(false)
+    updatePreviewOpen(false)
+    setDesktopCollapsed(false)
+  }, [cancelTriggerTimer, narrow, setDesktopCollapsed, updatePreviewOpen, updateRearmBlocked])
 
   const toggle = useCallback((): void => {
     cancelTriggerTimer()
@@ -351,27 +368,22 @@ export function useSidebarShellController({
     }
 
     const hits = pointerHitsRef.current
-    updateRearmBlocked(
-      triggerHoveredRef.current || hits.edge || hits.panel,
-    )
+    updateRearmBlocked(triggerHoveredRef.current || hits.edge || hits.panel)
     narrowOverrideOpenRef.current = false
     setResponsiveAutoHidden(false)
     updatePreviewOpen(false)
     setDesktopCollapsed(true)
-  }, [
-    cancelTriggerTimer,
-    narrow,
-    setDesktopCollapsed,
-    updatePreviewOpen,
-    updateRearmBlocked,
-  ])
+  }, [cancelTriggerTimer, narrow, setDesktopCollapsed, updatePreviewOpen, updateRearmBlocked])
 
   return {
     appBodyRef,
     mode,
+    pane: activePane ?? null,
+    dockedVisible,
     onFloatingResizeChange,
     onTriggerPointerEnter,
     onTriggerPointerLeave,
+    pin,
     toggle,
   }
 }

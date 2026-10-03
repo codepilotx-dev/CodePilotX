@@ -20,10 +20,10 @@ export function resolvePreferredOpenTarget<T extends { id: string }>(
   storedId: string,
 ): T | undefined {
   return (
-    targets.find(target => target.id === storedId)
-    ?? EDITOR_OPEN_TARGET_PRIORITY
-      .map(id => targets.find(target => target.id === id))
-      .find(Boolean)
-    ?? targets.find(target => target.id === 'file-explorer')
+    targets.find((target) => target.id === storedId) ??
+    EDITOR_OPEN_TARGET_PRIORITY.map((id) => targets.find((target) => target.id === id)).find(
+      Boolean,
+    ) ??
+    targets.find((target) => target.id === 'file-explorer')
   )
 }

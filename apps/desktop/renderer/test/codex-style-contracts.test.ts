@@ -1,79 +1,182 @@
 import { describe, expect, test } from 'bun:test'
-import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'
+import { expectSourceContains, expectSourceNotContains } from './source-contract.js'
 
-describe('Codex semantic token contract', () => {
-  test('exports exactly 121 unique semantic color tokens', async () => {
+describe('Codex CPX design system token contract', () => {
+  test('guards interaction semantics and visual ownership without broad exceptions', async () => {
+    const [checker, manifestText] = await Promise.all([
+      Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),
+      Bun.file(new URL('../style-contracts.json', import.meta.url)).text(),
+    ])
+    const manifest = JSON.parse(manifestText) as {
+      interactionContract: { interactiveRowAllowedFiles: string[] }
+    }
+
+    expect(manifest.interactionContract.interactiveRowAllowedFiles).toEqual([
+      'src/components/ui/PopoverItem.tsx',
+      'src/components/ui/SearchablePopoverContent.tsx',
+      'src/features/session/summary/ThreadSummaryPanel.tsx',
+    ])
+    expect(checker).toContain('feature styles must not target .ui-button')
+    expect(checker).toContain('legacy interactive-row escape modifier is forbidden')
+    expect(checker).toContain('Button must not represent persistent pressed/selected state')
+    expect(checker).toContain('Popover radio-group trigger must not use Button')
+    expect(checker).toContain('stale interactive-row allowed file')
+  })
+
+  test('governs feature colors through precise, stale-detectable exceptions', async () => {
+    const [checker, manifestText, guidance] = await Promise.all([
+      Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),
+      Bun.file(new URL('../style-contracts.json', import.meta.url)).text(),
+      Bun.file(new URL('../../../../docs/design/renderer-color-system.md', import.meta.url)).text(),
+    ])
+    const manifest = JSON.parse(manifestText) as {
+      featureColorContract: {
+        roots: string[]
+        componentTokenExceptions: Array<{ file: string; token: string; reason: string }>
+        literalColorExceptions: Array<{ file: string; value: string; reason: string }>
+        colorMixExceptions: Array<{ file: string; localProperty: string; reason: string }>
+      }
+    }
+
+    expect(manifest.featureColorContract.roots).toEqual(['src/styles/features', 'src/styles/lazy'])
+    for (const exception of [
+      ...manifest.featureColorContract.componentTokenExceptions,
+      ...manifest.featureColorContract.literalColorExceptions,
+      ...manifest.featureColorContract.colorMixExceptions,
+    ]) {
+      expect(exception.file).not.toContain('*')
+      expect(exception.reason.length).toBeGreaterThan(15)
+    }
+    expect(checker).toContain('feature styles must use system semantic colors')
+    expect(checker).toContain('feature styles must not use literal color')
+    expect(checker).toContain('feature color-mix must not combine multiple semantic/local colors')
+    expect(checker).toContain('stale feature component-token exception')
+    expect(checker).toContain('stale feature literal-color exception')
+    expect(checker).toContain('stale feature color-mix exception')
+    expect(guidance).toContain('系统语义颜色')
+    expect(guidance).toContain('组件私有实现')
+    expect(guidance).toContain('Agent 选择流程')
+  })
+
+  test('exports component tokens for all 13 components', async () => {
     const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/codex-semantic-tokens.scss',
-        import.meta.url,
-      ),
+      new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
     ).text()
     const tokens = Array.from(
-      stylesheet.matchAll(/^\s*(--color-token-[\w-]+):/gm),
-      match => match[1],
+      stylesheet.matchAll(/^\s*(--cpx-comp-[\w-]+):/gm),
+      (match) => match[1],
     )
 
-    expect(tokens).toHaveLength(121)
-    expect(new Set(tokens).size).toBe(121)
-    expect(tokens).toContain('--color-token-input-background')
-    expect(tokens).toContain('--color-token-dropdown-background')
-    expect(tokens).toContain('--color-token-main-surface-primary')
-    expect(tokens).toContain('--color-token-panel-background')
-    expect(tokens).toContain('--color-token-control-background')
-    expect(tokens).toContain('--color-token-elevated-background')
+    expect(tokens.length).toBeGreaterThan(50)
+    expect(tokens).toContain('--cpx-comp-dropdown-trigger-bg')
+    expect(tokens).toContain('--cpx-comp-dropdown-menu-bg')
+    expect(tokens).toContain('--cpx-comp-dropdown-item-hover-bg')
+    expect(tokens).toContain('--cpx-comp-button-bg')
+    expect(tokens).toContain('--cpx-comp-button-primary-bg')
+    expect(tokens).toContain('--cpx-comp-input-bg')
+    expect(tokens).toContain('--cpx-comp-input-border')
+    expect(tokens).toContain('--cpx-comp-sidebar-bg')
+    expect(tokens).toContain('--cpx-comp-dock-bg')
+    expect(tokens).toContain('--cpx-comp-terminal-bg')
+    expect(tokens).toContain('--cpx-comp-diff-inserted-line-bg')
+  })
+
+  test('maps Dropdown states and searchable gutters through shared contracts', async () => {
+    const [tokens, popover, rows, select, projectSwitcher, branchSwitcher] = await Promise.all([
+      Bun.file(
+        new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/components/ui/Select.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/features/session/composer/ProjectSwitcherPopover.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/session/composer/BranchSelectPopover.tsx', import.meta.url),
+      ).text(),
+    ])
+
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-dropdown-menu-border: var(--cpx-sys-color-border-default)',
+    )
+    expectSourceContains(tokens, '--cpx-comp-dropdown-item-pressed-bg: var(--cpx-sys-color-active)')
+    expectSourceContains(popover, ".popover-surface[data-theme-component='dropdown-surface']")
+    expectSourceContains(popover, '--cpx-comp-row-hover-bg: var(--cpx-comp-dropdown-item-hover-bg)')
+    expectSourceContains(rows, '--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected)')
+    expectSourceContains(rows, '.popover-item[aria-selected="true"]')
+    expectSourceContains(rows, '.settings-dropdown-item:has(.settings-dropdown-item-indicator)')
+    expectSourceContains(rows, '.permission-select-item:has(.permission-select-item-indicator)')
+    expectSourceContains(rows, '--cpx-comp-row-bg, transparent')
+    expectSourceContains(rows, '--cpx-comp-row-hover-bg')
+    expectSourceContains(rows, '--cpx-comp-row-pressed-bg')
+    expectSourceContains(
+      rows,
+      '.settings-dropdown-item[data-state="checked"]:has(.settings-dropdown-item-indicator)',
+    )
+    expectSourceContains(
+      rows,
+      '.permission-select-item[data-state="checked"]:has(.permission-select-item-indicator)',
+    )
+    expectSourceContains(
+      rows,
+      '):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active))',
+    )
+    expectSourceContains(select, 'data-highlighted={activeIndex === index || undefined}')
+    expectSourceNotContains(select, 'data-state=')
+    expect(popover).toMatch(
+      /\.popover-search-region\s*\{[\s\S]*?padding: var\(--popover-surface-padding\);/,
+    )
+    expectSourceNotContains(projectSwitcher, 'listClassName="popover-section"')
+    expectSourceContains(branchSwitcher, 'listClassName="branch-popover-list-scroll"')
+    expectSourceNotContains(branchSwitcher, 'branch-popover-list-scroll popover-section')
+  })
+
+  test('keeps the permission Select on shared rich-menu geometry', async () => {
+    const [rows, composerControls] = await Promise.all([
+      Bun.file(new URL('../src/styles/components/interactive-row.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_composer-controls.scss', import.meta.url)).text(),
+    ])
+
+    expect(rows).toMatch(
+      /\.interactive-row--rich,[\s\S]*?\.permission-select-item\s*\{[\s\S]*?--interactive-row-current-min-height:/,
+    )
+    expect(rows).toMatch(
+      /\.permission-select-scroll-content\s*\{[\s\S]*?gap: var\(--cpx-comp-row-gap-y\);/,
+    )
+    expect(composerControls).not.toMatch(/\.permission-select-item-icon\s*\{[^}]*padding-right:/)
+    expect(composerControls).not.toMatch(/\.permission-select-item-body\s*\{[^}]*padding-right:/)
   })
 
   test('keeps diff backgrounds separate from raw decoration colors', async () => {
     const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/codex-semantic-tokens.scss',
-        import.meta.url,
-      ),
+      new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
     ).text()
 
-    expect(stylesheet).toContain(
-      '--vscode-diffEditor-insertedLineBackground: var(--color-diff-added-line-background)',
+    expectSourceContains(
+      stylesheet,
+      '--cpx-comp-diff-inserted-line-bg: var(--cpx-sys-color-diff-added-line)',
     )
-    expect(stylesheet).toContain(
-      '--vscode-diffEditor-insertedTextBackground: var(--color-diff-added-text-background)',
+    expectSourceContains(
+      stylesheet,
+      '--cpx-comp-diff-inserted-text-bg: var(--cpx-sys-color-diff-added-text)',
     )
-    expect(stylesheet).toContain(
-      '--vscode-diffEditor-removedLineBackground: var(--color-diff-removed-line-background)',
+    expectSourceContains(
+      stylesheet,
+      '--cpx-comp-diff-removed-line-bg: var(--cpx-sys-color-diff-removed-line)',
     )
-    expect(stylesheet).toContain(
-      '--vscode-diffEditor-removedTextBackground: var(--color-diff-removed-text-background)',
-    )
-    expect(stylesheet).not.toMatch(
-      /--vscode-diffEditor-[\w-]+Background:\s*var\(--color-decoration-(?:added|deleted)\)/,
-    )
-  })
-
-  test('keeps the Codex hover overlays visible before runtime theme hydration', async () => {
-    const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/codex-semantic-tokens.scss',
-        import.meta.url,
-      ),
-    ).text()
-
-    expect(stylesheet).toMatch(
-      /--vscode-list-activeSelectionBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
-    )
-    expect(stylesheet).toMatch(
-      /:root\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 5%,\s*transparent\s*\)/,
-    )
-    expect(stylesheet).toMatch(
-      /\.electron-dark\s*\{[\s\S]*--vscode-list-hoverBackground:\s*color-mix\(\s*in srgb,\s*var\(--color-text-foreground\) 8%,\s*transparent\s*\)/,
+    expectSourceContains(
+      stylesheet,
+      '--cpx-comp-diff-removed-text-bg: var(--cpx-sys-color-diff-removed-text)',
     )
   })
 
   test('does not reintroduce removed theme compatibility aliases', async () => {
     const sources = await Promise.all(
-      [
-        '../src/features/theme/themeVariables.ts',
-        '../src/styles/design-system/tokens.scss',
-      ].map(path => Bun.file(new URL(path, import.meta.url)).text()),
+      ['../src/features/theme/themeVariables.ts', '../src/styles/design-system/tokens.scss'].map(
+        (path) => Bun.file(new URL(path, import.meta.url)).text(),
+      ),
     )
     const removedAliasPattern =
       /--(?:color-bg(?:-[\w-]+)?|surface-[\w-]+|state-[\w-]+|border-(?:subtle|muted|control|strong)|color-text(?:-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent))?)(?=['"]?\s*:)/
@@ -82,23 +185,428 @@ describe('Codex semantic token contract', () => {
       expect(source.match(removedAliasPattern)).toBeNull()
     }
   })
-})
 
-describe('Codex Labs registry', () => {
-  test('registers 18 unique lazy visual prototypes with evidence', async () => {
-    expect(LAB_DEMOS).toHaveLength(18)
-    expect(new Set(LAB_DEMOS.map(demo => demo.id)).size).toBe(18)
+  test('keeps primary/secondary buttons distinct and settings rows height-free', async () => {
+    const [buttons, settings, tokens] = await Promise.all([
+      Bun.file(new URL('../src/styles/components/button.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_settings-core.scss', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+      ).text(),
+    ])
 
-    for (const demo of LAB_DEMOS) {
-      expect(demo.status).toBe('visual-prototype')
-      expect(demo.evidence.sourceChunks.length).toBeGreaterThan(0)
-      expect(demo.evidence.selectors.length).toBeGreaterThan(0)
-      expect(demo.evidence.themeTokens.length).toBeGreaterThan(0)
-      expect(demo.evidence.platformVariants).toContain('electron')
-      expect(demo.evidence.platformVariants).toContain('browser-mock')
+    // primary：foreground 实底、反色文字；secondary：5% 弱背景、透明边框。
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color=['"]primary['"]\]\s*\{[\s\S]*?background: var\(--cpx-comp-button-primary-bg\)/,
+    )
+    expectSourceContains(tokens, '--cpx-comp-button-primary-bg: var(--cpx-sys-color-fg-primary);')
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-button-primary-fg: var(--cpx-sys-color-surface-canvas);',
+    )
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color=['"]secondary['"]\]\s*\{[\s\S]*?background: color-mix\(\s*in srgb,\s*var\(--cpx-sys-color-fg-primary\)\s*5%,\s*transparent\s*\)/,
+    )
+    expect(buttons).toMatch(
+      /\.ui-button\[data-color=['"]secondary['"]\]\s*\{[\s\S]*?border-color: transparent/,
+    )
+    // 设置行不再锁死 64px，改用 padding 驱动高度。
+    expect(settings).not.toMatch(/\.settings-row\s*\{[\s\S]*?min-height: 64px;/)
+    expect(settings).toMatch(/\.settings-row\s*\{[\s\S]*?padding: var\(--cpx-sys-space-3\) 0;/)
+    expect(settings).toMatch(/\.settings-row \+ \.settings-row[\s\S]*?height: 0\.5px;/)
+  })
 
-      const loaded = await demo.load()
-      expect(typeof loaded.default).toBe('function')
+  test('keeps settings navigation and responsive rows on one alignment contract', async () => {
+    const [settings, billing, navigation] = await Promise.all([
+      Bun.file(new URL('../src/styles/features/_settings-core.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_settings-billing.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/settings/SettingsNav.tsx', import.meta.url)).text(),
+    ])
+
+    expectSourceContains(settings, '--settings-nav-inline-gutter: var(--cpx-sys-space-2);')
+    expect(settings).toMatch(
+      /\.settings-nav-scroll-content\s*\{[\s\S]*?padding-inline: var\(--settings-nav-inline-gutter\);/,
+    )
+    expect(settings).toMatch(
+      /@container \(max-width: 42rem\)[\s\S]*?\.settings-management-row\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+    )
+    expect(settings).not.toMatch(/@media \(max-width: 900px\)[\s\S]*?\.settings-row\s*\{/)
+    expect(billing).not.toMatch(/^\s*\.settings-row,\s*$/m)
+    expect(billing).not.toMatch(/^\s*\.settings-row-control\s*\{/m)
+    expect(navigation).not.toMatch(
+      /settings-nav-(?:scroll-content|header|menu|group|group-title-row|group-items)[^"\n]*tw:(?:gap|px|py)-/,
+    )
+  })
+
+  test('keeps provider and extension management on shared settings geometry', async () => {
+    const [
+      settings,
+      modelCenter,
+      providerCatalog,
+      plugins,
+      extensionRow,
+      skillDialog,
+      mcpDialog,
+      marketplace,
+    ] = await Promise.all([
+      Bun.file(new URL('../src/styles/features/_settings-core.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/model-center.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/models/ProviderCatalog.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/ExtensionManagementRow.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/settings/plugins/McpEditorDialog.tsx', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/features/marketplace.scss', import.meta.url)).text(),
+    ])
+
+    expectSourceContains(settings, '.settings-management-list')
+    expectSourceContains(settings, '.settings-management-dialog-row')
+    expectSourceContains(providerCatalog, 'settings-management-list')
+    expectSourceContains(extensionRow, 'settings-management-row')
+    expectSourceNotContains(modelCenter, 'repeat(auto-fill')
+    expectSourceContains(plugins, 'settings-content-inner plugins-settings-content')
+    expect(plugins).not.toMatch(/tw:(?:max-w-\[60rem\]|px-8|py-16)/)
+    for (const dialog of [skillDialog, mcpDialog]) {
+      expectSourceNotContains(dialog, 'tw:rounded-3xl')
+      expect(dialog).not.toMatch(/Dialog\.Content[\s\S]{0,300}permission-modal(?:\s|")/)
     }
+    const pluginDialogBlock =
+      marketplace.match(/\.plugin-details-dialog\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    expect(pluginDialogBlock).not.toMatch(/(?:border|border-radius|background|box-shadow):/)
+  })
+
+  test('keeps primary routes and workbench panels on their shared alignment axes', async () => {
+    const [automation, pets, pullRequests, setup, review, browser] = await Promise.all([
+      Bun.file(new URL('../src/styles/features/automation.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/pet/PetCatalogPage.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/features/pull-requests/PullRequestsPlaceholder.tsx', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/features/_model-setup.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/review.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/browser/DesktopBrowserPanel.tsx', import.meta.url)).text(),
+    ])
+
+    expect(automation).not.toMatch(
+      /automation-primary-page[^}]*primary-page-layout__(?:header|body)/,
+    )
+    expectSourceContains(pets, '<PrimaryPageLayout')
+    expectSourceContains(pullRequests, '<PrimaryPageLayout')
+    expectSourceContains(setup, 'grid-template-rows: 36px minmax(0, 1fr);')
+    expectSourceContains(review, 'padding: var(--cpx-sys-space-1) var(--cpx-sys-space-4);')
+    expectSourceContains(browser, 'className="browser-status-row" role="alert"')
+  })
+
+  test('keeps prominent elevation distinct from flat and transient surfaces', async () => {
+    const [systemTokens, componentTokens, cards, composer, summary, rightDock] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/components/card.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_composer-shell.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_thread-summary.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
+    ])
+
+    expect(systemTokens.match(/--cpx-sys-shadow-prominent:/g)).toHaveLength(1)
+    expectSourceContains(
+      systemTokens,
+      '--cpx-sys-shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);',
+    )
+    expectSourceContains(
+      componentTokens,
+      '--cpx-comp-composer-shadow: var(--cpx-sys-shadow-prominent);',
+    )
+    expect(cards).toMatch(/\.composer\s*\{[\s\S]*?box-shadow: var\(--cpx-comp-composer-shadow\);/)
+    expectSourceNotContains(composer, 'box-shadow: var(--cpx-sys-shadow-floating)')
+    expect(summary).toMatch(
+      /\.thread-summary-panel\s*\{[\s\S]*?box-shadow: var\(--cpx-sys-shadow-prominent\);/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-popover \.thread-summary-panel,[\s\S]*?box-shadow: none;/,
+    )
+    expectSourceNotContains(rightDock, '--cpx-sys-shadow-prominent')
+  })
+
+  test('keeps high-frequency motion immediate and CSS/Motion timings aligned', async () => {
+    const [systemTokens, motionTransitions, modelMenu] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/motion/motionTransitions.ts', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/model-menu-pilot.scss', import.meta.url)).text(),
+    ])
+
+    for (const [role, duration] of [
+      ['instant', '0ms'],
+      ['feedback', '60ms'],
+      ['exit', '80ms'],
+      ['state', '60ms'],
+      ['enter', '80ms'],
+      ['panel', '100ms'],
+      ['loading', '900ms'],
+    ]) {
+      expectSourceContains(systemTokens, `--cpx-sys-motion-${role}: ${duration};`)
+    }
+
+    expectSourceContains(motionTransitions, 'duration: 0.06,')
+    expect(motionTransitions.match(/duration: 0\.08,/g)).toHaveLength(2)
+    expectSourceContains(motionTransitions, 'duration: 0.1,')
+    expectSourceContains(motionTransitions, "duration: 0.9,\n  ease: 'linear'")
+
+    expectSourceNotContains(modelMenu, '260ms')
+    expectSourceNotContains(modelMenu, 'cubic-bezier(0.34, 1.35, 0.64, 1)')
+    expectSourceNotContains(modelMenu, 'transition: opacity var(--cpx-sys-motion-panel)')
+    expect(modelMenu).toMatch(
+      /\.rm-intelligence-view-toggle-icon\s*\{\s*transition: transform var\(--cpx-sys-motion-state\)/,
+    )
+  })
+
+  test('keeps the radius scale optical correction and roles canonical', async () => {
+    const [
+      systemTokens,
+      componentTokens,
+      tailwind,
+      buttons,
+      composer,
+      conversation,
+      summary,
+      cards,
+      rightDock,
+    ] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/components/button.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_composer-shell.scss', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/styles/features/_canonical-conversation.scss', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/features/_thread-summary.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/components/card.scss', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
+    ])
+
+    expect(systemTokens.match(/--cpx-sys-radius-optical-scale:/g)).toHaveLength(1)
+    expect(systemTokens.match(/--cpx-sys-corner-shape:/g)).toHaveLength(1)
+    expectSourceContains(systemTokens, '--cpx-sys-radius-optical-scale: 1;')
+    expectSourceNotContains(systemTokens, '--cpx-sys-radius-optical-scale: 1.25;')
+    expectSourceContains(systemTokens, '--cpx-sys-corner-shape: round;')
+    expectSourceNotContains(systemTokens, '--cpx-sys-corner-shape: superellipse(1.5);')
+    const expectedSizes: Record<string, string> = {
+      '2xs': '4px',
+      xs: '6px',
+      sm: '8px',
+      md: '10px',
+      lg: '12px',
+      xl: '14px',
+      '2xl': '16px',
+      '3xl': '20px',
+      '4xl': '28px',
+      full: '9999px',
+    }
+    for (const [size, value] of Object.entries(expectedSizes)) {
+      expect(systemTokens.match(new RegExp(`--cpx-sys-radius-${size}:`, 'g'))).toHaveLength(1)
+      expectSourceContains(systemTokens, `--cpx-sys-radius-${size}: ${value};`)
+    }
+    for (const [role, size] of [
+      ['indicator', '2xs'],
+      ['compact', 'xs'],
+      ['control', 'md'],
+      ['container', 'lg'],
+      ['floating', 'lg'],
+      ['prominent', '2xl'],
+      ['pill', 'full'],
+    ]) {
+      expect(systemTokens.match(new RegExp(`--cpx-sys-radius-${role}:`, 'g'))).toHaveLength(1)
+      expectSourceContains(systemTokens, `--cpx-sys-radius-${role}: var(--cpx-sys-radius-${size});`)
+    }
+    for (const size of ['2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', 'full']) {
+      expectSourceContains(tailwind, `--radius-${size}: var(--cpx-sys-radius-${size});`)
+    }
+    expectSourceNotContains(tailwind, 'corner-shape: var(--cpx-sys-corner-shape);')
+    expectSourceContains(
+      componentTokens,
+      '--cpx-comp-modal-radius: var(--cpx-sys-radius-prominent);',
+    )
+    expectSourceContains(
+      componentTokens,
+      '--cpx-comp-sidebar-item-radius: var(--cpx-sys-radius-item);',
+    )
+
+    expectSourceNotContains(buttons, '--button-radius-scale')
+    expectSourceContains(buttons, 'border-radius: var(--button-radius);')
+    expectSourceNotContains(buttons, '@supports (corner-shape: superellipse(1.5))')
+    expectSourceContains(composer, '--composer-radius: var(--cpx-sys-radius-prominent);')
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-layout=['"]single-line['"]\]\[data-composer-radius-variant=['"]default['"]\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-pill\);/,
+    )
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-radius-variant=['"]single-line['"]\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-prominent\);/,
+    )
+    expect(composer).toMatch(
+      /\.composer-stack\[data-composer-radius-variant=['"]compact['"]\]\s*\{\s*--composer-radius: var\(--cpx-sys-radius-container\);/,
+    )
+    expectSourceNotContains(composer, 'var(--cpx-sys-radius-optical-scale)')
+    expect(composer).not.toMatch(
+      /\.composer-stack\[data-placement=['"]new-session['"]\][^{]*\{[^}]*--composer-radius/,
+    )
+    expectSourceContains(
+      composer,
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface]',
+    )
+    expectSourceContains(
+      composer,
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface="coding"]',
+    )
+    expectSourceContains(
+      composer,
+      '.composer-stack[data-composer-utility-bar-variant="home"][data-surface="working"]',
+    )
+    expectSourceContains(
+      composer,
+      '.composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"]',
+    )
+    expectSourceNotContains(composer, 'calc(var(--cpx-sys-radius-xl) * 2)')
+    expect(conversation.match(/border-radius: var\(--cpx-sys-radius-2xl\);/g)).toHaveLength(2)
+    expectSourceNotContains(conversation, 'var(--cpx-sys-radius-optical-scale)')
+    expectSourceContains(conversation, 'corner-shape: var(--cpx-sys-corner-shape);')
+    expectSourceContains(summary, 'border-radius: var(--cpx-sys-radius-prominent);')
+    expectSourceContains(summary, 'corner-shape: var(--cpx-sys-corner-shape);')
+    expectSourceNotContains(cards, '--cpx-sys-radius-prominent')
+    expectSourceNotContains(rightDock, '--cpx-sys-radius-prominent')
+  })
+
+  test('keeps user messages and inline summaries on dedicated semantics', async () => {
+    const [systemTokens, conversation, summary] = await Promise.all([
+      Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/styles/features/_canonical-conversation.scss', import.meta.url),
+      ).text(),
+      Bun.file(new URL('../src/styles/features/_thread-summary.scss', import.meta.url)).text(),
+    ])
+
+    expect(systemTokens.match(/--cpx-sys-color-message-user-bg:/g)).toHaveLength(1)
+    expect(systemTokens).toMatch(
+      /--cpx-sys-color-message-user-bg:\s*color-mix\(\s*in srgb,\s*var\(--cpx-sys-color-fg-primary\)\s*5%,\s*transparent\s*\)\s*;/,
+    )
+    expect(conversation.match(/--cpx-sys-color-message-user-bg/g)).toHaveLength(1)
+    expectSourceContains(conversation, 'background: var(--cpx-sys-color-message-user-bg);')
+    expectSourceNotContains(conversation, 'var(--cpx-sys-color-surface-panel) 78%')
+
+    expect(summary.match(/--thread-summary-inline-width:/g)).toHaveLength(1)
+    expect(summary).toMatch(
+      /\.workflow-page__main,\s*\.thread-summary-popover\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 65\);/,
+    )
+    expect(summary).toMatch(
+      /\.workflow-page__main\[data-thread-summary-inline=['"]true['"]\][\s\S]*?padding-inline-end: calc\([\s\S]*?var\(--thread-summary-inline-width\)/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-inline\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,
+    )
+    expect(summary).toMatch(
+      /\.thread-summary-popover,[\s\S]*?\.thread-summary-error\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,
+    )
+    expect(summary).not.toMatch(/width:\s*(?:260|272|300)px/)
+  })
+
+  test('keeps component tokens private to shared component styles', async () => {
+    const [systemTokens, tokens, rightDock, sidebar, chrome, workbench, modal, popover] =
+      await Promise.all([
+        Bun.file(new URL('../src/styles/design-system/tokens.scss', import.meta.url)).text(),
+        Bun.file(
+          new URL('../src/styles/design-system/codex-semantic-tokens.scss', import.meta.url),
+        ).text(),
+        Bun.file(new URL('../src/styles/features/_layout-right-dock.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/layout-sidebar.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/layout-chrome.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/features/_layout-workbench.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/modal.scss', import.meta.url)).text(),
+        Bun.file(new URL('../src/styles/popover.scss', import.meta.url)).text(),
+      ])
+
+    // Window chrome and workspace regions stay independently addressable while
+    // panels follow the workspace surface by default.
+    expectSourceContains(
+      systemTokens,
+      '--cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+    expectSourceContains(
+      systemTokens,
+      '--cpx-sys-color-workbench-sidebar-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+    expectSourceContains(
+      systemTokens,
+      '--cpx-sys-color-workbench-main-bg: var(--cpx-sys-color-surface-canvas);',
+    )
+    expectSourceContains(
+      systemTokens,
+      '--cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-workbench-main-bg);',
+    )
+    expectSourceNotContains(
+      systemTokens,
+      '--cpx-sys-color-workbench-panel-bg: var(--cpx-sys-color-surface-recessed);',
+    )
+
+    // Verify token definitions in codex-semantic-tokens.scss
+    expectSourceContains(tokens, '--cpx-comp-dock-bg: var(--cpx-sys-color-workbench-panel-bg);')
+    expectSourceContains(tokens, '--cpx-comp-dock-border: var(--cpx-sys-color-border-subtle);')
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-sidebar-bg: var(--cpx-sys-color-workbench-sidebar-bg);',
+    )
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-workbench-panel-bg: var(--cpx-sys-color-workbench-panel-bg);',
+    )
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-workbench-main-surface-bg: var(--cpx-sys-color-workbench-main-bg);',
+    )
+    expectSourceContains(tokens, '--cpx-comp-sidebar-border: 0;')
+    expectSourceContains(tokens, '--cpx-comp-modal-bg: var(--cpx-sys-color-surface-raised);')
+    expectSourceContains(
+      tokens,
+      '--cpx-comp-modal-border: 1px solid var(--cpx-sys-color-border-subtle);',
+    )
+
+    // Feature styles consume public system semantics instead of component aliases.
+    expectSourceNotContains(rightDock, '--cpx-comp-dock-bg')
+    expectSourceNotContains(rightDock, '--cpx-comp-dock-border')
+    expectSourceNotContains(rightDock, '--cpx-comp-dock-tab-radius')
+    expectSourceContains(rightDock, '--cpx-sys-radius-control')
+    expectSourceNotContains(sidebar, '--cpx-comp-sidebar-bg')
+    expectSourceNotContains(sidebar, '--cpx-comp-sidebar-border')
+    expectSourceNotContains(sidebar, '--cpx-comp-sidebar-item-active-bg')
+    expectSourceContains(sidebar, '--cpx-sys-color-workbench-sidebar-bg')
+    expectSourceContains(rightDock, '--cpx-sys-color-workbench-panel-bg')
+    expectSourceContains(chrome, '--cpx-sys-color-workbench-titlebar-bg')
+    expectSourceContains(workbench, '--cpx-sys-color-workbench-main-bg')
+    expect(workbench).toMatch(
+      /\.desktop-main\s*\{[^}]*border-left: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.right-dock\s*\{[^}]*border-left: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.bottom-panel\s*\{[^}]*border-top: 1px solid var\(--cpx-sys-color-border-default\);/,
+    )
+    expect(rightDock).toMatch(
+      /\.workbench-panel-header\s*\{[^}]*border-bottom: 1px solid var\(--cpx-sys-color-border-subtle\);/,
+    )
+    expect(workbench).not.toMatch(/\.desktop-workspace-panel--bottom\s*\{[^}]*border-top:/)
+    expectSourceContains(modal, '--cpx-comp-modal-bg')
+    expectSourceContains(modal, '--cpx-comp-modal-shadow')
+    expectSourceContains(popover, '--cpx-comp-dropdown-menu-bg')
+    expectSourceContains(popover, '--cpx-comp-tooltip-bg')
   })
 })

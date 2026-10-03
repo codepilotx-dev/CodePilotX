@@ -1,9 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react'
 import type { DesktopPetOverlayWindowState } from '@codepilotx/shared/desktop-pet-overlay'
-import {
-  resolvePetLookFrame,
-  type PetLookFrame,
-} from './petDirectionModel.js'
+import { resolvePetLookFrame, type PetLookFrame } from './petDirectionModel.js'
 import { getPetPresentationBridge } from './petPresentation.js'
 
 const POINTER_SAMPLE_INTERVAL_MS = 50
@@ -22,8 +19,8 @@ export function usePetLookFrame(
     }
     const bridge = getPetPresentationBridge()
     if (
-      typeof bridge?.getPetGlobalPointerPosition !== 'function'
-      || typeof bridge.getPetOverlayWindowState !== 'function'
+      typeof bridge?.getPetGlobalPointerPosition !== 'function' ||
+      typeof bridge.getPetOverlayWindowState !== 'function'
     ) {
       setLookFrame(null)
       return
@@ -45,13 +42,7 @@ export function usePetLookFrame(
           setLookFrame(null)
           return
         }
-        setLookFrame(
-          resolveLookFrameFromWindow(
-            state,
-            avatar.getBoundingClientRect(),
-            pointer,
-          ),
-        )
+        setLookFrame(resolveLookFrameFromWindow(state, avatar.getBoundingClientRect(), pointer))
       } catch {
         if (!disposed) setLookFrame(null)
       } finally {

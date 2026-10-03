@@ -1,28 +1,13 @@
-import { randomUUID } from "node:crypto"
-import {
-  mkdir,
-  readFile,
-  readdir,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises"
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-} from "node:path"
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { writeJsonAtomically } from '../windows/debounced-atomic-json-writer.js'
 import type {
   DesktopDataLocationChange,
   DesktopDataLocationState,
-} from "@codepilotx/shared/desktop-data-location-ipc"
+} from '@codepilotx/shared/desktop-data-location-ipc'
 
-const FILE_NAME = "data-location.json"
+const FILE_NAME = 'data-location.json'
 
 type PendingDataLocation = {
   operationId: string
@@ -54,16 +39,14 @@ export class DataLocationStore {
   ) {
     this.#filePath = join(resolve(userDataDirectory), FILE_NAME)
     this.#defaultDataDir = resolve(defaultDataDir)
-    this.#environmentDataDir = environmentDataDir
-      ? resolve(environmentDataDir)
-      : null
+    this.#environmentDataDir = environmentDataDir ? resolve(environmentDataDir) : null
   }
 
   async load(): Promise<void> {
     if (this.#value) return
     try {
       const parsed = JSON.parse(
-        await readFile(this.#filePath, "utf8"),
+        await readFile(this.#filePath, 'utf8'),
       ) as Partial<DataLocationBootstrap>
       this.#value = normalizeBootstrap(parsed)
     } catch {
@@ -78,14 +61,12 @@ export class DataLocationStore {
     return {
       defaultDataDir: this.#defaultDataDir,
       currentDataDir: this.#environmentDataDir ?? activeDataDir,
-      pendingDataDir: this.#environmentDataDir
-        ? null
-        : value.pending?.targetDataDir ?? null,
+      pendingDataDir: this.#environmentDataDir ? null : (value.pending?.targetDataDir ?? null),
       controlSource: this.#environmentDataDir
-        ? "env"
+        ? 'env'
         : value.activeDataDir
-          ? "bootstrap"
-          : "default",
+          ? 'bootstrap'
+          : 'default',
       isEnvControlled: this.#environmentDataDir !== null,
     }
   }
@@ -115,29 +96,28 @@ export class DataLocationStore {
   ): Promise<DesktopDataLocationChange> {
     await this.load()
     if (this.#environmentDataDir) {
-      throw new Error("当前数据目录由 CODEPILOTX_DATA_DIR 控制")
+      throw new Error('当前数据目录由 CODEPILOTX_DATA_DIR 控制')
     }
     const parent = requireLocalAbsolutePath(selectedParent)
-    if (basename(parent).toLowerCase() === ".codepilotx") {
-      throw new Error("请选择 .codepilotx 的父目录")
+    if (basename(parent).toLowerCase() === '.codepilotx') {
+      throw new Error('请选择 .codepilotx 的父目录')
     }
-    const targetDataDir = resolve(parent, ".codepilotx")
+    const targetDataDir = resolve(parent, '.codepilotx')
     const sourceDataDir = this.#value!.activeDataDir ?? this.#defaultDataDir
     if (samePath(sourceDataDir, targetDataDir)) {
-      throw new Error("所选位置就是当前数据目录")
+      throw new Error('所选位置就是当前数据目录')
     }
     if (
-      pathsOverlap(targetDataDir, installDirectory)
-      || pathsOverlap(targetDataDir, sourceDataDir)
+      pathsOverlap(targetDataDir, installDirectory) ||
+      pathsOverlap(targetDataDir, sourceDataDir)
     ) {
-      throw new Error("目标目录不能位于安装目录或当前数据目录内")
+      throw new Error('目标目录不能位于安装目录或当前数据目录内')
     }
-    if (workspaceRoots.some(workspaceRoot =>
-      pathsOverlap(targetDataDir, workspaceRoot))) {
-      throw new Error("目标数据目录不能与已注册工作区互相包含")
+    if (workspaceRoots.some((workspaceRoot) => pathsOverlap(targetDataDir, workspaceRoot))) {
+      throw new Error('目标数据目录不能与已注册工作区互相包含')
     }
-    if (await pathExists(targetDataDir) && !(await isEmptyDirectory(targetDataDir))) {
-      throw new Error("目标 .codepilotx 目录必须为空")
+    if ((await pathExists(targetDataDir)) && !(await isEmptyDirectory(targetDataDir))) {
+      throw new Error('目标 .codepilotx 目录必须为空')
     }
     const pending = {
       operationId: randomUUID(),
@@ -178,29 +158,14 @@ export class DataLocationStore {
   }
 
   async #save(): Promise<void> {
-    await mkdir(dirname(this.#filePath), { recursive: true })
-    const temporary = `${this.#filePath}.${randomUUID()}.tmp`
-    await writeFile(
-      temporary,
-      `${JSON.stringify(this.#value, null, 2)}\n`,
-      "utf8",
-    )
-    try {
-      await rename(temporary, this.#filePath)
-    } catch (cause) {
-      await rm(temporary, { force: true }).catch(() => undefined)
-      throw cause
-    }
+    await writeJsonAtomically(this.#filePath, this.#value)
   }
 }
 
-function normalizeBootstrap(
-  value: Partial<DataLocationBootstrap>,
-): DataLocationBootstrap {
+function normalizeBootstrap(value: Partial<DataLocationBootstrap>): DataLocationBootstrap {
   if (value.version !== 1) return { version: 1, activeDataDir: null }
-  const activeDataDir = typeof value.activeDataDir === "string"
-    ? requireLocalAbsolutePath(value.activeDataDir)
-    : null
+  const activeDataDir =
+    typeof value.activeDataDir === 'string' ? requireLocalAbsolutePath(value.activeDataDir) : null
   const pending = normalizePending(value.pending)
   return {
     version: 1,
@@ -210,14 +175,15 @@ function normalizeBootstrap(
 }
 
 function normalizePending(value: unknown): PendingDataLocation | null {
-  if (!value || typeof value !== "object") return null
+  if (!value || typeof value !== 'object') return null
   const candidate = value as Partial<PendingDataLocation>
   if (
-    typeof candidate.operationId !== "string"
-    || !/^[a-zA-Z0-9-]{8,128}$/.test(candidate.operationId)
-    || typeof candidate.sourceDataDir !== "string"
-    || typeof candidate.targetDataDir !== "string"
-  ) return null
+    typeof candidate.operationId !== 'string' ||
+    !/^[a-zA-Z0-9-]{8,128}$/.test(candidate.operationId) ||
+    typeof candidate.sourceDataDir !== 'string' ||
+    typeof candidate.targetDataDir !== 'string'
+  )
+    return null
   return {
     operationId: candidate.operationId,
     sourceDataDir: requireLocalAbsolutePath(candidate.sourceDataDir),
@@ -227,14 +193,14 @@ function normalizePending(value: unknown): PendingDataLocation | null {
 
 function requireLocalAbsolutePath(value: string): string {
   const normalized = resolve(value)
-  if (!isAbsolute(value) || value.startsWith("\\\\")) {
-    throw new Error("数据目录必须是本地绝对路径")
+  if (!isAbsolute(value) || value.startsWith('\\\\')) {
+    throw new Error('数据目录必须是本地绝对路径')
   }
   return normalized
 }
 
 function samePath(left: string, right: string): boolean {
-  return process.platform === "win32"
+  return process.platform === 'win32'
     ? resolve(left).toLowerCase() === resolve(right).toLowerCase()
     : resolve(left) === resolve(right)
 }
@@ -245,12 +211,13 @@ function pathsOverlap(left: string, right: string): boolean {
 
 function isWithin(parent: string, child: string): boolean {
   const relation = relative(resolve(parent), resolve(child))
-  return relation === ""
-    || (relation !== ".." && !relation.startsWith(`..${sep}`))
+  return relation === '' || (relation !== '..' && !relation.startsWith(`..${sep}`))
 }
 
 async function pathExists(path: string): Promise<boolean> {
-  return stat(path).then(() => true).catch(() => false)
+  return stat(path)
+    .then(() => true)
+    .catch(() => false)
 }
 
 async function isEmptyDirectory(path: string): Promise<boolean> {

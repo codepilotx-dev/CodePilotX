@@ -1,12 +1,5 @@
-import type {
-  ProtocolCapability,
-  RpcResult,
-  ToolingStatus,
-} from '@codepilotx/agent-protocol'
-import type {
-  DesktopInstalledSkill,
-  DesktopInstalledSkillDetails,
-} from '../../../shared/types.js'
+import type { ProtocolCapability, RpcResult, ToolingStatus } from '@codepilotx/agent-protocol'
+import type { DesktopInstalledSkill, DesktopInstalledSkillDetails } from '../../../shared/types.js'
 import type { createAgentRpcClient } from '../agentRpcClient.js'
 import { AGENT_LIVE_EVENT_FILTERS } from './eventSubscriptionFilters.js'
 import type { CodePilotXDesktopClient } from './types.js'
@@ -38,17 +31,13 @@ type RuntimeSkillsMockApi = Pick<
 type Dependencies = {
   currentAppVersion: string
   mockClient: RuntimeSkillsMockApi
-  requireAgentCapability: (name: Extract<
-    ProtocolCapability,
-    | 'tooling.management.v1'
-    | 'pets.management.v1'
-    | 'release-notes.read.v1'
-    | 'skills.manage.v1'
-  >) => void
-  rpc: Pick<
-    ReturnType<typeof createAgentRpcClient>,
-    'call' | 'subscribeEnvelope'
-  >
+  requireAgentCapability: (
+    name: Extract<
+      ProtocolCapability,
+      'tooling.management.v1' | 'pets.management.v1' | 'release-notes.read.v1' | 'skills.manage.v1'
+    >,
+  ) => void
+  rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call' | 'subscribeEnvelope'>
   withAgentOrMock: <T>(
     agentOperation: () => Promise<T>,
     mockOperation: () => Promise<T>,
@@ -66,15 +55,18 @@ export function createAgentToolingApi({
 }: Dependencies): ToolingApi {
   const desktopInstalledSkill = (
     skill: RpcResult<'skill/list'>['skills'][number],
-  ): DesktopInstalledSkill => ({
-    name: skill.name,
-    description: skill.description,
-    path: skill.path,
-    scope: skill.scope === 'workspace' ? 'repo' : 'user',
-    source: skill.scope,
-    format: skill.format,
-    enabled: skill.enabled,
-  })
+  ): DesktopInstalledSkill => {
+    const builtin = skill.path.startsWith('builtin://')
+    return {
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+      scope: builtin ? 'system' : skill.scope === 'workspace' ? 'repo' : 'user',
+      source: builtin ? 'system' : skill.scope,
+      format: skill.format,
+      enabled: skill.enabled,
+    }
+  }
   const isToolingStatus = (value: unknown): value is ToolingStatus => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false
     const status = value as Partial<ToolingStatus>
@@ -95,9 +87,7 @@ export function createAgentToolingApi({
           requireAgentCapability('skills.manage.v1')
           const result = await rpc.call('skill/list', {
             ...(workspacePath ? { workspace: workspacePath } : {}),
-            ...(options?.forceReload === undefined
-              ? {}
-              : { forceReload: options.forceReload }),
+            ...(options?.forceReload === undefined ? {} : { forceReload: options.forceReload }),
           })
           return {
             state: 'ready' as const,
@@ -135,27 +125,31 @@ export function createAgentToolingApi({
         },
         () => mockClient.setRuntimeSkillEnabled(path, enabled),
       ),
-    onRuntimeSkillsUpdated: callback =>
+    onRuntimeSkillsUpdated: (callback) =>
       rpc.subscribeEnvelope(
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.skills,
         },
-        event => {
-          if (event.type !== 'skill/updated') return
-          callback(event.payload.generation)
+        (events) => {
+          for (const event of events) {
+            if (event.type !== 'skill/updated') continue
+            callback(event.payload.generation)
+          }
         },
       ),
-    onToolingUpdated: callback =>
+    onToolingUpdated: (callback) =>
       rpc.subscribeEnvelope(
         {
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.tooling,
         },
-        event => {
-          if (event.type !== 'tooling/updated') return
-          const payload = event.payload
-          if (!payload || typeof payload !== 'object') return
-          const status = (payload as { status?: unknown }).status
-          if (isToolingStatus(status)) callback(status)
+        (events) => {
+          for (const event of events) {
+            if (event.type !== 'tooling/updated') continue
+            const payload = event.payload
+            if (!payload || typeof payload !== 'object') continue
+            const status = (payload as { status?: unknown }).status
+            if (isToolingStatus(status)) callback(status)
+          }
         },
       ),
     listTooling: async () =>
@@ -204,14 +198,13 @@ export function createAgentToolingApi({
       withAgentOrMock(
         async () => {
           requireAgentCapability('release-notes.read.v1')
-          return (
-            await import('./release-notes-client.js')
-          ).listAgentReleaseNotes(rpc, currentAppVersion, options.refresh)
+          return (await import('./release-notes-client.js')).listAgentReleaseNotes(
+            rpc,
+            currentAppVersion,
+            options.refresh,
+          )
         },
-        async () =>
-          (
-            await import('./release-notes-client.js')
-          ).mockReleaseNotes(currentAppVersion),
+        async () => (await import('./release-notes-client.js')).mockReleaseNotes(currentAppVersion),
       ),
     installCatalogPet: (slug, acceptedRestrictedLicense = false) =>
       withRequiredAgent(async () => {
@@ -224,12 +217,12 @@ export function createAgentToolingApi({
           })
         ).pet
       }),
-    previewPetInstall: url =>
+    previewPetInstall: (url) =>
       withRequiredAgent(async () => {
         requireAgentCapability('pets.management.v1')
         return rpc.call('pet/install/preview', { url })
       }),
-    installPet: url =>
+    installPet: (url) =>
       withRequiredAgent(async () => {
         requireAgentCapability('pets.management.v1')
         return (
@@ -239,7 +232,7 @@ export function createAgentToolingApi({
           })
         ).pet
       }),
-    removePet: id =>
+    removePet: (id) =>
       withRequiredAgent(async () => {
         requireAgentCapability('pets.management.v1')
         await rpc.call('pet/remove', {

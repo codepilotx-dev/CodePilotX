@@ -26,27 +26,23 @@
     display: flex;
     align-items: stretch;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
     min-height: 70px;
     max-height: 220px;
-    padding: 12px 14px;
-    color: var(--color-token-foreground);
-    background: color-mix(
-      in srgb,
-      var(--color-token-main-surface-primary) 88%,
-      transparent
-    );
-    border: 1px solid var(--color-token-border);
-    border-radius: 18px;
-    box-shadow: var(--shadow-float);
-    backdrop-filter: blur(18px) saturate(1.2);
+    padding: var(--cpx-sys-space-3) var(--cpx-sys-space-4);
+    color: var(--cpx-sys-color-fg-primary);
+    background: var(--cpx-sys-color-surface-raised);
+    border: 1px solid var(--cpx-sys-color-border-default);
+    border-radius: var(--cpx-sys-radius-xl);
+    box-shadow: var(--cpx-sys-shadow-floating);
+    backdrop-filter: none;
     overflow: auto;
   }
 
   .pet-overlay-pill-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cpx-sys-space-2);
   }
 
   .pet-overlay-pill-copy {
@@ -64,14 +60,14 @@
   }
 
   .pet-overlay-pill-copy span {
-    color: var(--color-token-description-foreground);
-    font-size: 12px;
+    color: var(--cpx-sys-color-fg-tertiary);
+    font-size: var(--cpx-sys-font-size-sm);
   }
 
   .pet-overlay-pill-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--cpx-sys-space-1);
   }
 
   .pet-overlay-pill-actions button,
@@ -83,14 +79,14 @@
     color: inherit;
     background: transparent;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--cpx-sys-radius-md);
     cursor: pointer;
     place-items: center;
   }
 
   .pet-overlay-pill-actions button:hover,
   .pet-overlay-reply-form button:hover {
-    background: var(--color-token-bg-secondary);
+    background: var(--cpx-sys-color-hover);
   }
 
   .pet-overlay-pill button:disabled {
@@ -99,36 +95,36 @@
   }
 
   .pet-overlay-pill-body {
-    padding-top: 4px;
-    border-top: 1px solid var(--color-token-border);
+    padding-top: var(--cpx-sys-space-1);
+    border-top: 1px solid var(--cpx-sys-color-border-default);
   }
 
   .pet-overlay-reply-form {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px;
+    gap: var(--cpx-sys-space-2);
   }
 
   .pet-overlay-reply-form input {
     min-width: 0;
     height: 30px;
-    padding: 0 9px;
-    color: var(--color-token-foreground);
+    padding: 0 var(--cpx-sys-space-2);
+    color: var(--cpx-sys-color-fg-primary);
     font: inherit;
-    background: var(--color-token-bg-secondary);
-    border: 1px solid var(--color-token-border);
-    border-radius: 8px;
+    background: var(--cpx-sys-color-surface-raised);
+    border: 1px solid var(--cpx-sys-color-border-default);
+    border-radius: var(--cpx-sys-radius-md);
     outline: none;
   }
 
   .pet-overlay-reply-form input:focus {
-    border-color: var(--color-token-focus-border);
+    border-color: var(--cpx-sys-color-border-focus);
   }
 
   .pet-overlay-reply-error {
     grid-column: 1 / -1;
-    color: var(--color-token-error-foreground);
-    font-size: 11px;
+    color: var(--cpx-sys-color-danger);
+    font-size: var(--cpx-sys-font-size-xs);
   }
 
   .pet-overlay-avatar {

@@ -63,11 +63,16 @@ export function useConversationForkController({
   React.useEffect(() => {
     let cancelled = false
     setSupportedSourceThreadId(null)
-    if (!sourceThreadId) return () => { cancelled = true }
-    void client.supportsThreadFork().then(supported => {
+    if (!sourceThreadId)
+      return () => {
+        cancelled = true
+      }
+    void client.supportsThreadFork().then((supported) => {
       if (!cancelled && supported) setSupportedSourceThreadId(sourceThreadId)
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [client, sourceThreadId])
 
   React.useEffect(() => {
@@ -91,120 +96,125 @@ export function useConversationForkController({
     setProgress(next)
   }, [])
 
-  const observeProgressFor = React.useCallback((expectedSourceThreadId: string) => (
-    next: ConversationForkProgress,
-  ): void => {
-    if (sourceThreadIdRef.current !== expectedSourceThreadId) return
-    observeProgress(next)
-  }, [observeProgress])
+  const observeProgressFor = React.useCallback(
+    (expectedSourceThreadId: string) =>
+      (next: ConversationForkProgress): void => {
+        if (sourceThreadIdRef.current !== expectedSourceThreadId) return
+        observeProgress(next)
+      },
+    [observeProgress],
+  )
 
-  const finish = React.useCallback((
-    result: ConversationForkResult,
-    expectedSourceThreadId: string,
-  ): void => {
-    if (sourceThreadIdRef.current !== expectedSourceThreadId) return
-    setBusy(false)
-    setOperation(result.operation)
-    if (result.kind === 'completed' && result.operation.targetThreadId) {
-      if (openRef.current) {
+  const finish = React.useCallback(
+    (result: ConversationForkResult, expectedSourceThreadId: string): void => {
+      if (sourceThreadIdRef.current !== expectedSourceThreadId) return
+      setBusy(false)
+      setOperation(result.operation)
+      if (result.kind === 'completed' && result.operation.targetThreadId) {
+        if (openRef.current) {
+          openRef.current = false
+          setOpen(false)
+          onNavigateTarget(result.operation.targetThreadId)
+        } else {
+          setNotice('新聊天已创建，可从侧边栏打开。')
+        }
+        return
+      }
+      if (result.kind === 'abandoned') {
         openRef.current = false
         setOpen(false)
-        onNavigateTarget(result.operation.targetThreadId)
-      } else {
-        setNotice('新聊天已创建，可从侧边栏打开。')
+        setNotice('已放弃创建新聊天。')
+        return
       }
-      return
-    }
-    if (result.kind === 'abandoned') {
-      openRef.current = false
-      setOpen(false)
-      setNotice('已放弃创建新聊天。')
-      return
-    }
-    if (result.kind === 'failed' && !openRef.current) {
-      reportError(result.operation.errorCode ?? '无法创建新聊天。')
-    }
-  }, [onNavigateTarget])
-
-  const run = React.useCallback((task: () => Promise<ConversationForkResult>, expectedSourceThreadId: string) => {
-    setBusy(true)
-    const promise = task()
-      .then(result => finish(result, expectedSourceThreadId))
-      .catch(cause => {
-        if (sourceThreadIdRef.current !== expectedSourceThreadId) return
-        setBusy(false)
-        reportError(message(cause))
-      })
-      .finally(() => {
-        if (inFlightRef.current === promise) inFlightRef.current = null
-      })
-    inFlightRef.current = promise
-  }, [finish])
-
-  const onForkFromMessage = React.useCallback((request: ForkMessageRequest): void => {
-    if (!forkSupported || !sourceThreadId) return
-    if (inFlightRef.current) {
-      if (point?.sourceItemId === request.itemId && point.lastTurnId === request.turnId) {
-        openRef.current = true
-        setOpen(true)
-      } else {
-        setNotice('另一条消息的分叉仍在进行，请等待完成后再试。')
+      if (result.kind === 'failed' && !openRef.current) {
+        reportError(result.operation.errorCode ?? '无法创建新聊天。')
       }
-      return
-    }
-    const nextPoint = {
-      sourceThreadId,
-      lastTurnId: request.turnId,
-      sourceItemId: request.itemId,
-    }
-    setPoint(nextPoint)
-    setOperation(null)
-    setProgress(null)
-    openRef.current = true
-    setOpen(true)
-    setBusy(true)
-    const promise = resumeConversationFork(
-      client,
-      nextPoint,
-      observeProgressFor(sourceThreadId),
-    )
-      .then(result => {
-        if (sourceThreadIdRef.current !== sourceThreadId) return
-        setBusy(false)
-        if (result) finish(result, sourceThreadId)
-      })
-      .catch(cause => {
-        if (sourceThreadIdRef.current !== sourceThreadId) return
-        setBusy(false)
-        reportError(message(cause))
-      })
-      .finally(() => {
-        if (inFlightRef.current === promise) inFlightRef.current = null
-      })
-    inFlightRef.current = promise
-  }, [client, finish, forkSupported, observeProgressFor, point, sourceThreadId])
+    },
+    [onNavigateTarget],
+  )
 
-  const selectDestination = React.useCallback((destination: ConversationForkDestination) => {
-    if (!point || inFlightRef.current) return
-    run(
-      () => runConversationFork({
-        client,
-        point,
-        destination,
-        onProgress: observeProgressFor(point.sourceThreadId),
-      }),
-      point.sourceThreadId,
-    )
-  }, [client, observeProgressFor, point, run])
+  const run = React.useCallback(
+    (task: () => Promise<ConversationForkResult>, expectedSourceThreadId: string) => {
+      setBusy(true)
+      const promise = task()
+        .then((result) => finish(result, expectedSourceThreadId))
+        .catch((cause) => {
+          if (sourceThreadIdRef.current !== expectedSourceThreadId) return
+          setBusy(false)
+          reportError(message(cause))
+        })
+        .finally(() => {
+          if (inFlightRef.current === promise) inFlightRef.current = null
+        })
+      inFlightRef.current = promise
+    },
+    [finish],
+  )
+
+  const onForkFromMessage = React.useCallback(
+    (request: ForkMessageRequest): void => {
+      if (!forkSupported || !sourceThreadId) return
+      if (inFlightRef.current) {
+        if (point?.sourceItemId === request.itemId && point.lastTurnId === request.turnId) {
+          openRef.current = true
+          setOpen(true)
+        } else {
+          setNotice('另一条消息的分叉仍在进行，请等待完成后再试。')
+        }
+        return
+      }
+      const nextPoint = {
+        sourceThreadId,
+        lastTurnId: request.turnId,
+        sourceItemId: request.itemId,
+      }
+      setPoint(nextPoint)
+      setOperation(null)
+      setProgress(null)
+      openRef.current = true
+      setOpen(true)
+      setBusy(true)
+      const promise = resumeConversationFork(client, nextPoint, observeProgressFor(sourceThreadId))
+        .then((result) => {
+          if (sourceThreadIdRef.current !== sourceThreadId) return
+          setBusy(false)
+          if (result) finish(result, sourceThreadId)
+        })
+        .catch((cause) => {
+          if (sourceThreadIdRef.current !== sourceThreadId) return
+          setBusy(false)
+          reportError(message(cause))
+        })
+        .finally(() => {
+          if (inFlightRef.current === promise) inFlightRef.current = null
+        })
+      inFlightRef.current = promise
+    },
+    [client, finish, forkSupported, observeProgressFor, point, sourceThreadId],
+  )
+
+  const selectDestination = React.useCallback(
+    (destination: ConversationForkDestination) => {
+      if (!point || inFlightRef.current) return
+      run(
+        () =>
+          runConversationFork({
+            client,
+            point,
+            destination,
+            onProgress: observeProgressFor(point.sourceThreadId),
+          }),
+        point.sourceThreadId,
+      )
+    },
+    [client, observeProgressFor, point, run],
+  )
 
   const retrySetup = React.useCallback(() => {
     if (!operation || inFlightRef.current) return
     run(
-      () => retryConversationForkSetup(
-        client,
-        operation,
-        observeProgressFor(operation.sourceThreadId),
-      ),
+      () =>
+        retryConversationForkSetup(client, operation, observeProgressFor(operation.sourceThreadId)),
       operation.sourceThreadId,
     )
   }, [client, observeProgressFor, operation, run])
@@ -212,11 +222,12 @@ export function useConversationForkController({
   const continueWithoutSetup = React.useCallback(() => {
     if (!operation || inFlightRef.current) return
     run(
-      () => continueConversationForkWithoutSetup(
-        client,
-        operation,
-        observeProgressFor(operation.sourceThreadId),
-      ),
+      () =>
+        continueConversationForkWithoutSetup(
+          client,
+          operation,
+          observeProgressFor(operation.sourceThreadId),
+        ),
       operation.sourceThreadId,
     )
   }, [client, observeProgressFor, operation, run])
@@ -224,11 +235,8 @@ export function useConversationForkController({
   const abandon = React.useCallback(() => {
     if (!operation || inFlightRef.current) return
     run(
-      () => abandonConversationFork(
-        client,
-        operation,
-        observeProgressFor(operation.sourceThreadId),
-      ),
+      () =>
+        abandonConversationFork(client, operation, observeProgressFor(operation.sourceThreadId)),
       operation.sourceThreadId,
     )
   }, [client, observeProgressFor, operation, run])
@@ -257,11 +265,7 @@ export function useConversationForkController({
             onSelectDestination={selectDestination}
           />
         </React.Suspense>
-        <GlobalErrorModal
-          message={notice}
-          tone="status"
-          onDismiss={() => setNotice(null)}
-        />
+        <GlobalErrorModal message={notice} tone="status" onDismiss={() => setNotice(null)} />
       </>
     ) : null,
   }

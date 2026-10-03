@@ -1,8 +1,8 @@
-import { Schema } from "effect"
-import { JsonValueSchema, RpcErrorSchema, RpcIDSchema } from "./primitives"
+import { Schema } from 'effect'
+import { JsonValueSchema, RpcErrorSchema, RpcIDSchema } from './primitives'
 
 export const RpcRequestSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
+  jsonrpc: Schema.Literal('2.0'),
   id: RpcIDSchema,
   method: Schema.String,
   params: JsonValueSchema,
@@ -10,14 +10,14 @@ export const RpcRequestSchema = Schema.Struct({
 export type RpcRequest = typeof RpcRequestSchema.Type
 
 export const RpcSuccessResponseSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
+  jsonrpc: Schema.Literal('2.0'),
   id: RpcIDSchema,
   result: JsonValueSchema,
 })
 export type RpcSuccessResponse = typeof RpcSuccessResponseSchema.Type
 
 export const RpcFailureResponseSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
+  jsonrpc: Schema.Literal('2.0'),
   id: Schema.Union([RpcIDSchema, Schema.Null]),
   error: RpcErrorSchema,
 })
@@ -27,10 +27,10 @@ export const RpcResponseSchema = Schema.Union([RpcSuccessResponseSchema, RpcFail
 export type RpcResponse = typeof RpcResponseSchema.Type
 
 export const InitializedNotificationSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
-  method: Schema.Literal("initialized"),
+  jsonrpc: Schema.Literal('2.0'),
+  method: Schema.Literal('initialized'),
   params: Schema.Struct({
-    protocol: Schema.Literal("thread-rpc-v4"),
+    protocol: Schema.Literal('thread-rpc-v4'),
     clientInstanceId: Schema.optional(Schema.String),
   }),
 })

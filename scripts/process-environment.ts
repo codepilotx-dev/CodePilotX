@@ -18,21 +18,24 @@ export function createIsolatedProcessEnvironment(
   additions: NodeJS.ProcessEnv,
 ): NodeJS.ProcessEnv {
   const inherited = Object.fromEntries(
-    Object.entries(base).filter(([key, value]) =>
-      value !== undefined && !isReleaseRunnerInternalKey(key)),
+    Object.entries(base).filter(
+      ([key, value]) => value !== undefined && !isReleaseRunnerInternalKey(key),
+    ),
   )
   return mergeProcessEnvironment(inherited, additions)
 }
 
 function isReleaseRunnerInternalKey(key: string): boolean {
   const normalized = key.toLowerCase()
-  return normalized.startsWith("codepilotx_")
-    || normalized.startsWith("github_")
-    || normalized.startsWith("runner_")
-    || normalized.startsWith("actions_")
-    || normalized === "ci"
-    || normalized === "csc_link"
-    || normalized === "csc_key_password"
-    || normalized === "win_csc_link"
-    || normalized === "win_csc_key_password"
+  return (
+    normalized.startsWith('codepilotx_') ||
+    normalized.startsWith('github_') ||
+    normalized.startsWith('runner_') ||
+    normalized.startsWith('actions_') ||
+    normalized === 'ci' ||
+    normalized === 'csc_link' ||
+    normalized === 'csc_key_password' ||
+    normalized === 'win_csc_link' ||
+    normalized === 'win_csc_key_password'
+  )
 }

@@ -6,6 +6,7 @@ import type {
   ComposerSubmitOutcome,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
+import { skillInvocationsFromComposerDocument } from './composerSkillToken.js'
 
 type CreateClientId = () => string
 
@@ -43,35 +44,53 @@ export class ComposerDraftStore {
     return cloneDraft(next)
   }
 
-  update(
+  update(key: ComposerDraftKey, update: (draft: ComposerDraft) => ComposerDraft): ComposerDraft {
+    return this.set(key, update(this.get(key)))
+  }
+  updateBrowserAnnotations(
     key: ComposerDraftKey,
     update: (draft: ComposerDraft) => ComposerDraft,
   ): ComposerDraft {
-    return this.set(key, update(this.get(key)))
+    const next = this.update(key, update)
+    this.#emit()
+    return next
+  }
+
+  prefillTextIfEmpty(key: ComposerDraftKey, text: string): ComposerDraft {
+    const current = this.get(key)
+    if (current.document.text.trim()) return current
+    const next = this.set(key, {
+      ...current,
+      document: {
+        text,
+        tokens: [],
+      },
+    })
+    this.#emit()
+    return next
   }
 
   setSkillInvocation(
     key: ComposerDraftKey,
     skillInvocation: ComposerSkillInvocation | undefined,
   ): ComposerDraft {
-    const next = this.update(key, current => ({
+    const next = this.update(key, (current) => ({
       ...current,
       skillInvocation,
+      skills: skillInvocation ? [{ ...skillInvocation }] : [],
     }))
     this.#emit()
     return next
   }
 
   /** Hand a draft to its new session and rotate the source identity atomically. */
-  handoff(
-    from: ComposerDraftKey,
-    to: ComposerDraftKey,
-  ): ComposerDraftHandoff | undefined {
+  handoff(from: ComposerDraftKey, to: ComposerDraftKey): ComposerDraftHandoff | undefined {
     const submitted = this.#drafts.get(from)
     if (!submitted) return undefined
     const replacement = createEmptyComposerDraft(this.#createClientId())
     this.#drafts.set(to, submitted)
     this.#drafts.set(from, replacement)
+    this.#emit()
     return {
       submitted: cloneDraft(submitted),
       replacement: cloneDraft(replacement),
@@ -81,6 +100,60 @@ export class ComposerDraftStore {
   clear(key: ComposerDraftKey): ComposerDraft {
     const next = createEmptyComposerDraft(this.#createClientId())
     this.#drafts.set(key, next)
+    return cloneDraft(next)
+  }
+
+  setSkills(key: ComposerDraftKey, skills: ComposerSkillInvocation[]): ComposerDraft {
+    const next = this.update(key, (current) => ({ ...current, skills, skillInvocation: undefined }))
+    this.#emit()
+    return next
+  }
+
+  addSkill(key: ComposerDraftKey, skill: ComposerSkillInvocation): ComposerDraft {
+    const current = this.get(key)
+    const skills =
+      current.skills ??
+      (current.skillInvocation
+        ? [current.skillInvocation]
+        : skillInvocationsFromComposerDocument(current.document))
+    return this.setSkills(
+      key,
+      skills.some((selected) => selected.path === skill.path) ? skills : [...skills, skill],
+    )
+  }
+
+  completeSubmission(
+    key: ComposerDraftKey,
+    consumedClientId: string,
+    options: { clearContent: boolean; browserAnnotations?: ComposerDraft['browserAnnotations'] },
+  ): ComposerDraft {
+    const current = this.#drafts.get(key)
+    if (!current || current.clientId !== consumedClientId) {
+      return current ? cloneDraft(current) : this.get(key)
+    }
+    const nextClientId = this.#createClientId()
+    const remaining = (current.browserAnnotations ?? []).filter(
+      (annotation) =>
+        current.browserAnnotationFeedback?.[annotation.id] !== undefined ||
+        !options.browserAnnotations?.some(
+          (consumed) => JSON.stringify(consumed) === JSON.stringify(annotation),
+        ),
+    )
+    const next = options.clearContent
+      ? createEmptyComposerDraft(nextClientId)
+      : { ...current, clientId: nextClientId }
+    next.browserAnnotations = remaining
+    next.browserAnnotationImages = (current.browserAnnotationImages ?? []).filter((image) =>
+      remaining.some((annotation) => annotation.screenshotName === image.name),
+    )
+    next.browserAnnotationEditors = current.browserAnnotationEditors
+    next.browserAnnotationFeedback = Object.fromEntries(
+      Object.entries(current.browserAnnotationFeedback ?? {}).filter(([id]) =>
+        remaining.some((annotation) => annotation.id === id),
+      ),
+    )
+    this.#drafts.set(key, next)
+    this.#emit()
     return cloneDraft(next)
   }
 
@@ -125,10 +198,17 @@ export function createEmptyComposerDraft(clientId: string): ComposerDraft {
   }
 }
 
+export function resolveActivatedSessionComposerInput(
+  currentInput: string | undefined,
+  draftText: string | undefined,
+): string {
+  return currentInput?.trim() ? currentInput : (draftText ?? currentInput ?? '')
+}
+
 function cloneDocument(document: ComposerDocument): ComposerDocument {
   return {
     text: document.text,
-    tokens: document.tokens.map(token => ({ ...token })),
+    tokens: document.tokens.map((token) => ({ ...token })),
   }
 }
 
@@ -136,10 +216,19 @@ export function cloneDraft(draft: ComposerDraft): ComposerDraft {
   return {
     ...draft,
     document: cloneDocument(draft.document),
-    attachments: draft.attachments.map(attachment => ({ ...attachment })),
-    skillInvocation: draft.skillInvocation
-      ? { ...draft.skillInvocation }
+    attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+    browserAnnotations: draft.browserAnnotations
+      ? structuredClone(draft.browserAnnotations)
       : undefined,
+    browserAnnotationImages: draft.browserAnnotationImages?.map((image) => ({ ...image })),
+    browserAnnotationFeedback: draft.browserAnnotationFeedback
+      ? { ...draft.browserAnnotationFeedback }
+      : undefined,
+    browserAnnotationEditors: draft.browserAnnotationEditors
+      ? structuredClone(draft.browserAnnotationEditors)
+      : undefined,
+    skills: draft.skills?.map((skill) => ({ ...skill })),
+    skillInvocation: draft.skillInvocation ? { ...draft.skillInvocation } : undefined,
   }
 }
 

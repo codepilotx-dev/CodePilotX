@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
 import type {
+  DesktopUserMessageInput,
   DesktopGitStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -9,12 +11,10 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
-import type {
-  MarkdownFileOpenOptions,
-  MarkdownFileReference,
-} from '../markdown/index.js'
+import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 
 export type ProviderModelOption = {
   providerID: string
@@ -37,6 +37,7 @@ export type QuickChatContextValue = {
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
   editableSessionTitle: string | null
+  projectDetailsTrigger?: ReactNode
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null
@@ -56,19 +57,16 @@ export type QuickChatContextValue = {
   onOpenRightDock: (tool: 'review') => void
   onOpenPatchReview: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
-  onOpenFileReference: (
-    reference: MarkdownFileReference,
-    options: MarkdownFileOpenOptions,
-  ) => void
-  canCopyFileReferenceContents: (
-    reference: MarkdownFileReference,
-  ) => boolean
-  onCopyFileReferenceContents: (
-    reference: MarkdownFileReference,
-  ) => void | Promise<void>
-  onSubmitEditedUserMessage: (text: string) => Promise<void>
+  onOpenFileReference: (reference: MarkdownFileReference, options: MarkdownFileOpenOptions) => void
+  onOpenAttachment: (attachment: Attachment) => void
+  onOpenLocalContext: (reference: LocalContextReference) => void
+  canCopyFileReferenceContents: (reference: MarkdownFileReference) => boolean
+  onCopyFileReferenceContents: (reference: MarkdownFileReference) => void | Promise<void>
+  onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
+  onOpenSideChat: () => void
+  sideChatAvailable: boolean
   onOpenSubagent: (taskId: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshDiff: () => void
@@ -88,15 +86,13 @@ export type QuickChatContextValue = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<
-      DesktopPermissionDecision,
-      'rememberOptionId'
-    >,
-  ) => void
+    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope'>,
+  ) => void | Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
+  layoutResizeActive: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null
 }

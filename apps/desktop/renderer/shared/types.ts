@@ -22,8 +22,11 @@ import type {
   SubagentProjection,
   SubagentRun,
   SubagentTask,
+  ThreadCreationSurface,
   ThreadListItem,
+  ThreadExecutionEnvironment,
   ThreadSnapshot,
+  ThreadGoal,
 } from '@codepilotx/shared/thread'
 import type {
   DesktopDataLocationChange,
@@ -32,17 +35,19 @@ import type {
 } from '@codepilotx/shared/desktop-data-location-ipc'
 import type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
+export type { ThreadCreationSurface } from '@codepilotx/shared/thread'
+import type {
+  DesktopBrowserBounds as SharedDesktopBrowserBounds,
+  DesktopBrowserSnapshot as SharedDesktopBrowserSnapshot,
+  DesktopBrowserSitePermission as SharedDesktopBrowserSitePermission,
+} from '@codepilotx/shared/desktop-browser-ipc'
 import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
   ModelProviderSummary,
 } from '@codepilotx/core/models/provider.js'
-import type {
-  CatalogProvider,
-  ModelRef,
-  ProviderTestResponse,
-} from '@codepilotx/shared'
+import type { CatalogProvider, ModelRef, ProviderTestResponse } from '@codepilotx/shared'
 import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
 import type {
   McpRuntimeServerStatus,
@@ -115,6 +120,8 @@ export interface DesktopWorkspace extends AgentWorkspace {
   projectSettings?: {
     defaultModel: ModelRef | null
     instructions: string
+    /** `auto` follows the project type; `local` always uses the local directory. */
+    executionEnvironment?: 'auto' | 'local'
     version: number
   }
   pinnedAt?: string | null
@@ -145,6 +152,8 @@ export type DesktopFilePreview = {
 export type DesktopFileRevision = {
   mtimeMs: number
   sha256: string
+  rawSha256?: string
+  utf8Bom?: boolean
 }
 
 export type DesktopFileSaveResult =
@@ -168,14 +177,13 @@ export type DesktopFileSaveInput = {
 }
 
 export type DesktopComposerAttachmentKind =
-  | 'image'
-  | 'document'
-  | 'text'
-  | 'audio'
-  | 'video'
-  | 'binary'
+  'image' | 'document' | 'text' | 'audio' | 'video' | 'binary'
 
 export type DesktopComposerAttachmentStatus = 'ready' | 'error'
+
+export type DesktopComposerAttachmentStorage = 'managed' | 'local-path'
+
+export type DesktopComposerPathKind = 'file' | 'directory'
 
 export type DesktopComposerAttachment = {
   id: string
@@ -185,6 +193,10 @@ export type DesktopComposerAttachment = {
   sizeBytes: number
   kind: DesktopComposerAttachmentKind
   status: DesktopComposerAttachmentStatus
+  storage?: DesktopComposerAttachmentStorage
+  pathKind?: DesktopComposerPathKind
+  localGrantId?: string
+  contextReferenceId?: string
   error?: string
   contentBase64?: string
   previewDataUrl?: string
@@ -194,7 +206,10 @@ export type DesktopComposerAttachment = {
 
 export type DesktopUserMessageInput = {
   text: string
+  skills?: readonly import('@codepilotx/agent-protocol').SkillSelection[]
   attachments?: DesktopComposerAttachment[]
+  retainedAttachmentIds?: string[]
+  retainedContextReferenceIds?: string[]
   skillInvocation?: {
     name: string
     args?: string
@@ -289,8 +304,7 @@ export type DesktopReviewDiffResult = {
 export type DesktopReviewOperationAction = 'stage' | 'unstage' | 'revert'
 
 export type DesktopReviewOperationTarget =
-  | { type: 'file'; path: string }
-  | { type: 'hunk'; path: string; hunkId: string }
+  { type: 'file'; path: string } | { type: 'hunk'; path: string; hunkId: string }
 
 export type DesktopReviewOperationInput = {
   workspacePath: string
@@ -355,28 +369,31 @@ export type DesktopGitStatus = {
 }
 
 export type DesktopGitStatusResult =
-  | { ok: true; status: DesktopGitStatus }
-  | { ok: false; error: string }
+  { ok: true; status: DesktopGitStatus } | { ok: false; error: string }
 
 export type CreateBranchInput = {
+  projectId?: string
   workspacePath: string
   branchName: string
   startPoint?: string
 }
 
 export type CommitChangesInput = {
+  projectId?: string
   workspacePath: string
   message: string
   paths: string[]
 }
 
 export type PushBranchInput = {
+  projectId?: string
   workspacePath: string
   setUpstream?: boolean
   forceWithLease?: boolean
 }
 
 export type CreatePullRequestInput = {
+  projectId?: string
   workspacePath: string
   title: string
   body?: string
@@ -396,23 +413,17 @@ export type RestoreSessionTurnChangesInput = {
 }
 
 export type DesktopGitWorkspaceResult =
-  | { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus }
-  | { ok: false; error: string }
+  { ok: true; workspace: DesktopWorkspace; status: DesktopGitStatus } | { ok: false; error: string }
 
 export type DesktopGitOperationResult =
-  | { ok: true; status: DesktopGitStatus; output?: string }
-  | { ok: false; error: string }
+  { ok: true; status: DesktopGitStatus; output?: string } | { ok: false; error: string }
 
 export type DesktopPullRequestResult =
-  | { ok: true; url: string; output?: string }
-  | { ok: false; error: string }
+  { ok: true; url: string; output?: string } | { ok: false; error: string }
 
 export type DesktopRuntimeStatus = {
-  runtimeKind:
-    | 'rust-sidecar'
-  runtimePreference:
-    | 'auto'
-    | 'rust-sidecar'
+  runtimeKind: 'rust-sidecar'
+  runtimePreference: 'auto' | 'rust-sidecar'
   runtimeSelectionSource: 'default' | 'env'
   agentExecutablePath: string
   agentExecutableExists: boolean
@@ -427,11 +438,7 @@ export type DesktopRuntimeStatus = {
 
 export type DesktopRuntimeBinaryName = 'node' | 'npm' | 'npx' | 'python' | 'pip'
 
-export type DesktopRuntimeBinarySource =
-  | 'managed'
-  | 'packaged'
-  | 'system'
-  | 'missing'
+export type DesktopRuntimeBinarySource = 'managed' | 'packaged' | 'system' | 'missing'
 
 export type DesktopRuntimeBinaryStatus = {
   name: DesktopRuntimeBinaryName
@@ -462,14 +469,23 @@ export type DesktopToolchainInstallResult =
     }
   | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
 
-export type DesktopBrowserBounds = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
-export type DesktopBrowserState = {
+export type DesktopBrowserState = Pick<
+  SharedDesktopBrowserSnapshot,
+  'features' | 'device' | 'zoomFactor' | 'historyEpoch'
+> & {
+  tabId?: string
+  sourceThreadId?: string | null
+  controlThreadId?: string | null
+  state?: 'parked' | 'live' | 'suspended' | 'crashed'
+  busy?: boolean
+  generation?: string
+  documentId?: string
+  viewport?: { width: number; height: number }
+  panel?: 'right' | 'bottom'
+  order?: number
+  revision?: number
   open: boolean
   url: string
   title: string
@@ -481,16 +497,9 @@ export type DesktopBrowserState = {
   sitePermissions: DesktopBrowserSitePermission[]
 }
 
-export type DesktopBrowserSitePermission = {
-  origin: string
-  decision: 'allow' | 'deny'
-  updatedAt: string
-}
+export type DesktopBrowserSitePermission = SharedDesktopBrowserSitePermission
 
-export type DesktopOpenTargetKind =
-  | 'file-explorer'
-  | 'terminal'
-  | 'editor'
+export type DesktopOpenTargetKind = 'file-explorer' | 'terminal' | 'editor'
 
 export type DesktopOpenTarget = {
   id: string
@@ -542,12 +551,7 @@ export type DesktopCollaborationMode = CodePilotXCollaborationMode
 
 export type DesktopThinkingMode = AgentThinkingMode
 
-export type DesktopDrawerTab =
-  | 'files'
-  | 'diff'
-  | 'permissions'
-  | 'toolLog'
-  | 'settings'
+export type DesktopDrawerTab = 'files' | 'diff' | 'permissions' | 'toolLog' | 'settings'
 
 export type ModelProviderID = CoreModelProviderID
 
@@ -558,12 +562,29 @@ export type DesktopModelMetadata = ModelMetadata & {
   providerApi?: 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 }
 
+export type DesktopProviderAvailability =
+  | { status: 'ready' }
+  | {
+      status: 'unavailable'
+      reason:
+        | 'unsupported-protocol'
+        | 'missing-api'
+        | 'unsafe-endpoint'
+        | 'unresolved-endpoint'
+        | 'no-compatible-models'
+    }
+
 export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
+  modelCount?: number
   providerKind?: 'builtin' | 'custom'
+  catalogOrigin?: 'user' | 'pi-bundled'
+  availability?: DesktopProviderAvailability
+  readOnly?: boolean
+  protocol?: 'pi-native' | 'openai-compatible' | 'unsupported'
   enabled?: boolean
   authMethods?: readonly ('api-key' | 'oauth')[]
   providerApis?: readonly ('openai-completions' | 'openai-responses' | 'anthropic-messages')[]
-  config?: DesktopProviderDefinition
+  config?: DesktopListedProviderDefinition
   unresolvedMigrationIssues?: readonly string[]
   modelMetadata?: Record<string, DesktopModelMetadata>
 }
@@ -592,11 +613,7 @@ export type DesktopProviderModelListResult = {
 }
 
 export type DesktopApiKeyHealthStatus =
-  | 'untested'
-  | 'healthy'
-  | 'auth-failed'
-  | 'rate-limited'
-  | 'error'
+  'untested' | 'healthy' | 'auth-failed' | 'rate-limited' | 'error'
 
 export type DesktopApiKeySummary = {
   id: string
@@ -623,11 +640,7 @@ export type DesktopCopilotAuthStatus = {
 }
 
 export type DesktopCopilotLoginState =
-  | 'idle'
-  | 'starting'
-  | 'awaiting_auth'
-  | 'completed'
-  | 'failed'
+  'idle' | 'starting' | 'awaiting_auth' | 'completed' | 'failed'
 
 export type DesktopCopilotLoginStatus = {
   state: DesktopCopilotLoginState
@@ -653,11 +666,7 @@ export type DesktopGithubAuthStatus = {
   error?: string
 }
 
-export type DesktopGithubLoginState =
-  | 'starting'
-  | 'awaiting_auth'
-  | 'completed'
-  | 'failed'
+export type DesktopGithubLoginState = 'starting' | 'awaiting_auth' | 'completed' | 'failed'
 
 export type DesktopGithubAuthMode = 'browser' | 'device'
 
@@ -697,16 +706,14 @@ export type DesktopGithubRepository = {
 }
 
 export type DesktopGithubRepositoryListResult =
-  | { ok: true; repositories: DesktopGithubRepository[] }
-  | { ok: false; error: string }
+  { ok: true; repositories: DesktopGithubRepository[] } | { ok: false; error: string }
 
 export type CloneGithubRepositoryInput = {
   repository: DesktopGithubRepository
 }
 
 export type DesktopGithubCloneResult =
-  | { ok: true; workspace: DesktopWorkspace }
-  | { ok: false; error: string }
+  { ok: true; workspace: DesktopWorkspace } | { ok: false; error: string }
 
 export type DesktopGithubProfileRepository = {
   id: string
@@ -750,8 +757,7 @@ export type DesktopGithubUserStatusInput = {
 }
 
 export type DesktopGithubUserStatusResult =
-  | { ok: true; status: DesktopGithubUserStatus | null }
-  | { ok: false; error: string }
+  { ok: true; status: DesktopGithubUserStatus | null } | { ok: false; error: string }
 
 export type DesktopGithubProfileOverview = {
   user: DesktopGithubUser & {
@@ -785,23 +791,24 @@ export type DesktopGithubProfileOverview = {
 }
 
 export type DesktopGithubProfileOverviewResult =
-  | { ok: true; overview: DesktopGithubProfileOverview }
-  | { ok: false; error: string }
+  { ok: true; overview: DesktopGithubProfileOverview } | { ok: false; error: string }
 
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
   id?: string
   variant?: string
-  baseURL?: string
 }
 
 export type DesktopProviderDefinition = RpcParams<'provider/update'>['definition']
-export type DesktopCustomProviderDefinition =
-  RpcParams<'provider/create'>['definition']
-export type DesktopProviderModelDefinition =
-  DesktopCustomProviderDefinition['models'][number]
-export type DesktopProviderCredential =
-  RpcResult<'provider/credential/list'>['credentials'][number]
+export type DesktopListedProviderDefinition =
+  RpcResult<'provider/list'>['providers'][number]['config']
+export type DesktopBuiltinProviderDefinition = Extract<
+  DesktopListedProviderDefinition,
+  { kind: 'builtin' }
+>
+export type DesktopCustomProviderDefinition = RpcParams<'provider/create'>['definition']
+export type DesktopProviderModelDefinition = DesktopCustomProviderDefinition['models'][number]
+export type DesktopProviderCredential = RpcResult<'provider/credential/list'>['credentials'][number]
 export type DesktopAuthTarget = RpcParams<'auth/session/start'>['target']
 export type DesktopAuthSession = RpcResult<'auth/session/status'>['session']
 export type DesktopModelRef = ModelRef
@@ -812,10 +819,7 @@ export type LocalRouterMode = 'off' | 'pareto-code' | 'fusion'
 export const LOCAL_ROUTER_MODES = ['off', 'pareto-code', 'fusion'] as const
 
 export function isLocalRouterMode(value: unknown): value is LocalRouterMode {
-  return (
-    typeof value === 'string' &&
-    (LOCAL_ROUTER_MODES as readonly string[]).includes(value)
-  )
+  return typeof value === 'string' && (LOCAL_ROUTER_MODES as readonly string[]).includes(value)
 }
 
 export function normalizeLocalRouterMode(
@@ -826,25 +830,15 @@ export function normalizeLocalRouterMode(
 }
 
 export type DesktopSandboxMode =
-  | 'read-only'
-  | 'workspace-write'
-  | 'full-access'
-  | 'danger-full-access'
+  'read-only' | 'workspace-write' | 'full-access' | 'danger-full-access'
 
-export type DesktopPersonality =
-  | 'pragmatic'
-  | 'friendly'
-  | 'concise'
-  | 'encouraging'
+export type DesktopPersonality = 'pragmatic' | 'friendly' | 'concise' | 'encouraging'
 
 export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 export type DesktopMessageDelivery = 'steer' | 'follow-up'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
-export type DesktopSidebarSort =
-  | 'priority'
-  | 'updated'
-  | 'manual'
+export type DesktopSidebarSort = 'priority' | 'updated' | 'manual'
 
 export type DesktopRemovedWorkspace = {
   path: string
@@ -861,10 +855,7 @@ export type DesktopPetSettings = {
   notifyFailure: boolean
 }
 
-export type DesktopSystemNotificationCompletion =
-  | 'always'
-  | 'unfocused'
-  | 'never'
+export type DesktopSystemNotificationCompletion = 'always' | 'unfocused' | 'never'
 
 export type DesktopSystemNotificationSettings = {
   completion: DesktopSystemNotificationCompletion
@@ -878,14 +869,7 @@ export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 export type DesktopShellSecurityLevel = 'strict' | 'balanced' | 'relaxed'
 
 export type ProjectAppearanceColor =
-  | 'default'
-  | 'red'
-  | 'orange'
-  | 'yellow'
-  | 'green'
-  | 'blue'
-  | 'purple'
-  | 'pink'
+  'default' | 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink'
 
 export type ProjectAppearanceIcon =
   | 'folder'
@@ -925,6 +909,7 @@ export type ProjectAppearance = {
 }
 
 export type DesktopStoredSettings = {
+  language: 'system' | 'zh-CN' | 'en-US'
   enableParetoCodeRouter?: boolean
   enableFusionRouter?: boolean
   enableAutoReviewPermissionMode?: boolean
@@ -941,12 +926,22 @@ export type DesktopStoredSettings = {
   /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionMode?: DesktopPermissionMode
   model: string
-  planExecutionModel: string
-  reviewModel: string
-  smallFastModel: string
-  fastModel: string
-  defaultModel: string
-  deepModel: string
+  generationModel: string
+  organizationModel: string
+  codingModel: string
+  securityModel: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  planExecutionModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  reviewModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  smallFastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  fastModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  defaultModel?: string
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  deepModel?: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
   systemPrompt: string
@@ -962,7 +957,7 @@ export type DesktopStoredSettings = {
   providerBaseURL: string
   showContextUsage: boolean
   defaultOpenTargetId: string
-gitBranchPrefix: string
+  gitBranchPrefix: string
   gitPrMergeMethod: 'merge' | 'squash'
   gitShowPrIconsInSidebar: boolean
   gitDraftPullRequest: boolean
@@ -971,11 +966,13 @@ gitBranchPrefix: string
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
-	  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
-	  sandboxMode?: DesktopSandboxMode
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
   workspaceDependenciesMigrated: boolean
+  firstUseSetupCompleted?: 0 | 1
+  'desktop.voice.preferredInputDeviceId': string
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -985,8 +982,10 @@ gitBranchPrefix: string
   githubMemoryRepository: string
   reviewView: DesktopReviewView
   reviewDelivery: DesktopReviewDelivery
+  conversationWidth: 'default' | 'narrow' | 'wide'
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
+  sidebarLayout: 'modern' | 'classic'
   sidebarOrganization: DesktopSidebarOrganization
   sidebarProductMode: SidebarProductMode
   sidebarStateVersion: number
@@ -996,13 +995,18 @@ gitBranchPrefix: string
   sidebarPriorityFilterEnabled?: boolean
   sidebarTimelineEnabled: boolean
   sidebarTimelinePriorityEnabled: boolean
+  sidebarActivityShowWork?: boolean
+  sidebarActivityShowChat?: boolean
+  sidebarShowScheduledSessions?: boolean
+  sidebarActivityShowPinned?: boolean
+  sidebarActivityCoachmarkDismissed?: boolean
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
   collapsedSidebarProjectPaths: string[]
   sidebarSectionOrder: SidebarSectionId[]
-	  browserAllowedSites: string[]
-	  collapsedSidebarSections: SidebarSectionId[]
-	  browserSitePermissions: DesktopBrowserSitePermission[]
+  browserAllowedSites: string[]
+  collapsedSidebarSections: SidebarSectionId[]
+  browserSitePermissions: DesktopBrowserSitePermission[]
   pet: DesktopPetSettings
   notifications: DesktopSystemNotificationSettings
 }
@@ -1070,12 +1074,16 @@ export type SaveDesktopMcpServerOptions = {
 
 export type {
   DesktopChromeTheme,
+  DesktopSystemFontFace,
+  DesktopSystemFontsResult,
+  DesktopThemeFontFace,
   DesktopThemeMode,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 import type {
   DesktopChromeTheme,
   DesktopThemeSettingsV6 as SharedDesktopThemeSettingsV6,
+  DesktopThemeSettingsV7 as SharedDesktopThemeSettingsV7,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 
@@ -1085,18 +1093,11 @@ export type DesktopThemeConfigV1 = {
   variant: DesktopThemeVariant
 }
 
-export type DesktopThemeSettingsV6 =
-  SharedDesktopThemeSettingsV6<CodexHighlightThemeSlug>
+export type DesktopThemeSettingsV6 = SharedDesktopThemeSettingsV6<CodexHighlightThemeSlug>
 
-export type DesktopThemeSettings = DesktopThemeSettingsV6
+export type DesktopThemeSettingsV7 = SharedDesktopThemeSettingsV7<CodexHighlightThemeSlug>
 
-export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
-
-export type DesktopPermissionRememberOption = {
-  id: DesktopPermissionRememberOptionId
-  label: string
-  hint?: string
-}
+export type DesktopThemeSettings = DesktopThemeSettingsV7
 
 export type DesktopPermissionGrantScope = 'tool-call' | 'turn' | 'session'
 
@@ -1111,12 +1112,10 @@ export type DesktopPermissionGrant = {
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision & {
-  rememberOptionId?: DesktopPermissionRememberOptionId
   grantScope?: DesktopPermissionGrantScope
 }
 
 export type DesktopPermissionRequest = AgentPermissionRequest & {
-  rememberOptions?: DesktopPermissionRememberOption[]
   permissionGrant?: DesktopPermissionGrant
 }
 
@@ -1128,7 +1127,16 @@ export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
   id: string
+  hasScheduledRun?: boolean
+  isScheduledSession?: boolean
+  isFork?: boolean
   projectId?: string | null
+  /** Canonical workflow membership; `sessionGroupId` remains a one-generation alias. */
+  workflowId?: string | null
+  /** Agent-projected execution location; the only source of truth for where a task runs. */
+  executionEnvironment?: ThreadExecutionEnvironment | null
+  /** @deprecated Read `workflowId` instead. */
+  sessionGroupId?: string | null
   appServerThreadId?: string | null
   sessionName: string | null
   aiTitle: string | null
@@ -1136,6 +1144,7 @@ export type DesktopSessionListItem = {
   customTitle?: string | null
   tag?: string | null
   summary?: string | null
+  preview?: string | null
   gitBranch?: string | null
   firstPrompt?: string | null
   prNumber?: number | null
@@ -1144,7 +1153,7 @@ export type DesktopSessionListItem = {
   transcriptPath?: string | null
   rolloutPath?: string | null
   legacyTranscriptPath?: string | null
-  source?: "user" | "internal_guardian" | "subagent" | null
+  source?: 'user' | 'internal_guardian' | 'subagent' | null
   parentSessionId?: string | null
   guardianRolloutPath?: string | null
   fileSize?: number | null
@@ -1171,8 +1180,9 @@ export type DesktopSessionListItem = {
   status: DesktopSessionStatus
   threadGoal?: DesktopThreadGoal | null
   unreadAt?: string | null
-  latestTurnStatus?: ThreadListItem["latestTurnStatus"]
+  latestTurnStatus?: ThreadListItem['latestTurnStatus']
   pendingPlanApproval?: boolean
+  creationSurface?: ThreadCreationSurface
   lastMessageAt?: string | null
   createdAt: string
 }
@@ -1185,14 +1195,9 @@ export type DesktopSessionSettingsSnapshot = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
+  variant?: string
   effort?: string | null
   personality?: DesktopPersonality
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode: DesktopThinkingMode
   systemPrompt?: string
@@ -1260,11 +1265,12 @@ export type DesktopSubagentRead = {
 export type DesktopSessionStoreChange = {
   activeSessionId: string | null
   sessions: DesktopSessionSnapshot[]
+  /** List-level interaction metadata; no interaction payloads or thread content. */
+  pendingInteractionThreadIds?: readonly string[]
 }
 
 export type DesktopSessionCatalogStatus = {
   state: 'loading' | 'ready' | 'unavailable'
-  error: string | null
 }
 
 export type DesktopSettingsChange = {
@@ -1279,11 +1285,20 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 
 export type DesktopWorkflowEvent = ThreadEvent
 
+export type DesktopWorktreeEligibility = {
+  isGitRepository: boolean
+  availableModes: ReadonlyArray<'local' | 'worktree'>
+  defaultMode: 'local' | 'worktree'
+}
+
 export type CreateDesktopSessionOptions = {
+  creationSurface?: ThreadCreationSurface
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   projectId?: string
   workspacePath?: string
+  /** Optional workflow the new thread joins. */
+  workflowId?: string
   /** First submitted text used to name/materialize a projectless workspace. */
   projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig
@@ -1292,12 +1307,6 @@ export type CreateDesktopSessionOptions = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
-  planExecutionModel?: string
-  reviewModel?: string
-  smallFastModel?: string
-  fastModel?: string
-  defaultModel?: string
-  deepModel?: string
   sessionName?: string
   thinkingMode?: DesktopThinkingMode
   systemPrompt?: string
@@ -1314,41 +1323,16 @@ export type CreateDesktopSessionResult = {
   standalone: boolean
 }
 
-export type DesktopThreadGoalStatus =
-  | 'active'
-  | 'paused'
-  | 'blocked'
-  | 'usageLimited'
-  | 'budgetLimited'
-  | 'complete'
-
-export type DesktopThreadGoal = {
-  threadId: string
-  objective: string
-  status: DesktopThreadGoalStatus
-  tokenBudget: number | null
-  tokensUsed: number
-  timeUsedSeconds: number
-  createdAt: number
-  updatedAt: number
-}
+export type DesktopThreadGoal = ThreadGoal
 
 export type DesktopRuntimePermissionProfile = {
   id: string
   description: string | null
 }
 
-export type DesktopSkillFormat =
-  | 'codepilotx'
-  | 'agents'
-  | 'codex'
-  | 'claude'
+export type DesktopSkillFormat = 'codepilotx' | 'agents' | 'codex' | 'claude'
 
-export type DesktopSkillSource =
-  | 'workspace'
-  | 'user'
-  | 'system'
-  | 'admin'
+export type DesktopSkillSource = 'workspace' | 'user' | 'system' | 'admin'
 
 export type DesktopInstalledSkill = {
   name: string
@@ -1420,11 +1404,6 @@ export type DesktopModelSelection = {
   localRouterMode?: LocalRouterMode
 }
 
-export type DesktopBuiltinPlugin = {
-  id: string
-  enabled: boolean
-}
-
 export type DesktopSkillOwnerFilter = 'all' | 'official' | 'community'
 
 export type DesktopSkillCatalogOptions = {
@@ -1479,25 +1458,15 @@ export type DesktopSkillInstallResult = {
 }
 
 export type DesktopUiCommand =
-  | 'newConversation'
-  | 'chooseWorkspace'
-  | 'refreshWorkspace'
-  | 'openSettings'
-  | 'logOut'
+  'newConversation' | 'chooseWorkspace' | 'refreshWorkspace' | 'openSettings' | 'logOut'
 
-export type {
-  DesktopDataLocationControlSource,
-  DesktopDataLocationState,
-}
+export type { DesktopDataLocationControlSource, DesktopDataLocationState }
 export type DesktopDataLocationMigrationResult = DesktopDataLocationChange
 
 export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
 
 export type DebugToolProbeItemStatus =
-  | 'passed'
-  | 'failed'
-  | 'permissionDenied'
-  | 'skippedByEnvironment'
+  'passed' | 'failed' | 'permissionDenied' | 'skippedByEnvironment'
 
 export type DebugToolProbeItem = {
   toolName: string
@@ -1537,11 +1506,7 @@ export type RustSidecarProbeInfo = {
   userAgent?: string
 }
 
-export type DesktopProjectMemoryType =
-  | 'user'
-  | 'feedback'
-  | 'project'
-  | 'reference'
+export type DesktopProjectMemoryType = 'user' | 'feedback' | 'project' | 'reference'
 
 export type DesktopProjectMemory = {
   relativePath: string
@@ -1571,10 +1536,10 @@ export type DesktopProjectMemoryContent = DesktopProjectMemory & {
   content: string
 }
 
-export type DesktopTaskSuggestion =
-  RpcResult<'task-suggestion/generate'>['suggestions'][number]
+export type DesktopTaskSuggestion = RpcResult<'task-suggestion/generate'>['suggestions'][number]
 
 export type GenerateDesktopTaskSuggestionsInput = {
+  surface?: 'coding' | 'working'
   workspacePath: string | null
   context: RpcParams<'task-suggestion/generate'>['context']
 }
@@ -1653,9 +1618,15 @@ export type DesktopApi = {
   applySubagentWorktree?(taskId: string): Promise<unknown>
   discardSubagentWorktree?(taskId: string): Promise<unknown>
   restoreSubagentWorkspace?(taskId: string): Promise<unknown>
-  respondSubagentApproval?(approval: ApprovalRequest, decision: 'allow-once' | 'deny' | 'stop'): Promise<void>
-  respondSubagentPermission?(approval: ApprovalRequest, behavior: 'allow' | 'deny', grantScope?: DesktopPermissionGrantScope): Promise<void>
-  respondSubagentQuestion?(questionId: string, answer: string | null, ignored: boolean): Promise<void>
+  respondSubagentApproval?(
+    approval: ApprovalRequest,
+    decision: 'allow-once' | 'deny' | 'stop',
+  ): Promise<void>
+  respondSubagentPermission?(
+    approval: ApprovalRequest,
+    behavior: 'allow' | 'deny',
+    grantScope?: DesktopPermissionGrantScope,
+  ): Promise<void>
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>
@@ -1695,26 +1666,34 @@ export type DesktopApi = {
   closeBrowser(): Promise<DesktopBrowserState>
   setBrowserBounds(bounds: DesktopBrowserBounds): Promise<DesktopBrowserState>
   clearBrowserAllowedSites(): Promise<DesktopBrowserState>
-  listBuiltinPlugins(): Promise<DesktopBuiltinPlugin[]>
-  setBuiltinPluginEnabled(
-    pluginId: string,
-    enabled: boolean,
-  ): Promise<DesktopBuiltinPlugin>
-  listSkillsCatalog(
-    options?: DesktopSkillCatalogOptions,
-  ): Promise<DesktopSkillCatalogResult>
-  installSkill(
-    skill: string | DesktopSkillInstallOptions,
-  ): Promise<DesktopSkillInstallResult>
+  listSkillsCatalog(options?: DesktopSkillCatalogOptions): Promise<DesktopSkillCatalogResult>
+  installSkill(skill: string | DesktopSkillInstallOptions): Promise<DesktopSkillInstallResult>
   listMcpServers(workspacePath?: string): Promise<DesktopMcpServerListItem[]>
   getMcpRuntimeStatus(workspacePath?: string): Promise<DesktopMcpRuntimeStatus>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
-  removeMcpServer(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
-  setMcpServerEnabled(name: string, scope: DesktopEditableMcpScope, enabled: boolean, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
+  removeMcpServer(
+    name: string,
+    scope: DesktopEditableMcpScope,
+    workspacePath?: string,
+  ): Promise<DesktopMcpServerListItem[]>
+  setMcpServerEnabled(
+    name: string,
+    scope: DesktopEditableMcpScope,
+    enabled: boolean,
+    workspacePath?: string,
+  ): Promise<DesktopMcpServerListItem[]>
   reloadMcpConfiguration(workspacePath?: string): Promise<McpReloadResult>
-  startMcpOAuth(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpOAuthStartResult>
+  startMcpOAuth(
+    name: string,
+    scope: DesktopEditableMcpScope,
+    workspacePath?: string,
+  ): Promise<DesktopMcpOAuthStartResult>
   getMcpOAuthStatus(attemptId: string): Promise<DesktopMcpOAuthStatusResult>
-  logoutMcpOAuth(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpOAuthLogoutResult>
+  logoutMcpOAuth(
+    name: string,
+    scope: DesktopEditableMcpScope,
+    workspacePath?: string,
+  ): Promise<DesktopMcpOAuthLogoutResult>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   listExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]>
   openPathWithTarget(targetPath: string, targetId: string): Promise<void>
@@ -1725,21 +1704,26 @@ export type DesktopApi = {
   fetchProviderModels(options: {
     providerID: ModelProviderID
     apiKey?: string
-    baseURL?: string
     query?: string
     cursor?: string
     limit?: number
+    all?: boolean
   }): Promise<DesktopProviderModelListResult>
-  saveModelProvider(
-    options: SaveDesktopModelProviderOptions,
-  ): Promise<DesktopModelProviderState>
+  saveModelProvider(options: SaveDesktopModelProviderOptions): Promise<DesktopModelProviderState>
+  /** 新建任务一级页记住的最近一次模型选择；无记录或记录失效时返回 null。 */
+  getRecentNewThreadModel(): Promise<ModelRef | null>
+  saveRecentNewThreadModel(model: {
+    providerID: string
+    id: string
+    variant?: string
+  }): Promise<void>
+  /** 按 Provider/模型目录稳定顺序返回第一个启用且 Provider 可用的模型。 */
+  resolveFirstAvailableModel(): Promise<ModelRef | null>
   saveProviderApiKey(
     providerID: ModelProviderID,
     apiKey: string,
   ): Promise<DesktopModelProviderState>
-  deleteProviderApiKey(
-    providerID: ModelProviderID,
-  ): Promise<DesktopModelProviderState>
+  deleteProviderApiKey(providerID: ModelProviderID): Promise<DesktopModelProviderState>
   listProviderCredentials(providerId?: ModelProviderID): Promise<DesktopProviderCredential[]>
   readProviderCredentialStore(): Promise<RpcResult<'provider/credential/store/read'>>
   updateProviderCredentialStore(
@@ -1769,13 +1753,16 @@ export type DesktopApi = {
   ): Promise<DesktopProviderCredential[]>
   testApiKey(credentialId: string): Promise<ProviderTestResponse>
   deleteProviderCredential(credentialId: string): Promise<DesktopProviderCredential[]>
-  copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
-  testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
+  testModelProvider(
+    providerID: ModelProviderID,
+    model?: DesktopModelRef,
+  ): Promise<RpcResult<'provider/test'>>
+  previewModelHealth(): Promise<RpcResult<'model/health/preview'>>
+  startModelHealth(operationId: string): Promise<RpcResult<'model/health/start'>>
+  readModelHealth(runId: string): Promise<RpcResult<'model/health/read'>>
+  cancelModelHealth(runId: string, operationId: string): Promise<RpcResult<'model/health/cancel'>>
   createProvider(definition: DesktopCustomProviderDefinition): Promise<void>
-  updateProvider(
-    providerId: ModelProviderID,
-    definition: DesktopProviderDefinition,
-  ): Promise<void>
+  updateProvider(providerId: ModelProviderID, definition: DesktopProviderDefinition): Promise<void>
   deleteProvider(providerId: ModelProviderID): Promise<void>
   discoverProviderModels(
     providerId: ModelProviderID,
@@ -1799,13 +1786,9 @@ export type DesktopApi = {
   logoutGithub(): Promise<DesktopGithubAuthStatus>
   listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
   getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult>
-  setGithubUserStatus(
-    input: DesktopGithubUserStatusInput,
-  ): Promise<DesktopGithubUserStatusResult>
+  setGithubUserStatus(input: DesktopGithubUserStatusInput): Promise<DesktopGithubUserStatusResult>
   clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult>
-  cloneGithubRepository(
-    input: CloneGithubRepositoryInput,
-  ): Promise<DesktopGithubCloneResult>
+  cloneGithubRepository(input: CloneGithubRepositoryInput): Promise<DesktopGithubCloneResult>
   listProjects(folderPath?: string): Promise<DesktopWorkspace[]>
   updateProject(input: {
     projectId: string
@@ -1820,6 +1803,7 @@ export type DesktopApi = {
     projectId: string
     instructions?: string
     defaultModel?: ModelRef | null
+    executionEnvironment?: 'auto' | 'local'
     expectedVersion: number
   }): Promise<DesktopWorkspace>
   listProjectSources(projectId: string): Promise<DesktopProjectSource[]>
@@ -1847,38 +1831,37 @@ export type DesktopApi = {
   chooseProjectFolder(): Promise<string | null>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
-  getWorkspaceContext(workspacePath: string): Promise<DesktopWorkspace>
+  getWorkspaceContext(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
   checkoutWorkspaceBranch(
     workspacePath: string,
     branchName: string,
+    projectId?: string,
   ): Promise<DesktopWorkspace>
-  getWorkspaceGitStatus(workspacePath: string): Promise<DesktopGitStatusResult>
-  createWorkspaceBranch(
-    input: CreateBranchInput,
-  ): Promise<DesktopGitWorkspaceResult>
-  commitWorkspaceChanges(
-    input: CommitChangesInput,
-  ): Promise<DesktopGitOperationResult>
-  pushWorkspaceBranch(
-    input: PushBranchInput,
-  ): Promise<DesktopGitOperationResult>
-  discardWorkspaceChanges(
-    input: DiscardWorkspaceChangesInput,
-  ): Promise<DesktopGitOperationResult>
+  getWorkspaceGitStatus(workspacePath: string, projectId?: string): Promise<DesktopGitStatusResult>
+  createWorkspaceBranch(input: CreateBranchInput): Promise<DesktopGitWorkspaceResult>
+  commitWorkspaceChanges(input: CommitChangesInput): Promise<DesktopGitOperationResult>
+  pushWorkspaceBranch(input: PushBranchInput): Promise<DesktopGitOperationResult>
+  discardWorkspaceChanges(input: DiscardWorkspaceChangesInput): Promise<DesktopGitOperationResult>
   restoreSessionTurnChanges(
     input: RestoreSessionTurnChangesInput,
   ): Promise<DesktopGitOperationResult>
-  createPullRequest(
-    input: CreatePullRequestInput,
-  ): Promise<DesktopPullRequestResult>
-  getWorkspaceReviewDiff(
-    input: DesktopReviewDiffInput,
-  ): Promise<DesktopReviewDiffResult>
+  createPullRequest(input: CreatePullRequestInput): Promise<DesktopPullRequestResult>
+  getWorkspaceReviewDiff(input: DesktopReviewDiffInput): Promise<DesktopReviewDiffResult>
   applyWorkspaceReviewOperation(
     input: DesktopReviewOperationInput,
   ): Promise<DesktopReviewOperationResult>
-  listWorkspaceFiles(workspacePath: string, directoryPath?: string, folderId?: string, projectId?: string): Promise<DesktopFileEntry[]>
-  readWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<DesktopFilePreview>
+  listWorkspaceFiles(
+    workspacePath: string,
+    directoryPath?: string,
+    folderId?: string,
+    projectId?: string,
+  ): Promise<DesktopFileEntry[]>
+  readWorkspaceFile(
+    workspacePath: string,
+    filePath: string,
+    folderId?: string,
+    projectId?: string,
+  ): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
     workspacePath: string,
     filePath: string,
@@ -1886,49 +1869,62 @@ export type DesktopApi = {
     projectId?: string,
   ): Promise<DesktopFilePreview | null>
   saveWorkspaceFile(input: DesktopFileSaveInput): Promise<DesktopFileSaveResult>
-  watchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
-  unwatchWorkspaceFile(workspacePath: string, filePath: string, folderId?: string, projectId?: string): Promise<void>
-  chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
-  authorizeComposerFilePaths(filePaths: string[]): Promise<void>
-  readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>
+  watchWorkspaceFile(
+    workspacePath: string,
+    filePath: string,
+    folderId?: string,
+    projectId?: string,
+  ): Promise<void>
+  unwatchWorkspaceFile(
+    workspacePath: string,
+    filePath: string,
+    folderId?: string,
+    projectId?: string,
+  ): Promise<void>
   getWorkspaceDiff(workspacePath: string): Promise<DesktopDiffSummary>
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
+  canRestorePreviousAppearance(): Promise<boolean>
+  restorePreviousAppearance(): Promise<DesktopThemeSettings>
+  applyNewDesignTheme(): Promise<DesktopThemeSettings>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
+  createSideChat(input: {
+    sourceThreadId: string
+    referenceText?: string
+  }): Promise<RpcResult<'thread/side-chat/create'>>
+  discardSideChat(input: { threadId: string }): Promise<RpcResult<'thread/side-chat/discard'>>
   listSessions(options?: { archived?: boolean }): Promise<DesktopSessionSnapshot[]>
   getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus>
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
-  markSessionRead(
-    sessionId: string,
-    readThroughAt: string,
-  ): Promise<DesktopSessionListItem>
+  /**
+   * Renderer-local status channel. The canonical thread projection publishes the
+   * status of the thread it covers here, and the session store change carries the
+   * merged value so every list surface reads one status. `null` clears it.
+   */
+  publishCanonicalSessionStatus(
+    threadId: string,
+    status: {
+      status: DesktopSessionStatus
+      latestTurnStatus: ThreadListItem['latestTurnStatus']
+    } | null,
+  ): void
+  markSessionRead(sessionId: string, readThroughAt: string): Promise<DesktopSessionListItem>
+  markSessionUnread(sessionId: string, unreadAt: string): Promise<DesktopSessionListItem>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
   ): Promise<DesktopSessionSnapshot>
-  renameSession(
-    sessionId: string,
-    name: string,
-  ): Promise<DesktopSessionSnapshot>
-  saveSessionReviewComment(
-    input: SaveSessionReviewCommentInput,
-  ): Promise<DesktopSessionSnapshot>
-  resolveSessionReviewComment(
-    input: SessionReviewCommentInput,
-  ): Promise<DesktopSessionSnapshot>
-  deleteSessionReviewComment(
-    input: SessionReviewCommentInput,
-  ): Promise<DesktopSessionSnapshot>
+  renameSession(sessionId: string, name: string): Promise<DesktopSessionSnapshot>
+  saveSessionReviewComment(input: SaveSessionReviewCommentInput): Promise<DesktopSessionSnapshot>
+  resolveSessionReviewComment(input: SessionReviewCommentInput): Promise<DesktopSessionSnapshot>
+  deleteSessionReviewComment(input: SessionReviewCommentInput): Promise<DesktopSessionSnapshot>
   setSessionPermissionMode(
     sessionId: string,
     mode: DesktopPermissionMode,
   ): Promise<DesktopSessionSnapshot>
-  setSessionPlanModeActive(
-    sessionId: string,
-    active: boolean,
-  ): Promise<DesktopSessionSnapshot>
+  setSessionPlanModeActive(sessionId: string, active: boolean): Promise<DesktopSessionSnapshot>
   setSessionLocalRouterMode(
     sessionId: string,
     mode: LocalRouterMode,
@@ -1952,28 +1948,25 @@ export type DesktopApi = {
     input: DesktopUserMessageInput,
     delivery: DesktopMessageDelivery,
     inputId?: string,
+    model?: string | DesktopModelSelection,
   ): Promise<'sent' | 'steered' | 'queued'>
   updateQueuedFollowUp(
     sessionId: string,
     followUpId: string,
     input: DesktopUserMessageInput,
   ): Promise<DesktopSessionSnapshot>
-  removeQueuedFollowUp(
-    sessionId: string,
-    followUpId: string,
-  ): Promise<DesktopSessionSnapshot>
+  removeQueuedFollowUp(sessionId: string, followUpId: string): Promise<DesktopSessionSnapshot>
   resumeQueuedFollowUps(sessionId: string): Promise<DesktopSessionSnapshot>
   compactSession(sessionId: string): Promise<void>
   getSessionPromptPreview(sessionId: string): Promise<unknown>
-  rollbackSession(
-    input: DesktopRollbackRequest,
-  ): Promise<DesktopRollbackResult>
+  rollbackSession(input: DesktopRollbackRequest): Promise<DesktopRollbackResult>
   getSessionGoal(sessionId: string): Promise<DesktopThreadGoal | null>
   setSessionGoal(
     sessionId: string,
     input: {
       objective?: string
       status?: 'active' | 'paused' | 'complete'
+      tokenBudget?: number | null
     },
   ): Promise<DesktopThreadGoal>
   clearSessionGoal(sessionId: string): Promise<boolean>
@@ -1998,13 +1991,8 @@ export type DesktopApi = {
     path: string,
     workspacePath?: string | null,
   ): Promise<DesktopInstalledSkillDetails>
-  setRuntimeSkillEnabled(
-    path: string,
-    enabled: boolean,
-  ): Promise<DesktopInstalledSkill>
-  onRuntimeSkillsUpdated(
-    callback: (generation: number) => void,
-  ): () => void
+  setRuntimeSkillEnabled(path: string, enabled: boolean): Promise<DesktopInstalledSkill>
+  onRuntimeSkillsUpdated(callback: (generation: number) => void): () => void
   minimizeWindow(): Promise<void>
   toggleWindowMaximized(): Promise<boolean>
   closeWindow(): Promise<void>
@@ -2021,6 +2009,7 @@ export type DesktopApi = {
   onWorkflowEvent(callback: (event: DesktopWorkflowEvent) => void): () => void
   onUiCommand(callback: (command: DesktopUiCommand) => void): () => void
   onSessionStoreChange(callback: (change: DesktopSessionStoreChange) => void): () => void
+  onReconciliationError?(callback: (error: unknown) => void): () => void
   onDesktopSettingsChange(callback: (change: DesktopSettingsChange) => void): () => void
   checkForUpdates(): Promise<void>
   downloadUpdate(): Promise<void>

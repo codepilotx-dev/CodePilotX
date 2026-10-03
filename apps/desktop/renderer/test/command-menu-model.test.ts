@@ -7,10 +7,7 @@ import {
 } from '../src/features/search/commandMenuModel.js'
 import type { SessionListItem } from '../src/uiTypes.js'
 
-function session(
-  id: string,
-  overrides: Partial<SessionListItem> = {},
-): SessionListItem {
+function session(id: string, overrides: Partial<SessionListItem> = {}): SessionListItem {
   return {
     id,
     sessionName: `任务 ${id}`,
@@ -57,10 +54,10 @@ describe('任务命令面板模型', () => {
     const tasks = buildCommandMenuTasks(sessions, '')
 
     expect(tasks).toHaveLength(9)
-    expect(tasks.map(task => task.id)).toEqual(
+    expect(tasks.map((task) => task.id)).toEqual(
       Array.from({ length: 9 }, (_, index) => `visible-${index}`),
     )
-    expect(tasks.map(task => task.shortcutLabel)).toEqual(
+    expect(tasks.map((task) => task.shortcutLabel)).toEqual(
       Array.from({ length: 9 }, (_, index) => `Ctrl+${index + 1}`),
     )
   })
@@ -138,10 +135,12 @@ describe('任务命令面板模型', () => {
       index: 0,
     })
     expect(resolveCommandMenuShortcut(shortcutEvent('3'), state)).toBeNull()
-    expect(resolveCommandMenuShortcut(shortcutEvent('1'), {
-      ...state,
-      menuOpen: false,
-    })).toBeNull()
+    expect(
+      resolveCommandMenuShortcut(shortcutEvent('1'), {
+        ...state,
+        menuOpen: false,
+      }),
+    ).toBeNull()
   })
 
   test('解析打开与推荐动作，并在无工作区时禁用搜索文件', () => {
@@ -154,10 +153,9 @@ describe('任务命令面板模型', () => {
     expect(resolveCommandMenuShortcut(shortcutEvent('k'), closed)).toEqual({
       type: 'open-menu',
     })
-    expect(resolveCommandMenuShortcut(
-      shortcutEvent('P', { shiftKey: true }),
-      closed,
-    )).toEqual({ type: 'open-menu' })
+    expect(resolveCommandMenuShortcut(shortcutEvent('P', { shiftKey: true }), closed)).toEqual({
+      type: 'open-menu',
+    })
     expect(resolveCommandMenuShortcut(shortcutEvent('n'), closed)).toEqual({
       type: 'create-task',
     })
@@ -167,14 +165,18 @@ describe('任务命令面板模型', () => {
     expect(resolveCommandMenuShortcut(shortcutEvent('p'), closed)).toEqual({
       type: 'search-files',
     })
-    expect(resolveCommandMenuShortcut(shortcutEvent('p'), {
-      ...closed,
-      hasWorkspace: false,
-    })).toBeNull()
-    expect(resolveCommandMenuShortcut(shortcutEvent('k'), {
-      ...closed,
-      menuOpen: true,
-    })).toEqual({ type: 'focus-query' })
+    expect(
+      resolveCommandMenuShortcut(shortcutEvent('p'), {
+        ...closed,
+        hasWorkspace: false,
+      }),
+    ).toBeNull()
+    expect(
+      resolveCommandMenuShortcut(shortcutEvent('k'), {
+        ...closed,
+        menuOpen: true,
+      }),
+    ).toEqual({ type: 'focus-query' })
   })
 
   test('忽略输入法、重复按键、已处理事件和其他业务对话框', () => {
@@ -184,25 +186,17 @@ describe('任务命令面板模型', () => {
       taskCount: 0,
     }
 
-    expect(resolveCommandMenuShortcut(
-      shortcutEvent('k', { isComposing: true }),
-      state,
-    )).toBeNull()
-    expect(resolveCommandMenuShortcut(
-      shortcutEvent('k', { keyCode: 229 }),
-      state,
-    )).toBeNull()
-    expect(resolveCommandMenuShortcut(
-      shortcutEvent('k', { repeat: true }),
-      state,
-    )).toBeNull()
-    expect(resolveCommandMenuShortcut(
-      shortcutEvent('k', { defaultPrevented: true }),
-      state,
-    )).toBeNull()
-    expect(resolveCommandMenuShortcut(shortcutEvent('k'), {
-      ...state,
-      hasOtherDialogOpen: true,
-    })).toBeNull()
+    expect(resolveCommandMenuShortcut(shortcutEvent('k', { isComposing: true }), state)).toBeNull()
+    expect(resolveCommandMenuShortcut(shortcutEvent('k', { keyCode: 229 }), state)).toBeNull()
+    expect(resolveCommandMenuShortcut(shortcutEvent('k', { repeat: true }), state)).toBeNull()
+    expect(
+      resolveCommandMenuShortcut(shortcutEvent('k', { defaultPrevented: true }), state),
+    ).toBeNull()
+    expect(
+      resolveCommandMenuShortcut(shortcutEvent('k'), {
+        ...state,
+        hasOtherDialogOpen: true,
+      }),
+    ).toBeNull()
   })
 })

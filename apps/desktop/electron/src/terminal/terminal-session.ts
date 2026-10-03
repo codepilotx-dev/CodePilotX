@@ -4,19 +4,19 @@ import type {
   DesktopTerminalExitReason,
   DesktopTerminalSnapshot,
   DesktopTerminalState,
-} from "@codepilotx/shared/desktop-terminal-ipc"
-import type { IDisposable, IPty } from "node-pty"
-import type { ProcessTreeKiller } from "./process-tree.js"
-import { TerminalError } from "./terminal-errors.js"
-import { TerminalOutputBuffer } from "./terminal-output-buffer.js"
+} from '@codepilotx/shared/desktop-terminal-ipc'
+import type { IDisposable, IPty } from 'node-pty'
+import type { ProcessTreeKiller } from './process-tree.js'
+import { TerminalError } from './terminal-errors.js'
+import { TerminalOutputBuffer } from './terminal-output-buffer.js'
 
 export interface TerminalLaunchContext {
   threadId: string
   bindingId: string
   contextVersion: string
-  workspaceKind: "project" | "projectless"
+  workspaceKind: 'project' | 'projectless'
   target: {
-    kind: "local" | "worktree"
+    kind: 'local' | 'worktree'
     cwd: string
   }
 }
@@ -34,15 +34,8 @@ export interface TerminalOutputMirrorSnapshot {
 
 export interface TerminalOutputMirrorSink {
   reset(snapshot: TerminalOutputMirrorSnapshot): Promise<void>
-  append(input: {
-    threadId: string
-    chunk: DesktopTerminalChunk
-  }): Promise<void>
-  clear(input: {
-    threadId: string
-    terminalId: string
-    instanceId: string
-  }): Promise<void>
+  append(input: { threadId: string; chunk: DesktopTerminalChunk }): Promise<void>
+  clear(input: { threadId: string; terminalId: string; instanceId: string }): Promise<void>
 }
 
 export interface TerminalSessionOptions {
@@ -59,6 +52,17 @@ export interface TerminalSessionOptions {
 
 const OUTPUT_FLUSH_INTERVAL_MS = 16
 const OUTPUT_FLUSH_BYTES = 65_536
+/**
+ * 渲染端输出 credit 窗口（单位与 chunk.data.length 一致）。窗口打满时暂停 PTY
+ * 读取，而不是把积压留在 IPC 队列或主进程内存里。
+ */
+const OUTPUT_CREDIT_HIGH_CHARACTERS = 262_144
+const OUTPUT_CREDIT_LOW_CHARACTERS = 65_536
+/**
+ * 消费者活跃判定：面板隐藏/卸载后不再有 ack，此时不应因窗口打满而暂停 PTY，
+ * 否则后台构建会被静默卡住；改为只保留有界缓冲与截断提示。
+ */
+const CONSUMER_ACTIVITY_MS = 2_000
 const GRACEFUL_CLOSE_TIMEOUT_MS = 1_500
 const MIRROR_DRAIN_TIMEOUT_MS = 250
 const MIRROR_CLEAR_TIMEOUT_MS = 500
@@ -74,7 +78,7 @@ export class TerminalSession {
   readonly #onEvent: (event: DesktopTerminalEvent) => void
   readonly #buffer: TerminalOutputBuffer
   readonly #subscriptions: IDisposable[] = []
-  #state: DesktopTerminalState = "starting"
+  #state: DesktopTerminalState = 'starting'
   #exitCode: number | null = null
   #exitReason: DesktopTerminalExitReason | null = null
   #contextChanged = false
@@ -84,9 +88,15 @@ export class TerminalSession {
   #mirrorStale = false
   #mirrorNextSequence = 0
   #mirrorClosing = false
-  #pendingOutput = ""
+  #pendingOutput = ''
   #pendingOutputBytes = 0
   #flushTimer: NodeJS.Timeout | undefined
+  #nextOutputSequence = 0
+  #ackedSequence = -1
+  #sentCharacters = 0
+  #lastConsumerActivityAt = 0
+  #paused = false
+  #flowControlTimer: NodeJS.Timeout | undefined
   #closePromise: Promise<void> | undefined
   #resolveExit: (() => void) | undefined
 
@@ -105,10 +115,10 @@ export class TerminalSession {
       options.outputBufferBytes,
     )
     this.#subscriptions.push(
-      this.#pty.onData(data => this.#queueOutput(data)),
+      this.#pty.onData((data) => this.#queueOutput(data)),
       this.#pty.onExit(({ exitCode }) => this.#handleExit(exitCode)),
     )
-    this.#setState("running")
+    this.#setState('running')
     if (this.#mirrorSink) {
       this.#mirrorStale = true
       this.#requestMirrorReset()
@@ -124,9 +134,11 @@ export class TerminalSession {
   }
 
   hasContext(context: TerminalLaunchContext): boolean {
-    return this.context.bindingId === context.bindingId
-      && this.context.contextVersion === context.contextVersion
-      && this.context.target.cwd === context.target.cwd
+    return (
+      this.context.bindingId === context.bindingId &&
+      this.context.contextVersion === context.contextVersion &&
+      this.context.target.cwd === context.target.cwd
+    )
   }
 
   markContextChanged(changed: boolean): void {
@@ -134,26 +146,23 @@ export class TerminalSession {
   }
 
   write(data: string): void {
-    if (this.#state !== "running") {
-      throw new TerminalError("TERMINAL_NOT_RUNNING", "集成终端未在运行")
+    if (this.#state !== 'running') {
+      throw new TerminalError('TERMINAL_NOT_RUNNING', '集成终端未在运行')
     }
     this.#pty.write(data)
   }
 
   resize(cols: number, rows: number): void {
-    if (this.#state !== "running") {
-      throw new TerminalError("TERMINAL_NOT_RUNNING", "集成终端未在运行")
+    if (this.#state !== 'running') {
+      throw new TerminalError('TERMINAL_NOT_RUNNING', '集成终端未在运行')
     }
     this.#pty.resize(cols, rows)
   }
 
   snapshot(afterSequence = -1): DesktopTerminalSnapshot {
     this.#flushOutput()
-    if (
-      this.#mirrorStale
-      && !this.#mirrorInFlight
-      && !this.#mirrorPendingReset
-    ) this.#requestMirrorReset()
+    if (this.#mirrorStale && !this.#mirrorInFlight && !this.#mirrorPendingReset)
+      this.#requestMirrorReset()
     const replay = this.#buffer.replay(afterSequence)
     return {
       terminalId: this.terminalId,
@@ -173,21 +182,23 @@ export class TerminalSession {
     }
   }
 
-  close(reason: Exclude<DesktopTerminalExitReason, "process-exit" | "launch-failed">): Promise<void> {
+  close(
+    reason: Exclude<DesktopTerminalExitReason, 'process-exit' | 'launch-failed'>,
+  ): Promise<void> {
     if (this.#closePromise) return this.#closePromise
-    if (this.#state === "exited" || this.#state === "failed") {
+    if (this.#state === 'exited' || this.#state === 'failed') {
       this.#exitReason ??= reason
       this.#closePromise = this.#clearMirrorAndDispose()
       return this.#closePromise
     }
     this.#exitReason = reason
-    this.#setState("closing")
+    this.#setState('closing')
     this.#closePromise = this.#stopProcess().finally(() => this.#clearMirrorAndDispose())
     return this.#closePromise
   }
 
   async #stopProcess(): Promise<void> {
-    const exitPromise = new Promise<void>(resolveExit => {
+    const exitPromise = new Promise<void>((resolveExit) => {
       this.#resolveExit = resolveExit
     })
     // Kill the tree while the PTY root PID still identifies its descendants.
@@ -217,7 +228,7 @@ export class TerminalSession {
   #queueOutput(data: string): void {
     if (!data) return
     this.#pendingOutput += data
-    this.#pendingOutputBytes += Buffer.byteLength(data, "utf8")
+    this.#pendingOutputBytes += Buffer.byteLength(data, 'utf8')
     if (this.#pendingOutputBytes >= OUTPUT_FLUSH_BYTES) {
       this.#flushOutput()
       return
@@ -233,20 +244,117 @@ export class TerminalSession {
     this.#flushTimer = undefined
     if (!this.#pendingOutput) return
     const pending = this.#pendingOutput
-    this.#pendingOutput = ""
+    this.#pendingOutput = ''
     this.#pendingOutputBytes = 0
     for (const data of splitUtf8Chunks(pending, OUTPUT_FLUSH_BYTES)) {
+      // 有界缓冲始终是唯一队列：即使窗口打满也先入队（必要时淘汰最旧），
+      // 因此主进程内存不随积压增长。
       const chunk = this.#buffer.append(data)
-      this.#onEvent({ type: "output", chunk })
       this.#requestMirrorChunk(chunk)
     }
+    this.#pumpOutput()
+  }
+
+  /**
+   * 按 credit 窗口向渲染端发送尚未确认的 chunk；窗口打满时暂停 PTY，而不是把
+   * 积压留在 IPC 队列。恢复由 ack 驱动，不额外增加定时唤醒。
+   */
+  #pumpOutput(): void {
+    const oldest = this.#buffer.oldestSequence()
+    // 缓冲淘汰过快时前移到仍可发送的最早序号；跳过的部分由渲染端按截断处理。
+    if (this.#nextOutputSequence < oldest) this.#nextOutputSequence = oldest
+    while (this.#sentCharacters < OUTPUT_CREDIT_HIGH_CHARACTERS) {
+      const record = this.#buffer.at(this.#nextOutputSequence)
+      if (!record) break
+      this.#nextOutputSequence = record.sequence + 1
+      this.#sentCharacters += record.data.length
+      const { bytes: _bytes, ...chunk } = record
+      this.#onEvent({ type: 'output', chunk })
+    }
+    this.#updateFlowControl()
+  }
+
+  /**
+   * @param sequence 渲染端已解析完成的最大连续序号
+   * @param characters 该区间已消费的字符数增量
+   */
+  ack(sequence: number, characters: number): void {
+    if (this.#state !== 'running') return
+    if (!Number.isSafeInteger(sequence) || sequence < 0) return
+    if (!Number.isSafeInteger(characters) || characters < 0) return
+    // ack 只能单调推进：重复或乱序的 ack 不得二次释放窗口额度。
+    if (sequence < this.#ackedSequence) return
+    this.#ackedSequence = sequence
+    this.#lastConsumerActivityAt = Date.now()
+    this.#sentCharacters = Math.max(0, this.#sentCharacters - characters)
+    this.#pumpOutput()
+  }
+
+  /** 渲染端显式 attach：即使还没有 ack 也算活跃消费者。 */
+  markConsumerAttached(): void {
+    this.#lastConsumerActivityAt = Date.now()
+  }
+
+  #updateFlowControl(): void {
+    if (this.#sentCharacters >= OUTPUT_CREDIT_HIGH_CHARACTERS) {
+      this.#pauseForBackpressure()
+      return
+    }
+    if (this.#paused) this.#resumeFromBackpressure()
+  }
+
+  #pauseForBackpressure(): void {
+    if (this.#paused || this.#state !== 'running') return
+    // 没有活跃消费者（面板隐藏/卸载）时不暂停：后台进程必须继续运行，积压由
+    // 有界缓冲与截断提示承担，恢复显示时再按缺口对账。
+    if (Date.now() - this.#lastConsumerActivityAt > CONSUMER_ACTIVITY_MS) return
+    this.#paused = true
+    try {
+      this.#pty.pause()
+    } catch {
+      // PTY 可能已退出；暂停失败不影响有界缓冲的正确性。
+    }
+    this.#armFlowControlWatchdog()
+  }
+
+  #resumeFromBackpressure(): void {
+    this.#paused = false
+    if (this.#flowControlTimer) clearTimeout(this.#flowControlTimer)
+    this.#flowControlTimer = undefined
+    try {
+      this.#pty.resume()
+    } catch {
+      // 恢复失败只影响吞吐，不影响顺序与内存上界。
+    }
+  }
+
+  /** 消费者在暂停期间消失时超时恢复 PTY，避免后台进程被静默卡住。 */
+  #armFlowControlWatchdog(): void {
+    if (this.#flowControlTimer) clearTimeout(this.#flowControlTimer)
+    this.#flowControlTimer = setTimeout(() => {
+      this.#flowControlTimer = undefined
+      if (!this.#paused) return
+      if (Date.now() - this.#lastConsumerActivityAt > CONSUMER_ACTIVITY_MS) {
+        this.#resumeFromBackpressure()
+        return
+      }
+      this.#armFlowControlWatchdog()
+    }, CONSUMER_ACTIVITY_MS)
+    this.#flowControlTimer.unref()
+  }
+
+  #clearFlowControl(): void {
+    this.#paused = false
+    if (this.#flowControlTimer) clearTimeout(this.#flowControlTimer)
+    this.#flowControlTimer = undefined
   }
 
   #handleExit(exitCode: number): void {
     this.#flushOutput()
+    this.#clearFlowControl()
     this.#exitCode = exitCode
-    if (!this.#exitReason) this.#exitReason = "process-exit"
-    this.#setState("exited")
+    if (!this.#exitReason) this.#exitReason = 'process-exit'
+    this.#setState('exited')
     this.#requestMirrorReset()
     this.#resolveExit?.()
     this.#resolveExit = undefined
@@ -255,7 +363,7 @@ export class TerminalSession {
   #setState(state: DesktopTerminalState): void {
     this.#state = state
     this.#onEvent({
-      type: "state",
+      type: 'state',
       terminalId: this.terminalId,
       instanceId: this.instanceId,
       state,
@@ -301,11 +409,11 @@ export class TerminalSession {
   #requestMirrorChunk(chunk: DesktopTerminalChunk): void {
     if (!this.#mirrorSink || this.#mirrorClosing) return
     if (
-      this.#mirrorInFlight
-      || this.#mirrorPendingReset
-      || this.#mirrorPendingChunk
-      || this.#mirrorStale
-      || chunk.sequence !== this.#mirrorNextSequence
+      this.#mirrorInFlight ||
+      this.#mirrorPendingReset ||
+      this.#mirrorPendingChunk ||
+      this.#mirrorStale ||
+      chunk.sequence !== this.#mirrorNextSequence
     ) {
       // The bounded local buffer is authoritative. Once the mirror falls
       // behind, one latest reset replaces any number of pending appends.
@@ -360,6 +468,7 @@ export class TerminalSession {
   async #clearMirrorAndDispose(): Promise<void> {
     if (this.#flushTimer) clearTimeout(this.#flushTimer)
     this.#flushTimer = undefined
+    this.#clearFlowControl()
     this.#flushOutput()
     // clear is authoritative for a closing instance. Pending work is bounded to
     // a single in-flight call; everything else is superseded by this tombstone.
@@ -387,25 +496,28 @@ export class TerminalSession {
 }
 
 function delay(milliseconds: number): Promise<void> {
-  return new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds))
 }
 
 async function waitBounded(promise: Promise<unknown>, milliseconds: number): Promise<boolean> {
   return Promise.race([
-    promise.then(() => true, () => true),
+    promise.then(
+      () => true,
+      () => true,
+    ),
     delay(milliseconds).then(() => false),
   ])
 }
 
 function splitUtf8Chunks(value: string, maximumBytes: number): string[] {
   const chunks: string[] = []
-  let current = ""
+  let current = ''
   let currentBytes = 0
   for (const character of value) {
-    const bytes = Buffer.byteLength(character, "utf8")
+    const bytes = Buffer.byteLength(character, 'utf8')
     if (currentBytes + bytes > maximumBytes && current) {
       chunks.push(current)
-      current = ""
+      current = ''
       currentBytes = 0
     }
     current += character

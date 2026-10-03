@@ -1,11 +1,17 @@
 import type { DesktopUserMessageInput } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import type {
   ComposerDraft,
   ComposerSubmitOutcome,
   PreparedComposerSubmission,
 } from './composerTypes.js'
 import { cloneDraft } from './composerDraftStore.js'
+import { skillInvocationsFromComposerDocument } from './composerSkillToken.js'
+import {
+  annotationAttachments,
+  validateAnnotationCapacity,
+} from '../../browser/browserAnnotationDraft.js'
 
 export type ComposerDeliveryStatus = 'sent' | 'queued'
 
@@ -28,11 +34,21 @@ export function prepareComposerSubmission(
   draft: ComposerDraft,
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
-  const text = snapshot.document.text
-  const hasContent =
-    Boolean(text.trim()) ||
-    snapshot.attachments.length > 0 ||
-    Boolean(snapshot.skillInvocation)
+  if (Object.keys(snapshot.browserAnnotationFeedback ?? {}).length)
+    return failed('prepare', '请先保存或取消正在编辑的批注反馈')
+  try {
+    validateAnnotationCapacity(snapshot)
+  } catch (error) {
+    return failed('prepare', error instanceof Error ? error.message : '批注附件不可用')
+  }
+  const attachments = annotationAttachments(snapshot)
+  const text = serializeComposerDocument(snapshot.document)
+  const skills =
+    snapshot.skills ??
+    (snapshot.skillInvocation
+      ? [snapshot.skillInvocation]
+      : skillInvocationsFromComposerDocument(snapshot.document))
+  const hasContent = Boolean(text.trim()) || attachments.length > 0 || skills.length > 0
 
   if (!hasContent) {
     return failed('prepare', '请输入消息或添加附件')
@@ -45,18 +61,25 @@ export function prepareComposerSubmission(
     clientId: snapshot.clientId,
     input: {
       text,
-      attachments: snapshot.attachments,
-      skillInvocation: snapshot.skillInvocation
-        ? {
-            name: snapshot.skillInvocation.name,
-            skillPath: snapshot.skillInvocation.path,
-          }
-        : undefined,
+      attachments,
+      ...(skills.length ? { skills } : {}),
     },
-    sessionName: snapshot.skillInvocation
-      ? `$${snapshot.skillInvocation.name} ${text}`.trim()
+    sessionName: skills.length
+      ? `${skills.map((skill) => `$${skill.name}`).join(' ')} ${text}`.trim()
       : undefined,
   }
+}
+
+export function serializeComposerDocument(document: ComposerDraft['document']): string {
+  const references = document.tokens
+    .filter((token) => token.kind === 'thread' || token.kind === 'browser')
+    .map((token) => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
+  if (references.length === 0) return document.text
+  return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/([\\\[\]])/gu, '\\$1')
 }
 
 export async function executeComposerSubmitTransaction({
@@ -86,11 +109,9 @@ export async function executeComposerSubmitTransaction({
   }
 
   try {
-    const deliveryStatus = await submitToSession(
-      sessionId,
-      prepared.input,
-      { inputId: prepared.clientId },
-    )
+    const deliveryStatus = await submitToSession(sessionId, prepared.input, {
+      inputId: prepared.clientId,
+    })
     return {
       status: deliveryStatus === 'queued' ? 'queued' : 'sent',
       sessionId,
@@ -113,6 +134,25 @@ function failed(
   }
 }
 
+/**
+ * Creates the task for a new-session submit. A failure here blocks sending, so it is
+ * reported exactly once through the global error channel; recovery is another submit,
+ * never an inline control.
+ */
+export async function createTaskSession(input: {
+  create: () => Promise<string | null>
+  onError?: (message: string) => void
+}): Promise<string | null> {
+  try {
+    const sessionId = await input.create()
+    if (!sessionId) input.onError?.('无法创建任务，请重试或选择本地目录。')
+    return sessionId
+  } catch (error) {
+    input.onError?.(toUserErrorMessage(error, 'thread-create'))
+    throw error
+  }
+}
+
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return toUserErrorMessage(error)
 }

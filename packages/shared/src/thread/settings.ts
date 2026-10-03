@@ -1,7 +1,7 @@
-import { Schema } from "effect"
-import { PermissionConfigSchema } from "./permission"
+import { Schema } from 'effect'
+import { PermissionConfigSchema } from './permission'
 
-export const TaskModeSchema = Schema.Literals(["chat", "plan"])
+export const TaskModeSchema = Schema.Literals(['chat', 'plan'])
 export type TaskMode = typeof TaskModeSchema.Type
 
 export const ThreadSettingsSchema = Schema.Struct({

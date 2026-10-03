@@ -1,3 +1,4 @@
+import { isRecord } from '@codepilotx/shared/guards'
 export type AskUserQuestionOption = {
   label: string
   description: string
@@ -18,6 +19,12 @@ export type QuestionState = {
   custom: string
   answered: boolean
   focused?: string
+  touched?: boolean
+  skipped?: boolean
+}
+
+export function questionKey(question: { id?: string; question: string }): string {
+  return question.id ?? question.question
 }
 
 export function nextQuestionIndex(
@@ -30,38 +37,51 @@ export function nextQuestionIndex(
 }
 
 export function firstUnansweredQuestionIndex(
-  questions: Array<{ question: string }>,
+  questions: Array<{ id?: string; question: string }>,
   questionStates: Record<string, QuestionState>,
 ): number {
   return questions.findIndex(
-    question => !hasQuestionAnswer(questionStates[question.question]),
+    (question) => !isQuestionComplete(questionStates[questionKey(question)]),
   )
 }
 
 export function areAllQuestionsAnswered(
-  questions: Array<{ question: string }>,
+  questions: Array<{ id?: string; question: string }>,
   questionStates: Record<string, QuestionState>,
 ): boolean {
   return (
-    questions.length > 0
-    && questions.every(question => hasQuestionAnswer(questionStates[question.question]))
+    questions.length > 0 &&
+    questions.every((question) => isQuestionComplete(questionStates[questionKey(question)]))
   )
 }
 
 export function canSubmitFromCurrentQuestion(
-  questions: Array<{ question: string; options: Array<{ label: string }> }>,
+  questions: Array<{ id?: string; question: string; options: Array<{ label: string }> }>,
   questionStates: Record<string, QuestionState>,
   currentQuestionIndex: number,
 ): boolean {
   if (questions.length === 0) return false
   return questions.every((question, index) => {
-    const state =
-      questionStates[question.question] ?? initialQuestionState(question)
+    const state = questionStates[questionKey(question)] ?? initialQuestionState(question)
     if (index === currentQuestionIndex) {
       return state.selected.length > 0 || Boolean(state.custom.trim())
     }
-    return hasQuestionAnswer(questionStates[question.question])
+    return isQuestionComplete(questionStates[questionKey(question)])
   })
+}
+
+export function shouldShowQuestionSubmit(
+  questions: AskUserQuestion[],
+  states: Record<string, QuestionState>,
+  index: number,
+): boolean {
+  const question = questions[index]!
+  const state = states[questionKey(question)] ?? initialQuestionState(question)
+  return (
+    !state.skipped &&
+    (Boolean(state.custom.trim()) ||
+      (question.multiSelect && state.touched === true && state.selected.length > 0))
+  )
 }
 
 export type FooterControls = {
@@ -88,9 +108,7 @@ export function enterQuestionAction(
   currentQuestionIndex: number,
   questionCount: number,
 ): EnterQuestionAction {
-  return currentQuestionIndex >= questionCount - 1
-    ? 'confirm-and-submit'
-    : 'confirm-and-next'
+  return currentQuestionIndex >= questionCount - 1 ? 'confirm-and-submit' : 'confirm-and-next'
 }
 
 export function initialQuestionState(question: {
@@ -104,18 +122,9 @@ export function initialQuestionState(question: {
   }
 }
 
-export function shouldSubmitOptionClick(question: {
-  multiSelect: boolean
-}): boolean {
-  return !question.multiSelect
-}
-
-export function toggleMultiSelectOption(
-  current: QuestionState,
-  label: string,
-): QuestionState {
+export function toggleMultiSelectOption(current: QuestionState, label: string): QuestionState {
   const selected = current.selected.includes(label)
-    ? current.selected.filter(item => item !== label)
+    ? current.selected.filter((item) => item !== label)
     : [...current.selected, label]
   return {
     ...current,
@@ -128,6 +137,7 @@ export function toggleMultiSelectOption(
 export function answerStateForConfirmation(state: QuestionState): QuestionState {
   return {
     ...state,
+    skipped: false,
     answered: state.selected.length > 0 || Boolean(state.custom.trim()),
   }
 }
@@ -146,20 +156,14 @@ export function nextOptionLabel(
 ): string | undefined {
   const currentIndex = Math.max(
     0,
-    question.options.findIndex(option => option.label === currentLabel),
+    question.options.findIndex((option) => option.label === currentLabel),
   )
-  const nextIndex = nextQuestionIndex(
-    currentIndex,
-    delta,
-    question.options.length,
-  )
+  const nextIndex = nextQuestionIndex(currentIndex, delta, question.options.length)
   return question.options[nextIndex]?.label
 }
 
-export function questionOptionIds(
-  question: { options: Array<{ label: string }> },
-): string[] {
-  return [...question.options.map(option => option.label), CUSTOM_OPTION_ID]
+export function questionOptionIds(question: { options: Array<{ label: string }> }): string[] {
+  return [...question.options.map((option) => option.label), CUSTOM_OPTION_ID]
 }
 
 export function nextQuestionOptionId(
@@ -185,15 +189,13 @@ export function selectQuestionOption(
       ...current,
       selected,
       focused: optionId,
-      answered:
-        Boolean(current.custom.trim())
-        || (multiSelect && selected.length > 0),
+      answered: Boolean(current.custom.trim()) || (multiSelect && selected.length > 0),
     }
   }
 
   if (multiSelect && intent === 'toggle') {
     const selected = current.selected.includes(optionId)
-      ? current.selected.filter(item => item !== optionId)
+      ? current.selected.filter((item) => item !== optionId)
       : [...current.selected, optionId]
     return {
       ...current,
@@ -220,13 +222,14 @@ export function buildAskUserQuestionAnswers(
   const answers: Record<string, string> = {}
   for (const question of questions) {
     const state =
-      override?.question.question === question.question
+      override && questionKey(override.question) === questionKey(question)
         ? override.state
-        : (questionStates[question.question] ?? initialQuestionState(question))
-    const answerParts = [
-      ...state.selected,
-      ...(state.custom.trim() ? [state.custom.trim()] : []),
-    ]
+        : (questionStates[questionKey(question)] ??
+          questionStates[question.question] ??
+          initialQuestionState(question))
+    const answerParts = state.skipped
+      ? []
+      : [...state.selected, ...(state.custom.trim() ? [state.custom.trim()] : [])]
     answers[question.id ?? question.question] = answerParts.join(', ')
   }
   return answers
@@ -238,18 +241,28 @@ export function buildAskUserQuestionUpdatedInput(
   questionStates: Record<string, QuestionState>,
 ): Record<string, unknown> {
   const answers = buildAskUserQuestionAnswers(questions, questionStates)
+  const skippedQuestionIds = questions
+    .filter((question) => questionStates[questionKey(question)]?.skipped)
+    .map(questionKey)
   return {
     ...input,
     ...(questions.length === 1
       ? { answer: answers[questions[0]!.id ?? questions[0]!.question] ?? '' }
       : {}),
     answers,
+    ...(skippedQuestionIds.length ? { skippedQuestionIds } : {}),
   }
 }
 
 export function hasQuestionAnswer(state: QuestionState | undefined): boolean {
   if (!state) return false
-  return state.answered && (state.selected.length > 0 || Boolean(state.custom.trim()))
+  return (
+    !state.skipped && state.answered && (state.selected.length > 0 || Boolean(state.custom.trim()))
+  )
+}
+
+function isQuestionComplete(state: QuestionState | undefined): boolean {
+  return state?.skipped === true || hasQuestionAnswer(state)
 }
 
 export function shouldDeferAskUserQuestionShortcutToTextEntry(
@@ -259,12 +272,9 @@ export function shouldDeferAskUserQuestionShortcutToTextEntry(
   return isTextEntry && key !== 'Escape'
 }
 
-export function parseAskUserQuestions(
-  input: Record<string, unknown>,
-): AskUserQuestion[] | null {
-  const rawQuestions = Array.isArray(input.questions) && input.questions.length > 0
-    ? input.questions
-    : null
+export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQuestion[] | null {
+  const rawQuestions =
+    Array.isArray(input.questions) && input.questions.length > 0 ? input.questions : null
   if (!rawQuestions) return null
 
   const questions: AskUserQuestion[] = []
@@ -279,8 +289,8 @@ export function parseAskUserQuestions(
     for (const rawOption of rawOptions) {
       if (!isRecord(rawOption)) return null
       const label = normalizeRecommendedOptionLabel(stringValue(rawOption.label))
-      const description = stringValue(rawOption.description)
-      if (!label || !description) return null
+      const description = stringValue(rawOption.description) ?? ''
+      if (!label) return null
       options.push({ label, description })
     }
 
@@ -295,17 +305,11 @@ export function parseAskUserQuestions(
   return questions
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' ? value : null
 }
 
 function normalizeRecommendedOptionLabel(value: string | null): string | null {
   if (!value) return value
-  return value
-    .replace(/\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/iu, '')
-    .trim()
+  return value.replace(/\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/iu, '').trim()
 }

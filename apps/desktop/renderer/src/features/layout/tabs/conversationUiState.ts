@@ -1,7 +1,4 @@
-import type {
-  DesktopComposerAttachment,
-  DesktopReviewSource,
-} from '../../../../shared/types.js'
+import type { DesktopComposerAttachment, DesktopReviewSource } from '../../../../shared/types.js'
 import {
   createDefaultWorkbenchTabsState,
   type WorkbenchFocusArea,
@@ -11,6 +8,8 @@ import {
   type WorkbenchTabId,
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
+import { arePathsEqual } from '../../../utils/pathUtils.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
@@ -31,14 +30,9 @@ export type ReviewTabUiState = {
 }
 
 export type ReviewDiffExpansion =
-  | { mode: 'all' }
-  | { mode: 'none' }
-  | { mode: 'custom'; expandedFiles: string[] }
+  { mode: 'all' } | { mode: 'none' } | { mode: 'custom'; expandedFiles: string[] }
 
-export function isReviewDiffExpanded(
-  expansion: ReviewDiffExpansion,
-  path: string,
-): boolean {
+export function isReviewDiffExpanded(expansion: ReviewDiffExpansion, path: string): boolean {
   if (expansion.mode === 'all') return true
   if (expansion.mode === 'none') return false
   return expansion.expandedFiles.includes(path)
@@ -50,18 +44,13 @@ export function toggleReviewDiffExpansion(
   path: string,
 ): ReviewDiffExpansion {
   const expanded = new Set(
-    allPaths.filter((candidate) =>
-      isReviewDiffExpanded(expansion, candidate),
-    ),
+    allPaths.filter((candidate) => isReviewDiffExpanded(expansion, candidate)),
   )
   if (expanded.has(path)) expanded.delete(path)
   else expanded.add(path)
 
   if (expanded.size === 0) return { mode: 'none' }
-  if (
-    allPaths.length > 0 &&
-    allPaths.every((candidate) => expanded.has(candidate))
-  ) {
+  if (allPaths.length > 0 && allPaths.every((candidate) => expanded.has(candidate))) {
     return { mode: 'all' }
   }
   return {
@@ -85,6 +74,11 @@ export type ConversationUiValidationOptions = {
   validPlanEventIds?: readonly string[]
   validSideTaskIds?: readonly string[]
   workspacePath?: string | null
+  fileScopes?: readonly {
+    projectId?: string
+    folderId?: string
+    workspacePath: string
+  }[]
 }
 
 export function createDefaultConversationUiState(): ConversationUiState {
@@ -130,23 +124,74 @@ export function openPatchReviewTabState(
   }
 }
 
-export function saveConversationUiState(
-  sessionId: string,
-  state: ConversationUiState,
-): void {
+export function saveConversationUiState(sessionId: string, state: ConversationUiState): void {
   try {
     window.localStorage.setItem(
       STORAGE_PREFIX + sessionId,
-      JSON.stringify(state),
+      JSON.stringify({
+        ...state,
+        workbench: omitEphemeralSideChatTabs(state.workbench),
+        sideChatInput: '',
+        sideChatAttachments: [],
+      }),
     )
   } catch {
     /* localStorage full or disabled; silently ignore */
   }
 }
 
-export function loadConversationUiState(
+/** Removes process-local tabs before a conversation UI snapshot is persisted. */
+export function omitEphemeralSideChatTabs(workbench: WorkbenchTabsState): WorkbenchTabsState {
+  const sideChatIds = new Set(
+    Object.entries(workbench.tabsById)
+      .filter(
+        ([, tab]) =>
+          tab?.kind === 'side-chat' ||
+          tab?.kind === 'attachment-preview' ||
+          tab?.kind === 'skill-preview',
+      )
+      .map(([tabId]) => tabId),
+  )
+  if (sideChatIds.size === 0) return workbench
+
+  const tabsById = { ...workbench.tabsById }
+  for (const tabId of sideChatIds) {
+    delete tabsById[tabId as WorkbenchTabId]
+  }
+  const filterPanel = (panel: WorkbenchPanelSnapshot): WorkbenchPanelSnapshot => {
+    const tabIds = panel.tabIds.filter((tabId) => !sideChatIds.has(tabId))
+    return {
+      ...panel,
+      tabIds,
+      activeTabId:
+        panel.activeTabId && !sideChatIds.has(panel.activeTabId)
+          ? panel.activeTabId
+          : (tabIds.at(-1) ?? null),
+    }
+  }
+  return {
+    ...workbench,
+    tabsById,
+    right: filterPanel(workbench.right),
+    bottom: filterPanel(workbench.bottom),
+  }
+}
+
+export function patchConversationUiState(
   sessionId: string,
-): ConversationUiState | null {
+  patch: Partial<Omit<ConversationUiState, 'schemaVersion'>>,
+): void {
+  const current = validateConversationUiState(
+    loadConversationUiState(sessionId) ?? createDefaultConversationUiState(),
+  )
+  saveConversationUiState(sessionId, {
+    ...current,
+    ...patch,
+    schemaVersion: 4,
+  })
+}
+
+export function loadConversationUiState(sessionId: string): ConversationUiState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_PREFIX + sessionId)
     if (!raw) return null
@@ -174,31 +219,37 @@ export function transferConversationUiStateForHandoff(input: {
     const source = loadConversationUiState(input.sourceThreadId)
     if (!source) return { transferred: false }
     const tabsById = Object.fromEntries(
-      Object.entries(source.workbench.tabsById).filter(([, tab]) =>
-        tab?.kind !== 'plan' &&
-        tab?.kind !== 'side-task' &&
-        tab?.kind !== 'file-preview'),
+      Object.entries(source.workbench.tabsById).filter(
+        ([, tab]) =>
+          tab?.kind !== 'plan' &&
+          tab?.kind !== 'side-chat' &&
+          tab?.kind !== 'attachment-preview' &&
+          tab?.kind !== 'skill-preview' &&
+          tab?.kind !== 'side-task' &&
+          tab?.kind !== 'file-preview',
+      ),
     )
     const transferableIds = new Set(Object.keys(tabsById))
     const filterPanel = (panel: WorkbenchPanelSnapshot): WorkbenchPanelSnapshot => {
-      const tabIds = panel.tabIds.filter(tabId => transferableIds.has(tabId))
+      const tabIds = panel.tabIds.filter((tabId) => transferableIds.has(tabId))
       return {
         ...panel,
         tabIds,
-        activeTabId: panel.activeTabId && transferableIds.has(panel.activeTabId)
-          ? panel.activeTabId
-          : (tabIds.at(-1) ?? null),
+        activeTabId:
+          panel.activeTabId && transferableIds.has(panel.activeTabId)
+            ? panel.activeTabId
+            : (tabIds.at(-1) ?? null),
       }
     }
     const candidate: ConversationUiState = {
       ...source,
-      sideChatAttachments: source.sideChatAttachments.filter(attachment =>
-        !isPathInside(attachment.path, input.sourceWorkspacePath)),
+      sideChatAttachments: source.sideChatAttachments.filter(
+        (attachment) => !isPathInside(attachment.path, input.sourceWorkspacePath),
+      ),
       review: {
         ...source.review,
-        source: source.review.source.kind === 'last-turn'
-          ? { kind: 'unstaged' }
-          : source.review.source,
+        source:
+          source.review.source.kind === 'last-turn' ? { kind: 'unstaged' } : source.review.source,
       },
       workbench: {
         ...source.workbench,
@@ -211,10 +262,7 @@ export function transferConversationUiStateForHandoff(input: {
       validPlanEventIds: [],
       validSideTaskIds: [],
     })
-    window.localStorage.setItem(
-      STORAGE_PREFIX + input.targetThreadId,
-      JSON.stringify(transferred),
-    )
+    window.localStorage.setItem(STORAGE_PREFIX + input.targetThreadId, JSON.stringify(transferred))
     return { transferred: true }
   } catch {
     return { transferred: false, warning: 'LOCAL_STORAGE_UNAVAILABLE' }
@@ -236,8 +284,7 @@ export function validateConversationUiState(
     schemaVersion: 4,
     workbench,
     mainScrollTop: toFiniteNonNegativeNumber(state.mainScrollTop),
-    sideChatInput:
-      typeof state.sideChatInput === 'string' ? state.sideChatInput : '',
+    sideChatInput: typeof state.sideChatInput === 'string' ? state.sideChatInput : '',
     sideChatAttachments: Array.isArray(state.sideChatAttachments)
       ? (state.sideChatAttachments as DesktopComposerAttachment[])
       : [],
@@ -245,55 +292,33 @@ export function validateConversationUiState(
   }
 }
 
-function validateReviewTabUiState(
-  value: unknown,
-): ReviewTabUiState {
+function validateReviewTabUiState(value: unknown): ReviewTabUiState {
   const defaults = createDefaultReviewTabUiState()
   if (!isRecord(value)) return defaults
   const source = validateReviewSource(value.source)
   return {
     source: source ?? defaults.source,
-    selectedFile:
-      typeof value.selectedFile === 'string' ? value.selectedFile : null,
-    selectedCommentId:
-      typeof value.selectedCommentId === 'string'
-        ? value.selectedCommentId
-        : null,
+    selectedFile: typeof value.selectedFile === 'string' ? value.selectedFile : null,
+    selectedCommentId: typeof value.selectedCommentId === 'string' ? value.selectedCommentId : null,
     scrollTop: toFiniteNonNegativeNumber(value.scrollTop),
-    diffExpansion: validateReviewDiffExpansion(
-      value.diffExpansion,
-      defaults.diffExpansion,
-    ),
+    diffExpansion: validateReviewDiffExpansion(value.diffExpansion, defaults.diffExpansion),
     viewedRevisions: normalizeStringRecord(value.viewedRevisions),
     fileTreeVisible:
-      typeof value.fileTreeVisible === 'boolean'
-        ? value.fileTreeVisible
-        : defaults.fileTreeVisible,
+      typeof value.fileTreeVisible === 'boolean' ? value.fileTreeVisible : defaults.fileTreeVisible,
     fileTreeWidth:
-      typeof value.fileTreeWidth === 'number' &&
-      Number.isFinite(value.fileTreeWidth)
+      typeof value.fileTreeWidth === 'number' && Number.isFinite(value.fileTreeWidth)
         ? Math.min(520, Math.max(240, value.fileTreeWidth))
         : defaults.fileTreeWidth,
     diffMode:
       value.diffMode === 'split' || value.diffMode === 'inline'
         ? value.diffMode
         : defaults.diffMode,
-    wrapLines:
-      typeof value.wrapLines === 'boolean'
-        ? value.wrapLines
-        : defaults.wrapLines,
+    wrapLines: typeof value.wrapLines === 'boolean' ? value.wrapLines : defaults.wrapLines,
     showWordDiff:
-      typeof value.showWordDiff === 'boolean'
-        ? value.showWordDiff
-        : defaults.showWordDiff,
+      typeof value.showWordDiff === 'boolean' ? value.showWordDiff : defaults.showWordDiff,
     hideWhitespace:
-      typeof value.hideWhitespace === 'boolean'
-        ? value.hideWhitespace
-        : defaults.hideWhitespace,
-    richPreview:
-      typeof value.richPreview === 'boolean'
-        ? value.richPreview
-        : defaults.richPreview,
+      typeof value.hideWhitespace === 'boolean' ? value.hideWhitespace : defaults.hideWhitespace,
+    richPreview: typeof value.richPreview === 'boolean' ? value.richPreview : defaults.richPreview,
   }
 }
 
@@ -307,9 +332,7 @@ function validateReviewDiffExpansion(
   }
   if (value.mode !== 'custom') return fallback
   const expandedFiles = normalizeStringList(value.expandedFiles)
-  return expandedFiles.length > 0
-    ? { mode: 'custom', expandedFiles }
-    : { mode: 'none' }
+  return expandedFiles.length > 0 ? { mode: 'custom', expandedFiles } : { mode: 'none' }
 }
 
 function validateReviewSource(value: unknown): DesktopReviewSource | null {
@@ -393,9 +416,7 @@ function validateWorkbenchState(
     right,
     bottom,
     rightFullWidth: Boolean(value.rightFullWidth && right.open),
-    restoreRightFullWidthOnNextOpen: Boolean(
-      value.restoreRightFullWidthOnNextOpen,
-    ),
+    restoreRightFullWidthOnNextOpen: Boolean(value.restoreRightFullWidthOnNextOpen),
     focusArea,
   }
 }
@@ -412,18 +433,14 @@ function readPanel(value: unknown): RawPanel {
   }
   return {
     open: Boolean(value.open),
-    activeTabId:
-      typeof value.activeTabId === 'string' ? value.activeTabId : null,
+    activeTabId: typeof value.activeTabId === 'string' ? value.activeTabId : null,
     tabIds: Array.isArray(value.tabIds)
       ? value.tabIds.filter((id): id is string => typeof id === 'string')
       : [],
   }
 }
 
-function resolveTabOwnership(
-  right: RawPanel,
-  bottom: RawPanel,
-): Map<string, WorkbenchPanelTarget> {
+function resolveTabOwnership(right: RawPanel, bottom: RawPanel): Map<string, WorkbenchPanelTarget> {
   const ownership = new Map<string, WorkbenchPanelTarget>()
   for (const id of right.tabIds) ownership.set(id, 'right')
   for (const id of bottom.tabIds) {
@@ -442,9 +459,7 @@ function validatePanel(
 ): WorkbenchPanelSnapshot {
   const tabIds = panel.tabIds.filter(
     (id, index): id is WorkbenchTabId =>
-      id in tabsById &&
-      ownership.get(id) === target &&
-      panel.tabIds.indexOf(id) === index,
+      id in tabsById && ownership.get(id) === target && panel.tabIds.indexOf(id) === index,
   )
   return {
     open: panel.open,
@@ -466,9 +481,8 @@ function validateTabDescriptor(
   if (tab.id === 'review' && tab.kind === 'review') {
     return { id: 'review', kind: 'review' }
   }
-  if (tab.id === 'browser' && tab.kind === 'browser') {
-    return { id: 'browser', kind: 'browser' }
-  }
+  // Browser tabs are restored from Agent state, never per-conversation localStorage.
+  if (tab.kind === 'browser') return null
   if (tab.id === 'file-browser' && tab.kind === 'file-browser') {
     const directoryPath =
       typeof tab.directoryPath === 'string' && isSafePath(tab.directoryPath, true)
@@ -480,9 +494,8 @@ function validateTabDescriptor(
       ...(directoryPath ? { directoryPath } : {}),
     }
   }
-  if (tab.id === 'side-chat' && tab.kind === 'side-chat') {
-    return { id: 'side-chat', kind: 'side-chat' }
-  }
+  // Side chats are process-local and must never be restored from localStorage.
+  if (tab.kind === 'side-chat' || tab.kind === 'attachment-preview') return null
   if (tab.id === 'terminal' && tab.kind === 'terminal') {
     return { id: 'terminal', kind: 'terminal' }
   }
@@ -492,18 +505,30 @@ function validateTabDescriptor(
     tab.id.startsWith('file:') &&
     isSafePath(tab.workspacePath, false) &&
     isSafePath(tab.relativePath, true) &&
-    (!options.workspacePath || tab.workspacePath === options.workspacePath)
+    (!options.workspacePath || sameWorkspacePath(tab.workspacePath, options.workspacePath))
   ) {
+    const workspacePath = tab.workspacePath
+    const fileScope = options.fileScopes?.find((scope) =>
+      sameWorkspacePath(scope.workspacePath, workspacePath),
+    )
+    if (options.fileScopes && !fileScope) return null
     return {
       id: tab.id as `file:${string}`,
       kind: 'file-preview',
-      workspacePath: tab.workspacePath,
-      ...(typeof tab.projectId === 'string' ? { projectId: tab.projectId } : {}),
-      ...(typeof tab.folderId === 'string' ? { folderId: tab.folderId } : {}),
+      workspacePath,
+      ...(fileScope?.projectId
+        ? { projectId: fileScope.projectId }
+        : typeof tab.projectId === 'string'
+          ? { projectId: tab.projectId }
+          : {}),
+      ...(fileScope?.folderId
+        ? { folderId: fileScope.folderId }
+        : typeof tab.folderId === 'string'
+          ? { folderId: tab.folderId }
+          : {}),
       relativePath: tab.relativePath,
       preview: Boolean(tab.preview),
-      ...(tab.markdownViewMode === 'rich' ||
-      tab.markdownViewMode === 'source'
+      ...(tab.markdownViewMode === 'rich' || tab.markdownViewMode === 'source'
         ? { markdownViewMode: tab.markdownViewMode }
         : {}),
       ...(isPositiveInteger(tab.line) ? { line: tab.line } : {}),
@@ -519,14 +544,14 @@ function validateTabDescriptor(
     typeof tab.eventId === 'string' &&
     tab.eventId.length > 0 &&
     typeof tab.title === 'string' &&
-    (!options.validPlanEventIds ||
-      options.validPlanEventIds.includes(tab.eventId))
+    (!options.validPlanEventIds || options.validPlanEventIds.includes(tab.eventId))
   ) {
     return {
       id: tab.id as `plan:${string}`,
       kind: 'plan',
       eventId: tab.eventId,
       title: tab.title,
+      ...(typeof tab.content === 'string' && tab.content.trim() ? { content: tab.content } : {}),
     }
   }
   if (
@@ -537,8 +562,7 @@ function validateTabDescriptor(
     tab.taskId.length > 0 &&
     typeof tab.childThreadId === 'string' &&
     tab.childThreadId.length > 0 &&
-    (!options.validSideTaskIds ||
-      options.validSideTaskIds.includes(tab.taskId))
+    (!options.validSideTaskIds || options.validSideTaskIds.includes(tab.taskId))
   ) {
     return {
       id: tab.id as `side-task:${string}`,
@@ -549,6 +573,10 @@ function validateTabDescriptor(
   }
 
   return null
+}
+
+function sameWorkspacePath(left: string, right: string): boolean {
+  return arePathsEqual(left, right)
 }
 
 function isPositiveInteger(value: unknown): value is number {
@@ -579,17 +607,13 @@ function isSafePath(value: unknown, requireRelative: boolean): value is string {
 }
 
 function toFiniteNonNegativeNumber(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? value
-    : 0
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
 }
 
 function isPathInside(candidate: string, root: string): boolean {
   const normalizedCandidate = candidate.replaceAll('\\', '/').toLowerCase()
   const normalizedRoot = root.replaceAll('\\', '/').replace(/\/$/, '').toLowerCase()
-  return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+  return (
+    normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+  )
 }

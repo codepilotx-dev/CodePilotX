@@ -1,6 +1,10 @@
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { CornerDownLeft, X } from 'lucide-react'
 import React from 'react'
 import { Button } from '../../../components/ui/Button.js'
+import { Checkbox } from '../../../components/ui/Checkbox.js'
+import { RadioGroup, RadioItem } from '../../../components/ui/RadioGroup.js'
+import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
 import type {
   McpElicitationBooleanSchema,
   McpElicitationConstOption,
@@ -37,9 +41,7 @@ export function McpElicitationForm({
   const fieldNames = Object.keys(schema.properties)
 
   // Initialise values from schema defaults
-  const [formValues, setFormValues] = React.useState<
-    Record<string, unknown>
-  >(() => {
+  const [formValues, setFormValues] = React.useState<Record<string, unknown>>(() => {
     const initial: Record<string, unknown> = {}
     for (const key of fieldNames) {
       const fieldSchema = schema.properties[key]
@@ -59,9 +61,7 @@ export function McpElicitationForm({
     if (submitted) {
       const fieldSchema = schema.properties[name]
       const isRequired = schema.required?.includes(name) ?? false
-      const error = fieldSchema
-        ? validateField(fieldSchema, value, isRequired)
-        : null
+      const error = fieldSchema ? validateField(fieldSchema, value, isRequired) : null
       setErrors((prev) => {
         const next = { ...prev }
         if (error) {
@@ -122,9 +122,7 @@ export function McpElicitationForm({
         <h2>MCP 服务器 &ldquo;{serverName}&rdquo; 请求输入</h2>
       </header>
 
-      {message ? (
-        <p className="mcp-form-message">{message}</p>
-      ) : null}
+      {message ? <p className="mcp-form-message">{message}</p> : null}
 
       <div className="mcp-form-fields">
         {fieldNames.map((name) => {
@@ -146,29 +144,20 @@ export function McpElicitationForm({
       </div>
 
       {hasErrors && submitted ? (
-        <p className="mcp-form-error-summary">
-          请修正标红的字段后再提交
-        </p>
+        <p className="mcp-form-error-summary">请修正标红的字段后再提交</p>
       ) : null}
 
       <div className="mcp-form-actions">
-        <Button
-          tone="danger"
-          onClick={onDecline}
-        >
+        <Button color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button
-          onClick={onCancel}
-        >
-          <X size={14} />
+        <Button color="secondary" onClick={onCancel}>
+          <X size={APP_ICON_SIZE} />
           取消
         </Button>
-        <Button
-          onClick={handleSubmit}
-        >
+        <Button color="primary" onClick={handleSubmit}>
           提交
-          <CornerDownLeft size={14} />
+          <CornerDownLeft size={APP_ICON_SIZE} />
         </Button>
       </div>
     </section>
@@ -200,9 +189,7 @@ export function McpElicitationUnsupported({
         <h2>MCP 服务器 &ldquo;{serverName}&rdquo; 请求输入</h2>
       </header>
 
-      {message ? (
-        <p className="mcp-form-message">{message}</p>
-      ) : null}
+      {message ? <p className="mcp-form-message">{message}</p> : null}
 
       <div className="mcp-form-unsupported">
         <span className="mcp-form-unsupported-icon" aria-hidden="true">
@@ -212,16 +199,11 @@ export function McpElicitationUnsupported({
       </div>
 
       <div className="mcp-form-actions">
-        <Button
-          tone="danger"
-          onClick={onDecline}
-        >
+        <Button color="danger" onClick={onDecline}>
           拒绝
         </Button>
-        <Button
-          onClick={onCancel}
-        >
-          <X size={14} />
+        <Button color="secondary" onClick={onCancel}>
+          <X size={APP_ICON_SIZE} />
           取消
         </Button>
       </div>
@@ -250,13 +232,7 @@ function McpFormField({
   const description = fieldDescription(schema)
 
   return (
-    <div
-      className={
-        error
-          ? 'mcp-form-field mcp-form-field-error'
-          : 'mcp-form-field'
-      }
-    >
+    <div className={error ? 'mcp-form-field mcp-form-field-error' : 'mcp-form-field'}>
       <label className="mcp-form-field-label" htmlFor={`mcp-field-${name}`}>
         {label}
         {isRequired ? (
@@ -266,16 +242,9 @@ function McpFormField({
         ) : null}
       </label>
 
-      {description ? (
-        <p className="mcp-form-field-desc">{description}</p>
-      ) : null}
+      {description ? <p className="mcp-form-field-desc">{description}</p> : null}
 
-      <FieldInput
-        name={name}
-        schema={schema}
-        value={value}
-        onChange={onChange}
-      />
+      <FieldInput name={name} schema={schema} value={value} onChange={onChange} />
 
       {error ? (
         <p className="mcp-form-field-error" role="alert">
@@ -309,12 +278,7 @@ function FieldInput({
           onChange={onChange}
         />
       ) : (
-        <TextField
-          name={name}
-          schema={schema}
-          value={value as string}
-          onChange={onChange}
-        />
+        <TextField name={name} schema={schema} value={value as string} onChange={onChange} />
       )
     case 'number':
     case 'integer':
@@ -328,12 +292,7 @@ function FieldInput({
       )
     case 'boolean':
       return (
-        <BooleanField
-          name={name}
-          schema={schema}
-          value={value as boolean}
-          onChange={onChange}
-        />
+        <BooleanField name={name} schema={schema} value={value as boolean} onChange={onChange} />
       )
     case 'array':
       return (
@@ -352,8 +311,10 @@ function FieldInput({
 function isSingleSelectEnum(
   schema: McpElicitationStringSchema | McpElicitationSingleSelectEnumSchema,
 ): schema is McpElicitationSingleSelectEnumSchema {
-  return Array.isArray((schema as McpElicitationSingleSelectEnumSchema).enum) ||
+  return (
+    Array.isArray((schema as McpElicitationSingleSelectEnumSchema).enum) ||
     Array.isArray((schema as McpElicitationSingleSelectEnumSchema).oneOf)
+  )
 }
 
 // ── Text field ───────────────────────────────────────────────
@@ -430,23 +391,10 @@ function BooleanField({
   onChange: (value: unknown) => void
 }): React.ReactNode {
   return (
-    <button
-      id={`mcp-field-${name}`}
-      type="button"
-      role="switch"
-      aria-checked={value}
-      className={
-        value
-          ? 'mcp-form-boolean mcp-form-boolean-on'
-          : 'mcp-form-boolean'
-      }
-      onClick={() => onChange(!value)}
-    >
-      <span className="mcp-form-boolean-thumb" />
-      <span className="mcp-form-boolean-label">
-        {value ? '是' : '否'}
-      </span>
-    </button>
+    <div className="mcp-form-boolean">
+      <ToggleSwitch ariaLabel={schema.title ?? name} checked={value} onChange={onChange} />
+      <span className="mcp-form-boolean-label">{value ? '是' : '否'}</span>
+    </div>
   )
 }
 
@@ -465,33 +413,22 @@ function SingleSelectField({
 }): React.ReactNode {
   const options = getSelectOptions(schema)
   return (
-    <div className="mcp-form-option-group" role="radiogroup">
-      {options.map((option) => {
-        const isSelected = value === option.value
-        return (
-          <button
-            key={option.value}
-            id={isSelected ? `mcp-field-${name}` : undefined}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            className={
-              isSelected
-                ? 'mcp-form-option selected'
-                : 'mcp-form-option'
-            }
-            onClick={() => onChange(option.value)}
-          >
-            <span className="mcp-form-option-index">
-              {option.label[0]?.toUpperCase() ?? '?'}
-            </span>
-            <span className="mcp-form-option-label">
-              {option.label}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+    <RadioGroup
+      ariaLabel={schema.title ?? name}
+      className="mcp-form-option-group"
+      value={value}
+      onValueChange={onChange}
+    >
+      {options.map((option) => (
+        <RadioItem
+          className="mcp-form-option"
+          key={option.value}
+          label={option.label}
+          value={option.value}
+          variant="card"
+        />
+      ))}
+    </RadioGroup>
   )
 }
 
@@ -526,25 +463,14 @@ function MultiSelectField({
       {options.map((option) => {
         const isSelected = selectedSet.has(option.value)
         return (
-          <button
+          <Checkbox
+            checked={isSelected}
+            className="mcp-form-option"
             key={option.value}
-            type="button"
-            role="checkbox"
-            aria-checked={isSelected}
-            className={
-              isSelected
-                ? 'mcp-form-option selected'
-                : 'mcp-form-option'
-            }
-            onClick={() => toggle(option.value)}
+            onCheckedChange={() => toggle(option.value)}
           >
-            <span className="mcp-form-option-index">
-              {isSelected ? '✓' : ''}
-            </span>
-            <span className="mcp-form-option-label">
-              {option.label}
-            </span>
-          </button>
+            {option.label}
+          </Checkbox>
         )
       })}
     </div>
@@ -589,22 +515,15 @@ function getMultiSelectOptions(
   return []
 }
 
-function fieldLabel(
-  name: string,
-  schema: McpElicitationPrimitiveSchema,
-): string {
+function fieldLabel(name: string, schema: McpElicitationPrimitiveSchema): string {
   return schema.title ?? name
 }
 
-function fieldDescription(
-  schema: McpElicitationPrimitiveSchema,
-): string | undefined {
+function fieldDescription(schema: McpElicitationPrimitiveSchema): string | undefined {
   return schema.description
 }
 
-function buildPlaceholder(
-  schema: McpElicitationStringSchema | McpElicitationNumberSchema,
-): string {
+function buildPlaceholder(schema: McpElicitationStringSchema | McpElicitationNumberSchema): string {
   const parts: string[] = []
   if (schema.type === 'string') {
     const s = schema as McpElicitationStringSchema

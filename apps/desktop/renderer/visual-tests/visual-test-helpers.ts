@@ -1,8 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 export const VISUAL_MODES = ['light', 'dark'] as const
-export const V6_VISUAL_BASELINES_ENABLED =
-  process.env.CODEPILOTX_VISUAL_BASELINES_V6 === '1'
+export const V6_VISUAL_BASELINES_ENABLED = process.env.CODEPILOTX_VISUAL_BASELINES_V6 === '1'
 
 export type VisualMode = (typeof VISUAL_MODES)[number]
 
@@ -38,25 +37,25 @@ export async function prepareVisualTheme(
         accent: '#339cff',
         contrast: selectedMode === 'light' ? (values.contrast ?? 45) : 45,
         fonts: { code: null, ui: null },
-        ink: '#1a1c1f',
+        ink: '#111111',
         semanticColors: {
           diffAdded: '#00a240',
           diffRemoved: '#ba2623',
           skill: '#924ff7',
         },
-        surface: '#ffffff',
+        surface: '#f9f9f9',
       }
       const dark = {
         accent: '#339cff',
         contrast: selectedMode === 'dark' ? (values.contrast ?? 60) : 60,
         fonts: { code: null, ui: null },
-        ink: '#ffffff',
+        ink: '#f7f7f7',
         semanticColors: {
           diffAdded: '#40c977',
           diffRemoved: '#fa423e',
           skill: '#ad7bf9',
         },
-        surface: '#181818',
+        surface: '#111111',
       }
       localStorage.setItem(
         'codepilotx.desktop.appearance.v6',
@@ -72,7 +71,7 @@ export async function prepareVisualTheme(
           reduceMotion: values.reduceMotion ?? 'on',
           fontSmoothingEnabled: true,
           fontSizes: {
-            code: values.codeFontSize ?? 12,
+            code: values.codeFontSize ?? 13,
             ui: values.uiFontSize ?? 14,
           },
         }),
@@ -97,10 +96,10 @@ export async function waitForVisualPage(
     await document.fonts.ready
     await Promise.all(
       [...document.images]
-        .filter(image => !image.complete)
+        .filter((image) => !image.complete)
         .map(
-          image =>
-            new Promise<void>(resolve => {
+          (image) =>
+            new Promise<void>((resolve) => {
               image.addEventListener('load', () => resolve(), { once: true })
               image.addEventListener('error', () => resolve(), { once: true })
             }),
@@ -118,9 +117,14 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 }
 
-export async function closeTransientErrorToast(page: Page): Promise<void> {
+export async function closeTransientErrorToast(page: Page, waitForMilliseconds = 0): Promise<void> {
   const closeButton = page.getByRole('button', { name: '关闭错误提示' })
-  while (await closeButton.isVisible().catch(() => false)) {
-    await closeButton.click()
-  }
+  const deadline = Date.now() + waitForMilliseconds
+  do {
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click().catch(() => undefined)
+    }
+    if (Date.now() >= deadline) return
+    await page.waitForTimeout(100)
+  } while (true)
 }

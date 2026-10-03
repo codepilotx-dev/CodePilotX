@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import type React from 'react'
-import {
-  Check,
-  MoreHorizontal,
-  Play,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Check, MoreHorizontal, Play, Trash2, X } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { Button } from '../../components/ui/Button.js'
@@ -57,11 +52,8 @@ export function SessionFollowUpDock({
       {pauseReason ? (
         <div className="session-follow-up-header">
           <span>已排队 {items.length} 条</span>
-          <Button
-            className="session-follow-up-resume"
-            onClick={onResume}
-          >
-            <Play aria-hidden="true" size={12} />
+          <Button color="primary" className="session-follow-up-resume" onClick={onResume}>
+            <Play aria-hidden="true" size={APP_ICON_SIZE} />
             继续队列
           </Button>
         </div>
@@ -88,8 +80,8 @@ export function SessionFollowUpDock({
                   aria-label="编辑排队消息"
                   autoFocus
                   className="session-follow-up-edit-input"
-                  onChange={event => setEditingText(event.target.value)}
-                  onKeyDown={event => {
+                  onChange={(event) => setEditingText(event.target.value)}
+                  onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault()
                       finishEdit(item)
@@ -110,19 +102,23 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="保存编辑"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       disabled={!editingText.trim()}
                       onClick={() => finishEdit(item)}
+                      size="iconMd"
                       title="保存编辑"
                     >
-                      <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="取消编辑"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => setEditingId(null)}
+                      size="iconMd"
                       title="取消编辑"
                     >
-                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                   </>
                 ) : (
@@ -130,19 +126,23 @@ export function SessionFollowUpDock({
                     <IconButton
                       aria-label="移除排队消息"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => onRemove(item.id)}
+                      size="iconMd"
                       title="移除"
                     >
-                      <Trash2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     </IconButton>
                     <IconButton
                       aria-label="编辑排队消息"
                       className="session-follow-up-action"
+                      color="ghostSecondary"
                       onClick={() => beginEdit(item)}
+                      size="iconMd"
                       title="更多：编辑消息"
                     >
                       <MoreHorizontal
-                        size={APP_ICON_SIZE}
+                        size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </IconButton>

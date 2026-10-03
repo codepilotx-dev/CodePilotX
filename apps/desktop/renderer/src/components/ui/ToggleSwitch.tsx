@@ -1,4 +1,4 @@
-import React from 'react'
+import { forwardRef } from 'react'
 import * as Switch from '@radix-ui/react-switch'
 
 type Props = {
@@ -8,9 +8,13 @@ type Props = {
   disabled?: boolean
 }
 
-export function ToggleSwitch({ checked, onChange, ariaLabel, disabled = false }: Props) {
+export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function ToggleSwitch(
+  { checked, onChange, ariaLabel, disabled = false },
+  ref,
+) {
   return (
     <Switch.Root
+      ref={ref}
       aria-label={ariaLabel}
       className="toggle-switch"
       checked={checked}
@@ -20,4 +24,4 @@ export function ToggleSwitch({ checked, onChange, ariaLabel, disabled = false }:
       <Switch.Thumb className="toggle-knob" />
     </Switch.Root>
   )
-}
+})

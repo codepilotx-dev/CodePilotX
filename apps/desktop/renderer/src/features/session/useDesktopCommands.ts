@@ -10,10 +10,7 @@ export type UseDesktopCommandsOptions = {
   onLogOut: () => void
 }
 
-function routeCommand(
-  command: DesktopUiCommand,
-  options: UseDesktopCommandsOptions,
-): void {
+function routeCommand(command: DesktopUiCommand, options: UseDesktopCommandsOptions): void {
   if (command === 'newConversation') {
     options.onNewConversation()
     return
@@ -37,9 +34,7 @@ function routeCommand(
 
 export function useDesktopCommands(options: UseDesktopCommandsOptions): void {
   useEffect(() => {
-    const unsubscribe = desktopClient.onUiCommand(command =>
-      routeCommand(command, options),
-    )
+    const unsubscribe = desktopClient.onUiCommand((command) => routeCommand(command, options))
     return () => {
       unsubscribe()
     }

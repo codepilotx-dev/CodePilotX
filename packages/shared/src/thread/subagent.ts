@@ -1,41 +1,41 @@
-import { Model } from "@codepilotx/model-schema"
-import { Schema } from "effect"
-import { PermissionConfigSchema } from "./permission"
+import { Model } from '@codepilotx/model-schema'
+import { Schema } from 'effect'
+import { PermissionConfigSchema } from './permission'
 
-export const SubagentProfileSchema = Schema.Literals(["main", "default", "explorer", "worker"])
+export const SubagentProfileSchema = Schema.Literals(['main', 'default', 'explorer', 'worker'])
 export type SubagentProfile = typeof SubagentProfileSchema.Type
 
 export const SubagentWorkspaceSchema = Schema.Struct({
-  mode: Schema.Literals(["shared", "worktree"]),
-  state: Schema.Literals(["ready", "preparing", "conflict", "applied", "discarded"]),
+  mode: Schema.Literals(['shared', 'worktree']),
+  state: Schema.Literals(['ready', 'preparing', 'conflict', 'applied', 'discarded']),
   rootPath: Schema.NullOr(Schema.String),
   baselineRef: Schema.NullOr(Schema.String),
 })
 export type SubagentWorkspace = typeof SubagentWorkspaceSchema.Type
 
 export const SubagentStatusSchema = Schema.Literals([
-  "queued",
-  "preparing",
-  "running",
-  "steering",
-  "waiting-question",
-  "waiting-permission",
-  "completed",
-  "failed",
-  "stopped",
-  "interrupted",
+  'queued',
+  'preparing',
+  'running',
+  'steering',
+  'waiting-question',
+  'waiting-permission',
+  'completed',
+  'failed',
+  'stopped',
+  'interrupted',
 ])
 export type SubagentStatus = typeof SubagentStatusSchema.Type
 
 export const SubagentQueueReasonSchema = Schema.NullOr(
-  Schema.Literals(["parent-limit", "global-limit", "workspace-writer"]),
+  Schema.Literals(['parent-limit', 'global-limit', 'workspace-writer']),
 )
 export type SubagentQueueReason = typeof SubagentQueueReasonSchema.Type
 
 export const SubagentFindingSchema = Schema.Struct({
   title: Schema.String,
   detail: Schema.String,
-  severity: Schema.Literals(["info", "warning", "error"]),
+  severity: Schema.Literals(['info', 'warning', 'error']),
 })
 export type SubagentFinding = typeof SubagentFindingSchema.Type
 
@@ -47,20 +47,20 @@ export type SubagentChangedFile = typeof SubagentChangedFileSchema.Type
 
 export const SubagentValidationSchema = Schema.Struct({
   command: Schema.String,
-  status: Schema.Literals(["passed", "failed", "skipped"]),
+  status: Schema.Literals(['passed', 'failed', 'skipped']),
   output: Schema.optional(Schema.String),
 })
 export type SubagentValidation = typeof SubagentValidationSchema.Type
 
 export const SubagentReferenceSchema = Schema.Struct({
-  kind: Schema.Literals(["file", "url", "thread", "subagent"]),
+  kind: Schema.Literals(['file', 'url', 'thread', 'subagent']),
   value: Schema.String,
   label: Schema.optional(Schema.String),
 })
 export type SubagentReference = typeof SubagentReferenceSchema.Type
 
 export const SubagentResultSchema = Schema.Struct({
-  outcome: Schema.Literals(["succeeded", "partial", "blocked"]),
+  outcome: Schema.Literals(['succeeded', 'partial', 'blocked']),
   summary: Schema.String,
   findings: Schema.Array(SubagentFindingSchema),
   changedFiles: Schema.Array(SubagentChangedFileSchema),
@@ -94,7 +94,7 @@ export const SubagentTaskSchema = Schema.Struct({
   parentAgentId: Schema.String,
   childThreadId: Schema.String,
   displayName: Schema.String,
-  profile: Schema.Literals(["default", "explorer", "worker"]),
+  profile: Schema.Literals(['default', 'explorer', 'worker']),
   task: Schema.String,
   permissionCeiling: PermissionConfigSchema,
   workspace: SubagentWorkspaceSchema,
@@ -111,15 +111,15 @@ export const SubagentProjectionSchema = Schema.Struct({
 export type SubagentProjection = typeof SubagentProjectionSchema.Type
 
 export const AgentExecutionStatusSchema = Schema.Literals([
-  "queued",
-  "running",
-  "waiting-question",
-  "waiting-permission",
-  "waiting-subagents",
-  "completed",
-  "failed",
-  "interrupted",
-  "cancelled",
+  'queued',
+  'running',
+  'waiting-question',
+  'waiting-permission',
+  'waiting-subagents',
+  'completed',
+  'failed',
+  'interrupted',
+  'cancelled',
 ])
 export type AgentExecutionStatus = typeof AgentExecutionStatusSchema.Type
 

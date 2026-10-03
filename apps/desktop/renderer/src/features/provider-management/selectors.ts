@@ -8,9 +8,7 @@ import type {
   ProviderManagementSnapshot,
 } from './types.js'
 
-const usageConnectionKind = (
-  source: UsageSourceDescriptor,
-): ProviderConnectionKind | null => {
+const usageConnectionKind = (source: UsageSourceDescriptor): ProviderConnectionKind | null => {
   switch (source.connection.kind) {
     case 'provider-key':
       return 'inference-key'
@@ -33,18 +31,16 @@ const connectionIdentity = (connection: ProviderConnection): string =>
 export function selectProviderConnections(
   snapshot: ProviderManagementSnapshot,
 ): readonly ProviderConnection[] {
-  const connections: ProviderConnection[] = snapshot.credentials.map(
-    credential => ({
-      id: `credential:${credential.id}`,
-      kind: credential.kind === 'oauth' ? 'oauth' : 'inference-key',
-      origin: 'credential',
-      providerIds: [credential.providerId],
-      label: credential.label,
-      active: credential.active,
-      enabled: credential.enabled,
-      credentialId: credential.id,
-    }),
-  )
+  const connections: ProviderConnection[] = snapshot.credentials.map((credential) => ({
+    id: `credential:${credential.id}`,
+    kind: credential.kind === 'oauth' ? 'oauth' : 'inference-key',
+    origin: 'credential',
+    providerIds: [credential.providerId],
+    label: credential.label,
+    active: credential.active,
+    enabled: credential.enabled,
+    credentialId: credential.id,
+  }))
   const identities = new Set(connections.map(connectionIdentity))
 
   for (const provider of snapshot.providers) {
@@ -75,9 +71,7 @@ export function selectProviderConnections(
       active: true,
       enabled: true,
       sourceId: source.sourceId,
-      ...(source.connection.credentialId
-        ? { credentialId: source.connection.credentialId }
-        : {}),
+      ...(source.connection.credentialId ? { credentialId: source.connection.credentialId } : {}),
     }
     const identity = connectionIdentity(projected)
     if (identities.has(identity)) continue
@@ -101,33 +95,36 @@ export function selectConfiguredProviderGroups(
 ): readonly ConfiguredProviderGroup[] {
   const connections = selectProviderConnections(snapshot)
   const currentProviderId = snapshot.currentProviderState?.selectedProviderID
-  return snapshot.providers.flatMap(provider => {
-    const providerConnections = connections
-      .filter(connection => connection.providerIds.includes(provider.providerID))
-      .sort((left, right) => connectionPriority(left) - connectionPriority(right))
-    if (providerConnections.length === 0) return []
-    const usageSources = snapshot.usageSources.filter(source =>
-      source.providerIds.some(
-        providerId => String(providerId) === String(provider.providerID),
-      ),
+  return snapshot.providers
+    .flatMap((provider) => {
+      const providerConnections = connections
+        .filter((connection) => connection.providerIds.includes(provider.providerID))
+        .sort((left, right) => connectionPriority(left) - connectionPriority(right))
+      if (providerConnections.length === 0) return []
+      const usageSources = snapshot.usageSources.filter((source) =>
+        source.providerIds.some((providerId) => String(providerId) === String(provider.providerID)),
+      )
+      return [
+        {
+          provider,
+          current: provider.providerID === currentProviderId,
+          configured: true as const,
+          apiKeys: snapshot.apiKeys.filter((key) => key.providerId === provider.providerID),
+          oauthAvailable: provider.authMethods?.includes('oauth') ?? false,
+          usageSources,
+          connections: providerConnections,
+          activeConnection:
+            providerConnections.find((connection) => connection.active) ??
+            providerConnections[0] ??
+            null,
+        },
+      ]
+    })
+    .sort(
+      (left, right) =>
+        Number(right.current) - Number(left.current) ||
+        left.provider.displayName.localeCompare(right.provider.displayName, 'zh-CN'),
     )
-    return [{
-      provider,
-      current: provider.providerID === currentProviderId,
-      configured: true as const,
-      apiKeys: snapshot.apiKeys.filter(key => key.providerId === provider.providerID),
-      oauthAvailable: provider.authMethods?.includes('oauth') ?? false,
-      usageSources,
-      connections: providerConnections,
-      activeConnection:
-        providerConnections.find(connection => connection.active)
-        ?? providerConnections[0]
-        ?? null,
-    }]
-  }).sort((left, right) =>
-    Number(right.current) - Number(left.current)
-    || left.provider.displayName.localeCompare(right.provider.displayName, 'zh-CN'),
-  )
 }
 
 const analyticsPriority = (source: AnalyticsSource): number => {
@@ -142,35 +139,30 @@ export function selectAnalyticsSources(
 ): readonly AnalyticsSource[] {
   const configuredProviderIds = new Set(
     selectProviderConnections(snapshot)
-      .flatMap(connection => connection.providerIds)
+      .flatMap((connection) => connection.providerIds)
       .map(String),
   )
-  const resultById = new Map(
-    snapshot.usageResults.map(result => [result.sourceId, result]),
-  )
-  return snapshot.usageSources.filter(descriptor =>
-    descriptor.providerIds.some(providerId =>
-      configuredProviderIds.has(String(providerId)),
-    ),
-  ).map(descriptor => ({
-    descriptor,
-    result: resultById.get(descriptor.sourceId) ?? null,
-    connected: descriptor.connection.kind !== 'none',
-    metered: descriptor.queryPolicy === 'metered',
-  })).sort((left, right) =>
-    analyticsPriority(left) - analyticsPriority(right)
-    || left.descriptor.displayName.localeCompare(
-      right.descriptor.displayName,
-      'zh-CN',
-    ),
-  )
+  const resultById = new Map(snapshot.usageResults.map((result) => [result.sourceId, result]))
+  return snapshot.usageSources
+    .filter((descriptor) =>
+      descriptor.providerIds.some((providerId) => configuredProviderIds.has(String(providerId))),
+    )
+    .map((descriptor) => ({
+      descriptor,
+      result: resultById.get(descriptor.sourceId) ?? null,
+      connected: descriptor.connection.kind !== 'none',
+      metered: descriptor.queryPolicy === 'metered',
+    }))
+    .sort(
+      (left, right) =>
+        analyticsPriority(left) - analyticsPriority(right) ||
+        left.descriptor.displayName.localeCompare(right.descriptor.displayName, 'zh-CN'),
+    )
 }
 
 export function providerCredentialsFor(
   snapshot: ProviderManagementSnapshot,
   providerId: ModelProviderID,
 ) {
-  return snapshot.credentials.filter(
-    credential => credential.providerId === providerId,
-  )
+  return snapshot.credentials.filter((credential) => credential.providerId === providerId)
 }

@@ -17,27 +17,12 @@ const PERSONALITY_OPTIONS: Array<{
   { value: 'encouraging', label: '鼓励' },
 ]
 
-function LearnMoreLink() {
-  return (
-    <a
-      className="settings-row-link personalization-learn-more-link"
-      href="#"
-      onClick={event => event.preventDefault()}
-    >
-      了解更多
-    </a>
-  )
-}
-
 type Props = {
   onError?: (message: string) => void
   onNotice?: (message: string) => void
 }
 
-export function PersonalizationSettings({
-  onError,
-  onNotice,
-}: Props = {}): React.ReactNode {
+export function PersonalizationSettings({ onError, onNotice }: Props = {}): React.ReactNode {
   const { draft } = useDesktopSettings()
 
   async function saveCustomInstructions(): Promise<void> {
@@ -68,7 +53,7 @@ export function PersonalizationSettings({
                 ariaLabel="个性"
                 value={draft.values.personality}
                 options={PERSONALITY_OPTIONS}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('personality', value as DesktopPersonality)
                   draft.autoSave()
                 }}
@@ -79,24 +64,18 @@ export function PersonalizationSettings({
 
         <SettingsSection
           title="自定义指令"
-          description={
-            <>
-              为此主机上的所有任务向 CodePilotX 提供额外说明和上下文。
-              <LearnMoreLink />
-            </>
-          }
+          description={<>为此主机上的所有任务向 CodePilotX 提供额外说明和上下文。</>}
         >
           <div className="personalization-instructions-editor">
             <textarea
               className="settings-textarea settings-textarea-tall personalization-textarea"
-              onChange={event =>
-                draft.setValue('customInstructions', event.target.value)
-              }
+              onChange={(event) => draft.setValue('customInstructions', event.target.value)}
               placeholder="1、用 utf-8 读取文件！&#10;2、不写测试"
               value={draft.values.customInstructions}
             />
             <div className="personalization-actions">
               <Button
+                color="primary"
                 disabled={draft.saving}
                 onClick={() => void saveCustomInstructions()}
                 type="button"

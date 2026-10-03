@@ -8,8 +8,10 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
+  ThreadCreationSurface,
 } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { getVisiblePermissionModeOptions } from '../../settings/settingsStorage.js'
 import type { Message } from '../../../uiTypes.js'
@@ -18,16 +20,23 @@ import type {
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
   ComposerDeliveryIntent,
+  ComposerDocumentToken,
+  ComposerSkillInvocation,
   ComposerPlacement,
   ComposerSubmitOutcome,
+  ComposerSurface,
+  WorkingPlugin,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
-import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
+import { createTaskSession, executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
+import { annotationAttachments } from '../../browser/browserAnnotationDraft.js'
 import {
-  skillToComposerCommand,
-  type ComposerSkillCommand,
-} from './composerSlashCommands.js'
+  createComposerDocumentWithSkill,
+  skillInvocationsFromComposerDocument,
+} from './composerSkillToken.js'
+import { skillToComposerCommand, type ComposerSkillCommand } from './composerSlashCommands.js'
+import { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 
 type ControllerOptions = {
   input: string
@@ -39,36 +48,36 @@ type ControllerOptions = {
   permissionMode: DesktopPermissionMode
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
-  planExecutionModel?: string
+  codingModel?: string
   planModeActive: boolean
   modelConfigured: boolean
   selectedModelMetadata?: DesktopModelMetadata
   workspace: DesktopWorkspace | null
   attachments: DesktopComposerAttachment[]
   subagentMode: boolean
+  surface?: ComposerSurface
+  workingPlugin?: WorkingPlugin | null
+  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
   onAppendAttachmentsForDraft?: (
     draftKey: ComposerDraftKey,
     attachments: DesktopComposerAttachment[],
   ) => void
-  onRemoveAttachmentForDraft?: (
-    draftKey: ComposerDraftKey,
-    attachmentId: string,
-  ) => void
+  onRemoveAttachmentForDraft?: (draftKey: ComposerDraftKey, attachmentId: string) => void
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
-  ) => void
+  ) => boolean | void
   onPermissionChange: (value: DesktopPermissionMode) => void
-  onProviderModelChange: (
-    providerID: ModelProviderID,
-    modelPresetID: string,
-  ) => void
+  onProviderModelChange: (providerID: ModelProviderID, modelPresetID: string) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
     projectlessPrompt?: string,
+    creationSurface?: ThreadCreationSurface,
   ) => Promise<string | null>
+  /** Global error notification for failures that block sending. */
+  onError?: (message: string) => void
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
@@ -78,6 +87,46 @@ type ControllerOptions = {
       propagateError?: boolean
     },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
+}
+
+export function resolveActiveComposerSkillToken(
+  _workingPlugin: WorkingPlugin | null | undefined,
+  selectedSkillToken: ComposerSkillCommand | null,
+  _skillCommands: readonly ComposerSkillCommand[],
+): ComposerSkillCommand | null {
+  return selectedSkillToken
+}
+
+export type ResolveComposerCanSubmitInput = {
+  workingPluginSkillUnavailable: boolean
+  hasContent: boolean
+  hasAttachmentErrors: boolean
+  unsupportedAttachmentReason: string | null
+  modelConfigured: boolean
+  isSubmitting: boolean
+  placement: ComposerPlacement
+  routedSessionId: string | null
+}
+
+export function resolveComposerCanSubmit({
+  workingPluginSkillUnavailable,
+  hasContent,
+  hasAttachmentErrors,
+  unsupportedAttachmentReason,
+  modelConfigured,
+  isSubmitting,
+  placement,
+  routedSessionId,
+}: ResolveComposerCanSubmitInput): boolean {
+  return (
+    !workingPluginSkillUnavailable &&
+    hasContent &&
+    !hasAttachmentErrors &&
+    !unsupportedAttachmentReason &&
+    modelConfigured &&
+    !isSubmitting &&
+    (placement === 'new-session' || Boolean(routedSessionId))
+  )
 }
 
 export function useDesktopComposerController({
@@ -90,13 +139,16 @@ export function useDesktopComposerController({
   permissionMode,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
-  planExecutionModel,
+  codingModel,
   planModeActive,
   modelConfigured,
   selectedModelMetadata,
   workspace,
   attachments,
   subagentMode,
+  surface,
+  workingPlugin,
+  onWorkingPluginChange,
   onAttachmentsChange,
   onAppendAttachmentsForDraft,
   onRemoveAttachmentForDraft,
@@ -105,13 +157,14 @@ export function useDesktopComposerController({
   onProviderModelChange,
   createSessionForWorkspace,
   submitToSession,
+  onError,
 }: ControllerOptions) {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [isComposing, setIsComposing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [lastSubmitOutcome, setLastSubmitOutcome] =
-    useState<ComposerSubmitOutcome | null>(null)
+  const [lastSubmitOutcome, setLastSubmitOutcome] = useState<ComposerSubmitOutcome | null>(null)
+  const [fileAttachmentsAvailable, setFileAttachmentsAvailable] = useState(false)
   const [, setDraftStoreVersion] = useState(0)
   const composingRef = useRef(false)
   const submittingRef = useRef(false)
@@ -120,25 +173,57 @@ export function useDesktopComposerController({
   const draftClientIdRef = useRef(initialDraftRef.current.clientId)
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
-  const [selectedSkillToken, setSelectedSkillToken] =
-    useState<ComposerSkillCommand | null>(null)
+  const [runtimeSkillsLoaded, setRuntimeSkillsLoaded] = useState(false)
+  const [selectedSkillTokens, setSelectedSkillTokens] = useState<ComposerSkillCommand[]>(() =>
+    restoreSkillTokens(draftSkills(initialDraftRef.current), []),
+  )
+  const [contextTokens, setContextTokens] = useState<ComposerDocumentToken[]>(() =>
+    contextTokensFromDocument(initialDraftRef.current.document.tokens),
+  )
 
-  const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
-  const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
+  const activeSkillToken = selectedSkillTokens[0] ?? null
+  const selectedSkillToken = activeSkillToken
+  const activeSkills = useMemo(
+    () =>
+      selectedSkillTokens.map((command) => ({
+        name: command.skill.name,
+        path: command.skill.path,
+      })),
+    [selectedSkillTokens],
+  )
+  const composerDocument = useMemo(() => {
+    const base = createComposerDocumentWithSkill(input, activeSkills)
+    return { ...base, tokens: [...base.tokens, ...contextTokens] }
+  }, [activeSkills, contextTokens, input])
+  const workingPluginSkillUnavailable = false
+
+  const submissionAttachments = annotationAttachments({
+    ...composerDraftStore.get(draftKey),
     attachments,
+  })
+  const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(submissionAttachments)
+  const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
+    submissionAttachments,
     selectedModelMetadata,
   )
-  const canSubmit =
-    (Boolean(input.trim()) ||
-      attachments.length > 0 ||
-      selectedSkillToken !== null) &&
-    !hasAttachmentErrors &&
-    !unsupportedAttachmentReason &&
-    modelConfigured &&
-    !isSubmitting &&
-    (placement === 'new-session' || Boolean(routedSessionId))
+  const hasComposerContent =
+    Boolean(input.trim()) ||
+    Boolean(composerDraftStore.get(draftKey).browserAnnotations?.length) ||
+    attachments.length > 0 ||
+    activeSkillToken !== null ||
+    contextTokens.length > 0
+  const canSubmit = resolveComposerCanSubmit({
+    workingPluginSkillUnavailable,
+    hasContent: hasComposerContent,
+    hasAttachmentErrors,
+    unsupportedAttachmentReason,
+    modelConfigured,
+    isSubmitting,
+    placement,
+    routedSessionId,
+  })
   const attachmentIds = useMemo(
-    () => new Set(attachments.map(attachment => attachment.id)),
+    () => new Set(attachments.map((attachment) => attachment.id)),
     [attachments],
   )
   const branchName = getDesktopComposerBranchName(workspace)
@@ -150,30 +235,41 @@ export function useDesktopComposerController({
       }),
     [enableAutoReviewPermissionMode, enableFullAccessPermissionMode],
   )
-  const permissionModeVisible = permissionOptions.some(
-    option => option.value === permissionMode,
-  )
-  const effectivePermissionMode = permissionModeVisible
-    ? permissionMode
-    : 'default'
+  const permissionModeVisible = permissionOptions.some((option) => option.value === permissionMode)
+  const effectivePermissionMode = permissionModeVisible ? permissionMode : 'default'
   const hasConversationMessages =
-    hasConversationMessagesOverride ??
-    messages.some(message => message.role !== 'system')
+    hasConversationMessagesOverride ?? messages.some((message) => message.role !== 'system')
 
   useEffect(() => {
     if (permissionModeVisible) return
     onPermissionChange('default')
   }, [onPermissionChange, permissionModeVisible])
 
+  useEffect(() => {
+    let cancelled = false
+    void desktopClient.isComposerFileAttachmentAvailable().then(
+      (available) => {
+        if (!cancelled) setFileAttachmentsAvailable(available)
+      },
+      () => {
+        if (!cancelled) setFileAttachmentsAvailable(false)
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Execution location is only offered when creating a task in a project. A failed
   useEffect(
     () =>
       composerDraftStore.subscribe(() => {
-        setDraftStoreVersion(value => value + 1)
-        setSelectedSkillToken(
-          restoreSkillToken(
-            composerDraftStore.get(draftKey).skillInvocation,
-            skillCommands,
-          ),
+        setDraftStoreVersion((value) => value + 1)
+        const currentDraft = composerDraftStore.get(draftKey)
+        draftClientIdRef.current = currentDraft.clientId
+        setSelectedSkillTokens(restoreSkillTokens(draftSkills(currentDraft), skillCommands))
+        setContextTokens((current) =>
+          sameContextTokens(current, contextTokensFromDocument(currentDraft.document.tokens)),
         )
       }),
     [draftKey, skillCommands],
@@ -184,46 +280,48 @@ export function useDesktopComposerController({
     activeDraftKeyRef.current = draftKey
     const nextDraft = composerDraftStore.get(draftKey)
     setGoalModeEnabled(false)
-    setSelectedSkillToken(
-      restoreSkillToken(nextDraft.skillInvocation, skillCommands),
-    )
+    setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
+    setContextTokens(contextTokensFromDocument(nextDraft.document.tokens))
     setLastSubmitOutcome(null)
     draftClientIdRef.current = nextDraft.clientId
   }, [draftKey, skillCommands])
 
   useEffect(() => {
-    composerDraftStore.update(draftKey, current => ({
+    composerDraftStore.update(draftKey, (current) => ({
       ...current,
       clientId: draftClientIdRef.current,
-      document: createComposerDocument(input),
+      document: composerDocument,
       attachments,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }))
-  }, [attachments, draftKey, input, planModeActive])
+  }, [activeSkills, attachments, composerDocument, draftKey, planModeActive])
 
   useEffect(() => {
     if (subagentMode) {
       setSkillCommands([])
-      setSelectedSkillToken(null)
+      setSelectedSkillTokens([])
+      setRuntimeSkillsLoaded(true)
       return
     }
     let cancelled = false
+    setRuntimeSkillsLoaded(false)
     const load = (forceReload = false) =>
       loadCachedRuntimeSkills(workspace?.path, forceReload)
-        .then(skills => skills.map(skillToComposerCommand))
-        .then(commands => {
+        .then((skills) => skills.map(skillToComposerCommand))
+        .then((commands) => {
           if (!cancelled) {
             setSkillCommands(commands)
-            setSelectedSkillToken(
-              restoreSkillToken(
-                composerDraftStore.get(draftKey).skillInvocation,
-                commands,
-              ),
+            setRuntimeSkillsLoaded(true)
+            setSelectedSkillTokens(
+              restoreSkillTokens(draftSkills(composerDraftStore.get(draftKey)), commands),
             )
           }
         })
         .catch(() => {
-          if (!cancelled) setSkillCommands([])
+          if (!cancelled) {
+            setSkillCommands([])
+            setRuntimeSkillsLoaded(true)
+          }
         })
     void load()
     const unsubscribe = desktopClient.onRuntimeSkillsUpdated(() => {
@@ -236,12 +334,7 @@ export function useDesktopComposerController({
   }, [draftKey, subagentMode, workspace?.path])
 
   function handleSubmit(delivery: ComposerDeliveryIntent = 'default'): void {
-    if (
-      submittingRef.current ||
-      composingRef.current ||
-      !modelConfigured ||
-      !canSubmit
-    ) {
+    if (submittingRef.current || composingRef.current || !modelConfigured || !canSubmit) {
       return
     }
     submittingRef.current = true
@@ -254,9 +347,7 @@ export function useDesktopComposerController({
     })
   }
 
-  async function performSubmit(
-    delivery: ComposerDeliveryIntent,
-  ): Promise<void> {
+  async function performSubmit(delivery: ComposerDeliveryIntent): Promise<void> {
     const sourceDraftKey = draftKey
     const snapshot: ComposerDraftContentSnapshot = {
       text: input,
@@ -285,13 +376,21 @@ export function useDesktopComposerController({
           objective: goalText,
           status: 'active',
         })
-        applyPlanExecutionModel()
-        onDraftAccepted?.(sourceDraftKey, snapshot)
-        composerDraftStore.clear(sourceDraftKey)
+        applyCodingModel()
+        const clearContent = onDraftAccepted
+          ? onDraftAccepted(sourceDraftKey, snapshot) !== false
+          : true
+        const nextDraft = composerDraftStore.completeSubmission(
+          sourceDraftKey,
+          draftClientIdRef.current,
+          { clearContent },
+        )
         if (activeDraftKeyRef.current === sourceDraftKey) {
-          setSelectedSkillToken(null)
-          setGoalModeEnabled(false)
-          draftClientIdRef.current = crypto.randomUUID()
+          if (clearContent) {
+            setSelectedSkillTokens([])
+            setGoalModeEnabled(false)
+          }
+          draftClientIdRef.current = nextDraft.clientId
         }
         const successOutcome: ComposerSubmitOutcome = {
           status: 'sent',
@@ -301,10 +400,14 @@ export function useDesktopComposerController({
         composerDraftStore.clearSubmitOutcome(sourceDraftKey)
       } catch (error) {
         console.error('Failed to set session goal:', error)
+        const message = errorMessageOf(error)
+        // A version conflict already refreshed canonical state in the client; tell the
+        // user through the global channel instead of an inline composer error.
+        onError?.(message)
         const failureOutcome: ComposerSubmitOutcome = {
           status: 'failed',
           phase: 'send',
-          message: errorMessageOf(error),
+          message,
           sessionId: routedSessionId,
         }
         setLastSubmitOutcome(failureOutcome)
@@ -314,15 +417,12 @@ export function useDesktopComposerController({
     }
 
     const draft: ComposerDraft = {
+      ...composerDraftStore.get(sourceDraftKey),
       clientId: draftClientIdRef.current,
-      document: createComposerDocument(input),
+      document: composerDocument ?? createComposerDocument(input),
       attachments,
-      skillInvocation: selectedSkillToken
-        ? {
-            name: selectedSkillToken.skill.name,
-            path: selectedSkillToken.skill.path,
-          }
-        : undefined,
+      skills: draftSkills(composerDraftStore.get(sourceDraftKey)),
+      skillInvocation: undefined,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }
     const isNewSession = placement === 'new-session'
@@ -331,20 +431,24 @@ export function useDesktopComposerController({
       targetSessionId: isNewSession ? null : routedSessionId,
       createSession: isNewSession
         ? (initialSessionName, projectlessPrompt) =>
-            createSessionForWorkspace(
-              workspace,
-              initialSessionName,
-              projectlessPrompt,
-            )
+            createTaskSession({
+              onError,
+              create: () =>
+                createSessionForWorkspace(
+                  workspace,
+                  initialSessionName,
+                  projectlessPrompt,
+                  surface === 'working' || surface === 'chat' || surface === 'coding'
+                    ? surface
+                    : undefined,
+                ),
+            })
         : undefined,
       // Keep navigation before submission so the routed page owns all
       // streaming state from the first response event onward.
-      navigateToSession: nextSessionId => {
+      navigateToSession: (nextSessionId) => {
         const targetDraftKey: ComposerDraftKey = `session:${nextSessionId}`
-        const handoff = composerDraftStore.handoff(
-          sourceDraftKey,
-          targetDraftKey,
-        )
+        const handoff = composerDraftStore.handoff(sourceDraftKey, targetDraftKey)
         if (handoff && activeDraftKeyRef.current === sourceDraftKey) {
           draftClientIdRef.current = handoff.replacement.clientId
         }
@@ -367,74 +471,89 @@ export function useDesktopComposerController({
         ? `session:${outcome.sessionId}`
         : sourceDraftKey
       composerDraftStore.setSubmitOutcome(failureDraftKey, outcome)
+      if (outcome.phase === 'send') {
+        onError?.(outcome.message)
+      }
       return
     }
 
     const acceptedDraftKey: ComposerDraftKey = isNewSession
       ? `session:${outcome.sessionId}`
       : sourceDraftKey
-    onDraftAccepted?.(acceptedDraftKey, snapshot)
-    composerDraftStore.clear(acceptedDraftKey)
+    const clearContent = onDraftAccepted
+      ? onDraftAccepted(acceptedDraftKey, snapshot) !== false
+      : true
+    const nextDraft = composerDraftStore.completeSubmission(acceptedDraftKey, draft.clientId, {
+      clearContent,
+      browserAnnotations: draft.browserAnnotations,
+    })
     composerDraftStore.clearSubmitOutcome(acceptedDraftKey)
     if (activeDraftKeyRef.current === acceptedDraftKey) {
-      setSelectedSkillToken(null)
-      setGoalModeEnabled(false)
-      draftClientIdRef.current = crypto.randomUUID()
+      if (clearContent) {
+        setSelectedSkillTokens([])
+        setGoalModeEnabled(false)
+      }
+      draftClientIdRef.current = nextDraft.clientId
     }
+    if (workingPlugin) onWorkingPluginChange?.(null)
   }
 
-  function applyPlanExecutionModel(): void {
-    if (!planExecutionModel) return
-    const slashIdx = planExecutionModel.indexOf('/')
-    if (slashIdx <= 0 || slashIdx >= planExecutionModel.length - 1) return
+  function applyCodingModel(): void {
+    if (!codingModel) return
+    const slashIdx = codingModel.indexOf('/')
+    if (slashIdx <= 0 || slashIdx >= codingModel.length - 1) return
     onProviderModelChange(
-      planExecutionModel.slice(0, slashIdx) as ModelProviderID,
-      planExecutionModel.slice(slashIdx + 1),
+      codingModel.slice(0, slashIdx) as ModelProviderID,
+      codingModel.slice(slashIdx + 1),
     )
   }
 
-  async function handleOpenFiles(): Promise<void> {
+  async function handleAddFiles(files: FileList): Promise<void> {
+    if (files.length === 0) return
     const targetDraftKey = draftKey
-    const generation = nextAttachmentGeneration(
-      attachmentGenerationRef.current,
-      targetDraftKey,
+    const generation = nextAttachmentGeneration(attachmentGenerationRef.current, targetDraftKey)
+    const { selectDroppedComposerAttachments } = await import('./composerAttachmentSelection.js')
+    const selected = await selectDroppedComposerAttachments(
+      files,
+      (file) => desktopClient.getComposerFilePath(file),
+      (paths) => desktopClient.grantComposerFilePaths(paths),
     )
-    const selected = await desktopClient.chooseComposerFiles()
-    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) {
-      return
-    }
-    appendAttachments(targetDraftKey, selected)
+    await appendAttachments(targetDraftKey, selected, generation)
   }
 
-  async function handleAddFilePaths(filePaths: string[]): Promise<void> {
-    if (filePaths.length === 0) return
+  async function handleAddFilePaths(paths: string[]): Promise<void> {
+    if (paths.length === 0) return
     const targetDraftKey = draftKey
-    const generation = nextAttachmentGeneration(
-      attachmentGenerationRef.current,
-      targetDraftKey,
-    )
-    await desktopClient.authorizeComposerFilePaths(filePaths)
-    const selected = await desktopClient.readComposerFiles(filePaths)
-    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) {
-      return
-    }
-    appendAttachments(targetDraftKey, selected)
+    const generation = nextAttachmentGeneration(attachmentGenerationRef.current, targetDraftKey)
+    const selected = await desktopClient.grantComposerFilePaths(paths)
+    await appendAttachments(targetDraftKey, selected, generation)
   }
 
-  function appendAttachments(
+  async function appendAttachments(
     targetDraftKey: ComposerDraftKey,
     nextAttachments: DesktopComposerAttachment[],
-  ): void {
+    generation: number,
+  ): Promise<void> {
     if (nextAttachments.length === 0) return
+    const { mergeComposerAttachments } = await import('./composerAttachmentSelection.js')
+    if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) return
+    const { accepted, error } = mergeComposerAttachments(attachments, nextAttachments)
+    if (error) {
+      const outcome: ComposerSubmitOutcome = {
+        status: 'failed',
+        phase: 'prepare',
+        message: error,
+      }
+      setLastSubmitOutcome(outcome)
+      composerDraftStore.setSubmitOutcome(targetDraftKey, outcome)
+    }
     if (onAppendAttachmentsForDraft) {
-      onAppendAttachmentsForDraft(targetDraftKey, nextAttachments)
+      onAppendAttachmentsForDraft(targetDraftKey, accepted)
       return
     }
     onAttachmentsChange([
       ...attachments,
-      ...nextAttachments.filter(
-        attachment => !attachmentIds.has(attachment.id),
-      ),
+      ...accepted.filter((attachment) => !attachmentIds.has(attachment.id)),
     ])
   }
 
@@ -443,9 +562,7 @@ export function useDesktopComposerController({
       onRemoveAttachmentForDraft(draftKey, attachmentId)
       return
     }
-    onAttachmentsChange(
-      attachments.filter(attachment => attachment.id !== attachmentId),
-    )
+    onAttachmentsChange(attachments.filter((attachment) => attachment.id !== attachmentId))
   }
 
   async function handleCompact(): Promise<void> {
@@ -467,23 +584,38 @@ export function useDesktopComposerController({
   return {
     branchName,
     canSubmit,
+
     effectivePermissionMode,
+    fileAttachmentsAvailable,
     goalModeEnabled,
+    handleAddFiles,
     handleAddFilePaths,
     handleCommandError,
     handleCompact,
-    handleOpenFiles,
     handleRemoveAttachment,
+    handleComposerDocumentChange: (document: ComposerDraft['document']) => {
+      setContextTokens(contextTokensFromDocument(document.tokens))
+      const skills = skillInvocationsFromComposerDocument(document)
+      const currentSkills = draftSkills(composerDraftStore.get(draftKey))
+      if (
+        skills.length === currentSkills.length &&
+        skills.every((skill, index) => sameSkillInvocation(skill, currentSkills[index]))
+      )
+        return
+      composerDraftStore.setSkills(draftKey, skills)
+      setSelectedSkillTokens(restoreSkillTokens(skills, skillCommands))
+      if (!skills.length && workingPlugin) onWorkingPluginChange?.(null)
+    },
     handleSkillDeselect: () => {
-      composerDraftStore.setSkillInvocation(draftKey, undefined)
-      setSelectedSkillToken(null)
+      composerDraftStore.setSkills(draftKey, [])
+      setSelectedSkillTokens([])
     },
     handleSkillSelect: (skill: ComposerSkillCommand) => {
-      composerDraftStore.setSkillInvocation(draftKey, {
+      const nextDraft = composerDraftStore.addSkill(draftKey, {
         name: skill.skill.name,
         path: skill.skill.path,
       })
-      setSelectedSkillToken(skill)
+      setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
     },
     handleSubmit,
     handleCompositionEnd: () => {
@@ -497,14 +629,43 @@ export function useDesktopComposerController({
     hasConversationMessages,
     isComposing,
     isSubmitting,
-    lastSubmitOutcome:
-      composerDraftStore.getSubmitOutcome(draftKey) ?? lastSubmitOutcome,
+    lastSubmitOutcome: composerDraftStore.getSubmitOutcome(draftKey) ?? lastSubmitOutcome,
     permissionOptions,
     selectedSkillToken,
+    activeSkillToken,
+    composerDocument,
     setGoalModeEnabled,
     skillCommands,
+    taskPlanningAvailable: false,
     unsupportedAttachmentReason,
   }
+}
+
+function contextTokensFromDocument(
+  tokens: readonly ComposerDocumentToken[],
+): ComposerDocumentToken[] {
+  return tokens.filter((token) => token.kind === 'thread' || token.kind === 'browser')
+}
+
+function sameContextTokens(
+  current: ComposerDocumentToken[],
+  next: ComposerDocumentToken[],
+): ComposerDocumentToken[] {
+  return current.length === next.length &&
+    current.every((token, index) => {
+      const candidate = next[index]
+      return (
+        candidate &&
+        token.id === candidate.id &&
+        token.kind === candidate.kind &&
+        token.label === candidate.label &&
+        token.value === candidate.value &&
+        token.from === candidate.from &&
+        token.to === candidate.to
+      )
+    })
+    ? current
+    : next
 }
 
 const runtimeSkillCache = new Map<string, DesktopInstalledSkill[]>()
@@ -521,7 +682,7 @@ export function loadCachedRuntimeSkills(
       forceReload: force,
     })
     return result.state === 'ready' && result.data
-      ? result.data.filter(skill => skill.enabled)
+      ? result.data.filter((skill) => skill.enabled)
       : []
   },
 ): Promise<DesktopInstalledSkill[]> {
@@ -532,13 +693,13 @@ export function loadCachedRuntimeSkills(
   const pending = runtimeSkillRequests.get(key)
   if (pending) return pending
   const request = loader(workspacePath, forceReload)
-    .then(skills => {
-      const enabled = skills.filter(skill => skill.enabled)
+    .then((skills) => {
+      const enabled = skills.filter((skill) => skill.enabled)
       runtimeSkillCache.set(key, enabled)
       runtimeSkillRequests.delete(key)
       return enabled
     })
-    .catch(error => {
+    .catch((error) => {
       runtimeSkillRequests.delete(key)
       throw error
     })
@@ -552,8 +713,9 @@ function getUnsupportedAttachmentReason(
 ): string | null {
   if (attachments.length === 0 || !metadata?.modalities?.input) return null
   const supportedInputs = new Set(metadata.modalities.input)
-  const unsupported = attachments.find(attachment => {
+  const unsupported = attachments.find((attachment) => {
     if (attachment.status === 'error') return false
+    if (attachment.storage === 'local-path') return false
     return !supportedInputs.has(attachment.kind)
   })
   if (!unsupported) return null
@@ -561,9 +723,7 @@ function getUnsupportedAttachmentReason(
   return `${modelLabel} 不支持 ${attachmentKindLabel(unsupported.kind)} 附件`
 }
 
-function attachmentKindLabel(
-  kind: DesktopComposerAttachment['kind'],
-): string {
+function attachmentKindLabel(kind: DesktopComposerAttachment['kind']): string {
   switch (kind) {
     case 'image':
       return '图片'
@@ -580,20 +740,28 @@ function attachmentKindLabel(
   }
 }
 
-export function getDesktopComposerBranchName(
-  workspace: DesktopWorkspace | null,
-): string {
-  if (!workspace) return '无项目'
-  if (workspace.isGitRepo === false) return '未检测到 Git 分支'
-  return workspace.branchName ?? '未检测到 Git 分支'
-}
-
 function sessionPath(sessionId: string): string {
   return `/threads/${encodeURIComponent(sessionId)}`
 }
 
 function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return toUserErrorMessage(error, 'thread-send')
+}
+
+function draftSkills(draft: ComposerDraft): ComposerSkillInvocation[] {
+  return (
+    draft.skills ??
+    (draft.skillInvocation
+      ? [draft.skillInvocation]
+      : skillInvocationsFromComposerDocument(draft.document))
+  )
+}
+
+function restoreSkillTokens(
+  skills: ComposerSkillInvocation[],
+  commands: ComposerSkillCommand[],
+): ComposerSkillCommand[] {
+  return skills.map((skill) => restoreSkillToken(skill, commands)!)
 }
 
 function restoreSkillToken(
@@ -601,7 +769,9 @@ function restoreSkillToken(
   commands: ComposerSkillCommand[],
 ): ComposerSkillCommand | null {
   if (!invocation) return null
-  const command = commands.find(item => item.skill.name === invocation.name)
+  const command = commands.find(
+    (item) => item.skill.name === invocation.name && item.skill.path === invocation.path,
+  )
   return {
     id: `skill:${invocation.name}`,
     trigger: invocation.name,
@@ -612,8 +782,16 @@ function restoreSkillToken(
       name: invocation.name,
       path: invocation.path,
       scope: command?.skill.scope ?? 'repo',
+      source: command?.skill.source ?? 'workspace',
     },
   }
+}
+
+function sameSkillInvocation(
+  left: ComposerDraft['skillInvocation'] | null | undefined,
+  right: ComposerDraft['skillInvocation'] | null | undefined,
+): boolean {
+  return left?.name === right?.name && left?.path === right?.path
 }
 
 function nextAttachmentGeneration(

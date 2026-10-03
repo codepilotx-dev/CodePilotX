@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { toUserErrorMessage } from '../../../utils/errors.js'
 import { subscribeProjectCatalogChanges } from '../../projects/projectCatalogEvents.js'
 
 export type SidebarProjectCatalogState =
@@ -9,22 +10,23 @@ export type SidebarProjectCatalogState =
   | {
       status: 'unavailable'
       projects: readonly DesktopWorkspace[]
-      error: string
+      error?: string
     }
 
 export function useSidebarProjectCatalog({
   onReport,
+  onError,
 }: {
-  onReport: (message: string) => void
-}): {
+  onReport?: (message: string) => void
+  onError?: (message: string) => void
+} = {}): {
   projectCatalogState: SidebarProjectCatalogState
   removeCatalogProject: (project: DesktopWorkspace) => void
 } {
-  const [projectCatalogState, setProjectCatalogState] =
-    useState<SidebarProjectCatalogState>({
-      status: 'loading',
-      projects: [],
-    })
+  const [projectCatalogState, setProjectCatalogState] = useState<SidebarProjectCatalogState>({
+    status: 'loading',
+    projects: [],
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -33,19 +35,22 @@ export function useSidebarProjectCatalog({
       const currentRequest = ++requestVersion
       void desktopClient
         .listProjects()
-        .then(projects => {
+        .then((projects) => {
           if (cancelled || currentRequest !== requestVersion) return
           setProjectCatalogState({ status: 'ready', projects })
         })
-        .catch(error => {
+        .catch((error) => {
           if (cancelled || currentRequest !== requestVersion) return
-          const message = error instanceof Error ? error.message : String(error)
-          setProjectCatalogState(current => ({
+          const message = toUserErrorMessage(error, 'project-list')
+          setProjectCatalogState((current) => ({
             status: 'unavailable',
             projects: current.projects,
-            error: message,
           }))
-          onReport(message)
+          if (onError) {
+            onError(message)
+          } else if (onReport) {
+            onReport(message)
+          }
         })
     }
 
@@ -55,18 +60,39 @@ export function useSidebarProjectCatalog({
       cancelled = true
       unsubscribe()
     }
-  }, [onReport])
+  }, [onReport, onError])
 
   const removeCatalogProject = useCallback((target: DesktopWorkspace): void => {
-    setProjectCatalogState(current => ({
+    setProjectCatalogState((current) => ({
       ...current,
-      projects: current.projects.filter(project =>
-        target.projectId
-          ? project.projectId !== target.projectId
-          : project.path !== target.path,
+      projects: current.projects.filter((project) =>
+        target.projectId ? project.projectId !== target.projectId : project.path !== target.path,
       ),
     }))
   }, [])
 
   return { projectCatalogState, removeCatalogProject }
+}
+
+export function mergeCatalogProjects(
+  catalogProjects: readonly DesktopWorkspace[],
+  recentWorkspaces: readonly DesktopWorkspace[],
+): DesktopWorkspace[] {
+  const recentByKey = new Map(recentWorkspaces.map((project) => [projectKey(project), project]))
+  const merged = catalogProjects.map((project) => {
+    const recent = recentByKey.get(projectKey(project))
+    recentByKey.delete(projectKey(project))
+    return {
+      ...recent,
+      ...project,
+      pinnedAt: recent?.pinnedAt ?? project.pinnedAt ?? null,
+    }
+  })
+  return [...merged, ...recentByKey.values()]
+}
+
+function projectKey(project: DesktopWorkspace): string {
+  return project.projectId
+    ? `id:${project.projectId}`
+    : `path:${project.path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()}`
 }

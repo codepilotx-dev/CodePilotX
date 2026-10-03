@@ -1,0 +1,21 @@
+.ui-disclosure-content {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--cpx-sys-motion-disclosure) var(--cpx-sys-ease-disclosure);
+
+  &[data-expanded='false'] {
+    grid-template-rows: 0fr;
+    pointer-events: none;
+  }
+}
+
+.ui-disclosure-content__clip {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-disclosure-content__body {
+  min-width: 0;
+}

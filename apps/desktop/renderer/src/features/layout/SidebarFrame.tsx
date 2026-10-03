@@ -1,23 +1,14 @@
-import type React from "react";
-import { useEffect, useLayoutEffect, useRef } from "react";
-import { Bot, History } from "lucide-react";
+import type React from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Bot, History } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import type { Transition } from 'motion/react'
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useMotionValueEvent,
-} from "motion/react";
+import { animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import {
-  motionTransition,
-} from '../motion/motionTransitions.js'
-import {
-  useSidebarResizeCollapseConfirm,
-} from './useSidebarResizeCollapseConfirm.js'
+import { layoutTween, motionTransition } from '../motion/motionTransitions.js'
+import { useSidebarResizeCollapseConfirm } from './useSidebarResizeCollapseConfirm.js'
 import { useLiveResizeValue } from './useLiveResizeValue.js'
 import type { SidebarShellController } from './sidebarShellState.js'
+import { SIDEBAR_RAIL_WIDTH } from './sidebar/sidebarNavigation.js'
 
 export type SidebarContentKind = 'tasks' | 'settings'
 
@@ -33,24 +24,20 @@ export function getSidebarContentLabels(contentKind: SidebarContentKind): {
 }
 
 type Props = {
-  children: React.ReactNode;
-  collapsed: boolean;
-  contentKind: SidebarContentKind;
-  maxWidth: number;
-  minWidth: number;
-  width: number;
-  onCollapse: () => void;
-  onSetWidth: (width: number) => void;
-  shell: SidebarShellController;
-};
-
-const sidebarSpring = {
-  type: 'spring',
-  duration: 0.5,
-  bounce: 0.1,
-} satisfies Transition
+  rail?: React.ReactNode
+  children: React.ReactNode
+  collapsed: boolean
+  contentKind: SidebarContentKind
+  maxWidth: number
+  minWidth: number
+  width: number
+  onCollapse: () => void
+  onSetWidth: (width: number) => void
+  shell: SidebarShellController
+}
 
 export function SidebarFrame({
+  rail,
   children,
   collapsed,
   contentKind,
@@ -61,7 +48,9 @@ export function SidebarFrame({
   onSetWidth,
   shell,
 }: Props): React.ReactNode {
-  const sidebarRef = useRef<HTMLElement>(null);
+  const modern = rail != null
+  const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
+  const sidebarRef = useRef<HTMLElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const labels = getSidebarContentLabels(contentKind)
   const {
@@ -90,19 +79,19 @@ export function SidebarFrame({
     onCollapse,
     onResizePreview: previewWidth,
     onSetWidth,
-  });
+  })
 
   const floating = shell.mode === 'preview'
-  const hidden = shell.mode === 'collapsed'
-  const docked = shell.mode === 'docked'
+  const hidden = shell.mode === 'collapsed' || (modern && shell.pane === null)
+  const docked = modern ? shell.dockedVisible : shell.mode === 'docked'
+  const transition = modern ? { ...layoutTween, duration: floating ? 0.12 : 0.3 } : layoutTween
   const dockedRef = useRef(docked)
   dockedRef.current = docked
-  const allocatedWidth = useMotionValue(docked ? width : 0)
-  const allocatedWidthAnimationRef =
-    useRef<ReturnType<typeof animate> | null>(null)
+  const allocatedWidth = useMotionValue(docked ? width : railWidth)
+  const allocatedWidthAnimationRef = useRef<ReturnType<typeof animate> | null>(null)
   const previousHiddenRef = useRef(hidden)
 
-  useMotionValueEvent(liveWidth, 'change', nextWidth => {
+  useMotionValueEvent(liveWidth, 'change', (nextWidth) => {
     if (!dockedRef.current) return
     allocatedWidthAnimationRef.current?.stop()
     allocatedWidthAnimationRef.current = null
@@ -112,11 +101,8 @@ export function SidebarFrame({
   useEffect(() => {
     const animation = animate(
       allocatedWidth,
-      docked ? liveWidth.get() : 0,
-      motionTransition(
-        reducedMotion,
-        sidebarSpring,
-      ),
+      docked ? liveWidth.get() : railWidth,
+      motionTransition(reducedMotion, transition),
     )
     allocatedWidthAnimationRef.current = animation
     return () => {
@@ -125,7 +111,7 @@ export function SidebarFrame({
         allocatedWidthAnimationRef.current = null
       }
     }
-  }, [allocatedWidth, docked, liveWidth, reducedMotion])
+  }, [allocatedWidth, docked, liveWidth, reducedMotion, modern, floating, railWidth])
 
   useLayoutEffect(() => {
     const wasHidden = previousHiddenRef.current
@@ -133,10 +119,8 @@ export function SidebarFrame({
     if (!hidden || wasHidden) return
 
     const activeElement = document.activeElement
-    if (
-      !(activeElement instanceof HTMLElement)
-      || !sidebarRef.current?.contains(activeElement)
-    ) return
+    if (!(activeElement instanceof HTMLElement) || !sidebarRef.current?.contains(activeElement))
+      return
     document
       .querySelector<HTMLElement>('[data-app-shell-sidebar-trigger]')
       ?.focus({ preventScroll: true })
@@ -150,65 +134,41 @@ export function SidebarFrame({
     }
   }, [floating, resizing, shell.onFloatingResizeChange])
 
-  useLayoutEffect(() => {
-    const roots = [sidebarRef.current].filter(
-      (root): root is HTMLElement => root !== null,
-    );
-    if (roots.length === 0) return;
-
-    const footerEntries = roots
-      .map(root => ({
-        footer: root.querySelector<HTMLElement>(".sidebar-footer"),
-        root,
-      }))
-      .filter(
-        (entry): entry is { footer: HTMLElement; root: HTMLElement } =>
-          entry.footer !== null,
-      );
-
-    function updateFooterHeight(entry: {
-      footer: HTMLElement;
-      root: HTMLElement;
-    }): void {
-      const footerStyle = window.getComputedStyle(entry.footer);
-      const height = Math.ceil(
-        entry.footer.getBoundingClientRect().height +
-          Number.parseFloat(footerStyle.marginTop || "0") +
-          Number.parseFloat(footerStyle.marginBottom || "0"),
-      );
-      entry.root.style.setProperty("--sidebar-footer-height", `${height}px`);
-    }
-
-    footerEntries.forEach(updateFooterHeight);
-    const observer = new ResizeObserver(entries => {
-      for (const resizeEntry of entries) {
-        const match = footerEntries.find(entry => entry.footer === resizeEntry.target);
-        if (match) updateFooterHeight(match);
-      }
-    });
-    footerEntries.forEach(entry => observer.observe(entry.footer));
-
-    return () => observer.disconnect();
-  }, [shell.mode]);
-
   return (
     <>
+      {modern ? (
+        <div className="desktop-sidebar-rail-slot" data-sidebar-layout="modern">
+          {rail}
+        </div>
+      ) : null}
       <motion.div
         aria-hidden="true"
         className="desktop-sidebar-spacer"
         style={{ width: allocatedWidth }}
       />
       <motion.aside
+        id="desktop-sidebar-pane"
         ref={sidebarRef}
+        onClick={
+          modern
+            ? (event) => {
+                if (
+                  event.target instanceof Element &&
+                  event.target.closest('a[href], .sidebar-timeline-toggle-button')
+                )
+                  shell.pin()
+              }
+            : undefined
+        }
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
         className={[
-          "desktop-sidebar",
-          "tw:flex tw:h-full tw:shrink-0 tw:flex-col tw:overflow-hidden tw:text-app-text",
+          'desktop-sidebar',
+          'tw:flex tw:h-full tw:shrink-0 tw:flex-col tw:overflow-hidden tw:text-app-text',
           `is-${shell.mode}`,
-          floating ? "is-floating" : "",
-          resizing ? "is-resizing" : "",
-        ].join(" ")}
+          floating ? 'is-floating' : '',
+          resizing ? 'is-resizing' : '',
+        ].join(' ')}
         animate={
           hidden
             ? {
@@ -223,45 +183,43 @@ export function SidebarFrame({
               }
         }
         data-sidebar-content={contentKind}
-        initial={
-          hidden
-            ? { opacity: 0, visibility: 'hidden', x: -8 }
-            : false
-        }
+        data-sidebar-layout={modern ? 'modern' : 'classic'}
+        data-sidebar-pane={modern ? shell.pane : undefined}
+        initial={hidden ? { opacity: 0, visibility: 'hidden', x: -8 } : false}
         inert={hidden ? true : undefined}
         style={
           {
-            "--sidebar-current-width": liveWidthPixels,
+            '--sidebar-current-width': liveWidthPixels,
+            '--sidebar-rail-width': `${railWidth}px`,
           } as unknown as React.CSSProperties
         }
-        transition={motionTransition(
-          reducedMotion,
-          sidebarSpring,
-        )}
+        transition={motionTransition(reducedMotion, transition)}
       >
         {children}
 
-        {shell.mode === 'docked' || shell.mode === 'preview' ? <div
-          aria-label={labels.resize}
-          aria-orientation="vertical"
-          aria-valuemax={maxWidth}
-          aria-valuemin={minWidth}
-          aria-valuenow={width}
-          className="sidebar-resizer"
-          onKeyDown={handleResizeKey}
-          onLostPointerCapture={handleLostPointerCapture}
-          onPointerCancel={handlePointerCancel}
-          onPointerDown={startResize}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          role="separator"
-          tabIndex={0}
-        /> : null}
+        {shell.mode === 'docked' || shell.mode === 'preview' ? (
+          <div
+            aria-label={labels.resize}
+            aria-orientation="vertical"
+            aria-valuemax={maxWidth}
+            aria-valuemin={minWidth}
+            aria-valuenow={width}
+            className="sidebar-resizer"
+            onKeyDown={handleResizeKey}
+            onLostPointerCapture={handleLostPointerCapture}
+            onPointerCancel={handlePointerCancel}
+            onPointerDown={startResize}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            role="separator"
+            tabIndex={0}
+          />
+        ) : null}
         <div className="icon-button sidebar-brand-floating">
           <Bot size={APP_ICON_SIZE} />
         </div>
         <History className="icon-button sidebar-history-watermark" size={APP_ICON_SIZE} />
       </motion.aside>
     </>
-  );
+  )
 }

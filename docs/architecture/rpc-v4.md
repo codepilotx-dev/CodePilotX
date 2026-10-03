@@ -99,7 +99,7 @@ The protocol package defines:
 
 ```ts
 type RpcMethodMap = {
-  "thread/read": {
+  'thread/read': {
     params: ThreadReadParams
     result: ThreadReadResult
     errors: ThreadReadError
@@ -159,21 +159,21 @@ event envelope:
 type EventEnvelopeBase<E extends EventDefinition> = {
   eventId: string
   streamId: string
-  type: E["type"]
-  version: E["version"]
+  type: E['type']
+  version: E['version']
   occurredAt: number
   threadId?: string
   turnId?: string
-  payload: E["payload"]
+  payload: E['payload']
 }
 
 type DurableEventEnvelope<E extends EventDefinition> = EventEnvelopeBase<E> & {
-  durability: "durable"
+  durability: 'durable'
   sequence: number
 }
 
 type LiveEventEnvelope<E extends EventDefinition> = EventEnvelopeBase<E> & {
-  durability: "live"
+  durability: 'live'
   sequence: null
   afterSequence: number
 }

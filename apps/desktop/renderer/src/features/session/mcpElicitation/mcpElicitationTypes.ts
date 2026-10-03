@@ -59,8 +59,7 @@ export type McpElicitationBooleanSchema = {
 // ── Enum (single / multi select) ──────────────────────────────
 
 export type McpElicitationEnumSchema =
-  | McpElicitationSingleSelectEnumSchema
-  | McpElicitationMultiSelectEnumSchema
+  McpElicitationSingleSelectEnumSchema | McpElicitationMultiSelectEnumSchema
 
 /** Single-select: either untitled (`enum: string[]`) or titled (`oneOf: ConstOption[]`). */
 export type McpElicitationSingleSelectEnumSchema = {
@@ -80,9 +79,7 @@ export type McpElicitationMultiSelectEnumSchema = {
   minItems?: number
   maxItems?: number
   default?: Array<string>
-  items:
-    | { type: 'string'; enum: Array<string> }
-    | { anyOf: Array<McpElicitationConstOption> }
+  items: { type: 'string'; enum: Array<string> } | { anyOf: Array<McpElicitationConstOption> }
 }
 
 export type McpElicitationConstOption = {

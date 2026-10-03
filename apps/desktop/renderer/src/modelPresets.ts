@@ -9,7 +9,7 @@ export const CUSTOM_MODEL_PRESET_ID = '__custom__'
 export const MODEL_PRESETS: ModelPreset[] = buildModelPresets([])
 
 export function buildModelPresets(models: string[]): ModelPreset[] {
-  return models.map(model => ({
+  return models.map((model) => ({
     id: model,
     label: getModelDisplayLabel(model),
     value: model,
@@ -42,7 +42,7 @@ export function findModelPresetByValue(
   value: string,
   presets = MODEL_PRESETS,
 ): ModelPreset | undefined {
-  return presets.find(preset => preset.value === value)
+  return presets.find((preset) => preset.value === value)
 }
 
 export function resolveModelPresetId(
@@ -51,9 +51,7 @@ export function resolveModelPresetId(
   presets = MODEL_PRESETS,
 ): string {
   if (selectedModelPreset && selectedModelPreset !== CUSTOM_MODEL_PRESET_ID) {
-    return presets.some(preset => preset.id === selectedModelPreset)
-      ? selectedModelPreset
-      : ''
+    return presets.some((preset) => preset.id === selectedModelPreset) ? selectedModelPreset : ''
   }
   return findModelPresetByValue(model, presets)?.id ?? ''
 }

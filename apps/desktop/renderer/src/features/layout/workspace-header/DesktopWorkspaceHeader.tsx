@@ -1,11 +1,5 @@
 import type React from 'react'
-import {
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useWorkspaceHeaderContext } from './WorkspaceHeaderProvider.js'
 import {
   selectWorkspaceHeaderItems,
@@ -15,6 +9,8 @@ import {
 
 export type DesktopWorkspaceHeaderProps = {
   className?: string
+  /** 仅会话滚动内容需要边界时显示 0.5px divider；首页与设置页不固定画线。 */
+  divider?: boolean
   fullWidth: boolean
   rightDockOpen: boolean
   shellControls: React.ReactNode
@@ -29,25 +25,19 @@ const EMPTY_WIDTHS: HeaderSideWidths = { left: 0, right: 0 }
 
 export function DesktopWorkspaceHeader({
   className,
+  divider = false,
   fullWidth,
   rightDockOpen,
   shellControls,
 }: DesktopWorkspaceHeaderProps): React.ReactNode {
   const { routeScope, store } = useWorkspaceHeaderContext()
-  const snapshot = useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    store.getServerSnapshot,
-  )
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRouteRef = useRef<HTMLDivElement>(null)
   const shellControlsRef = useRef<HTMLDivElement>(null)
   const [widths, setWidths] = useState<HeaderSideWidths>(EMPTY_WIDTHS)
   const routeItems = useMemo(
-    () =>
-      fullWidth
-        ? []
-        : selectWorkspaceHeaderItems(snapshot, routeScope),
+    () => (fullWidth ? [] : selectWorkspaceHeaderItems(snapshot, routeScope)),
     [fullWidth, routeScope, snapshot],
   )
 
@@ -65,37 +55,25 @@ export function DesktopWorkspaceHeader({
         left: Math.max(0, left.getBoundingClientRect().width),
         right: Math.max(0, rightRoute.getBoundingClientRect().width),
       }
-      setWidths(current =>
-        current.left === next.left && current.right === next.right
-          ? current
-          : next,
+      setWidths((current) =>
+        current.left === next.left && current.right === next.right ? current : next,
       )
 
       if (workspace) {
-        appliedShellWidth = `${Math.max(
-          0,
-          shell.getBoundingClientRect().width,
-        )}px`
-        workspace.style.setProperty(
-          '--workspace-header-shell-width',
-          appliedShellWidth,
-        )
+        appliedShellWidth = `${Math.max(0, shell.getBoundingClientRect().width)}px`
+        workspace.style.setProperty('--workspace-header-shell-width', appliedShellWidth)
       }
     }
     update()
 
-    const observer =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(update)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
     observer?.observe(left)
     observer?.observe(rightRoute)
     observer?.observe(shell)
     return () => {
       observer?.disconnect()
       if (
-        workspace?.style.getPropertyValue('--workspace-header-shell-width') ===
-        appliedShellWidth
+        workspace?.style.getPropertyValue('--workspace-header-shell-width') === appliedShellWidth
       ) {
         workspace.style.removeProperty('--workspace-header-shell-width')
       }
@@ -111,9 +89,8 @@ export function DesktopWorkspaceHeader({
 
   return (
     <header
-      className={['desktop-workspace-header', className]
-        .filter(Boolean)
-        .join(' ')}
+      className={['desktop-workspace-header', className].filter(Boolean).join(' ')}
+      data-divider={divider || undefined}
       data-full-width={fullWidth || undefined}
       data-right-dock-open={rightDockOpen || undefined}
       aria-label="工作区工具栏"
@@ -145,17 +122,14 @@ function HeaderSlot({
   items: readonly WorkspaceHeaderItemSnapshot[]
   slot: WorkspaceHeaderSlot
 }): React.ReactNode {
-  const slotItems = items.filter(item => item.slot === slot)
-  return (['start', 'center', 'end'] as const).map(align => {
-    const alignedItems = slotItems.filter(item => item.align === align)
+  const slotItems = items.filter((item) => item.slot === slot)
+  return (['start', 'center', 'end'] as const).map((align) => {
+    const alignedItems = slotItems.filter((item) => item.align === align)
     if (alignedItems.length === 0) return null
     return (
       <div className="desktop-workspace-header-group" data-align={align} key={align}>
-        {alignedItems.map(item => (
-          <div
-            className="desktop-workspace-header-item"
-            key={`${item.routeScope}:${item.id}`}
-          >
+        {alignedItems.map((item) => (
+          <div className="desktop-workspace-header-item" key={`${item.routeScope}:${item.id}`}>
             {item.node}
           </div>
         ))}

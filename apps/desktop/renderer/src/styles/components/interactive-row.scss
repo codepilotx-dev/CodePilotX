@@ -12,42 +12,45 @@
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
   position: relative;
+  --interactive-row-current-gap: var(--cpx-comp-row-gap);
   box-sizing: border-box;
+  display: flex;
   min-height: var(--interactive-row-current-min-height);
   align-items: center;
-  gap: var(--interactive-row-current-gap, var(--menu-item-gap));
-  padding:
-    var(--interactive-row-current-padding-block, 0)
+  gap: var(--interactive-row-current-gap, var(--cpx-comp-row-gap));
+  padding: var(--interactive-row-current-padding-block, 0)
     var(--interactive-row-current-padding-inline);
   border-radius: var(--interactive-row-current-radius);
-  background: var(--interactive-row-background, transparent);
-  color: var(
-    --interactive-row-foreground,
-    var(--color-token-foreground)
-  );
-  font-size: var(--interactive-row-current-font-size);
-  line-height: var(--interactive-row-current-line-height);
+  corner-shape: var(--cpx-sys-corner-shape);
+  background: var(--cpx-comp-row-bg, transparent);
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
+  font: var(--cpx-sys-type-control);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
   outline: none;
   user-select: none;
   transition:
-    background var(--motion-fast) var(--ease-out),
-    box-shadow var(--motion-fast) var(--ease-out),
-    color var(--motion-fast) var(--ease-out);
+    background-color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out),
+    opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
+
+  > svg,
+  svg {
+    flex-shrink: 0;
+  }
+
+  > svg {
+    display: block;
+  }
 }
 
 .interactive-row--nav {
-  --interactive-row-current-min-height: var(--interactive-row-nav-height);
-  --interactive-row-current-radius: var(--interactive-row-nav-radius);
-  --interactive-row-current-padding-inline: var(
-    --interactive-row-nav-padding-inline
-  );
-  --interactive-row-current-font-size: var(--interactive-row-nav-font-size);
-  --interactive-row-current-line-height: var(--interactive-row-nav-line-height);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-nav);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
+  --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
 }
 
 .interactive-row--menu,
@@ -61,60 +64,25 @@
 .sidebar-context-menu-sub-trigger,
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
-  --interactive-row-current-min-height: var(--interactive-row-menu-height);
-  --interactive-row-current-radius: var(--interactive-row-menu-radius);
-  --interactive-row-current-padding-block: var(
-    --interactive-row-menu-padding-block
-  );
-  --interactive-row-current-padding-inline: var(
-    --interactive-row-menu-padding-inline
-  );
-  --interactive-row-current-font-size: var(--interactive-row-menu-font-size);
-  --interactive-row-current-line-height: var(--interactive-row-menu-line-height);
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-menu);
+  --interactive-row-current-radius: var(--cpx-comp-row-radius);
+  --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block);
+  --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
 }
 
-.interactive-row--toolbar {
-  --interactive-row-current-min-height: var(--interactive-row-toolbar-height);
-  --interactive-row-current-radius: var(--interactive-row-toolbar-radius);
-  --interactive-row-current-padding-inline: var(
-    --interactive-row-toolbar-padding-inline
-  );
-  --interactive-row-current-font-size: var(
-    --interactive-row-toolbar-font-size
-  );
-  --interactive-row-current-line-height: var(
-    --interactive-row-toolbar-line-height
-  );
+.interactive-row--rich,
+.popover-item.rich,
+.popover-item--rich,
+.permission-select-item {
+  --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 44px);
+  --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block-rich, 6px);
 }
 
-.interactive-row--composer {
-  --interactive-row-current-min-height: var(--interactive-row-composer-height);
-  --interactive-row-current-radius: var(--interactive-row-composer-radius);
-  --interactive-row-current-padding-inline: var(
-    --interactive-row-composer-padding-inline
-  );
-  --interactive-row-current-gap: var(--interactive-row-composer-gap);
-  --interactive-row-current-font-size: var(
-    --interactive-row-composer-font-size
-  );
-  --interactive-row-current-line-height: var(
-    --interactive-row-composer-line-height
-  );
+.permission-select-scroll-content {
+  gap: var(--cpx-comp-row-gap-y);
 }
 
-.interactive-row--adaptive {
-  --interactive-row-current-min-height: var(
-    --interactive-row-adaptive-min-height
-  );
-  --interactive-row-current-radius: var(--interactive-row-adaptive-radius);
-  --interactive-row-current-padding-inline: var(
-    --interactive-row-adaptive-padding-inline
-  );
-  --interactive-row-current-font-size: var(--type-control);
-  --interactive-row-current-line-height: var(--control-line-height);
-}
-
-.interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),
+.interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])),
 .popover-item:hover:not(:where(:disabled, [data-disabled])),
 .popover-sub-trigger:hover:not(:where([data-disabled])),
 .settings-dropdown-item:hover:not(:where(:disabled, [data-disabled])),
@@ -124,14 +92,8 @@
 .sidebar-context-menu-sub-trigger:hover:not(:where([data-disabled])),
 .rm-model-menu .rm-menu-item:hover:not(:where([data-disabled])),
 .rm-model-menu .rm-sub-trigger:hover:not(:where([data-disabled])) {
-  background: var(
-    --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
-  );
-  color: var(
-    --interactive-row-hover-foreground,
-    var(--interactive-row-foreground, var(--color-token-foreground))
-  );
+  background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+  color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
 .interactive-row[data-highlighted],
@@ -145,57 +107,35 @@
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .rm-model-menu .rm-menu-item[data-highlighted],
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
-  background: var(
-    --interactive-row-hover-background,
-    var(--color-token-list-hover-background)
-  );
-  color: var(
-    --interactive-row-hover-foreground,
-    var(--interactive-row-foreground, var(--color-token-foreground))
-  );
+  background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+  color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
-.interactive-row[data-state="open"],
-.interactive-row[aria-expanded="true"],
-.popover-sub-trigger[data-state="open"],
-.sidebar-context-menu-sub-trigger[data-state="open"],
-.rm-model-menu .rm-sub-trigger[data-state="open"] {
-  background: var(
-    --interactive-row-open-background,
-    var(--color-token-list-active-selection-background)
-  );
-  color: var(
-    --interactive-row-open-foreground,
-    var(--color-token-list-active-selection-foreground)
-  );
+.interactive-row:active:not(:where(:disabled, [data-disabled], [aria-disabled='true'])),
+.popover-item:active:not(:where(:disabled, [data-disabled])),
+.popover-sub-trigger:active:not(:where([data-disabled])),
+.menubar-item:active:not(:where([data-disabled])),
+.settings-dropdown-item:active:not(:where(:disabled, [data-disabled])),
+.permission-select-item:active:not(:where([data-disabled])),
+.chat-input__dropdown-item:active:not(:where(:disabled, [aria-disabled='true'])),
+.sidebar-context-menu-item:active:not(:where([data-disabled])),
+.sidebar-context-menu-sub-trigger:active:not(:where([data-disabled])),
+.rm-model-menu .rm-menu-item:active:not(:where([data-disabled])),
+.rm-model-menu .rm-sub-trigger:active:not(:where([data-disabled])) {
+  background: var(--cpx-comp-row-pressed-bg, var(--cpx-sys-color-active));
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
-.interactive-row.selected,
-.interactive-row.active,
-.interactive-row[aria-selected="true"],
-.interactive-row[aria-current="page"],
-.interactive-row[data-state="checked"],
-.popover-item.selected,
-.popover-item.active,
-.popover-item[aria-selected="true"],
-.popover-item[data-state="checked"],
-.settings-dropdown-item[aria-selected="true"],
-.settings-dropdown-item[data-state="checked"] {
-  background: var(
-    --interactive-row-selected-background,
-    var(--color-token-list-active-selection-background)
-  );
-  color: var(
-    --interactive-row-selected-foreground,
-    var(--color-token-list-active-selection-foreground)
-  );
+.interactive-row:focus-visible {
+  outline: 2px solid var(--cpx-comp-row-focus-border, var(--cpx-sys-color-border-focus));
+  outline-offset: 1px;
 }
 
-.interactive-row:focus-visible,
 .popover-item:focus-visible,
 .popover-sub-trigger:focus-visible,
 .menubar-item:focus-visible,
 .settings-dropdown-item:focus-visible,
+.theme-dropdown-item:focus-visible,
 .permission-select-item:focus-visible,
 .chat-input__dropdown-item:focus-visible,
 .sidebar-context-menu-item:focus-visible,
@@ -203,12 +143,69 @@
 .rm-model-menu .rm-menu-item:focus-visible,
 .rm-model-menu .rm-sub-trigger:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring-soft);
+  box-shadow: var(--cpx-sys-focus-ring-inset);
+}
+
+.interactive-row[data-state='open'],
+.interactive-row[aria-expanded='true'],
+.popover-sub-trigger[data-state='open'],
+.sidebar-context-menu-sub-trigger[data-state='open'],
+.rm-model-menu .rm-sub-trigger[data-state='open'] {
+  background: var(--cpx-comp-row-open-bg, var(--cpx-sys-color-selected));
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
+}
+
+.interactive-row.selected,
+.interactive-row.active,
+.interactive-row[aria-selected='true'],
+.interactive-row[aria-current='page'],
+.interactive-row[data-state='checked'],
+.popover-item.selected,
+.popover-item.active,
+.popover-item[aria-selected='true'],
+.settings-dropdown-item[aria-selected='true'],
+.settings-dropdown-item[data-state='checked'],
+.permission-select-item[aria-selected='true'],
+.permission-select-item[data-state='checked'],
+.menubar-item[aria-selected='true'],
+.menubar-item[data-state='checked'] {
+  background: var(--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected));
+  color: var(--cpx-comp-row-selected-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
+}
+
+:is(
+  .popover-item[data-state='checked'],
+  .popover-item[aria-selected='true'],
+  .popover-item[aria-checked='true'],
+  .popover-item:has(.popover-item-check),
+  .settings-dropdown-item:has(.settings-dropdown-item-indicator),
+  .permission-select-item:has(.permission-select-item-indicator)
+) {
+  background: var(--cpx-comp-row-bg, transparent);
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
+
+  &:where(:hover, [data-highlighted]):not(:where(:disabled, [data-disabled])) {
+    background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+    color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
+  }
+
+  &:active:not(:where(:disabled, [data-disabled])) {
+    background: var(--cpx-comp-row-pressed-bg, var(--cpx-sys-color-active));
+    color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
+  }
+}
+
+:is(
+  .settings-dropdown-item[data-state='checked']:has(.settings-dropdown-item-indicator),
+  .permission-select-item[data-state='checked']:has(.permission-select-item-indicator)
+):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active)) {
+  background: var(--cpx-comp-row-bg, transparent);
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
 .interactive-row:disabled,
 .interactive-row[data-disabled],
-.interactive-row[aria-disabled="true"],
+.interactive-row[aria-disabled='true'],
 .popover-item:disabled,
 .popover-item[data-disabled],
 .popover-sub-trigger[data-disabled],
@@ -217,19 +214,21 @@
 .settings-dropdown-item[data-disabled],
 .permission-select-item[data-disabled],
 .chat-input__dropdown-item:disabled,
+.chat-input__dropdown-item[aria-disabled='true'],
 .sidebar-context-menu-item[data-disabled],
 .sidebar-context-menu-sub-trigger[data-disabled],
 .rm-model-menu .rm-menu-item[data-disabled],
 .rm-model-menu .rm-sub-trigger[data-disabled] {
-  color: var(
-    --interactive-row-disabled-foreground,
-    var(--color-token-disabled-foreground)
-  );
+  color: var(--cpx-comp-row-disabled-fg, var(--cpx-sys-color-fg-disabled));
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  transform: none;
   cursor: default;
-  opacity: var(--interactive-row-disabled-opacity, 0.55);
+  opacity: var(--cpx-comp-row-disabled-opacity, 0.55);
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .interactive-row,
   .popover-item,
   .popover-sub-trigger,
@@ -245,18 +244,22 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .interactive-row,
-  .popover-item,
-  .popover-sub-trigger,
-  .menubar-item,
-  .settings-dropdown-item,
-  .permission-select-item,
-  .chat-input__dropdown-item,
-  .sidebar-context-menu-item,
-  .sidebar-context-menu-sub-trigger,
-  .rm-model-menu .rm-menu-item,
-  .rm-model-menu .rm-sub-trigger {
-    transition: none;
+@media (forced-colors: active) {
+  :is(
+    .popover-item,
+    .popover-sub-trigger,
+    .menubar-item,
+    .settings-dropdown-item,
+    .theme-dropdown-item,
+    .permission-select-item,
+    .chat-input__dropdown-item,
+    .sidebar-context-menu-item,
+    .sidebar-context-menu-sub-trigger,
+    .rm-model-menu .rm-menu-item,
+    .rm-model-menu .rm-sub-trigger
+  ):focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

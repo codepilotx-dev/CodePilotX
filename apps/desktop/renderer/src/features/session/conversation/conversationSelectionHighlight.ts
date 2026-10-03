@@ -1,5 +1,4 @@
-export const CONVERSATION_SELECTION_HIGHLIGHT_NAME =
-  'conversation-action-selection'
+export const CONVERSATION_SELECTION_HIGHLIGHT_NAME = 'conversation-action-selection'
 
 type SelectionLike = {
   rangeCount: number
@@ -53,8 +52,6 @@ export function installConversationSelectionHighlight(
   return true
 }
 
-export function clearConversationSelectionHighlight(
-  scope: HighlightScopeLike = window,
-): void {
+export function clearConversationSelectionHighlight(scope: HighlightScopeLike = window): void {
   scope.CSS?.highlights?.delete(CONVERSATION_SELECTION_HIGHLIGHT_NAME)
 }

@@ -15,10 +15,7 @@ export type PetAnimationDefinition = {
   repeat: number | null
 }
 
-export const PET_ANIMATIONS: Record<
-  PetAnimationName,
-  PetAnimationDefinition
-> = {
+export const PET_ANIMATIONS: Record<PetAnimationName, PetAnimationDefinition> = {
   idle: {
     row: 0,
     durations: [1680, 660, 660, 840, 840, 1920],

@@ -18,8 +18,7 @@ type ReviewRefreshCycle<TResult> = {
 }
 
 export const REVIEW_REFRESH_MAX_ATTEMPTS = 3
-export const REVIEW_REPOSITORY_BUSY_MESSAGE =
-  '工作区持续变化，请稍后重试'
+export const REVIEW_REPOSITORY_BUSY_MESSAGE = '工作区持续变化，请稍后重试'
 
 export class ReviewRepositoryBusyError extends Error {
   constructor() {
@@ -56,10 +55,7 @@ export function createReviewCommentIdentity(
   return `${summaryIdentity}\0${activeSessionId ?? ''}`
 }
 
-export function reviewGitChangeMatchesProject(
-  detail: unknown,
-  projectId: string | null,
-): boolean {
+export function reviewGitChangeMatchesProject(detail: unknown, projectId: string | null): boolean {
   return (
     typeof projectId === 'string' &&
     projectId.length > 0 &&
@@ -75,9 +71,7 @@ export function reviewGitChangeMatchesProject(
  * during an active request, or a stale result, schedules exactly one trailing
  * force refresh so the view eventually converges without parallel Git scans.
  */
-export class ReviewRefreshCoordinator<
-  TResult extends ReviewRefreshResult,
-> {
+export class ReviewRefreshCoordinator<TResult extends ReviewRefreshResult> {
   #current: ReviewRefreshCycle<TResult> | null = null
   #disposed = false
   readonly #maxAttempts: number
@@ -118,6 +112,10 @@ export class ReviewRefreshCoordinator<
     }
   }
 
+  activate(): void {
+    this.#disposed = false
+  }
+
   dispose(): void {
     this.#disposed = true
     this.#current = null
@@ -148,7 +146,7 @@ export class ReviewRefreshCoordinator<
         throw new ReviewRepositoryBusyError()
       }
       force = true
-      await new Promise<void>(resolve => setTimeout(resolve, 0))
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
     }
 
     if (this.#current === cycle) this.#current = null

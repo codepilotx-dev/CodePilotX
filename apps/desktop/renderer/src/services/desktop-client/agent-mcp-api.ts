@@ -43,23 +43,15 @@ function desktopMcpServer(
     enabled: server.enabled,
     diagnosticContext: server.diagnosticContext ?? false,
     effective: item.effective,
-    ...(item.shadowedByScope
-      ? { shadowedByScope: item.shadowedByScope }
-      : {}),
+    ...(item.shadowedByScope ? { shadowedByScope: item.shadowedByScope } : {}),
     editable: true,
     removable: true,
     transport: server.transport,
-    ...(server.startupTimeoutMs
-      ? { startupTimeoutMs: server.startupTimeoutMs }
-      : {}),
-    ...(server.toolTimeoutMs
-      ? { toolTimeoutMs: server.toolTimeoutMs }
-      : {}),
+    ...(server.startupTimeoutMs ? { startupTimeoutMs: server.startupTimeoutMs } : {}),
+    ...(server.toolTimeoutMs ? { toolTimeoutMs: server.toolTimeoutMs } : {}),
     ...(server.required !== undefined ? { required: server.required } : {}),
     ...(server.enabledTools ? { enabledTools: [...server.enabledTools] } : {}),
-    ...(server.disabledTools
-      ? { disabledTools: [...server.disabledTools] }
-      : {}),
+    ...(server.disabledTools ? { disabledTools: [...server.disabledTools] } : {}),
     ...(server.defaultToolsApprovalMode
       ? { defaultToolsApprovalMode: server.defaultToolsApprovalMode }
       : {}),
@@ -75,7 +67,7 @@ export function createAgentMcpApi({
   withAgentOrMock,
 }: Dependencies): McpApi {
   return {
-    listMcpServers: workspacePath =>
+    listMcpServers: (workspacePath) =>
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
@@ -87,7 +79,7 @@ export function createAgentMcpApi({
         },
         () => mockClient.listMcpServers(workspacePath),
       ),
-    getMcpRuntimeStatus: workspacePath =>
+    getMcpRuntimeStatus: (workspacePath) =>
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
@@ -98,7 +90,7 @@ export function createAgentMcpApi({
         },
         () => mockClient.getMcpRuntimeStatus(workspacePath),
       ),
-    saveMcpServer: options =>
+    saveMcpServer: (options) =>
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
@@ -108,41 +100,24 @@ export function createAgentMcpApi({
               name: options.name,
               scope: options.scope,
               enabled: options.enabled,
-              ...(options.diagnosticContext
-                ? { diagnosticContext: true }
-                : {}),
+              ...(options.diagnosticContext ? { diagnosticContext: true } : {}),
               transport: options.transport,
-              ...(options.startupTimeoutMs
-                ? { startupTimeoutMs: options.startupTimeoutMs }
-                : {}),
-              ...(options.toolTimeoutMs
-                ? { toolTimeoutMs: options.toolTimeoutMs }
-                : {}),
-              ...(options.required !== undefined
-                ? { required: options.required }
-                : {}),
-              ...(options.enabledTools?.length
-                ? { enabledTools: options.enabledTools }
-                : {}),
-              ...(options.disabledTools?.length
-                ? { disabledTools: options.disabledTools }
-                : {}),
+              ...(options.startupTimeoutMs ? { startupTimeoutMs: options.startupTimeoutMs } : {}),
+              ...(options.toolTimeoutMs ? { toolTimeoutMs: options.toolTimeoutMs } : {}),
+              ...(options.required !== undefined ? { required: options.required } : {}),
+              ...(options.enabledTools?.length ? { enabledTools: options.enabledTools } : {}),
+              ...(options.disabledTools?.length ? { disabledTools: options.disabledTools } : {}),
               ...(options.defaultToolsApprovalMode
                 ? {
-                    defaultToolsApprovalMode:
-                      options.defaultToolsApprovalMode,
+                    defaultToolsApprovalMode: options.defaultToolsApprovalMode,
                   }
                 : {}),
               ...(options.tools && Object.keys(options.tools).length
                 ? { tools: options.tools }
                 : {}),
             },
-            ...(options.originalName
-              ? { originalName: options.originalName }
-              : {}),
-            ...(options.workspacePath
-              ? { workspace: options.workspacePath }
-              : {}),
+            ...(options.originalName ? { originalName: options.originalName } : {}),
+            ...(options.workspacePath ? { workspace: options.workspacePath } : {}),
           })
           return result.servers.map(desktopMcpServer)
         },
@@ -152,15 +127,12 @@ export function createAgentMcpApi({
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
-          const result = await rpc.call<RpcResult<'mcp/remove'>>(
-            'mcp/remove',
-            {
-              name,
-              scope,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
+          const result = await rpc.call<RpcResult<'mcp/remove'>>('mcp/remove', {
+            name,
+            scope,
+            operationId: crypto.randomUUID(),
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })
           return result.servers.map(desktopMcpServer)
         },
         () => mockClient.removeMcpServer(name, scope, workspacePath),
@@ -169,21 +141,18 @@ export function createAgentMcpApi({
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
-          const result = await rpc.call<RpcResult<'mcp/setEnabled'>>(
-            'mcp/setEnabled',
-            {
-              name,
-              scope,
-              enabled,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
+          const result = await rpc.call<RpcResult<'mcp/setEnabled'>>('mcp/setEnabled', {
+            name,
+            scope,
+            enabled,
+            operationId: crypto.randomUUID(),
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })
           return result.servers.map(desktopMcpServer)
         },
         () => mockClient.setMcpServerEnabled(name, scope, enabled, workspacePath),
       ),
-    reloadMcpConfiguration: workspacePath =>
+    reloadMcpConfiguration: (workspacePath) =>
       withAgentOrMock(
         async () => {
           requireMcpManagementCapability()
@@ -207,14 +176,11 @@ export function createAgentMcpApi({
         },
         () => mockClient.startMcpOAuth(name, scope, workspacePath),
       ),
-    getMcpOAuthStatus: attemptId =>
+    getMcpOAuthStatus: (attemptId) =>
       withAgentOrMock(
         async () => {
           requireMcpOAuthCapability()
-          return rpc.call<RpcResult<'mcp/oauth/status'>>(
-            'mcp/oauth/status',
-            { attemptId },
-          )
+          return rpc.call<RpcResult<'mcp/oauth/status'>>('mcp/oauth/status', { attemptId })
         },
         () => mockClient.getMcpOAuthStatus(attemptId),
       ),
@@ -222,15 +188,12 @@ export function createAgentMcpApi({
       withAgentOrMock(
         async () => {
           requireMcpOAuthCapability()
-          return rpc.call<RpcResult<'mcp/oauth/logout'>>(
-            'mcp/oauth/logout',
-            {
-              name,
-              scope,
-              operationId: crypto.randomUUID(),
-              ...(workspacePath ? { workspace: workspacePath } : {}),
-            },
-          )
+          return rpc.call<RpcResult<'mcp/oauth/logout'>>('mcp/oauth/logout', {
+            name,
+            scope,
+            operationId: crypto.randomUUID(),
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })
         },
         () => mockClient.logoutMcpOAuth(name, scope, workspacePath),
       ),

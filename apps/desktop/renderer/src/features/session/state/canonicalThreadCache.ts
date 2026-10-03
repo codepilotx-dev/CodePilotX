@@ -17,15 +17,14 @@ export type CanonicalThreadCache = {
   size(): number
 }
 
-export function createCanonicalThreadCache(options: {
-  capacity?: number
-  now?: () => number
-  ttlMs?: number
-} = {}): CanonicalThreadCache {
-  const capacity = Math.max(
-    1,
-    Math.floor(options.capacity ?? CANONICAL_THREAD_CACHE_CAPACITY),
-  )
+export function createCanonicalThreadCache(
+  options: {
+    capacity?: number
+    now?: () => number
+    ttlMs?: number
+  } = {},
+): CanonicalThreadCache {
+  const capacity = Math.max(1, Math.floor(options.capacity ?? CANONICAL_THREAD_CACHE_CAPACITY))
   const now = options.now ?? Date.now
   const ttlMs = Math.max(0, options.ttlMs ?? CANONICAL_THREAD_CACHE_TTL_MS)
   const entries = new Map<string, CanonicalThreadCacheEntry>()

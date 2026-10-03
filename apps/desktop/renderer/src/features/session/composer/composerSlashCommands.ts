@@ -9,6 +9,11 @@ export type ComposerSlashCommandId =
   | 'compact'
   | 'mcp'
   | 'status'
+  | 'side'
+  | 'fork'
+  | 'archive'
+  | 'project'
+  | 'task'
 
 export type ComposerCommandAvailability = {
   visible: boolean
@@ -36,6 +41,7 @@ export type ComposerSkillCommand = {
     name: string
     path: string
     scope: DesktopInstalledSkill['scope']
+    source: DesktopInstalledSkill['source']
   }
 }
 
@@ -52,9 +58,7 @@ export type ParsedSlashInvocation =
   | { kind: 'disabled'; command: ComposerSlashCommand; reason: string }
   | { kind: 'unknown' }
 
-export function skillToComposerCommand(
-  skill: DesktopInstalledSkill,
-): ComposerSkillCommand {
+export function skillToComposerCommand(skill: DesktopInstalledSkill): ComposerSkillCommand {
   return {
     id: `skill:${skill.name}`,
     trigger: skill.name,
@@ -65,6 +69,7 @@ export function skillToComposerCommand(
       name: skill.name,
       path: skill.path,
       scope: skill.scope,
+      source: skill.source,
     },
   }
 }
@@ -77,7 +82,7 @@ export function mergeSlashCommands(
   const triggers = new Set<string>()
 
   for (const command of builtins) {
-    if (!command.availability.visible || !command.availability.enabled) continue
+    if (!command.availability.visible) continue
     const trigger = normalizeTrigger(command.trigger)
     if (!trigger || triggers.has(trigger)) continue
     triggers.add(trigger)
@@ -100,7 +105,7 @@ export function filterComposerCommands<T extends ComposerCommand>(
 ): T[] {
   const normalized = query.trim().toLocaleLowerCase()
   if (!normalized) return [...commands]
-  return commands.filter(command =>
+  return commands.filter((command) =>
     [command.trigger, command.title, command.description]
       .join(' ')
       .toLocaleLowerCase()
@@ -108,8 +113,21 @@ export function filterComposerCommands<T extends ComposerCommand>(
   )
 }
 
-export function isSlashCommandQuery(input: string): boolean {
-  return /^\/\S*$/u.test(input)
+export function getActiveSlashCommandQuery(
+  input: string,
+  selectionStart: number | null,
+): ComposerTokenQuery | null {
+  if (selectionStart == null || selectionStart <= 0) return null
+  const beforeCursor = input.slice(0, selectionStart)
+  const match = beforeCursor.match(/(?:^|\s)\/([^\s/]*)$/u)
+  if (!match) return null
+  const token = match[0]
+  const markerOffset = token.lastIndexOf('/')
+  return {
+    start: selectionStart - token.length + markerOffset,
+    end: selectionStart,
+    query: match[1] ?? '',
+  }
 }
 
 export function parseSlashInvocation(
@@ -119,9 +137,7 @@ export function parseSlashInvocation(
   const match = input.match(/^\/([^\s/]+)$/u)
   if (!match) return { kind: 'unknown' }
   const trigger = normalizeTrigger(match[1] ?? '')
-  const command = commands.find(
-    candidate => normalizeTrigger(candidate.trigger) === trigger,
-  )
+  const command = commands.find((candidate) => normalizeTrigger(candidate.trigger) === trigger)
   if (!command || !command.availability.visible) return { kind: 'unknown' }
   if (!command.availability.enabled) {
     return {

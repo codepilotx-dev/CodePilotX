@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  PetCatalogItem,
-  PetDescriptor,
-} from '@codepilotx/agent-protocol'
+import type { PetCatalogItem, PetDescriptor } from '@codepilotx/agent-protocol'
 import {
   buildPetCatalogGroups,
   DEFAULT_PET_CATALOG_TAB,
@@ -36,30 +33,33 @@ describe('pet catalog filters', () => {
   const groups = buildPetCatalogGroups(PETS, [])
 
   test('searches localized names and authors before applying category and version', () => {
-    expect(filterPetCatalogCards(groups.available, {
-      query: 'firefly',
-      category: '',
-      version: 'all',
-    }).map(item => item.id)).toEqual(['firefly--lingxiaotian'])
+    expect(
+      filterPetCatalogCards(groups.available, {
+        query: 'firefly',
+        category: '',
+        version: 'all',
+      }).map((item) => item.id),
+    ).toEqual(['firefly--lingxiaotian'])
 
-    expect(filterPetCatalogCards(groups.available, {
-      query: 'tat',
-      category: 'original',
-      version: 2,
-    }).map(item => item.id)).toEqual(['hami--tat'])
+    expect(
+      filterPetCatalogCards(groups.available, {
+        query: 'tat',
+        category: 'original',
+        version: 2,
+      }).map((item) => item.id),
+    ).toEqual(['hami--tat'])
 
-    expect(filterPetCatalogCards(groups.available, {
-      query: '',
-      category: 'games',
-      version: 2,
-    })).toEqual([])
+    expect(
+      filterPetCatalogCards(groups.available, {
+        query: '',
+        category: 'games',
+        version: 2,
+      }),
+    ).toEqual([])
   })
 
   test('builds a unique localized category list', () => {
-    expect(listPetCatalogCategories([
-      ...groups.available,
-      groups.available[0]!,
-    ])).toEqual([
+    expect(listPetCatalogCategories([...groups.available, groups.available[0]!])).toEqual([
       { id: 'games', label: '游戏' },
       { id: 'original', label: '原创' },
     ])
@@ -82,16 +82,17 @@ describe('pet catalog groups', () => {
       description: '本地安装的伙伴',
       spriteVersionNumber: 2,
     })
-    const groups = buildPetCatalogGroups(
-      PETS,
-      [firefly, custom, { ...custom, displayName: '重复项' }],
-    )
+    const groups = buildPetCatalogGroups(PETS, [
+      firefly,
+      custom,
+      { ...custom, displayName: '重复项' },
+    ])
 
-    expect(groups.installed.map(item => item.id)).toEqual([
+    expect(groups.installed.map((item) => item.id)).toEqual([
       'firefly--lingxiaotian',
       'private-pet',
     ])
-    expect(groups.available.map(item => item.id)).toEqual(['hami--tat'])
+    expect(groups.available.map((item) => item.id)).toEqual(['hami--tat'])
     expect(groups.installed[0]).toMatchObject({
       source: 'community',
       displayName: '流萤',
@@ -106,36 +107,39 @@ describe('pet catalog groups', () => {
   })
 
   test('honors the catalog installed marker while local pets are loading', () => {
-    const groups = buildPetCatalogGroups([
-      pet({ slug: 'catalog-installed', installed: true }),
-    ], [])
+    const groups = buildPetCatalogGroups([pet({ slug: 'catalog-installed', installed: true })], [])
 
-    expect(groups.installed.map(item => item.id)).toEqual([
-      'catalog-installed',
-    ])
+    expect(groups.installed.map((item) => item.id)).toEqual(['catalog-installed'])
     expect(groups.available).toEqual([])
   })
 
   test('filters custom pets by source, version, description and id', () => {
-    const groups = buildPetCatalogGroups([], [
-      descriptor({
-        id: 'private-pet',
-        displayName: '私有宠物',
-        description: '离线伙伴',
-        spriteVersionNumber: 2,
-      }),
-    ])
+    const groups = buildPetCatalogGroups(
+      [],
+      [
+        descriptor({
+          id: 'private-pet',
+          displayName: '私有宠物',
+          description: '离线伙伴',
+          spriteVersionNumber: 2,
+        }),
+      ],
+    )
 
-    expect(filterPetCatalogCards(groups.installed, {
-      query: '离线',
-      category: 'custom',
-      version: 2,
-    }).map(item => item.id)).toEqual(['private-pet'])
-    expect(filterPetCatalogCards(groups.installed, {
-      query: 'private-pet',
-      category: '',
-      version: 'all',
-    }).map(item => item.id)).toEqual(['private-pet'])
+    expect(
+      filterPetCatalogCards(groups.installed, {
+        query: '离线',
+        category: 'custom',
+        version: 2,
+      }).map((item) => item.id),
+    ).toEqual(['private-pet'])
+    expect(
+      filterPetCatalogCards(groups.installed, {
+        query: 'private-pet',
+        category: '',
+        version: 'all',
+      }).map((item) => item.id),
+    ).toEqual(['private-pet'])
     expect(listPetCatalogCategories(groups.installed)).toEqual([
       { id: 'custom', label: '自定义来源' },
     ])
@@ -151,9 +155,7 @@ describe('pet catalog licenses', () => {
   })
 })
 
-function pet(
-  patch: Partial<PetCatalogItem> & Pick<PetCatalogItem, 'slug'>,
-): PetCatalogItem {
+function pet(patch: Partial<PetCatalogItem> & Pick<PetCatalogItem, 'slug'>): PetCatalogItem {
   return {
     slug: patch.slug,
     displayName: patch.displayName ?? patch.slug,
@@ -165,28 +167,19 @@ function pet(
     licenseKind: patch.licenseKind ?? 'permissive',
     previewUrl: patch.previewUrl ?? `/api/pets/catalog/${patch.slug}/preview`,
     installed: patch.installed ?? false,
-    ...(patch.englishName === undefined
-      ? {}
-      : { englishName: patch.englishName }),
-    ...(patch.description === undefined
-      ? {}
-      : { description: patch.description }),
+    ...(patch.englishName === undefined ? {} : { englishName: patch.englishName }),
+    ...(patch.description === undefined ? {} : { description: patch.description }),
   }
 }
 
-function descriptor(
-  patch: Partial<PetDescriptor> & Pick<PetDescriptor, 'id'>,
-): PetDescriptor {
+function descriptor(patch: Partial<PetDescriptor> & Pick<PetDescriptor, 'id'>): PetDescriptor {
   return {
     id: patch.id,
     displayName: patch.displayName ?? patch.id,
     spriteVersionNumber: patch.spriteVersionNumber ?? 1,
     spritesheetPath: patch.spritesheetPath ?? 'spritesheet.png',
-    spritesheetUrl:
-      patch.spritesheetUrl ?? `/api/pets/${patch.id}/spritesheet`,
+    spritesheetUrl: patch.spritesheetUrl ?? `/api/pets/${patch.id}/spritesheet`,
     installed: patch.installed ?? true,
-    ...(patch.description === undefined
-      ? {}
-      : { description: patch.description }),
+    ...(patch.description === undefined ? {} : { description: patch.description }),
   }
 }

@@ -22,9 +22,7 @@ describe('RouteErrorPage', () => {
   })
 
   test('does not classify ordinary errors as dynamic module failures', () => {
-    expect(
-      isDynamicModuleLoadError(new Error('Request failed with status 500')),
-    ).toBe(false)
+    expect(isDynamicModuleLoadError(new Error('Request failed with status 500'))).toBe(false)
     expect(
       isDynamicModuleLoadError({
         message: 'Failed to fetch dynamically imported module',
@@ -68,15 +66,10 @@ describe('RouteErrorPage', () => {
   })
 
   test('renders a safe recovery action for dynamic module failures', () => {
-    const sensitiveUrl =
-      'http://127.0.0.1:3808/src/features/private/SecretModule.tsx'
+    const sensitiveUrl = 'http://127.0.0.1:3808/src/features/private/SecretModule.tsx'
     const html = renderToStaticMarkup(
       <RouteErrorPageContent
-        error={
-          new TypeError(
-            `Failed to fetch dynamically imported module: ${sensitiveUrl}`,
-          )
-        }
+        error={new TypeError(`Failed to fetch dynamically imported module: ${sensitiveUrl}`)}
       />,
     )
 
@@ -89,11 +82,8 @@ describe('RouteErrorPage', () => {
   })
 
   test('renders a safe generic message without exposing the error', () => {
-    const sensitiveMessage =
-      'Unexpected failure at F:\\private\\workspace\\credentials.ts'
-    const html = renderToStaticMarkup(
-      <RouteErrorPageContent error={new Error(sensitiveMessage)} />,
-    )
+    const sensitiveMessage = 'Unexpected failure at F:\\private\\workspace\\credentials.ts'
+    const html = renderToStaticMarkup(<RouteErrorPageContent error={new Error(sensitiveMessage)} />)
 
     expect(html).toContain('页面暂时无法显示')
     expect(html).toContain('应用遇到临时问题，请重新加载后继续。')

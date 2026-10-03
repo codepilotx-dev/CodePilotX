@@ -81,15 +81,17 @@ describe('desktop runtime skills client', () => {
 
     expect(catalog).toEqual({
       state: 'ready',
-      data: [{
-        name: 'review',
-        description: 'Review the current change.',
-        path: skillPath,
-        scope: 'repo',
-        source: 'workspace',
-        format: 'agents',
-        enabled: true,
-      }],
+      data: [
+        {
+          name: 'review',
+          description: 'Review the current change.',
+          path: skillPath,
+          scope: 'repo',
+          source: 'workspace',
+          format: 'agents',
+          enabled: true,
+        },
+      ],
       updatedAt: new Date(1_753_392_000_000).toISOString(),
     })
     expect(details).toMatchObject({
@@ -100,35 +102,47 @@ describe('desktop runtime skills client', () => {
       content: '# Review\n',
     })
     expect(disabled.enabled).toBe(false)
-    expect(requests.find(item => item.method === 'skill/list')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/list')?.params).toEqual({
       workspace,
       forceReload: true,
     })
-    expect(requests.find(item => item.method === 'skill/read')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/read')?.params).toEqual({
       path: skillPath,
       workspace,
     })
-    expect(requests.find(item => item.method === 'skill/setEnabled')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/setEnabled')?.params).toEqual({
       path: skillPath,
       enabled: false,
       operationId: expect.any(String),
     })
 
     const generations: number[] = []
-    const unsubscribe = client.onRuntimeSkillsUpdated(generation => {
+    const unsubscribe = client.onRuntimeSkillsUpdated((generation) => {
       generations.push(generation)
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    expect(
-      requests.find(item => item.method === 'event/subscribe')?.params,
-    ).toEqual({
+    expect(requests.find((item) => item.method === 'event/subscribe')?.params).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
-      liveEventTypes: ['skill/updated'],
+      liveEventTypes: [
+        'catalog/updated',
+        'provider/credential/updated',
+        'config/updated',
+        'workspace/file/changed',
+        'workspace/git/changed',
+        'usage/source/updated',
+        'model/health/updated',
+        'skill/updated',
+        'plugins/updated',
+        'tooling/updated',
+        'mcp/updated',
+        'speech/statusChanged',
+      ],
     })
     source.onmessage?.({
       data: JSON.stringify({
+        jsonrpc: '2.0',
         method: 'event/next',
         params: {
           subscriptionId: 'skill-subscription',
@@ -146,8 +160,48 @@ describe('desktop runtime skills client', () => {
         },
       }),
     } as MessageEvent)
+    for (let index = 0; index < 20 && generations.length === 0; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
     expect(generations).toEqual([3])
     unsubscribe()
+  })
+
+  test('maps the stable builtin skill URI to the non-editable system source', async () => {
+    const builtinSkill = {
+      name: 'builtin-helper',
+      description: 'Run built-in helper.',
+      path: 'builtin://builtin-helper/SKILL.md',
+      scope: 'user',
+      format: 'codepilotx',
+      enabled: true,
+    } as const
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = JSON.parse(String(init?.body))
+      if (body.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'skill/list') {
+        return rpc(body.id, {
+          skills: [builtinSkill],
+          generation: 1,
+          updatedAt: 1_753_392_000_000,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    await expect(client.listRuntimeSkills(workspace)).resolves.toMatchObject({
+      state: 'ready',
+      data: [
+        {
+          name: 'builtin-helper',
+          path: builtinSkill.path,
+          scope: 'system',
+          source: 'system',
+        },
+      ],
+    })
   })
 
   test('browser mock reports local skill management as unavailable', async () => {

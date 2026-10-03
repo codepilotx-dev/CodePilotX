@@ -34,17 +34,12 @@ describe('new session surface routing', () => {
   })
 
   test('规范化只替换 surface 参数并保留其他查询参数', () => {
-    expect(normalizeNewSessionSurfaceSearch('', 'working').toString()).toBe(
+    expect(normalizeNewSessionSurfaceSearch('', 'working').toString()).toBe('surface=working')
+    expect(normalizeNewSessionSurfaceSearch('?surface=coding', 'working').toString()).toBe(
       'surface=working',
     )
     expect(
-      normalizeNewSessionSurfaceSearch('?surface=coding', 'working').toString(),
-    ).toBe('surface=working')
-    expect(
-      normalizeNewSessionSurfaceSearch(
-        '?visualCase=grid&surface=unknown',
-        'working',
-      ).toString(),
+      normalizeNewSessionSurfaceSearch('?visualCase=grid&surface=unknown', 'working').toString(),
     ).toBe('visualCase=grid&surface=working')
   })
 })

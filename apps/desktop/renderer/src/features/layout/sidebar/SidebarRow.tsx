@@ -1,60 +1,58 @@
-import { Children, cloneElement, forwardRef } from "react";
-import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
-import { cx } from "../../../utils/cx.js";
+import { Children, cloneElement, forwardRef } from 'react'
+import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react'
+import { cx } from '../../../utils/cx.js'
 
-type SidebarRowLeadingMode = "icon" | "spacer" | "none";
-type SidebarRowIndent = "none" | "session";
-type SidebarRowLayout = "flex" | "grid";
+type SidebarRowLeadingMode = 'icon' | 'spacer' | 'none'
+type SidebarRowIndent = 'none' | 'session'
+type SidebarRowLayout = 'flex' | 'grid'
 
 type Props = HTMLAttributes<HTMLElement> & {
-  active?: boolean;
-  as?: "div" | "li";
-  asChild?: boolean;
-  className?: string;
-  indent?: SidebarRowIndent;
-  labelClassName?: string;
-  layout: SidebarRowLayout;
-  leading?: ReactNode;
-  leadingMode?: SidebarRowLeadingMode;
-  trailing?: ReactNode;
-  children: ReactNode;
-};
+  active?: boolean
+  as?: 'div' | 'li'
+  asChild?: boolean
+  className?: string
+  indent?: SidebarRowIndent
+  labelClassName?: string
+  layout: SidebarRowLayout
+  leading?: ReactNode
+  leadingMode?: SidebarRowLeadingMode
+  trailing?: ReactNode
+  children: ReactNode
+}
 
 export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
   {
     active = false,
-    as = "div",
+    as = 'div',
     asChild = false,
     children,
     className,
-    indent = "none",
+    indent = 'none',
     labelClassName,
     layout,
     leading,
-    leadingMode = leading ? "icon" : "spacer",
+    leadingMode = leading ? 'icon' : 'spacer',
     trailing,
     ...rowProps
   },
   ref,
 ): ReactNode {
   const rowClassName = cx(
-    "interactive-row",
-    "interactive-row--nav",
-    "sidebar-row",
+    'sidebar-row',
     `sidebar-row--${layout}`,
-    active ? "active" : undefined,
-    active ? "selected" : undefined,
-    indent === "session" ? "sidebar-row--session" : undefined,
-    leadingMode === "none" ? "sidebar-row--no-leading" : undefined,
+    active ? 'active' : undefined,
+    active ? 'selected' : undefined,
+    indent === 'session' ? 'sidebar-row--session' : undefined,
+    leadingMode === 'none' ? 'sidebar-row--no-leading' : undefined,
     className,
-  );
+  )
 
   if (asChild) {
     const child = Children.only(children) as ReactElement<{
-      className?: string;
-      children?: ReactNode;
-      ref?: Ref<HTMLElement>;
-    }>;
+      className?: string
+      children?: ReactNode
+      ref?: Ref<HTMLElement>
+    }>
 
     return cloneElement(
       child,
@@ -71,12 +69,16 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
         leadingMode,
         trailing,
       }),
-    );
+    )
   }
 
-  const Component = as;
+  const Component = as
   return (
-    <Component className={rowClassName} ref={ref as Ref<HTMLDivElement> & Ref<HTMLLIElement>} {...rowProps}>
+    <Component
+      className={rowClassName}
+      ref={ref as Ref<HTMLDivElement> & Ref<HTMLLIElement>}
+      {...rowProps}
+    >
       {renderRowContent({
         children,
         labelClassName,
@@ -86,8 +88,8 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
         trailing,
       })}
     </Component>
-  );
-});
+  )
+})
 
 function renderRowContent({
   children,
@@ -97,56 +99,35 @@ function renderRowContent({
   leadingMode,
   trailing,
 }: {
-  children: ReactNode;
-  labelClassName?: string;
-  layout: SidebarRowLayout;
-  leading?: ReactNode;
-  leadingMode: SidebarRowLeadingMode;
-  trailing?: ReactNode;
+  children: ReactNode
+  labelClassName?: string
+  layout: SidebarRowLayout
+  leading?: ReactNode
+  leadingMode: SidebarRowLeadingMode
+  trailing?: ReactNode
 }): ReactNode {
   const hasLeading =
-    leadingMode !== "none" &&
-    (layout === "grid" ||
-      (leadingMode === "icon" && leading !== undefined && leading !== null));
-  const hasTrailing = trailing !== undefined && trailing !== null;
+    leadingMode !== 'none' &&
+    (layout === 'grid' || (leadingMode === 'icon' && leading !== undefined && leading !== null))
+  const hasTrailing = trailing !== undefined && trailing !== null
 
   return (
     <>
       {hasLeading ? (
         <span
-          aria-hidden={leadingMode === "spacer" ? true : undefined}
+          aria-hidden={leadingMode === 'spacer' ? true : undefined}
           className={cx(
-            "sidebar-row-leading",
-            "tw:flex tw:min-w-0 tw:items-center",
-            leadingMode === "icon"
-              ? "icon-button sidebar-item-icon"
-              : "sidebar-row-leading-spacer",
+            'sidebar-row-leading',
+            leadingMode === 'icon' ? 'icon-button sidebar-item-icon' : 'sidebar-row-leading-spacer',
           )}
         >
-          {leadingMode === "icon" ? leading : null}
+          {leadingMode === 'icon' ? leading : null}
         </span>
       ) : null}
-      <span
-        className={cx(
-          "sidebar-row-main",
-          "tw:flex tw:w-full tw:min-w-0 tw:items-center",
-          labelClassName,
-        )}
-      >
-        {children}
-      </span>
-      {hasTrailing ? (
-        <span
-          className={cx(
-            "sidebar-row-trailing",
-            "tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end",
-          )}
-        >
-          {trailing}
-        </span>
-      ) : null}
+      <span className={cx('sidebar-row-main', labelClassName)}>{children}</span>
+      {hasTrailing ? <span className="sidebar-row-trailing">{trailing}</span> : null}
     </>
-  );
+  )
 }
 
 export function SidebarEmptyRow({
@@ -158,14 +139,14 @@ export function SidebarEmptyRow({
     <div
       {...props}
       className={cx(
-        "sidebar-row",
-        "sidebar-row--flex",
-        "sidebar-empty-row",
-        "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
+        'sidebar-row',
+        'sidebar-row--flex',
+        'sidebar-empty-row',
+        'u-type-body-sm tw:text-app-text-soft',
         className,
       )}
     >
       <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:text-app-text-soft">{children}</p>
     </div>
-  );
+  )
 }

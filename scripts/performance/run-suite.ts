@@ -2,7 +2,7 @@ import { mkdir, readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const repositoryRoot = resolve(import.meta.dirname, '../..')
-const suiteArgument = process.argv.find(argument => argument.startsWith('--suite='))
+const suiteArgument = process.argv.find((argument) => argument.startsWith('--suite='))
 const suite = suiteArgument?.slice('--suite='.length) ?? 'renderer'
 if (suite !== 'renderer' && suite !== 'electron') {
   throw new Error(`Unknown performance suite: ${suite}`)
@@ -18,20 +18,30 @@ await runBatch(1)
 let reportExitCode = await runReport(false)
 if (reportExitCode !== 0) process.exit(reportExitCode)
 
-if (enforce && suite === 'renderer' && await currentReportHasFailures()) {
+if (enforce && suite === 'renderer' && (await currentReportHasFailures())) {
   await runBatch(2)
 }
 if (enforce) reportExitCode = await runReport(true)
 process.exitCode = reportExitCode
 
 async function runBatch(batch: number): Promise<void> {
-  const workspace = suite === 'renderer'
-    ? 'apps/desktop/renderer'
-    : 'apps/desktop/electron'
+  const workspace = suite === 'renderer' ? 'apps/desktop/renderer' : 'apps/desktop/electron'
   const script = suite === 'renderer' ? 'test:performance' : 'test:performance'
-  const processResult = Bun.spawn(
-    [bunExecutable, 'run', '--cwd', workspace, script],
-    {
+  const processResult = Bun.spawn([bunExecutable, 'run', '--cwd', workspace, script], {
+    cwd: repositoryRoot,
+    env: {
+      ...process.env,
+      CODEPILOTX_PERF_BATCH: String(batch),
+    },
+    stderr: 'inherit',
+    stdout: 'inherit',
+  })
+  const exitCode = await processResult.exited
+  if (exitCode !== 0) {
+    throw new Error(`${suite} performance batch ${batch} failed (${exitCode})`)
+  }
+  if (suite === 'renderer') {
+    const selectorResult = Bun.spawn([bunExecutable, 'scripts/performance/selector-benchmark.ts'], {
       cwd: repositoryRoot,
       env: {
         ...process.env,
@@ -39,25 +49,7 @@ async function runBatch(batch: number): Promise<void> {
       },
       stderr: 'inherit',
       stdout: 'inherit',
-    },
-  )
-  const exitCode = await processResult.exited
-  if (exitCode !== 0) {
-    throw new Error(`${suite} performance batch ${batch} failed (${exitCode})`)
-  }
-  if (suite === 'renderer') {
-    const selectorResult = Bun.spawn(
-      [bunExecutable, 'scripts/performance/selector-benchmark.ts'],
-      {
-        cwd: repositoryRoot,
-        env: {
-          ...process.env,
-          CODEPILOTX_PERF_BATCH: String(batch),
-        },
-        stderr: 'inherit',
-        stdout: 'inherit',
-      },
-    )
+    })
     const selectorExitCode = await selectorResult.exited
     if (selectorExitCode !== 0) {
       throw new Error(`selector performance batch ${batch} failed (${selectorExitCode})`)
@@ -83,14 +75,9 @@ async function runReport(enforceReport: boolean): Promise<number> {
 }
 
 async function currentReportHasFailures(): Promise<boolean> {
-  const reportPath = resolve(
-    repositoryRoot,
-    'performance-results',
-    suite,
-    'report.json',
-  )
+  const reportPath = resolve(repositoryRoot, 'performance-results', suite, 'report.json')
   const report = JSON.parse(await readFile(reportPath, 'utf8')) as {
     budgets: Array<{ passed: boolean }>
   }
-  return report.budgets.some(budget => !budget.passed)
+  return report.budgets.some((budget) => !budget.passed)
 }

@@ -1,10 +1,5 @@
-import type {
-  ModelRef,
-} from '@codepilotx/shared'
-import type {
-  PermissionConfig,
-  ThreadSnapshot,
-} from '@codepilotx/shared/thread'
+import type { ModelRef } from '@codepilotx/shared'
+import type { PermissionConfig, ThreadSnapshot } from '@codepilotx/shared/thread'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type {
@@ -27,7 +22,10 @@ export type AgentMessageAdmission = {
 type AgentTurnQueueClientDependencies = {
   rpc: AgentRpcClient
   awaitPendingSettingsUpdate: (sessionId: string) => Promise<void>
-  importAttachments: (input: DesktopUserMessageInput) => Promise<string[]>
+  importMessageContext: (
+    sessionId: string,
+    input: DesktopUserMessageInput,
+  ) => Promise<{ attachmentIds: string[]; contextReferenceIds: string[] }>
   resolveModelRef: (
     model: string | DesktopModelSelection | undefined,
     sessionId: string,
@@ -38,12 +36,13 @@ type AgentTurnQueueClientDependencies = {
   loadThreadSnapshot: (sessionId: string) => Promise<ThreadSnapshot>
   refreshSession: (sessionId: string) => Promise<DesktopSessionSnapshot>
   emitSessionStoreChange: () => void
+  requireSkillInvocationCapability?: () => void
 }
 
 export function createAgentTurnQueueClient({
   rpc,
   awaitPendingSettingsUpdate,
-  importAttachments,
+  importMessageContext,
   resolveModelRef,
   permissionConfigForSession,
   taskModeForSession,
@@ -51,6 +50,7 @@ export function createAgentTurnQueueClient({
   loadThreadSnapshot,
   refreshSession,
   emitSessionStoreChange,
+  requireSkillInvocationCapability,
 }: AgentTurnQueueClientDependencies) {
   async function submitMessage(
     sessionId: string,
@@ -59,11 +59,13 @@ export function createAgentTurnQueueClient({
     options?: {
       inputId?: string
       model?: string | DesktopModelSelection
+      goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }
     },
   ): Promise<AgentMessageAdmission> {
     await awaitPendingSettingsUpdate(sessionId)
-    const attachmentIds = await importAttachments(input)
-    const content = desktopUserMessageInputToPreviewText(input)
+    if (input.skills?.length) requireSkillInvocationCapability?.()
+    const { attachmentIds, contextReferenceIds } = await importMessageContext(sessionId, input)
+    const content = desktopUserMessageInputToPreviewText({ ...input, skills: undefined })
     const inputId = options?.inputId ?? crypto.randomUUID()
 
     if (delivery === 'steer') {
@@ -75,13 +77,24 @@ export function createAgentTurnQueueClient({
           turnId: activeTurn.id,
           inputId,
           content,
+          ...(input.skills?.length ? { skills: [...input.skills] } : {}),
           ...(attachmentIds.length ? { attachmentIds } : {}),
+          ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
         })
         await refreshSession(sessionId).catch(() => null)
         emitSessionStoreChange()
         return { inputId, outcome: 'steered' }
       }
-      await startTurn(sessionId, inputId, content, attachmentIds, options?.model)
+      await startTurn(
+        sessionId,
+        inputId,
+        content,
+        attachmentIds,
+        contextReferenceIds,
+        options?.model,
+        options?.goal,
+        input.skills,
+      )
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
       return { inputId, outcome: 'sent' }
@@ -94,11 +107,13 @@ export function createAgentTurnQueueClient({
         inputId,
         content,
         model: await resolveModelRef(options?.model, sessionId),
+        ...(input.skills?.length ? { skills: [...input.skills] } : {}),
         permissionConfig: permissionConfigForSession(sessionId),
         taskMode: taskModeForSession(sessionId),
         operationId: crypto.randomUUID(),
         ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
         ...(attachmentIds.length ? { attachmentIds } : {}),
+        ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
       })
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
@@ -108,7 +123,16 @@ export function createAgentTurnQueueClient({
       }
     }
 
-    await startTurn(sessionId, inputId, content, attachmentIds, options?.model)
+    await startTurn(
+      sessionId,
+      inputId,
+      content,
+      attachmentIds,
+      contextReferenceIds,
+      options?.model,
+      options?.goal,
+      input.skills,
+    )
     await refreshSession(sessionId).catch(() => null)
     emitSessionStoreChange()
     return { inputId, outcome: 'sent' }
@@ -150,16 +174,22 @@ export function createAgentTurnQueueClient({
     inputId: string,
     content: string,
     attachmentIds: string[],
+    contextReferenceIds: string[],
     model: string | DesktopModelSelection | undefined,
+    goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null },
+    skills?: DesktopUserMessageInput['skills'],
   ): Promise<void> {
     await rpc.call('turn/start', {
       threadId: sessionId,
       inputId,
       content,
       model: await resolveModelRef(model, sessionId),
+      ...(skills?.length ? { skills: [...skills] } : {}),
       permissionConfig: permissionConfigForSession(sessionId),
       taskMode: taskModeForSession(sessionId),
+      ...(goal ? { goal } : {}),
       ...(attachmentIds.length ? { attachmentIds } : {}),
+      ...(contextReferenceIds.length ? { contextReferenceIds } : {}),
     })
   }
 
@@ -171,7 +201,7 @@ export function createAgentTurnQueueClient({
 }
 
 function findActiveTurn(snapshot: ThreadSnapshot) {
-  return [...snapshot.turns].reverse().find(turn =>
-    turn.status === 'running' || turn.status.startsWith('waiting-'),
-  )
+  return [...snapshot.turns]
+    .reverse()
+    .find((turn) => turn.status === 'running' || turn.status.startsWith('waiting-'))
 }

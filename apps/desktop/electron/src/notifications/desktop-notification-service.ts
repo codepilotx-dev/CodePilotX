@@ -3,8 +3,8 @@ import {
   normalizeDesktopNotificationRequest,
   type DesktopNotificationRequest,
   type DesktopNotificationResult,
-} from "@codepilotx/shared/desktop-notification-ipc"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
+} from '@codepilotx/shared/desktop-notification-ipc'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
 
 export type DesktopNotificationHandle = {
   show(): void
@@ -15,11 +15,7 @@ export type DesktopNotificationHandle = {
 
 export type DesktopNotificationFactory = {
   isSupported(): boolean
-  create(options: {
-    title: string
-    body: string
-    icon: string
-  }): DesktopNotificationHandle
+  create(options: { title: string; body: string; icon: string }): DesktopNotificationHandle
 }
 
 export type DesktopNotificationServiceOptions = {
@@ -28,10 +24,7 @@ export type DesktopNotificationServiceOptions = {
   resolveIconPath(): string
   isMainWindowFocused(): boolean
   focusMainWindow(): void
-  publishActivation(activation: {
-    notificationId: string
-    threadId: string
-  }): void
+  publishActivation(activation: { notificationId: string; threadId: string }): void
 }
 
 export type DesktopNotificationActivation = {
@@ -54,16 +47,13 @@ export class DesktopNotificationService {
 
   show(request: DesktopNotificationRequest): DesktopNotificationResult {
     if (!this.#options.factory.isSupported()) {
-      return { status: "unsupported" }
+      return { status: 'unsupported' }
     }
     if (this.#seen.has(request.notificationId)) {
-      return { status: "duplicate" }
+      return { status: 'duplicate' }
     }
-    if (
-      request.visibility === "unfocused"
-      && this.#options.isMainWindowFocused()
-    ) {
-      return { status: "suppressed" }
+    if (request.visibility === 'unfocused' && this.#options.isMainWindowFocused()) {
+      return { status: 'suppressed' }
     }
 
     const notification = this.#options.factory.create({
@@ -84,13 +74,13 @@ export class DesktopNotificationService {
     notification.onFailed(() => {
       this.#release(notification)
       // 安全日志只记录类别，不记录正文、任务标题、thread ID 或原始 OS error。
-      this.#options.logger.warn("desktop.notification-failed", {
+      this.#options.logger.warn('desktop.notification-failed', {
         kind: request.kind,
       })
     })
     notification.show()
     this.#markSeen(request.notificationId)
-    return { status: "shown" }
+    return { status: 'shown' }
   }
 
   #release(notification: DesktopNotificationHandle): void {
@@ -115,11 +105,11 @@ export function createShowNotificationHandler(deps: {
 }): (sender: unknown, payload: unknown) => DesktopNotificationResult {
   return (sender, payload) => {
     if (!deps.isMainSender(sender)) {
-      throw new Error("IPC 调用来源无效")
+      throw new Error('IPC 调用来源无效')
     }
     const request = normalizeDesktopNotificationRequest(payload)
     if (!request) {
-      throw new Error("通知请求无效")
+      throw new Error('通知请求无效')
     }
     return deps.service.show(request)
   }

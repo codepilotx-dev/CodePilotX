@@ -6,10 +6,7 @@ import { ExternalLink, RefreshCw, Sparkles, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../markdown/MarkdownMessage.js'
 import type { MarkdownDirectiveRegistry } from '../markdown/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
@@ -35,8 +32,7 @@ export function WhatsNewDialog({
   onOpenChange,
 }: Props): React.ReactNode {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const [result, setResult] =
-    useState<RpcResult<'release-notes/list'> | null>(null)
+  const [result, setResult] = useState<RpcResult<'release-notes/list'> | null>(null)
   const [error, setError] = useState<ReleaseNotesViewError | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -60,12 +56,12 @@ export function WhatsNewDialog({
     let active = true
     setLoading(true)
     void loadReleaseNotes(desktopClient)
-      .then(next => {
+      .then((next) => {
         if (!active) return
         setResult(next)
         setError(null)
       })
-      .catch(requestError => {
+      .catch((requestError) => {
         if (!active) return
         setResult(null)
         setError(releaseNotesViewError(requestError))
@@ -81,64 +77,55 @@ export function WhatsNewDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop whats-new-dialog-backdrop">
-          <Dialog.Content
-            className="whats-new-dialog"
-            onCloseAutoFocus={event => {
-              if (!restoreFocusElement?.isConnected) return
-              event.preventDefault()
-              restoreFocusElement.focus()
-            }}
-            onOpenAutoFocus={event => {
-              event.preventDefault()
-              closeButtonRef.current?.focus()
-            }}
-          >
-            <header className="whats-new-dialog-header">
-              <span aria-hidden="true" className="whats-new-heading-icon">
-                <Sparkles />
-              </span>
-              <div className="whats-new-dialog-heading">
-                <Dialog.Title className="whats-new-dialog-title">
-                  新特性
-                </Dialog.Title>
-                <Dialog.Description className="whats-new-dialog-description">
-                  查看 CodePilotX 当前版本及历史版本的 GitHub 更新记录。
-                </Dialog.Description>
-              </div>
-              <Dialog.Close asChild>
-                <IconButton
-                  ref={closeButtonRef}
-                  title="关闭新特性"
-                  variant="plain"
-                >
-                  <X
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                </IconButton>
-              </Dialog.Close>
-            </header>
-
-            <div className="whats-new-dialog-body">
-              {loading ? <ReleaseNotesSkeleton /> : null}
-              {!loading && error && !result ? (
-                <ReleaseNotesError
-                  error={error}
-                  onRetry={() => void request(true)}
-                />
-              ) : null}
-              {!loading && result ? (
-                <ReleaseNotesContent
-                  refreshing={refreshing}
-                  result={result}
-                  onRefresh={() => void request(true)}
-                />
-              ) : null}
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop whats-new-dialog-backdrop" />
+        <Dialog.Content
+          className="ui-dialog-surface ui-dialog-surface--centered whats-new-dialog"
+          onCloseAutoFocus={(event) => {
+            if (!restoreFocusElement?.isConnected) return
+            event.preventDefault()
+            restoreFocusElement.focus()
+          }}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            closeButtonRef.current?.focus()
+          }}
+        >
+          <header className="whats-new-dialog-header">
+            <span aria-hidden="true" className="whats-new-heading-icon">
+              <Sparkles size={APP_ICON_SIZE} />
+            </span>
+            <div className="whats-new-dialog-heading">
+              <Dialog.Title className="whats-new-dialog-title">新特性</Dialog.Title>
+              <Dialog.Description className="whats-new-dialog-description">
+                查看 CodePilotX 当前版本及历史版本的 GitHub 更新记录。
+              </Dialog.Description>
             </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+            <Dialog.Close asChild>
+              <IconButton
+                color="ghostSecondary"
+                ref={closeButtonRef}
+                size="toolbar"
+                title="关闭新特性"
+              >
+                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </IconButton>
+            </Dialog.Close>
+          </header>
+
+          <div className="whats-new-dialog-body">
+            {loading ? <ReleaseNotesSkeleton /> : null}
+            {!loading && error && !result ? (
+              <ReleaseNotesError error={error} onRetry={() => void request(true)} />
+            ) : null}
+            {!loading && result ? (
+              <ReleaseNotesContent
+                refreshing={refreshing}
+                result={result}
+                onRefresh={() => void request(true)}
+              />
+            ) : null}
+          </div>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )
@@ -153,9 +140,7 @@ function ReleaseNotesContent({
   result: RpcResult<'release-notes/list'>
   onRefresh: () => void
 }): React.ReactNode {
-  const [selectedTagName, setSelectedTagName] = useState(
-    result.releases[0]?.tagName ?? '',
-  )
+  const [selectedTagName, setSelectedTagName] = useState(result.releases[0]?.tagName ?? '')
   const detailScrollRef = useRef<HTMLDivElement>(null)
 
   if (!result.currentReleaseFound) {
@@ -177,16 +162,12 @@ function ReleaseNotesContent({
 
   const currentTagName = result.releases[0]?.tagName
   const selectedRelease =
-    result.releases.find(release => release.tagName === selectedTagName) ??
-    result.releases[0]
+    result.releases.find((release) => release.tagName === selectedTagName) ?? result.releases[0]
 
   if (!selectedRelease) return null
 
   return (
-    <section
-      aria-label="版本更新记录"
-      className="whats-new-release-browser"
-    >
+    <section aria-label="版本更新记录" className="whats-new-release-browser">
       <ScrollArea
         aria-label="版本列表"
         className="whats-new-version-scroll"
@@ -194,19 +175,20 @@ function ReleaseNotesContent({
       >
         {result.source === 'bundled-changelog' ? (
           <div className="whats-new-notice whats-new-fallback-notice">
-            <p>
-              当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。
-            </p>
-            <Button loading={refreshing} onClick={onRefresh}>
+            <p>当前仅显示随应用提供的版本记录，在线历史版本暂时不可用。</p>
+            <Button
+              className="whats-new-fallback-action"
+              color="primary"
+              loading={refreshing}
+              onClick={onRefresh}
+            >
               {refreshing ? null : <RefreshCw size={APP_ICON_SIZE} />}
               {refreshing ? '正在重试…' : '重试加载历史版本'}
             </Button>
           </div>
         ) : null}
         {result.truncated ? (
-          <p className="whats-new-notice">
-            更新记录较多，当前仅显示最近的一部分历史版本。
-          </p>
+          <p className="whats-new-notice">更新记录较多，当前仅显示最近的一部分历史版本。</p>
         ) : null}
         <ul className="whats-new-version-list">
           {result.releases.map((release, index) => {
@@ -215,7 +197,7 @@ function ReleaseNotesContent({
             return (
               <li key={release.tagName}>
                 <button
-                  aria-pressed={selected}
+                  aria-current={current ? 'true' : undefined}
                   className="whats-new-version-item"
                   data-selected={selected || undefined}
                   type="button"
@@ -226,10 +208,7 @@ function ReleaseNotesContent({
                 >
                   <span className="whats-new-release-heading">
                     <strong>{release.name.trim() || release.tagName}</strong>
-                    <ReleaseBadges
-                      current={current}
-                      prerelease={release.prerelease}
-                    />
+                    <ReleaseBadges current={current} prerelease={release.prerelease} />
                   </span>
                   <ReleaseMeta release={release} />
                 </button>
@@ -274,10 +253,7 @@ function ReleaseDetails({
       <header className="whats-new-release-details-header">
         <span className="whats-new-release-heading">
           <strong>{release.name.trim() || release.tagName}</strong>
-          <ReleaseBadges
-            current={current}
-            prerelease={release.prerelease}
-          />
+          <ReleaseBadges current={current} prerelease={release.prerelease} />
         </span>
         <ReleaseMeta release={release} />
       </header>
@@ -299,12 +275,12 @@ function ReleaseDetails({
         {canOpenRelease ? (
           <div className="whats-new-release-actions">
             <Button
+              color="secondary"
               onClick={() => {
                 void desktopClient.openExternalURL(release.htmlUrl)
               }}
             >
-              <ExternalLink size={APP_ICON_SIZE} />
-              在 GitHub 查看
+              <ExternalLink size={APP_ICON_SIZE} />在 GitHub 查看
             </Button>
           </div>
         ) : null}
@@ -344,9 +320,7 @@ function ReleaseMeta({
     <span className="whats-new-release-meta">
       <code>{release.tagName}</code>
       {release.publishedAt ? (
-        <time dateTime={release.publishedAt}>
-          {formatDate(release.publishedAt)}
-        </time>
+        <time dateTime={release.publishedAt}>{formatDate(release.publishedAt)}</time>
       ) : null}
     </span>
   )
@@ -364,7 +338,7 @@ function ReleaseNotesError({
     <section aria-live="polite" className="whats-new-state">
       <strong>{message.title}</strong>
       <p>{message.description}</p>
-      <Button onClick={onRetry}>
+      <Button color="secondary" onClick={onRetry}>
         <RefreshCw size={APP_ICON_SIZE} />
         重试
       </Button>
@@ -389,12 +363,8 @@ function ReleaseNotesEmpty({
 
 function ReleaseNotesSkeleton(): React.ReactNode {
   return (
-    <section
-      aria-label="正在获取更新日志"
-      aria-live="polite"
-      className="whats-new-skeleton"
-    >
-      {[0, 1, 2].map(index => (
+    <section aria-label="正在获取更新日志" aria-live="polite" className="whats-new-skeleton">
+      {[0, 1, 2].map((index) => (
         <div className="whats-new-skeleton-card" key={index}>
           <span />
           <span />
@@ -431,10 +401,7 @@ function formatDateTime(value: string): string {
   })
 }
 
-function formatDateValue(
-  value: string,
-  options: Intl.DateTimeFormatOptions,
-): string {
+function formatDateValue(value: string, options: Intl.DateTimeFormatOptions): string {
   const timestamp = Date.parse(value)
   if (!Number.isFinite(timestamp)) return '未知时间'
   return new Intl.DateTimeFormat('zh-CN', options).format(timestamp)

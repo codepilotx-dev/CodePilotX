@@ -6,22 +6,30 @@ import type {
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
 
-export const MODEL_CENTER_VIEWS = ['providers', 'keys'] as const
-export type ModelCenterView = (typeof MODEL_CENTER_VIEWS)[number]
-
-export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models', 'router'] as const
+export const MODEL_CENTER_PROVIDER_SECTIONS = ['connection', 'models'] as const
 export type ModelCenterProviderSection = (typeof MODEL_CENTER_PROVIDER_SECTIONS)[number]
 
 export type ModelCenterRouteState = {
-  view: ModelCenterView
   providerId: string | null
   section: ModelCenterProviderSection
 }
 
 export type ModelCenterRoutePatch = {
-  view?: ModelCenterView | null
   providerId?: string | null
-  section?: ModelCenterProviderSection | null
+  section?: ModelCenterProviderSection | 'router' | null
+}
+
+export function legacyModelCenterSettingsTarget(search: string): {
+  pathname: '/settings/providers'
+  search: string
+} {
+  const params = new URLSearchParams(search)
+  params.delete('view')
+  const nextSearch = params.toString()
+  return {
+    pathname: '/settings/providers',
+    search: nextSearch ? `?${nextSearch}` : '',
+  }
 }
 
 export type ApiKeyFilters = {
@@ -37,12 +45,9 @@ export type ApiKeyDeleteConfirmation = {
 
 export type ProviderCatalogSource = 'gateway' | 'custom' | 'builtin'
 export type ProviderConnectionStatus =
-  | 'stored-key'
-  | 'oauth'
-  | 'environment'
-  | 'configured'
-  | 'unconfigured'
+  'stored-key' | 'oauth' | 'environment' | 'configured' | 'unconfigured'
 export type ProviderDirectoryStatus = 'current' | ProviderConnectionStatus
+export type ProviderCatalogFilter = 'all' | 'configured' | 'unconfigured'
 
 export type ProviderDirectoryItem = {
   provider: DesktopModelProviderSummary
@@ -50,36 +55,37 @@ export type ProviderDirectoryItem = {
   connectionStatus: ProviderConnectionStatus
   statuses: ProviderDirectoryStatus[]
   sources: ProviderCatalogSource[]
+  keyCount: number
+  hasOAuth: boolean
+  healthTone: 'healthy' | 'warning' | 'neutral'
 }
 
 export type ProviderDirectoryOptions = {
   query?: string
+  filter?: ProviderCatalogFilter
   currentProviderId?: string | null
   currentProviderState?: DesktopModelProviderState | null
   apiKeys?: readonly DesktopApiKeySummary[]
   credentials?: readonly DesktopProviderCredential[]
 }
 
-const isModelCenterView = (value: string | null): value is ModelCenterView =>
-  MODEL_CENTER_VIEWS.some(candidate => candidate === value)
-
 const isProviderSection = (value: string | null): value is ModelCenterProviderSection =>
-  MODEL_CENTER_PROVIDER_SECTIONS.some(candidate => candidate === value)
+  MODEL_CENTER_PROVIDER_SECTIONS.some((candidate) => candidate === value)
 
 export function parseModelCenterSearchParams(
   params: URLSearchParams,
   allowedProviderIds: readonly string[],
-  _fallbackProviderId?: string | null,
 ): ModelCenterRouteState {
   const allowed = new Set(allowedProviderIds)
   const requestedProvider = params.get('provider')
 
+  const requestedSection = params.get('section')
+  const resolvedSection: ModelCenterProviderSection =
+    requestedSection === 'models' ? 'models' : 'connection'
+
   return {
-    view: isModelCenterView(params.get('view')) ? params.get('view') as ModelCenterView : 'providers',
     providerId: requestedProvider && allowed.has(requestedProvider) ? requestedProvider : null,
-    section: isProviderSection(params.get('section'))
-      ? params.get('section') as ModelCenterProviderSection
-      : 'connection',
+    section: resolvedSection,
   }
 }
 
@@ -88,17 +94,41 @@ export function projectProviderDirectory(
   options: ProviderDirectoryOptions = {},
 ): ProviderDirectoryItem[] {
   const query = options.query?.trim().toLocaleLowerCase() ?? ''
+  const filter = options.filter ?? 'all'
 
-  return providers.flatMap(provider => {
+  return providers.flatMap((provider) => {
     const sources = providerSources(provider)
     const current = provider.providerID === options.currentProviderId
     const connectionStatus = providerConnectionStatus(provider, options)
+    const providerKeys = options.apiKeys?.filter((k) => k.providerId === provider.providerID) ?? []
+    const keyCount = providerKeys.length
+    const hasOAuth = Boolean(
+      options.credentials?.some((c) => c.providerId === provider.providerID && c.kind === 'oauth'),
+    )
+
+    let healthTone: 'healthy' | 'warning' | 'neutral' = 'neutral'
+    if (providerKeys.some((k) => k.health.status === 'healthy')) {
+      healthTone = 'healthy'
+    } else if (
+      providerKeys.some((k) => k.health.status === 'auth-failed' || k.health.status === 'error')
+    ) {
+      healthTone = 'warning'
+    }
+
+    const isConfigured = connectionStatus !== 'unconfigured'
+
+    if (filter === 'configured' && !isConfigured) return []
+    if (filter === 'unconfigured' && isConfigured) return []
+
     const item: ProviderDirectoryItem = {
       provider,
       current,
       connectionStatus,
       statuses: current ? ['current', connectionStatus] : [connectionStatus],
       sources,
+      keyCount,
+      hasOAuth,
+      healthTone,
     }
     if (!query || providerSearchText(provider, sources).includes(query)) return [item]
     return []
@@ -114,9 +144,12 @@ export function updateModelCenterSearchParams(
   patch: ModelCenterRoutePatch,
 ): URLSearchParams {
   const next = new URLSearchParams(current)
-  updateParam(next, 'view', patch.view)
   updateParam(next, 'provider', patch.providerId)
-  updateParam(next, 'section', patch.section)
+  if (patch.section === 'router') {
+    updateParam(next, 'section', 'connection')
+  } else {
+    updateParam(next, 'section', patch.section)
+  }
   return next
 }
 
@@ -128,7 +161,7 @@ export function filterApiKeys(
   const health = filters.health
   const query = filters.query?.trim().toLocaleLowerCase() ?? ''
 
-  return apiKeys.filter(apiKey => {
+  return apiKeys.filter((apiKey) => {
     if (providerId && apiKey.providerId !== providerId) return false
     if (health && apiKey.health.status !== health) return false
     if (!query) return true
@@ -140,7 +173,9 @@ export function filterApiKeys(
       apiKey.providerId,
       apiKey.active ? 'active current 当前' : 'backup 备用',
       apiKey.enabled ? 'enabled 启用' : 'disabled 停用',
-    ].join(' ').toLocaleLowerCase()
+    ]
+      .join(' ')
+      .toLocaleLowerCase()
     return searchable.includes(query)
   })
 }
@@ -164,21 +199,13 @@ export function getApiKeyDeleteConfirmation(
   }
 }
 
-function updateParam(
-  params: URLSearchParams,
-  key: string,
-  value: string | null | undefined,
-): void {
+function updateParam(params: URLSearchParams, key: string, value: string | null | undefined): void {
   if (value === undefined) return
   if (value === null) {
     params.delete(key)
     return
   }
   params.set(key, value)
-}
-
-function compareApiKeyPriority(left: DesktopApiKeySummary, right: DesktopApiKeySummary): number {
-  return left.priority - right.priority || left.createdAt - right.createdAt
 }
 
 function providerSources(provider: DesktopModelProviderSummary): ProviderCatalogSource[] {
@@ -193,41 +220,39 @@ function providerSearchText(
   provider: DesktopModelProviderSummary,
   sources: readonly ProviderCatalogSource[],
 ): string {
-  const sourceTerms = sources.flatMap(source => {
+  const sourceTerms = sources.flatMap((source) => {
     if (source === 'gateway') return ['gateway', '网关']
     if (source === 'custom') return ['custom', '自定义']
     return ['builtin', 'built-in', '内置']
   })
-  return [
-    provider.displayName,
-    provider.providerID,
-    ...sourceTerms,
-  ].filter(Boolean).join(' ').toLocaleLowerCase()
+  return [provider.displayName, provider.providerID, ...sourceTerms]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase()
 }
 
 function providerConnectionStatus(
   provider: DesktopModelProviderSummary,
   options: ProviderDirectoryOptions,
 ): ProviderConnectionStatus {
-  if (options.apiKeys?.some(key => (
-    key.providerId === provider.providerID
-  ))) return 'stored-key'
+  if (options.apiKeys?.some((key) => key.providerId === provider.providerID)) return 'stored-key'
 
-  if (options.credentials?.some(credential => (
-    credential.providerId === provider.providerID
-    && credential.kind === 'oauth'
-  ))) return 'oauth'
+  if (
+    options.credentials?.some(
+      (credential) => credential.providerId === provider.providerID && credential.kind === 'oauth',
+    )
+  )
+    return 'oauth'
 
   const isCurrentState = options.currentProviderState?.selectedProviderID === provider.providerID
   const currentSource = isCurrentState ? options.currentProviderState?.apiKeySource : null
-  if (
-    isCurrentState && currentSource && currentSource !== 'secureStorage'
-  ) return 'environment'
+  if (isCurrentState && currentSource && currentSource !== 'secureStorage') return 'environment'
 
   if (
-    provider.apiKeyConfigured
-    || (isCurrentState && options.currentProviderState?.apiKeyConfigured)
-  ) return 'configured'
+    provider.apiKeyConfigured ||
+    (isCurrentState && options.currentProviderState?.apiKeyConfigured)
+  )
+    return 'configured'
 
   return 'unconfigured'
 }

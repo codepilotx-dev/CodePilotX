@@ -4,7 +4,7 @@ import {
   SearchablePopoverAction,
   SearchablePopoverContent,
 } from '../../../components/ui/SearchablePopoverContent.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
 
 type BranchSelectPopoverProps = {
@@ -54,12 +54,10 @@ export function BranchSelectPopover({
     const keyword = branchSearch.trim().toLowerCase()
     const availableBranches = [...branchSet]
     if (!keyword) return availableBranches
-    return availableBranches.filter(branch =>
-      branch.toLowerCase().includes(keyword),
-    )
+    return availableBranches.filter((branch) => branch.toLowerCase().includes(keyword))
   }, [branchSearch, branches, currentBranchName])
   const options = React.useMemo(
-    () => visibleBranches.map(branch => ({ value: branch })),
+    () => visibleBranches.map((branch) => ({ value: branch })),
     [visibleBranches],
   )
 
@@ -69,7 +67,7 @@ export function BranchSelectPopover({
       className={className}
       contentLabel="切换 Git 分支"
       emptyLabel="无匹配分支"
-      footer={(
+      footer={
         <SearchablePopoverAction
           icon={<Plus size={APP_ICON_SIZE} />}
           onClick={() => {
@@ -79,8 +77,8 @@ export function BranchSelectPopover({
         >
           创建并检出新分支...
         </SearchablePopoverAction>
-      )}
-      listClassName="branch-popover-list-scroll popover-section"
+      }
+      listClassName="branch-popover-list-scroll"
       listLabel="Git 分支"
       open={open}
       options={options}
@@ -102,7 +100,7 @@ export function BranchSelectPopover({
             )}
           </span>
           <span className="popover-item-trailing">
-            {selected ? <Check size={APP_ICON_SIZE} /> : null}
+            {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
           </span>
         </>
       )}
@@ -117,7 +115,7 @@ export function BranchSelectPopover({
       maxWidth={maxWidth}
       onOpenChange={onOpenChange}
       onSearchChange={onBranchSearchChange}
-      onSelect={option => {
+      onSelect={(option) => {
         void onBranchSelect(option.value)
         onOpenChange(false)
       }}

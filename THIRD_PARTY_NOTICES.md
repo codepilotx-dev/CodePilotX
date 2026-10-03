@@ -1,5 +1,15 @@
 # Third-Party Notices
 
+CodePilotX includes task workflow, optimistic concurrency, column ordering,
+conversation prioritization, and agent lifecycle semantics adapted from
+dashi-taskboard at commit `9b2aeb53bfe8d40eb5d65feecdfc2cc235928066`.
+The adapted implementation is integrated with CodePilotX's native RPC,
+history storage, worktree, thread, permission, and renderer layers; it does
+not include dashi-taskboard's server, Tauri launcher, CDP integration, hosted
+services, or brand assets. These portions are licensed under the Apache
+License 2.0. See `third_party/dashi-taskboard/LICENSE` and
+`third_party/dashi-taskboard/UPSTREAM.md`.
+
 CodePilotX includes source adapted from the OpenCode project. The copied model
 schema and project directory storage semantics originated from version
 1.17.13; the JSONC parsing and key-path patching approach was adapted from
@@ -9,15 +19,32 @@ version 1.18.9. These portions are licensed under the MIT License. See
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.
 
+CodePilotX can download pinned SenseVoice GGUF and FSMN-VAD model weights plus
+the self-contained FunASR llama.cpp Windows runtime to provide local speech
+dictation. These optional artifacts are checksum-verified and stored in the
+user-selected CodePilotX data directory rather than embedded in the installer.
+The model repositories identify their weights as Apache-2.0; the SenseVoice
+runtime and llama.cpp/ggml components are MIT-licensed, and miniaudio is used
+under its MIT No Attribution option. See `third_party/funasr/` for source,
+version and license details.
+
+CodePilotX includes the CPX-CUA Windows computer-control runtime vendored from
+cua-driver (trycua/cua) at commit `32b34fbc75abeb96af77df49ae0da72328e67707`.
+The imported Rust workspace provides the Windows UI Automation, window
+enumeration, screenshot and background-input layers; CodePilotX maintains its
+own `cpx-cua.exe` entry point, tool allowlist and host-resolved application
+identity on top of it. These portions are licensed under the MIT License. See
+`third_party/cpx-cua/LICENSE`, `third_party/cpx-cua/UPSTREAM.md` and
+`third_party/cpx-cua/NATIVE_NOTICES.md`.
+
 CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
 including Windows ConPTY integration. node-pty is licensed under the MIT
 License; its license notice is distributed with the packaged dependency.
 
-CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
-pi-agent-core 0.82.1
-under the MIT License. The fork preserves upstream attribution and contains
-CodePilotX changes for dynamic tool execution, deferred activation and session
-recovery. See `packages/pi-agent-core/LICENSE`.
+CodePilotX includes source derived from pi-agent-core 0.82.1 as an internal
+part of the App Agent Harness under the MIT License. CodePilotX maintains this
+Harness independently; the retained attribution and license are provided for
+distribution compliance. See `apps/agent/third_party/pi-agent-core/LICENSE`.
 
 CodePilotX uses Marked, Shiki, KaTeX, and Mermaid to render Markdown, syntax
 highlighting, mathematical notation, and diagrams. These packages retain the
@@ -58,3 +85,11 @@ trademark owners, and CodePilotX is not affiliated with those vendors.
   without changing its proportions. GitHub logos are used under the
   GitHub Logo Policy:
   https://docs.github.com/en/site-policy/other-site-policies/github-logo-policy.
+
+## ZCode browser helpers
+
+Playwright injected runtime loading and keyboard input helpers adapted from ZCode (revision 872ad96), Apache-2.0. Source: https://github.com/zai-org/ZCode . License: third_party/zcode-browser/LICENSE.
+
+## Playwright injected runtime
+
+The browser DOM runtime is extracted at build time from playwright-core 1.59.1, maintained by Microsoft Corporation and licensed under Apache-2.0. Source: https://github.com/microsoft/playwright . License: third_party/playwright-core/LICENSE.

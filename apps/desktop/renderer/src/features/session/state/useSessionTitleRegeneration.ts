@@ -7,24 +7,21 @@ export function useSessionTitleRegeneration(): readonly [
   pendingSessionIds: ReadonlySet<string>,
   regenerateSessionTitle: (sessionId: string) => Promise<boolean>,
 ] {
-  const [, rerender] = useReducer(value => value + 1, 0)
+  const [, rerender] = useReducer((value) => value + 1, 0)
 
-  const regenerateSessionTitle = useCallback(
-    async (sessionId: string): Promise<boolean> => {
-      if (pendingSessionIds.has(sessionId)) return false
+  const regenerateSessionTitle = useCallback(async (sessionId: string): Promise<boolean> => {
+    if (pendingSessionIds.has(sessionId)) return false
 
-      pendingSessionIds.add(sessionId)
+    pendingSessionIds.add(sessionId)
+    rerender()
+    try {
+      await desktopClient.regenerateSessionTitle(sessionId)
+      return true
+    } finally {
+      pendingSessionIds.delete(sessionId)
       rerender()
-      try {
-        await desktopClient.regenerateSessionTitle(sessionId)
-        return true
-      } finally {
-        pendingSessionIds.delete(sessionId)
-        rerender()
-      }
-    },
-    [],
-  )
+    }
+  }, [])
 
   return [pendingSessionIds, regenerateSessionTitle]
 }

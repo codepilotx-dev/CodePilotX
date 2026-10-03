@@ -1,6 +1,6 @@
-import { Schema } from "effect"
-import type { CapabilityRequirement, ProtocolCapability } from "../runtime/capabilities"
-import type { ApplicationErrorCode } from "./primitives"
+import { Schema } from 'effect'
+import type { CapabilityRequirement, ProtocolCapability } from '../runtime/capabilities'
+import type { ApplicationErrorCode } from './primitives'
 
 export type AnySchema = Schema.Top
 
@@ -41,12 +41,12 @@ export const defineServerRequest = <const Definition extends ServerRequestDefini
 
 export type EventDefinition<
   Payload extends AnySchema = AnySchema,
-  Durability extends "durable" | "live" = "durable" | "live",
+  Durability extends 'durable' | 'live' = 'durable' | 'live',
 > = {
   readonly payload: Payload
   readonly version: number
   readonly durability: Durability
-  readonly stream: "global" | "thread"
+  readonly stream: 'global' | 'thread'
   readonly capability: ProtocolCapability
   readonly reconcilesWith?: string
 }
@@ -57,8 +57,14 @@ export const defineEvent = <const Definition extends EventDefinition>(
   definition: Definition,
 ): Definition & EventDefinition => definition
 
-export type ParamsOf<Definition extends MethodDefinition> = Schema.Schema.Type<Definition["params"]>
-export type ResultOf<Definition extends MethodDefinition> = Schema.Schema.Type<Definition["result"]>
-export type ServerRequestParamsOf<Definition extends ServerRequestDefinition> = Schema.Schema.Type<Definition["params"]>
-export type ServerRequestResultOf<Definition extends ServerRequestDefinition> = Schema.Schema.Type<Definition["result"]>
-export type EventPayloadOf<Definition extends EventDefinition> = Schema.Schema.Type<Definition["payload"]>
+export type ParamsOf<Definition extends MethodDefinition> = Schema.Schema.Type<Definition['params']>
+export type ResultOf<Definition extends MethodDefinition> = Schema.Schema.Type<Definition['result']>
+export type ServerRequestParamsOf<Definition extends ServerRequestDefinition> = Schema.Schema.Type<
+  Definition['params']
+>
+export type ServerRequestResultOf<Definition extends ServerRequestDefinition> = Schema.Schema.Type<
+  Definition['result']
+>
+export type EventPayloadOf<Definition extends EventDefinition> = Schema.Schema.Type<
+  Definition['payload']
+>

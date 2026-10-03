@@ -27,11 +27,11 @@ describe('desktop terminal client', () => {
       attachTerminal: async () => terminal,
       writeTerminal: () => {},
       resizeTerminal: () => {},
-      closeTerminal: async input => {
+      closeTerminal: async (input) => {
         closeInputs.push(input)
         return { ...terminal, state: 'exited', exitReason: 'user-close' }
       },
-      closeTerminalForThread: async input => {
+      closeTerminalForThread: async (input) => {
         closeInputs.push(input)
         return { closed: true }
       },
@@ -51,21 +51,25 @@ describe('desktop terminal client', () => {
     await client.closeThreadTerminal('thread-1')
 
     expect(client.available).toBe(true)
-    expect(closeInputs).toEqual([{
-      threadId: 'thread-1',
-      reason: 'user-close',
-    }])
+    expect(closeInputs).toEqual([
+      {
+        threadId: 'thread-1',
+        reason: 'user-close',
+      },
+    ])
   })
 
   test('keeps browser mock profile listing safe and rejects PTY creation', async () => {
     const client = createDesktopTerminalClient()
     expect(await client.listTerminalProfiles()).toEqual([])
     expect(client.available).toBe(false)
-    await expect(client.ensureTerminal({
-      threadId: 'thread-1',
-      profileId: null,
-      cols: 80,
-      rows: 24,
-    })).rejects.toThrow('仅在 CodePilotX 桌面应用中可用')
+    await expect(
+      client.ensureTerminal({
+        threadId: 'thread-1',
+        profileId: null,
+        cols: 80,
+        rows: 24,
+      }),
+    ).rejects.toThrow('仅在 CodePilotX 桌面应用中可用')
   })
 })

@@ -20,18 +20,7 @@ const ROOT_TAG = 'markdown-root'
 const TOKEN_PATTERN = /<!--[\s\S]*?-->|<\/?[a-zA-Z][^>]*>|[^<]+|</gu
 const TAG_PATTERN = /^<\s*(\/?)\s*([a-zA-Z][\w-]*)([^>]*)>$/u
 const DROP_WITH_CONTENT_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed'])
-const ALLOWED_TAGS = new Set([
-  'b',
-  'br',
-  'del',
-  'em',
-  'i',
-  's',
-  'strong',
-  'sub',
-  'sup',
-  'u',
-])
+const ALLOWED_TAGS = new Set(['b', 'br', 'del', 'em', 'i', 's', 'strong', 'sub', 'sup', 'u'])
 const VOID_TAGS = new Set(['br'])
 
 export function renderSafeHtml(
@@ -87,7 +76,7 @@ function parseBasicHtml(html: string): ElementNode {
     if (!ALLOWED_TAGS.has(tag)) continue
 
     if (closing) {
-      const matchingIndex = stack.findLastIndex(node => node.tag === tag)
+      const matchingIndex = stack.findLastIndex((node) => node.tag === tag)
       if (matchingIndex > 0) stack.length = matchingIndex
       continue
     }
@@ -104,10 +93,7 @@ function parseBasicHtml(html: string): ElementNode {
   return root
 }
 
-function parseSafeAttributes(
-  _tag: string,
-  _source: string,
-): Record<string, string> {
+function parseSafeAttributes(_tag: string, _source: string): Record<string, string> {
   return {}
 }
 

@@ -1,11 +1,10 @@
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Send, X } from 'lucide-react'
 import { PetSprite } from './PetSprite.js'
 import { PetQuickReply } from './PetQuickReply.js'
 import { usePetOverlayController } from './usePetOverlayController.js'
-import {
-  resolvePetDragAnimation,
-} from './petDirectionModel.js'
+import { resolvePetDragAnimation } from './petDirectionModel.js'
 import type { PetAnimationName } from './petAnimationModel.js'
 import { usePetLookFrame } from './usePetLookFrame.js'
 import '../../styles/lazy/pet-overlay.scss'
@@ -13,8 +12,7 @@ import '../../styles/lazy/pet-overlay.scss'
 export function PetOverlayPage(): React.ReactNode {
   const controller = usePetOverlayController()
   const [greeting, setGreeting] = useState(true)
-  const [dragAnimation, setDragAnimation] =
-    useState<PetAnimationName | null>(null)
+  const [dragAnimation, setDragAnimation] = useState<PetAnimationName | null>(null)
   const [keyboardActive, setKeyboardActive] = useState(false)
   const [reply, setReply] = useState('')
   const [replyError, setReplyError] = useState<string | null>(null)
@@ -62,7 +60,7 @@ export function PetOverlayPage(): React.ReactNode {
 
   if (!controller.pet) {
     return (
-      <main className="pet-overlay-page">
+      <main className="pet-overlay-page" data-startup-surface-ready="true">
         <div
           className="pet-overlay-empty pet-overlay-interactive"
           onPointerEnter={() => setInteractive(true)}
@@ -75,11 +73,11 @@ export function PetOverlayPage(): React.ReactNode {
   }
 
   return (
-    <main className="pet-overlay-page">
+    <main className="pet-overlay-page" data-startup-surface-ready="true">
       {notification || greeting ? (
         <section
           className="pet-overlay-pill pet-overlay-interactive"
-          onBlurCapture={event => {
+          onBlurCapture={(event) => {
             if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
               return
             }
@@ -94,13 +92,8 @@ export function PetOverlayPage(): React.ReactNode {
         >
           <div className="pet-overlay-pill-header">
             <div className="pet-overlay-pill-copy">
-              <strong>
-                {notification?.title ?? `你好，我是 ${controller.pet.displayName}`}
-              </strong>
-              <span>
-                {notification?.detail
-                  ?? '我会在任务需要你时提醒你。'}
-              </span>
+              <strong>{notification?.title ?? `你好，我是 ${controller.pet.displayName}`}</strong>
+              <span>{notification?.detail ?? '我会在任务需要你时提醒你。'}</span>
             </div>
             {notification ? (
               <div className="pet-overlay-pill-actions">
@@ -109,14 +102,14 @@ export function PetOverlayPage(): React.ReactNode {
                   onClick={() => void controller.openThread(notification.threadId)}
                   type="button"
                 >
-                  <ExternalLink size={15} />
+                  <ExternalLink size={APP_ICON_SIZE} />
                 </button>
                 <button
                   aria-label="关闭提醒"
                   onClick={() => controller.dismiss(notification.id)}
                   type="button"
                 >
-                  <X size={15} />
+                  <X size={APP_ICON_SIZES.sm} />
                 </button>
               </div>
             ) : null}
@@ -126,31 +119,32 @@ export function PetOverlayPage(): React.ReactNode {
               <PetQuickReply
                 disabled={replySubmitting}
                 request={notification.request}
-                onRespond={(_request, decision) =>
-                  controller.respond(notification, decision)}
+                onRespond={(_request, decision) => controller.respond(notification, decision)}
               />
             </div>
           ) : null}
           {notification ? (
             <form
               className="pet-overlay-reply-form"
-              onSubmit={event => {
+              onSubmit={(event) => {
                 event.preventDefault()
                 const text = reply.trim()
                 if (!text || replySubmitting) return
                 setReplySubmitting(true)
                 setReplyError(null)
-                void controller.reply(notification, text).then(() => {
-                  setReply('')
-                  setKeyboardFocus(false)
-                  if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur()
-                  }
-                }).catch(error => {
-                  setReplyError(
-                    error instanceof Error ? error.message : '回复失败，请重试。',
-                  )
-                }).finally(() => setReplySubmitting(false))
+                void controller
+                  .reply(notification, text)
+                  .then(() => {
+                    setReply('')
+                    setKeyboardFocus(false)
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur()
+                    }
+                  })
+                  .catch((error) => {
+                    setReplyError(error instanceof Error ? error.message : '回复失败，请重试。')
+                  })
+                  .finally(() => setReplySubmitting(false))
               }}
             >
               <input
@@ -158,7 +152,7 @@ export function PetOverlayPage(): React.ReactNode {
                 disabled={replySubmitting}
                 placeholder="回复这个任务…"
                 value={reply}
-                onChange={event => {
+                onChange={(event) => {
                   setReply(event.target.value)
                   setReplyError(null)
                 }}
@@ -168,7 +162,7 @@ export function PetOverlayPage(): React.ReactNode {
                 disabled={replySubmitting || !reply.trim()}
                 type="submit"
               >
-                <Send size={14} />
+                <Send size={APP_ICON_SIZE} />
               </button>
               {replyError ? (
                 <span aria-live="polite" className="pet-overlay-reply-error">
@@ -183,7 +177,7 @@ export function PetOverlayPage(): React.ReactNode {
       <div
         ref={avatarRef}
         className="pet-overlay-avatar pet-overlay-interactive"
-        onPointerDown={event => {
+        onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId)
           dragScreenXRef.current = event.screenX
           setDragAnimation(controller.animation)
@@ -191,21 +185,18 @@ export function PetOverlayPage(): React.ReactNode {
         }}
         onPointerEnter={() => setInteractive(true)}
         onPointerLeave={() => setInteractive(false)}
-        onPointerMove={event => {
+        onPointerMove={(event) => {
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             const previousScreenX = dragScreenXRef.current ?? event.screenX
             const deltaX = event.screenX - previousScreenX
-            setDragAnimation(current =>
-              resolvePetDragAnimation(
-                current ?? controller.animation,
-                deltaX,
-              ),
+            setDragAnimation((current) =>
+              resolvePetDragAnimation(current ?? controller.animation, deltaX),
             )
             if (Math.abs(deltaX) >= 4) dragScreenXRef.current = event.screenX
             window.codePilotXDesktop?.updatePetDrag()
           }
         }}
-        onPointerUp={event => {
+        onPointerUp={(event) => {
           event.currentTarget.releasePointerCapture(event.pointerId)
           dragScreenXRef.current = null
           setDragAnimation(null)

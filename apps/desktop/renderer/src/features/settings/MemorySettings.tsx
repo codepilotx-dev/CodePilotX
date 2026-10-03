@@ -21,7 +21,7 @@ const MEMORY_TYPES = ['all', 'user', 'feedback', 'project', 'reference'] as cons
 
 type MemoryTypeFilter = (typeof MEMORY_TYPES)[number]
 
-const MEMORY_TYPE_OPTIONS = MEMORY_TYPES.map(type => ({
+const MEMORY_TYPE_OPTIONS = MEMORY_TYPES.map((type) => ({
   value: type,
   label: type === 'all' ? '全部类型' : type,
 }))
@@ -37,8 +37,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
   const [memories, setMemories] = useState<DesktopProjectMemory[]>([])
   const [recalls, setRecalls] = useState<DesktopMemoryRecallEvent[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  const [selectedMemory, setSelectedMemory] =
-    useState<DesktopProjectMemoryContent | null>(null)
+  const [selectedMemory, setSelectedMemory] = useState<DesktopProjectMemoryContent | null>(null)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<MemoryTypeFilter>('all')
   const [busy, setBusy] = useState(false)
@@ -46,7 +45,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
 
   const filteredMemories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    return memories.filter(memory => {
+    return memories.filter((memory) => {
       if (typeFilter !== 'all' && memory.type !== typeFilter) return false
       if (!normalizedQuery) return true
       return (
@@ -68,9 +67,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
       setMemories(listing.memories)
       setRecalls(recallListing.recalls)
       if (selectedPath) {
-        const stillExists = listing.memories.some(
-          memory => memory.relativePath === selectedPath,
-        )
+        const stillExists = listing.memories.some((memory) => memory.relativePath === selectedPath)
         if (!stillExists) {
           setSelectedPath(null)
           setSelectedMemory(null)
@@ -96,10 +93,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
     setError(null)
     try {
       setSelectedMemory(
-        await desktopClient.readProjectMemory(
-          normalizedWorkspacePath,
-          relativePath,
-        ),
+        await desktopClient.readProjectMemory(normalizedWorkspacePath, relativePath),
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -118,10 +112,8 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
         relativePath: selectedMemory.relativePath,
         content: selectedMemory.content,
       })
-      setMemories(current =>
-        current.map(memory =>
-          memory.relativePath === saved.relativePath ? saved : memory,
-        ),
+      setMemories((current) =>
+        current.map((memory) => (memory.relativePath === saved.relativePath ? saved : memory)),
       )
       setSelectedMemory({ ...saved, content: selectedMemory.content })
     } catch (err) {
@@ -182,9 +174,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
       <div className="settings-content-inner">
         <div className="settings-page-header">
           <h2 className="settings-page-title">记忆</h2>
-          <p className="settings-page-desc">
-            管理当前工作区的自动长期记忆和召回时间线。
-          </p>
+          <p className="settings-page-desc">管理当前工作区的自动长期记忆和召回时间线。</p>
         </div>
 
         <SettingsSection title="记忆状态">
@@ -196,7 +186,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
               <ToggleSwitch
                 ariaLabel="启用记忆"
                 checked={draft.values.enableMemory}
-                onChange={value => {
+                onChange={(value) => {
                   draft.setValue('enableMemory', value)
                   draft.autoSave()
                 }}
@@ -222,6 +212,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
           actions={
             <div className="settings-inline-actions">
               <Button
+                color="secondary"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void refresh()}
                 type="button"
@@ -230,6 +221,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 刷新
               </Button>
               <Button
+                color="danger"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(false)}
                 type="button"
@@ -237,6 +229,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 重置记忆
               </Button>
               <Button
+                color="danger"
                 disabled={busy || !hasWorkspace}
                 onClick={() => void resetMemories(true)}
                 type="button"
@@ -263,13 +256,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   triggerClassName="memory-settings-filter"
                   value={typeFilter}
                   width={160}
-                  onChange={value =>
-                    setTypeFilter(value as MemoryTypeFilter)
-                  }
+                  onChange={(value) => setTypeFilter(value as MemoryTypeFilter)}
                 />
-                <span className="memory-settings-count">
-                  {filteredMemories.length} 条
-                </span>
+                <span className="memory-settings-count">{filteredMemories.length} 条</span>
               </div>
               {error ? <p className="settings-row-error">{error}</p> : null}
               <div className="memory-settings-grid">
@@ -279,7 +268,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   </div>
                   <div className="memory-settings-list-scroll-area">
                     <div className="memory-settings-list-scroll-content">
-                      {filteredMemories.map(memory => (
+                      {filteredMemories.map((memory) => (
                         <button
                           key={memory.relativePath}
                           className={
@@ -290,9 +279,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           onClick={() => void openMemory(memory.relativePath)}
                           type="button"
                         >
-                          <span className="memory-settings-item-name">
-                            {memory.relativePath}
-                          </span>
+                          <span className="memory-settings-item-name">{memory.relativePath}</span>
                           <span className="memory-settings-item-meta">
                             <span className="memory-settings-item-type">
                               {memory.type ?? 'unknown'}
@@ -312,13 +299,12 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                 <div className="memory-settings-panel">
                   <div className="memory-settings-panel-header memory-settings-panel-header-editor">
                     <span className="memory-settings-editor-title">
-                      {selectedMemory
-                        ? selectedMemory.relativePath
-                        : '内容编辑'}
+                      {selectedMemory ? selectedMemory.relativePath : '内容编辑'}
                     </span>
                     {selectedMemory ? (
                       <div className="memory-settings-editor-actions">
                         <Button
+                          color="primary"
                           disabled={busy}
                           onClick={() => void saveSelected()}
                           type="button"
@@ -327,7 +313,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           保存
                         </Button>
                         <Button
-                          tone="danger"
+                          color="danger"
                           disabled={busy}
                           onClick={() => void deleteSelected()}
                           type="button"
@@ -344,7 +330,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                         <textarea
                           className="settings-textarea memory-settings-editor-textarea"
                           value={selectedMemory.content}
-                          onChange={event =>
+                          onChange={(event) =>
                             setSelectedMemory({
                               ...selectedMemory,
                               content: event.target.value,
@@ -352,9 +338,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           }
                         />
                       ) : (
-                        <div className="settings-empty-state">
-                          选择一条记忆查看内容
-                        </div>
+                        <div className="settings-empty-state">选择一条记忆查看内容</div>
                       )}
                     </div>
                   </div>
@@ -362,9 +346,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
               </div>
             </>
           ) : (
-            <div className="settings-empty-state">
-              请先打开工作区后管理项目记忆
-            </div>
+            <div className="settings-empty-state">请先打开工作区后管理项目记忆</div>
           )}
         </SettingsSection>
 
@@ -372,9 +354,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
           <div className="memory-recall-list-scroll-area">
             <div className="memory-recall-list-scroll-content">
               {!hasWorkspace ? (
-                <div className="settings-empty-state">
-                  请先打开工作区后查看召回记录
-                </div>
+                <div className="settings-empty-state">请先打开工作区后查看召回记录</div>
               ) : recalls.length === 0 ? (
                 <div className="settings-empty-state">暂无召回记录</div>
               ) : (
@@ -383,13 +363,11 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     <span className="memory-recall-time">
                       {new Date(recall.createdAt).toLocaleString()}
                     </span>
-                    <span className="memory-recall-summary">
-                      {recall.querySummary}
-                    </span>
+                    <span className="memory-recall-summary">{recall.querySummary}</span>
                     <span className="memory-recall-files">
                       {recall.memories
-                        .map(memory =>
-                          `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
+                        .map(
+                          (memory) => `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,
                         )
                         .join(', ')}
                     </span>

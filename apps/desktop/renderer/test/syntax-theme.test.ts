@@ -17,7 +17,7 @@ describe('Codex syntax theme resolution', () => {
   })
 
   test('accepts only themes matching the active light or dark mode', () => {
-    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(43)
+    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(45)
     for (const theme of CODEX_HIGHLIGHT_THEMES) {
       expect(theme.variant === 'light' || theme.variant === 'dark').toBeTrue()
       expect(isThemeCompatibleWithVariant(theme.slug, theme.variant)).toBeTrue()
@@ -25,9 +25,7 @@ describe('Codex syntax theme resolution', () => {
 
       const oppositeVariant = theme.variant === 'light' ? 'dark' : 'light'
       expect(isThemeCompatibleWithVariant(theme.slug, oppositeVariant)).toBeFalse()
-      expect(normalizeThemeIdForVariant(theme.slug, oppositeVariant)).toBe(
-        'auto',
-      )
+      expect(normalizeThemeIdForVariant(theme.slug, oppositeVariant)).toBe('auto')
       expect(resolveThemeId(theme.slug, oppositeVariant)).toBe(
         oppositeVariant === 'light' ? 'codex-light' : 'codex-dark',
       )
@@ -38,22 +36,16 @@ describe('Codex syntax theme resolution', () => {
     const lightThemes = getThemesForVariant('light')
     const darkThemes = getThemesForVariant('dark')
 
-    expect(lightThemes).toHaveLength(16)
-    expect(darkThemes).toHaveLength(27)
-    expect(lightThemes.every(theme => theme.variant === 'light')).toBeTrue()
-    expect(darkThemes.every(theme => theme.variant === 'dark')).toBeTrue()
-    expect(
-      lightThemes.some(theme => theme.slug === 'github-light-default'),
-    ).toBeTrue()
-    expect(lightThemes.some(theme => theme.slug === 'dracula')).toBeFalse()
-    expect(darkThemes.some(theme => theme.slug === 'dracula')).toBeTrue()
-    expect(
-      darkThemes.some(theme => theme.slug === 'github-light-default'),
-    ).toBeFalse()
-    expect(lightThemes.map(theme => theme.label)).toEqual(
-      lightThemes
-        .map(theme => theme.label)
-        .toSorted(new Intl.Collator().compare),
+    expect(lightThemes).toHaveLength(17)
+    expect(darkThemes).toHaveLength(28)
+    expect(lightThemes.every((theme) => theme.variant === 'light')).toBeTrue()
+    expect(darkThemes.every((theme) => theme.variant === 'dark')).toBeTrue()
+    expect(lightThemes.some((theme) => theme.slug === 'github-light-default')).toBeTrue()
+    expect(lightThemes.some((theme) => theme.slug === 'dracula')).toBeFalse()
+    expect(darkThemes.some((theme) => theme.slug === 'dracula')).toBeTrue()
+    expect(darkThemes.some((theme) => theme.slug === 'github-light-default')).toBeFalse()
+    expect(lightThemes.map((theme) => theme.label)).toEqual(
+      lightThemes.map((theme) => theme.label).toSorted(new Intl.Collator().compare),
     )
   })
 })

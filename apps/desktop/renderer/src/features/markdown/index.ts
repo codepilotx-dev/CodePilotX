@@ -1,14 +1,7 @@
-export {
-  createMarkdownDirectiveRegistry,
-  DEFAULT_MARKDOWN_DIRECTIVES,
-} from './directives.js'
+export { createMarkdownDirectiveRegistry, DEFAULT_MARKDOWN_DIRECTIVES } from './directives.js'
 export { MarkdownMessage } from './MarkdownMessage.js'
 export type { MarkdownMessageProps } from './MarkdownMessage.js'
-export {
-  clearMarkdownTokenCache,
-  lexMarkdown,
-  parseMarkdown,
-} from './parser.js'
+export { clearMarkdownTokenCache, lexMarkdown, parseMarkdown } from './parser.js'
 export {
   classifyMarkdownTarget,
   isLikelyFileReference,

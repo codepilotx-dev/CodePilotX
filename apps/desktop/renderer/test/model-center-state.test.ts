@@ -3,6 +3,7 @@ import type { DesktopApiKeySummary } from '../shared/types.js'
 import {
   filterApiKeys,
   getApiKeyDeleteConfirmation,
+  legacyModelCenterSettingsTarget,
   parseModelCenterSearchParams,
   projectProviderDirectory,
   updateModelCenterSearchParams,
@@ -36,43 +37,63 @@ const keys: DesktopApiKeySummary[] = [
 ]
 
 describe('model center URL state', () => {
-  test('parses valid workspace, provider and section', () => {
+  test('redirects legacy routes to settings while dropping only the obsolete view', () => {
+    expect(
+      legacyModelCenterSettingsTarget('?view=health&provider=anthropic&section=models&debug=1'),
+    ).toEqual({
+      pathname: '/settings/providers',
+      search: '?provider=anthropic&section=models&debug=1',
+    })
+    expect(legacyModelCenterSettingsTarget('?view=keys')).toEqual({
+      pathname: '/settings/providers',
+      search: '',
+    })
+  })
+
+  test('parses valid provider and section', () => {
+    const state = parseModelCenterSearchParams(
+      new URLSearchParams('view=providers&provider=anthropic&section=models'),
+      ['openai', 'anthropic'],
+    )
+
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
+  })
+
+  test('ignores legacy view while preserving provider details', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=keys&provider=anthropic&section=models'),
       ['openai', 'anthropic'],
-      'openai',
     )
 
-    expect(state).toEqual({ view: 'keys', providerId: 'anthropic', section: 'models' })
+    expect(state).toEqual({ providerId: 'anthropic', section: 'models' })
   })
 
   test('falls back for invalid parameters and provider', () => {
     const state = parseModelCenterSearchParams(
       new URLSearchParams('view=other&provider=missing&section=usage'),
       ['openai', 'anthropic'],
-      'anthropic',
     )
 
-    expect(state).toEqual({ view: 'providers', providerId: null, section: 'connection' })
+    expect(state).toEqual({ providerId: null, section: 'connection' })
   })
 
   test('keeps the provider catalog open when provider is missing', () => {
-    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai'], 'openai'))
-      .toEqual({ view: 'providers', providerId: null, section: 'connection' })
-    expect(parseModelCenterSearchParams(new URLSearchParams(), [], 'missing').providerId)
-      .toBeNull()
+    expect(parseModelCenterSearchParams(new URLSearchParams(), ['openai'])).toEqual({
+      providerId: null,
+      section: 'connection',
+    })
+    expect(parseModelCenterSearchParams(new URLSearchParams(), []).providerId).toBeNull()
   })
 
   test('updates model-center params without mutating unrelated params', () => {
-    const current = new URLSearchParams('debug=1&view=providers&section=connection')
+    const current = new URLSearchParams('debug=1&section=connection')
     const next = updateModelCenterSearchParams(current, {
-      view: 'keys',
       providerId: 'openai',
       section: null,
     })
 
-    expect(next.toString()).toBe('debug=1&view=keys&provider=openai')
-    expect(current.toString()).toBe('debug=1&view=providers&section=connection')
+    expect(next.toString()).toBe('debug=1&provider=openai')
+    expect(current.toString()).toBe('debug=1&section=connection')
   })
 })
 
@@ -92,14 +113,46 @@ describe('model center Provider directory', () => {
   ]
 
   test('searches name, id and Pi catalog source', () => {
-    expect(projectProviderDirectory(providers, { query: 'OpenAI' }).map(item => item.provider.providerID))
-      .toEqual(['openai'])
-    expect(projectProviderDirectory(providers, { query: 'gateway' }).map(item => item.provider.providerID))
-      .toEqual(['vercel'])
-    expect(projectProviderDirectory(providers, { query: '自定义' }).map(item => item.provider.providerID))
-      .toEqual(['openai'])
-    expect(projectProviderDirectory(providers, { query: '内置' }).map(item => item.provider.providerID))
-      .toEqual(['local'])
+    expect(
+      projectProviderDirectory(providers, { query: 'OpenAI' }).map(
+        (item) => item.provider.providerID,
+      ),
+    ).toEqual(['openai'])
+    expect(
+      projectProviderDirectory(providers, { query: 'gateway' }).map(
+        (item) => item.provider.providerID,
+      ),
+    ).toEqual(['vercel'])
+    expect(
+      projectProviderDirectory(providers, { query: '自定义' }).map(
+        (item) => item.provider.providerID,
+      ),
+    ).toEqual(['openai'])
+    expect(
+      projectProviderDirectory(providers, { query: '内置' }).map(
+        (item) => item.provider.providerID,
+      ),
+    ).toEqual(['local'])
+  })
+
+  test('supports filtering by configured and unconfigured status', () => {
+    const all = projectProviderDirectory(providers, {
+      filter: 'all',
+      apiKeys: keys,
+    })
+    expect(all).toHaveLength(3)
+
+    const configured = projectProviderDirectory(providers, {
+      filter: 'configured',
+      apiKeys: keys,
+    })
+    expect(configured.map((item) => item.provider.providerID)).toEqual(['openai'])
+
+    const unconfigured = projectProviderDirectory(providers, {
+      filter: 'unconfigured',
+      apiKeys: keys,
+    })
+    expect(unconfigured.map((item) => item.provider.providerID)).toEqual(['vercel', 'local'])
   })
 
   test('projects current and stored Key status', () => {
@@ -118,11 +171,13 @@ describe('model center Provider directory', () => {
 
   test('keeps a provider configured when its saved Key is disabled', () => {
     const projected = projectProviderDirectory(providers, {
-      apiKeys: [apiKey({
-        id: 'disabled',
-        providerId: 'openai',
-        enabled: false,
-      })],
+      apiKeys: [
+        apiKey({
+          id: 'disabled',
+          providerId: 'openai',
+          enabled: false,
+        }),
+      ],
     })
 
     expect(projected[0]?.connectionStatus).toBe('stored-key')
@@ -131,50 +186,57 @@ describe('model center Provider directory', () => {
   test('distinguishes OAuth, environment and configured connections', () => {
     const oauthProvider = provider({ providerID: 'oauth', displayName: 'OAuth' })
     const envProvider = provider({ providerID: 'env', displayName: 'Environment' })
-    const configuredProvider = provider({ providerID: 'configured', displayName: 'Configured', apiKeyConfigured: true })
-    const projected = projectProviderDirectory(
-      [oauthProvider, envProvider, configuredProvider],
-      {
-        credentials: [
-          {
-            id: 'credential',
-            providerId: 'oauth',
-            kind: 'oauth',
-            label: 'OAuth',
-            enabled: true,
-            active: true,
-            order: 0,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-        ] as never,
-        currentProviderState: {
-          selectedProviderID: 'env',
-          provider: envProvider,
-          model: 'model',
-          apiKeyConfigured: true,
-          apiKeySource: 'ENV_API_KEY',
-          modelConfigured: true,
-          models: ['model'],
+    const configuredProvider = provider({
+      providerID: 'configured',
+      displayName: 'Configured',
+      apiKeyConfigured: true,
+    })
+    const projected = projectProviderDirectory([oauthProvider, envProvider, configuredProvider], {
+      credentials: [
+        {
+          id: 'credential',
+          providerId: 'oauth',
+          kind: 'oauth',
+          label: 'OAuth',
+          enabled: true,
+          active: true,
+          order: 0,
+          createdAt: 1,
+          updatedAt: 1,
         },
+      ] as never,
+      currentProviderState: {
+        selectedProviderID: 'env',
+        provider: envProvider,
+        model: 'model',
+        apiKeyConfigured: true,
+        apiKeySource: 'ENV_API_KEY',
+        modelConfigured: true,
+        models: ['model'],
       },
-    )
+    })
 
-    expect(projected.map(item => item.connectionStatus))
-      .toEqual(['oauth', 'environment', 'configured'])
+    expect(projected.map((item) => item.connectionStatus)).toEqual([
+      'oauth',
+      'environment',
+      'configured',
+    ])
   })
 })
 
 describe('model center API Key helpers', () => {
   test('filters by provider, query and health status', () => {
-    expect(filterApiKeys(keys, { providerId: 'openai' }).map(key => key.id))
-      .toEqual(['primary', 'backup'])
-    expect(filterApiKeys(keys, { query: 'a9k2' }).map(key => key.id))
-      .toEqual(['primary'])
-    expect(filterApiKeys(keys, { query: '当前', health: 'healthy' }).map(key => key.id))
-      .toEqual(['primary'])
-    expect(filterApiKeys(keys, { health: 'rate-limited' }).map(key => key.id))
-      .toEqual(['anthropic'])
+    expect(filterApiKeys(keys, { providerId: 'openai' }).map((key) => key.id)).toEqual([
+      'primary',
+      'backup',
+    ])
+    expect(filterApiKeys(keys, { query: 'a9k2' }).map((key) => key.id)).toEqual(['primary'])
+    expect(filterApiKeys(keys, { query: '当前', health: 'healthy' }).map((key) => key.id)).toEqual([
+      'primary',
+    ])
+    expect(filterApiKeys(keys, { health: 'rate-limited' }).map((key) => key.id)).toEqual([
+      'anthropic',
+    ])
   })
 
   test('does not auto-select a replacement when deleting the active Key', () => {
@@ -213,6 +275,7 @@ function provider(overrides: {
   displayName: string
   providerKind?: 'builtin' | 'custom'
   gatewaySource?: boolean
+  catalogOrigin?: 'user' | 'pi-bundled'
   apiKeyConfigured?: boolean
 }) {
   return {

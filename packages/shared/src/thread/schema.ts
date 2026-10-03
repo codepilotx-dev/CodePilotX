@@ -1,11 +1,21 @@
-import { Model } from "@codepilotx/model-schema"
-import { Schema } from "effect"
-import { PermissionConfigSchema } from "./permission"
-import { TaskModeSchema, ThreadSettingsSchema } from "./settings"
+import { Model } from '@codepilotx/model-schema'
+import { Schema } from 'effect'
+import { ThreadExecutionEnvironmentSchema } from './execution'
+import { PermissionConfigSchema } from './permission'
+import { TaskModeSchema, ThreadSettingsSchema } from './settings'
+
+/**
+ * Where new tasks for a project run. `auto` follows the project type (Git uses a
+ * managed worktree, non-Git uses the local directory); `local` always stays local.
+ */
+export const ProjectExecutionEnvironmentSchema = Schema.Literals(['auto', 'local'])
+export type ProjectExecutionEnvironment = typeof ProjectExecutionEnvironmentSchema.Type
 
 export const ProjectSettingsSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
   instructions: Schema.String,
+  /** Omitted by older writers, which means the automatic default. */
+  executionEnvironment: Schema.optional(ProjectExecutionEnvironmentSchema),
   version: Schema.Number,
 })
 export type ProjectSettings = typeof ProjectSettingsSchema.Type
@@ -14,8 +24,8 @@ export const ProjectFolderSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   path: Schema.String,
-  role: Schema.Literals(["primary", "secondary"]),
-  availability: Schema.Literals(["available", "missing"]),
+  role: Schema.Literals(['primary', 'secondary']),
+  availability: Schema.Literals(['available', 'missing']),
   order: Schema.Number,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
@@ -43,59 +53,61 @@ export type ProjectSourceRevision = typeof ProjectSourceRevisionSchema.Type
 
 export const ProjectSourceSchema = Schema.Union([
   Schema.Struct({
-    storage: Schema.Literal("managed"),
+    storage: Schema.Literal('managed'),
     id: Schema.String,
     projectId: Schema.String,
-    kind: Schema.Literals(["text", "image"]),
+    kind: Schema.Literals(['text', 'image']),
     name: Schema.String,
     mediaType: Schema.String,
     sizeBytes: Schema.Number,
     sha256: Schema.String,
-    status: Schema.Literal("available"),
+    status: Schema.Literal('available'),
   }),
   Schema.Struct({
-    storage: Schema.Literal("workspace-file"),
+    storage: Schema.Literal('workspace-file'),
     id: Schema.String,
     projectId: Schema.String,
     folderId: Schema.String,
     path: Schema.String,
-    kind: Schema.Literals(["text", "image"]),
+    kind: Schema.Literals(['text', 'image']),
     name: Schema.String,
-    status: Schema.Literals(["available", "missing", "denied", "unsupported"]),
+    status: Schema.Literals(['available', 'missing', 'denied', 'unsupported']),
     revision: Schema.NullOr(ProjectSourceRevisionSchema),
   }),
 ])
 export type ProjectSource = typeof ProjectSourceSchema.Type
 
 export const TurnStatusSchema = Schema.Literals([
-  "queued",
-  "running",
-  "waiting-permission",
-  "waiting-question",
-  "waiting-subagents",
-  "completed",
-  "failed",
-  "stopped",
-  "interrupted",
-  "cancelled",
+  'queued',
+  'running',
+  'waiting-permission',
+  'waiting-question',
+  'waiting-subagents',
+  'completed',
+  'failed',
+  'stopped',
+  'interrupted',
+  'cancelled',
 ])
 export type TurnStatus = typeof TurnStatusSchema.Type
 
 export const ThreadWorkspaceSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal("project"),
+    kind: Schema.Literal('project'),
     projectID: Schema.String,
     cwd: Schema.String,
-    runtimeWorkspaceRoots: Schema.Array(Schema.Struct({
-      folderId: Schema.String,
-      path: Schema.String,
-      role: Schema.Literals(["primary", "secondary"]),
-    })),
+    runtimeWorkspaceRoots: Schema.Array(
+      Schema.Struct({
+        folderId: Schema.String,
+        path: Schema.String,
+        role: Schema.Literals(['primary', 'secondary']),
+      }),
+    ),
     instructionSources: Schema.Array(Schema.String),
     outputDirectory: Schema.Null,
   }),
   Schema.Struct({
-    kind: Schema.Literal("projectless"),
+    kind: Schema.Literal('projectless'),
     projectID: Schema.Null,
     workspaceRoot: Schema.String,
     cwd: Schema.String,
@@ -104,13 +116,26 @@ export const ThreadWorkspaceSchema = Schema.Union([
 ])
 export type ThreadWorkspace = typeof ThreadWorkspaceSchema.Type
 
+export const ThreadCreationSurfaceSchema = Schema.Literals(['coding', 'working', 'chat'])
+export type ThreadCreationSurface = typeof ThreadCreationSurfaceSchema.Type
+
 export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  /** Legacy read-only alias of `workflowId`; new clients use `workflowId` only. */
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
+  workflowId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
+  /** Projected from the execution binding; clients never infer it from the workspace. */
+  executionEnvironment: Schema.optional(ThreadExecutionEnvironmentSchema),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
+  hasScheduledRun: Schema.optional(Schema.Boolean),
+  isScheduledSession: Schema.optional(Schema.Boolean),
+  isFork: Schema.optional(Schema.Boolean),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
+  archivedAt: Schema.optional(Schema.NullOr(Schema.Number)),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
@@ -119,7 +144,16 @@ export type Thread = typeof ThreadSchema.Type
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  /** Legacy read-only alias of `workflowId`; new clients use `workflowId` only. */
+  sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),
+  workflowId: Schema.optional(Schema.NullOr(Schema.String)),
   gitBranch: Schema.NullOr(Schema.String),
+  /** Projected from the execution binding; clients never infer it from the workspace. */
+  executionEnvironment: Schema.optional(ThreadExecutionEnvironmentSchema),
+  creationSurface: Schema.optional(ThreadCreationSurfaceSchema),
+  hasScheduledRun: Schema.optional(Schema.Boolean),
+  isScheduledSession: Schema.optional(Schema.Boolean),
+  isFork: Schema.optional(Schema.Boolean),
   workspace: Schema.optional(ThreadWorkspaceSchema),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),

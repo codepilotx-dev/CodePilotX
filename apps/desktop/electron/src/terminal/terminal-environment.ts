@@ -4,13 +4,11 @@ export function createTerminalEnvironment(
   const environment: Record<string, string> = {}
   for (const [key, value] of Object.entries(source)) {
     if (value === undefined) continue
-    const normalizedKey = process.platform === "win32"
-      ? key.toLowerCase()
-      : key
-    if (normalizedKey.toLowerCase().startsWith("codepilotx_")) continue
+    const normalizedKey = process.platform === 'win32' ? key.toLowerCase() : key
+    if (normalizedKey.toLowerCase().startsWith('codepilotx_')) continue
     environment[key] = value
   }
-  environment.TERM_PROGRAM = "CodePilotX"
+  environment.TERM_PROGRAM = 'CodePilotX'
   return environment
 }
 
@@ -26,7 +24,7 @@ export function applyTerminalEnvironmentDelta(
   platform: NodeJS.Platform = process.platform,
 ): Record<string, string> {
   const environment = createTerminalEnvironment(source)
-  const normalized = (key: string) => platform === "win32" ? key.toLowerCase() : key
+  const normalized = (key: string) => (platform === 'win32' ? key.toLowerCase() : key)
   const remove = (key: string) => {
     const expected = normalized(key)
     for (const existing of Object.keys(environment)) {
@@ -45,5 +43,5 @@ export function applyTerminalEnvironmentDelta(
 }
 
 function isInternalKey(key: string): boolean {
-  return key.toUpperCase().startsWith("CODEPILOTX_")
+  return key.toUpperCase().startsWith('CODEPILOTX_')
 }

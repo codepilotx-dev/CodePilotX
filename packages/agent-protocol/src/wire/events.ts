@@ -1,4 +1,8 @@
-import { Model, Provider } from "@codepilotx/model-schema"
+import { ComputerStateSchema } from '../methods/computer'
+import { Model, Provider } from '@codepilotx/model-schema'
+import { AutomationRunStatusSchema, AutomationStatusSchema } from '@codepilotx/shared/automation'
+import { SchedulePlanProposalStatusSchema } from '@codepilotx/shared/schedule-plan'
+import { ScheduledTaskStatusSchema } from '@codepilotx/shared/scheduled-task'
 import {
   AgentExecutionSchema,
   ExecutionPlanItemSchema,
@@ -6,25 +10,32 @@ import {
   ItemSchema,
   QueueActionSchema,
   SubagentProjectionSchema,
+  ThreadGoalSchema,
   ThreadSchema,
   ThreadSettingsSchema,
   ToolItemSchema,
   TurnSchema,
   TurnStatusSchema,
-} from "@codepilotx/shared/thread"
-import { Schema } from "effect"
-import { defineEvent, type EventPayloadOf } from "./definition"
+} from '@codepilotx/shared/thread'
+import { Schema } from 'effect'
+import { defineEvent, type EventPayloadOf } from './definition'
 import {
   ApprovalRequestParamsSchema,
   HookTrustRequestParamsSchema,
   PermissionRequestParamsSchema,
   ServerRequestResultSchema,
   QuestionRequestParamsSchema,
-} from "./interactions"
-import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
-import { ToolingStatusSchema } from "../methods/tooling"
-import { UsageSourceIdSchema } from "../methods/usage"
-import { AuthSessionSchema } from "../methods/extended"
+} from './interactions'
+import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from './primitives'
+import { ToolingStatusSchema } from '../methods/tooling'
+import { UsageSourceIdSchema } from '../methods/usage'
+import {
+  AuthSessionSchema,
+  ModelHealthCountsSchema,
+  ModelHealthItemSchema,
+} from '../methods/extended'
+import { SpeechStatusSchema } from '../methods/speech'
+import { MiniMaxCliStatusSchema } from '../methods/minimax-cli'
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -46,40 +57,113 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
-  "config/updated": defineEvent({
+  'computer/changed': defineEvent({ payload: ComputerStateSchema, version: 1, durability: 'durable', stream: 'global', capability: 'computer.use.v1', reconcilesWith: 'computer/state' }),
+  'browser/dataChanged': defineEvent({
+    payload: Schema.Struct({ collection: Schema.Literals(['history', 'downloads']) }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'browser.data.v1',
+    reconcilesWith: 'browser/history/list',
+  }),
+  'browser/changed': defineEvent({
+    payload: Schema.Struct({ tabId: OpaqueIDSchema }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'browser.manage.v1',
+    reconcilesWith: 'browser/list',
+  }),
+  'scheduled-task/changed': defineEvent({
+    payload: Schema.Struct({
+      scheduledTaskId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: ScheduledTaskStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'calendar.manage.v1',
+    reconcilesWith: 'calendar/range',
+  }),
+  'schedule-plan/changed': defineEvent({
+    payload: Schema.Struct({
+      proposalId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: SchedulePlanProposalStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'calendar.manage.v1',
+    reconcilesWith: 'schedule-plan/read',
+  }),
+  'automation/changed': defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      revision: VersionSchema,
+      status: AutomationStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'automation.manage.v1',
+    reconcilesWith: 'automation/list',
+  }),
+  'automation/runChanged': defineEvent({
+    payload: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      runId: OpaqueIDSchema,
+      status: AutomationRunStatusSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'automation.manage.v1',
+    reconcilesWith: 'automation/run/list',
+  }),
+  'config/updated': defineEvent({
     payload: Schema.Struct({
       version: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
       changedKeyPaths: Schema.Array(Schema.Array(Schema.String.check(Schema.isMinLength(1)))),
-      scope: Schema.Literals(["user", "profile", "project"]),
-      diagnostics: Schema.Array(Schema.Struct({
-        severity: Schema.Literals(["warning", "error"]),
-        code: Schema.String.check(Schema.isMinLength(1)),
-        message: Schema.String.check(Schema.isMinLength(1)),
-      })),
-      profileState: Schema.optional(Schema.Struct({
-        activeProfile: Schema.NullOr(Schema.String),
-        selectedProfile: Schema.NullOr(Schema.String),
-        restartRequired: Schema.Boolean,
-      })),
+      scope: Schema.Literals(['user', 'profile', 'project']),
+      diagnostics: Schema.Array(
+        Schema.Struct({
+          severity: Schema.Literals(['warning', 'error']),
+          code: Schema.String.check(Schema.isMinLength(1)),
+          message: Schema.String.check(Schema.isMinLength(1)),
+        }),
+      ),
+      profileState: Schema.optional(
+        Schema.Struct({
+          activeProfile: Schema.NullOr(Schema.String),
+          selectedProfile: Schema.NullOr(Schema.String),
+          restartRequired: Schema.Boolean,
+        }),
+      ),
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "config.manage.v1",
-    reconcilesWith: "config/read",
+    durability: 'live',
+    stream: 'global',
+    capability: 'config.manage.v1',
+    reconcilesWith: 'config/read',
   }),
-  "workspace/git/changed": defineEvent({
+  'workspace/git/changed': defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,
       changedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "git.review.v1",
-    reconcilesWith: "review/refresh",
+    durability: 'live',
+    stream: 'global',
+    capability: 'git.review.v1',
+    reconcilesWith: 'review/refresh',
   }),
-  "workspace/file/changed": defineEvent({
+  'workspace/file/changed': defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,
       folderId: OpaqueIDSchema,
@@ -87,63 +171,137 @@ export const EventManifest = {
       changedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "workspace.editor.v1",
-    reconcilesWith: "workspace/file/read",
+    durability: 'live',
+    stream: 'global',
+    capability: 'workspace.editor.v1',
+    reconcilesWith: 'workspace/file/read',
   }),
-  "tooling/updated": defineEvent({
+  'session-group/changed': defineEvent({
+    payload: Schema.Struct({
+      groupId: OpaqueIDSchema,
+      reason: Schema.Literals([
+        'created',
+        'updated',
+        'deleted',
+        'membership_changed',
+        'step_changed',
+        'context_changed',
+      ]),
+      threadId: Schema.optional(OpaqueIDSchema),
+      stepId: Schema.optional(OpaqueIDSchema),
+      revision: VersionSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'session-group.v1',
+    reconcilesWith: 'session-group/list',
+  }),
+  'workflow/changed': defineEvent({
+    payload: Schema.Struct({
+      workflowId: OpaqueIDSchema,
+      reason: Schema.Literals([
+        'created',
+        'updated',
+        'deleted',
+        'membership_changed',
+        'step_changed',
+        'context_changed',
+      ]),
+      threadId: Schema.optional(OpaqueIDSchema),
+      stepId: Schema.optional(OpaqueIDSchema),
+      revision: VersionSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'workflow.v1',
+    reconcilesWith: 'workflow/list',
+  }),
+  'tooling/updated': defineEvent({
     payload: Schema.Struct({
       status: ToolingStatusSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "tooling.management.v1",
-    reconcilesWith: "tooling/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'tooling.management.v1',
+    reconcilesWith: 'tooling/list',
   }),
-  "skill/updated": defineEvent({
+  'speech/statusChanged': defineEvent({
+    payload: Schema.Struct({ status: SpeechStatusSchema }),
+    version: 1,
+    durability: 'live',
+    stream: 'global',
+    capability: 'speech.transcription.v1',
+    reconcilesWith: 'speech/status',
+  }),
+  'skill/updated': defineEvent({
     payload: Schema.Struct({
       generation: SequenceSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "skills.manage.v1",
-    reconcilesWith: "skill/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'skills.manage.v1',
+    reconcilesWith: 'skill/list',
   }),
-  "mcp/updated": defineEvent({
+  'plugins/updated': defineEvent({
     payload: Schema.Struct({
       generation: SequenceSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "mcp.manage.v1",
-    reconcilesWith: "mcp/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'plugins.manage.v1',
+    reconcilesWith: 'plugin/list',
   }),
-  "thread/created": defineEvent({
+  'minimaxCli/updated': defineEvent({
+    payload: Schema.Struct({ status: MiniMaxCliStatusSchema }),
+    version: 1,
+    durability: 'live',
+    stream: 'global',
+    capability: 'integrations.minimax-cli.v1',
+    reconcilesWith: 'minimaxCli/status',
+  }),
+  'mcp/updated': defineEvent({
+    payload: Schema.Struct({
+      generation: SequenceSchema,
+    }),
+    version: 1,
+    durability: 'live',
+    stream: 'global',
+    capability: 'mcp.manage.v1',
+    reconcilesWith: 'mcp/list',
+  }),
+  'thread/created': defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema }),
     version: 1,
-    durability: "durable",
-    stream: "global",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'global',
+    capability: 'events.replay.v1',
   }),
-  "thread/updated": defineEvent({
+  'thread/updated': defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema, version: VersionSchema }),
     version: 1,
-    durability: "durable",
-    stream: "global",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'global',
+    capability: 'events.replay.v1',
   }),
-  "thread/settings/updated": defineEvent({
-    payload: Schema.Struct({ threadId: OpaqueIDSchema, settings: ThreadSettingsSchema, version: VersionSchema }),
+  'thread/settings/updated': defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      settings: ThreadSettingsSchema,
+      version: VersionSchema,
+    }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "thread/prompt-settings/updated": defineEvent({
+  'thread/prompt-settings/updated': defineEvent({
     payload: Schema.Struct({
       threadId: OpaqueIDSchema,
       cacheKey: OpaqueIDSchema,
@@ -151,32 +309,56 @@ export const EventManifest = {
       baselineVersion: VersionSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "thread/deleted": defineEvent({
+  'thread/deleted': defineEvent({
     payload: Schema.Struct({ threadId: OpaqueIDSchema, deletedAt: TimestampSchema }),
     version: 1,
-    durability: "durable",
-    stream: "global",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'global',
+    capability: 'events.replay.v1',
   }),
-  "turn/queued": defineEvent({
+  'thread/goal/updated': defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      goal: ThreadGoalSchema,
+      version: VersionSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'thread.goal.v1',
+    reconcilesWith: 'thread/goal/get',
+  }),
+  'thread/goal/cleared': defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      goalId: OpaqueIDSchema,
+      clearedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'thread.goal.v1',
+    reconcilesWith: 'thread/goal/get',
+  }),
+  'turn/queued': defineEvent({
     payload: Schema.Struct({ turn: TurnSchema, input: InputSchema }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "turn/started": defineEvent({
+  'turn/started': defineEvent({
     payload: Schema.Struct({ turn: TurnSchema, input: InputSchema }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "turn/statusChanged": defineEvent({
+  'turn/statusChanged': defineEvent({
     payload: Schema.Struct({
       turnId: OpaqueIDSchema,
       status: TurnStatusSchema,
@@ -184,25 +366,25 @@ export const EventManifest = {
       changedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "turn/completed": defineEvent({
+  'turn/completed': defineEvent({
     payload: Schema.Struct({ turn: TurnSchema }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "turn/failed": defineEvent({
+  'turn/failed': defineEvent({
     payload: Schema.Struct({ turn: TurnSchema, error: SanitizedErrorSchema }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "turn/interrupted": defineEvent({
+  'turn/interrupted': defineEvent({
     payload: Schema.Struct({
       turn: TurnSchema,
       reason: Schema.String.check(Schema.isMinLength(1)),
@@ -210,69 +392,69 @@ export const EventManifest = {
       checkpointVersion: Schema.optional(VersionSchema),
     }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "agent/upserted": defineEvent({
+  'agent/upserted': defineEvent({
     payload: Schema.Struct({ agent: AgentExecutionSchema }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "subagent/created": defineEvent({
+  'subagent/created': defineEvent({
     payload: CompleteSubagentProjectionSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "subagents.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'subagents.v1',
   }),
-  "subagent/updated": defineEvent({
+  'subagent/updated': defineEvent({
     payload: CompleteSubagentProjectionSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "subagents.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'subagents.v1',
   }),
-  "subagent/workspaceUpdated": defineEvent({
+  'subagent/workspaceUpdated': defineEvent({
     payload: CompleteSubagentProjectionSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "subagents.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'subagents.v1',
   }),
-  "item/started": defineEvent({
+  'item/started': defineEvent({
     payload: Schema.Struct({ item: ItemSchema }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "item/completed": defineEvent({
+  'item/completed': defineEvent({
     payload: Schema.Struct({ item: ItemSchema }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "item/agentMessage/delta": defineEvent({
+  'item/agentMessage/delta': defineEvent({
     payload: ItemDeltaSchema,
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "item/completed",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'item/completed',
   }),
-  "reasoning/textDelta": defineEvent({
+  'reasoning/textDelta': defineEvent({
     payload: ItemDeltaSchema,
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "item/completed",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'item/completed',
   }),
-  "reasoning/summaryPartAdded": defineEvent({
+  'reasoning/summaryPartAdded': defineEvent({
     payload: Schema.Struct({
       itemId: OpaqueIDSchema,
       turnId: OpaqueIDSchema,
@@ -280,12 +462,12 @@ export const EventManifest = {
       partIndex: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
     }),
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "item/completed",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'item/completed',
   }),
-  "reasoning/summaryTextDelta": defineEvent({
+  'reasoning/summaryTextDelta': defineEvent({
     payload: Schema.Struct({
       itemId: OpaqueIDSchema,
       turnId: OpaqueIDSchema,
@@ -294,91 +476,91 @@ export const EventManifest = {
       delta: Schema.String,
     }),
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "item/completed",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'item/completed',
   }),
-  "plan/delta": defineEvent({
+  'plan/delta': defineEvent({
     payload: ItemDeltaSchema,
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "item/completed",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'item/completed',
   }),
-  "turn/plan/updated": defineEvent({
+  'turn/plan/updated': defineEvent({
     payload: Schema.Struct({ item: ExecutionPlanItemSchema }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "tool/callStarted": defineEvent({
+  'tool/callStarted': defineEvent({
     payload: Schema.Struct({
       item: ToolItemSchema,
       inputSummary: Schema.String,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "tool/outputDelta": defineEvent({
+  'tool/outputDelta': defineEvent({
     payload: ItemDeltaSchema,
     version: 1,
-    durability: "live",
-    stream: "thread",
-    capability: "events.live.v1",
-    reconcilesWith: "tool/callCompleted",
+    durability: 'live',
+    stream: 'thread',
+    capability: 'events.live.v1',
+    reconcilesWith: 'tool/callCompleted',
   }),
-  "tool/callCompleted": defineEvent({
+  'tool/callCompleted': defineEvent({
     payload: ToolTerminalPayloadSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "tool/error": defineEvent({
+  'tool/error': defineEvent({
     payload: Schema.Struct({ item: ToolItemSchema, error: SanitizedErrorSchema }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "approval/requested": defineEvent({
+  'approval/requested': defineEvent({
     payload: ApprovalRequestParamsSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "approval/cancelled": defineEvent({
+  'approval/cancelled': defineEvent({
     payload: Schema.Struct({
       interactionId: OpaqueIDSchema,
       reason: Schema.String.check(Schema.isMinLength(1)),
       cancelledAt: TimestampSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "permission/requested": defineEvent({
+  'permission/requested': defineEvent({
     payload: PermissionRequestParamsSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "question/requested": defineEvent({
+  'question/requested': defineEvent({
     payload: QuestionRequestParamsSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "interaction/resolved": defineEvent({
+  'interaction/resolved': defineEvent({
     payload: Schema.Struct({
       // Optional for forward compatibility with historical replay: events
       // emitted before this field existed carry no interaction identifier.
@@ -387,65 +569,69 @@ export const EventManifest = {
       resolvedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "context/compacted": defineEvent({
+  'context/compacted': defineEvent({
     payload: Schema.Struct({
       compactionId: OpaqueIDSchema,
+      trigger: Schema.optional(Schema.Literals(['manual', 'automatic', 'reactive'])),
       beforeCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       beforeTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       afterTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+      afterTokensSource: Schema.optional(Schema.Literals(['compaction-estimate', 'measured'])),
       targetTokens: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
       baselineVersion: VersionSchema,
       usageSampleId: OpaqueIDSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "context.compact.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'context.compact.v1',
   }),
-  "context/recoveryRequired": defineEvent({
+  'context/recoveryRequired': defineEvent({
     payload: Schema.Struct({
       turnId: OpaqueIDSchema,
       agentId: OpaqueIDSchema,
       attemptOrdinal: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-      completedSideEffects: Schema.Array(Schema.Struct({
-        toolCallId: OpaqueIDSchema,
-        tool: Schema.String.check(Schema.isMinLength(1)),
-        summary: Schema.String,
-      })),
+      completedSideEffects: Schema.Array(
+        Schema.Struct({
+          toolCallId: OpaqueIDSchema,
+          tool: Schema.String.check(Schema.isMinLength(1)),
+          summary: Schema.String,
+        }),
+      ),
       checkpointVersion: VersionSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "hook/trust/requested": defineEvent({
+  'hook/trust/requested': defineEvent({
     payload: HookTrustRequestParamsSchema,
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "hooks.trust.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'hooks.trust.v1',
   }),
-  "hook/trust/resolved": defineEvent({
+  'hook/trust/resolved': defineEvent({
     payload: Schema.Struct({
       interactionId: OpaqueIDSchema,
       configPath: Schema.String,
       configSha256: Schema.String,
-      decision: Schema.Literals(["allow", "block"]),
+      decision: Schema.Literals(['allow', 'block']),
       resumed: Schema.Boolean,
       resolvedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "hooks.trust.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'hooks.trust.v1',
   }),
-  "queue/updated": defineEvent({
+  'queue/updated': defineEvent({
     payload: Schema.Struct({
       threadId: OpaqueIDSchema,
       action: QueueActionSchema,
@@ -454,54 +640,71 @@ export const EventManifest = {
       turns: Schema.optional(Schema.Array(TurnSchema)),
       inputs: Schema.optional(Schema.Array(InputSchema)),
       version: Schema.optional(VersionSchema),
-      pauseReason: Schema.optional(Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))),
+      pauseReason: Schema.optional(Schema.NullOr(Schema.Literals(['interrupted', 'turn_failed']))),
     }),
     version: 2,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'events.replay.v1',
   }),
-  "catalog/updated": defineEvent({
-    payload: Schema.Struct({ catalogVersion: SequenceSchema, models: Schema.optional(Schema.Array(Model.Info)) }),
+  'catalog/updated': defineEvent({
+    payload: Schema.Struct({
+      catalogVersion: SequenceSchema,
+      models: Schema.optional(Schema.Array(Model.Info)),
+    }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "events.live.v1",
-    reconcilesWith: "model/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'events.live.v1',
+    reconcilesWith: 'model/list',
   }),
-  "provider/credential/updated": defineEvent({
+  'provider/credential/updated': defineEvent({
     payload: Schema.Struct({ providerId: Provider.ID }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "provider.auth.pi.v1",
-    reconcilesWith: "provider/credential/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'provider.auth.pi.v1',
+    reconcilesWith: 'provider/credential/list',
   }),
-  "auth/session/updated": defineEvent({
+  'auth/session/updated': defineEvent({
     payload: Schema.Struct({ session: AuthSessionSchema }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "provider.auth.pi.v1",
-    reconcilesWith: "auth/session/status",
+    durability: 'live',
+    stream: 'global',
+    capability: 'provider.auth.pi.v1',
+    reconcilesWith: 'auth/session/status',
   }),
-  "usage/source/updated": defineEvent({
+  'usage/source/updated': defineEvent({
     payload: Schema.Struct({
       sourceId: UsageSourceIdSchema,
       changedAt: TimestampSchema,
     }),
     version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "events.live.v1",
-    reconcilesWith: "usage/source/list",
+    durability: 'live',
+    stream: 'global',
+    capability: 'events.live.v1',
+    reconcilesWith: 'usage/source/list',
+  }),
+  'model/health/updated': defineEvent({
+    payload: Schema.Struct({
+      runId: OpaqueIDSchema,
+      status: Schema.Literals(['running', 'cancelling', 'completed', 'cancelled']),
+      counts: ModelHealthCountsSchema,
+      changed: Schema.optional(ModelHealthItemSchema),
+      completedAt: Schema.optional(TimestampSchema),
+    }),
+    version: 1,
+    durability: 'live',
+    stream: 'global',
+    capability: 'model.health.v1',
+    reconcilesWith: 'model/health/read',
   }),
 } as const
 
 export type EventType = keyof typeof EventManifest
 export type EventPayload<T extends EventType> = EventPayloadOf<(typeof EventManifest)[T]>
 export type DurableEventType = {
-  [T in EventType]: (typeof EventManifest)[T]["durability"] extends "durable" ? T : never
+  [T in EventType]: (typeof EventManifest)[T]['durability'] extends 'durable' ? T : never
 }[EventType]
 export type LiveEventType = Exclude<EventType, DurableEventType>
 export type EventEnvelope = DurableEventEnvelope | LiveEventEnvelope
@@ -521,7 +724,7 @@ const EventEnvelopeBaseFields = {
 export const DurableEventEnvelopeSchema = Schema.Struct({
   ...EventEnvelopeBaseFields,
   type: EventTypeSchema,
-  durability: Schema.Literal("durable"),
+  durability: Schema.Literal('durable'),
   sequence: SequenceSchema,
   payload: JsonValueSchema,
 })
@@ -529,40 +732,48 @@ export const DurableEventEnvelopeSchema = Schema.Struct({
 export const LiveEventEnvelopeSchema = Schema.Struct({
   ...EventEnvelopeBaseFields,
   type: EventTypeSchema,
-  durability: Schema.Literal("live"),
+  durability: Schema.Literal('live'),
   sequence: Schema.Null,
   afterSequence: SequenceSchema,
   payload: JsonValueSchema,
 })
 
-export type DurableEventEnvelope<T extends DurableEventType = DurableEventType> = T extends DurableEventType ? {
-  readonly eventId: string
-  readonly streamId: string
-  readonly type: T
-  readonly version: (typeof EventManifest)[T]["version"]
-  readonly occurredAt: number
-  readonly threadId?: string
-  readonly turnId?: string
-  readonly durability: "durable"
-  readonly sequence: number
-  readonly payload: EventPayload<T>
-} : never
+export type DurableEventEnvelope<T extends DurableEventType = DurableEventType> =
+  T extends DurableEventType
+    ? {
+        readonly eventId: string
+        readonly streamId: string
+        readonly type: T
+        readonly version: (typeof EventManifest)[T]['version']
+        readonly occurredAt: number
+        readonly threadId?: string
+        readonly turnId?: string
+        readonly durability: 'durable'
+        readonly sequence: number
+        readonly payload: EventPayload<T>
+      }
+    : never
 
-export type LiveEventEnvelope<T extends LiveEventType = LiveEventType> = T extends LiveEventType ? {
-  readonly eventId: string
-  readonly streamId: string
-  readonly type: T
-  readonly version: (typeof EventManifest)[T]["version"]
-  readonly occurredAt: number
-  readonly threadId?: string
-  readonly turnId?: string
-  readonly durability: "live"
-  readonly sequence: null
-  readonly afterSequence: number
-  readonly payload: EventPayload<T>
-} : never
+export type LiveEventEnvelope<T extends LiveEventType = LiveEventType> = T extends LiveEventType
+  ? {
+      readonly eventId: string
+      readonly streamId: string
+      readonly type: T
+      readonly version: (typeof EventManifest)[T]['version']
+      readonly occurredAt: number
+      readonly threadId?: string
+      readonly turnId?: string
+      readonly durability: 'live'
+      readonly sequence: null
+      readonly afterSequence: number
+      readonly payload: EventPayload<T>
+    }
+  : never
 
-export const EventEnvelopeSchema = Schema.Union([DurableEventEnvelopeSchema, LiveEventEnvelopeSchema])
+export const EventEnvelopeSchema = Schema.Union([
+  DurableEventEnvelopeSchema,
+  LiveEventEnvelopeSchema,
+])
 
 export function decodeEventEnvelope(input: unknown): EventEnvelope {
   const envelope = Schema.decodeUnknownSync(EventEnvelopeSchema)(input)
@@ -580,8 +791,8 @@ export function decodeEventEnvelope(input: unknown): EventEnvelope {
 }
 
 export const EventNextNotificationSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
-  method: Schema.Literal("event/next"),
+  jsonrpc: Schema.Literal('2.0'),
+  method: Schema.Literal('event/next'),
   params: Schema.Struct({
     subscriptionId: OpaqueIDSchema,
     event: EventEnvelopeSchema,
@@ -589,8 +800,8 @@ export const EventNextNotificationSchema = Schema.Struct({
 })
 
 export const EventReplayCompleteNotificationSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
-  method: Schema.Literal("event/replayComplete"),
+  jsonrpc: Schema.Literal('2.0'),
+  method: Schema.Literal('event/replayComplete'),
   params: Schema.Struct({
     subscriptionId: OpaqueIDSchema,
     positions: Schema.Array(Schema.Struct({ streamId: OpaqueIDSchema, sequence: SequenceSchema })),
@@ -598,15 +809,15 @@ export const EventReplayCompleteNotificationSchema = Schema.Struct({
 })
 
 export const SubscriptionClosedReasonSchema = Schema.Literals([
-  "unsubscribed",
-  "overflow",
-  "cursor-expired",
-  "server-shutdown",
+  'unsubscribed',
+  'overflow',
+  'cursor-expired',
+  'server-shutdown',
 ])
 
 export const EventSubscriptionClosedNotificationSchema = Schema.Struct({
-  jsonrpc: Schema.Literal("2.0"),
-  method: Schema.Literal("event/subscriptionClosed"),
+  jsonrpc: Schema.Literal('2.0'),
+  method: Schema.Literal('event/subscriptionClosed'),
   params: Schema.Struct({
     subscriptionId: OpaqueIDSchema,
     reason: SubscriptionClosedReasonSchema,
@@ -623,7 +834,7 @@ export type ServerNotification = typeof ServerNotificationSchema.Type
 
 export function decodeServerNotification(input: unknown): ServerNotification {
   const notification = Schema.decodeUnknownSync(ServerNotificationSchema)(input)
-  if (notification.method !== "event/next") return notification
+  if (notification.method !== 'event/next') return notification
 
   return {
     ...notification,

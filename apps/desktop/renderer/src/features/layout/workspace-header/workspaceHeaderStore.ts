@@ -43,7 +43,7 @@ export function createWorkspaceHeaderStore(): WorkspaceHeaderStore {
   return {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => snapshot,
-    subscribe: listener => {
+    subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
@@ -85,9 +85,7 @@ export function sortWorkspaceHeaderItems(
   items: readonly WorkspaceHeaderItemSnapshot[],
 ): WorkspaceHeaderItemSnapshot[] {
   return [...items].sort(
-    (left, right) =>
-      left.order - right.order ||
-      left.sequence - right.sequence,
+    (left, right) => left.order - right.order || left.sequence - right.sequence,
   )
 }
 
@@ -98,9 +96,7 @@ export function selectWorkspaceHeaderItems(
 ): WorkspaceHeaderItemSnapshot[] {
   return sortWorkspaceHeaderItems(
     snapshot.filter(
-      item =>
-        item.routeScope === routeScope &&
-        (slot === undefined || item.slot === slot),
+      (item) => item.routeScope === routeScope && (slot === undefined || item.slot === slot),
     ),
   )
 }

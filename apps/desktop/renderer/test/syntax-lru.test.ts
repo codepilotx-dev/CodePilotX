@@ -24,7 +24,7 @@ describe('syntax LRU cache', () => {
   test('evicts old entries when their combined weight exceeds the budget', () => {
     const cache = new LruCache<string, string>(10, {
       maxWeight: 5,
-      weigh: key => key.length,
+      weigh: (key) => key.length,
     })
 
     cache.set('aaa', 'first')
@@ -38,7 +38,7 @@ describe('syntax LRU cache', () => {
   test('does not retain a single entry larger than the weight budget', () => {
     const cache = new LruCache<string, string>(10, {
       maxWeight: 2,
-      weigh: key => key.length,
+      weigh: (key) => key.length,
     })
 
     cache.set('oversized', 'value')

@@ -18,12 +18,12 @@ type Props = {
   onOpenChange?: (open: boolean) => void
 }
 
-export function TooltipProvider({
-  children,
-}: {
-  children: React.ReactNode
-}): React.ReactNode {
-  return <RadixTooltip.Provider>{children}</RadixTooltip.Provider>
+export function TooltipProvider({ children }: { children: React.ReactNode }): React.ReactNode {
+  return (
+    <RadixTooltip.Provider delayDuration={350} skipDelayDuration={300}>
+      {children}
+    </RadixTooltip.Provider>
+  )
 }
 
 export function Tooltip({
@@ -53,17 +53,15 @@ export function Tooltip({
           align={align}
           className={
             variant === 'unstyled'
-              ? className
+              ? ['tooltip-presence', className].filter(Boolean).join(' ')
               : [
+                  'tooltip-presence',
                   'tooltip-content',
                   'tw:max-w-[min(20rem,calc(100vw-2rem))]',
-                  'tw:rounded-md',
                   'tw:px-2',
                   'tw:py-1',
-                  'tw:text-xs',
-                  'tw:leading-4',
+                  'u-type-caption',
                   'tw:text-app-text-soft',
-                  'tw:shadow-md',
                   className,
                 ]
                   .filter(Boolean)
@@ -73,9 +71,7 @@ export function Tooltip({
           sideOffset={sideOffset}
         >
           {content}
-          {variant === 'default' ? (
-            <RadixTooltip.Arrow className="tooltip-arrow" />
-          ) : null}
+          {variant === 'default' ? <RadixTooltip.Arrow className="tooltip-arrow" /> : null}
         </RadixTooltip.Content>
       </RadixTooltip.Portal>
     </RadixTooltip.Root>

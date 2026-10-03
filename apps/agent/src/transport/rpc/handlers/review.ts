@@ -1,29 +1,12 @@
-import {
-  ReviewFileDiffsParamsSchema,
-  type RpcMethod,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
-import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord, rpcRecord as record } from "../decoders"
+import { ReviewFileDiffsParamsSchema, type RpcMethod } from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
+import type { RpcRouter } from '../RpcRouter'
+import { decodeRpcParams as decodeParams, optionalRpcRecord as optionalRecord } from '../decoders'
 import {
   AgentError,
-  Capabilities,
-  Effect,
-  Model,
-  WorkspaceService,
-  globalEventSequence,
-  secretScrubber,
   aiReviewModel,
   aiReviewPrompt,
   aiReviewTitle,
-  attachmentView,
-  booleanParam,
-  decodeOffsetCursor,
-  decodePermissionConfig,
-  decodeQueueInput,
-  decodeQueueResume,
-  decodeQueueUpdate,
   decodeReviewAiStart,
   decodeReviewApply,
   decodeReviewApplyBatch,
@@ -36,143 +19,124 @@ import {
   decodeReviewFileDiff,
   decodeReviewStatus,
   decodeReviewSummary,
-  decodeSandboxUninstall,
-  decodeThreadSettings,
-  decodeThreadSettingsPatch,
-  encodeOffsetCursor,
-  enumValue,
-  githubPullRequestIdentity,
-  githubRepositoryIdentity,
-  memoryEntryView,
-  modelRef,
-  modelRefOrNull,
-  parseJsonRecord,
   positiveIntegerParam,
-  providerFailureCategory,
   resolveAiReviewSource,
-  resolveMemoryProjectID,
-  resolveMemoryProjectKey,
   resolveProjectWorkspace,
   stringParam,
-  submitMessage,
-  supportedPermissionConfig,
-} from "../RpcRouter"
-import type { RpcHandlerGroup } from "./types"
+} from '../RpcRouter'
+import type { RpcHandlerGroup } from './types'
 
-const decodeReviewFileDiffs = Schema.decodeUnknownSync(
-  ReviewFileDiffsParamsSchema,
-)
+const decodeReviewFileDiffs = Schema.decodeUnknownSync(ReviewFileDiffsParamsSchema)
 
 export const reviewHandlers = {
-  name: "review",
+  name: 'review',
   methods: [
-    "review/summary",
-    "review/refresh",
-    "review/pullRequest/prepare",
-    "review/fileDiff",
-    "review/file-diffs",
-    "review/apply",
-    "review/applyBatch",
-    "review/branches",
-    "review/commits",
-    "review/status",
-    "review/commit",
-    "review/comment/list",
-    "review/comment/save",
-    "review/comment/resolve",
-    "review/comment/delete",
-    "review/ai/start",
+    'review/summary',
+    'review/refresh',
+    'review/pullRequest/prepare',
+    'review/fileDiff',
+    'review/file-diffs',
+    'review/apply',
+    'review/applyBatch',
+    'review/branches',
+    'review/commits',
+    'review/status',
+    'review/commit',
+    'review/comment/list',
+    'review/comment/save',
+    'review/comment/resolve',
+    'review/comment/delete',
+    'review/ai/start',
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, apiKeys, memory, review, github } = runtime.dependencies
+  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown): Promise<unknown> {
+    const { db, threads, providers, piModels, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
-      case "review/summary": {
+      case 'review/summary': {
         const input = decodeParams(decodeReviewSummary, rawParams, method)
         return review.summaryResult(input.projectId, input.source)
       }
-      case "review/refresh": {
+      case 'review/refresh': {
         const input = decodeParams(decodeReviewSummary, rawParams, method)
         return review.summaryResult(input.projectId, input.source, true)
       }
-      case "review/pullRequest/prepare": {
-        const workspace = await resolveProjectWorkspace(
-          db,
-          stringParam(params, "projectId"),
-        )
+      case 'review/pullRequest/prepare': {
+        const workspace = await resolveProjectWorkspace(db, stringParam(params, 'projectId'))
         return github.preparePullRequestComparison({
           workspaceRoot: workspace.rootPath,
-          owner: stringParam(params, "owner"),
-          repository: stringParam(params, "repository"),
-          number: positiveIntegerParam(params, "number"),
-          ...(typeof params.force === "boolean" ? { force: params.force } : {}),
+          owner: stringParam(params, 'owner'),
+          repository: stringParam(params, 'repository'),
+          number: positiveIntegerParam(params, 'number'),
+          ...(typeof params.force === 'boolean' ? { force: params.force } : {}),
         })
       }
-      case "review/fileDiff": {
+      case 'review/fileDiff': {
         const input = decodeParams(decodeReviewFileDiff, rawParams, method)
         return review.fileDiff(input)
       }
-      case "review/file-diffs": {
+      case 'review/file-diffs': {
         const input = decodeParams(decodeReviewFileDiffs, rawParams, method)
         return review.fileDiffs(input)
       }
-      case "review/apply": {
+      case 'review/apply': {
         const input = decodeParams(decodeReviewApply, rawParams, method)
         return review.apply(input)
       }
-      case "review/applyBatch": {
+      case 'review/applyBatch': {
         const input = decodeParams(decodeReviewApplyBatch, rawParams, method)
         return review.applyBatch(input)
       }
-      case "review/branches": {
+      case 'review/branches': {
         const input = decodeParams(decodeReviewBranches, rawParams, method)
         return review.branches(input.projectId)
       }
-      case "review/commits": {
+      case 'review/commits': {
         const input = decodeParams(decodeReviewCommits, rawParams, method)
         return review.commits(input.projectId, input.limit)
       }
-      case "review/status": {
+      case 'review/status': {
         const input = decodeParams(decodeReviewStatus, rawParams, method)
         return { status: await review.status(input.projectId) }
       }
-      case "review/commit": {
+      case 'review/commit': {
         const input = decodeParams(decodeReviewCommit, rawParams, method)
         return review.commit(input)
       }
-      case "review/comment/list": {
+      case 'review/comment/list': {
         const input = decodeParams(decodeReviewCommentList, rawParams, method)
         return { comments: review.listComments(input) }
       }
-      case "review/comment/save": {
+      case 'review/comment/save': {
         const input = decodeParams(decodeReviewCommentSave, rawParams, method)
         return { comment: review.saveComment(input) }
       }
-      case "review/comment/resolve": {
+      case 'review/comment/resolve': {
         const input = decodeParams(decodeReviewCommentID, rawParams, method)
         return { comment: review.resolveComment(input) }
       }
-      case "review/comment/delete": {
+      case 'review/comment/delete': {
         const input = decodeParams(decodeReviewCommentID, rawParams, method)
         return review.deleteComment(input)
       }
-      case "review/ai/start": {
+      case 'review/ai/start': {
         const input = decodeParams(decodeReviewAiStart, rawParams, method)
         const sourceThread = threads.get(input.threadId)
         const projectID = db.threadProjectID(input.threadId)
-        if (!projectID) throw new AgentError("PROJECT_REQUIRED", "当前任务未绑定项目", 409)
+        if (!projectID) throw new AgentError('PROJECT_REQUIRED', '当前任务未绑定项目', 409)
         const source = await resolveAiReviewSource(review, projectID, input.target)
-        const targetThread = input.delivery === "detached"
-          ? await threads.create({
-              title: aiReviewTitle(input.target),
-              workspace: { kind: "project", projectID },
-              settings: sourceThread.settings,
-              operationID: crypto.randomUUID(),
-            })
-          : sourceThread
+        const targetThread =
+          input.delivery === 'detached'
+            ? await threads.create({
+                title: aiReviewTitle(input.target),
+                workspace: { kind: 'project', projectID },
+                settings: sourceThread.settings,
+                operationID: crypto.randomUUID(),
+              })
+            : sourceThread
         const model = await aiReviewModel(
           db,
           providers,
+          piModels,
           runtime.dependencies.config,
           input.threadId,
           projectID,
@@ -181,8 +145,8 @@ export const reviewHandlers = {
           content: aiReviewPrompt(input.target),
           model,
           permissionConfig: sourceThread.settings.permissionConfig,
-          strategy: "queue",
-          taskMode: "chat",
+          strategy: 'queue',
+          taskMode: 'chat',
         })
         return {
           threadId: targetThread.id,
@@ -192,7 +156,7 @@ export const reviewHandlers = {
         }
       }
       default:
-        throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
+        throw new AgentError('METHOD_NOT_FOUND', `未知 RPC 方法：${method}`, 404)
     }
   },
 } as const satisfies RpcHandlerGroup

@@ -1,4 +1,5 @@
 import type {
+  AckDesktopTerminalOutputInput,
   AttachDesktopTerminalInput,
   CloseDesktopTerminalInput,
   DesktopTerminalEvent,
@@ -14,10 +15,7 @@ import { defaultDesktopClientEnvironment } from './environment.js'
 
 export type DesktopTerminalClient = DesktopTerminalIpcBridge & {
   available: boolean
-  closeThreadTerminal(
-    threadId: string,
-    reason?: CloseDesktopTerminalInput['reason'],
-  ): Promise<void>
+  closeThreadTerminal(threadId: string, reason?: CloseDesktopTerminalInput['reason']): Promise<void>
 }
 
 export function createDesktopTerminalClient(
@@ -83,22 +81,20 @@ export function createDesktopTerminalClient(
       if (!bridge?.resizeTerminal) unavailable()
       bridge.resizeTerminal(input)
     },
+    // 可选能力：旧版 Electron 没有 ack 通道时退化为无流量控制（输出仍按有界缓冲截断）。
+    ackTerminalOutput: (input: AckDesktopTerminalOutputInput): void => {
+      bridge?.ackTerminalOutput?.(input)
+    },
     closeTerminal,
     runTerminalAction,
-    closeTerminalForThread: async input => {
-      const result = await (
-        bridge?.closeTerminalForThread?.(input) ?? unavailable()
-      )
+    closeTerminalForThread: async (input) => {
+      const result = await (bridge?.closeTerminalForThread?.(input) ?? unavailable())
       sessionsByThread.delete(input.threadId)
       return result
     },
-    onTerminalEvent: (
-      listener: (event: DesktopTerminalEvent) => void,
-    ): (() => void) => bridge?.onTerminalEvent?.(listener) ?? (() => {}),
-    closeThreadTerminal: async (
-      threadId,
-      reason = 'user-close',
-    ): Promise<void> => {
+    onTerminalEvent: (listener: (event: DesktopTerminalEvent) => void): (() => void) =>
+      bridge?.onTerminalEvent?.(listener) ?? (() => {}),
+    closeThreadTerminal: async (threadId, reason = 'user-close'): Promise<void> => {
       if (bridge?.closeTerminalForThread) {
         await bridge.closeTerminalForThread({ threadId, reason })
       } else {
@@ -118,6 +114,4 @@ export function createDesktopTerminalClient(
 
 const environment = defaultDesktopClientEnvironment()
 
-export const terminalClient = createDesktopTerminalClient(
-  environment.window?.codePilotXDesktop,
-)
+export const terminalClient = createDesktopTerminalClient(environment.window?.codePilotXDesktop)

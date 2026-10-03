@@ -18,11 +18,7 @@ import {
   planModeActiveFromCollaborationMode,
   resolveCodePilotXCollaborationMode,
 } from '../../shims/core/agent/codepilotxSessionContract.js'
-import type {
-  CatalogProvider,
-  ModelRef,
-  Project,
-} from '@codepilotx/shared'
+import type { CatalogProvider, ModelRef, Project } from '@codepilotx/shared'
 import type {
   PermissionConfig,
   SubagentProjection,
@@ -35,6 +31,7 @@ import {
   type EventEnvelope,
   type JsonValue,
   type ProtocolCapability,
+  type PluginSummary,
   type RpcParams,
   type RpcResult,
 } from '@codepilotx/agent-protocol'
@@ -94,12 +91,8 @@ import {
   desktopPermissionModeToPermissionConfig,
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
-import {
-  createAgentRpcClient,
-  type AgentRpcSubscription,
-} from '../agentRpcClient.js'
+import { createAgentRpcClient, type AgentRpcSubscription } from '../agentRpcClient.js'
 
-import type { DesktopClientEnvironment } from './types.js'
 import {
   cleanGitStatus,
   createBrowserPerformanceFixture,
@@ -111,16 +104,42 @@ import {
   mockGithubLogin,
   mockModelProvider,
   mockSessionSnapshot,
-  mockThreadHistoryPage,
   mockWorkspace,
-  permissionModeFromDesktopConfig,
+  readBrowserFixtureAttachment,
   readBrowserThemeSettings,
   requireMockSession,
 } from './fixtures.js'
-import type { DesktopRuntimeCapabilityApi } from './types.js'
+import { bridgeWindowMaximized, mockAuthStatus, mockRuntimeStatus } from './fixtureRuntime.js'
+import type {
+  DesktopAttachmentApi,
+  DesktopAutomationApi,
+  DesktopCalendarApi,
+  DesktopClientEnvironment,
+  DesktopComputerApi,
+  DesktopLocalContextApi,
+  DesktopModelProviderRefreshApi,
+  DesktopMiniMaxCliApi,
+  DesktopPluginApi,
+  DesktopRuntimeCapabilityApi,
+  DesktopSpeechApi,
+  DesktopSpeechStatus,
+} from './types.js'
 
-const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
-  'codepilotx.desktop.appearance.v6'
+const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
+
+const BROWSER_UNAVAILABLE_SPEECH_STATUS = {
+  state: 'unsupported',
+  provider: 'sensevoice-llamacpp',
+  runtimeVersion: '0.1.9',
+  model: 'sensevoice-small-q8',
+  variant: null,
+  maxDurationMs: 120_000,
+  maxAudioBytes: 4_194_304,
+  error: {
+    code: 'SPEECH_PLATFORM_UNSUPPORTED',
+    message: '浏览器预览环境不支持本地语音听写。',
+  },
+} as const satisfies DesktopSpeechStatus
 
 function noop(): void {}
 
@@ -134,8 +153,30 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(
   storage?: Storage,
-): DesktopApi & DesktopRuntimeCapabilityApi {
+): DesktopApi &
+  DesktopRuntimeCapabilityApi &
+  DesktopAttachmentApi &
+  DesktopLocalContextApi &
+  DesktopSpeechApi &
+  DesktopAutomationApi &
+  DesktopCalendarApi &
+  DesktopModelProviderRefreshApi &
+  DesktopPluginApi &
+  DesktopMiniMaxCliApi &
+  DesktopComputerApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
+  const visualFixture = createBrowserVisualFixture()
+  const performanceFixture = createBrowserPerformanceFixture()
+  const modelPickerVisualFixture =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('visualModelPicker') === '1'
+  if (visualFixture || performanceFixture) {
+    settings = { ...settings, providerID: 'mock', model: 'mock' }
+  }
+  if (visualFixture?.item.id === 'visual-scroll-edge') {
+    settings = { ...settings, collapsedSidebarSections: [] }
+  }
   let configDocument: Record<string, JsonValue> = {
     desktop: { ...settings } as unknown as JsonValue,
   }
@@ -145,25 +186,104 @@ export function createBrowserMockDesktopClient(
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
   const sessions = new Map<string, DesktopSessionSnapshot>()
+  const sideChatSessionIds = new Set<string>()
   let activeSessionId: string | null = null
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const settingsListeners = new Set<(change: DesktopSettingsChange) => void>()
-
-  const runtimeStatus: DesktopRuntimeStatus = {
-    runtimeKind: 'rust-sidecar',
-    runtimePreference: 'auto',
-    runtimeSelectionSource: 'default',
-    agentExecutablePath: '',
-    agentExecutableExists: false,
-    configDirectoryPath: '',
-    toolchainEnabled: true,
-    toolchainRoot: null,
-    managedToolchainRoot: '',
-    packagedToolchainRoot: '',
-    toolchainPathEntries: [],
-    toolchainBinaries: [],
+  let mockPluginGeneration = 1
+  let mockTaskPlanningPlugin: PluginSummary = {
+    id: 'task-planning',
+    name: '任务规划',
+    version: '1.0.0',
+    description: '澄清目标、拆解工作并生成可执行的任务规划。',
+    developerName: 'CodePilotX',
+    category: 'Productivity',
+    source: 'bundled',
+    installationPolicy: 'INSTALLED_BY_DEFAULT',
+    installed: true,
+    enabled: true,
+    status: 'ready',
+    capabilities: ['task-planning'],
+    skills: ['task-planning'],
   }
-  const provider = mockModelProvider(settings.providerID)
+  const mockTaskPlanningDetails: RpcResult<'plugin/getDetails'>['details'] = {
+    pluginId: 'task-planning',
+    longDescription:
+      '澄清目标与约束，将复杂工作拆分为里程碑和可执行任务，并梳理依赖、风险与验收标准。',
+    displayCapabilities: ['Planning'],
+    defaultPrompts: [
+      '帮我把这个目标拆解成可执行的任务计划。',
+      '梳理这个项目的里程碑、依赖和主要风险。',
+      '为这项工作补充清晰的验收标准。',
+    ],
+    skills: [
+      {
+        id: 'task-planning',
+        name: '任务规划',
+        description:
+          'Clarify goals and constraints, then turn complex work into an actionable plan with milestones, dependencies, risks, and acceptance criteria.',
+      },
+    ],
+  }
+  let mockMiniMaxCliStatus: RpcResult<'minimaxCli/status'> = {
+    installationStatus: 'not-installed',
+    latestVersion: '1.0.22',
+    updateAvailable: false,
+    nodeVersion: 'v22.22.1',
+    npmVersion: '10.9.4',
+    authStatus: 'not-authenticated',
+    generation: 1,
+    updatedAt: Date.now(),
+  }
+
+  let mockComputerState: RpcResult<'computer/state'> = {
+    enabled: false,
+    available: false,
+    ownerThreadId: null,
+    ownerTurnId: null,
+    targetName: null,
+    busy: false,
+    permissions: [],
+  }
+
+  const provider = {
+    ...mockModelProvider(settings.providerID),
+    ...(visualFixture || performanceFixture ? { defaultModels: ['mock'] } : {}),
+    ...(modelPickerVisualFixture
+      ? {
+          apiKeyConfigured: true,
+          logoURL: '/favicon.png',
+          modelMetadata: {
+            mock: {
+              id: 'mock',
+              name: 'Browser Mock',
+              reasoning: true,
+              variants: ['low', 'medium', 'high'],
+            },
+          },
+        }
+      : {}),
+  }
+  const providerCatalogVisualFixture: DesktopModelProviderSummary[] | null =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('visualProviderCatalog') === 'logos'
+      ? [
+          ['mock', 'Loaded Logo', '/favicon.png'],
+          ['visual-logo-error', 'Fallback Logo', '/missing-provider-logo.svg'],
+          ['visual-logo-3', 'Provider Three', undefined],
+          ['visual-logo-4', 'Provider Four', undefined],
+          ['visual-logo-5', 'Provider Five', undefined],
+          ['visual-logo-6', 'Provider Six', undefined],
+        ].map(([providerID, displayName, logoURL]) => ({
+          ...mockModelProvider(providerID as ModelProviderID),
+          displayName,
+          logoURL,
+          modelCount: 1,
+          providerKind: 'builtin' as const,
+          catalogOrigin: 'pi-bundled' as const,
+        }))
+      : null
   const providerState = (): DesktopModelProviderState => ({
     selectedProviderID: settings.providerID,
     provider,
@@ -176,8 +296,6 @@ export function createBrowserMockDesktopClient(
     models: provider.defaultModels,
     modelMetadata: provider.modelMetadata,
   })
-  const visualFixture = createBrowserVisualFixture()
-  const performanceFixture = createBrowserPerformanceFixture()
   const visualSessionReadDelayMs =
     import.meta.env.DEV && typeof window !== 'undefined'
       ? Math.min(
@@ -185,9 +303,7 @@ export function createBrowserMockDesktopClient(
           Math.max(
             0,
             Number.parseInt(
-              new URLSearchParams(window.location.search).get(
-                'visualSessionReadDelayMs',
-              ) ?? '0',
+              new URLSearchParams(window.location.search).get('visualSessionReadDelayMs') ?? '0',
               10,
             ) || 0,
           ),
@@ -196,10 +312,7 @@ export function createBrowserMockDesktopClient(
   if (visualFixture) {
     sessions.set(visualFixture.item.id, visualFixture)
     activeSessionId = visualFixture.item.id
-    if (
-      new URLSearchParams(window.location.search).get('visualSwitchTargets') ===
-      '1'
-    ) {
+    if (new URLSearchParams(window.location.search).get('visualSwitchTargets') === '1') {
       for (const [suffix, title, userText, replyText] of [
         ['b', '切换目标 B', '这是会话 B', '会话 B 已加载。'],
         ['c', '切换目标 C', '这是会话 C', '会话 C 已加载。'],
@@ -229,6 +342,34 @@ export function createBrowserMockDesktopClient(
         sessions.set(sessionId, target)
       }
     }
+    if (visualFixture.item.id === 'visual-scroll-edge') {
+      // 26 个会话让“最近”分组超过分组上限，供会话扩展/折叠动画验证。
+      for (let index = 2; index <= 26; index += 1) {
+        const sessionId = `visual-scroll-edge-${String(index).padStart(2, '0')}`
+        const target = mockSessionSnapshot(sessionId, visualFixture.workspace, {
+          workspacePath: visualFixture.workspace.path,
+          sessionName: `滚动边界会话 ${index}`,
+        })
+        const createdAt = new Date(Date.now() - index * 60_000).toISOString()
+        target.view.messages = [
+          {
+            id: `${sessionId}-user`,
+            role: 'user',
+            text: `第 ${index} 个会话。`,
+            createdAt,
+          },
+          {
+            id: `${sessionId}-assistant`,
+            role: 'assistant',
+            text: `会话 ${index} 已加载。`,
+            createdAt,
+          },
+        ]
+        target.item.lastMessageAt = createdAt
+        target.updatedAt = createdAt
+        sessions.set(sessionId, target)
+      }
+    }
   }
   if (performanceFixture) {
     for (const snapshot of performanceFixture.sessions) {
@@ -238,63 +379,145 @@ export function createBrowserMockDesktopClient(
   }
 
   return {
+    getSpeechStatus: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    installSpeech: async () => BROWSER_UNAVAILABLE_SPEECH_STATUS,
+    transcribeSpeech: async () => {
+      throw new Error('浏览器预览环境不支持本地语音听写。')
+    },
+    cancelSpeech: async () => false,
+    onSpeechStatusUpdated: () => () => {},
+    openMicrophonePrivacySettings: async () => {},
+    readAttachment: async (attachmentId) => readBrowserFixtureAttachment(attachmentId),
+    readArtifact: async () => {
+      throw new Error('浏览器模拟环境不支持 artifact 读取。')
+    },
+    readLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
+    listLocalContextPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径上下文。')
+    },
+    saveAttachmentToDownloads: async (input) => ({ fileName: input.name }),
+    readDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地路径预览。')
+    },
+    listDraftComposerPath: async () => {
+      throw new Error('浏览器模拟环境不支持本地目录预览。')
+    },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
-    getAuthStatus: async () => ({
-      authenticated: false,
-      method: 'none',
-      email: null,
-      organizationName: null,
+    listAutomations: async () => ({ automations: [] }),
+    listAutomationRuns: async () => ({ runs: [] }),
+    readAutomation: async () => {
+      throw new Error('浏览器模拟环境中不存在该自动化。')
+    },
+    createAutomation: async () => {
+      throw new Error('浏览器模拟环境不保存自动化。')
+    },
+    updateAutomation: async () => {
+      throw new Error('浏览器模拟环境不保存自动化。')
+    },
+    deleteAutomation: async () => {
+      throw new Error('浏览器模拟环境不保存自动化。')
+    },
+    runAutomation: async () => {
+      throw new Error('浏览器模拟环境不执行自动化。')
+    },
+    markAutomationRunRead: async () => {
+      throw new Error('浏览器模拟环境中不存在该运行。')
+    },
+    markAllAutomationRunsRead: async () => ({ updatedCount: 0 }),
+    previewAutomationSchedule: async (input) => ({
+      canonicalRrule:
+        input.schedule.mode === 'custom'
+          ? input.schedule.rrule
+          : `FREQ=${input.schedule.mode.toUpperCase()}`,
+      summary: '浏览器自动化预览',
+      nextRunAt: [],
     }),
-    getRuntimeStatus: async () => runtimeStatus,
-    diagnoseDesktopToolchain: async () => ({
-      enabled: settings.installCodePilotXDependencies,
-      root: runtimeStatus.toolchainRoot,
-      managedRoot: runtimeStatus.managedToolchainRoot,
-      packagedRoot: runtimeStatus.packagedToolchainRoot,
-      pathEntries: runtimeStatus.toolchainPathEntries,
-      binaries: runtimeStatus.toolchainBinaries,
-    }),
-    reinstallDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
+    listCalendarOccurrences: async () => ({ occurrences: [], truncated: false }),
+    readScheduledTask: async () => {
+      throw new Error('浏览器模拟环境中不存在该计划任务。')
+    },
+    createScheduledTask: async () => {
+      throw new Error('浏览器模拟环境不保存计划任务。')
+    },
+    updateScheduledTask: async () => {
+      throw new Error('浏览器模拟环境不保存计划任务。')
+    },
+    deleteScheduledTask: async () => {
+      throw new Error('浏览器模拟环境不保存计划任务。')
+    },
+    runScheduledTask: async () => {
+      throw new Error('浏览器模拟环境不执行计划任务。')
+    },
+    readSchedulePlan: async () => {
+      throw new Error('浏览器模拟环境中不存在该规划草案。')
+    },
+    commitSchedulePlan: async () => {
+      throw new Error('浏览器模拟环境不保存规划草案。')
+    },
+    getAuthStatus: async () => mockAuthStatus(),
+    getRuntimeStatus: async () => mockRuntimeStatus(),
+    diagnoseDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
         enabled: settings.installCodePilotXDependencies,
         root: runtimeStatus.toolchainRoot,
         managedRoot: runtimeStatus.managedToolchainRoot,
         packagedRoot: runtimeStatus.packagedToolchainRoot,
         pathEntries: runtimeStatus.toolchainPathEntries,
         binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
-    deleteDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
-        enabled: settings.installCodePilotXDependencies,
-        root: null,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: [],
-        binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
-    readConfig: async params => ({
+      }
+    },
+    reinstallDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: runtimeStatus.toolchainRoot,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: runtimeStatus.toolchainPathEntries,
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
+    deleteDesktopToolchain: async () => {
+      const runtimeStatus = mockRuntimeStatus()
+      return {
+        ok: true,
+        root: runtimeStatus.managedToolchainRoot,
+        copiedFrom: null,
+        diagnostics: {
+          enabled: settings.installCodePilotXDependencies,
+          root: null,
+          managedRoot: runtimeStatus.managedToolchainRoot,
+          packagedRoot: runtimeStatus.packagedToolchainRoot,
+          pathEntries: [],
+          binaries: runtimeStatus.toolchainBinaries,
+        },
+      }
+    },
+    readConfig: async (params) => ({
       config: configDocument,
       origins: {},
       ...(params?.includeLayers
         ? {
-            layers: [{
-              kind: 'user' as const,
-              displayName: '用户配置',
-              filePath: 'C:/Users/mock/.codepilotx/config.json',
-              version: configVersion,
-              writable: true,
-              trusted: true,
-              config: configDocument,
-            }],
+            layers: [
+              {
+                kind: 'user' as const,
+                displayName: '用户配置',
+                filePath: 'C:/Users/mock/.codepilotx/config.json',
+                version: configVersion,
+                writable: true,
+                trusted: true,
+                config: configDocument,
+              },
+            ],
           }
         : {}),
       diagnostics: [],
@@ -304,7 +527,7 @@ export function createBrowserMockDesktopClient(
         restartRequired: selectedProfile !== null,
       },
     }),
-    writeConfigBatch: async params => {
+    writeConfigBatch: async (params) => {
       for (const edit of params.edits) {
         let target = configDocument
         for (const part of edit.keyPath.slice(0, -1)) {
@@ -332,7 +555,7 @@ export function createBrowserMockDesktopClient(
       profiles: [],
       profilesDirectory: 'C:/Users/mock/.codepilotx/profiles',
     }),
-    selectConfigProfile: async profileId => {
+    selectConfigProfile: async (profileId) => {
       selectedProfile = profileId
       if (profileId === null) delete configDocument.profile
       else configDocument.profile = profileId
@@ -349,12 +572,12 @@ export function createBrowserMockDesktopClient(
       }
     },
     getDesktopSettings: async () => settings,
-    saveDesktopSettings: async next => {
+    saveDesktopSettings: async (next) => {
       settings = { ...settings, ...next }
       emitSettingsChange()
       return settings
     },
-    listProjectMemories: async workspacePath => ({
+    listProjectMemories: async (workspacePath) => ({
       memoryDir: `${workspacePath || 'mock'}/.codepilotx-memory/`,
       entrypointPath: `${workspacePath || 'mock'}/.codepilotx-memory/MEMORY.md`,
       memories: [],
@@ -367,7 +590,7 @@ export function createBrowserMockDesktopClient(
       mtimeMs: 0,
       content: '',
     }),
-    saveProjectMemory: async input => ({
+    saveProjectMemory: async (input) => ({
       relativePath: input.relativePath,
       absolutePath: input.relativePath,
       description: null,
@@ -376,7 +599,7 @@ export function createBrowserMockDesktopClient(
     }),
     deleteProjectMemory: async () => {},
     resetProjectMemory: async () => {},
-    listProjectMemoryRecalls: async workspacePath => ({
+    listProjectMemoryRecalls: async (workspacePath) => ({
       recallLogPath: `${workspacePath || 'mock'}/.codepilotx-memory/.recall-events.jsonl`,
       recalls: [],
     }),
@@ -388,7 +611,7 @@ export function createBrowserMockDesktopClient(
       conversationIndexPath: 'mock/user-memory/conversation_index.sqlite',
       memories: [],
     }),
-    readUserMemory: async relativePath => ({
+    readUserMemory: async (relativePath) => ({
       relativePath,
       absolutePath: relativePath,
       description: null,
@@ -396,7 +619,7 @@ export function createBrowserMockDesktopClient(
       mtimeMs: 0,
       content: '',
     }),
-    saveUserMemory: async input => ({
+    saveUserMemory: async (input) => ({
       relativePath: input.relativePath,
       absolutePath: input.relativePath,
       description: null,
@@ -412,12 +635,12 @@ export function createBrowserMockDesktopClient(
       memoryDir: 'mock/user-memory/',
       files: [],
     }),
-    importUserMemory: async input => ({
+    importUserMemory: async (input) => ({
       memoryDir: 'mock/user-memory/',
       files: input.files,
     }),
     getBrowserState: async () => browserState,
-    openBrowser: async url => {
+    openBrowser: async (url) => {
       browserState = {
         ...browserState,
         open: true,
@@ -427,7 +650,7 @@ export function createBrowserMockDesktopClient(
       }
       return browserState
     },
-    navigateBrowser: async url => {
+    navigateBrowser: async (url) => {
       browserState = { ...browserState, open: true, url }
       return browserState
     },
@@ -444,16 +667,81 @@ export function createBrowserMockDesktopClient(
       browserState = { ...browserState, allowedSites: [], sitePermissions: [] }
       return browserState
     },
-    listBuiltinPlugins: async () => [],
-    setBuiltinPluginEnabled: async (pluginId, enabled) => ({ id: pluginId, enabled }),
-    listSkillsCatalog: async options => ({
+    listPlugins: async () => ({
+      plugins: [mockTaskPlanningPlugin],
+      generation: mockPluginGeneration,
+      updatedAt: Date.now(),
+    }),
+    getPluginDetails: async (pluginId) =>
+      pluginId === mockTaskPlanningPlugin.id ? mockTaskPlanningDetails : null,
+    setPluginEnabled: async (pluginId, enabled) => {
+      if (pluginId !== mockTaskPlanningPlugin.id) {
+        throw new Error('PLUGIN_NOT_FOUND')
+      }
+      mockPluginGeneration += 1
+      mockTaskPlanningPlugin = { ...mockTaskPlanningPlugin, enabled }
+      return mockTaskPlanningPlugin
+    },
+    onPluginsUpdated: () => () => {},
+    getMiniMaxCliStatus: async () => mockMiniMaxCliStatus,
+    installMiniMaxCli: async () => {
+      mockMiniMaxCliStatus = {
+        ...mockMiniMaxCliStatus,
+        installationStatus: 'installed',
+        installedVersion: mockMiniMaxCliStatus.latestVersion ?? '1.0.22',
+        updateAvailable: false,
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    uninstallMiniMaxCli: async () => {
+      const { installedVersion: _installedVersion, ...remaining } = mockMiniMaxCliStatus
+      mockMiniMaxCliStatus = {
+        ...remaining,
+        installationStatus: 'not-installed',
+        updateAvailable: false,
+        authStatus: 'not-authenticated',
+        generation: mockMiniMaxCliStatus.generation + 1,
+        updatedAt: Date.now(),
+      }
+      return mockMiniMaxCliStatus
+    },
+    onMiniMaxCliUpdated: () => () => {},
+    getComputerState: async () => mockComputerState,
+    discoverComputerApps: async () => ({ apps: [] }),
+    configureComputer: async (input) => {
+      mockComputerState = {
+        ...mockComputerState,
+        ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+        ...(input.decision && input.appId
+          ? {
+              permissions:
+                input.decision === 'remove'
+                  ? mockComputerState.permissions.filter(
+                      (permission) => permission.appId !== input.appId,
+                    )
+                  : [
+                      ...mockComputerState.permissions.filter(
+                        (permission) => permission.appId !== input.appId,
+                      ),
+                      { appId: input.appId, name: input.appId, decision: input.decision },
+                    ],
+            }
+          : {}),
+      }
+      return mockComputerState
+    },
+    stopComputer: async () => ({ ok: true }),
+    onComputerChanged: () => () => {},
+    listSkillsCatalog: async (options) => ({
       skills: [],
       page: options?.page ?? 0,
       perPage: options?.perPage ?? 20,
       total: 0,
       hasMore: false,
     }),
-    installSkill: async skill => ({
+    installSkill: async (skill) => ({
       id: typeof skill === 'string' ? skill : skill.id,
       slug: typeof skill === 'string' ? skill : skill.id,
       installed: false,
@@ -482,102 +770,173 @@ export function createBrowserMockDesktopClient(
     openPathWithTarget: async () => {},
     openPathWithDefaultTarget: async () => {},
     revealPathInFolder: async () => {},
-    listModelProviders: async () => [provider],
+    refreshModelProviders: async () => {},
+    listModelProviders: async () => providerCatalogVisualFixture ?? [provider],
     getModelProviderState: async () => providerState(),
     fetchProviderModels: async () => ({ models: provider.defaultModels }),
-    saveModelProvider: async options => {
+    saveModelProvider: async (options) => {
       settings = {
         ...settings,
         providerID: options.providerID,
         model: options.id ?? settings.model,
-        providerBaseURL: options.baseURL ?? settings.providerBaseURL,
       }
       return providerState()
     },
+    getRecentNewThreadModel: async () =>
+      settings.model ? ({ providerID: settings.providerID, id: settings.model } as ModelRef) : null,
+    saveRecentNewThreadModel: async (model) => {
+      settings = {
+        ...settings,
+        providerID: model.providerID,
+        model: model.id,
+      }
+    },
+    resolveFirstAvailableModel: async () =>
+      provider.defaultModels.length > 0
+        ? ({
+            providerID: settings.providerID,
+            id: provider.defaultModels[0]!,
+          } as ModelRef)
+        : null,
     saveProviderApiKey: async () => providerState(),
     deleteProviderApiKey: async () => providerState(),
     listProviderCredentials: async () => [],
-    createApiKey: async input => ({
-      id: crypto.randomUUID(),
-      providerId: input.providerId,
-      kind: 'api-key',
-      label: input.label,
-      maskedValue: '••••mock',
-      enabled: true,
-      active: true,
-      order: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }) as never,
-    updateApiKey: async input => ({
-      id: input.credentialId,
-      providerId: provider.providerID,
-      kind: 'api-key',
-      label: input.label ?? 'Mock key',
-      maskedValue: '••••mock',
-      enabled: true,
-      active: true,
-      order: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }) as never,
-    setActiveProviderCredential: async (_providerId, credentialId) => ({
-      id: credentialId,
-      providerId: provider.providerID,
-      kind: 'api-key',
-      label: 'Mock key',
-      enabled: true,
-      active: true,
-      order: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }) as never,
-    setProviderCredentialEnabled: async (credentialId, enabled) => ({
-      id: credentialId,
-      providerId: provider.providerID,
-      kind: 'api-key',
-      label: 'Mock key',
-      enabled,
-      active: enabled,
-      order: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }) as never,
+    createApiKey: async (input) =>
+      ({
+        id: crypto.randomUUID(),
+        providerId: input.providerId,
+        kind: 'api-key',
+        label: input.label,
+        maskedValue: '••••mock',
+        enabled: true,
+        active: true,
+        order: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }) as never,
+    updateApiKey: async (input) =>
+      ({
+        id: input.credentialId,
+        providerId: provider.providerID,
+        kind: 'api-key',
+        label: input.label ?? 'Mock key',
+        maskedValue: '••••mock',
+        enabled: true,
+        active: true,
+        order: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }) as never,
+    setActiveProviderCredential: async (_providerId, credentialId) =>
+      ({
+        id: credentialId,
+        providerId: provider.providerID,
+        kind: 'api-key',
+        label: 'Mock key',
+        enabled: true,
+        active: true,
+        order: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }) as never,
+    setProviderCredentialEnabled: async (credentialId, enabled) =>
+      ({
+        id: credentialId,
+        providerId: provider.providerID,
+        kind: 'api-key',
+        label: 'Mock key',
+        enabled,
+        active: enabled,
+        order: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }) as never,
     reorderApiKeys: async () => [],
     testApiKey: async () => ({ ok: true, message: 'API Key 可用。' }),
     deleteProviderCredential: async () => [],
-    copyProviderApiKey: async () => {
-      throw new Error('安全复制仅在桌面应用中可用。')
-    },
     readProviderCredentialStore: async () => ({
       store: 'auth-json',
       portable: true,
       credentialCount: 1,
       migrationRequired: false,
     }),
-    updateProviderCredentialStore: async store => ({
+    updateProviderCredentialStore: async (store) => ({
       store,
       portable: store === 'auth-json',
       credentialCount: 1,
       migrationRequired: false,
       migratedCredentials: 1,
     }),
-    testModelProvider: async () => ({ ok: true }),
+    testModelProvider: async (providerID, model) =>
+      ({
+        providerId: providerID as RpcParams<'provider/test'>['providerId'],
+        status: 'reachable',
+        testedAt: Date.now(),
+        latencyMs: 12,
+        model: (model ?? {
+          providerID,
+          id: 'mock-model',
+        }) as Extract<RpcResult<'provider/test'>, { status: 'reachable' }>['model'],
+      }) as RpcResult<'provider/test'>,
+    previewModelHealth: async () => ({
+      totalRequests: 0,
+      excludedProviders: [],
+    }),
+    startModelHealth: async (operationId) => ({
+      run: {
+        runId: operationId,
+        status: 'completed',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
+    readModelHealth: async () => ({ run: null }),
+    cancelModelHealth: async () => ({
+      run: {
+        runId: 'mock',
+        status: 'cancelled',
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        counts: {
+          total: 0,
+          queued: 0,
+          running: 0,
+          healthy: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+        excludedProviders: [],
+        items: [],
+      },
+    }),
     createProvider: async () => undefined,
     updateProvider: async () => undefined,
     deleteProvider: async () => undefined,
     discoverProviderModels: async () => [],
-    startAuthSession: async target => ({
-      id: crypto.randomUUID(),
-      target,
-      status: 'complete',
-      notices: [{
-        type: 'info',
-        message: '浏览器 mock 模式不会启动真实授权。',
-      }],
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 300_000,
-    }) as never,
+    startAuthSession: async (target) =>
+      ({
+        id: crypto.randomUUID(),
+        target,
+        status: 'complete',
+        notices: [
+          {
+            type: 'info',
+            message: '浏览器 mock 模式不会启动真实授权。',
+          },
+        ],
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 300_000,
+      }) as never,
     respondAuthSession: async () => {
       throw new Error('浏览器 mock 模式没有等待中的授权提示。')
     },
@@ -596,7 +955,7 @@ export function createBrowserMockDesktopClient(
       authenticated: false,
       user: null,
     }),
-    startGithubLogin: async input => {
+    startGithubLogin: async (input) => {
       githubLoginMode = input.mode
       return mockGithubLogin(githubLoginMode)
     },
@@ -623,9 +982,11 @@ export function createBrowserMockDesktopClient(
       ok: false,
       error: '浏览器 mock 模式不会克隆仓库。',
     }),
-    listProjects: async folderPath =>
-      folderPath ? [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }] : [],
-    updateProject: async input => ({
+    listProjects: async (folderPath) => {
+      if (folderPath) return [{ ...mockWorkspace(folderPath), projectId: `mock:${folderPath}` }]
+      return []
+    },
+    updateProject: async (input) => ({
       ...mockWorkspace(''),
       projectId: input.projectId,
       name: input.name,
@@ -635,20 +996,21 @@ export function createBrowserMockDesktopClient(
       ...mockWorkspace(path),
       projectId,
     }),
-    removeProjectFolder: async projectId => ({
+    removeProjectFolder: async (projectId) => ({
       ...mockWorkspace(''),
       projectId,
     }),
-    setPrimaryProjectFolder: async projectId => ({
+    setPrimaryProjectFolder: async (projectId) => ({
       ...mockWorkspace(''),
       projectId,
     }),
-    updateProjectSettings: async input => ({
+    updateProjectSettings: async (input) => ({
       ...mockWorkspace(''),
       projectId: input.projectId,
       projectSettings: {
         defaultModel: input.defaultModel ?? null,
         instructions: input.instructions ?? '',
+        executionEnvironment: input.executionEnvironment ?? 'auto',
         version: input.expectedVersion + 1,
       },
     }),
@@ -661,14 +1023,14 @@ export function createBrowserMockDesktopClient(
     removeProjectSource: async () => false,
     chooseProjectFolder: async () => null,
     chooseWorkspace: async () => null,
-    openWorkspace: async workspacePath => mockWorkspace(workspacePath),
-    getWorkspaceContext: async workspacePath => mockWorkspace(workspacePath),
+    openWorkspace: async (workspacePath) => mockWorkspace(workspacePath),
+    getWorkspaceContext: async (workspacePath) => mockWorkspace(workspacePath),
     checkoutWorkspaceBranch: async (workspacePath, branchName) => ({
       ...mockWorkspace(workspacePath),
       branchName,
     }),
     getWorkspaceGitStatus: async () => ({ ok: true, status: cleanGitStatus() }),
-    createWorkspaceBranch: async input => ({
+    createWorkspaceBranch: async (input) => ({
       ok: true,
       workspace: {
         ...mockWorkspace(input.workspacePath),
@@ -716,7 +1078,7 @@ export function createBrowserMockDesktopClient(
         },
       ]
       const parent = directoryPath === '' ? '.' : directoryPath.replaceAll('\\', '/')
-      return tree.filter(entry => {
+      return tree.filter((entry) => {
         const separator = entry.path.lastIndexOf('/')
         const entryParent = separator < 0 ? '.' : entry.path.slice(0, separator)
         return entryParent === parent
@@ -739,31 +1101,64 @@ export function createBrowserMockDesktopClient(
       revision: { mtimeMs: 0, sha256: '' },
     }),
     readOptionalWorkspaceFile: async () => null,
-    saveWorkspaceFile: async input => ({
+    saveWorkspaceFile: async (input) => ({
       outcome: 'saved',
       revision: input.expectedRevision,
     }),
     watchWorkspaceFile: async () => {},
     unwatchWorkspaceFile: async () => {},
+    isComposerFileAttachmentAvailable: async () => false,
     chooseComposerFiles: async () => [],
-    authorizeComposerFilePaths: async () => {},
-    readComposerFiles: async () => [],
+    grantComposerFilePaths: async () => [],
+    getComposerFilePath: () => '',
     getWorkspaceDiff: async () => ({
       patch: '',
     }),
     getThemeSettings: async () => themeSettings,
-    saveThemeSettings: async next => {
+    saveThemeSettings: async (next) => {
       themeSettings = normalizeDesktopThemeSettings(next)
       try {
-        storage?.setItem(
-          BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY,
-          JSON.stringify(themeSettings),
-        )
+        storage?.setItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY, JSON.stringify(themeSettings))
       } catch {
         // Browser preview persistence is best-effort.
       }
     },
-    createSession: async options => {
+    canRestorePreviousAppearance: async () => false,
+    restorePreviousAppearance: async () => themeSettings,
+    applyNewDesignTheme: async () => {
+      themeSettings = normalizeDesktopThemeSettings({
+        ...themeSettings,
+        chromeThemes: {
+          light: {
+            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light,
+            fonts: {
+              ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.light.fonts,
+              code: themeSettings.chromeThemes.light.fonts.code,
+              codeFace: themeSettings.chromeThemes.light.fonts.codeFace,
+            },
+          },
+          dark: {
+            ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark,
+            fonts: {
+              ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes.dark.fonts,
+              code: themeSettings.chromeThemes.dark.fonts.code,
+              codeFace: themeSettings.chromeThemes.dark.fonts.codeFace,
+            },
+          },
+        },
+        fontSizes: {
+          ...themeSettings.fontSizes,
+          ui: 14,
+        },
+      })
+      try {
+        storage?.setItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY, JSON.stringify(themeSettings))
+      } catch {
+        // Browser preview persistence is best-effort.
+      }
+      return themeSettings
+    },
+    createSession: async (options) => {
       const workspace = options.workspacePath
         ? mockWorkspace(options.workspacePath)
         : mockWorkspace('')
@@ -778,36 +1173,123 @@ export function createBrowserMockDesktopClient(
         standalone: !options.workspacePath,
       }
     },
-    listSessions: async () => [...sessions.values()],
-    getSessionCatalogStatus: async () => ({ state: 'ready', error: null }),
-    getSession: async sessionId => {
+    createSideChat: async (input) => {
+      const source = requireMockSession(sessions, input.sourceThreadId)
+      const threadId = `browser-mock-side-chat-${crypto.randomUUID()}`
+      const createdAt = Date.now()
+      const includeVisualTimeline =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('visualSideChatSecondMessage') === '1' &&
+        sideChatSessionIds.size > 0
+      const sideChatMessages = includeVisualTimeline
+        ? [
+            {
+              id: `${threadId}-user`,
+              role: 'user' as const,
+              text: '帮我检查这个函数的边界条件。',
+              createdAt: new Date(createdAt).toISOString(),
+            },
+            {
+              id: `${threadId}-assistant`,
+              role: 'assistant' as const,
+              text: '已检查：空输入和分页边界都需要单独处理。',
+              createdAt: new Date(createdAt + 1).toISOString(),
+            },
+          ]
+        : []
+      sessions.set(threadId, {
+        ...source,
+        item: {
+          ...source.item,
+          id: threadId,
+          sessionName: '侧边聊天',
+          aiTitle: null,
+          customTitle: null,
+          firstPrompt: null,
+          archivedAt: new Date(-1).toISOString(),
+          status: 'idle',
+          createdAt: new Date(createdAt).toISOString(),
+        },
+        view: {
+          ...source.view,
+          messages: sideChatMessages,
+          toolLog: [],
+          pendingPermissions: [],
+          contextUsage: null,
+        },
+        events: [],
+        workflowEvents: [],
+        queuedFollowUps: [],
+        updatedAt: new Date(createdAt + sideChatMessages.length).toISOString(),
+      })
+      sideChatSessionIds.add(threadId)
+      return {
+        sideChat: {
+          threadId,
+          sourceThreadId: input.sourceThreadId,
+          inheritedThroughTurnId: null,
+          createdAt,
+        },
+      }
+    },
+    discardSideChat: async (input) => {
+      sessions.delete(input.threadId)
+      sideChatSessionIds.delete(input.threadId)
+      return { ok: true as const }
+    },
+    listSessions: async (options) =>
+      [...sessions.values()].filter(
+        (snapshot) =>
+          !sideChatSessionIds.has(snapshot.item.id) &&
+          (options?.archived === true
+            ? Boolean(snapshot.item.archivedAt)
+            : !snapshot.item.archivedAt),
+      ),
+    getSessionCatalogStatus: async () => ({ state: 'ready' }),
+    getSession: async (sessionId) => {
       if (visualSessionReadDelayMs > 0) {
-        await new Promise(resolve =>
-          window.setTimeout(resolve, visualSessionReadDelayMs),
-        )
+        await new Promise((resolve) => window.setTimeout(resolve, visualSessionReadDelayMs))
       }
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
       return snapshot
     },
     getActiveSessionId: async () => activeSessionId,
-    setActiveSession: async sessionId => {
+    setActiveSession: async (sessionId) => {
       activeSessionId = sessionId
       emitSessionStoreChange()
+    },
+    publishCanonicalSessionStatus: (_threadId, _status) => {
+      // The browser preview has no agent turn lifecycle behind its mock sessions,
+      // so there is no canonical projection to overlay here.
     },
     markSessionRead: async (sessionId, readThroughAt) => {
       const snapshot = sessions.get(sessionId)
       if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
       const unreadAt = snapshot.item.unreadAt
-      if (
-        !unreadAt ||
-        Date.parse(unreadAt) > Date.parse(readThroughAt)
-      ) {
+      if (!unreadAt || Date.parse(unreadAt) > Date.parse(readThroughAt)) {
         return snapshot.item
       }
       const next = {
         ...snapshot,
         item: { ...snapshot.item, unreadAt: null },
+      }
+      sessions.set(sessionId, next)
+      emitSessionStoreChange()
+      return next.item
+    },
+    markSessionUnread: async (sessionId, unreadAt) => {
+      const snapshot = sessions.get(sessionId)
+      if (!snapshot) throw new Error(`Mock session not found: ${sessionId}`)
+      const unreadTimestamp = Date.parse(unreadAt)
+      if (!Number.isFinite(unreadTimestamp) || unreadTimestamp < 0) {
+        throw new Error('INVALID_UNREAD_AT')
+      }
+      const currentTimestamp = snapshot.item.unreadAt ? Date.parse(snapshot.item.unreadAt) : 0
+      const nextUnreadAt = new Date(Math.max(currentTimestamp, unreadTimestamp)).toISOString()
+      const next = {
+        ...snapshot,
+        item: { ...snapshot.item, unreadAt: nextUnreadAt },
       }
       sessions.set(sessionId, next)
       emitSessionStoreChange()
@@ -836,9 +1318,9 @@ export function createBrowserMockDesktopClient(
       emitSessionStoreChange()
       return next
     },
-    saveSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),
-    resolveSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),
-    deleteSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),
+    saveSessionReviewComment: async (input) => requireMockSession(sessions, input.sessionId),
+    resolveSessionReviewComment: async (input) => requireMockSession(sessions, input.sessionId),
+    deleteSessionReviewComment: async (input) => requireMockSession(sessions, input.sessionId),
     setSessionPermissionMode: async (sessionId, mode) => {
       const snapshot = requireMockSession(sessions, sessionId)
       const permissionConfig = desktopPermissionModeToPermissionConfig(mode)
@@ -878,13 +1360,13 @@ export function createBrowserMockDesktopClient(
       emitSessionStoreChange()
       return next
     },
-    openExternalURL: async url => {
+    openExternalURL: async (url) => {
       globalThis.open?.(url, '_blank', 'noopener,noreferrer')
     },
     sendUserMessage: async () => {},
     respondToPermission: async () => {},
     interruptSession: async () => {},
-    disposeSession: async sessionId => {
+    disposeSession: async (sessionId) => {
       sessions.delete(sessionId)
       if (activeSessionId === sessionId) {
         activeSessionId = [...sessions.keys()][0] ?? null
@@ -894,13 +1376,11 @@ export function createBrowserMockDesktopClient(
     minimizeWindow: async () => {
       await window.codePilotXDesktop?.minimize()
     },
-    toggleWindowMaximized: async () =>
-      (await window.codePilotXDesktop?.toggleMaximize()) ?? false,
+    toggleWindowMaximized: async () => (await window.codePilotXDesktop?.toggleMaximize()) ?? false,
     closeWindow: async () => {
       await window.codePilotXDesktop?.close()
     },
-    isWindowMaximized: async () =>
-      (await window.codePilotXDesktop?.isMaximized()) ?? false,
+    isWindowMaximized: async () => bridgeWindowMaximized(),
     newWindow: async () => {},
     openDevTools: async () => {},
     closeDevTools: async () => {},
@@ -914,18 +1394,18 @@ export function createBrowserMockDesktopClient(
       controlSource: 'default',
       isEnvControlled: false,
     }),
-    chooseDataLocation: async (): Promise<DesktopDataLocationMigrationResult | null> =>
-      null,
+    chooseDataLocation: async (): Promise<DesktopDataLocationMigrationResult | null> => null,
     onAgentEvent: () => noop,
     onWorkflowEvent: () => noop,
     onUiCommand: () => noop,
-    onSessionStoreChange: callback => {
+    onSessionStoreChange: (callback) => {
       sessionStoreListeners.add(callback)
       return () => {
         sessionStoreListeners.delete(callback)
       }
     },
-    onDesktopSettingsChange: callback => {
+    onReconciliationError: () => noop,
+    onDesktopSettingsChange: (callback) => {
       settingsListeners.add(callback)
       return () => {
         settingsListeners.delete(callback)
@@ -940,7 +1420,7 @@ export function createBrowserMockDesktopClient(
       enabled: [],
       hasProbeInput: [],
     }),
-    runDebugToolProbe: async mode => ({
+    runDebugToolProbe: async (mode) => ({
       runId: 'browser-mock-probe',
       mode,
       startedAt: new Date().toISOString(),
@@ -954,10 +1434,13 @@ export function createBrowserMockDesktopClient(
     }),
     cancelDebugToolProbe: async () => {},
     submitSessionFollowUp: async (_sessionId, _input, delivery) =>
-      delivery === 'steer' ? 'steered' as const : 'queued' as const,
-    updateQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
-    removeQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
-    resumeQueuedFollowUps: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+      delivery === 'steer' ? ('steered' as const) : ('queued' as const),
+    updateQueuedFollowUp: async () =>
+      mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    removeQueuedFollowUp: async () =>
+      mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    resumeQueuedFollowUps: async () =>
+      mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     compactSession: async () => {},
     getSessionPromptPreview: async () => null,
     rollbackSession: async () => ({
@@ -966,12 +1449,15 @@ export function createBrowserMockDesktopClient(
     }),
     getSessionGoal: async () => null,
     setSessionGoal: async () => ({
+      id: 'goal:mock',
       threadId: 'mock',
       objective: '',
       status: 'active',
       tokenBudget: null,
       tokensUsed: 0,
       timeUsedSeconds: 0,
+      version: 1,
+      completedAt: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }),
@@ -992,7 +1478,8 @@ export function createBrowserMockDesktopClient(
       data: null,
       error: 'Browser mock does not support catalog queries.',
     }),
-    setSessionPermissionProfile: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    setSessionPermissionProfile: async () =>
+      mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     listRuntimeSkills: async () => ({
       state: 'unavailable',
       data: null,

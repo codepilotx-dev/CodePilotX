@@ -1,10 +1,7 @@
 export const RENDERER_DATA_EPOCH = 3
 
 const DATA_EPOCH_KEY = 'codepilotx.dataEpoch'
-const TRANSIENT_PREFIXES = [
-  'conversation.ui-state.',
-  'codepilotx.subagent.scroll.',
-]
+const TRANSIENT_PREFIXES = ['conversation.ui-state.', 'codepilotx.subagent.scroll.']
 
 function transientKeys(storage: Storage): string[] {
   const keys: string[] = []
@@ -13,7 +10,7 @@ function transientKeys(storage: Storage): string[] {
     if (
       key &&
       key !== DATA_EPOCH_KEY &&
-      TRANSIENT_PREFIXES.some(prefix => key.startsWith(prefix))
+      TRANSIENT_PREFIXES.some((prefix) => key.startsWith(prefix))
     ) {
       keys.push(key)
     }

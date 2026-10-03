@@ -23,9 +23,7 @@ export type ReviewFileTreeRow =
 
 const ROOT_DIR = ''
 
-export function buildReviewFileTree(
-  files: DesktopReviewDiffFile[],
-): ReviewFileTreeNode[] {
+export function buildReviewFileTree(files: DesktopReviewDiffFile[]): ReviewFileTreeNode[] {
   if (files.length === 0) return []
 
   const root = createNode(ROOT_DIR, '(root)')
@@ -34,10 +32,8 @@ export function buildReviewFileTree(
     segments.pop() // remove filename, leaving only directory segments
     let current = root
     for (const segment of segments) {
-      const childPath = current.dirPath
-        ? `${current.dirPath}/${segment}`
-        : segment
-      let child = current.children.find(node => node.dirPath === childPath)
+      const childPath = current.dirPath ? `${current.dirPath}/${segment}` : segment
+      let child = current.children.find((node) => node.dirPath === childPath)
       if (!child) {
         child = createNode(childPath, segment)
         current.children.push(child)
@@ -99,7 +95,7 @@ function collapseSingleChildRoots(root: ReviewFileTreeNode): ReviewFileTreeNode[
   if (root.dirPath !== ROOT_DIR) return [root]
   if (root.files.length > 0) return [root]
   if (root.children.length === 0) return [root]
-  return root.children.map(child => rebase(child, child.dirLabel, child.dirLabel))
+  return root.children.map((child) => rebase(child, child.dirLabel, child.dirLabel))
 }
 
 function rebase(
@@ -110,7 +106,7 @@ function rebase(
   const rebased: ReviewFileTreeNode = {
     dirPath: newDirPath,
     dirLabel: newDirLabel,
-    children: node.children.map(child =>
+    children: node.children.map((child) =>
       rebase(
         child,
         node.dirPath ? `${node.dirPath}/${child.dirLabel}` : child.dirLabel,

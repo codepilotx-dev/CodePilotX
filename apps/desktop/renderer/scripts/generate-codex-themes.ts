@@ -18,6 +18,7 @@ type InventoryTheme = {
 }
 
 type Inventory = {
+  scriptFiles?: Array<{ path: string; sha256: string }>
   highlightThemes?: {
     physicalFiles?: string[]
     logicalThemes?: InventoryTheme[]
@@ -33,8 +34,7 @@ type ThemeRegistration = Record<string, unknown> & {
   settings?: unknown[]
 }
 
-const DEFAULT_ASSETS_ROOT =
-  'E:\\迅雷下载\\Codex\\app_asar_extracted\\webview\\assets'
+const DEFAULT_ASSETS_ROOT = 'E:\\迅雷下载\\Codex\\app_asar_extracted\\webview\\assets'
 const DEFAULT_INVENTORY = resolve(
   import.meta.dir,
   '../../../../docs/research/codex-webview-style-inventory.json',
@@ -43,6 +43,7 @@ const OUTPUT_ROOT = resolve(import.meta.dir, '../shared/codexThemes')
 const THEMES_ROOT = resolve(OUTPUT_ROOT, 'themes')
 const EXPECTED_LOGICAL_THEMES = 91
 const EXPECTED_PHYSICAL_THEMES = 151
+const THEME_SHARD_COUNT = 16
 
 type CodexThemeFamilyRegistration = {
   id: string
@@ -92,6 +93,9 @@ const checkOnly = args.check === true
 const inventory = JSON.parse(await readUtf8(inventoryPath)) as Inventory
 const logicalThemes = inventory.highlightThemes?.logicalThemes
 const physicalFiles = inventory.highlightThemes?.physicalFiles
+const inventoryHashes = new Map(
+  inventory.scriptFiles?.map((file) => [file.path, file.sha256]) ?? [],
+)
 
 if (!logicalThemes || !physicalFiles) {
   throw new Error('The inventory does not contain highlight theme evidence.')
@@ -110,7 +114,7 @@ if (physicalFiles.length !== EXPECTED_PHYSICAL_THEMES) {
 const sortedThemes = [...logicalThemes].sort((left, right) =>
   left.slug.localeCompare(right.slug, 'en'),
 )
-const slugs = sortedThemes.map(theme => theme.slug)
+const slugs = sortedThemes.map((theme) => theme.slug)
 if (new Set(slugs).size !== slugs.length) {
   throw new Error('The logical theme inventory contains duplicate slugs.')
 }
@@ -121,6 +125,13 @@ for (const required of ['codex-light', 'codex-dark']) {
 }
 
 const expectedFiles = new Map<string, string>()
+const generatedThemes = new Map<
+  string,
+  {
+    theme: ThemeRegistration
+    physicalFiles: Array<{ path: string; sha256: string }>
+  }
+>()
 const metadata: Array<{
   slug: string
   label: string
@@ -137,25 +148,25 @@ for (const inventoryTheme of sortedThemes) {
   )
   const primaryPath = resolve(assetsRoot, sourceFiles[0]!)
   const sourceHashes: Array<{ path: string; sha256: string }> = []
+  let primarySource = ''
   for (const path of sourceFiles) {
     const bytes = await readFile(resolve(assetsRoot, path))
-    decodeUtf8(bytes, path)
-    sourceHashes.push({ path, sha256: sha256(bytes) })
+    const source = decodeUtf8(bytes, path)
+    if (path === sourceFiles[0]) primarySource = source
+    sourceHashes.push({ path, sha256: inventoryHashes.get(path) ?? sha256(bytes) })
   }
 
-  const imported = (await import(
-    `${pathToFileURL(primaryPath).href}?codex-theme-generator=${sourceHashes[0]!.sha256}`
-  )) as { default?: ThemeRegistration }
-  if (!imported.default || typeof imported.default !== 'object') {
+  const importedTheme = await importThemeRegistration(
+    primaryPath,
+    primarySource,
+    sourceHashes[0]!.sha256,
+  )
+  if (!importedTheme || typeof importedTheme !== 'object') {
     throw new Error(`${sourceFiles[0]} does not export a theme object.`)
   }
 
-  const original = JSON.parse(JSON.stringify(imported.default)) as ThemeRegistration
-  const theme = normalizeTheme(
-    original,
-    inventoryTheme.slug,
-    inventoryTheme.type,
-  )
+  const original = JSON.parse(JSON.stringify(importedTheme)) as ThemeRegistration
+  const theme = normalizeTheme(original, inventoryTheme.slug, inventoryTheme.type)
   const variant = normalizeVariant(theme.type)
   const label =
     normalizeLabel(original.displayName) ??
@@ -164,12 +175,10 @@ for (const inventoryTheme of sortedThemes) {
     normalizeLabel(inventoryTheme.name) ??
     inventoryTheme.slug
   const contentHash = sha256(canonicalJson(theme))
-  const relativePath = `themes/${inventoryTheme.slug}.ts`
-
-  expectedFiles.set(
-    relativePath,
-    renderThemeModule(theme, inventoryTheme.slug, sourceHashes),
-  )
+  generatedThemes.set(inventoryTheme.slug, {
+    theme,
+    physicalFiles: sourceHashes,
+  })
   metadata.push({
     slug: inventoryTheme.slug,
     label,
@@ -181,16 +190,14 @@ for (const inventoryTheme of sortedThemes) {
   })
 }
 
-const metadataBySlug = new Map(metadata.map(theme => [theme.slug, theme]))
+const metadataBySlug = new Map(metadata.map((theme) => [theme.slug, theme]))
 for (const family of CODEX_THEME_FAMILIES) {
   for (const variant of ['light', 'dark'] as const) {
     const slug = family[variant]
     if (!slug) continue
     const theme = metadataBySlug.get(slug)
     if (!theme) {
-      throw new Error(
-        `Codex selector family "${family.id}" references missing theme "${slug}".`,
-      )
+      throw new Error(`Codex selector family "${family.id}" references missing theme "${slug}".`)
     }
     if (theme.variant !== variant) {
       throw new Error(
@@ -200,10 +207,32 @@ for (const family of CODEX_THEME_FAMILIES) {
   }
 }
 
-expectedFiles.set(
-  'manifest.ts',
-  renderManifest(metadata, CODEX_THEME_FAMILIES),
+const selectableSlugs = [
+  ...new Set(
+    CODEX_THEME_FAMILIES.flatMap((family) =>
+      [family.light, family.dark].filter((slug): slug is string => typeof slug === 'string'),
+    ),
+  ),
+].sort((left, right) => left.localeCompare(right, 'en'))
+const themeShards = Array.from(
+  { length: THEME_SHARD_COUNT },
+  () =>
+    [] as Array<{
+      slug: string
+      theme: ThemeRegistration
+      physicalFiles: Array<{ path: string; sha256: string }>
+    }>,
 )
+for (const slug of selectableSlugs) {
+  const generatedTheme = generatedThemes.get(slug)
+  if (!generatedTheme) throw new Error(`Missing selectable theme "${slug}".`)
+  themeShards[themeShard(slug)]!.push({ slug, ...generatedTheme })
+}
+for (const [index, themes] of themeShards.entries()) {
+  expectedFiles.set(`themes/shard-${index.toString(16)}.ts`, renderThemeShard(themes))
+}
+
+expectedFiles.set('manifest.ts', renderManifest(metadata, CODEX_THEME_FAMILIES))
 await synchronizeGeneratedFiles(expectedFiles, checkOnly)
 
 console.log(
@@ -248,32 +277,56 @@ function normalizeTheme(
   return sortObject(theme) as ThemeRegistration
 }
 
-function renderThemeModule(
-  theme: ThemeRegistration,
-  slug: string,
-  physicalFiles: Array<{ path: string; sha256: string }>,
+function renderThemeShard(
+  themes: ReadonlyArray<{
+    slug: string
+    theme: ThemeRegistration
+    physicalFiles: Array<{ path: string; sha256: string }>
+  }>,
 ): string {
-  const sources = physicalFiles.map(source => source.path).join(', ')
+  const sources = themes
+    .flatMap((theme) => theme.physicalFiles.map((source) => source.path))
+    .join(', ')
+  const rows = themes
+    .map(
+      ({ slug, theme }) =>
+        `  ${JSON.stringify(slug)}: ${JSON.stringify(theme, null, 2).split('\n').join('\n  ')},`,
+    )
+    .join('\n')
   return `// Generated by scripts/generate-codex-themes.ts from ${sources}.
 // Do not edit this file manually.
 import type { ThemeRegistration } from 'shiki'
 
-const theme = ${JSON.stringify(theme, null, 2)} as unknown as ThemeRegistration
-
-export default theme
-export const codexThemeSlug = ${JSON.stringify(slug)}
+export const themes = {
+${rows}
+} as unknown as Readonly<Record<string, ThemeRegistration>>
 `
+}
+
+async function importThemeRegistration(
+  path: string,
+  source: string,
+  sourceHash: string,
+): Promise<ThemeRegistration | undefined> {
+  const generatedMatch = source.match(
+    /const theme = ([\s\S]*?) as unknown as ThemeRegistration\s+export default theme/,
+  )
+  if (generatedMatch?.[1]) {
+    return JSON.parse(generatedMatch[1]) as ThemeRegistration
+  }
+  const imported = (await import(
+    `${pathToFileURL(path).href}?codex-theme-generator=${sourceHash}`
+  )) as { default?: ThemeRegistration }
+  return imported.default
 }
 
 function renderManifest(
   themes: ReadonlyArray<(typeof metadata)[number]>,
   families: typeof CODEX_THEME_FAMILIES,
 ): string {
-  const defaultImports = `import codexDark from './themes/codex-dark.js'
-import codexLight from './themes/codex-light.js'`
-  const themesBySlug = new Map(themes.map(theme => [theme.slug, theme]))
-  const selectableThemes = families.flatMap(family =>
-    (['light', 'dark'] as const).flatMap(variant => {
+  const themesBySlug = new Map(themes.map((theme) => [theme.slug, theme]))
+  const selectableThemes = families.flatMap((family) =>
+    (['light', 'dark'] as const).flatMap((variant) => {
       const slug = family[variant]
       if (!slug) return []
       const theme = themesBySlug.get(slug)
@@ -283,7 +336,7 @@ import codexLight from './themes/codex-light.js'`
   )
   const rows = selectableThemes
     .map(
-      theme => `  {
+      (theme) => `  {
     slug: ${JSON.stringify(theme.slug)},
     label: ${JSON.stringify(theme.label)},
     familyId: ${JSON.stringify(theme.familyId)},
@@ -296,19 +349,16 @@ import codexLight from './themes/codex-light.js'`
     )
     .join('\n')
   const loaders = selectableThemes
-    .map(theme => {
-      const expression =
-        theme.slug === 'codex-dark'
-          ? 'Promise.resolve(codexDark)'
-          : theme.slug === 'codex-light'
-            ? 'Promise.resolve(codexLight)'
-            : `import('./themes/${theme.slug}.js').then(module => module.default)`
+    .map((theme) => {
+      const shard = themeShard(theme.slug).toString(16)
+      const missingMessage = `Codex theme shard is missing "${theme.slug}".`
+      const expression = `import('./themes/shard-${shard}.js').then(module => {\n    const theme = module.themes[${JSON.stringify(theme.slug)}]\n    if (!theme) throw new Error(${JSON.stringify(missingMessage)})\n    return theme\n  })`
       return `  ${JSON.stringify(theme.slug)}: () => ${expression},`
     })
     .join('\n')
   const familyRows = families
     .map(
-      family => `  {
+      (family) => `  {
     id: ${JSON.stringify(family.id)},
     label: ${JSON.stringify(family.label)},
     themes: {
@@ -322,14 +372,19 @@ import codexLight from './themes/codex-light.js'`
   return `// Generated by scripts/generate-codex-themes.ts.
 // Do not edit this file manually.
 import type { ThemeRegistration } from 'shiki'
-${defaultImports}
+import { DEFAULT_CHROME_THEMES } from '@codepilotx/shared/desktop-theme'
 
 export const CODEX_HIGHLIGHT_THEMES = [
 ${rows}
+
+  { slug: 'codex-new-light', label: 'Codex(new)', familyId: 'codex-new', variant: 'light' },
+  { slug: 'codex-new-dark', label: 'Codex(new)', familyId: 'codex-new', variant: 'dark' },
 ] as const
 
 export const CODEX_HIGHLIGHT_THEME_FAMILIES = [
 ${familyRows}
+
+  { id: 'codex-new', label: 'Codex(new)', themes: { light: 'codex-new-light', dark: 'codex-new-dark' } },
 ] as const
 
 export type CodexHighlightThemeSlug =
@@ -342,7 +397,7 @@ const CODEX_HIGHLIGHT_THEME_SLUGS = new Set<string>(
 )
 
 const CODEX_HIGHLIGHT_THEME_LOADERS: Record<
-  CodexHighlightThemeSlug,
+  Exclude<CodexHighlightThemeSlug, 'codex-new-light' | 'codex-new-dark'>,
   () => Promise<ThemeRegistration>
 > = {
 ${loaders}
@@ -360,17 +415,42 @@ export function isCodexHighlightThemeSlug(
 export function loadCodexHighlightTheme(
   slug: CodexHighlightThemeSlug,
 ): Promise<ThemeRegistration> {
+  if (slug === 'codex-new-light' || slug === 'codex-new-dark') {
+    const variant = slug === 'codex-new-light' ? 'light' : 'dark'
+    return CODEX_HIGHLIGHT_THEME_LOADERS[variant === 'light' ? 'codex-light' : 'codex-dark']().then(theme => ({
+      ...theme,
+      name: slug,
+      colors: {
+        ...theme.colors,
+        'editor.background': DEFAULT_CHROME_THEMES[variant].surface,
+        'editor.foreground': DEFAULT_CHROME_THEMES[variant].ink,
+      },
+      chromeTheme: {
+        accent: DEFAULT_CHROME_THEMES[variant].accent,
+        surface: DEFAULT_CHROME_THEMES[variant].surface,
+        ink: DEFAULT_CHROME_THEMES[variant].ink,
+        contrast: DEFAULT_CHROME_THEMES[variant].contrast,
+        semanticColors: DEFAULT_CHROME_THEMES[variant].semanticColors,
+      },
+    }))
+  }
   return CODEX_HIGHLIGHT_THEME_LOADERS[slug]()
 }
 `
 }
 
-function countSelectableThemes(
-  families: typeof CODEX_THEME_FAMILIES,
-): number {
+function themeShard(slug: string): number {
+  let hash = 2_166_136_261
+  for (let index = 0; index < slug.length; index += 1) {
+    hash ^= slug.charCodeAt(index)
+    hash = Math.imul(hash, 16_777_619)
+  }
+  return (hash >>> 0) % THEME_SHARD_COUNT
+}
+
+function countSelectableThemes(families: typeof CODEX_THEME_FAMILIES): number {
   return families.reduce(
-    (count, family) =>
-      count + Number(Boolean(family.light)) + Number(Boolean(family.dark)),
+    (count, family) => count + Number(Boolean(family.light)) + Number(Boolean(family.dark)),
     0,
   )
 }
@@ -392,9 +472,7 @@ async function synchronizeGeneratedFiles(
   }
 
   if (check && stale.size > 0) {
-    throw new Error(
-      `Codex theme catalog is out of date: ${[...stale].sort().join(', ')}`,
-    )
+    throw new Error(`Codex theme catalog is out of date: ${[...stale].sort().join(', ')}`)
   }
   if (check || stale.size === 0) return
 
@@ -410,9 +488,7 @@ async function synchronizeGeneratedFiles(
 async function listGeneratedFiles(): Promise<string[]> {
   const files: string[] = []
   async function visit(directory: string, prefix = ''): Promise<void> {
-    const entries = await readdir(directory, { withFileTypes: true }).catch(
-      () => [],
-    )
+    const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
     for (const entry of entries) {
       const relative = prefix ? `${prefix}/${entry.name}` : entry.name
       if (entry.isDirectory()) {

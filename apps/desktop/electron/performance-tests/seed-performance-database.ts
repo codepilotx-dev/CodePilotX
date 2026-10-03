@@ -54,9 +54,7 @@ try {
       const turn = database.createTurn(
         thread.id,
         {
-          content:
-            `第 ${turnIndex + 1} 轮：检查真实 Electron 性能路径 ` +
-            `${sessionIndex + 1}。`,
+          content: `第 ${turnIndex + 1} 轮：检查真实 Electron 性能路径 ` + `${sessionIndex + 1}。`,
           model,
           permissionConfig: DEFAULT_PERMISSION_CONFIG,
           strategy: 'queue',

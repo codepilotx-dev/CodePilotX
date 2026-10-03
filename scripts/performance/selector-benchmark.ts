@@ -3,13 +3,7 @@ import {
   createRenderTurnEntriesSelector,
   type ThreadHistoryPageLike,
 } from '../../packages/session-view/src/canonical/index.js'
-import type {
-  AgentExecution,
-  Input,
-  Item,
-  Thread,
-  Turn,
-} from '@codepilotx/shared/thread'
+import type { AgentExecution, Input, Item, Thread, Turn } from '@codepilotx/shared/thread'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { PerformanceSample } from './metrics.js'
@@ -23,10 +17,7 @@ const model = { providerID: 'openai', id: 'performance' }
 
 const short = benchmark(100)
 const long = benchmark(500)
-const batch = Math.max(
-  1,
-  Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1,
-)
+const batch = Math.max(1, Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1)
 const sample: PerformanceSample = {
   batch,
   environment: {
@@ -42,10 +33,7 @@ const sample: PerformanceSample = {
   suite: 'renderer',
   timestamp: new Date().toISOString(),
 }
-const outputDirectory = resolve(
-  import.meta.dirname,
-  '../../performance-results/raw/renderer',
-)
+const outputDirectory = resolve(import.meta.dirname, '../../performance-results/raw/renderer')
 await mkdir(outputDirectory, { recursive: true })
 await writeFile(
   resolve(outputDirectory, `selector-b${batch}-s1.json`),

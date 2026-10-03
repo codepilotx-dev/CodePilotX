@@ -17,9 +17,7 @@ describe('settings dropdown trigger contract', () => {
       />,
     )
 
-    const trigger = html.match(
-      /<button\b[^>]*aria-label="示例选择"[^>]*>/,
-    )?.[0]
+    const trigger = html.match(/<button\b[^>]*aria-label="示例选择"[^>]*>/)?.[0]
 
     expect(html).toContain('aria-label="示例选择"')
     expect(html).toContain('第二项')
@@ -39,9 +37,7 @@ describe('settings dropdown trigger contract', () => {
       />,
     )
 
-    const trigger = html.match(
-      /<button\b[^>]*aria-label="搜索选择"[^>]*>/,
-    )?.[0]
+    const trigger = html.match(/<button\b[^>]*aria-label="搜索选择"[^>]*>/)?.[0]
 
     expect(html).toContain('aria-label="搜索选择"')
     expect(html).toContain('可搜索项')

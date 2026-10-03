@@ -1,182 +1,166 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type React from "react";
-import type { DesktopWorkspace } from "../../../shared/types.js";
-import type { WorkingPlugin } from "./composer/composerTypes.js";
-import { DesktopComposer } from "./composer/DesktopComposer.js";
-import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
-import { useQuickChatContext } from "./QuickChatContext.js";
-import { WorkingSuggestionsPanel } from "./WorkingSuggestionsPanel.js";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type React from 'react'
+import type { WorkingPlugin } from './composer/composerTypes.js'
+import { DesktopComposer } from './composer/DesktopComposer.js'
+import { useQuickChatContext } from './QuickChatContext.js'
+import { WorkingSuggestionsPanel } from './WorkingSuggestionsPanel.js'
+import { useContextualTaskSuggestions } from './useContextualTaskSuggestions.js'
 import {
+  buildWorkingContextualTaskSuggestions,
   createWorkingSuggestionState,
-  returnToWorkingSuggestionRoot,
+  returnToWorkingSuggestionTemplates,
+  selectWorkingContextualSuggestion,
   selectWorkingSuggestionCategory,
   selectWorkingSuggestionTask,
   shouldShowWorkingSuggestions,
+  showContextualWorkingSuggestions,
+  showWorkingSuggestionTemplates,
   syncWorkingSuggestionState,
+  type WorkingContextualSuggestion,
   type WorkingSuggestionCategory,
   type WorkingSuggestionState,
   type WorkingSuggestionTask,
-} from "./workingSuggestions.js";
+} from './workingSuggestions.js'
 
-const WORKING_COMPOSER_PLACEHOLDER = "描述正在推进的工作、目标或阻塞……";
+const WORKING_COMPOSER_PLACEHOLDER = '使用 CodePilotX Working'
 
 export function WorkingNewSessionView(): React.ReactNode {
   const {
     branchName,
     composerProps,
     composerDraft,
-    recentWorkspaces,
+    gitStatus,
+    recentTasks,
     workspaceName,
     workspacePath,
     onAppendComposerText,
-    onChooseWorkspace,
-    onCloneGithub,
-    onClearWorkspace,
-    onOpenWorkspace,
-  } = useQuickChatContext();
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const [workingPlugin, setWorkingPlugin] = useState<WorkingPlugin | null>(
-    null,
-  );
-  const [suggestionsFocused, setSuggestionsFocused] = useState(false);
-  const [observedComposerValue, setObservedComposerValue] = useState(
-    composerDraft?.value ?? "",
-  );
-  const [suggestionState, setSuggestionState] = useState<WorkingSuggestionState>(
-    () => createWorkingSuggestionState(composerDraft?.value ?? ""),
-  );
-  const pageRef = useRef<HTMLDivElement | null>(null);
-  const programmaticValueRef = useRef<string | null>(null);
-  const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
-    if (!workspaceName || !workspacePath) return null;
-    return (
-      recentWorkspaces.find(workspace => workspace.path === workspacePath) ?? {
-        name: workspaceName,
-        path: workspacePath,
-        branchName,
-      }
-    );
-  }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
-
-  const composerDraftValue = composerDraft?.value;
+  } = useQuickChatContext()
+  const [workingPlugin, setWorkingPlugin] = useState<WorkingPlugin | null>(null)
+  const [taskPlanningAvailable, setTaskPlanningAvailable] = useState(false)
+  const [observedComposerValue, setObservedComposerValue] = useState(composerDraft?.value ?? '')
+  const [suggestionState, setSuggestionState] = useState<WorkingSuggestionState>(() =>
+    createWorkingSuggestionState(composerDraft?.value ?? ''),
+  )
+  const pageRef = useRef<HTMLDivElement | null>(null)
+  const programmaticValueRef = useRef<string | null>(null)
+  const composerDraftValue = composerDraft?.value
+  const { suggestions, markInteracted } = useContextualTaskSuggestions({
+    surface: 'working',
+    buildWorkingSuggestions: buildWorkingContextualTaskSuggestions,
+    active: suggestionState.kind === 'root' && observedComposerValue.trim().length === 0,
+    workspaceName,
+    workspacePath,
+    branchName,
+    gitStatus,
+    recentTasks,
+  })
 
   useEffect(() => {
-    if (composerDraftValue === undefined) return;
-    setObservedComposerValue(composerDraftValue);
+    if (composerDraftValue === undefined) return
+    setObservedComposerValue(composerDraftValue)
     if (programmaticValueRef.current === composerDraftValue) {
-      programmaticValueRef.current = null;
-      return;
+      programmaticValueRef.current = null
+      return
     }
-    setSuggestionState(current =>
-      syncWorkingSuggestionState(current, composerDraftValue),
-    );
-  }, [composerDraftValue]);
+    setSuggestionState((current) => syncWorkingSuggestionState(current, composerDraftValue))
+  }, [composerDraftValue])
 
   const focusComposer = useCallback(() => {
     if (composerDraft?.focus) {
-      composerDraft.focus();
-      return;
+      composerDraft.focus()
+      return
     }
-    const editor = pageRef.current?.querySelector<HTMLElement>(
-      "textarea, [contenteditable='true']",
-    );
-    editor?.focus();
-  }, [composerDraft]);
+    const editor = pageRef.current?.querySelector<HTMLElement>("textarea, [contenteditable='true']")
+    editor?.focus()
+  }, [composerDraft])
 
   const replaceComposerValue = useCallback(
     (value: string) => {
-      programmaticValueRef.current = value;
-      setObservedComposerValue(value);
+      programmaticValueRef.current = value
+      setObservedComposerValue(value)
       if (composerDraft) {
-        composerDraft.replace(value);
+        composerDraft.replace(value)
       } else if (observedComposerValue.length === 0) {
-        onAppendComposerText(value);
+        onAppendComposerText(value)
       }
-      requestAnimationFrame(focusComposer);
+      requestAnimationFrame(focusComposer)
     },
     [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
-  );
+  )
 
   const handleSelectCategory = useCallback(
     (category: WorkingSuggestionCategory) => {
-      setSuggestionState(
-        selectWorkingSuggestionCategory(category.id, category.label),
-      );
-      replaceComposerValue(category.label);
+      markInteracted()
+      setSuggestionState(selectWorkingSuggestionCategory(category.id, category.starterPrompt))
+      replaceComposerValue(category.starterPrompt)
     },
-    [replaceComposerValue],
-  );
+    [markInteracted, replaceComposerValue],
+  )
+
+  const handleSelectSuggestion = useCallback(
+    (suggestion: WorkingContextualSuggestion) => {
+      markInteracted()
+      const result = selectWorkingContextualSuggestion(suggestion)
+      setSuggestionState(result.state)
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null)
+      replaceComposerValue(result.prompt)
+    },
+    [markInteracted, replaceComposerValue, taskPlanningAvailable],
+  )
+
+  const handleShowTemplates = useCallback(() => {
+    markInteracted()
+    setSuggestionState(showWorkingSuggestionTemplates())
+  }, [markInteracted])
+
+  const handleShowSuggestions = useCallback(() => {
+    markInteracted()
+    setSuggestionState(showContextualWorkingSuggestions())
+  }, [markInteracted])
 
   const handleSelectTask = useCallback(
     (_category: WorkingSuggestionCategory, task: WorkingSuggestionTask) => {
-      const result = selectWorkingSuggestionTask(suggestionState, task.id);
-      if (!result) return;
-      setSuggestionState(result.state);
-      setWorkingPlugin(result.plugin);
-      replaceComposerValue(result.prompt);
+      markInteracted()
+      const result = selectWorkingSuggestionTask(suggestionState, task.id)
+      if (!result) return
+      setSuggestionState(result.state)
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null)
+      replaceComposerValue(result.prompt)
     },
-    [replaceComposerValue, suggestionState],
-  );
+    [markInteracted, replaceComposerValue, suggestionState, taskPlanningAvailable],
+  )
 
   const handleBack = useCallback(
-    (category: WorkingSuggestionCategory) => {
-      const next = returnToWorkingSuggestionRoot(
-        suggestionState,
-        observedComposerValue,
-      );
-      setSuggestionState(next.state);
+    (_category: WorkingSuggestionCategory) => {
+      markInteracted()
+      const next = returnToWorkingSuggestionTemplates(suggestionState, observedComposerValue)
+      setSuggestionState(next.state)
       if (next.composerValue !== observedComposerValue) {
-        replaceComposerValue(next.composerValue);
+        replaceComposerValue(next.composerValue)
       }
     },
-    [observedComposerValue, replaceComposerValue, suggestionState],
-  );
+    [markInteracted, observedComposerValue, replaceComposerValue, suggestionState],
+  )
 
   const handleComposerInputCapture = useCallback(
     (event: React.FormEvent<HTMLDivElement>) => {
-      const target = event.target;
-      let value: string | null = null;
-      if (
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLInputElement
-      ) {
-        value = target.value;
+      const target = event.target
+      let value: string | null = null
+      if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+        value = target.value
       } else if (target instanceof HTMLElement && target.isContentEditable) {
-        value = target.textContent ?? "";
+        value = target.textContent ?? ''
       }
-      if (value === null) return;
-      programmaticValueRef.current = null;
-      setObservedComposerValue(value);
-      setSuggestionState(current =>
-        syncWorkingSuggestionState(current, value),
-      );
+      if (value === null) return
+      markInteracted()
+      programmaticValueRef.current = null
+      setObservedComposerValue(value)
+      setSuggestionState((current) => syncWorkingSuggestionState(current, value))
     },
-    [],
-  );
+    [markInteracted],
+  )
 
-  const handleInteractionFocus = useCallback(() => {
-    setSuggestionsFocused(true);
-  }, []);
-
-  const handleInteractionBlur = useCallback(
-    (event: React.FocusEvent<HTMLDivElement>) => {
-      const nextTarget = event.relatedTarget;
-      if (
-        nextTarget instanceof Node &&
-        event.currentTarget.contains(nextTarget)
-      ) {
-        // 焦点仍在交互区域内（例如移到建议按钮），保持建议可见
-        return;
-      }
-      setSuggestionsFocused(false);
-    },
-    [],
-  );
-
-  const showSuggestions = shouldShowWorkingSuggestions(
-    suggestionState,
-    suggestionsFocused,
-  );
+  const showSuggestions = shouldShowWorkingSuggestions(suggestionState)
 
   return (
     <div ref={pageRef} className="quick-chat-workspace working-chat-workspace">
@@ -186,13 +170,9 @@ export function WorkingNewSessionView(): React.ReactNode {
       >
         <section className="quick-chat-composer-region tw:justify-start">
           <div className="quick-chat-hero working-chat-hero tw:gap-0">
-            <h1>今天想推进哪些工作？</h1>
+            <h1>我们该处理什么工作？</h1>
           </div>
-          <div
-            className="working-composer-interaction tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-3"
-            onBlurCapture={handleInteractionBlur}
-            onFocusCapture={handleInteractionFocus}
-          >
+          <div className="working-composer-interaction tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-3">
             {composerProps ? (
               <div className="chat-composer">
                 <DesktopComposer
@@ -200,6 +180,7 @@ export function WorkingNewSessionView(): React.ReactNode {
                   surface="working"
                   workingPlugin={workingPlugin}
                   onWorkingPluginChange={setWorkingPlugin}
+                  onWorkingPluginAvailabilityChange={setTaskPlanningAvailable}
                   placeholder={WORKING_COMPOSER_PLACEHOLDER}
                 />
               </div>
@@ -207,6 +188,10 @@ export function WorkingNewSessionView(): React.ReactNode {
             {showSuggestions ? (
               <WorkingSuggestionsPanel
                 state={suggestionState}
+                suggestions={suggestions}
+                onSelectSuggestion={handleSelectSuggestion}
+                onShowTemplates={handleShowTemplates}
+                onShowSuggestions={handleShowSuggestions}
                 onSelectCategory={handleSelectCategory}
                 onSelectTask={handleSelectTask}
                 onBack={handleBack}
@@ -216,5 +201,5 @@ export function WorkingNewSessionView(): React.ReactNode {
         </section>
       </main>
     </div>
-  );
+  )
 }

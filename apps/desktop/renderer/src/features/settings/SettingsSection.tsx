@@ -1,4 +1,5 @@
 import React from 'react'
+import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
   title?: string
@@ -19,33 +20,50 @@ type SlotProps = {
   children: React.ReactNode
 }
 
+type ContentProps = SlotProps & {
+  surface?: 'plain' | 'card'
+}
+
 export function SettingsSectionHeader({
   title,
   description,
   actions,
   children,
 }: HeaderProps): React.ReactNode {
+  const { t } = useLocale()
   if (!title && !description && !actions && !children) return null
   return (
     <header className="settings-section-header">
       <div className="settings-section-header-copy">
-        {title ? <h3 className="settings-section-title">{title}</h3> : null}
+        {title ? (
+          <h3 className="settings-section-title">{typeof title === 'string' ? t(title) : title}</h3>
+        ) : null}
         {description ? (
-          <p className="settings-section-desc">{description}</p>
+          <p className="settings-section-desc">
+            {typeof description === 'string' ? t(description) : description}
+          </p>
         ) : null}
         {children}
       </div>
-      {actions ? (
-        <div className="settings-section-header-actions">{actions}</div>
-      ) : null}
+      {actions ? <div className="settings-section-header-actions">{actions}</div> : null}
     </header>
   )
 }
 
 export function SettingsSectionContent({
   children,
-}: SlotProps): React.ReactNode {
-  return <div className="settings-section-content settings-card">{children}</div>
+  surface = 'card',
+}: ContentProps): React.ReactNode {
+  return (
+    <div
+      className={
+        surface === 'card' ? 'settings-section-content settings-card' : 'settings-section-content'
+      }
+      data-surface={surface}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function SettingsSectionFooter({ children }: SlotProps): React.ReactNode {
@@ -60,7 +78,7 @@ function SettingsSectionRoot({
   children,
 }: Props): React.ReactNode {
   const hasHeader = Boolean(title || description || actions)
-  const usesSlots = React.Children.toArray(children).some(child => {
+  const usesSlots = React.Children.toArray(children).some((child) => {
     if (!React.isValidElement(child)) return false
     return (
       child.type === SettingsSectionHeader ||
@@ -72,15 +90,9 @@ function SettingsSectionRoot({
   return (
     <section className="settings-section">
       {hasHeader ? (
-        <SettingsSectionHeader
-          actions={actions}
-          description={description}
-          title={title}
-        />
+        <SettingsSectionHeader actions={actions} description={description} title={title} />
       ) : null}
-      {usesSlots || bare ? children : (
-        <SettingsSectionContent>{children}</SettingsSectionContent>
-      )}
+      {usesSlots || bare ? children : <SettingsSectionContent>{children}</SettingsSectionContent>}
     </section>
   )
 }

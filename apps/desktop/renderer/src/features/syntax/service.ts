@@ -1,18 +1,8 @@
-import {
-  clearSyntaxHighlightCache,
-  highlightCode,
-  peekHighlightedCode,
-} from './highlighter.js'
-import {
-  normalizeSyntaxLanguage,
-  resolveLanguageFromPath,
-} from './language.js'
+import { clearSyntaxHighlightCache, highlightCode, peekHighlightedCode } from './highlighter.js'
+import { normalizeSyntaxLanguage, resolveLanguageFromPath } from './language.js'
 import { resolveThemeId } from './theme.js'
 import type { SyntaxThemeVariant } from './theme.js'
-import type {
-  HighlightCodeOptions,
-  SyntaxHighlightResult,
-} from './types.js'
+import type { HighlightCodeOptions, SyntaxHighlightResult } from './types.js'
 
 export class SyntaxHighlighterService {
   clear(): void {
@@ -35,10 +25,7 @@ export class SyntaxHighlighterService {
     return resolveLanguageFromPath(path)
   }
 
-  resolveThemeId(
-    codeThemeId: string | null | undefined,
-    variant: SyntaxThemeVariant,
-  ): string {
+  resolveThemeId(codeThemeId: string | null | undefined, variant: SyntaxThemeVariant): string {
     return resolveThemeId(codeThemeId, variant)
   }
 }

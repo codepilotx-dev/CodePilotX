@@ -1,21 +1,17 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { JsonValueSchema, OpaqueIDSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { JsonValueSchema, NonEmptyStringSchema, OpaqueIDSchema } from '../wire/primitives'
 
-const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
 const EnvironmentRevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 const ConfigKeyPathSchema = Schema.Array(
-  Schema.Union([
-    NonEmptyStringSchema,
-    Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
-  ]),
+  Schema.Union([NonEmptyStringSchema, Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))]),
 ).check(Schema.isMinLength(1))
 
 export const LocalEnvironmentActionMetadataSchema = Schema.Struct({
   name: NonEmptyStringSchema,
   icon: Schema.optional(NonEmptyStringSchema),
-  availability: Schema.Literals(["available", "unsupported-platform"]),
+  availability: Schema.Literals(['available', 'unsupported-platform']),
 })
 
 export const LocalEnvironmentReadParamsSchema = Schema.Struct({
@@ -35,18 +31,25 @@ export const LocalEnvironmentReadResultSchema = Schema.Struct({
 export const LocalEnvironmentUpdateParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   expectedRevision: Sha256Schema,
-  edits: Schema.optional(Schema.Array(Schema.Struct({
-    keyPath: ConfigKeyPathSchema,
-    value: JsonValueSchema,
-  })).check(Schema.isMinLength(1))),
-  trust: Schema.optional(Schema.Struct({
-    configHash: Sha256Schema,
-    decision: Schema.Literals(["allow", "revoke"]),
-  })),
-}).check(Schema.makeFilter(
-  (value) => value.edits !== undefined || value.trust !== undefined,
-  { expected: "at least one of edits or trust" },
-))
+  edits: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        keyPath: ConfigKeyPathSchema,
+        value: JsonValueSchema,
+      }),
+    ).check(Schema.isMinLength(1)),
+  ),
+  trust: Schema.optional(
+    Schema.Struct({
+      configHash: Sha256Schema,
+      decision: Schema.Literals(['allow', 'revoke']),
+    }),
+  ),
+}).check(
+  Schema.makeFilter((value) => value.edits !== undefined || value.trust !== undefined, {
+    expected: 'at least one of edits or trust',
+  }),
+)
 
 export const LocalEnvironmentUpdateResultSchema = Schema.Struct({
   filePath: NonEmptyStringSchema,
@@ -86,40 +89,40 @@ export const TerminalHostActionResolveResultSchema = Schema.Struct({
 })
 
 const LocalEnvironmentErrors = [
-  "LOCAL_ENVIRONMENT_NOT_GIT",
-  "LOCAL_ENVIRONMENT_INVALID",
-  "LOCAL_ENVIRONMENT_CONFLICT",
-  "LOCAL_ENVIRONMENT_UNTRUSTED",
-  "LOCAL_ENVIRONMENT_ACTION_NOT_FOUND",
-  "LOCAL_ENVIRONMENT_PLATFORM_UNSUPPORTED",
-  "PERMISSION_DENIED",
-  "INTERNAL_ERROR",
+  'LOCAL_ENVIRONMENT_NOT_GIT',
+  'LOCAL_ENVIRONMENT_INVALID',
+  'LOCAL_ENVIRONMENT_CONFLICT',
+  'LOCAL_ENVIRONMENT_UNTRUSTED',
+  'LOCAL_ENVIRONMENT_ACTION_NOT_FOUND',
+  'LOCAL_ENVIRONMENT_PLATFORM_UNSUPPORTED',
+  'PERMISSION_DENIED',
+  'INTERNAL_ERROR',
 ] as const
 
 export const LocalEnvironmentRpcMethods = {
-  "local-environment/read": defineMethod({
+  'local-environment/read': defineMethod({
     params: LocalEnvironmentReadParamsSchema,
     result: LocalEnvironmentReadResultSchema,
     errors: LocalEnvironmentErrors,
-    capability: "local-environment.manage.v1",
+    capability: 'local-environment.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "local-environment/update": defineMethod({
+  'local-environment/update': defineMethod({
     params: LocalEnvironmentUpdateParamsSchema,
     result: LocalEnvironmentUpdateResultSchema,
     errors: LocalEnvironmentErrors,
-    capability: "local-environment.manage.v1",
+    capability: 'local-environment.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "local-environment/action/list": defineMethod({
+  'local-environment/action/list': defineMethod({
     params: LocalEnvironmentActionListParamsSchema,
     result: LocalEnvironmentActionListResultSchema,
     errors: LocalEnvironmentErrors,
-    capability: "local-environment.manage.v1",
+    capability: 'local-environment.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
@@ -127,20 +130,20 @@ export const LocalEnvironmentRpcMethods = {
 } as const satisfies MethodMap
 
 export const LocalEnvironmentHostRpcMethods = {
-  "terminal/host/environment": defineMethod({
+  'terminal/host/environment': defineMethod({
     params: TerminalHostEnvironmentParamsSchema,
     result: TerminalHostEnvironmentResultSchema,
     errors: LocalEnvironmentErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "terminal/host/action/resolve": defineMethod({
+  'terminal/host/action/resolve': defineMethod({
     params: TerminalHostActionResolveParamsSchema,
     result: TerminalHostActionResolveResultSchema,
     errors: LocalEnvironmentErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
