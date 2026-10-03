@@ -1,3 +1,4 @@
+import { ComputerStateSchema } from '../methods/computer'
 import { Model, Provider } from '@codepilotx/model-schema'
 import { AutomationRunStatusSchema, AutomationStatusSchema } from '@codepilotx/shared/automation'
 import { SchedulePlanProposalStatusSchema } from '@codepilotx/shared/schedule-plan'
@@ -56,6 +57,7 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  'computer/changed': defineEvent({ payload: ComputerStateSchema, version: 1, durability: 'durable', stream: 'global', capability: 'computer.use.v1', reconcilesWith: 'computer/state' }),
   'browser/dataChanged': defineEvent({
     payload: Schema.Struct({ collection: Schema.Literals(['history', 'downloads']) }),
     version: 1,

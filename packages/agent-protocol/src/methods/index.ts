@@ -1,3 +1,4 @@
+import { ComputerRpcMethods, type ComputerHostRpcMethodMap } from './computer'
 import type { Schema } from 'effect'
 import type { ParamsOf, ResultOf } from '../wire/definition'
 import { BrowserRpcMethods, type BrowserHostRpcMethodMap } from './browser'
@@ -17,6 +18,7 @@ import type { TerminalRpcMethodMap } from './terminal'
 import type { LocalEnvironmentHostRpcMethodMap } from './local-environment'
 
 export const RpcMethods = {
+  ...ComputerRpcMethods,
   ...BrowserRpcMethods,
   ...AutomationRpcMethods,
   ...BaseRpcMethods,
@@ -37,6 +39,7 @@ export const RpcMethodMap = RpcMethods
 export type PublicRpcMethod = keyof typeof RpcMethods
 export type RpcMethod =
   | PublicRpcMethod
+  | keyof ComputerHostRpcMethodMap
   | keyof TerminalRpcMethodMap
   | keyof LocalEnvironmentHostRpcMethodMap
   | keyof BrowserHostRpcMethodMap
@@ -48,7 +51,9 @@ type RpcDefinition<M extends RpcMethod> = M extends PublicRpcMethod
       ? LocalEnvironmentHostRpcMethodMap[M]
       : M extends keyof BrowserHostRpcMethodMap
         ? BrowserHostRpcMethodMap[M]
-        : never
+        : M extends keyof ComputerHostRpcMethodMap
+          ? ComputerHostRpcMethodMap[M]
+          : never
 export type RpcParams<M extends RpcMethod> = ParamsOf<RpcDefinition<M>>
 export type RpcResult<M extends RpcMethod> = ResultOf<RpcDefinition<M>>
 export type RpcErrors<M extends RpcMethod> = RpcDefinition<M>['errors'][number]
@@ -57,6 +62,7 @@ export type RpcResultSchema<M extends RpcMethod> = RpcDefinition<M>['result'] & 
 export type PublicRpcParams<M extends PublicRpcMethod> = ParamsOf<(typeof RpcMethods)[M]>
 export type PublicRpcResult<M extends PublicRpcMethod> = ResultOf<(typeof RpcMethods)[M]>
 
+export * from './computer'
 export * from './browser'
 export * from './core'
 export * from './automation'

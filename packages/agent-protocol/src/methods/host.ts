@@ -1,9 +1,11 @@
+import { ComputerHostRpcMethods } from './computer'
 import { BrowserHostRpcMethods } from './browser'
 import { RpcMethods } from './index'
 import { TerminalRpcMethods } from './terminal'
 import { LocalEnvironmentHostRpcMethods } from './local-environment'
 
 export const HostRpcMethods = {
+  ...ComputerHostRpcMethods,
   ...BrowserHostRpcMethods,
   ...TerminalRpcMethods,
   ...LocalEnvironmentHostRpcMethods,
