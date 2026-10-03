@@ -174,11 +174,7 @@
     "packages/material-icon-theme": {
       "name": "@codepilotx/material-icon-theme",
       "version": "0.1.0",
-      "dependencies": {
-        "react": "19.2.3",
-      },
       "devDependencies": {
-        "@types/react": "19.2.7",
         "material-icon-theme": "5.37.0",
         "typescript": "5.9.3",
       },

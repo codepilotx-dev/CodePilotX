@@ -35,6 +35,8 @@ jobs:
         run: bun run format:check
       - name: Lint
         run: bun run lint
+      - name: Icon upstream sync check
+        run: bun run --cwd packages/material-icon-theme sync:check
       - name: Renderer CSS policy check
         run: bun run desktop:css:check
       - name: Build agent

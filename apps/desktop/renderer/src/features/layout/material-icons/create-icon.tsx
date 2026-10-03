@@ -1,22 +1,18 @@
-import type { SVGProps } from "react"
+import type { SVGProps } from 'react'
 
 export interface MaterialSvgIconProps extends SVGProps<SVGSVGElement> {
   size?: number | string
   title?: string
 }
 
-export function createMaterialIcon(
-  displayName: string,
-  viewBox: string,
-  markup: string,
-) {
+export function createMaterialIcon(displayName: string, viewBox: string, markup: string) {
   function MaterialThemeSvgIcon({
     size,
     title,
-    width = size ?? "1em",
-    height = size ?? "1em",
-    role = title ? "img" : undefined,
-    "aria-hidden": ariaHidden = title ? undefined : true,
+    width = size ?? '1em',
+    height = size ?? '1em',
+    role = title ? 'img' : undefined,
+    'aria-hidden': ariaHidden = title ? undefined : true,
     ...props
   }: MaterialSvgIconProps) {
     return (

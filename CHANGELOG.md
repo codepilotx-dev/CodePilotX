@@ -77,6 +77,8 @@
 
 ### Changed
 
+- [material-icon-theme/renderer] 图标包按分层规则拆分：`@codepilotx/material-icon-theme` 只保留纯数据与解析（`resolve.ts`、生成的 `manifest.ts` 与 `names.ts`），去掉 `react` 与 `@types/react` 依赖并收窄 exports；React 组件、`create-icon`、`loaders` 与 16 个图标分片移入 `apps/desktop/renderer/src/features/layout/material-icons/`。同步脚本仍是唯一生成来源，改为同时输出到包内（纯数据）与 renderer（渲染产物），`sync:check` 一并校验两处并接入 CI；`FileTypeIcon` 改为懒加载本地模块，按需加载与分片行为不变。
+
 - [desktop/renderer] 图标栏宽度新增防漂移校验：侧栏测试读取 `layout-sidebar.scss` 的图标栏规则并断言其宽度等于 `SIDEBAR_RAIL_WIDTH`，SCSS 与 TS 任一侧改动不一致时立即失败。
 
 - [repo] 收敛 isRecord 重复实现：新增 `@codepilotx/shared/guards` 作为全仓唯一实现并导出 `./guards` 子路径，Agent、Electron、Renderer、shared 与 scripts 中的 21 份复制实现改为引用它；其中 2 份漏掉数组检查，现统一按「非 null、非数组的对象」判定，既有调用点行为不变。并行开发中的 2 个浏览器相关文件保留原实现，待其提交时一并收敛。

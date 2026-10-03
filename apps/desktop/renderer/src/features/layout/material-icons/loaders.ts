@@ -3,7 +3,7 @@
 
 import type { ComponentType } from "react"
 import type { MaterialSvgIconProps } from "./create-icon"
-import type { IconName } from "./names"
+import type { IconName } from "@codepilotx/material-icon-theme"
 
 export type IconComponent = ComponentType<MaterialSvgIconProps>
 export type IconShard = Readonly<Partial<Record<IconName, IconComponent>>>

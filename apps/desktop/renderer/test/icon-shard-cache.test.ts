@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { loadCachedIconShard } from '../src/icon-shard-cache'
+import { loadCachedIconShard } from '../src/features/layout/material-icons/icon-shard-cache.js'
 
 describe('icon shard cache', () => {
   test('discards a failed load so a later render can try again', async () => {

@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./icons": "./src/icons/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "sync": "bun run scripts/sync-upstream.ts",
@@ -13,11 +12,7 @@
     "test": "bun test test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "react": "19.2.3"
-  },
   "devDependencies": {
-    "@types/react": "19.2.7",
     "material-icon-theme": "5.37.0",
     "typescript": "5.9.3"
   }

@@ -1,19 +1,19 @@
 import { useEffect, useState, type ComponentType } from 'react'
-import type { MaterialSvgIconProps } from './icons'
+import {
+  resolveFileIconName,
+  resolveFolderIconName,
+  type IconName,
+  type ResolveFileIconOptions,
+  type ResolveFolderIconOptions,
+} from '@codepilotx/material-icon-theme'
+import { loadCachedIconShard } from './icon-shard-cache.js'
 import {
   createMaterialIcon,
   iconShard,
   loadIconShard,
   type IconComponent,
-  type IconName,
-} from './icons'
-import { loadCachedIconShard } from './icon-shard-cache'
-import {
-  resolveFileIconName,
-  resolveFolderIconName,
-  type ResolveFileIconOptions,
-  type ResolveFolderIconOptions,
-} from './resolve'
+  type MaterialSvgIconProps,
+} from './index.js'
 
 const FileIconComponent = createMaterialIcon(
   'FileIcon',

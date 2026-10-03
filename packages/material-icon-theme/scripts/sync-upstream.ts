@@ -15,6 +15,31 @@ const upstreamSha512 =
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const iconsDirectory = join(packageRoot, 'src', 'icons')
 const generatedDirectory = join(packageRoot, 'src', 'generated')
+// React 渲染部分只服务桌面端，生成到 renderer，使共享包不再依赖 React。
+const rendererIconsDirectory = resolve(
+  packageRoot,
+  '..',
+  '..',
+  'apps',
+  'desktop',
+  'renderer',
+  'src',
+  'features',
+  'layout',
+  'material-icons',
+)
+/**
+ * 生成产物所在目录，以及每个目录里「哪些文件名属于生成产物」。
+ * renderer 目录与手写组件共存，因此不能用「目录内多余文件」判定。
+ */
+const outputRoots = [
+  { directory: iconsDirectory, isGenerated: (name: string) => /\.tsx?$/.test(name) },
+  {
+    directory: rendererIconsDirectory,
+    isGenerated: (name: string) =>
+      /^shard-[0-9a-f]+\.ts$/.test(name) || /^(index|loaders)\.ts$/.test(name),
+  },
+] as const
 const check = process.argv.includes('--check')
 const iconShardCount = 16
 
@@ -35,6 +60,7 @@ interface UpstreamManifest {
 }
 
 interface GeneratedFile {
+  /** 绝对路径：生成产物分布在包内与 renderer 两个目录。 */
   path: string
   content: string
 }
@@ -164,16 +190,14 @@ async function generateFiles(
     })
   }
 
+  // 包侧只保留纯数据：names 供类型与解析使用，React 部分生成到 renderer。
   generated.push({
-    path: join('src', 'icons', 'index.ts'),
-    content: `${generatedHeader()}export { createMaterialIcon } from "./create-icon"
-export type { MaterialSvgIconProps } from "./create-icon"
-export { iconNames, type IconName } from "./names"
-export { iconShard, loadIconShard, type IconComponent, type IconShard } from "./loaders"
+    path: join(iconsDirectory, 'index.ts'),
+    content: `${generatedHeader()}export { iconNames, type IconName } from "./names"
 `,
   })
   generated.push({
-    path: join('src', 'icons', 'names.ts'),
+    path: join(iconsDirectory, 'names.ts'),
     content: `${generatedHeader()}export const iconNames = ${JSON.stringify(
       definitions.map(([name]) => name),
       null,
@@ -189,7 +213,7 @@ export type IconName = (typeof iconNames)[number]
         `  ${JSON.stringify(iconName)}: createMaterialIcon(\n    ${JSON.stringify(componentName)},\n    ${JSON.stringify(viewBox)},\n    ${JSON.stringify(body)},\n  ),`,
     )
     generated.push({
-      path: join('src', 'icons', `shard-${shardIndex.toString(16)}.ts`),
+      path: join(rendererIconsDirectory, `shard-${shardIndex.toString(16)}.ts`),
       content: `${generatedHeader()}import { createMaterialIcon } from "./create-icon"
 
 export const iconComponents = {
@@ -199,11 +223,18 @@ ${entries.join('\n')}
     })
   }
   generated.push({
-    path: join('src', 'icons', 'loaders.ts'),
+    path: join(rendererIconsDirectory, 'loaders.ts'),
     content: generatedShardLoaders(),
   })
   generated.push({
-    path: join('src', 'generated', 'manifest.ts'),
+    path: join(rendererIconsDirectory, 'index.ts'),
+    content: `${generatedHeader()}export { createMaterialIcon } from "./create-icon"
+export type { MaterialSvgIconProps } from "./create-icon"
+export { iconShard, loadIconShard, type IconComponent, type IconShard } from "./loaders"
+`,
+  })
+  generated.push({
+    path: join(generatedDirectory, 'manifest.ts'),
     content: generatedManifest(manifest),
   })
   return generated
@@ -225,7 +256,7 @@ function generatedShardLoaders(): string {
   )
   return `${generatedHeader()}import type { ComponentType } from "react"
 import type { MaterialSvgIconProps } from "./create-icon"
-import type { IconName } from "./names"
+import type { IconName } from "@codepilotx/material-icon-theme"
 
 export type IconComponent = ComponentType<MaterialSvgIconProps>
 export type IconShard = Readonly<Partial<Record<IconName, IconComponent>>>
@@ -326,53 +357,57 @@ function generatedHeader(): string {
 }
 
 async function writeGeneratedFiles(files: GeneratedFile[]): Promise<void> {
-  await mkdir(iconsDirectory, { recursive: true })
-  await mkdir(generatedDirectory, { recursive: true })
-  const existingIcons = await readdir(iconsDirectory)
-  await Promise.all(
-    existingIcons
-      .filter(
-        (name) => (name.endsWith('.tsx') || name.endsWith('.ts')) && name !== 'create-icon.tsx',
-      )
-      .map((name) => rm(join(iconsDirectory, name))),
-  )
+  for (const { directory, isGenerated } of outputRoots) {
+    await mkdir(directory, { recursive: true })
+    const expected = new Set(
+      files
+        .filter((file) => dirname(file.path) === directory)
+        .map((file) => file.path.split(/[\\/]/).at(-1)),
+    )
+    for (const name of await readdir(directory)) {
+      if (isGenerated(name) && !expected.has(name)) await rm(join(directory, name))
+    }
+  }
   for (const file of files) {
-    const target = join(packageRoot, file.path)
-    await mkdir(dirname(target), { recursive: true })
-    await writeFile(target, file.content, 'utf8')
+    await mkdir(dirname(file.path), { recursive: true })
+    await writeFile(file.path, file.content, 'utf8')
   }
 }
 
 async function checkGeneratedFiles(files: GeneratedFile[]): Promise<void> {
   const failures: string[] = []
   for (const file of files) {
-    const target = join(packageRoot, file.path)
     let actual: string
     try {
-      actual = await readFile(target, 'utf8')
+      actual = await readFile(file.path, 'utf8')
     } catch {
-      failures.push(`${file.path} is missing`)
+      failures.push(`${relativeToRepo(file.path)} is missing`)
       continue
     }
-    if (actual !== file.content) failures.push(`${file.path} is stale`)
+    if (actual !== file.content) failures.push(`${relativeToRepo(file.path)} is stale`)
   }
 
-  const expectedIconFiles = new Set(
-    files
-      .filter((file) => dirname(file.path) === join('src', 'icons'))
-      .map((file) => file.path.split(/[\\/]/).at(-1)),
-  )
-  for (const name of await readdir(iconsDirectory)) {
-    if (
-      (name.endsWith('.tsx') || name.endsWith('.ts')) &&
-      name !== 'create-icon.tsx' &&
-      !expectedIconFiles.has(name)
-    ) {
-      failures.push(`src/icons/${name} is not generated by the pinned upstream`)
+  for (const { directory, isGenerated } of outputRoots) {
+    const expected = new Set(
+      files
+        .filter((file) => dirname(file.path) === directory)
+        .map((file) => file.path.split(/[\\/]/).at(-1)),
+    )
+    for (const name of await readdir(directory)) {
+      if (isGenerated(name) && !expected.has(name)) {
+        failures.push(
+          `${relativeToRepo(join(directory, name))} is not generated by the pinned upstream`,
+        )
+      }
     }
   }
 
   if (failures.length > 0) {
     throw new Error(`Generated files are not current:\n- ${failures.join('\n- ')}`)
   }
+}
+
+/** 生成产物可能落在 renderer 目录，报错时统一用相对仓库的路径。 */
+function relativeToRepo(target: string): string {
+  return target.slice(packageRoot.length).replaceAll('\\', '/').replace(/^\//, '')
 }
