@@ -48,9 +48,11 @@
     "build": "bun run scripts/build.ts",
     "package:win": "bun scripts/package-win.ts --x64",
     "version:check": "bun scripts/version-policy.ts version:check",
-    "version:prepare": "bun scripts/version-policy.ts version:prepare"
+    "version:prepare": "bun scripts/version-policy.ts version:prepare",
+    "lint": "oxlint --config .oxlintrc.json apps packages scripts"
   },
   "devDependencies": {
+    "oxlint": "1.86.0",
     "prettier": "3.9.9",
     "typescript": "5.9.3"
   },
