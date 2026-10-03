@@ -357,6 +357,8 @@
 
 ### Removed
 
+- [desktop/renderer] 移除未接入的新聊天标题轮播模块：删除 `chatHomeHero.ts` 与其测试，新任务页标题已由固定文案渲染；`ChatNewSessionView` 仍在使用的 `.chat-home-hero` 样式保留。
+
 - [agent/mcp] 移除旧 HTTP+SSE 客户端回退和调试服务器分支；已有配置原样保留，不受支持的端点连接时返回安全错误。
 
 - [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
