@@ -19,6 +19,7 @@ import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { errorMessageOf } from '@codepilotx/shared/errors'
 
 type Props = {
   open: boolean
@@ -322,8 +323,4 @@ function formatDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString()
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

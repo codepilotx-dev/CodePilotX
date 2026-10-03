@@ -8,6 +8,9 @@ import type {
   ProviderUsageQueryParams,
   ProviderUsageQueryResult,
 } from './types.js'
+const errorMessage = (error: unknown): string =>
+  rawErrorMessage(error).trim() || '供应商连接状态暂时无法加载。'
+import { errorMessageOf as rawErrorMessage } from '@codepilotx/shared/errors'
 
 export type ProviderManagementClient = Pick<
   CodePilotXDesktopClient,
@@ -103,9 +106,6 @@ const providerCredentialToApiKey = (
   createdAt: credential.createdAt,
   updatedAt: credential.updatedAt,
 })
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error && error.message.trim() ? error.message : '供应商连接状态暂时无法加载。'
 
 const fulfilledValue = <T>(result: PromiseSettledResult<T>): T => {
   if (result.status === 'rejected') throw result.reason

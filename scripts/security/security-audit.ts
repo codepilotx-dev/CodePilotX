@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { isRecord } from '@codepilotx/shared/guards'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 interface AuditAdvisory {
   id?: number | string
@@ -168,8 +169,4 @@ function isCalendarDate(value: string): boolean {
 function formatStderr(stderr: string): string {
   const trimmed = stderr.trim()
   return trimmed ? `：${trimmed}` : ''
-}
-
-function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause)
 }

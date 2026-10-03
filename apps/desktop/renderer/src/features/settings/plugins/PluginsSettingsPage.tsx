@@ -40,6 +40,7 @@ import {
 } from './pluginDetailsDeepLink.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
 import { listRuntimeSkills, setRuntimeSkillEnabled } from './skillClientAdapter.js'
+import { errorMessageOr as errorMessageOf } from '@codepilotx/shared/errors'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null
@@ -1055,10 +1056,4 @@ function StatusBadge({
 function looksLikeMissingResource(error: unknown): boolean {
   const message = errorMessageOf(error, '').toLocaleLowerCase()
   return message.includes('not found') || message.includes('不存在')
-}
-
-function errorMessageOf(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) return error.message
-  if (typeof error === 'string' && error) return error
-  return fallback
 }

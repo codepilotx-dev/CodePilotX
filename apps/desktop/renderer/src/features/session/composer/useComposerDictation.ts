@@ -4,6 +4,7 @@ import { arrayBufferToBase64 } from '../../../utils/binaryEncoding.js'
 import { useSpeechStatus } from '../../speech/useSpeechStatus.js'
 import type { ComposerDraftKey } from './composerTypes.js'
 import { audioBlobToPcm16Wav } from './speechAudio.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 const DEFAULT_MAX_DURATION_MS = 120_000
 
@@ -328,8 +329,4 @@ function captureError(error: unknown): string {
     if (error.name === 'OverconstrainedError') return '首选麦克风当前不可用，请在设置中重新选择。'
   }
   return errorMessage(error)
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

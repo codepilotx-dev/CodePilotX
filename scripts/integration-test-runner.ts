@@ -2,12 +2,9 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 export const repositoryRoot = resolve(import.meta.dir, '..')
-
-export function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause)
-}
 
 export function killProcessTree(child: ChildProcess): void {
   const pid = child.pid

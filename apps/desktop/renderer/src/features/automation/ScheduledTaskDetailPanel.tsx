@@ -12,6 +12,8 @@ import { Textarea } from '../../components/ui/Textarea.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { calendarStatusLabel } from './calendarDates.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+const errorMessage = (cause: unknown): string => rawErrorMessage(cause) || '操作失败'
+import { errorMessageOf as rawErrorMessage } from '@codepilotx/shared/errors'
 
 type ScheduleMode = 'once' | 'daily' | 'weekdays' | 'weekly' | 'hourly' | 'custom'
 
@@ -657,8 +659,4 @@ function toLocalDateTime(value: number): string {
   if (!Number.isFinite(value)) return ''
   const date = new Date(value - new Date(value).getTimezoneOffset() * 60_000)
   return date.toISOString().slice(0, 16)
-}
-
-function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : '操作失败'
 }

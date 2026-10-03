@@ -16,6 +16,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { ProjectAppearancePicker } from './ProjectAppearancePicker.js'
 import { createProjectFolderSavePlan, type ProjectFolderSaveDraft } from './projectEditModel.js'
 import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 type DraftFolder = DesktopProjectFolder & ProjectFolderSaveDraft
 
@@ -399,8 +400,4 @@ function samePath(left: string, right: string): boolean {
 
 function normalizePath(value: string): string {
   return value.replaceAll('\\', '/').replace(/\/+$/, '').toLocaleLowerCase()
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

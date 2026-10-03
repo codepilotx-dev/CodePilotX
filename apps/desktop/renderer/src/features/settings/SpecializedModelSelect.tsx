@@ -8,6 +8,7 @@ import type {
 } from '../../../shared/types.js'
 import { getModelDisplayLabel } from '../../modelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
+import { formatCompactNumber } from '../../utils/usageFormatters.js'
 
 function splitProviderModel(value: string): { providerID: string; id: string } | null {
   const slash = value.indexOf('/')
@@ -39,12 +40,6 @@ function formatModelDetail(modelID: string, metadata?: DesktopModelMetadata): st
   if (metadata.toolCall) parts.push('工具调用')
   if (metadata.vision) parts.push('视觉')
   return parts.join(' / ')
-}
-
-function formatCompactNumber(value: number): string {
-  if (value >= 1_000_000) return `${Math.round(value / 100_000) / 10}M`
-  if (value >= 1_000) return `${Math.round(value / 100) / 10}K`
-  return String(value)
 }
 
 export function SpecializedModelSelect({

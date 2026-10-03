@@ -21,6 +21,7 @@ import {
 } from './terminalOutputState.js'
 import { OPEN_TERMINAL_EVENT, type OpenTerminalEventDetail } from './openTerminalEvent.js'
 import { readTerminalFont, readTerminalTheme } from './terminalTheme.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 export type TerminalPanelProps = {
   threadId: string
@@ -380,8 +381,4 @@ function terminalStatusLabel(
 function snapshotDisplayPath(snapshot: DesktopTerminalSnapshot): string | null {
   if (!('displayPath' in snapshot) || typeof snapshot.displayPath !== 'string') return null
   return snapshot.displayPath
-}
-
-function errorMessage(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason)
 }

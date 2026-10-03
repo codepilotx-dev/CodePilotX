@@ -12,6 +12,9 @@ import {
   type AutomationDraft,
   type AutomationFilter,
 } from './automationModel.js'
+const errorMessage = (cause: unknown): string =>
+  rawErrorMessage(cause) || '自动化操作失败，请重试。'
+import { errorMessageOf as rawErrorMessage } from '@codepilotx/shared/errors'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'conflict'
 
@@ -373,8 +376,4 @@ function automationSortRank(automation: Automation, runs: readonly AutomationRun
 
 function isTerminal(run: AutomationRun): boolean {
   return run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted'
-}
-
-function errorMessage(cause: unknown): string {
-  return cause instanceof Error ? cause.message : '自动化操作失败，请重试。'
 }

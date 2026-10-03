@@ -34,6 +34,18 @@ export function formatCompactCount(value: number | undefined): string {
   return value === undefined ? '—' : compactNumberFormatter.format(value)
 }
 
+/**
+ * 模型上下文窗口等数值使用 K/M 惯例（200K、1.5M），与配额展示走的 zh-CN
+ * Intl compact（万/亿）刻意区分。整数不补小数位，否则保留一位。
+ */
+export function formatCompactNumber(value: number): string {
+  const trim = (scaled: number): string =>
+    Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1)
+  if (value >= 1_000_000) return `${trim(value / 1_000_000)}M`
+  if (value >= 1_000) return `${trim(value / 1_000)}K`
+  return String(value)
+}
+
 export function formatTokens(value: number | undefined): string {
   return value === undefined ? '—' : `${compactNumberFormatter.format(value)} Token`
 }

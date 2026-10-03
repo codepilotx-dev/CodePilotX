@@ -52,6 +52,7 @@
     "lint": "oxlint --config .oxlintrc.json apps packages scripts"
   },
   "devDependencies": {
+    "@codepilotx/shared": "workspace:*",
     "oxlint": "1.86.0",
     "prettier": "3.9.9",
     "typescript": "5.9.3"

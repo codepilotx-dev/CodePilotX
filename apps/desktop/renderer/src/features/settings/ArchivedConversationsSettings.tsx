@@ -8,6 +8,7 @@ import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 import { canonicalThreadCache } from '../session/state/canonicalThreadCache.js'
+import { errorMessageOf } from '@codepilotx/shared/errors'
 
 export function ArchivedConversationsSettings(): React.ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -109,8 +110,4 @@ function compareTimestamp(
   right: string | null | undefined,
 ): number {
   return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime()
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

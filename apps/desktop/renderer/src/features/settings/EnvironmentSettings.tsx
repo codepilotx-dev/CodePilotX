@@ -43,6 +43,7 @@ import {
   isProjectSettingsConflict,
   sortEnvironmentProjects,
 } from './environmentSettingsModel.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 type Props = {
   onError: (message: string) => void
@@ -698,10 +699,6 @@ function EnvironmentDetail({
 
 function EnvironmentEmpty({ children }: { children: React.ReactNode }): React.ReactNode {
   return <p className="environment-empty">{children}</p>
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 function sourceStatusLabel(status: DesktopProjectSource['status']): string {

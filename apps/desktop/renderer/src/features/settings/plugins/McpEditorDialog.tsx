@@ -22,6 +22,7 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { SettingsDropdown } from '../SettingsDropdown.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import { errorMessageOf as rawErrorMessage } from '@codepilotx/shared/errors'
 
 type TransportType = DesktopMcpServerConfig['type']
 
@@ -1546,7 +1547,4 @@ function formatConfig(value: unknown): string {
   return JSON.stringify(value, null, 2)
 }
 
-function errorMessageOf(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message
-  return String(error)
-}
+const errorMessageOf = (error: unknown): string => rawErrorMessage(error) || String(error)

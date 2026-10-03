@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DesktopSpeechStatus } from '../../services/desktop-client/index.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
+import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 export type SpeechStatusState = {
   status: DesktopSpeechStatus | null
@@ -73,8 +74,4 @@ export function useSpeechStatus(): SpeechStatusState {
   }, [])
 
   return { status, loading, error, refresh, install }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

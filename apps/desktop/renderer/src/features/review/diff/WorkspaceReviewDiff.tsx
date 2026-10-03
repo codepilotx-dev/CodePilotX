@@ -101,6 +101,9 @@ import {
   type ReviewLoadState,
   type ReviewSummarySnapshot,
 } from '../source/reviewAgentClient.js'
+import { errorMessageOf } from '@codepilotx/shared/errors'
+
+export { errorMessageOf }
 
 export type ReviewDisplayPath = {
   directory: string
@@ -1222,10 +1225,6 @@ export function buildReviewComposerPrompt(
             .join('\n')
         : '- 当前没有可用变更'
   return ['请对当前工作区变更发起一次代码审查。', '', '变更文件：', fileList].join('\n')
-}
-
-export function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 export function parseGithubPullRequestUrl(

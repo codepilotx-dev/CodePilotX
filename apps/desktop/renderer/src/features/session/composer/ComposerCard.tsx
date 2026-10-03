@@ -131,6 +131,7 @@ import {
   writePreferredSessionGroupId,
 } from '../../session-groups/sessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
+import { formatCompactNumber } from '../../../utils/usageFormatters.js'
 
 type Option<T extends string> = {
   value: T
@@ -1865,20 +1866,6 @@ function resolveWorkspaceContextPath(workspacePath: string, relativePath: string
   return [
     `${workspacePath.replace(/[\\/]+$/u, '')}${separator}${relativePath.replace(/^[.][\\/]/u, '')}`,
   ]
-}
-
-function formatCompactNumber(value: number): string {
-  if (value >= 1_000_000) {
-    return `${trimNumber(value / 1_000_000)}M`
-  }
-  if (value >= 1_000) {
-    return `${trimNumber(value / 1_000)}k`
-  }
-  return String(value)
-}
-
-function trimNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 function composerCommandMenuItem(

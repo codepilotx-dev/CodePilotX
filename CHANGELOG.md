@@ -77,6 +77,12 @@
 
 ### Changed
 
+- [repo] 收敛错误消息提取：新增 `@codepilotx/shared/errors` 的 `errorMessageOf` 与 `errorMessageOr` 作为唯一实现，renderer 与根脚本中 21 份复制实现改为引用它；3 份带硬编码兜底文案与 3 份带 `fallback` 参数的变体保留各自文案、提取逻辑复用共享实现，`useSessionState` 中未被调用的本地实现直接删除。
+
+- [desktop/renderer] 统一上下文窗口数字格式化：3 份口径互相矛盾的 `formatCompactNumber`（千位取整/一位小数、`k`/`K` 大小写不一致）合并为 `usageFormatters` 中一份，按「整数不补小数位、否则保留一位」输出 `K`/`M`；1250 这类数值由 `1K` 变为更精确的 `1.3K`，千位后缀统一为大写 `K`。
+
+- [repo] 根 `package.json` 显式声明 `@codepilotx/shared` 依赖：根目录脚本此前只能对其做 `import type`，运行时导入无法解析，`scripts/security/security-audit.ts` 与 `scripts/integration-test-runner.ts` 会直接加载失败；补上依赖后 CI 的 `security:audit` 才能正常执行脚本。
+
 - [repo] 统一 TypeScript 版本为精确 `5.9.3`：Electron 的 `~5.8.3` 与 `packages/shared` 的 `^5.9.3` 对齐到其余 workspace 的锁定版本，lockfile 随之移除多余的 `typescript@5.8.3` 副本。
 
 - [desktop/renderer] 图标栏收起宽度改用 `SIDEBAR_RAIL_WIDTH` 常量：`DesktopLayout` 的 `--sidebar-w` 回退值不再硬编码 `'52px'`，与 SCSS 侧由既有断言保持一致。

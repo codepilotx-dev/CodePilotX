@@ -32,6 +32,7 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../../utils/errors.js'
+import { formatCompactNumber } from '../../../utils/usageFormatters.js'
 
 export type ModelTestStatus =
   | { state: 'idle' }
@@ -409,10 +410,4 @@ function ModelRowItem({
       </div>
     </article>
   )
-}
-
-function formatCompactNumber(value: number): string {
-  if (value >= 1000000) return `${Math.round(value / 100000) / 10}M`
-  if (value >= 1000) return `${Math.round(value / 1000)}K`
-  return String(value)
 }

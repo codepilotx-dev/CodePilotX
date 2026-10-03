@@ -16,6 +16,7 @@ import type {
 } from '../../../shared/types.js'
 import { upsertRecentWorkspace } from '../settings/settingsStorage.js'
 import { normalizePathForComparison } from '../../utils/pathUtils.js'
+import { errorMessageOf } from '@codepilotx/shared/errors'
 
 export const NO_WORKSPACE_DIFF = '未选择项目。'
 
@@ -462,10 +463,6 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
     setWorkspace,
     setDiff,
   }
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 function isWorkspaceUnavailableError(error: unknown): boolean {

@@ -14,6 +14,7 @@ import {
   isBuiltinSkill,
   skillScopeLabel,
 } from '../../plugins/builtinSkillPresentation.js'
+import { errorMessageOr as errorMessageOf } from '@codepilotx/shared/errors'
 
 type Props = {
   workspacePath: string | null
@@ -162,10 +163,4 @@ export function SkillDetailsDialog({
       </Dialog.Portal>
     </Dialog.Root>
   )
-}
-
-function errorMessageOf(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) return error.message
-  if (typeof error === 'string' && error) return error
-  return fallback
 }

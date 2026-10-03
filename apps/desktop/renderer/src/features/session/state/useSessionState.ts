@@ -942,10 +942,6 @@ function sameAttachmentIds(
   )
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 function buildSessionFallbackTitles(
   views: Record<string, SessionViewState>,
 ): Record<string, string> {

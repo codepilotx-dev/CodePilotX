@@ -9,6 +9,7 @@ import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
+import { errorMessageOr as errorMessage } from '@codepilotx/shared/errors'
 
 type Props = {
   onError: (message: string) => void
@@ -364,8 +365,4 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KiB`
   return `${(bytes / 1024 ** 2).toFixed(1)} MiB`
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
 }
