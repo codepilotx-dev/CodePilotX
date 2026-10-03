@@ -77,6 +77,8 @@
 
 ### Changed
 
+- [desktop/renderer] 图标栏宽度新增防漂移校验：侧栏测试读取 `layout-sidebar.scss` 的图标栏规则并断言其宽度等于 `SIDEBAR_RAIL_WIDTH`，SCSS 与 TS 任一侧改动不一致时立即失败。
+
 - [repo] 收敛 isRecord 重复实现：新增 `@codepilotx/shared/guards` 作为全仓唯一实现并导出 `./guards` 子路径，Agent、Electron、Renderer、shared 与 scripts 中的 21 份复制实现改为引用它；其中 2 份漏掉数组检查，现统一按「非 null、非数组的对象」判定，既有调用点行为不变。并行开发中的 2 个浏览器相关文件保留原实现，待其提交时一并收敛。
 
 - [repo] 接入 oxlint 静态检查并纳入 CI：补齐 oxlint 依赖与 `lint` 脚本，修复 9 处 error 级发现（`SidebarSessionHoverCard` 在提前 return 之后调用 hooks、`usePrefersReducedMotion` 用 try/catch 包裹 hooks 等真实缺陷），并把 `format:check` 与 `lint` 加入 PR 质量门禁；历史 warning 暂不阻断。

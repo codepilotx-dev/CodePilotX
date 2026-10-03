@@ -496,6 +496,20 @@ describe('sidebar shell modes', () => {
     expectSourceContains(rightDockSource, ": { kind: 'threshold', threshold: minSize / 2 }")
   })
 
+  test('图标栏宽度只在 SCSS 与 SIDEBAR_RAIL_WIDTH 各出现一次且保持一致', () => {
+    const sidebarStyles = readFileSync(
+      new URL('../src/styles/features/layout-sidebar.scss', import.meta.url),
+      'utf8',
+    )
+    const railSlot =
+      sidebarStyles.match(
+        /\.desktop-sidebar-rail-slot\[data-sidebar-layout=['"]modern['"]\]\s*\{([\s\S]*?)\n\}/,
+      )?.[1] ?? ''
+
+    // SCSS 无法读取 TS 常量，这里钉住两侧不漂移；命中宽度由 SIDEBAR_RAIL_WIDTH 提供。
+    expectSourceContains(railSlot, `width: ${SIDEBAR_RAIL_WIDTH}px;`)
+  })
+
   test('uses the 720px container boundary without changing desktop preference', () => {
     expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT)).toBe(true)
     expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT + 1)).toBe(false)
