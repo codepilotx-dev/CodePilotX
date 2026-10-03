@@ -74,6 +74,7 @@ export type ToolOrigin =
 
 export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   /** The sole canonical name exposed to the model. */
+  available?: () => boolean
   sdkName: string
   /** Internal execution name. It is never exposed to the model. */
   name?: string
@@ -1090,6 +1091,7 @@ export class ToolCatalog {
     const fileAccess = fileAccessProfileFromV4(sandboxMode)
     return [...this.tools.values()].filter(
       (tool) =>
+        (tool.available?.() ?? true) &&
         (!mode || toolAllowedInTaskMode(tool, mode)) &&
         tool.allowedProfiles.includes(profile) &&
         toolAllowedForFileAccess(tool, fileAccess),

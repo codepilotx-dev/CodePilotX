@@ -1,3 +1,4 @@
+import { computerHandlers } from './handlers/computer'
 import { type RpcHandlers, type RpcMethod } from '@codepilotx/agent-protocol'
 import { AllRpcMethods as RpcMethods } from '@codepilotx/agent-protocol/host'
 import { browserHandlers } from './handlers/browser'
@@ -44,6 +45,7 @@ import type { RpcRouter } from './RpcRouter'
 type MapRpcError = (method: RpcMethod, cause: unknown) => Error
 
 const groups: readonly RpcHandlerGroup[] = [
+  computerHandlers,
   browserHandlers,
   configHandlers,
   systemHandlers,

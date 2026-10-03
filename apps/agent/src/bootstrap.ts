@@ -1,3 +1,5 @@
+import { ComputerUseService } from './computer/ComputerUseService'
+import { computerToolDefinitions } from './tool/Computer/definition'
 import { Effect } from 'effect'
 import { loadConfig } from './config/Config'
 import { ConfigService } from './config/ConfigService'
@@ -499,6 +501,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     })
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
+    const computer = new ComputerUseService(configService, db, hub)
+    for (const definition of computerToolDefinitions(computer)) tools.register(definition)
     if (browser.available())
       for (const definition of browserToolDefinitions(browser)) tools.register(definition)
     tools.register(createTerminalReadDefinition(terminalOutput))
@@ -743,6 +747,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       localContextPaths,
       sessionGroups,
       threadGoals,
+      computer,
     )
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite)
     const planApprovals = new PlanApprovalService(db, hub, threads)
@@ -1017,6 +1022,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       suggestions,
       usage,
       turnPatches,
+      computer,
       browser,
       terminalContext,
       terminalOutput,
@@ -1053,6 +1059,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const dispose = async () => {
       if (disposed) return
       disposed = true
+      computer.dispose()
       browser.dispose()
       await speech.dispose()
       automationScheduler?.dispose()

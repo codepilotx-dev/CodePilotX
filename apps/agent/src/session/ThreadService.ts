@@ -144,6 +144,7 @@ export class ThreadService {
     private readonly localContextPaths?: LocalContextPathService,
     private readonly sessionGroups?: SessionGroupService,
     private readonly threadGoals?: ThreadGoalService,
+    private readonly computerControl?: { enabled(): boolean; available(): boolean },
   ) {
     this.resumeCheckpoints =
       resumeCheckpoints ??
@@ -477,6 +478,7 @@ export class ThreadService {
         projectSourceCatalog && projectSourceCatalog.total > 0
           ? [projectSourceCatalog.content]
           : [],
+      ...(this.computerControl ? { computerControl: this.computerControl } : {}),
       userMessage,
     })
     const projectSettingsInstructions = project?.settings?.instructions?.trim()
@@ -1264,6 +1266,7 @@ export class ThreadService {
           projectSourceCatalog && projectSourceCatalog.total > 0
             ? [projectSourceCatalog.content]
             : [],
+        ...(this.computerControl ? { computerControl: this.computerControl } : {}),
         externalData: [
           ...localContextReferences.map(
             (reference) =>

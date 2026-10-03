@@ -102,6 +102,7 @@ export interface TransportDependencies {
   usage: UsageService
   turnPatches: TurnPatchService
   browser?: import('../browser/BrowserService').BrowserService
+  computer?: import('../computer/ComputerUseService').ComputerUseService
   terminalContext: TerminalContextService
   terminalOutput: TerminalOutputMirror
   localEnvironment: LocalEnvironmentService
@@ -526,6 +527,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     mcp: dependencies.mcp,
     turnPatches: dependencies.turnPatches,
     ...(dependencies.browser ? { browser: dependencies.browser } : {}),
+    ...(dependencies.computer ? { computer: dependencies.computer } : {}),
     terminalContext: dependencies.terminalContext,
     terminalOutput: dependencies.terminalOutput,
     localEnvironment: dependencies.localEnvironment,

@@ -1,3 +1,4 @@
+import type { ComputerUseService } from '../../computer/ComputerUseService'
 import {
   PermissionConfigSchema,
   ThreadSettingsPatchSchema,
@@ -127,6 +128,7 @@ import { AllRpcMethods as RpcMethods } from '@codepilotx/agent-protocol/host'
 import type { BrowserService } from '../../browser/BrowserService'
 
 export type RpcRouterDependencies = {
+  computer?: ComputerUseService
   browser?: BrowserService
   config: ConfigService
   db: AgentDatabase

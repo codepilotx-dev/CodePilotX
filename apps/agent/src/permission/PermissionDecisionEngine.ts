@@ -154,6 +154,16 @@ export class PermissionDecisionEngine {
         ? review(`granular 策略要求审批 ${hardCapability} capability`)
         : deny(`granular 策略禁止 ${hardCapability} capability`)
     }
+    // A not-yet-granted application is an elevation like any other. It routes
+    // through the same policy gates, but the prompt must say what the grant
+    // actually means: screenshots enter the chat and the app may be fronted.
+    const computerApp = invocation.authorizationScope?.computerApp
+    if (computerApp && invocation.authorizationScope?.ruleRequiresApproval) {
+      if (policy === 'never') return deny(`never 策略禁止新的电脑应用授权：${computerApp.name}`)
+      return isGranularApprovalPolicy(policy) && !policy[approvalCapability(invocation, tool)]
+        ? deny(`细粒度策略禁止新的电脑应用授权：${computerApp.name}`)
+        : review(`允许在此聊天中读取和操作应用：${computerApp.name}。截图会进入聊天，必要时会短暂切到前台。`)
+    }
     if (tool.approvalStrategy === 'never-review') return allow('工具声明为无需审批')
     if (tool.approvalStrategy === 'always-review')
       return invocation.permissionConfig.approvalPolicy === 'never'

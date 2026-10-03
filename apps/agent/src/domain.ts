@@ -229,6 +229,7 @@ export interface ToolReviewSummary {
 }
 
 export interface ToolAuthorizationScope {
+  computerApp?: { name: string }
   affectedPaths: readonly ToolAffectedPath[]
   /** SHA-256 over the inspected input and its canonical mutation scope. */
   fingerprint: string
