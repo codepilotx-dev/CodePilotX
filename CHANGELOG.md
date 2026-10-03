@@ -9,6 +9,12 @@
 
 ### Added
 
+- [desktop/browser] 浏览器批注支持网页内元素、文本和区域选择、Shift 多选、目标上下文与可选脱敏 HTML；反馈和截图原子保存到指定聊天草稿，统一发送 JSON 清单及 PNG，聊天中展示批注卡片。导航、接管和文档变化使选择失效，草稿切换保留，截图失败可重试或仅保存文字。
+
+- [agent/desktop/protocol] 新增 CPX-CUA 电脑控制：把 cua-driver 的 Windows UIA、窗口枚举、截图和后台输入源码纳入 `apps/desktop/native/cpx-cua` 并构建为独立 `cpx-cua.exe`（`bun run build:cua`，打包放入 ASAR 外的 `resources/cua`）。调用链为 `ComputerApps`/`ComputerRead`/`ComputerAction` 工具 → `ComputerUseService` → `computer/*` v4 宿主方法 → Electron 宿主 → CPX-CUA，新增 `computer.use.v1`/`computer.host.v1`、`computer/changed` 事件和 `thread-rpc-v4` 兼容的 `computer/*` 方法；宿主发放窗口引用与观察引用，按 AUMID 或规范化可执行文件路径解析应用身份并按应用授权，Plan 模式只发现和读取已授权窗口，同一桌面同时只允许一个聊天回合控制，停止、超时和宿主断连都会使引用与原生进程失效且不重放。设置页新增功能开关与应用授权管理，Composer 显示当前控制状态和停止按钮。
+
+- [agent] 电脑控制提示词按可用状态注入：就绪时告知模型可用 `ToolSearch` 激活 `ComputerApps`/`ComputerRead`/`ComputerAction`，已开启但原生运行时未连接时提示重启桌面应用，未开启时指明「设置 → 集成 → 电脑控制」入口；电脑工具描述补齐「电脑控制」等检索词，避免模型因延迟暴露而否认具备图形界面操作能力。
+
 - [agent/desktop/browser] 补齐页面查找、打印/PDF、网页缩放、设备模拟和可见区域截图；新增下载保存偏好与管理、跨项目浏览历史及分类清理，history 51→52 迁移保留原数据，删除下载记录不删除文件。
 
 - [agent/desktop/browser] 内置浏览器升级为保留登录态的工作台多标签，新增聊天归属、后台 Agent 操作、全局站点授权、页面暂停与恢复；复用 v4 宿主通道和 Artifact 截图链路。
@@ -265,6 +271,7 @@
 
 ### Fixed
 
+- [agent/desktop/protocol] 修复电脑控制停止被原生调用阻塞、启动握手期间窗口引用失效、拖拽未限定目标窗口及元素 token 未进入模型结果的问题；上下文浮层新增电脑控制、设置授权和权限切换入口，保留 never 不弹框的语义，设置可先发现已运行应用并手动授权。
 - [agent/desktop] 修复浏览器菜单缩放竖排与无图标占位、Host RPC 初始化解析空响应、旧 Agent 缺少浏览管理能力时页面挂载失败及并发恢复标签失效；AI 对话可通过 BrowserTabs 接管已有标签，工具栏仅保留人工接管入口，继续遵守站点授权和聊天控制边界。
 
 - [agent/desktop/browser] 修复 history 50 → 51 迁移重复创建浏览器表导致的升级失败，保留已有记录与未知字段；同步相关 schema 断言和浏览器仅停靠右栏、底栏的能力测试，修正格式并消除启动测试对引号风格的依赖。
