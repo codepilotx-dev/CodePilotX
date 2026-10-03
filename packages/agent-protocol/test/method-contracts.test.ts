@@ -695,6 +695,24 @@ const browserTab = {
   revision: 1,
 } as const
 const browserHost = { windowId: 'window:1', instanceId: 'instance:1' } as const
+const computerHostId = 'instance:1'
+const computerWindow = {
+  ref: 'window:1',
+  appId: 'aumid:notepad',
+  name: '记事本',
+  pid: 42,
+  windowId: '7',
+  processKey: '1:2',
+} as const
+const computerState: RpcResult<'computer/state'> = {
+  enabled: true,
+  available: true,
+  ownerThreadId: 'thread:1',
+  ownerTurnId: 'turn:1',
+  targetName: '记事本',
+  busy: false,
+  permissions: [{ appId: computerWindow.appId, name: computerWindow.name, decision: 'allow' }],
+}
 const fixtures = {
   'browser/history/list': methodFixture(
     'browser/history/list',
@@ -823,6 +841,50 @@ const fixtures = {
     { ok: true },
   ),
   'browser/host/release': methodFixture('browser/host/release', browserHost, { ok: true }),
+  'computer/state': methodFixture('computer/state', {}, computerState),
+  'computer/apps': methodFixture('computer/apps', {}, { apps: [] }),
+  'computer/configure': methodFixture(
+    'computer/configure',
+    { appId: computerWindow.appId, decision: 'deny' },
+    computerState,
+  ),
+  'computer/stop': methodFixture('computer/stop', {}, { ok: true }),
+  'computer/host/register': methodFixture(
+    'computer/host/register',
+    { instanceId: computerHostId, available: true },
+    computerState,
+  ),
+  'computer/host/next': methodFixture(
+    'computer/host/next',
+    { instanceId: computerHostId },
+    {
+      enabled: true,
+      generation: 'generation:1',
+      command: {
+        requestId: 'request:1',
+        generation: 'generation:1',
+        kind: 'read',
+        session: 'cpx-turn:1',
+        window: computerWindow,
+        operation: { action: 'click', elementToken: 's00000001:4', delivery: 'background' },
+      },
+    },
+  ),
+  'computer/host/complete': methodFixture(
+    'computer/host/complete',
+    {
+      instanceId: computerHostId,
+      requestId: 'request:1',
+      generation: 'generation:1',
+      result: { text: '完成', snapshotId: 's00000001', elementTokens: ['s00000001:4'] },
+    },
+    { ok: true },
+  ),
+  'computer/host/release': methodFixture(
+    'computer/host/release',
+    { instanceId: computerHostId },
+    { ok: true },
+  ),
   'planApproval/read': methodFixture(
     'planApproval/read',
     {
@@ -5522,7 +5584,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(278)
+    expect(methods).toHaveLength(286)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -5890,7 +5952,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(262)
+    expect(Object.keys(RpcMethods)).toHaveLength(266)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

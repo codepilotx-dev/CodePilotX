@@ -700,3 +700,47 @@ describe('Prompt cache runtime policy', () => {
     expect(upstream.payload).toBe(upstreamPayload)
   })
 })
+
+describe('电脑控制提示', () => {
+  const compose = (state: { enabled(): boolean; available(): boolean } | undefined) =>
+    new PromptComposer().compose({
+      threadID: 'thread-computer',
+      mode: 'chat',
+      profile: 'main',
+      exposedTools: [],
+      sections: createPromptSections({
+        permissionInstructions: 'resolved permission',
+        mode: 'chat',
+        profile: 'main',
+        ...(state ? { computerControl: state } : {}),
+        userMessage: 'work',
+      }),
+    }).instructions
+
+  test('就绪时告知能力与延迟工具入口', () => {
+    const instructions = compose({ enabled: () => true, available: () => true })
+    expect(instructions).toContain('本机电脑控制已就绪')
+    expect(instructions).toContain('ToolSearch')
+    expect(instructions).toContain('ComputerApps')
+    expect(instructions).toContain('请求用户授权')
+    expect(instructions).not.toContain('未开启')
+  })
+
+  test('已开启但运行时未连接时指出需要重启桌面应用', () => {
+    const instructions = compose({ enabled: () => true, available: () => false })
+    expect(instructions).toContain('原生运行时尚未连接')
+    expect(instructions).toContain('重启 CodePilotX 桌面应用')
+    expect(instructions).not.toContain('本机电脑控制已就绪')
+  })
+
+  test('未开启时告诉模型入口而不是否认能力', () => {
+    const instructions = compose({ enabled: () => false, available: () => false })
+    expect(instructions).toContain('当前未开启')
+    expect(instructions).toContain('设置 → 集成 → 电脑控制')
+    expect(instructions).toContain('不要回答本机不具备该能力')
+  })
+
+  test('没有电脑控制服务时不注入该提示', () => {
+    expect(compose(undefined)).not.toContain('电脑控制')
+  })
+})
