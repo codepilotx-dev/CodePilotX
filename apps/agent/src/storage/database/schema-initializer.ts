@@ -10,6 +10,7 @@ import {
 import { THREAD_GOAL_LEDGER_SCHEMA } from '../repositories/thread-goal-ledger-repository'
 import { THREAD_GOAL_CONTINUATION_SCHEMA } from '../repositories/thread-goal-continuation-repository'
 import { BROWSER_SCHEMA } from '../repositories/browser-repository'
+import { BROWSER_DATA_SCHEMA } from '../repositories/browser-data-repository'
 import { THREAD_WORKTREE_OPERATION_SCHEMA } from '../repositories/thread-worktree-operation-repository'
 
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION, SCHEMA_VERSION } from './schema'
@@ -156,6 +157,7 @@ export const FINAL_SCHEMA = [
   ...THREAD_GOAL_CONTINUATION_SCHEMA,
   ...THREAD_WORKTREE_OPERATION_SCHEMA,
   ...BROWSER_SCHEMA,
+  ...BROWSER_DATA_SCHEMA,
   'CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)',
   'CREATE INDEX agent_compactions_thread ON agent_compactions(thread_id, created_at DESC)',
   'CREATE UNIQUE INDEX agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL',
@@ -1528,6 +1530,7 @@ class SchemaInitializer {
               if (columns.length && !columns.some((column) => column.name === 'skills'))
                 this.sqlite.exec('ALTER TABLE inputs ADD COLUMN skills TEXT')
             },
+            51: () => this.sqlite.exec(BROWSER_DATA_SCHEMA.join(';')),
             50: () =>
               this.sqlite.exec(
                 BROWSER_SCHEMA.map((statement) =>

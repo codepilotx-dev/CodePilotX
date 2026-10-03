@@ -14,6 +14,7 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ConfigService } from '../config/ConfigService'
 import { BrowserRepository } from '../storage/repositories/browser-repository'
+import { BrowserDataService } from './BrowserDataService'
 
 type Host = { instanceId: string; connectionId: string; seenAt: number; wake?: () => void }
 type Pending = {
@@ -39,6 +40,7 @@ export function browserUrl(input: string): string {
 }
 export class BrowserService {
   readonly repository: BrowserRepository
+  readonly data: BrowserDataService
   private readonly tabs = new Map<string, BrowserTab>()
   private readonly hosts = new Map<string, Host>()
   private readonly pending = new Map<string, Pending>()
@@ -48,6 +50,7 @@ export class BrowserService {
     private readonly config: ConfigService,
   ) {
     this.repository = new BrowserRepository(db)
+    this.data = new BrowserDataService(db, hub, () => this.wakeAll())
     for (const tab of this.repository.list())
       this.tabs.set(tab.tabId, {
         ...tab,
@@ -60,6 +63,57 @@ export class BrowserService {
   }
   available() {
     return this.repository.available()
+  }
+  preferences() {
+    const desktop = this.config.snapshot().desktop as Record<string, unknown> | undefined
+    return {
+      downloadSaveMode:
+        desktop?.browserDownloadSaveMode === 'ask' ? ('ask' as const) : ('downloads' as const),
+    }
+  }
+  async setPreferences(downloadSaveMode: 'downloads' | 'ask') {
+    await this.config.batchWrite({
+      target: { kind: 'user' },
+      edits: [{ keyPath: ['desktop', 'browserDownloadSaveMode'], value: downloadSaveMode }],
+    })
+    return this.preferences()
+  }
+  async removeHistory(id?: string) {
+    this.data.history('', undefined, 1)
+    if (!id)
+      for (const tab of this.list()) {
+        this.cancelTab(tab.tabId)
+        await this.save({
+          ...tab,
+          busy: false,
+          historyEpoch: (tab.historyEpoch ?? 0) + 1,
+          history: tab.url === 'about:blank' ? [] : [{ url: tab.url, title: tab.title }],
+          historyIndex: 0,
+          canGoBack: false,
+          canGoForward: false,
+        })
+      }
+    await this.data.change('history', () => this.data.repository.removeVisits(id))
+  }
+  async recordVisit(
+    windowId: string,
+    instanceId: string,
+    generation: string,
+    historyEpoch: number,
+    visit: import('@codepilotx/agent-protocol').BrowserVisit,
+    updateOnly?: boolean,
+  ) {
+    this.host(windowId, instanceId)
+    const tab = this.require(visit.tabId)
+    if (tab.windowId !== windowId || tab.generation !== generation)
+      throw new AgentError('PERMISSION_DENIED', '浏览器页面已失效', 409)
+    if ((tab.historyEpoch ?? 0) !== historyEpoch) return
+    const url = browserUrl(visit.url)
+    if (!url.startsWith('http')) return
+    await this.data.visit(
+      { ...visit, url, title: visit.title.slice(0, 500), sourceThreadId: tab.sourceThreadId },
+      updateOnly,
+    )
   }
   list(windowId?: string) {
     return [...this.tabs.values()]
@@ -191,6 +245,32 @@ export class BrowserService {
     this.cancelTab(tabId)
     return this.save({ ...tab, controlThreadId: threadId, busy: false })
   }
+  inspectTakeover(threadId: string, tabId: string) {
+    const tab = this.require(tabId)
+    if (tab.controlThreadId && tab.controlThreadId !== threadId)
+      throw new AgentError('PERMISSION_DENIED', '标签正由其他聊天控制，请先由用户接管', 403)
+    return {
+      origin: null,
+      fingerprint: createHash('sha256')
+        .update(
+          JSON.stringify({
+            threadId,
+            tabId,
+            control: tab.controlThreadId,
+            generation: tab.generation,
+          }),
+        )
+        .digest('hex'),
+      affectedPaths: [],
+      ruleRequiresApproval: false,
+    }
+  }
+  async takeover(threadId: string, tabId: string) {
+    this.inspectTakeover(threadId, tabId)
+    const tab = this.require(tabId)
+    if (tab.controlThreadId === threadId) return tab
+    return this.control(tabId, threadId)
+  }
   async close(tabId: string) {
     this.require(tabId)
     this.cancelTab(tabId)
@@ -259,6 +339,7 @@ export class BrowserService {
       command: next?.command ?? null,
       tabs: this.list(windowId),
       permissions: this.permissions(),
+      dataRevision: this.data.revision,
     }
   }
   complete(
@@ -302,11 +383,17 @@ export class BrowserService {
       'error',
       'documentId',
       'viewport',
+      'zoomFactor',
+      'device',
       'lastUsedAt',
     ] as const)
       if (p && key in p) values[key] = p[key]
     if (typeof values.url === 'string') values.url = browserUrl(values.url)
-    if (Array.isArray(p?.history))
+    if ((p?.historyEpoch ?? 0) !== (tab.historyEpoch ?? 0)) {
+      delete values.canGoBack
+      delete values.canGoForward
+    }
+    if (Array.isArray(p?.history) && (p.historyEpoch ?? 0) === (tab.historyEpoch ?? 0))
       Object.assign(values, this.repository.normalizeHistory(p.history, Number(p.historyIndex)))
     return this.save(Schema.decodeUnknownSync(BrowserTabSchema)({ ...tab, ...values }))
   }
@@ -345,7 +432,7 @@ export class BrowserService {
       throw new AgentError('INVALID_REQUEST', '导航操作缺少网址', 400)
     const tab = tabId ? this.require(tabId) : undefined
     if (tab && tab.controlThreadId !== threadId)
-      throw new AgentError('PERMISSION_DENIED', '请先将此标签交给当前聊天', 403)
+      throw new AgentError('PERMISSION_DENIED', '请先用 BrowserTabs takeover 接管此标签', 403)
     const url = operation?.url ? browserUrl(operation.url) : tab?.url
     const origin = url && url !== 'about:blank' ? new URL(url).origin : null
     const permission = this.permissions().find((item) => item.origin === origin)

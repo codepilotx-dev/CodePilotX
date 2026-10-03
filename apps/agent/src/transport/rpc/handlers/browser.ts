@@ -19,6 +19,42 @@ export const browserHandlers: RpcHandlerGroup = {
         browser.host(params.windowId, params.instanceId, context.connectionId)
     }
     switch (method) {
+      case 'browser/history/list':
+        return browser.data.history(params.query, params.cursor, params.limit)
+      case 'browser/history/remove':
+        await browser.removeHistory(params.id)
+        return { ok: true }
+      case 'browser/downloads/list':
+        return { downloads: browser.data.downloads() }
+      case 'browser/downloads/remove':
+        await browser.data.change('downloads', () =>
+          browser.data.repository.removeDownloads(params.id),
+        )
+        return { ok: true }
+      case 'browser/preferences/get':
+        return browser.preferences()
+      case 'browser/preferences/set':
+        return browser.setPreferences(params.downloadSaveMode)
+      case 'browser/host/visit':
+        await browser.recordVisit(
+          params.windowId,
+          params.instanceId,
+          params.generation,
+          params.historyEpoch,
+          params.visit,
+          params.updateOnly,
+        )
+        return { ok: true }
+      case 'browser/host/download':
+        await browser.data.download(params.download, params.filePath)
+        return { ok: true }
+      case 'browser/host/download-path':
+        return { filePath: browser.data.path(params.id) }
+      case 'browser/host/download-recover':
+        await browser.data.change('downloads', () =>
+          browser.data.repository.recoverDownloads(params.profileId, params.runId),
+        )
+        return { ok: true }
       case 'browser/list':
         return { tabs: browser.list(), permissions: browser.permissions() }
       case 'browser/create':

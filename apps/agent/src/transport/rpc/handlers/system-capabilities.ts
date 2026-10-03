@@ -1,4 +1,5 @@
 import { BrowserRepository } from '../../../storage/repositories/browser-repository'
+import { BrowserDataRepository } from '../../../storage/repositories/browser-data-repository'
 import { Capabilities, type ProtocolCapability } from '@codepilotx/agent-protocol'
 import type { AgentDatabase } from '../../../storage/database/AgentDatabase'
 import {
@@ -32,6 +33,7 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
     (capability): capability is ProtocolCapability =>
       ((capability !== 'browser.manage.v1' && capability !== 'browser.host.v1') ||
         new BrowserRepository(db).available()) &&
+      (capability !== 'browser.data.v1' || new BrowserDataRepository(db).available()) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&
       (capability !== 'plan.approval.v1' || db.repositories.planApprovals.available()) &&
       (capability !== 'thread.goal.v1' ||
