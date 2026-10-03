@@ -1,3 +1,4 @@
+import { isRecord } from './guards'
 export const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
   consumePending: 'desktop-deep-link:consume-pending',
   activated: 'desktop-deep-link:activated',
@@ -32,8 +33,4 @@ export function isDesktopThreadDeepLinkPayload(
   value: unknown,
 ): value is DesktopThreadDeepLinkPayload {
   return normalizeDesktopThreadDeepLinkPayload(value) !== null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

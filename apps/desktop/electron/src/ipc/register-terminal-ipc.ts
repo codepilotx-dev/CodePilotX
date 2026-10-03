@@ -12,6 +12,7 @@ import {
 import type { TerminalManager } from '../terminal/terminal-manager.js'
 import { TerminalError } from '../terminal/terminal-errors.js'
 import { requireRunTerminalActionInput } from './terminal-action-input.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 interface TerminalIpcDependencies {
   manager: TerminalManager
@@ -176,10 +177,6 @@ function isIdentifier(value: unknown): value is string {
     value.length <= 200 &&
     /^[A-Za-z0-9._:-]+$/.test(value)
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isExactRecord(value: unknown, keys: readonly string[]): value is Record<string, unknown> {

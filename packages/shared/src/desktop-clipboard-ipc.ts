@@ -1,3 +1,4 @@
+import { isRecord } from './guards'
 export const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
   writeText: 'clipboard:write-text',
   writeRichText: 'clipboard:write-rich-text',
@@ -63,10 +64,6 @@ export function requireDesktopClipboardRichTextInput(
   const input = normalizeDesktopClipboardRichTextInput(value)
   if (!input) throw new Error('剪贴板富文本输入无效')
   return input
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function utf8ByteLength(value: string): number {

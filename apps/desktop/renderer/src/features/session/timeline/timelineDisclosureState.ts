@@ -2,6 +2,7 @@ import {
   createKeyedDisclosureStore,
   type KeyedDisclosureStore,
 } from '../../../components/ui/keyedDisclosureStore.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const STORAGE_PREFIX = 'conversation.timeline-disclosures.v1.'
 const MAX_EXPANDED_IDS = 1_000
@@ -138,8 +139,4 @@ function parseSnapshot(value: unknown): TimelineDisclosureSnapshotV1 | null {
 
 function storageKey(threadId: string): string {
   return STORAGE_PREFIX + threadId
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

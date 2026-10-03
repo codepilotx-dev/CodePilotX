@@ -1,4 +1,5 @@
 import type { PromptCacheRuntimePolicy } from '../../prompt/PromptCache'
+import { isRecord } from '@codepilotx/shared/guards'
 
 type JsonRecord = Record<string, unknown>
 
@@ -7,9 +8,6 @@ export interface PromptCacheApplyResult {
   appliedBreakpoints: number
   fallbackReason?: string
 }
-
-const isRecord = (value: unknown): value is JsonRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const withoutBreakpoint = (value: JsonRecord) => {
   if (!Object.hasOwn(value, 'prompt_cache_breakpoint')) return value

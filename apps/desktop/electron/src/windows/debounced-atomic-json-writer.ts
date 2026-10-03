@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { isRecord } from '@codepilotx/shared/guards'
+
+export { isRecord }
 
 export interface StateLogger {
   warn(event: string, fields?: Record<string, unknown>): void
@@ -103,10 +106,6 @@ export function intersectionArea(left: DesktopWindowBounds, right: DesktopWindow
 
 export function clamp(value: number, minimum: number, maximum: number): number {
   return Math.round(Math.min(maximum, Math.max(minimum, value)))
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function isMissingFileError(error: unknown): boolean {

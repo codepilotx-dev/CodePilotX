@@ -23,6 +23,7 @@ import {
   type WorkbenchLayoutState,
   type WorkbenchPartVisibility,
 } from './workbenchLayoutState.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 export { WORKBENCH_LAYOUT_STORAGE_KEY, WORKBENCH_LAYOUT_SCHEMA_VERSION }
 
@@ -298,10 +299,6 @@ function parseVisibility(value: unknown): WorkbenchPartVisibility | null {
     auxiliaryPanel: value.auxiliaryPanel,
     bottomPanel: value.bottomPanel,
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value != null
 }
 
 function parseUnitInterval(value: string | null): number | null {

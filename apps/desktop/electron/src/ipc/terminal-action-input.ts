@@ -1,5 +1,6 @@
 import type { RunDesktopTerminalActionInput } from '@codepilotx/shared/desktop-terminal-ipc'
 import { TerminalError } from '../terminal/terminal-errors.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 export function requireRunTerminalActionInput(value: unknown): RunDesktopTerminalActionInput {
   if (
@@ -39,8 +40,4 @@ function isTerminalSize(cols: unknown, rows: unknown) {
     Number(rows) >= 1 &&
     Number(rows) <= 300
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

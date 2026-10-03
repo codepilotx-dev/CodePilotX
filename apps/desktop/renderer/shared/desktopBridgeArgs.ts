@@ -1,4 +1,5 @@
 import type { DesktopApiMethod } from './ipcChannels.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const undefinedMarkerKey = '__desktopBrowserDebugUndefined'
 const undefinedMarker = { [undefinedMarkerKey]: true } as const
@@ -41,8 +42,4 @@ function decodeDesktopBridgeValue(value: unknown): unknown {
 
 function isUndefinedMarker(value: unknown): boolean {
   return isRecord(value) && value[undefinedMarkerKey] === true && Object.keys(value).length === 1
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }

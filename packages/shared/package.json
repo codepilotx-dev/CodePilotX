@@ -33,7 +33,8 @@
     "./session-group": "./src/session-group.ts",
     "./thread": "./src/thread/index.ts",
     "./thread-reference": "./src/thread-reference.ts",
-    "./thread-result-card": "./src/thread-result-card.ts"
+    "./thread-result-card": "./src/thread-result-card.ts",
+    "./guards": "./src/guards.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,3 +1,4 @@
+import { isRecord } from '@codepilotx/shared/guards'
 export type AskUserQuestionOption = {
   label: string
   description: string
@@ -302,10 +303,6 @@ export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQu
     })
   }
   return questions
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function stringValue(value: unknown): string | null {

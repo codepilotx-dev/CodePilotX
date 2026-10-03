@@ -1,3 +1,4 @@
+import { isRecord } from '@codepilotx/shared/guards'
 export const BUNDLE_BUDGET_WARNING_PERCENT = 0.01
 export const BUNDLE_BUDGET_WARNING_FLOOR_BYTES = 8 * 1024
 export const BUNDLE_BUDGET_FAILURE_PERCENT = 0.05
@@ -85,10 +86,6 @@ export function parseBundleBudgetBaseline(value: unknown): BundleBudgetBaseline 
     acceptedReason: value.acceptedReason,
     metrics,
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isNonEmptyString(value: unknown): value is string {

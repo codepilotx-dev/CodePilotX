@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import type { DesktopAttachmentSaveResult } from '@codepilotx/shared/desktop-attachment-ipc'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_TEXT_BYTES = 1024 * 1024
@@ -139,8 +140,4 @@ function appendCollisionSuffix(fileName: string, suffix: number): string {
 
 function isFileExistsError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

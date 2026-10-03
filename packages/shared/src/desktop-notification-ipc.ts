@@ -1,3 +1,4 @@
+import { isRecord } from './guards'
 export const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
   show: 'desktop-notification:show',
   activated: 'desktop-notification:activated',
@@ -94,8 +95,4 @@ function isOpaqueIdentifier(value: unknown): value is string {
     value.length <= 200 &&
     /^[A-Za-z0-9._:-]+$/.test(value)
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

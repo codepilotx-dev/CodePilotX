@@ -1,3 +1,4 @@
+import { isRecord } from './guards'
 export const PET_OVERLAY_CHANNELS = {
   open: 'pet-overlay:open',
   hide: 'pet-overlay:hide',
@@ -71,8 +72,4 @@ export function normalizeDesktopPetPresentation(value: unknown): DesktopPetPrese
     selectedPetId,
     size: Math.min(PET_AVATAR_MAX_SIZE, Math.max(PET_AVATAR_MIN_SIZE, rawSize)),
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

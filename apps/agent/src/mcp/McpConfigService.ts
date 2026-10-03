@@ -8,6 +8,7 @@ import {
   McpSettingsRepository,
   type McpSettingsState,
 } from '../storage/repositories/mcp-settings-repository'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const SERVER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -59,9 +60,6 @@ const normalizedToolPolicies = (tools: McpServerDeclaration['tools']) => {
   )
   return Object.keys(normalized).length ? normalized : undefined
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const configLeaves = (
   value: Record<string, unknown>,

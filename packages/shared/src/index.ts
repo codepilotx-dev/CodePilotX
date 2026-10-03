@@ -1,4 +1,5 @@
 export * from './api'
+export * from './guards'
 export * from './automation'
 export * from './calendar'
 export * from './desktop-theme'

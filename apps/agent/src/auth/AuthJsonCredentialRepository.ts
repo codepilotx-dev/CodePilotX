@@ -14,6 +14,7 @@ import {
   type ProviderCredentialRepository,
   type ProviderCredentialSummary,
 } from './ProviderCredentialRepository'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const FORMAT = 'codepilotx-provider-auth'
 const SCHEMA_VERSION = 1
@@ -59,9 +60,6 @@ const healthDefault = (): ApiKeyHealth => ({
   errorCategory: null,
   cooldownUntil: null,
 })
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value)
 
 const requiredString = (value: unknown, field: string) => {
   if (typeof value !== 'string' || value.length === 0) {

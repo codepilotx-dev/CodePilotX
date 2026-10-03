@@ -27,6 +27,7 @@ export {
   DEFAULT_APPEARANCE_SETTINGS,
   DEFAULT_CHROME_THEMES,
 } from '@codepilotx/shared/desktop-theme'
+import { isRecord } from '@codepilotx/shared/guards'
 
 type HexColor = DesktopHexColor
 type AppearanceVariant = DesktopThemeVariant
@@ -35,10 +36,6 @@ type RecordValue = Record<string, unknown>
 const CURRENT_APPEARANCE_SETTINGS_VERSION = 7
 const MIGRATION_RECORD_VERSION = 1
 const MIGRATION_ID = 'ui-design-visual-theme'
-
-function isRecord(value: unknown): value is RecordValue {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback

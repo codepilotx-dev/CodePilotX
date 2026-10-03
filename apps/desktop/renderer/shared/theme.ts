@@ -19,6 +19,7 @@ import {
   type CodexHighlightThemeSlug,
   isCodexHighlightThemeSlug,
 } from './codexThemes/manifest.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
@@ -237,8 +238,4 @@ function clampNumber(value: unknown, minimum: number, maximum: number, fallback:
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(maximum, Math.max(minimum, Math.round(value)))
     : fallback
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

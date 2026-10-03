@@ -9,6 +9,7 @@ import type {
   DesktopComposerPathPreview,
   DesktopComposerPathReadInput,
 } from '@codepilotx/shared/desktop-attachment-ipc'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const MAX_GRANTED_PATHS_PER_CALL = 64
 const MAX_PATH_LENGTH = 32_767
@@ -361,10 +362,6 @@ function publicGrant(grant: StoredGrant): DesktopComposerPathGrant {
     mediaType: grant.mediaType,
     sizeBytes: grant.sizeBytes,
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 const MEDIA_TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
