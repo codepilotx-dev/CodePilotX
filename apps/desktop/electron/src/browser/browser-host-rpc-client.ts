@@ -9,12 +9,14 @@ import type { SidecarSupervisor } from '../sidecar/supervisor.js'
 const methods = { ...BrowserRpcMethods, ...BrowserHostRpcMethods }
 type Method = keyof typeof methods
 export class BrowserHostRpcClient {
+  readonly capabilities = new Set<string>()
   private connectionId?: string
   private initialization?: Promise<void>
   private sequence = 0
   constructor(private readonly getSupervisor: () => SidecarSupervisor | undefined) {}
   invalidate() {
     this.connectionId = undefined
+    this.capabilities.clear()
   }
   async call<M extends Method>(method: M, params: RpcParams<M>): Promise<RpcResult<M>> {
     const supervisor = this.getSupervisor()
@@ -25,6 +27,9 @@ export class BrowserHostRpcClient {
       })
       await this.initialization
     }
+    const capability = methods[method].capability
+    if (capability && !this.capabilities.has(capability))
+      throw new Error('Agent 未提供此浏览器能力')
     const payload = await this.request(supervisor, method, params)
     if (payload.error) {
       if (payload.error.data?.code === 'UNAUTHORIZED') this.invalidate()
@@ -63,7 +68,7 @@ export class BrowserHostRpcClient {
         authority: 'desktop-host',
       },
       protocols: ['thread-rpc-v4'],
-      capabilities: ['rpc.typed.v1', 'browser.host.v1', 'browser.manage.v1'],
+      capabilities: ['rpc.typed.v1', 'browser.host.v1', 'browser.manage.v1', 'browser.data.v1'],
       interactionDelivery: 'observe',
     })
     if (
@@ -71,7 +76,24 @@ export class BrowserHostRpcClient {
       !(payload.result as { capabilities?: string[] })?.capabilities?.includes('browser.host.v1')
     )
       throw new Error('Agent 未提供浏览器能力')
-    this.connectionId = (payload.result as { connectionId: string }).connectionId
-    await this.request(supervisor, 'initialized', { protocol: 'thread-rpc-v4' })
+    const connectionId = (payload.result as { connectionId: string }).connectionId
+    const response = await supervisor.request('/rpc', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CodePilotX-Connection-ID': connectionId,
+      },
+      signal: AbortSignal.timeout(35_000),
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'initialized',
+        params: { protocol: 'thread-rpc-v4' },
+      }),
+    })
+    if (response.status !== 204) throw new Error('无法完成浏览器 Agent 连接')
+    this.connectionId = connectionId
+    this.capabilities.clear()
+    for (const capability of (payload.result as { capabilities: string[] }).capabilities)
+      this.capabilities.add(capability)
   }
 }
