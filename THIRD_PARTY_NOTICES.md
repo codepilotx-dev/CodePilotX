@@ -28,6 +28,15 @@ runtime and llama.cpp/ggml components are MIT-licensed, and miniaudio is used
 under its MIT No Attribution option. See `third_party/funasr/` for source,
 version and license details.
 
+CodePilotX includes the CPX-CUA Windows computer-control runtime vendored from
+cua-driver (trycua/cua) at commit `32b34fbc75abeb96af77df49ae0da72328e67707`.
+The imported Rust workspace provides the Windows UI Automation, window
+enumeration, screenshot and background-input layers; CodePilotX maintains its
+own `cpx-cua.exe` entry point, tool allowlist and host-resolved application
+identity on top of it. These portions are licensed under the MIT License. See
+`third_party/cpx-cua/LICENSE`, `third_party/cpx-cua/UPSTREAM.md` and
+`third_party/cpx-cua/NATIVE_NOTICES.md`.
+
 CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
 including Windows ConPTY integration. node-pty is licensed under the MIT
 License; its license notice is distributed with the packaged dependency.
