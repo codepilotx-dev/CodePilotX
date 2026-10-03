@@ -82,6 +82,14 @@
   left: var(--sidebar-rail-width);
   width: calc(var(--sidebar-current-width) - var(--sidebar-rail-width));
 
+  &.is-docked {
+    background: var(--cpx-sys-color-workbench-main-bg);
+  }
+
+  .sidebar-layout {
+    min-width: 0;
+  }
+
   &.is-floating {
     top: var(--cpx-sys-space-1);
     height: calc(100% - var(--cpx-sys-space-2));
@@ -91,6 +99,10 @@
   .sidebar-header {
     min-height: 44px;
     margin-bottom: 0;
+  }
+
+  .sidebar-new-task-nav .sidebar-nav-link {
+    background: transparent;
   }
 
   .sidebar-search-button {
@@ -110,7 +122,6 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--cpx-sys-color-workbench-sidebar-bg);
   }
 
   .sidebar-pane-heading {
