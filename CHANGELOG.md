@@ -9,6 +9,8 @@
 
 ### Added
 
+- [agent/desktop/browser] 内置浏览器升级为保留登录态的工作台多标签，新增聊天归属、后台 Agent 操作、全局站点授权、页面暂停与恢复；复用 v4 宿主通道和 Artifact 截图链路。
+
 - [desktop] 新增默认启用的常驻图标栏与功能面板式侧栏，支持外观页即时切换新版/经典、独立面板滚动及共享自动化任务列表；经典版保留悬浮预览，保留原有任务、项目状态和侧栏宽度记录。
 
 - [desktop] 外观页强调色新增默认、六种彩色、黑/白与自定义预设，复用主题 seed 初始化自定义颜色并保留 V6/V7 配色；背景、前景和自定义强调色统一使用中性色点胶囊。
@@ -74,6 +76,8 @@
 - [desktop/renderer] 已安排任务日历支持月视图、周视图与日程列表视图三重视图切换，支持在周/列表视图中按时间轴卡片浏览任务，并支持日期单元格悬停快速新建任务及单项任务直接查看会话或立即运行。
 
 ### Changed
+
+- [repo] 接入 oxlint 静态检查并纳入 CI：补齐 oxlint 依赖与 `lint` 脚本，修复 9 处 error 级发现（`SidebarSessionHoverCard` 在提前 return 之后调用 hooks、`usePrefersReducedMotion` 用 try/catch 包裹 hooks 等真实缺陷），并把 `format:check` 与 `lint` 加入 PR 质量门禁；历史 warning 暂不阻断。
 
 - [repo] 引入 prettier 作为唯一格式化来源：新增 `.prettierrc.json` 与 `.prettierignore`，统一缩进、引号、行宽、尾随逗号与换行处理，并排除生成产物、第三方内嵌内容与构建输出；新增 `format` 与 `format:check` 脚本。为直接断言源码文本的既有契约测试加入 `test/source-contract` 归一化辅助，使断言只依赖契约本身而不依赖代码风格。
 
@@ -238,6 +242,8 @@
 - [agent/desktop/renderer] 精简模型目录转发层与未使用依赖，折叠后卸载会话重内容并移除工具卡片独立计时器，同时修复无效懒加载，使 Renderer 首屏 gzip JS 减少约 62 KiB。
 
 ### Fixed
+
+- [desktop/renderer] 修复两处条件调用 hooks 的真实缺陷：`SidebarSessionHoverCard` 把提前 return 移到 hooks 之后，`usePrefersReducedMotion` 改用 `useContext` 读取主题并在无 Provider 时回退，避免标题重生成状态翻转时改变 hook 顺序导致渲染失败。
 
 - [desktop] 移除新版侧栏分组标题的独立背景覆盖，使其透出面板底色，避免自定义或调试容器背景时出现异色块。
 

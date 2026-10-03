@@ -563,7 +563,9 @@ describe('non-color design token contracts', () => {
     const provider = await read('../src/features/theme/DesktopThemeProvider.tsx')
     const context = await read('../src/features/theme/themeContext.ts')
 
-    expect(hook).toContain('return useDesktopTheme().reducedMotion')
+    // hooks 不能放在 try/catch 里，改为直接读 context 并在无 Provider 时回退。
+    expectSourceContains(hook, 'useContext(DesktopThemeContext)')
+    expectSourceContains(hook, 'theme.reducedMotion')
     expect(hook).not.toContain('new MutationObserver')
     expect(hook).not.toContain("addEventListener('change'")
     expect(provider).toContain("draftSettings.reduceMotion === 'system'")

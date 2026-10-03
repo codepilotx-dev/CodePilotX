@@ -75,10 +75,6 @@ export function SidebarSessionHoverCard({
   session,
   onRename,
 }: Props): React.ReactNode {
-  if (regeneratingTitle) {
-    return children
-  }
-
   const model = buildSidebarSessionHoverCardModel(session, fallbackTitle, now)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -91,6 +87,11 @@ export function SidebarSessionHoverCard({
   useEffect(() => {
     if (!editing) setRenameValue(model.title)
   }, [editing, model.title])
+
+  // 标题重生成期间不渲染悬浮卡，但 hooks 必须无条件执行，否则标题状态翻转会改变 hook 顺序。
+  if (regeneratingTitle) {
+    return children
+  }
 
   function startRename(): void {
     if (!onRename) return

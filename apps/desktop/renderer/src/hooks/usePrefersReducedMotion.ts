@@ -1,11 +1,10 @@
-import { useDesktopTheme } from '../features/theme/themeContext.js'
+import { useContext } from 'react'
+import { DesktopThemeContext } from '../features/theme/themeContext.js'
 
 export function usePrefersReducedMotion(): boolean {
-  try {
-    return useDesktopTheme().reducedMotion
-  } catch {
-    return getEffectiveReducedMotion()
-  }
+  // 无 Provider 时 useContext 返回 null，不能用 try/catch 包裹 hooks。
+  const theme = useContext(DesktopThemeContext)
+  return theme ? theme.reducedMotion : getEffectiveReducedMotion()
 }
 
 export function getEffectiveReducedMotion(): boolean {
