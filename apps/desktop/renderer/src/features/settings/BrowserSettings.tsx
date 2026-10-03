@@ -8,11 +8,51 @@ import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
+import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
+import { SettingsRow } from './SettingsRow.js'
 
 export function BrowserSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { browserAllowedSites, setBrowserAllowedSites, draft } = settings
   const [sitePermissions, setSitePermissions] = useState<DesktopBrowserSitePermission[]>([])
+  const [downloadMode, setDownloadMode] = useState<'downloads' | 'ask'>('downloads')
+  const [downloadLoaded, setDownloadLoaded] = useState(false)
+  const [downloadSaving, setDownloadSaving] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  useEffect(() => {
+    if (!desktopBrowserClient.available) return
+    let disposed = false
+    void desktopBrowserClient
+      .data({ action: 'preferences' })
+      .then((result) => {
+        if (disposed) return
+        if (result.preferences) {
+          setDownloadMode(result.preferences.downloadSaveMode)
+          setDownloadLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (!disposed) setDownloadError('下载设置暂时不可用')
+      })
+    return () => {
+      disposed = true
+    }
+  }, [])
+  async function saveDownloadMode(ask: boolean): Promise<void> {
+    setDownloadSaving(true)
+    setDownloadError('')
+    try {
+      const result = await desktopBrowserClient.data({
+        action: 'preferences',
+        downloadSaveMode: ask ? 'ask' : 'downloads',
+      })
+      if (result.preferences) setDownloadMode(result.preferences.downloadSaveMode)
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : '下载设置未保存')
+    } finally {
+      setDownloadSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (!desktopBrowserClient.available) return
@@ -50,7 +90,7 @@ export function BrowserSettings(): React.ReactNode {
           <div className="browser-settings-info">
             <span>支持 HTTP 和 HTTPS URL；本地文件继续使用文件预览。</span>
             <span>批注会先插入输入框，由你确认后再发送。</span>
-            <span>Agent 使用浏览器前需获得站点授权；人工标签可在工具栏交给当前聊天。</span>
+            <span>在 AI 对话中指定网页即可让 Agent 接管标签；首次使用站点仍需授权。</span>
           </div>
         </SettingsSection>
 
@@ -94,6 +134,21 @@ export function BrowserSettings(): React.ReactNode {
           ) : (
             <p className="settings-empty-state">Browser Use 请求站点后会在这里记录权限。</p>
           )}
+        </SettingsSection>
+        <SettingsSection title="下载" description="默认保存到系统下载目录，重名文件自动编号。">
+          <SettingsRow
+            title="每次询问保存位置"
+            description="开启后使用系统另存为窗口。"
+            control={
+              <ToggleSwitch
+                ariaLabel="每次询问保存位置"
+                checked={downloadMode === 'ask'}
+                disabled={!downloadLoaded || downloadSaving}
+                onChange={(ask) => void saveDownloadMode(ask)}
+              />
+            }
+          />
+          {downloadError ? <p role="status">{downloadError}</p> : null}
         </SettingsSection>
       </div>
     </SettingsContentArea>

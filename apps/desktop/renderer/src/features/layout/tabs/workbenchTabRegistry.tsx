@@ -142,7 +142,8 @@ export type WorkbenchTabRenderContext = {
     threadId?: string | null
     onNewTab?: () => void
     onAppendAnnotation: (text: string) => void
-    onAppendComposerText?: (text: string) => void
+    onOpenSettings?: () => void
+    onAppendImage?: (image: { data: string; mimeType: 'image/png' }) => void
     onStateChange: (state: DesktopBrowserState) => void
   }
   files: {

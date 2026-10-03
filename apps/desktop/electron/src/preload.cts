@@ -157,6 +157,10 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
 } as const satisfies typeof import('@codepilotx/shared/desktop-attachment-ipc').DESKTOP_ATTACHMENT_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
+  utility: 'desktop-browser:utility',
+  utilityEvent: 'desktop-browser:utility-event',
+  data: 'desktop-browser:data',
+  dataChanged: 'desktop-browser:data-changed',
   list: 'desktop-browser:list',
   attach: 'desktop-browser:attach',
   control: 'desktop-browser:control',
@@ -278,6 +282,31 @@ const pendingComposerDropPaths = new Set<string>()
 const desktop = {
   listDesktopBrowserTabs: (): Promise<DesktopBrowserSnapshot[]> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.list),
+  performDesktopBrowserUtility: (
+    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityInput,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityResult> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.utility, input),
+  manageDesktopBrowserData: (
+    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataRequest,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataResult> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.data, input),
+  onDesktopBrowserUtilityEvent: (
+    listener: (
+      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
+    ) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      value: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
+    ) => listener(value)
+    ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.utilityEvent, handler)
+    return () => ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.utilityEvent, handler)
+  },
+  onDesktopBrowserDataChange: (listener: () => void): (() => void) => {
+    const handler = () => listener()
+    ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.dataChanged, handler)
+    return () => ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.dataChanged, handler)
+  },
   attachDesktopBrowserGuest: (input: {
     tabId: string
     generation: string

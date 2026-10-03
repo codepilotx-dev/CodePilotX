@@ -1,4 +1,5 @@
 import { mergeBrowserWorkbench } from '../../browser/browserWorkbenchState.js'
+import { mergeComposerAttachments } from '../../session/composer/composerAttachmentSelection.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
 import {
   desktopClient,
@@ -1118,6 +1119,29 @@ export function DesktopLayout(): React.ReactNode {
     replaceWorkbenchTab: replaceSideChatWorkbenchTab,
     onError: handleErrorMessage,
   })
+  const handleBrowserImage = useCallback(
+    (image: { data: string; mimeType: 'image/png' }): void => {
+      const attachment: DesktopComposerAttachment = {
+        id: crypto.randomUUID(),
+        name: '网页截图.png',
+        path: '',
+        mediaType: image.mimeType,
+        sizeBytes: atob(image.data).length,
+        kind: 'image',
+        status: 'ready',
+        storage: 'managed',
+        contentBase64: image.data,
+        previewDataUrl: `data:${image.mimeType};base64,${image.data}`,
+      }
+      const { accepted, error } = mergeComposerAttachments(
+        composerDraftStore.get(mainComposerDraftKey).attachments,
+        [attachment],
+      )
+      if (error) throw new Error(error)
+      appendComposerAttachmentsForDraft(mainComposerDraftKey, accepted)
+    },
+    [appendComposerAttachmentsForDraft, mainComposerDraftKey],
+  )
   const closeConfirmationDialogMounted = useEverOpened(closeConfirmationOpen)
   const handleOpenSideChat = useCallback((): void => {
     void createSideChat()
@@ -2827,7 +2851,8 @@ export function DesktopLayout(): React.ReactNode {
         threadId: sessionId,
         onNewTab: handleOpenBrowser,
         onAppendAnnotation: handleBrowserAnnotation,
-        onAppendComposerText: handleAppendComposerText,
+        onAppendImage: handleBrowserImage,
+        onOpenSettings: () => navigate('/settings/browser'),
         onStateChange: setBrowserState,
       },
       files: {
@@ -2909,6 +2934,7 @@ export function DesktopLayout(): React.ReactNode {
       handleAddComposerFiles,
       handleAppendComposerText,
       handleBrowserAnnotation,
+      handleBrowserImage,
       handleOpenBrowser,
       handleCopyMarkdownFileReferenceContents,
       handleCreateBranch,

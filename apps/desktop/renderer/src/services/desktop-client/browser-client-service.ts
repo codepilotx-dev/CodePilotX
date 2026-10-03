@@ -22,6 +22,18 @@ type BrowserApi = Pick<
   | 'clearBrowserAllowedSites'
 >
 export type DesktopBrowserClient = BrowserApi & {
+  utility(
+    operation: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtility,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityResult>
+  data(
+    request: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataRequest,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataResult>
+  onUtilityEvent(
+    listener: (
+      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
+    ) => void,
+  ): () => void
+  onDataChange(listener: () => void): () => void
   available: boolean
   stopBrowser(): Promise<DesktopBrowserState>
   setBrowserVisible(visible: boolean): Promise<DesktopBrowserState>
@@ -82,6 +94,23 @@ export function createDesktopBrowserClient(
     const apply = async (promise?: Promise<DesktopBrowserSnapshot>) =>
       accept(await (promise ?? unavailable()))
     const client: DesktopBrowserClient = {
+      utility: (operation) => {
+        const generation = states.get(id())?.generation
+        if (!generation) return Promise.reject(new Error('浏览器页面尚未连接'))
+        return (
+          bridge?.performDesktopBrowserUtility?.({ ...tab(), generation, operation }) ??
+          Promise.reject(new Error('浏览器菜单能力不可用'))
+        )
+      },
+      data: (request) =>
+        bridge?.manageDesktopBrowserData?.(request) ??
+        Promise.reject(new Error('浏览管理能力不可用')),
+      onUtilityEvent: (listener) =>
+        bridge?.onDesktopBrowserUtilityEvent?.((event) => {
+          if (event.tabId === id() && event.generation === states.get(id())?.generation)
+            listener(event)
+        }) ?? (() => {}),
+      onDataChange: (listener) => bridge?.onDesktopBrowserDataChange?.(listener) ?? (() => {}),
       available,
       getBrowserState: () => apply(bridge?.getDesktopBrowserState?.(tab())),
       openBrowser: async (url) => {

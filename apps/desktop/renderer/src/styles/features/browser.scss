@@ -230,7 +230,7 @@
   }
 
   .browser-navigation > :last-child,
-  .browser-toolbar-actions > :not(:first-child) {
+  .browser-toolbar-actions > :not(:first-child):not(.browser-more-trigger) {
     display: none;
   }
 

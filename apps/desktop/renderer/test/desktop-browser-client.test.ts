@@ -24,6 +24,10 @@ describe('desktop browser client', () => {
     const calls: unknown[] = []
     let stateListener: ((state: DesktopBrowserSnapshot) => void) | null = null
     const bridge = {
+      performDesktopBrowserUtility: async () => ({}),
+      manageDesktopBrowserData: async () => ({}),
+      onDesktopBrowserUtilityEvent: () => () => {},
+      onDesktopBrowserDataChange: () => () => {},
       listDesktopBrowserTabs: async () => [snapshot()],
       attachDesktopBrowserGuest: async () => {},
       controlDesktopBrowser: async () => snapshot(),

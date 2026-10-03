@@ -128,7 +128,7 @@ function startsWith(content: Uint8Array, signature: readonly number[]): boolean 
   return signature.every((value, index) => content[index] === value)
 }
 
-function appendCollisionSuffix(fileName: string, suffix: number): string {
+export function appendCollisionSuffix(fileName: string, suffix: number): string {
   const extension = extname(fileName)
   const rawStem =
     extension && extension !== fileName ? fileName.slice(0, -extension.length) : fileName

@@ -86,13 +86,20 @@ export class BrowserGuestHosts {
   }
   private layout(surface: Surface) {
     const bounds = surface.bounds
-    const width = bounds?.width ?? surface.state.viewport?.width ?? 1280
-    const height = bounds?.height ?? surface.state.viewport?.height ?? 720
+    const device = surface.state.device
+    const emulated = device && device.mode !== 'desktop'
+    const width = emulated ? device.width : (bounds?.width ?? surface.state.viewport?.width ?? 1280)
+    const height = emulated
+      ? device.height
+      : (bounds?.height ?? surface.state.viewport?.height ?? 720)
+    const scale = bounds && emulated ? Math.min(1, bounds.width / width, bounds.height / height) : 1
     Object.assign(surface.element.style, {
-      left: `${bounds?.x ?? -100000}px`,
+      left: `${bounds ? bounds.x + Math.max(0, (bounds.width - width * scale) / 2) : -100000}px`,
       top: `${bounds?.y ?? 0}px`,
       width: `${width}px`,
       height: `${height}px`,
+      transform: `scale(${scale})`,
+      transformOrigin: 'top left',
       pointerEvents: bounds && !surface.state.controlThreadId ? 'auto' : 'none',
     })
   }

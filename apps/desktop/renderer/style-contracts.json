@@ -20,6 +20,7 @@
     "maxGzipBytes": 4096
   },
   "directStyleImportAllowlist": [
+    "src/features/browser/BrowserManagementControls.tsx -> src/styles/lazy/browser-management.scss",
     "src/main.tsx -> src/styles/tailwind.css",
     "src/features/pet/PetCatalogPage.tsx -> src/styles/lazy/pet-catalog.scss",
     "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
@@ -32,6 +33,7 @@
     "src/features/whats-new/WhatsNewDialog.tsx -> src/styles/lazy/whats-new.scss"
   ],
   "lazyStyleEntrypoints": {
+    "src/styles/lazy/browser-management.scss": "features",
     "src/styles/lazy/marketplace.scss": "features",
     "src/styles/lazy/model-center.scss": "features",
     "src/styles/lazy/model-setup.scss": "features",

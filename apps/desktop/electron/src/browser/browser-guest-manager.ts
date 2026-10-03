@@ -1,16 +1,24 @@
-import { webContents, type BrowserWindow, type WebContents } from 'electron'
+import { webContents, session, type BrowserWindow, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { BrowserTab, BrowserCommand, BrowserResult } from '@codepilotx/agent-protocol'
 import type {
   DesktopBrowserSnapshot,
   DesktopBrowserBounds,
   DesktopBrowserSitePermission,
+  DesktopBrowserUtilityInput,
+  DesktopBrowserUtilityResult,
+  DesktopBrowserUtilityEvent,
+  DesktopBrowserDataRequest,
+  DesktopBrowserDataResult,
 } from '@codepilotx/shared/desktop-browser-ipc'
+import { DESKTOP_BROWSER_IPC_CHANNELS } from '@codepilotx/shared/desktop-browser-ipc'
 import type { DesktopLogger } from '../logging/desktop-logger.js'
 import type { SidecarSupervisor } from '../sidecar/supervisor.js'
 import { BrowserHostRpcClient } from './browser-host-rpc-client.js'
 import { runBrowserOperation } from './browser-operations.js'
 import { normalizeDesktopBrowserUrl, isAllowedDesktopBrowserNavigation } from './browser-url.js'
+import { runBrowserUtility, applyBrowserDevice } from './browser-utilities.js'
+import { BrowserDownloads } from './browser-downloads.js'
 
 type Entry = {
   tab: BrowserTab
@@ -25,6 +33,13 @@ type Entry = {
   idle?: ReturnType<typeof setTimeout>
   ready: Set<() => void>
   reporting: Promise<void>
+  defaultUserAgent?: string
+  visit?: { id: string; visitedAt: number; historyEpoch: number; url: string }
+  finding?: boolean
+  findText?: string
+  findRequestId?: number
+  executing?: Promise<void>
+  activating?: Promise<void>
 }
 type WindowHost = {
   owner: BrowserWindow
@@ -39,6 +54,7 @@ type WindowHost = {
   pollTimer?: ReturnType<typeof setTimeout>
   budgetTimer?: ReturnType<typeof setInterval>
   budgeting?: boolean
+  dataRevision?: number
 }
 export interface DesktopBrowserControllerOptions {
   publish(owner: BrowserWindow, state: DesktopBrowserSnapshot): void
@@ -49,8 +65,28 @@ export class DesktopBrowserController {
   readonly #rpc: BrowserHostRpcClient
   readonly #hosts = new Map<number, WindowHost>()
   readonly #entries = new Map<string, Entry>()
+  readonly #downloads: BrowserDownloads
   constructor(private readonly options: DesktopBrowserControllerOptions) {
     this.#rpc = new BrowserHostRpcClient(options.getSupervisor)
+    this.#downloads = new BrowserDownloads(
+      this.#rpc,
+      () => {
+        const host = [...this.#hosts.values()].find((host) => host.registered && !host.stopped)
+        if (!host) throw new Error('浏览器宿主已退出')
+        return { windowId: host.windowId, instanceId: host.instanceId }
+      },
+      (id) => {
+        const entry = [...this.#entries.values()].find((entry) => entry.contents?.id === id)
+        return entry
+          ? {
+              tabId: entry.tab.tabId,
+              allowed: (url) =>
+                !entry.tab.controlThreadId || this.#allowed(this.#hosts.get(entry.owner.id)!, url),
+            }
+          : undefined
+      },
+      () => this.#dataChanged(),
+    )
   }
   async list(owner: BrowserWindow): Promise<DesktopBrowserSnapshot[]> {
     const host = await this.#ensureHost(owner)
@@ -103,6 +139,41 @@ export class DesktopBrowserController {
       throw new Error('浏览器宿主不匹配')
     entry.contents = guest
     entry.initialized = false
+    entry.defaultUserAgent = guest.getUserAgent()
+    await this.#downloads.attach(guest.session)
+    guest.on('found-in-page', (_event, result) => {
+      if (result.requestId === entry.findRequestId)
+        this.#utilityEvent(entry, { kind: 'find-result', ...result })
+    })
+    guest.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return
+      const modifier = input.control || input.meta
+      if (modifier && input.key.toLowerCase() === 'f') {
+        event.preventDefault()
+        this.#utilityEvent(entry, { kind: 'find-open' })
+      } else if (modifier && ['+', '=', '-', '0'].includes(input.key)) {
+        event.preventDefault()
+        void this.utility(entry.owner, {
+          tabId: entry.tab.tabId,
+          generation: entry.tab.generation,
+          operation: {
+            action: 'zoom',
+            direction: input.key === '0' ? 'reset' : input.key === '-' ? 'out' : 'in',
+          },
+        }).catch(() => {})
+      } else if (entry.finding && (input.key === 'Escape' || input.key === 'Enter')) {
+        event.preventDefault()
+        if (input.key === 'Escape') {
+          guest.stopFindInPage('clearSelection')
+          entry.finding = false
+          this.#utilityEvent(entry, { kind: 'find-close' })
+        } else if (entry.findText)
+          entry.findRequestId = guest.findInPage(entry.findText, {
+            forward: !input.shift,
+            findNext: true,
+          })
+      }
+    })
     guest.session.setPermissionCheckHandler(() => false)
     guest.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     guest.setWindowOpenHandler(({ url }) => {
@@ -154,11 +225,32 @@ export class DesktopBrowserController {
     guest.on('did-stop-loading', () => void this.#navigationReport(entry, false))
     const navigated = () => {
       entry.tab = { ...entry.tab, documentId: randomUUID() }
+      if (entry.initialized && /^https?:/.test(guest.getURL())) {
+        entry.visit = {
+          id: randomUUID(),
+          visitedAt: Date.now(),
+          historyEpoch: entry.tab.historyEpoch ?? 0,
+          url: guest.getURL(),
+        }
+        void this.#recordVisit(entry, false)
+      }
       void this.#navigationReport(entry)
     }
     guest.on('did-navigate', navigated)
-    guest.on('did-navigate-in-page', navigated)
-    guest.on('page-title-updated', () => void this.#navigationReport(entry))
+    guest.on('did-navigate-in-page', (_event, _url, main) => {
+      if (main) navigated()
+    })
+    guest.on('page-title-updated', () => {
+      void this.#navigationReport(entry)
+      void this.#recordVisit(entry, true)
+    })
+    guest.on('zoom-changed', (_event, direction) => {
+      void this.utility(entry.owner, {
+        tabId: entry.tab.tabId,
+        generation: entry.tab.generation,
+        operation: { action: 'zoom', direction },
+      }).catch(() => {})
+    })
     guest.on('media-started-playing', () => {
       entry.audio = true
     })
@@ -179,6 +271,11 @@ export class DesktopBrowserController {
       if (main && code !== -3) void this.#report(entry, { loading: false, error: '页面加载失败' })
     })
     const snapshot = entry.tab
+    if (snapshot.device && snapshot.device.mode !== 'desktop') {
+      await applyBrowserDevice(guest, snapshot.device, entry.defaultUserAgent)
+      entry.emulated = true
+    }
+    entry.initialized = !snapshot.history?.length
     try {
       if (snapshot.history?.length)
         await guest.navigationHistory.restore({
@@ -190,7 +287,11 @@ export class DesktopBrowserController {
       /* Guest events own the retry state. */
     }
     if (entry.tab.generation !== generation || guest.isDestroyed()) return
-    await this.#report(entry, { state: entry.visible ? 'live' : 'parked' })
+    if (snapshot.zoomFactor) guest.setZoomFactor(snapshot.zoomFactor)
+    await this.#report(entry, {
+      state: entry.visible ? 'live' : 'parked',
+      zoomFactor: guest.getZoomFactor(),
+    })
     entry.initialized = true
     for (const ready of entry.ready) ready()
     entry.ready.clear()
@@ -263,6 +364,7 @@ export class DesktopBrowserController {
     const entry = this.#require(owner, tabId)
     entry.abort?.abort()
     entry.tab = await this.#rpc.call('browser/control', { tabId, threadId })
+    await entry.executing
     this.#publish(entry)
     return this.#snapshot(entry)
   }
@@ -285,6 +387,175 @@ export class DesktopBrowserController {
     for (const e of this.#owned(host)) this.#publish(e)
     return this.getState(owner, tabId)
   }
+  async utility(
+    owner: BrowserWindow,
+    input: DesktopBrowserUtilityInput,
+  ): Promise<DesktopBrowserUtilityResult> {
+    const entry = this.#require(owner, input.tabId)
+    if (entry.tab.generation !== input.generation) throw new Error('浏览器页面已失效')
+    const operation = input.operation
+    if (['zoom', 'device'].includes(operation.action) && entry.tab.controlThreadId)
+      await this.control(owner, input.tabId, null)
+    await this.#activate(entry)
+    if (entry.tab.generation !== input.generation) throw new Error('网页已恢复，请重试操作')
+    const guest = await this.#ready(entry)
+    if (operation.action === 'device') {
+      await applyBrowserDevice(
+        guest,
+        operation.device,
+        entry.defaultUserAgent ?? guest.getUserAgent(),
+      )
+      entry.emulated = operation.device.mode !== 'desktop'
+      await this.#report(entry, {
+        device: operation.device,
+        viewport: { width: operation.device.width, height: operation.device.height },
+      })
+      return {}
+    }
+    if (operation.action === 'find') {
+      entry.finding = true
+      entry.findText = operation.text
+    }
+    if (operation.action === 'stopFind') entry.finding = false
+    if (entry.tab.busy && ['print', 'screenshot'].includes(operation.action))
+      throw new Error('Agent 操作中，请先接管网页')
+    entry.capturing = operation.action === 'screenshot'
+    try {
+      const result = await runBrowserUtility(owner, guest, operation)
+      if (operation.action === 'find') entry.findRequestId = result.requestId
+      if (operation.action === 'zoom') {
+        for (const other of this.#entries.values())
+          if (other.contents && new URL(other.tab.url).origin === new URL(entry.tab.url).origin)
+            await this.#report(other, { zoomFactor: other.contents.getZoomFactor() })
+      }
+      return result
+    } catch (error) {
+      if (error instanceof Error && /^(打印未完成|截图为空)/.test(error.message)) throw error
+      throw new Error('浏览器操作未完成')
+    } finally {
+      entry.capturing = false
+    }
+  }
+  async data(
+    owner: BrowserWindow,
+    request: DesktopBrowserDataRequest,
+  ): Promise<DesktopBrowserDataResult> {
+    await this.#ensureHost(owner)
+    switch (request.action) {
+      case 'history':
+        return this.#rpc.call('browser/history/list', {
+          ...(request.query ? { query: request.query } : {}),
+          ...(request.cursor ? { cursor: request.cursor } : {}),
+        })
+      case 'removeHistory':
+        await this.#rpc.call('browser/history/remove', { id: request.id })
+        this.#dataChanged()
+        return {}
+      case 'downloads':
+        return {
+          downloads: this.#downloads.decorate(
+            (await this.#rpc.call('browser/downloads/list', {})).downloads,
+          ),
+        }
+      case 'downloadAction':
+        await this.#downloads.action(request.id, request.command)
+        return {}
+      case 'preferences': {
+        const result = request.downloadSaveMode
+          ? await this.#rpc.call('browser/preferences/set', {
+              downloadSaveMode: request.downloadSaveMode,
+            })
+          : await this.#rpc.call('browser/preferences/get', {})
+        this.#downloads.setSaveMode(result.downloadSaveMode)
+        return { preferences: result }
+      }
+      case 'clear': {
+        const cleared: NonNullable<DesktopBrowserDataResult['cleared']> = []
+        for (const category of request.categories) {
+          try {
+            if (category === 'history') {
+              await this.#rpc.call('browser/history/remove', {})
+              for (const host of this.#hosts.values())
+                if (!host.stopped) await this.list(host.owner)
+            } else if (category === 'downloads')
+              await this.#rpc.call('browser/downloads/remove', {})
+            else if (category === 'cache')
+              await session
+                .fromPartition('persist:codepilotx-browser')
+                .clearData({ dataTypes: ['cache'] })
+            else {
+              for (const entry of this.#entries.values())
+                if (entry.tab.controlThreadId)
+                  await this.control(entry.owner, entry.tab.tabId, null)
+              await session.fromPartition('persist:codepilotx-browser').clearData({
+                dataTypes: [
+                  'cookies',
+                  'fileSystems',
+                  'indexedDB',
+                  'localStorage',
+                  'serviceWorkers',
+                  'webSQL',
+                  'backgroundFetch',
+                ],
+              })
+            }
+            cleared.push({
+              category,
+              ok: true,
+              ...(category === 'siteData' ? { message: '站点数据已清除，请按需刷新网页' } : {}),
+            })
+          } catch {
+            cleared.push({ category, ok: false, message: '此项清理未完成，可以重试' })
+          }
+        }
+        this.#dataChanged()
+        return { cleared }
+      }
+    }
+  }
+  #utilityEvent(entry: Entry, event: Omit<DesktopBrowserUtilityEvent, 'tabId' | 'generation'>) {
+    if (!entry.owner.isDestroyed())
+      entry.owner.webContents.send(DESKTOP_BROWSER_IPC_CHANNELS.utilityEvent, {
+        ...event,
+        tabId: entry.tab.tabId,
+        generation: entry.tab.generation,
+      })
+  }
+  #dataChanged() {
+    for (const host of this.#hosts.values())
+      if (!host.owner.isDestroyed())
+        host.owner.webContents.send(DESKTOP_BROWSER_IPC_CHANNELS.dataChanged)
+  }
+  async #recordVisit(entry: Entry, updateOnly: boolean) {
+    const visit = entry.visit
+    const guest = entry.contents
+    const host = this.#hosts.get(entry.owner.id)
+    if (!visit || !guest || !host || !this.#rpc.capabilities.has('browser.data.v1')) return
+    const generation = entry.tab.generation
+    const title = guest.getTitle().slice(0, 500)
+    entry.reporting = entry.reporting
+      .catch(() => {})
+      .then(async () => {
+        await this.#rpc.call('browser/host/visit', {
+          windowId: host.windowId,
+          instanceId: host.instanceId,
+          generation,
+          historyEpoch: visit.historyEpoch,
+          updateOnly,
+          visit: {
+            id: visit.id,
+            visitedAt: visit.visitedAt,
+            url: visit.url,
+            tabId: entry.tab.tabId,
+            sourceThreadId: entry.tab.sourceThreadId,
+            title,
+          },
+        })
+        this.#dataChanged()
+      })
+      .catch(() => {})
+    await entry.reporting
+  }
   suspendAll() {
     this.#rpc.invalidate()
     for (const host of this.#hosts.values()) {
@@ -296,6 +567,7 @@ export class DesktopBrowserController {
     }
   }
   dispose() {
+    this.#downloads.dispose()
     for (const host of this.#hosts.values()) {
       host.stopped = true
       clearTimeout(host.pollTimer)
@@ -420,8 +692,21 @@ export class DesktopBrowserController {
       .then((result) => {
         if (instanceId !== host.instanceId) return
         host.permissions = result.permissions.map((p) => ({ ...p }))
+        if (result.dataRevision !== host.dataRevision) {
+          host.dataRevision = result.dataRevision
+          this.#dataChanged()
+        }
         this.#sync(host, result.tabs)
-        if (result.command) void this.#execute(host, result.command)
+        if (result.command) {
+          const entry = this.#entries.get(result.command.tabId)
+          if (entry) {
+            const executing = this.#execute(host, result.command)
+            entry.executing = executing
+            void executing.finally(() => {
+              if (entry.executing === executing) entry.executing = undefined
+            })
+          }
+        }
       })
       .catch(() => {
         if (instanceId !== host.instanceId) return
@@ -471,23 +756,41 @@ export class DesktopBrowserController {
           this.#destroy(entry)
         if (entry.abort && (!tab.busy || entry.tab.controlThreadId !== tab.controlThreadId))
           entry.abort.abort()
+        if ((entry.tab.historyEpoch ?? 0) !== (tab.historyEpoch ?? 0)) {
+          entry.contents?.navigationHistory.clear()
+          entry.visit = undefined
+        }
         entry.tab = tab
       }
       this.#publish(entry)
     }
   }
   async #activate(entry: Entry) {
-    if (entry.tab.state === 'suspended' || entry.tab.state === 'crashed') {
-      const host = this.#hosts.get(entry.owner.id)!
-      this.#destroy(entry)
-      entry.tab = await this.#rpc.call('browser/host/restore', {
+    if (entry.activating) return entry.activating
+    if (entry.tab.state !== 'suspended' && entry.tab.state !== 'crashed') {
+      this.#publish(entry)
+      return
+    }
+    const host = this.#hosts.get(entry.owner.id)!
+    const { tabId, generation } = entry.tab
+    this.#destroy(entry)
+    entry.activating = this.#rpc
+      .call('browser/host/restore', {
         windowId: host.windowId,
         instanceId: host.instanceId,
-        tabId: entry.tab.tabId,
-        generation: entry.tab.generation,
+        tabId,
+        generation,
       })
-    }
-    this.#publish(entry)
+      .then((tab) => {
+        if (this.#entries.get(tabId) === entry && tab.revision >= entry.tab.revision) {
+          entry.tab = tab
+          this.#publish(entry)
+        }
+      })
+      .finally(() => {
+        entry.activating = undefined
+      })
+    await entry.activating
   }
   async #ready(entry: Entry): Promise<WebContents> {
     if (entry.initialized && entry.contents && !entry.contents.isDestroyed()) return entry.contents
@@ -541,11 +844,20 @@ export class DesktopBrowserController {
       canGoForward: guest.navigationHistory.canGoForward(),
       history: guest.navigationHistory.getAllEntries().map(({ url, title }) => ({ url, title })),
       historyIndex: guest.navigationHistory.getActiveIndex(),
+      historyEpoch: entry.tab.historyEpoch ?? 0,
+      zoomFactor: guest.getZoomFactor(),
     })
   }
   async #execute(host: WindowHost, command: BrowserCommand) {
     const entry = this.#entries.get(command.tabId)
-    if (!entry || entry.tab.generation !== command.generation || entry.owner !== host.owner) return
+    if (
+      !entry ||
+      entry.tab.generation !== command.generation ||
+      entry.owner !== host.owner ||
+      !entry.tab.busy ||
+      !entry.tab.controlThreadId
+    )
+      return
     const abort = new AbortController()
     entry.abort = abort
     host.permissions = command.allowedOrigins.map((origin) => ({
@@ -584,11 +896,23 @@ export class DesktopBrowserController {
         temporaryViewport = true
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
+      if (command.operation.action === 'viewport')
+        await applyBrowserDevice(
+          guest,
+          { mode: 'custom', width: command.operation.width!, height: command.operation.height! },
+          entry.defaultUserAgent ?? guest.getUserAgent(),
+        )
+      abort.signal.throwIfAborted()
       result = await runBrowserOperation(guest, command, () => entry.tab.documentId, abort.signal)
       if (command.operation.action === 'viewport') {
         entry.emulated = true
         await this.#report(entry, {
           viewport: { width: command.operation.width!, height: command.operation.height! },
+          device: {
+            mode: 'custom',
+            width: command.operation.width!,
+            height: command.operation.height!,
+          },
         })
       }
     } catch (cause) {
@@ -628,7 +952,7 @@ export class DesktopBrowserController {
         .catch(() => {})
       if (current)
         entry.idle = setTimeout(() => {
-          if (!entry.abort) this.#detach(entry)
+          if (!entry.abort && !entry.emulated) this.#detach(entry)
         }, 1500)
       void this.#budget(host)
     }
@@ -642,7 +966,13 @@ export class DesktopBrowserController {
       const candidates = entries
         .filter(
           (e) =>
-            !e.visible && !e.tab.busy && !e.abort && !e.capturing && !e.audio && !e.tab.loading,
+            !e.visible &&
+            !e.tab.busy &&
+            !e.abort &&
+            !e.capturing &&
+            !e.audio &&
+            !e.tab.loading &&
+            !this.#downloads.activeForTab(e.tab.tabId),
         )
         .sort((a, b) => b.tab.lastUsedAt - a.tab.lastUsedAt)
         .filter((e) => {
@@ -685,6 +1015,7 @@ export class DesktopBrowserController {
     return {
       ...entry.tab,
       open: true,
+      features: { utilities: true, data: this.#rpc.capabilities.has('browser.data.v1') },
       allowedSites: permissions.filter((p) => p.decision === 'allow').map((p) => p.origin),
       sitePermissions: permissions.map((p) => ({ ...p })),
     }

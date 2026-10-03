@@ -22,6 +22,7 @@ import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
+import { BrowserManagementControls } from './BrowserManagementControls.js'
 
 type Props = {
   client: DesktopBrowserClient
@@ -29,8 +30,9 @@ type Props = {
   onNewTab?: () => void
   state: DesktopBrowserState
   onAppendAnnotation: (text: string) => void
-  onAppendComposerText?: (text: string) => void
   onStateChange: (state: DesktopBrowserState) => void
+  onOpenSettings?: () => void
+  onAppendImage?: (image: { data: string; mimeType: 'image/png' }) => void
 }
 
 type BrowserBounds = {
@@ -43,12 +45,13 @@ type BrowserBounds = {
 export function DesktopBrowserPanel({
   state,
   client,
-  threadId,
   onNewTab,
   onAppendAnnotation,
-  onAppendComposerText,
   onStateChange,
+  onOpenSettings,
+  onAppendImage,
 }: Props): React.ReactNode {
+  const [barsHost, setBarsHost] = useState<HTMLDivElement | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const annotationToggleRef = useRef<HTMLButtonElement | null>(null)
   const annotationPanelRef = useRef<HTMLDivElement | null>(null)
@@ -196,14 +199,6 @@ export function DesktopBrowserPanel({
     void syncBrowserBoundsRef.current()
   }
 
-  function handleSendPageToComposer(): void {
-    const url = state.url || address
-    if (!url.trim()) return
-    onAppendComposerText?.(
-      ['浏览器页面：', `- 标题：${state.title || '未命名页面'}`, `- URL：${url}`].join('\n'),
-    )
-  }
-
   const compactAddress =
     !addressFocused && address === state.url ? formatBrowserDisplayURL(address) : address
   const addressStatus = state.error
@@ -265,27 +260,16 @@ export function DesktopBrowserPanel({
           {state.error ? <span className="browser-address-error">!</span> : null}
         </form>
         <div className="browser-toolbar-actions">
-          <Button
-            color="secondary"
-            disabled={!state.controlThreadId && !threadId}
-            onClick={() =>
-              void runBrowserAction(() =>
-                client.control(state.controlThreadId ? null : (threadId ?? null)),
-              )
-            }
-          >
-            {state.controlThreadId ? '接管' : '交给 Agent'}
-          </Button>
+          {state.controlThreadId ? (
+            <Button
+              color="secondary"
+              title="停止 Agent 操作，由你控制此标签"
+              onClick={() => void runBrowserAction(() => client.control(null))}
+            >
+              接管
+            </Button>
+          ) : null}
           {state.busy ? <span className="browser-address-state">Agent 操作中</span> : null}
-          <IconButton
-            color="ghostSecondary"
-            disabled={!state.url && !address.trim()}
-            size="toolbar"
-            title="发送当前页面到对话框"
-            onClick={handleSendPageToComposer}
-          >
-            <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
           <IconButton
             ref={annotationToggleRef}
             color="ghostSecondary"
@@ -301,8 +285,16 @@ export function DesktopBrowserPanel({
           <IconButton color="ghostSecondary" size="toolbar" title="新标签页" onClick={onNewTab}>
             <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
+          <BrowserManagementControls
+            client={client}
+            state={state}
+            barsHost={barsHost}
+            onOpenSettings={onOpenSettings}
+            onAppendImage={onAppendImage}
+          />
         </div>
       </div>
+      <div ref={setBarsHost} className="browser-utility-bars" />
 
       {state.error ? (
         <div className="browser-status-row" role="alert">
