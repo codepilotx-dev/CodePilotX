@@ -344,6 +344,17 @@ test('controller enforces window/generation, shares device state, and isolates c
     owner.webContents.emit('did-attach-webview', {}, guest)
     await controller.attach(owner, 'tab:1', 'generation:1', guest.id)
     const staleTab = { ...tabs.get('tab:1') }
+    const annotation = {
+      tabId: 'tab:1',
+      generation: 'generation:1',
+      documentId: 'stale-document',
+      operation: { action: 'start', mode: 'element', annotations: [], theme: {} },
+    }
+    await expect(controller.annotation({ id: 2 }, annotation)).rejects.toThrow('不属于')
+    await expect(controller.annotation(owner, annotation)).rejects.toThrow('网页已变化')
+    await expect(
+      controller.annotation(owner, { ...annotation, generation: 'stale' }),
+    ).rejects.toThrow('网页已变化')
     const device = { action: 'device', device: { mode: 'mobile', width: 390, height: 844 } }
     await expect(
       controller.utility(
