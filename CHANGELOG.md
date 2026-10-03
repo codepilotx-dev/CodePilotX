@@ -21,8 +21,6 @@
 
 - [desktop/renderer] 新增简体中文与英语界面语言偏好，支持跟随系统、即时切换与现有桌面设置持久化；首批接入设置导航、常规设置、主导航、新任务标题和日期选择器文案。
 
-- [renderer] 引入 BeUI Scroll Animation 动画与进度指示体系：新增基础组件 SmoothScroll、useSmoothScroll 与 ScrollProgress（支持顶部/底部细线进度条与圆形环两种形态），结合 Lenis 物理平滑滚动引擎与 Motion 弹簧动画，自动联动系统的 reducedMotion 减弱动画配置与 --cpx-* 语义设计系统；调优滚轮响应速度与缓动时长（duration 提速至 0.25s、lerp 0.2、wheelMultiplier 1.2），消除弹簧超调并屏蔽横向滚动条；在 WhatsNewDialog（更新日志阅读器）中完成接入与验证，提供轻快平滑的纵向滚动与顶部进度指示。
-
 - [desktop] 全面采用 UI-Design 视觉体系并实现平滑外观迁移：恢复 Apple HIG 风格优雅圆角体系（基础刻度 4px ~ 28px、pill 9999px）与分级轻盈暗部投影（Resting、Raised、Floating、Control、Prominent），毛玻璃模糊重置为 8px/16px/24px；基础组件（Button、Input、Switch、Card、SegmentedControl、Modal、Popover 等）与业务组件（Composer、ModelSelect、Session 消息卡片、Sidebar 等）全面对齐 UI-Design 规范并统一收敛至 `--cpx-sys-*` 与 `--cpx-comp-*` 设计 Token。Electron 外观存储实现原子化平滑迁移（`appearance-migration.json` 记录升级前外观备份），并在设置页“外观”面板提供“恢复升级前外观”与“应用新设计主题”操作。
 
 - [desktop/renderer] 接入新版 ModelSelect 选择器与推理菜单视觉交互规范：完整对齐 UI-Design 布局、尺寸、圆角、阴影与动效；支持胶囊双触发器（模型面板与推理独立唤起并具备完整键盘导航无障碍焦点）、独立供应商侧栏、快速搜索（展开/清空/ESC 复位）、双状态单选指示器、独立 Radix 浮层推理菜单（含深度思考与模型 variant 选项）及 Model Hub 目录视图；私有样式契约集中治理几何与阴影，颜色无缝接入 `--cpx-sys-color-*` 语义主题。
@@ -58,6 +56,22 @@
 - [agent/protocol] 新增 Thread Goal 真源：新增 `thread_goals`、`thread_goal_history` 与 `thread_goal_operations` 独立表（history schema 46，含 44→45→46 前向迁移，schema 45 的 Goal 行原地回填稳定 `goalId`，已清除行迁入历史表），每个 Goal 实例拥有稳定 `id`；清除会把当前 Goal 归档进历史，之后重新创建会生成新 `goalId` 并重置 token、运行时间与 `createdAt`，不复用旧目标消耗，更新 objective／预算／暂停状态则保留同一 `goalId` 与累计量。新增 `ThreadGoalRepository` 与 `ThreadGoalService`（`operationId` 幂等重放、`expectedVersion` 乐观并发，`blocked`/`usage-limited`/`budget-limited` 由 Agent 派生而用户仅可设置 `active`/`paused`/`complete`）；新增 `thread/goal/get|set|clear` RPC、`thread/goal/updated|cleared` 持久事件与 `thread.goal.v1` capability，并把 `goal` 纳入 Thread snapshot；Goal 完成不归档线程，线程仍可继续启动 Turn。
 
 - [agent/protocol] Thread 与 ThreadListItem 新增 `executionEnvironment` 投影：Local 提供 `cwd`/`revision`，Worktree 另提供 `worktreeId`/`branchName`/`status`，由 `thread_execution_bindings` 与 `managed_worktrees` 组合派生；客户端不再根据 workspace、分支或 standalone 自行猜测执行环境。同时新增 `workflowId` 字段，与保留的历史读取字段 `sessionGroupId` 取同一成员关系值，新客户端只使用 `workflowId`。Desktop Goal 已改为真实 `thread/goal/*` RPC 与共享 `ThreadGoal`，从 Thread snapshot 对账并保留稳定 id、version、completedAt 及连字符状态值。
+
+- [desktop] DeepSeek Provider 支持在 Chat Completions、Responses 与 Anthropic Messages 协议间全局切换。
+
+- [agent/desktop] 新增可回放的结构化结果摘要卡片，主 Agent、子 Agent 及显式 opt-in 的工具结果可通过统一信封展示结论、验证、风险与安全引用；旧客户端继续按 JSON 降级显示。
+
+- [agent/desktop] 新增持久化计划批准：成功完成的 Plan 轮次可实施、反馈或关闭；沿用原有轮次事务、权限及模型，支持幂等重试、过期校验和重启恢复，子代理无合法续跑入口时保持只读。
+
+- [desktop] 新增持久化的“显示日程会话”过滤，统一作用于侧栏项目、最近、置顶和活动；仅隐藏日程新建的独立会话，保留被日程唤醒的普通聊天。
+
+- [desktop] 主会话与侧边聊天在实际切换模型后的新一轮前显示模型切换提示和分割线，历史恢复时按相邻轮次自动还原。
+
+- [desktop] 项目收起时将内部列表的未读状态显示为项目行圆点，排除单独置顶与已归档会话，悬停或聚焦时切换为项目操作。
+
+- [desktop] 侧栏会话右侧显示日程运行与分叉图标，日程图标与“已安排”一级导航统一，悬停或聚焦时替换为置顶、归档操作，统一图标和状态占位以保持列对齐；支持已有会话被日程唤醒、双标记及实时刷新。
+
+- [desktop/renderer] 已安排任务日历支持月视图、周视图与日程列表视图三重视图切换，支持在周/列表视图中按时间轴卡片浏览任务，并支持日期单元格悬停快速新建任务及单项任务直接查看会话或立即运行。
 
 ### Changed
 
@@ -155,11 +169,69 @@
 
 - [desktop] 原生窗口缩放状态收敛为按窗口维度的统一降载信号：新增 `window:resize-activity`（`{ windowId, phase, revision }`，保留旧 `resize-state-changed` 通道）与 `onWindowResizeActivity` 桥接，主进程在 `will-resize`/`resized` 之外增加最后一次 resize 后 300ms 的结算定时器，取消拖拽也能补齐 end，保证 start/end 始终配对；Renderer 用 `resizeActivityCoordinator`（按 windowId + 单调 revision + 5s 看门狗）取代原先的易失布尔 ref，重复或陈旧事件被丢弃，主进程事件丢失时兜底恢复渲染，工作台布局与终端消费同一份状态。终端在拖拽期间把 PTY resize 节流到 150ms，缩放结束后只执行一次 fit 与一次最终尺寸下发，不再逐帧触发 ConPTY 重排；标题栏 36px 契约与既有布局写入语义不变。
 
-### Removed
+- [desktop/renderer] 将侧栏导航、项目前置与行尾状态和操作图标统一为 16px，保持按钮点击区域与侧栏布局不变。
 
-- [agent/mcp] 移除旧 HTTP+SSE 客户端回退和调试服务器分支；已有配置原样保留，不受支持的端点连接时返回安全错误。
+- [desktop/renderer] 保留 Lucide 图形，将功能图标调整为 12/16/20px 与 1.6 轻轮廓，侧栏主要导航使用 20px，并标记品牌、头像及插画占位图以保留原始绘制方式和控件点击区域。
 
-- [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
+- [agent] 升级 Pi AI 模型与 Responses 适配，加入 GPT-6 Astra 和最新 GPT-5.6 定价／缓存能力；官方 OpenAI 结构化任务强制 strict 单工具提交，长流式请求放宽至 10 分钟，并统一返回安全可操作的 Provider 错误。
+
+- [desktop] 主会话、侧边聊天与子代理统一请求卡外壳及问答表单；权限审批改为详情、允许／拒绝及真实范围菜单，清理重复样式和悬空授权选项，限定快捷键作用于所属卡片并保留失败重试。
+
+- [desktop] 复用间距 token，将侧栏等待审批标签内边距调整为上下 2px、左右 8px。
+
+- [desktop] 将会话分叉菜单、消息操作、快捷命令和分叉弹窗图标统一为 Split，与侧栏分叉标记一致。
+
+- [desktop/renderer] 将 Composer 发送按钮 `.send-button` 的宽高从 `var(--cpx-sys-space-8)` 调整为 `var(--cpx-sys-space-7)`。
+
+- [desktop] 将全界面图标统一为侧边栏标准的 14×14，覆盖菜单、状态、文件图标、空状态与界面内 Logo。
+
+- [desktop] 统一项目与会话的 sidebar-indicator、sidebar-unread-dot 样式，复用项目行已有尾部容器并移除多余包裹。
+
+- [desktop] 侧栏会话右侧常态图标与悬停操作的列间距由 8px 缩至 4px，保持两种状态中心线对齐。
+
+- [desktop] 合并侧栏来源图标与状态占位样式为统一 indicator，保持列对齐、状态颜色与悬停切换行为。
+
+- [desktop] 月视图日期格内边距由 4px 调整为 8px，让日期、任务列表及更多任务入口与边框保持适当留白。
+
+- [desktop/renderer] 优化任务日历交互与排布：点击有任务日期直接展开当日议程，空白日期改用主题色边框高亮并去除灰底；月视图日程项加大尺寸并采用前 5 行展示日程、第 6 行右下角对齐 ghostTertiary +N 项按钮的 6 行排布结构，5 项以内完整平铺；计划任务与自动化详情面板头部重构为左右单行排布，合并返回入口与标题以降低高度；执行时间隐藏生硬时区标签并静默自动对齐系统时区，新建时按当天整点或未来工作时间智能推导。
+
+- [desktop] 任务日历的议程、新建与详情共用固定位置浮卡，单项直达详情、多项支持左右切换及返回确认；统一状态胶囊、更多设置入口和只读表单外观。
+
+- [desktop/renderer] 精简任务浮卡标题，将更多设置改为无箭头胶囊按钮；隐藏空必填项提示并保留按钮禁用、无效排期和实际保存错误。
+
+- [desktop/renderer] 计划任务与自动化浮卡收窄为单列核心表单，次要设置和执行历史默认折叠；只读任务改为状态摘要，底部操作始终可见，保留无动画与退出确认。
+
+- [desktop/renderer] 任务详情浮卡改为关闭按钮二次确认丢弃草稿，Esc 撤销确认，背景点击不关闭；移除草稿丢弃对话框并保留无动画交互。
+
+- [desktop/renderer] 移除任务日历聚焦议程、编辑浮卡和遮罩的进出动画、触发位置缩放及任务卡过渡，改为即时显示和关闭，保留静态模糊与高亮。
+
+- [desktop/renderer] 任务日历复用当前 42 天数据进行本地搜索、筛选与月/周/列表无加载切换；移除常驻议程和详情侧栏，改为日期附近的紧凑议程与编辑浮卡，背景模糊并保持触发位置清晰，支持返回议程、草稿丢弃确认和键盘焦点恢复；修复计划任务草稿携带自动化排期字段而被严格 RPC 校验拒绝的问题。
+
+- [desktop/renderer] 重构已安排页日历栅格布局与容器响应式自适应，移除固定最小宽度，彻底解决周日列在右侧议程存在时被截断挤出视口的问题，并消除外层双滚动条。
+
+- [development] 整理开发工作流指令与本机 Skill、记忆的适用范围；Playwright 测试入口支持聚焦参数转发及中断时清理本次子进程树，并补充真实失败案例回归记录。
+
+- [desktop/renderer] 移除会话回合导航预览卡的淡入淡出与位移动画，使悬停、聚焦和拖动浏览时直接显示预览内容。
+
+- [desktop/renderer] 移除侧栏会话与项目详情弹层的进出场动画，并采用首次延迟、后续连续直切的共享悬停防抖，减少快速浏览时的误触发和弹层闪烁。
+
+- [desktop/renderer] 将查看活动模式筛选菜单收敛为 Codex 风格的单一优先事项开关与紧凑无图标布局。
+
+- [desktop/renderer] 收紧查看活动模式双行会话的重复垂直内距，使标题、工作区与同行操作保持 Codex 风格的紧凑密度。
+
+- [desktop/renderer] 将查看活动模式的会话操作图标对齐到标题行，并保持标题在操作区之前渐隐。
+
+- [desktop/renderer] 移除查看活动模式中分组标题、工作区名称与粘性分组交接的残留渐隐，使活动信息保持清晰可读。
+
+- [desktop/renderer] 统一任务与设置侧栏普通导航项的文字和图标前景色，收紧任务分组间距，使悬停、聚焦与选中只改变背景，并消除导航、项目和会话之间的色阶跳变。
+
+- [desktop/renderer] 统一会话正文、用户消息、轮次导航、输入框、Markdown 富内容与环境信息面板的阅读列线，在不同页面宽度、列表嵌套和右侧面板状态下保持稳定对齐。
+
+- [desktop/renderer] 调整全局页面宽度三档，窄、默认和宽分别使用 768px、1009px 和 1250px。
+
+- [desktop/renderer] 统一任务与设置侧栏的图标、正文、操作和分组列线，在保持现有密度与交互的同时改善跨区域对齐。
+
+- [agent/desktop/renderer] 精简模型目录转发层与未使用依赖，折叠后卸载会话重内容并移除工具卡片独立计时器，同时修复无效懒加载，使 Renderer 首屏 gzip JS 减少约 62 KiB。
 
 ### Fixed
 
@@ -271,88 +343,11 @@
 
 - [desktop] 修复已有会话切换模型或提供商后被历史状态覆盖的问题，统一选择、目录刷新与后续发送的模型状态，普通发送及主/侧聊天排队消息均携带新模型，并防止迟到的保存结果覆盖新选择。
 
-### Added
+### Removed
 
-- [desktop] DeepSeek Provider 支持在 Chat Completions、Responses 与 Anthropic Messages 协议间全局切换。
+- [agent/mcp] 移除旧 HTTP+SSE 客户端回退和调试服务器分支；已有配置原样保留，不受支持的端点连接时返回安全错误。
 
-- [agent/desktop] 新增可回放的结构化结果摘要卡片，主 Agent、子 Agent 及显式 opt-in 的工具结果可通过统一信封展示结论、验证、风险与安全引用；旧客户端继续按 JSON 降级显示。
-
-- [agent/desktop] 新增持久化计划批准：成功完成的 Plan 轮次可实施、反馈或关闭；沿用原有轮次事务、权限及模型，支持幂等重试、过期校验和重启恢复，子代理无合法续跑入口时保持只读。
-
-- [desktop] 新增持久化的“显示日程会话”过滤，统一作用于侧栏项目、最近、置顶和活动；仅隐藏日程新建的独立会话，保留被日程唤醒的普通聊天。
-
-- [desktop] 主会话与侧边聊天在实际切换模型后的新一轮前显示模型切换提示和分割线，历史恢复时按相邻轮次自动还原。
-
-- [desktop] 项目收起时将内部列表的未读状态显示为项目行圆点，排除单独置顶与已归档会话，悬停或聚焦时切换为项目操作。
-
-- [desktop] 侧栏会话右侧显示日程运行与分叉图标，日程图标与“已安排”一级导航统一，悬停或聚焦时替换为置顶、归档操作，统一图标和状态占位以保持列对齐；支持已有会话被日程唤醒、双标记及实时刷新。
-
-- [desktop/renderer] 已安排任务日历支持月视图、周视图与日程列表视图三重视图切换，支持在周/列表视图中按时间轴卡片浏览任务，并支持日期单元格悬停快速新建任务及单项任务直接查看会话或立即运行。
-
-### Changed
-
-- [desktop/renderer] 将侧栏导航、项目前置与行尾状态和操作图标统一为 16px，保持按钮点击区域与侧栏布局不变。
-
-- [desktop/renderer] 保留 Lucide 图形，将功能图标调整为 12/16/20px 与 1.6 轻轮廓，侧栏主要导航使用 20px，并标记品牌、头像及插画占位图以保留原始绘制方式和控件点击区域。
-
-- [agent] 升级 Pi AI 模型与 Responses 适配，加入 GPT-6 Astra 和最新 GPT-5.6 定价／缓存能力；官方 OpenAI 结构化任务强制 strict 单工具提交，长流式请求放宽至 10 分钟，并统一返回安全可操作的 Provider 错误。
-
-- [desktop] 主会话、侧边聊天与子代理统一请求卡外壳及问答表单；权限审批改为详情、允许／拒绝及真实范围菜单，清理重复样式和悬空授权选项，限定快捷键作用于所属卡片并保留失败重试。
-
-- [desktop] 复用间距 token，将侧栏等待审批标签内边距调整为上下 2px、左右 8px。
-
-- [desktop] 将会话分叉菜单、消息操作、快捷命令和分叉弹窗图标统一为 Split，与侧栏分叉标记一致。
-
-- [desktop/renderer] 将 Composer 发送按钮 `.send-button` 的宽高从 `var(--cpx-sys-space-8)` 调整为 `var(--cpx-sys-space-7)`。
-
-- [desktop] 将全界面图标统一为侧边栏标准的 14×14，覆盖菜单、状态、文件图标、空状态与界面内 Logo。
-
-- [desktop] 统一项目与会话的 sidebar-indicator、sidebar-unread-dot 样式，复用项目行已有尾部容器并移除多余包裹。
-
-- [desktop] 侧栏会话右侧常态图标与悬停操作的列间距由 8px 缩至 4px，保持两种状态中心线对齐。
-
-- [desktop] 合并侧栏来源图标与状态占位样式为统一 indicator，保持列对齐、状态颜色与悬停切换行为。
-
-- [desktop] 月视图日期格内边距由 4px 调整为 8px，让日期、任务列表及更多任务入口与边框保持适当留白。
-
-- [desktop/renderer] 优化任务日历交互与排布：点击有任务日期直接展开当日议程，空白日期改用主题色边框高亮并去除灰底；月视图日程项加大尺寸并采用前 5 行展示日程、第 6 行右下角对齐 ghostTertiary +N 项按钮的 6 行排布结构，5 项以内完整平铺；计划任务与自动化详情面板头部重构为左右单行排布，合并返回入口与标题以降低高度；执行时间隐藏生硬时区标签并静默自动对齐系统时区，新建时按当天整点或未来工作时间智能推导。
-
-- [desktop] 任务日历的议程、新建与详情共用固定位置浮卡，单项直达详情、多项支持左右切换及返回确认；统一状态胶囊、更多设置入口和只读表单外观。
-
-- [desktop/renderer] 精简任务浮卡标题，将更多设置改为无箭头胶囊按钮；隐藏空必填项提示并保留按钮禁用、无效排期和实际保存错误。
-
-- [desktop/renderer] 计划任务与自动化浮卡收窄为单列核心表单，次要设置和执行历史默认折叠；只读任务改为状态摘要，底部操作始终可见，保留无动画与退出确认。
-
-- [desktop/renderer] 任务详情浮卡改为关闭按钮二次确认丢弃草稿，Esc 撤销确认，背景点击不关闭；移除草稿丢弃对话框并保留无动画交互。
-
-- [desktop/renderer] 移除任务日历聚焦议程、编辑浮卡和遮罩的进出动画、触发位置缩放及任务卡过渡，改为即时显示和关闭，保留静态模糊与高亮。
-
-- [desktop/renderer] 任务日历复用当前 42 天数据进行本地搜索、筛选与月/周/列表无加载切换；移除常驻议程和详情侧栏，改为日期附近的紧凑议程与编辑浮卡，背景模糊并保持触发位置清晰，支持返回议程、草稿丢弃确认和键盘焦点恢复；修复计划任务草稿携带自动化排期字段而被严格 RPC 校验拒绝的问题。
-
-- [desktop/renderer] 重构已安排页日历栅格布局与容器响应式自适应，移除固定最小宽度，彻底解决周日列在右侧议程存在时被截断挤出视口的问题，并消除外层双滚动条。
-
-- [development] 整理开发工作流指令与本机 Skill、记忆的适用范围；Playwright 测试入口支持聚焦参数转发及中断时清理本次子进程树，并补充真实失败案例回归记录。
-
-- [desktop/renderer] 移除会话回合导航预览卡的淡入淡出与位移动画，使悬停、聚焦和拖动浏览时直接显示预览内容。
-
-- [desktop/renderer] 移除侧栏会话与项目详情弹层的进出场动画，并采用首次延迟、后续连续直切的共享悬停防抖，减少快速浏览时的误触发和弹层闪烁。
-
-- [desktop/renderer] 将查看活动模式筛选菜单收敛为 Codex 风格的单一优先事项开关与紧凑无图标布局。
-
-- [desktop/renderer] 收紧查看活动模式双行会话的重复垂直内距，使标题、工作区与同行操作保持 Codex 风格的紧凑密度。
-
-- [desktop/renderer] 将查看活动模式的会话操作图标对齐到标题行，并保持标题在操作区之前渐隐。
-
-- [desktop/renderer] 移除查看活动模式中分组标题、工作区名称与粘性分组交接的残留渐隐，使活动信息保持清晰可读。
-
-- [desktop/renderer] 统一任务与设置侧栏普通导航项的文字和图标前景色，收紧任务分组间距，使悬停、聚焦与选中只改变背景，并消除导航、项目和会话之间的色阶跳变。
-
-- [desktop/renderer] 统一会话正文、用户消息、轮次导航、输入框、Markdown 富内容与环境信息面板的阅读列线，在不同页面宽度、列表嵌套和右侧面板状态下保持稳定对齐。
-
-- [desktop/renderer] 调整全局页面宽度三档，窄、默认和宽分别使用 768px、1009px 和 1250px。
-
-- [desktop/renderer] 统一任务与设置侧栏的图标、正文、操作和分组列线，在保持现有密度与交互的同时改善跨区域对齐。
-- [agent/desktop/renderer] 精简模型目录转发层与未使用依赖，折叠后卸载会话重内容并移除工具卡片独立计时器，同时修复无效懒加载，使 Renderer 首屏 gzip JS 减少约 62 KiB。
+- [desktop/renderer] 移除 BeUI Scroll Animation 动画与进度指示体系：移除 SmoothScroll 与 ScrollProgress 组件、对应样式、测试用例及 `lenis` 依赖，WhatsNewDialog 恢复使用统一的 ScrollArea 基础组件。
 
 ## 0.2.0-beta.5 — 2026-09-04
 
