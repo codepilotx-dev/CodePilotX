@@ -999,14 +999,6 @@ export function DesktopLayout(): React.ReactNode {
       .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
   }, [])
 
-  const handleBrowserAnnotation = useCallback(
-    (annotation: string): void => {
-      const separator = input.trim() ? '\n\n' : ''
-      setInput(`${input}${separator}${annotation}`)
-    },
-    [input, setInput],
-  )
-
   const handleAppendComposerText = useCallback(
     (text: string): void => {
       const trimmed = text.trim()
@@ -2124,6 +2116,7 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
+          onOpenComputerSettings: () => navigate('/settings/computer'),
           onOpenModelSettings: () => navigate('/settings/providers'),
           onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: (invocation) => {
@@ -2287,6 +2280,7 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
+        onOpenComputerSettings={() => navigate('/settings/computer')}
         onOpenModelSettings={() => navigate('/settings/providers')}
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)
@@ -2693,7 +2687,7 @@ export function DesktopLayout(): React.ReactNode {
         height={bottomPanelHeight}
         rightFullWidth={rightDockFullWidth}
         workspace={currentWorkspace}
-        onAppendBrowserAnnotation={handleBrowserAnnotation}
+        browserDraftKey={mainComposerDraftKey}
         onAppendComposerText={handleAppendComposerText}
         onAddComposerFiles={handleAddComposerFiles}
         onBrowserStateChange={setBrowserState}
@@ -2850,7 +2844,7 @@ export function DesktopLayout(): React.ReactNode {
         state: browserState,
         threadId: sessionId,
         onNewTab: handleOpenBrowser,
-        onAppendAnnotation: handleBrowserAnnotation,
+        draftKey: mainComposerDraftKey,
         onAppendImage: handleBrowserImage,
         onOpenSettings: () => navigate('/settings/browser'),
         onStateChange: setBrowserState,
@@ -2933,7 +2927,7 @@ export function DesktopLayout(): React.ReactNode {
       gitStatus,
       handleAddComposerFiles,
       handleAppendComposerText,
-      handleBrowserAnnotation,
+      mainComposerDraftKey,
       handleBrowserImage,
       handleOpenBrowser,
       handleCopyMarkdownFileReferenceContents,

@@ -1,15 +1,8 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Globe2,
-  MessageSquarePlus,
-  Plus,
-  RefreshCw,
-} from 'lucide-react'
+import type { ComposerDraftKey } from '../session/composer/composerTypes.js'
+import { useBrowserAnnotations } from './useBrowserAnnotations.js'
+import { ArrowLeft, ArrowRight, Globe2, MessageSquarePlus, Plus, RefreshCw } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
 import type { DesktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
@@ -19,9 +12,8 @@ import {
   APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { IconButton } from '../../components/ui/IconButton.js'
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
 import { BrowserManagementControls } from './BrowserManagementControls.js'
 
 type Props = {
@@ -29,7 +21,7 @@ type Props = {
   threadId?: string | null
   onNewTab?: () => void
   state: DesktopBrowserState
-  onAppendAnnotation: (text: string) => void
+  draftKey: ComposerDraftKey
   onStateChange: (state: DesktopBrowserState) => void
   onOpenSettings?: () => void
   onAppendImage?: (image: { data: string; mimeType: 'image/png' }) => void
@@ -46,21 +38,16 @@ export function DesktopBrowserPanel({
   state,
   client,
   onNewTab,
-  onAppendAnnotation,
+  draftKey,
   onStateChange,
   onOpenSettings,
   onAppendImage,
 }: Props): React.ReactNode {
   const [barsHost, setBarsHost] = useState<HTMLDivElement | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
-  const annotationToggleRef = useRef<HTMLButtonElement | null>(null)
-  const annotationPanelRef = useRef<HTMLDivElement | null>(null)
-  const reducedMotion = usePrefersReducedMotion()
   const [address, setAddress] = useState(state.url)
   const [addressFocused, setAddressFocused] = useState(false)
-  const [annotationOpen, setAnnotationOpen] = useState(false)
-  const [annotationTarget, setAnnotationTarget] = useState('')
-  const [annotationBody, setAnnotationBody] = useState('')
+  const annotation = useBrowserAnnotations(client, state, draftKey)
   const lastBoundsRef = useRef<BrowserBounds | null>(null)
   const syncBrowserBoundsRef = useRef<() => Promise<void>>(async () => undefined)
 
@@ -79,13 +66,6 @@ export function DesktopBrowserPanel({
       .then(onStateChange)
       .catch(() => undefined)
   }, [client, onStateChange, state.open])
-
-  useLayoutEffect(() => {
-    if (!annotationOpen) return
-    annotationPanelRef.current?.removeAttribute('aria-hidden')
-    annotationPanelRef.current?.removeAttribute('inert')
-    annotationPanelRef.current?.setAttribute('data-presence', 'present')
-  }, [annotationOpen])
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current
@@ -161,44 +141,6 @@ export function DesktopBrowserPanel({
     void runBrowserAction(() => client.navigateBrowser(address))
   }
 
-  function handleSubmitAnnotation(): void {
-    const body = annotationBody.trim()
-    if (!body) return
-    const target = annotationTarget.trim()
-    const lines = [
-      '浏览器批注：',
-      `- 页面：${state.title || '未命名页面'}`,
-      `- URL：${state.url || address}`,
-      target ? `- 位置：${target}` : null,
-      `- 反馈：${body}`,
-    ].filter(Boolean)
-    onAppendAnnotation(lines.join('\n'))
-    setAnnotationBody('')
-    setAnnotationTarget('')
-    closeAnnotation()
-  }
-
-  function closeAnnotation(): void {
-    annotationPanelRef.current?.setAttribute('aria-hidden', 'true')
-    annotationPanelRef.current?.setAttribute('inert', '')
-    annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
-    const activeElement = document.activeElement
-    if (
-      activeElement instanceof HTMLElement &&
-      annotationPanelRef.current?.contains(activeElement)
-    ) {
-      annotationToggleRef.current?.focus({ preventScroll: true })
-    }
-    setAnnotationOpen(false)
-  }
-
-  function openAnnotation(): void {
-    setAnnotationOpen(true)
-  }
-  function finishAnnotationExit(): void {
-    void syncBrowserBoundsRef.current()
-  }
-
   const compactAddress =
     !addressFocused && address === state.url ? formatBrowserDisplayURL(address) : address
   const addressStatus = state.error
@@ -271,14 +213,13 @@ export function DesktopBrowserPanel({
           ) : null}
           {state.busy ? <span className="browser-address-state">Agent 操作中</span> : null}
           <IconButton
-            ref={annotationToggleRef}
             color="ghostSecondary"
             size="toolbar"
-            title={annotationOpen ? '收起批注' : '添加批注'}
-            onClick={() => {
-              if (annotationOpen) closeAnnotation()
-              else openAnnotation()
-            }}
+            title={annotation.active ? '退出批注' : '选择网页目标并添加批注'}
+            className="browser-annotation-trigger"
+            disabled={!state.features?.annotations || !state.documentId}
+            aria-pressed={annotation.active}
+            onClick={annotation.toggle}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -295,6 +236,33 @@ export function DesktopBrowserPanel({
         </div>
       </div>
       <div ref={setBarsHost} className="browser-utility-bars" />
+      {annotation.active ? (
+        <div className="browser-annotation-tools" role="toolbar" aria-label="批注选择模式">
+          <SegmentedControl
+            value={annotation.mode}
+            onChange={annotation.changeMode}
+            ariaLabel="选择目标类型"
+            options={[
+              { value: 'element', label: '元素' },
+              { value: 'text', label: '文本' },
+              { value: 'region', label: '区域' },
+            ]}
+          />
+          <span>
+            {annotation.invalid.length
+              ? `${annotation.invalid.length} 条目标已失效，反馈仍可发送`
+              : '选择目标后填写反馈；Shift 多选；Esc 取消或退出'}
+          </span>
+          <Button color="secondary" onClick={annotation.toggle}>
+            完成标注
+          </Button>
+        </div>
+      ) : null}
+      {annotation.error ? (
+        <div className="browser-status-row" role="alert">
+          {annotation.error}
+        </div>
+      ) : null}
 
       {state.error ? (
         <div className="browser-status-row" role="alert">
@@ -331,61 +299,6 @@ export function DesktopBrowserPanel({
           </div>
         ) : null}
       </div>
-
-      <AnimatePresence initial={false} onExitComplete={finishAnnotationExit}>
-        {annotationOpen ? (
-          <motion.div
-            ref={annotationPanelRef}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            className="browser-annotation-presence"
-            data-presence="present"
-            exit={{
-              height: 0,
-              opacity: 0,
-              y: 8,
-              transition: motionTransition(reducedMotion, exitTween),
-            }}
-            initial={{ height: 0, opacity: 0, y: 8 }}
-            transition={motionTransition(reducedMotion, enterTween)}
-            onKeyDown={(event) => {
-              if (event.key !== 'Escape') return
-              event.preventDefault()
-              event.stopPropagation()
-              closeAnnotation()
-            }}
-          >
-            <div className="browser-annotation-bar">
-              <Button color="primary" onClick={closeAnnotation}>
-                <MessageSquarePlus size={APP_ICON_SIZE} />
-                <span>添加批注</span>
-              </Button>
-            </div>
-            <div className="browser-annotation-form">
-              <input
-                aria-label="批注位置"
-                placeholder="位置或元素描述，例如 顶部导航按钮"
-                value={annotationTarget}
-                onChange={(event) => setAnnotationTarget(event.target.value)}
-              />
-              <textarea
-                aria-label="批注内容"
-                placeholder="描述需要调整的视觉问题"
-                rows={3}
-                value={annotationBody}
-                onChange={(event) => setAnnotationBody(event.target.value)}
-              />
-              <Button
-                color="primary"
-                disabled={!annotationBody.trim()}
-                onClick={handleSubmitAnnotation}
-              >
-                <Check size={APP_ICON_SIZE} />
-                <span>插入输入框</span>
-              </Button>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </section>
   )
 }

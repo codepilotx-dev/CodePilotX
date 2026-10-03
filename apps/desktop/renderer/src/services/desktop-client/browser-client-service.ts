@@ -22,6 +22,14 @@ type BrowserApi = Pick<
   | 'clearBrowserAllowedSites'
 >
 export type DesktopBrowserClient = BrowserApi & {
+  annotation(
+    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationInput,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationResult>
+  onAnnotationEvent(
+    listener: (
+      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
+    ) => void,
+  ): () => void
   utility(
     operation: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtility,
   ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityResult>
@@ -94,6 +102,13 @@ export function createDesktopBrowserClient(
     const apply = async (promise?: Promise<DesktopBrowserSnapshot>) =>
       accept(await (promise ?? unavailable()))
     const client: DesktopBrowserClient = {
+      annotation: (input) =>
+        bridge?.performDesktopBrowserAnnotation?.(input) ??
+        Promise.reject(new Error('浏览器批注能力不可用')),
+      onAnnotationEvent: (listener) =>
+        bridge?.onDesktopBrowserAnnotationEvent?.((event) => {
+          if (event.tabId === id()) listener(event)
+        }) ?? (() => {}),
       utility: (operation) => {
         const generation = states.get(id())?.generation
         if (!generation) return Promise.reject(new Error('浏览器页面尚未连接'))

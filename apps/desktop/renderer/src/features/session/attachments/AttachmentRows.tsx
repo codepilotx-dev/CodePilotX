@@ -5,6 +5,9 @@ import {
   AttachmentImageTile,
 } from './AttachmentRowPrimitives.js'
 import { useThreadAttachmentImageSource } from './useThreadAttachmentImageSource.js'
+import { useBrowserAnnotationManifest } from './useBrowserAnnotationManifest.js'
+import { BrowserAnnotationCard } from '../../browser/BrowserAnnotationCards.js'
+import type { BrowserAnnotation } from '@codepilotx/shared/browser-annotation'
 
 type ThreadAttachmentRowsProps = {
   attachments: readonly Attachment[]
@@ -17,13 +20,43 @@ export function ThreadAttachmentRows({
   onOpen,
   onRemove,
 }: ThreadAttachmentRowsProps): React.ReactNode {
-  const images = attachments.filter((attachment) => attachment.kind === 'image')
-  const files = attachments.filter((attachment) => attachment.kind !== 'image')
+  const manifest = useBrowserAnnotationManifest(attachments)
+  const screenshot = (a: BrowserAnnotation) =>
+    attachments.find(
+      (image) =>
+        image.name === a.screenshotName &&
+        image.kind === 'image' &&
+        image.mediaType === 'image/png',
+    )
+  const used = new Set(
+    manifest?.annotations.flatMap((a) => {
+      const image = screenshot(a)
+      return image ? [image.id] : []
+    }),
+  )
+  const images = attachments.filter(
+    (attachment) => attachment.kind === 'image' && !used.has(attachment.id),
+  )
+  const files = attachments.filter(
+    (attachment) => attachment.kind !== 'image' && attachment.id !== manifest?.id,
+  )
 
   if (attachments.length === 0) return null
 
   return (
     <div className="thread-attachment-rows">
+      {manifest ? (
+        <div className="browser-annotation-cards">
+          {manifest.annotations.map((a) => {
+            const image = screenshot(a)
+            return image ? (
+              <SentBrowserAnnotation key={a.id} annotation={a} image={image} />
+            ) : (
+              <BrowserAnnotationCard key={a.id} annotation={a} />
+            )
+          })}
+        </div>
+      ) : null}
       {images.length > 0 ? (
         <AttachmentHorizontalRow ariaLabel="图片附件" reverse>
           {images.map((attachment) => (
@@ -50,6 +83,21 @@ export function ThreadAttachmentRows({
         </AttachmentHorizontalRow>
       ) : null}
     </div>
+  )
+}
+function SentBrowserAnnotation({
+  annotation,
+  image,
+}: {
+  annotation: BrowserAnnotation
+  image: Attachment
+}) {
+  const state = useThreadAttachmentImageSource(image)
+  return (
+    <BrowserAnnotationCard
+      annotation={annotation}
+      source={state.status === 'ready' ? state.source : undefined}
+    />
   )
 }
 

@@ -10,6 +10,7 @@ import type {
   DesktopBrowserUtilityEvent,
   DesktopBrowserDataRequest,
   DesktopBrowserDataResult,
+  DesktopBrowserAnnotationInput,
 } from '@codepilotx/shared/desktop-browser-ipc'
 import { DESKTOP_BROWSER_IPC_CHANNELS } from '@codepilotx/shared/desktop-browser-ipc'
 import type { DesktopLogger } from '../logging/desktop-logger.js'
@@ -19,6 +20,7 @@ import { runBrowserOperation } from './browser-operations.js'
 import { normalizeDesktopBrowserUrl, isAllowedDesktopBrowserNavigation } from './browser-url.js'
 import { runBrowserUtility, applyBrowserDevice } from './browser-utilities.js'
 import { BrowserDownloads } from './browser-downloads.js'
+import { BrowserAnnotations } from './browser-annotations.js'
 
 type Entry = {
   tab: BrowserTab
@@ -66,6 +68,7 @@ export class DesktopBrowserController {
   readonly #hosts = new Map<number, WindowHost>()
   readonly #entries = new Map<string, Entry>()
   readonly #downloads: BrowserDownloads
+  readonly #annotations = new BrowserAnnotations()
   constructor(private readonly options: DesktopBrowserControllerOptions) {
     this.#rpc = new BrowserHostRpcClient(options.getSupervisor)
     this.#downloads = new BrowserDownloads(
@@ -222,8 +225,12 @@ export class DesktopBrowserController {
         event.preventDefault()
     })
     guest.on('did-start-loading', () => void this.#report(entry, { loading: true, error: null }))
+    guest.on('did-start-navigation', (_event, _url, _inPlace, main) => {
+      if (main) this.#annotations.stop(guest)
+    })
     guest.on('did-stop-loading', () => void this.#navigationReport(entry, false))
     const navigated = () => {
+      this.#annotations.stop(guest)
       entry.tab = { ...entry.tab, documentId: randomUUID() }
       if (entry.initialized && /^https?:/.test(guest.getURL())) {
         entry.visit = {
@@ -259,6 +266,7 @@ export class DesktopBrowserController {
       void this.#budget(host)
     })
     guest.on('render-process-gone', () => {
+      this.#annotations.stop(guest)
       entry.abort?.abort()
       entry.contents = undefined
       void this.#report(entry, {
@@ -362,6 +370,7 @@ export class DesktopBrowserController {
   }
   async control(owner: BrowserWindow, tabId: string, threadId: string | null) {
     const entry = this.#require(owner, tabId)
+    if (threadId) this.#annotations.stop(entry.contents)
     entry.abort?.abort()
     entry.tab = await this.#rpc.call('browser/control', { tabId, threadId })
     await entry.executing
@@ -386,6 +395,36 @@ export class DesktopBrowserController {
     host.permissions = []
     for (const e of this.#owned(host)) this.#publish(e)
     return this.getState(owner, tabId)
+  }
+  async annotation(owner: BrowserWindow, input: DesktopBrowserAnnotationInput) {
+    const entry = this.#require(owner, input.tabId)
+    const valid = () =>
+      !owner.isDestroyed() &&
+      this.#entries.get(input.tabId) === entry &&
+      entry.tab.generation === input.generation &&
+      entry.tab.documentId === input.documentId &&
+      !entry.tab.controlThreadId
+    if (entry.tab.generation !== input.generation || entry.tab.documentId !== input.documentId)
+      throw new Error('网页已变化，请重新选择')
+    if (input.operation.action === 'start' && entry.tab.controlThreadId)
+      await this.control(owner, input.tabId, null)
+    const guest = await this.#ready(entry)
+    if (!valid()) throw new Error('网页已变化，请重新选择')
+    entry.capturing = input.operation.action === 'capture'
+    try {
+      return await this.#annotations.perform(
+        guest,
+        input,
+        input,
+        () => valid() && entry.contents === guest,
+        (event) => {
+          if (!owner.isDestroyed())
+            owner.webContents.send(DESKTOP_BROWSER_IPC_CHANNELS.annotationEvent, event)
+        },
+      )
+    } finally {
+      entry.capturing = false
+    }
   }
   async utility(
     owner: BrowserWindow,
@@ -752,6 +791,8 @@ export class DesktopBrowserController {
         this.#entries.set(tab.tabId, entry)
       } else {
         if (tab.revision < entry.tab.revision) continue
+        if (tab.controlThreadId || entry.tab.documentId !== tab.documentId)
+          this.#annotations.stop(entry.contents)
         if (entry.tab.generation !== tab.generation || tab.state === 'suspended')
           this.#destroy(entry)
         if (entry.abort && (!tab.busy || entry.tab.controlThreadId !== tab.controlThreadId))
@@ -970,6 +1011,7 @@ export class DesktopBrowserController {
             !e.tab.busy &&
             !e.abort &&
             !e.capturing &&
+            !this.#annotations.active(e.contents) &&
             !e.audio &&
             !e.tab.loading &&
             !this.#downloads.activeForTab(e.tab.tabId),
@@ -993,9 +1035,11 @@ export class DesktopBrowserController {
     }
   }
   #detach(entry: Entry) {
+    if (this.#annotations.active(entry.contents)) return
     if (entry.contents?.debugger.isAttached()) entry.contents.debugger.detach()
   }
   #destroy(entry: Entry) {
+    this.#annotations.stop(entry.contents)
     clearTimeout(entry.idle)
     entry.abort?.abort()
     entry.abort = undefined
@@ -1015,7 +1059,11 @@ export class DesktopBrowserController {
     return {
       ...entry.tab,
       open: true,
-      features: { utilities: true, data: this.#rpc.capabilities.has('browser.data.v1') },
+      features: {
+        utilities: true,
+        data: this.#rpc.capabilities.has('browser.data.v1'),
+        annotations: true,
+      },
       allowedSites: permissions.filter((p) => p.decision === 'allow').map((p) => p.origin),
       sitePermissions: permissions.map((p) => ({ ...p })),
     }

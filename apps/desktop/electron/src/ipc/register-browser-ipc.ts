@@ -10,6 +10,7 @@ import {
 import type { DesktopBrowserController } from '../browser/browser-controller.js'
 import { isRecord } from '@codepilotx/shared/guards'
 import { requireBrowserUtility, requireBrowserData } from '../browser/browser-management-input.js'
+import { requireBrowserAnnotation } from '../browser/browser-annotations.js'
 
 interface BrowserIpcDependencies {
   controller: DesktopBrowserController
@@ -29,6 +30,9 @@ export function registerBrowserIpc(dependencies: BrowserIpcDependencies): void {
   )
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.utility, (event, input) =>
     controller.utility(senderWindow(event.sender), requireBrowserUtility(input)),
+  )
+  ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.annotation, (event, input) =>
+    controller.annotation(senderWindow(event.sender), requireBrowserAnnotation(input)),
   )
   ipcMain.handle(DESKTOP_BROWSER_IPC_CHANNELS.data, (event, input) =>
     controller.data(senderWindow(event.sender), requireBrowserData(input)),

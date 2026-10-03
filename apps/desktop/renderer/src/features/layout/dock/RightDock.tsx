@@ -77,7 +77,7 @@ type Props = {
   height?: number
   rightFullWidth?: boolean
   workspace: DesktopWorkspace | null
-  onAppendBrowserAnnotation: (text: string) => void
+  browserDraftKey: import('../../session/composer/composerTypes.js').ComposerDraftKey
   onBrowserStateChange: (state: DesktopBrowserState) => void
   onClose: () => void
   onCloseTab: (tabId: WorkbenchTabId) => void
@@ -283,7 +283,7 @@ export function WorkbenchPanel({
   height,
   rightFullWidth = false,
   workspace,
-  onAppendBrowserAnnotation,
+  browserDraftKey,
   onBrowserStateChange,
   onClose,
   onCloseTab,
@@ -337,7 +337,6 @@ export function WorkbenchPanel({
       current.sessionId === sessionId ? current : { sessionId, displayPath: null },
     )
   }, [sessionId])
-  const stableOnAppendBrowserAnnotation = useStableEvent(onAppendBrowserAnnotation)
   const stableOnBrowserStateChange = useStableEvent(onBrowserStateChange)
   const stableOnClose = useStableEvent(onClose)
   const stableOnCreateBranch = useStableEvent(onCreateBranch)
@@ -378,7 +377,7 @@ export function WorkbenchPanel({
       browser: {
         availability: browserAvailability,
         state: browserState,
-        onAppendAnnotation: stableOnAppendBrowserAnnotation,
+        draftKey: browserDraftKey,
         onAppendComposerText: stableOnAppendComposerText,
         onStateChange: stableOnBrowserStateChange,
       },
@@ -437,7 +436,7 @@ export function WorkbenchPanel({
       sideTaskContent,
       subagentAvailability,
       stableOnAddComposerFiles,
-      stableOnAppendBrowserAnnotation,
+      browserDraftKey,
       stableOnAppendComposerText,
       stableOnBrowserStateChange,
       stableOnClose,

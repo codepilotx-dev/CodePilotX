@@ -8,6 +8,10 @@ import type {
 } from './composerTypes.js'
 import { cloneDraft } from './composerDraftStore.js'
 import { skillInvocationsFromComposerDocument } from './composerSkillToken.js'
+import {
+  annotationAttachments,
+  validateAnnotationCapacity,
+} from '../../browser/browserAnnotationDraft.js'
 
 export type ComposerDeliveryStatus = 'sent' | 'queued'
 
@@ -30,13 +34,21 @@ export function prepareComposerSubmission(
   draft: ComposerDraft,
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
+  if (Object.keys(snapshot.browserAnnotationFeedback ?? {}).length)
+    return failed('prepare', '请先保存或取消正在编辑的批注反馈')
+  try {
+    validateAnnotationCapacity(snapshot)
+  } catch (error) {
+    return failed('prepare', error instanceof Error ? error.message : '批注附件不可用')
+  }
+  const attachments = annotationAttachments(snapshot)
   const text = serializeComposerDocument(snapshot.document)
   const skills =
     snapshot.skills ??
     (snapshot.skillInvocation
       ? [snapshot.skillInvocation]
       : skillInvocationsFromComposerDocument(snapshot.document))
-  const hasContent = Boolean(text.trim()) || snapshot.attachments.length > 0 || skills.length > 0
+  const hasContent = Boolean(text.trim()) || attachments.length > 0 || skills.length > 0
 
   if (!hasContent) {
     return failed('prepare', '请输入消息或添加附件')
@@ -49,7 +61,7 @@ export function prepareComposerSubmission(
     clientId: snapshot.clientId,
     input: {
       text,
-      attachments: snapshot.attachments,
+      attachments,
       ...(skills.length ? { skills } : {}),
     },
     sessionName: skills.length

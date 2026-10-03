@@ -132,6 +132,16 @@ export type ComposerDraft = {
   clientId: string
   document: ComposerDocument
   attachments: DesktopComposerAttachment[]
+  browserAnnotations?: import('@codepilotx/shared/browser-annotation').BrowserAnnotation[]
+  browserAnnotationImages?: DesktopComposerAttachment[]
+  browserAnnotationFeedback?: Record<string, string>
+  browserAnnotationEditors?: Record<
+    string,
+    {
+      documentId: string
+      editor: import('@codepilotx/shared/browser-annotation').BrowserAnnotationEditor
+    }
+  >
   skillInvocation?: ComposerSkillInvocation
   skills?: ComposerSkillInvocation[]
   collaborationMode: ComposerCollaborationMode

@@ -30,6 +30,7 @@ import type {
 import { createComposerDocument } from './composerTypes.js'
 import { createTaskSession, executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
+import { annotationAttachments } from '../../browser/browserAnnotationDraft.js'
 import {
   createComposerDocumentWithSkill,
   skillInvocationsFromComposerDocument,
@@ -196,13 +197,18 @@ export function useDesktopComposerController({
   }, [activeSkills, contextTokens, input])
   const workingPluginSkillUnavailable = false
 
-  const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
-  const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
+  const submissionAttachments = annotationAttachments({
+    ...composerDraftStore.get(draftKey),
     attachments,
+  })
+  const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(submissionAttachments)
+  const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
+    submissionAttachments,
     selectedModelMetadata,
   )
   const hasComposerContent =
     Boolean(input.trim()) ||
+    Boolean(composerDraftStore.get(draftKey).browserAnnotations?.length) ||
     attachments.length > 0 ||
     activeSkillToken !== null ||
     contextTokens.length > 0
@@ -411,6 +417,7 @@ export function useDesktopComposerController({
     }
 
     const draft: ComposerDraft = {
+      ...composerDraftStore.get(sourceDraftKey),
       clientId: draftClientIdRef.current,
       document: composerDocument ?? createComposerDocument(input),
       attachments,
@@ -478,6 +485,7 @@ export function useDesktopComposerController({
       : true
     const nextDraft = composerDraftStore.completeSubmission(acceptedDraftKey, draft.clientId, {
       clearContent,
+      browserAnnotations: draft.browserAnnotations,
     })
     composerDraftStore.clearSubmitOutcome(acceptedDraftKey)
     if (activeDraftKeyRef.current === acceptedDraftKey) {

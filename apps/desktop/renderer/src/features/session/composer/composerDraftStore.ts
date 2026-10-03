@@ -47,6 +47,14 @@ export class ComposerDraftStore {
   update(key: ComposerDraftKey, update: (draft: ComposerDraft) => ComposerDraft): ComposerDraft {
     return this.set(key, update(this.get(key)))
   }
+  updateBrowserAnnotations(
+    key: ComposerDraftKey,
+    update: (draft: ComposerDraft) => ComposerDraft,
+  ): ComposerDraft {
+    const next = this.update(key, update)
+    this.#emit()
+    return next
+  }
 
   prefillTextIfEmpty(key: ComposerDraftKey, text: string): ComposerDraft {
     const current = this.get(key)
@@ -82,6 +90,7 @@ export class ComposerDraftStore {
     const replacement = createEmptyComposerDraft(this.#createClientId())
     this.#drafts.set(to, submitted)
     this.#drafts.set(from, replacement)
+    this.#emit()
     return {
       submitted: cloneDraft(submitted),
       replacement: cloneDraft(replacement),
@@ -116,16 +125,33 @@ export class ComposerDraftStore {
   completeSubmission(
     key: ComposerDraftKey,
     consumedClientId: string,
-    options: { clearContent: boolean },
+    options: { clearContent: boolean; browserAnnotations?: ComposerDraft['browserAnnotations'] },
   ): ComposerDraft {
     const current = this.#drafts.get(key)
     if (!current || current.clientId !== consumedClientId) {
       return current ? cloneDraft(current) : this.get(key)
     }
     const nextClientId = this.#createClientId()
+    const remaining = (current.browserAnnotations ?? []).filter(
+      (annotation) =>
+        current.browserAnnotationFeedback?.[annotation.id] !== undefined ||
+        !options.browserAnnotations?.some(
+          (consumed) => JSON.stringify(consumed) === JSON.stringify(annotation),
+        ),
+    )
     const next = options.clearContent
       ? createEmptyComposerDraft(nextClientId)
       : { ...current, clientId: nextClientId }
+    next.browserAnnotations = remaining
+    next.browserAnnotationImages = (current.browserAnnotationImages ?? []).filter((image) =>
+      remaining.some((annotation) => annotation.screenshotName === image.name),
+    )
+    next.browserAnnotationEditors = current.browserAnnotationEditors
+    next.browserAnnotationFeedback = Object.fromEntries(
+      Object.entries(current.browserAnnotationFeedback ?? {}).filter(([id]) =>
+        remaining.some((annotation) => annotation.id === id),
+      ),
+    )
     this.#drafts.set(key, next)
     this.#emit()
     return cloneDraft(next)
@@ -191,6 +217,16 @@ export function cloneDraft(draft: ComposerDraft): ComposerDraft {
     ...draft,
     document: cloneDocument(draft.document),
     attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+    browserAnnotations: draft.browserAnnotations
+      ? structuredClone(draft.browserAnnotations)
+      : undefined,
+    browserAnnotationImages: draft.browserAnnotationImages?.map((image) => ({ ...image })),
+    browserAnnotationFeedback: draft.browserAnnotationFeedback
+      ? { ...draft.browserAnnotationFeedback }
+      : undefined,
+    browserAnnotationEditors: draft.browserAnnotationEditors
+      ? structuredClone(draft.browserAnnotationEditors)
+      : undefined,
     skills: draft.skills?.map((skill) => ({ ...skill })),
     skillInvocation: draft.skillInvocation ? { ...draft.skillInvocation } : undefined,
   }

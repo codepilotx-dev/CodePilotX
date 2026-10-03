@@ -141,7 +141,7 @@ export type WorkbenchTabRenderContext = {
     state: DesktopBrowserState | null
     threadId?: string | null
     onNewTab?: () => void
-    onAppendAnnotation: (text: string) => void
+    draftKey: import('../../session/composer/composerTypes.js').ComposerDraftKey
     onOpenSettings?: () => void
     onAppendImage?: (image: { data: string; mimeType: 'image/png' }) => void
     onStateChange: (state: DesktopBrowserState) => void

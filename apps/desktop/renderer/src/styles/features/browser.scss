@@ -81,38 +81,6 @@
   font-weight: var(--cpx-sys-font-weight-bold);
 }
 
-.browser-annotation-form button,
-.browser-annotation-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cpx-sys-space-1);
-  border: 0;
-  border-radius: var(--cpx-sys-radius-md);
-  background: transparent;
-  color: var(--cpx-sys-color-fg-secondary);
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  font: var(--cpx-sys-type-body);
-  transition:
-    background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
-    color var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out);
-}
-
-.browser-annotation-form button:not(:disabled):hover,
-.browser-annotation-toggle:hover {
-  background: var(--cpx-sys-color-hover);
-}
-
-.browser-annotation-form button:not(:disabled):active,
-.browser-annotation-toggle:active {
-  background: var(--cpx-sys-color-selected);
-}
-
-.browser-annotation-toggle[aria-pressed='true'] {
-  background: var(--cpx-sys-color-selected);
-  color: var(--cpx-sys-color-fg-primary);
-}
-
 .browser-status-row {
   display: flex;
   align-items: center;
@@ -183,38 +151,19 @@
   }
 }
 
-.browser-annotation-bar {
+.browser-annotation-tools {
   display: flex;
-  justify-content: flex-start;
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-}
-
-.browser-annotation-form {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--cpx-sys-space-2);
-  padding: 0 var(--cpx-sys-space-3) var(--cpx-sys-space-3);
-
-  input,
-  textarea {
-    width: 100%;
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-md);
-    background: var(--cpx-sys-color-surface-raised);
-    color: var(--cpx-sys-color-fg-primary);
-    padding: var(--cpx-sys-space-2);
-    font: inherit;
-    resize: vertical;
+  padding: var(--cpx-sys-space-2);
+  border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
+  color: var(--cpx-sys-color-fg-secondary);
+  font: var(--cpx-sys-type-body-sm);
+  > span {
+    flex: 1;
+    min-width: 0;
   }
-
-  button {
-    align-self: flex-end;
-  }
-}
-
-.browser-annotation-presence {
-  flex: 0 0 auto;
-  overflow: hidden;
 }
 
 @container (max-width: 440px) {
@@ -230,7 +179,8 @@
   }
 
   .browser-navigation > :last-child,
-  .browser-toolbar-actions > :not(:first-child):not(.browser-more-trigger) {
+  .browser-toolbar-actions
+    > :not(:first-child):not(.browser-more-trigger):not(.browser-annotation-trigger) {
     display: none;
   }
 

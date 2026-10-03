@@ -157,6 +157,8 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
 } as const satisfies typeof import('@codepilotx/shared/desktop-attachment-ipc').DESKTOP_ATTACHMENT_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
+  annotation: 'desktop-browser:annotation',
+  annotationEvent: 'desktop-browser:annotation-event',
   utility: 'desktop-browser:utility',
   utilityEvent: 'desktop-browser:utility-event',
   data: 'desktop-browser:data',
@@ -280,6 +282,22 @@ type SystemThemeVariant = 'light' | 'dark'
 const pendingComposerDropPaths = new Set<string>()
 
 const desktop = {
+  performDesktopBrowserAnnotation: (
+    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationInput,
+  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationResult> =>
+    ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.annotation, input),
+  onDesktopBrowserAnnotationEvent: (
+    listener: (
+      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
+    ) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      value: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
+    ) => listener(value)
+    ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.annotationEvent, handler)
+    return () => ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.annotationEvent, handler)
+  },
   listDesktopBrowserTabs: (): Promise<DesktopBrowserSnapshot[]> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.list),
   performDesktopBrowserUtility: (

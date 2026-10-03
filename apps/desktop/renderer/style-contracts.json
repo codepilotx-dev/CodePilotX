@@ -21,6 +21,7 @@
   },
   "directStyleImportAllowlist": [
     "src/features/browser/BrowserManagementControls.tsx -> src/styles/lazy/browser-management.scss",
+    "src/features/browser/BrowserAnnotationCards.tsx -> src/styles/lazy/browser-annotations.scss",
     "src/main.tsx -> src/styles/tailwind.css",
     "src/features/pet/PetCatalogPage.tsx -> src/styles/lazy/pet-catalog.scss",
     "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
@@ -34,6 +35,7 @@
   ],
   "lazyStyleEntrypoints": {
     "src/styles/lazy/browser-management.scss": "features",
+    "src/styles/lazy/browser-annotations.scss": "features",
     "src/styles/lazy/marketplace.scss": "features",
     "src/styles/lazy/model-center.scss": "features",
     "src/styles/lazy/model-setup.scss": "features",
