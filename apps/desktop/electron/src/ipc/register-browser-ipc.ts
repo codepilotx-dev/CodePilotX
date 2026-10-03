@@ -8,6 +8,7 @@ import {
   type SetDesktopBrowserVisibleInput,
 } from '@codepilotx/shared/desktop-browser-ipc'
 import type { DesktopBrowserController } from '../browser/browser-controller.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 interface BrowserIpcDependencies {
   controller: DesktopBrowserController
@@ -215,10 +216,6 @@ function isIdentifier(value: unknown): value is string {
 
 function isUrlInput(value: unknown): value is string {
   return typeof value === 'string' && value.length >= 1 && value.length <= 8_192
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isExactRecord(value: unknown, keys: readonly string[]): value is Record<string, unknown> {

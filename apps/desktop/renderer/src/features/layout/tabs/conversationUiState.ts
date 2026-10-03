@@ -9,6 +9,7 @@ import {
   type WorkbenchTabsState,
 } from '../dock/rightDockState.js'
 import { arePathsEqual } from '../../../utils/pathUtils.js'
+import { isRecord } from '@codepilotx/shared/guards'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
@@ -607,10 +608,6 @@ function isSafePath(value: unknown, requireRelative: boolean): value is string {
 
 function toFiniteNonNegativeNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isPathInside(candidate: string, root: string): boolean {

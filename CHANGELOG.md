@@ -77,6 +77,8 @@
 
 ### Changed
 
+- [desktop] 收敛浏览器相关文件中残留的 2 份 `isRecord` 副本（`register-browser-ipc.ts`、`conversationUiState.ts`）改为引用 `@codepilotx/shared/guards`；`preload.cts` 保留本地实现，因为 preload 契约禁止从 workspace 包引入运行时值。
+
 - [repo] 收敛错误消息提取：新增 `@codepilotx/shared/errors` 的 `errorMessageOf` 与 `errorMessageOr` 作为唯一实现，renderer 与根脚本中 21 份复制实现改为引用它；3 份带硬编码兜底文案与 3 份带 `fallback` 参数的变体保留各自文案、提取逻辑复用共享实现，`useSessionState` 中未被调用的本地实现直接删除。
 
 - [desktop/renderer] 统一上下文窗口数字格式化：3 份口径互相矛盾的 `formatCompactNumber`（千位取整/一位小数、`k`/`K` 大小写不一致）合并为 `usageFormatters` 中一份，按「整数不补小数位、否则保留一位」输出 `K`/`M`；1250 这类数值由 `1K` 变为更精确的 `1.3K`，千位后缀统一为大写 `K`。
