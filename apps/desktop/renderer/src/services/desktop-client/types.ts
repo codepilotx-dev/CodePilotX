@@ -440,6 +440,16 @@ export type DesktopMiniMaxCliApi = {
   onMiniMaxCliUpdated(callback: (status: RpcResult<'minimaxCli/status'>) => void): () => void
 }
 
+export type DesktopComputerApi = {
+  getComputerState(): Promise<RpcResult<'computer/state'>>
+  discoverComputerApps(): Promise<RpcResult<'computer/apps'>>
+  configureComputer(
+    input: RpcParams<'computer/configure'>,
+  ): Promise<RpcResult<'computer/configure'>>
+  stopComputer(): Promise<RpcResult<'computer/stop'>>
+  onComputerChanged(callback: (state: RpcResult<'computer/state'>) => void): () => void
+}
+
 export type DesktopSessionGroupChangedFile = SessionGroupChangedFile
 
 export type DesktopSessionGroupStep = {
@@ -569,6 +579,7 @@ export type CodePilotXDesktopClient = DesktopApi &
   DesktopCalendarApi &
   DesktopPluginApi &
   DesktopMiniMaxCliApi &
+  DesktopComputerApi &
   DesktopSessionGroupApi &
   DesktopAttachmentApi &
   DesktopSpeechApi &

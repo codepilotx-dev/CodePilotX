@@ -115,6 +115,7 @@ import type {
   DesktopAutomationApi,
   DesktopCalendarApi,
   DesktopClientEnvironment,
+  DesktopComputerApi,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
   DesktopMiniMaxCliApi,
@@ -161,7 +162,8 @@ export function createBrowserMockDesktopClient(
   DesktopCalendarApi &
   DesktopModelProviderRefreshApi &
   DesktopPluginApi &
-  DesktopMiniMaxCliApi {
+  DesktopMiniMaxCliApi &
+  DesktopComputerApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   const visualFixture = createBrowserVisualFixture()
   const performanceFixture = createBrowserPerformanceFixture()
@@ -232,6 +234,16 @@ export function createBrowserMockDesktopClient(
     authStatus: 'not-authenticated',
     generation: 1,
     updatedAt: Date.now(),
+  }
+
+  let mockComputerState: RpcResult<'computer/state'> = {
+    enabled: false,
+    available: false,
+    ownerThreadId: null,
+    ownerTurnId: null,
+    targetName: null,
+    busy: false,
+    permissions: [],
   }
 
   const provider = {
@@ -696,6 +708,32 @@ export function createBrowserMockDesktopClient(
       return mockMiniMaxCliStatus
     },
     onMiniMaxCliUpdated: () => () => {},
+    getComputerState: async () => mockComputerState,
+    discoverComputerApps: async () => ({ apps: [] }),
+    configureComputer: async (input) => {
+      mockComputerState = {
+        ...mockComputerState,
+        ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+        ...(input.decision && input.appId
+          ? {
+              permissions:
+                input.decision === 'remove'
+                  ? mockComputerState.permissions.filter(
+                      (permission) => permission.appId !== input.appId,
+                    )
+                  : [
+                      ...mockComputerState.permissions.filter(
+                        (permission) => permission.appId !== input.appId,
+                      ),
+                      { appId: input.appId, name: input.appId, decision: input.decision },
+                    ],
+            }
+          : {}),
+      }
+      return mockComputerState
+    },
+    stopComputer: async () => ({ ok: true }),
+    onComputerChanged: () => () => {},
     listSkillsCatalog: async (options) => ({
       skills: [],
       page: options?.page ?? 0,

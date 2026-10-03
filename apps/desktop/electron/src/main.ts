@@ -61,6 +61,8 @@ import {
   normalizeDesktopThreadDeepLinkPayload,
 } from '@codepilotx/shared/desktop-deep-link-ipc'
 import { DesktopBrowserController } from './browser/browser-controller.js'
+import { DesktopComputerController } from './computer/desktop-computer-controller.js'
+import { resolveCpxCuaExecutable } from './computer/cpx-cua-runtime.js'
 import {
   registerMicrophoneIpc,
   WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL,
@@ -105,6 +107,7 @@ let dataLocationLaunch: DataLocationLaunch | undefined
 let terminalManager: TerminalManager | undefined
 let terminalHost: TerminalHostRpcClient | undefined
 let browserController: DesktopBrowserController | undefined
+let computerController: DesktopComputerController | undefined
 let deepLinkController: ThreadDeepLinkController | undefined
 const rendererDeepLinkReady = new Set<number>()
 const rendererDeepLinkTracked = new Set<number>()
@@ -259,6 +262,16 @@ async function startDesktop(): Promise<void> {
     },
     logger,
   })
+  computerController = new DesktopComputerController({
+    getSupervisor: () => supervisor,
+    resolveExecutable: () =>
+      resolveCpxCuaExecutable({
+        packaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        moduleDirectory,
+      }),
+    logger,
+  })
 
   const clipboardService = createDesktopClipboardService({
     adapter: {
@@ -386,13 +399,18 @@ async function startDesktop(): Promise<void> {
       }
       guard.assertCurrent()
       activeWindows.showApplication()
+      void computerController?.ensure()
     },
     onReconnecting: () => {
       rendererDeepLinkReady.clear()
       browserController?.suspendAll()
+      computerController?.invalidate()
       windows?.showReconnectWindow()
     },
-    onBeforeReconnect: () => terminalHost?.invalidate(),
+    onBeforeReconnect: () => {
+      terminalHost?.invalidate()
+      computerController?.invalidate()
+    },
     isRelocating: () => Boolean(dataLocationLaunch?.relocation),
     onTerminalFailure: (error, kind) => {
       if (kind === 'installation') {
@@ -460,6 +478,7 @@ app.on('before-quit', (event) => {
   void orchestrateDesktopQuit({
     stopRuntime: () => {
       browserController?.dispose()
+      computerController?.dispose()
       disposeDeepLinkController()
       return stopTerminalsBeforeSupervisor({
         manager: terminalManager,

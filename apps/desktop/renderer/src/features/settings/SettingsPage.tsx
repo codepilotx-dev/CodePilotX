@@ -4,6 +4,7 @@ import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { AppearanceSettings } from './AppearanceSettings.js'
 import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
 import { BrowserSettings } from './BrowserSettings.js'
+import { ComputerSettings } from './ComputerSettings.js'
 import { ConfigSettings } from './ConfigSettings.js'
 import { EnvironmentSettings } from './EnvironmentSettings.js'
 import { GeneralSettings } from './GeneralSettings.js'
@@ -72,6 +73,7 @@ export function SettingsPage({
   else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />
   else if (resolvedTab === 'billing') content = <UsageBillingSettings />
   else if (resolvedTab === 'browser') content = <BrowserSettings />
+  else if (resolvedTab === 'computer') content = <ComputerSettings />
   else if (resolvedTab === 'dependencies')
     content = <WorkspaceDependenciesSettings onError={onError} onNotice={onNotice} />
   else content = <GeneralSettings onNotice={onNotice} />

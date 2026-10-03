@@ -164,6 +164,7 @@ export const RENDERER_CAPABILITIES = [
   'automation.manage.v1',
   'calendar.manage.v1',
   'session-group.v1' as ProtocolCapability,
+  'computer.use.v1' as ProtocolCapability,
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -188,6 +189,7 @@ import type {
   DesktopCalendarApi,
   DesktopAttachmentApi,
   DesktopClientEnvironment,
+  DesktopComputerApi,
   DesktopLocalContextApi,
   DesktopModelProviderRefreshApi,
   DesktopMiniMaxCliApi,
@@ -211,6 +213,7 @@ export function createAgentSessionDesktopClient(
     DesktopModelProviderRefreshApi &
     DesktopPluginApi &
     DesktopMiniMaxCliApi &
+    DesktopComputerApi &
     DesktopCalendarApi,
   allowBrowserMockFallback: boolean,
 ): CodePilotXDesktopClient {
@@ -1575,6 +1578,25 @@ export function createAgentSessionDesktopClient(
     return agentMiniMaxCliApiPromise
   }
 
+  type AgentComputerApi = ReturnType<
+    (typeof import('./agent-computer-api.js'))['createAgentComputerApi']
+  >
+  let agentComputerApiPromise: Promise<AgentComputerApi> | null = null
+  const loadAgentComputerApi = (): Promise<AgentComputerApi> => {
+    agentComputerApiPromise ??= import('./agent-computer-api.js').then((module) =>
+      module.createAgentComputerApi({
+        mockClient,
+        requireAgentCapability,
+        rpc: {
+          call: rpc.call,
+          subscribeEnvelope: subscribeGlobalEventEnvelopes,
+        },
+        withAgentOrMock,
+      }),
+    )
+    return agentComputerApiPromise
+  }
+
   type AgentProviderCredentialApi = ReturnType<
     (typeof import('./agent-provider-credential-api.js'))['createAgentProviderCredentialApi']
   >
@@ -1995,6 +2017,23 @@ export function createAgentSessionDesktopClient(
       void loadAgentMiniMaxCliApi().then((api) => {
         if (disposed) return
         dispose = api.onMiniMaxCliUpdated(callback)
+      })
+      return () => {
+        disposed = true
+        dispose()
+      }
+    },
+    getComputerState: () => loadAgentComputerApi().then((api) => api.getComputerState()),
+    discoverComputerApps: () => loadAgentComputerApi().then((api) => api.discoverComputerApps()),
+    configureComputer: (input) =>
+      loadAgentComputerApi().then((api) => api.configureComputer(input)),
+    stopComputer: () => loadAgentComputerApi().then((api) => api.stopComputer()),
+    onComputerChanged: (callback) => {
+      let disposed = false
+      let dispose = () => {}
+      void loadAgentComputerApi().then((api) => {
+        if (disposed) return
+        dispose = api.onComputerChanged(callback)
       })
       return () => {
         disposed = true

@@ -31,6 +31,7 @@ import {
   Hand,
   ListChecks,
   MessageSquare,
+  MonitorSmartphone,
   MessageSquarePlus,
   MessagesSquare,
   Paperclip,
@@ -80,6 +81,8 @@ import { ModelPickerPopover } from './ModelPickerPopover.js'
 import { ModelSelectTrigger } from './ModelSelectTrigger.js'
 import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPopover.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
+import { ComputerControlChip } from './ComputerControlChip.js'
+import { useComputerState } from './useComputerState.js'
 import type { ComposerEditorHandle, ComposerEditorProps } from './ComposerEditor.js'
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
@@ -221,6 +224,7 @@ type Props = {
   onCloneGithub?: () => void
   onClearWorkspace: () => void
   onOpenMcpSettings?: () => void
+  onOpenComputerSettings?: () => void
   onOpenModelSettings?: () => void
   onOpenSideChat?: () => void
   onForkConversation?: () => void
@@ -279,6 +283,10 @@ const ComposerEditor = lazy(async () => {
 const ComposerAttachmentTray = lazy(async () => {
   const module = await import('./ComposerAttachmentTray.js')
   return { default: module.ComposerAttachmentTray }
+})
+const BrowserAnnotationDraftCards = lazy(async () => {
+  const module = await import('../../browser/BrowserAnnotationCards.js')
+  return { default: module.BrowserAnnotationDraftCards }
 })
 const ComposerDictationControl = lazy(async () => {
   const module = await import('./ComposerDictationControl.js')
@@ -342,6 +350,7 @@ export function ComposerCard({
   onCloneGithub,
   onClearWorkspace,
   onOpenMcpSettings,
+  onOpenComputerSettings,
   onOpenModelSettings,
   onOpenSideChat,
   onForkConversation,
@@ -670,6 +679,7 @@ export function ComposerCard({
     [branchName, branches, onStartReview],
   )
 
+  const { state: computerState, supported: computerSupported } = useComputerState()
   const mentionMenuItems = useMemo((): ComposerMenuItem[] => {
     if (!activeContextRequest) return []
     const insertReference = (kind: 'thread' | 'browser', label: string, value: string): void => {
@@ -697,6 +707,57 @@ export function ComposerCard({
       onSelect: () =>
         insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
     }))
+    if (onOpenComputerSettings && computerSupported) {
+      items.push(
+        {
+          key: 'computer:use',
+          section: '电脑控制',
+          label: '使用电脑控制',
+          description: !computerState?.enabled
+            ? '请先在电脑控制设置中开启功能。'
+            : !computerState.available
+              ? 'Windows 原生运行时尚未就绪，请查看设置。'
+              : permissionMode === 'full-access'
+                ? '完全访问（never）不弹授权框；请先在应用授权中手动允许目标应用。'
+                : '需要开启功能；首次读取或操作应用会请求授权。',
+          icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
+          matchText: 'computer 电脑 控制 应用 窗口',
+          onSelect: () => {
+            editorRef.current?.replaceTextRange(
+              activeContextRequest.start,
+              activeContextRequest.end,
+              '使用电脑控制读取并操作已运行应用：',
+            )
+            closeDropdown()
+          },
+        },
+        {
+          key: 'computer:settings',
+          section: '电脑控制',
+          label: '电脑控制设置与应用授权',
+          description: '开启功能、发现已运行应用并手动授权。',
+          icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
+          matchText: 'computer 电脑 控制 设置 应用 授权',
+          onSelect: () => {
+            closeDropdown()
+            onOpenComputerSettings()
+          },
+        },
+      )
+      if (permissionMode === 'full-access')
+        items.push({
+          key: 'computer:approval',
+          section: '电脑控制',
+          label: '切换为允许授权询问',
+          description: '将此聊天权限切换为默认模式，允许首次应用授权请求。',
+          icon: <ShieldCheck size={APP_ICON_SIZE} />,
+          matchText: 'computer 电脑 授权 询问 权限',
+          onSelect: () => {
+            onPermissionChange('default')
+            closeDropdown()
+          },
+        })
+    }
     if (browserContext) {
       items.push({
         key: 'browser:current',
@@ -797,6 +858,11 @@ export function ComposerCard({
     contextEntriesError,
     contextEntriesLoading,
     contextTasks,
+    onOpenComputerSettings,
+    computerSupported,
+    computerState,
+    onPermissionChange,
+    permissionMode,
     onAddFilePaths,
     workspace,
   ])
@@ -1055,6 +1121,9 @@ export function ComposerCard({
             />
           </Suspense>
         ) : null}
+        <Suspense fallback={null}>
+          <BrowserAnnotationDraftCards draftKey={draftKey} />
+        </Suspense>
         <div
           className="composer-input tw:flex tw:min-w-0 tw:items-start"
           onPointerDown={(event) => {
@@ -1482,6 +1551,8 @@ export function ComposerCard({
                 />
               </Suspense>
             ) : null}
+
+            <ComputerControlChip threadId={routedSessionId ?? null} />
           </div>
 
           <div className="toolbar-right tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">

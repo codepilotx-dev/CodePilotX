@@ -16,6 +16,9 @@ export const AGENT_LIVE_EVENT_FILTERS = {
   skills: ['skill/updated'],
   plugins: ['plugins/updated'],
   minimaxCli: ['minimaxCli/updated'],
+  // computer/changed is durable, so it arrives outside the live-only filter and
+  // is reconciled by reading computer/state.
+  computer: [],
   tooling: ['tooling/updated'],
   mcp: ['mcp/updated'],
   // session-group/changed is durable and arrives outside the live-only filter.
@@ -35,6 +38,7 @@ export const AGENT_LIVE_EVENT_FILTERS = {
     | 'skills'
     | 'plugins'
     | 'minimaxCli'
+    | 'computer'
     | 'tooling'
     | 'mcp'
     | 'sessionGroups'

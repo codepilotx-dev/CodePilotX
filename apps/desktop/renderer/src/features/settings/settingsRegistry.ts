@@ -7,6 +7,7 @@ import {
   GitBranch,
   Keyboard,
   Mic,
+  MonitorSmartphone,
   Package,
   Palette,
   Settings,
@@ -256,6 +257,18 @@ export const SETTINGS_GROUPS = [
         rows: [
           row('内置浏览器', '管理隔离的浏览器会话'),
           row('站点权限', '查看和管理网站访问权限'),
+        ],
+      },
+      {
+        id: 'computer',
+        routeId: 'computer',
+        label: '电脑控制',
+        description: '读取已运行应用的界面并执行操作',
+        icon: MonitorSmartphone,
+        rows: [
+          row('启用电脑控制', '开启后 Agent 才能发现已运行的应用'),
+          row('应用授权', '始终允许、拒绝或撤销单个应用'),
+          row('控制范围', '查看后台优先与前台升级规则'),
         ],
       },
     ],
