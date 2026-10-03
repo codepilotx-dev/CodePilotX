@@ -38,6 +38,7 @@ export type { DesktopUpdateStatus } from '@codepilotx/shared/desktop-update-ipc'
 export type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopBrowserBounds as SharedDesktopBrowserBounds,
+  DesktopBrowserSnapshot as SharedDesktopBrowserSnapshot,
   DesktopBrowserSitePermission as SharedDesktopBrowserSitePermission,
 } from '@codepilotx/shared/desktop-browser-ipc'
 import type {
@@ -470,7 +471,10 @@ export type DesktopToolchainInstallResult =
 
 export type DesktopBrowserBounds = SharedDesktopBrowserBounds
 
-export type DesktopBrowserState = {
+export type DesktopBrowserState = Pick<
+  SharedDesktopBrowserSnapshot,
+  'features' | 'device' | 'zoomFactor' | 'historyEpoch'
+> & {
   tabId?: string
   sourceThreadId?: string | null
   controlThreadId?: string | null

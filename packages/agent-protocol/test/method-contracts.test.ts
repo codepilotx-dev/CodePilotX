@@ -696,6 +696,72 @@ const browserTab = {
 } as const
 const browserHost = { windowId: 'window:1', instanceId: 'instance:1' } as const
 const fixtures = {
+  'browser/history/list': methodFixture(
+    'browser/history/list',
+    {},
+    { visits: [], nextCursor: null },
+  ),
+  'browser/history/remove': methodFixture('browser/history/remove', {}, { ok: true }),
+  'browser/downloads/list': methodFixture('browser/downloads/list', {}, { downloads: [] }),
+  'browser/downloads/remove': methodFixture('browser/downloads/remove', {}, { ok: true }),
+  'browser/preferences/get': methodFixture(
+    'browser/preferences/get',
+    {},
+    { downloadSaveMode: 'downloads' },
+  ),
+  'browser/preferences/set': methodFixture(
+    'browser/preferences/set',
+    { downloadSaveMode: 'ask' },
+    { downloadSaveMode: 'ask' },
+  ),
+  'browser/host/visit': methodFixture(
+    'browser/host/visit',
+    {
+      ...browserHost,
+      generation: 'generation:1',
+      historyEpoch: 0,
+      visit: {
+        id: 'visit:1',
+        tabId: browserTab.tabId,
+        sourceThreadId: 'thread:1',
+        url: 'https://example.test/',
+        title: '测试网页',
+        visitedAt: 1,
+      },
+    },
+    { ok: true },
+  ),
+  'browser/host/download': methodFixture(
+    'browser/host/download',
+    {
+      ...browserHost,
+      download: {
+        id: 'download:1',
+        tabId: browserTab.tabId,
+        profileId: 'profile:1',
+        runId: 'run:1',
+        fileName: 'example.txt',
+        url: 'https://example.test/file',
+        state: 'progressing',
+        receivedBytes: 0,
+        totalBytes: 100,
+        startedAt: 1,
+        updatedAt: 1,
+        resumable: false,
+      },
+    },
+    { ok: true },
+  ),
+  'browser/host/download-path': methodFixture(
+    'browser/host/download-path',
+    { ...browserHost, id: 'download:1' },
+    { filePath: null },
+  ),
+  'browser/host/download-recover': methodFixture(
+    'browser/host/download-recover',
+    { ...browserHost, profileId: 'profile:1', runId: 'run:1' },
+    { ok: true },
+  ),
   'browser/list': methodFixture('browser/list', {}, { tabs: [browserTab], permissions: [] }),
   'browser/create': methodFixture(
     'browser/create',
@@ -5456,7 +5522,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(268)
+    expect(methods).toHaveLength(278)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -5824,7 +5890,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(256)
+    expect(Object.keys(RpcMethods)).toHaveLength(262)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

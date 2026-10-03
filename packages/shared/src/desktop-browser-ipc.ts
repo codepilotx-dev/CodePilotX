@@ -1,4 +1,8 @@
 export const DESKTOP_BROWSER_IPC_CHANNELS = {
+  utility: 'desktop-browser:utility',
+  utilityEvent: 'desktop-browser:utility-event',
+  data: 'desktop-browser:data',
+  dataChanged: 'desktop-browser:data-changed',
   list: 'desktop-browser:list',
   attach: 'desktop-browser:attach',
   control: 'desktop-browser:control',
@@ -33,6 +37,10 @@ export interface DesktopBrowserSitePermission {
 }
 
 export interface DesktopBrowserSnapshot {
+  features?: { utilities: boolean; data: boolean }
+  historyEpoch?: number
+  zoomFactor?: number
+  device?: DesktopBrowserDevice
   tabId: string
   windowId?: string
   sourceThreadId?: string | null
@@ -61,6 +69,80 @@ export interface DesktopBrowserSnapshot {
 export interface DesktopBrowserTabInput {
   tabId: string
 }
+export interface DesktopBrowserDevice {
+  mode: 'desktop' | 'mobile' | 'tablet' | 'custom'
+  width: number
+  height: number
+}
+export type DesktopBrowserUtility =
+  | { action: 'find'; text: string; forward: boolean; findNext: boolean }
+  | { action: 'stopFind' }
+  | { action: 'zoom'; direction: 'in' | 'out' | 'reset' }
+  | { action: 'print'; pdf: boolean }
+  | { action: 'device'; device: DesktopBrowserDevice }
+  | { action: 'screenshot'; destination: 'copy' | 'save' | 'composer' }
+export type DesktopBrowserUtilityInput = DesktopBrowserTabInput & {
+  generation: string
+  operation: DesktopBrowserUtility
+}
+export type DesktopBrowserUtilityResult = {
+  message?: string
+  image?: { data: string; mimeType: 'image/png' }
+  requestId?: number
+}
+export type DesktopBrowserUtilityEvent = { tabId: string; generation: string } & (
+  | { kind: 'find-open' }
+  | { kind: 'find-close' }
+  | {
+      kind: 'find-result'
+      requestId: number
+      matches: number
+      activeMatchOrdinal: number
+      finalUpdate: boolean
+    }
+)
+export interface DesktopBrowserVisit {
+  id: string
+  tabId: string
+  sourceThreadId: string | null
+  url: string
+  title: string
+  visitedAt: number
+}
+export interface DesktopBrowserDownload {
+  id: string
+  tabId: string
+  profileId: string
+  runId: string
+  fileName: string
+  url: string
+  state: 'progressing' | 'paused' | 'completed' | 'cancelled' | 'interrupted'
+  receivedBytes: number
+  totalBytes: number
+  startedAt: number
+  updatedAt: number
+  resumable: boolean
+  controllable?: boolean
+}
+export type DesktopBrowserDataCategory = 'history' | 'downloads' | 'cache' | 'siteData'
+export type DesktopBrowserDataRequest =
+  | { action: 'history'; query?: string; cursor?: string }
+  | { action: 'removeHistory'; id: string }
+  | { action: 'downloads' }
+  | {
+      action: 'downloadAction'
+      id: string
+      command: 'pause' | 'resume' | 'cancel' | 'open' | 'reveal' | 'remove'
+    }
+  | { action: 'preferences'; downloadSaveMode?: 'downloads' | 'ask' }
+  | { action: 'clear'; categories: DesktopBrowserDataCategory[] }
+export type DesktopBrowserDataResult = {
+  visits?: readonly DesktopBrowserVisit[]
+  nextCursor?: string | null
+  downloads?: readonly DesktopBrowserDownload[]
+  preferences?: { downloadSaveMode: 'downloads' | 'ask' }
+  cleared?: { category: DesktopBrowserDataCategory; ok: boolean; message?: string }[]
+}
 
 export interface CreateOrRestoreDesktopBrowserInput extends DesktopBrowserTabInput {
   url?: string
@@ -80,6 +162,12 @@ export interface SetDesktopBrowserVisibleInput extends DesktopBrowserTabInput {
 }
 
 export interface DesktopBrowserIpcBridge {
+  performDesktopBrowserUtility(
+    input: DesktopBrowserUtilityInput,
+  ): Promise<DesktopBrowserUtilityResult>
+  manageDesktopBrowserData(input: DesktopBrowserDataRequest): Promise<DesktopBrowserDataResult>
+  onDesktopBrowserUtilityEvent(listener: (event: DesktopBrowserUtilityEvent) => void): () => void
+  onDesktopBrowserDataChange(listener: () => void): () => void
   listDesktopBrowserTabs(): Promise<DesktopBrowserSnapshot[]>
   attachDesktopBrowserGuest(input: {
     tabId: string

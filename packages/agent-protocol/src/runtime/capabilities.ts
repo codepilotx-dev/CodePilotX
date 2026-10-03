@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
 export const Capabilities = [
+  'browser.data.v1',
   'browser.manage.v1',
   'browser.host.v1',
   'config.manage.v1',

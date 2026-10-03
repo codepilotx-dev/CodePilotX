@@ -56,6 +56,14 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  'browser/dataChanged': defineEvent({
+    payload: Schema.Struct({ collection: Schema.Literals(['history', 'downloads']) }),
+    version: 1,
+    durability: 'durable',
+    stream: 'global',
+    capability: 'browser.data.v1',
+    reconcilesWith: 'browser/history/list',
+  }),
   'browser/changed': defineEvent({
     payload: Schema.Struct({ tabId: OpaqueIDSchema }),
     version: 1,
