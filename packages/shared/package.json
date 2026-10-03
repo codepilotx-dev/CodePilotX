@@ -21,6 +21,7 @@
     "./desktop-appearance-ipc": "./src/desktop-appearance-ipc.ts",
     "./desktop-attachment-ipc": "./src/desktop-attachment-ipc.ts",
     "./desktop-browser-ipc": "./src/desktop-browser-ipc.ts",
+    "./browser-annotation": "./src/browser-annotation.ts",
     "./desktop-clipboard-ipc": "./src/desktop-clipboard-ipc.ts",
     "./desktop-edit-ipc": "./src/desktop-edit-ipc.ts",
     "./desktop-microphone-ipc": "./src/desktop-microphone-ipc.ts",

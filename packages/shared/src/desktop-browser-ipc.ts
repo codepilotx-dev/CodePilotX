@@ -1,4 +1,18 @@
+import type {
+  BrowserAnnotation,
+  BrowserAnnotationEditor,
+  BrowserAnnotationMode,
+} from './browser-annotation.js'
+export type {
+  BrowserAnnotation,
+  BrowserAnnotationAnchor,
+  BrowserAnnotationEditor,
+  BrowserAnnotationMode,
+} from './browser-annotation.js'
+
 export const DESKTOP_BROWSER_IPC_CHANNELS = {
+  annotation: 'desktop-browser:annotation',
+  annotationEvent: 'desktop-browser:annotation-event',
   utility: 'desktop-browser:utility',
   utilityEvent: 'desktop-browser:utility-event',
   data: 'desktop-browser:data',
@@ -37,7 +51,7 @@ export interface DesktopBrowserSitePermission {
 }
 
 export interface DesktopBrowserSnapshot {
-  features?: { utilities: boolean; data: boolean }
+  features?: { utilities: boolean; data: boolean; annotations?: boolean }
   historyEpoch?: number
   zoomFactor?: number
   device?: DesktopBrowserDevice
@@ -69,6 +83,46 @@ export interface DesktopBrowserSnapshot {
 export interface DesktopBrowserTabInput {
   tabId: string
 }
+export type DesktopBrowserAnnotationOperation =
+  | {
+      action: 'start'
+      mode: BrowserAnnotationMode
+      annotations: BrowserAnnotation[]
+      editor?: BrowserAnnotationEditor
+      theme: Record<string, string>
+    }
+  | { action: 'stop' }
+  | {
+      action: 'sync'
+      mode: BrowserAnnotationMode
+      annotations: BrowserAnnotation[]
+      editor?: BrowserAnnotationEditor
+    }
+  | { action: 'capture' }
+  | { action: 'result'; error?: string }
+export type DesktopBrowserAnnotationInput = DesktopBrowserTabInput & {
+  generation: string
+  documentId: string
+  interactionId?: string
+  operation: DesktopBrowserAnnotationOperation
+}
+export type DesktopBrowserAnnotationResult = {
+  interactionId?: string
+  documentId?: string
+  image?: { data: string; mimeType: 'image/png' }
+}
+export type DesktopBrowserAnnotationEvent = {
+  tabId: string
+  generation: string
+  documentId: string
+  interactionId: string
+} & (
+  | { kind: 'editor'; editor: BrowserAnnotationEditor | null }
+  | { kind: 'save'; editor: BrowserAnnotationEditor; textOnly: boolean }
+  | { kind: 'delete'; id: string }
+  | { kind: 'invalid'; ids: string[] }
+  | { kind: 'stopped' }
+)
 export interface DesktopBrowserDevice {
   mode: 'desktop' | 'mobile' | 'tablet' | 'custom'
   width: number
@@ -162,6 +216,12 @@ export interface SetDesktopBrowserVisibleInput extends DesktopBrowserTabInput {
 }
 
 export interface DesktopBrowserIpcBridge {
+  performDesktopBrowserAnnotation(
+    input: DesktopBrowserAnnotationInput,
+  ): Promise<DesktopBrowserAnnotationResult>
+  onDesktopBrowserAnnotationEvent(
+    listener: (event: DesktopBrowserAnnotationEvent) => void,
+  ): () => void
   performDesktopBrowserUtility(
     input: DesktopBrowserUtilityInput,
   ): Promise<DesktopBrowserUtilityResult>
