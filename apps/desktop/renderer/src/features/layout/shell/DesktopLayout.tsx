@@ -47,7 +47,7 @@ import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { SidebarNavigationRail } from '../sidebar/SidebarNavigationRail.js'
 import { SidebarScheduledPane } from '../sidebar/SidebarScheduledPane.js'
-import { sidebarPaneForRoute } from '../sidebar/sidebarNavigation.js'
+import { SIDEBAR_RAIL_WIDTH, sidebarPaneForRoute } from '../sidebar/sidebarNavigation.js'
 import { useSidebarCapabilities } from '../sidebar/SidebarTopNav.js'
 import { AutomationControllerProvider } from '../../automation/AutomationControllerProvider.js'
 import { MenuBar } from '../MenuBar.js'
@@ -3199,7 +3199,7 @@ export function DesktopLayout(): React.ReactNode {
                   '--sidebar-w': modernSidebar
                     ? sidebarShell.dockedVisible
                       ? `${sidebarWidth}px`
-                      : '52px'
+                      : `${SIDEBAR_RAIL_WIDTH}px`
                     : sidebarCollapsed
                       ? '0px'
                       : `${sidebarWidth}px`,

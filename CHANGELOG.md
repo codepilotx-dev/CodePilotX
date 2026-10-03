@@ -77,6 +77,10 @@
 
 ### Changed
 
+- [repo] 统一 TypeScript 版本为精确 `5.9.3`：Electron 的 `~5.8.3` 与 `packages/shared` 的 `^5.9.3` 对齐到其余 workspace 的锁定版本，lockfile 随之移除多余的 `typescript@5.8.3` 副本。
+
+- [desktop/renderer] 图标栏收起宽度改用 `SIDEBAR_RAIL_WIDTH` 常量：`DesktopLayout` 的 `--sidebar-w` 回退值不再硬编码 `'52px'`，与 SCSS 侧由既有断言保持一致。
+
 - [material-icon-theme/renderer] 图标包按分层规则拆分：`@codepilotx/material-icon-theme` 只保留纯数据与解析（`resolve.ts`、生成的 `manifest.ts` 与 `names.ts`），去掉 `react` 与 `@types/react` 依赖并收窄 exports；React 组件、`create-icon`、`loaders` 与 16 个图标分片移入 `apps/desktop/renderer/src/features/layout/material-icons/`。同步脚本仍是唯一生成来源，改为同时输出到包内（纯数据）与 renderer（渲染产物），`sync:check` 一并校验两处并接入 CI；`FileTypeIcon` 改为懒加载本地模块，按需加载与分片行为不变。
 
 - [desktop/renderer] 图标栏宽度新增防漂移校验：侧栏测试读取 `layout-sidebar.scss` 的图标栏规则并断言其宽度等于 `SIDEBAR_RAIL_WIDTH`，SCSS 与 TS 任一侧改动不一致时立即失败。
